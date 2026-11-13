@@ -500,13 +500,16 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             <div
                 className={cn(
                     isOpen
-                        ? "w-62 h-[calc(100dvh-1rem)] md:h-[calc(100dvh-1.5rem)]"
+                        ? "w-62 h-[calc(100dvh-max(0.5rem,env(safe-area-inset-top))-max(0.5rem,env(safe-area-inset-bottom)))] md:h-[calc(100dvh-1.5rem)]"
                         : "max-md:hidden w-[46px] md:h-[calc(100dvh-1.5rem)] h-auto pointer-events-none md:pointer-events-auto",
                     // Collapsed, the ends are full semicircles. The radii are
                     // lengths, not rounded-full, so the change animates with
                     // the width.
                     isOpen ? "rounded-2xl" : "rounded-[23px]",
-                    "my-2 ml-2 mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
+                    // On a phone the sidebar's top and bottom keep clear of the
+                    // notch and the home indicator. Its left already does: the
+                    // page shell pads the safe-area side insets.
+                    "mt-[max(0.5rem,env(safe-area-inset-top))] mb-[max(0.5rem,env(safe-area-inset-bottom))] ml-2 mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
                     LIQUID_GLASS_FLOAT_CLASS,
                     "absolute z-[99] flex shrink-0 flex-col transition-[width,border-radius,transform] duration-300 motion-reduce:transition-none md:relative",
                 )}
@@ -572,7 +575,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         onPointerLeave={() => setToggleHoverSuppressed(false)}
                         aria-label={isOpen ? t("shared.appSidebar.closeSidebar") : t("shared.appSidebar.openSidebar")}
                         className={cn(
-                            "group flex h-8 w-8 shrink-0 items-center justify-center transition-[border-radius] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
+                            "group flex h-8 w-8 pointer-coarse:h-10 pointer-coarse:w-10 shrink-0 items-center justify-center transition-[border-radius] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
                             isOpen ? "rounded-md" : "rounded-[16px]",
                             !toggleHoverSuppressed && LIQUID_GLASS_HOVER_CLASS,
                         )}
@@ -609,7 +612,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 <div
                     ref={columnScroll.ref}
                     data-sidebar-column
-                    className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain"
                     style={scrollFadeMaskStyle(columnScroll.edges)}
                     data-scroll-end={columnScroll.edges.end || undefined}
                     onScroll={columnScroll.onScroll}
@@ -631,7 +634,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                         onClick={() => router.push(href)}
                                         title={!isOpen ? label : ""}
                                         className={cn(
-                                            "w-full h-8 flex items-center gap-2 px-2 py-2 rounded-md transition-colors text-left",
+                                            "w-full h-8 flex items-center gap-2 px-2 py-2 rounded-md transition-colors text-left pointer-coarse:h-11",
                                             isActive
                                                 ? `${LIQUID_GLASS_SELECTED_CLASS} text-gray-900`
                                                 : `text-gray-700 ${LIQUID_GLASS_HOVER_CLASS}`,
@@ -668,7 +671,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             <div>
                                 <button
                                     onClick={() => setProjectsCollapsed((v) => !v)}
-                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
+                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 pointer-coarse:min-h-11 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                                         shouldAnimate ? "sidebar-fade-in" : ""
                                     }`}
                                 >
@@ -778,7 +781,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     aria-expanded={!historyCollapsed}
                                     aria-controls="sidebar-history"
                                     onClick={() => setHistoryCollapsed((v) => !v)}
-                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
+                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 pointer-coarse:min-h-11 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                                         shouldAnimate ? "sidebar-fade-in" : ""
                                     }`}
                                 >
@@ -795,7 +798,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     role="region"
                                     aria-label={t("shared.appSidebar.history")}
                                     className={cn(
-                                        "min-h-0 flex-1 overflow-y-auto pb-1",
+                                        "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1",
                                         historyCollapsed && "hidden",
                                     )}
                                     style={scrollFadeMaskStyle(historyScroll.edges)}
@@ -985,7 +988,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 type="button"
                                 aria-label={t("shared.appSidebar.accountMenu")}
                                 className={cn(
-                                    "flex h-9 w-full shrink-0 items-center px-[7px] outline-none [transition:border-radius_300ms_cubic-bezier(0.4,0,0.2,1),background-color_150ms,color_150ms] focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
+                                    "flex h-9 pointer-coarse:h-11 w-full shrink-0 items-center px-[7px] outline-none [transition:border-radius_300ms_cubic-bezier(0.4,0,0.2,1),background-color_150ms,color_150ms] focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
                                     isOpen ? "rounded-xl" : "rounded-[18px]",
                                     !isOpen ? "hidden md:flex" : "",
                                     pathname.startsWith("/settings") ||

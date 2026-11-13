@@ -20,6 +20,7 @@ export * from "./TabPillButtonUI";
 export * from "./GlassIconButtonUI";
 export * from "./HeaderButtonsUI";
 export * from "./CloseButton";
+export * from "./touchTargetUI.styles";
 export * from "./ToggleSwitchUI";
 
 // Inputs

@@ -67,6 +67,19 @@ describe("LoginPage", () => {
         push.mockReset();
     });
 
+    // Lets the iPhone Keychain / Face ID offer the saved password.
+    it("tells the browser which field is the account and which the saved password", () => {
+        render(<LoginPage />);
+
+        expect(
+            screen.getByRole("textbox", { name: "Email" }),
+        ).toHaveAttribute("autocomplete", "username");
+        expect(screen.getByLabelText("Password")).toHaveAttribute(
+            "autocomplete",
+            "current-password",
+        );
+    });
+
     it("allows an existing account to submit a password shorter than the new minimum", async () => {
         login.mockResolvedValue({ user: { id: "user-1" } });
         const user = userEvent.setup();

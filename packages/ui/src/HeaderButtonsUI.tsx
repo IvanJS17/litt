@@ -8,6 +8,7 @@ import {
     LIQUID_GLASS_PRESSED_CLASS,
     LIQUID_GLASS_SUBTLE_CLASS,
 } from "./LiquidGlassUI";
+import { TOUCH_TARGET_CLASS } from "./touchTargetUI.styles";
 
 /**
  * A group of header buttons. The fill is translucent, so a caller that floats
@@ -45,10 +46,13 @@ export function headerButtonClassName({
     className?: string;
 } = {}) {
     return [
+        // 36 px visible with the finger, 44 px tappable.
+        TOUCH_TARGET_CLASS,
         "flex h-7 items-center justify-center rounded-full text-sm transition-colors disabled:cursor-default disabled:text-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-300",
         LIQUID_GLASS_HOVER_CLASS,
         LIQUID_GLASS_PRESSED_CLASS,
-        iconOnly ? "w-7" : "w-7 gap-1.5 px-0 sm:w-auto sm:px-3",
+        iconOnly ? "w-7 pointer-coarse:w-9" : "w-7 gap-1.5 px-0 sm:w-auto sm:px-3",
+        "pointer-coarse:h-9",
         disabled ? "cursor-default" : "cursor-pointer",
         "text-gray-500 hover:text-gray-900",
         className,

@@ -10,7 +10,7 @@ import {
     DropdownRadioItem,
     DropdownTrigger,
 } from "@mike/ui";
-import { textButtonUIClassName } from "@mike/ui";
+import { TOUCH_TARGET_CLASS, textButtonUIClassName } from "@mike/ui";
 import {
     getChatCredentialOptions,
     type ChatCredentialOptions,
@@ -113,7 +113,7 @@ export function ChatCredentialPicker({
                     aria-label={t("assistant.chatCredentialPicker.keyForThisConversationLabel", { label })}
                     className={textButtonUIClassName({
                         size: compact ? "icon-xs" : "xs",
-                        className: "h-7.5",
+                        className: `${TOUCH_TARGET_CLASS} h-7.5 pointer-coarse:h-9`,
                     })}
                 >
                     <KeyRound aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />

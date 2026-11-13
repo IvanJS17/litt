@@ -144,7 +144,9 @@
     border: 1px solid var(--liquid-glass-translucent-border);
 }
 
-.liquid-glass-translucent-action:hover {
-    background: var(--liquid-glass-translucent-background-action-hover);
-    box-shadow: var(--liquid-glass-shadow-translucent-action-hover);
+@media (hover: hover) and (pointer: fine) {
+    .liquid-glass-translucent-action:hover {
+        background: var(--liquid-glass-translucent-background-action-hover);
+        box-shadow: var(--liquid-glass-shadow-translucent-action-hover);
+    }
 }

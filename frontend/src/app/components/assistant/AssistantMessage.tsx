@@ -4,7 +4,7 @@ import { isStoppedEvent } from "@mike/client";
 import { useLatestRef } from "@/app/hooks/useLatestRef";
 import { useMarkdownCheckpoint } from "./message/markdownCheckpoint";
 import { createCitationPreprocessor } from "./message/citationPreprocessor";
-import { TextCardUI } from "@mike/ui";
+import { TOUCH_TARGET_CLASS, TextCardUI } from "@mike/ui";
 import { memo, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WebSource } from "@mike/contracts";
 import { Check, Copy, Download } from "lucide-react";
@@ -1073,7 +1073,7 @@ function AssistantMessageImpl({
                             aria-label={
                                 isCopied ? t("assistant.assistantMessage.responseCopied") : t("assistant.assistantMessage.copyResponse")
                             }
-                            className="-ml-1.5 p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                            className={`${TOUCH_TARGET_CLASS} -ml-1.5 p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100`}
                             onClick={handleCopy}
                         >
                             {isCopied ? (
@@ -1088,7 +1088,7 @@ function AssistantMessageImpl({
                             type="button"
                             aria-label={t("assistantExport.downloadMarkdown")}
                             title={t("assistantExport.downloadMarkdown")}
-                            className="p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                            className={`${TOUCH_TARGET_CLASS} p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100`}
                             onClick={handleDownloadMarkdown}
                         >
                             <Download className="h-3 w-3" />

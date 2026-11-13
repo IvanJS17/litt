@@ -66,6 +66,28 @@ describe("SidebarChatItem focus", () => {
     });
 });
 
+describe("SidebarChatItem actions on a touch screen", () => {
+    // A finger has no hover: the ··· cannot wait for one to show itself.
+    it("shows the actions trigger at rest, 44 px tall, when the pointer is coarse", () => {
+        render(
+            <SidebarChatItem
+                chat={chat({ is_owner: true })}
+                isActive={false}
+                onSelect={vi.fn()}
+            />,
+        );
+        const trigger = screen.getByRole("button", {
+            name: "Actions for Quarterly filing",
+        });
+        expect(trigger).toHaveClass(
+            "pointer-coarse:opacity-100",
+            "pointer-coarse:pointer-events-auto",
+            "pointer-coarse:h-11",
+            "pointer-coarse:w-11",
+        );
+    });
+});
+
 describe("SidebarChatItem role gates", () => {
     it("opens chat access from an owner's Share action", async () => {
         render(

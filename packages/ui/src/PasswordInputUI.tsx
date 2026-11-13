@@ -13,7 +13,10 @@ export function PasswordInputUI({
 }: Omit<ComponentProps<"input">, "type">) {
   const t = useTranslations();
   const [visible, setVisible] = useState(false);
-  const label = visible ? t("ui.passwordInput.hide") : t("ui.passwordInput.show");
+  // One fixed name; `aria-pressed` carries the state. A name that flips to
+  // "Hide" while the button is also "pressed" reads backwards in VoiceOver
+  // ("Hide password, on").
+  const label = t("ui.passwordInput.show");
   return (
     <div className="relative">
       <InputUI

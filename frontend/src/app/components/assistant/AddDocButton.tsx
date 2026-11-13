@@ -14,6 +14,7 @@ import {
     DropdownItem,
     DropdownSeparator,
     DropdownTrigger,
+    TOUCH_TARGET_CLASS,
 } from "@mike/ui";
 import { useTranslations } from "next-intl";
 
@@ -39,7 +40,7 @@ export function AddDocButton({
             <DropdownTrigger asChild>
                 <button
                     type="button"
-                    className="flex h-7.5 items-center gap-1 rounded-lg px-2 text-sm text-gray-400 transition-colors hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    className={`${TOUCH_TARGET_CLASS} flex h-7.5 items-center gap-1 rounded-lg px-2 text-sm text-gray-400 transition-colors hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus pointer-coarse:h-9`}
                     title={t("assistant.addDocButton.addToMessage")}
                     aria-label={t("assistant.addDocButton.addToMessage")}
                 >

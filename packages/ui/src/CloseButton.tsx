@@ -1,6 +1,7 @@
 import { useTranslations } from "use-intl";
 import { X } from "lucide-react";
 import { PillButtonUI } from "./PillButtonUI";
+import { TOUCH_TARGET_CLASS } from "./touchTargetUI.styles";
 
 export type CloseButtonSize = "sm" | "md";
 
@@ -32,7 +33,7 @@ export function CloseButton({
             onClick={onClick}
             aria-label={label ?? t("ui.closeButton.close")}
             title={label ?? t("ui.closeButton.close")}
-            className={`${classes.button} shrink-0 ${className ?? ""}`}
+            className={`${TOUCH_TARGET_CLASS} ${classes.button} shrink-0 ${className ?? ""}`}
         >
             <X aria-hidden="true" className={classes.icon} />
         </PillButtonUI>

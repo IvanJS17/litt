@@ -230,7 +230,7 @@ export function ImageCropModal({
       }}
       breadcrumbs={[isPhoto ? t("modals.account") : name, isPhoto ? t("modals.profilePhoto") : t("modals.logo")]}
       size="sm"
-      className="h-auto max-h-[calc(100vh-2rem)]"
+      className="h-auto max-h-[calc(100dvh-2rem)]"
       primaryAction={{
         label: saving ? t("modals.saving2") : t("modals.save"),
         variant: "blue",

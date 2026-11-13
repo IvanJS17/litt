@@ -59,7 +59,7 @@ export function Modal({
       breadcrumbs={breadcrumbs}
       headerAction={headerAction}
       size={size}
-      className={cn("h-[min(600px,calc(100vh-2rem))]", className)}
+      className={cn("h-[min(600px,calc(100dvh-2rem))]", className)}
       ariaLabel={
         typeof lastBreadcrumb === "string" ? lastBreadcrumb : undefined
       }

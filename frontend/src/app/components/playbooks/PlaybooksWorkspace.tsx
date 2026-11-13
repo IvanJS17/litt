@@ -1735,7 +1735,7 @@ function PlaybooksWorkspace() {
           if (busy !== "import") closeImport();
         }}
         size="sm"
-        className="h-auto max-h-[calc(100vh-2rem)]"
+        className="h-auto max-h-[calc(100dvh-2rem)]"
         breadcrumbs={[
           t("playbooks.intake.breadcrumb"),
           importTargetId ? "Replace from file" : t("playbooks.importPlaybook"),
