@@ -142,7 +142,9 @@ export function ModelToggle({
       onChange={onChange}
       models={availableModels}
       selectedLabel={selectedLabel}
-      selectedAvailable={selected !== undefined}
+      // No model chosen yet is not a missing key: the label says "Select
+      // model" and nothing is flagged until a chosen model lacks its key.
+      selectedAvailable={selected !== undefined || value === ""}
       loading={apiKeysLoading}
       compact={compact}
       tone={tone}

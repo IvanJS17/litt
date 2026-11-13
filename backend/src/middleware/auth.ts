@@ -11,6 +11,10 @@ import { requestOriginIsTrusted } from "../lib/origins";
 import { devLog, isDev } from "../lib/log";
 import { AppError } from "../lib/appError";
 import {
+  bindRequestPrincipal,
+  managedByCreatingOrg,
+} from "../lib/managedAccounts";
+import {
   reportError,
   requestRoutePattern,
   setCurrentUser,
@@ -283,7 +287,7 @@ export async function requireAuth(
 
   const { data: deletionProfile, error: deletionError } = await admin
     .from("user_profiles")
-    .select("account_deletion_requested_at")
+    .select("account_deletion_requested_at, created_by_org_id, terms_accepted_version")
     .eq("user_id", user.id)
     .maybeSingle();
   if (deletionError) {
@@ -300,7 +304,33 @@ export async function requireAuth(
     return;
   }
 
+  // Managed accounts (lib/managedAccounts.ts): read live on every request, so
+  // the firm's switch, and the person leaving the firm, apply at once. An
+  // account with no creating firm costs nothing more.
+  let personalWorkspaceDisabled = false;
+  try {
+    personalWorkspaceDisabled = await managedByCreatingOrg(
+      admin,
+      user.id,
+      (deletionProfile as { created_by_org_id?: string | null } | null)
+        ?.created_by_org_id,
+      (deletionProfile as { terms_accepted_version?: string | null } | null)
+        ?.terms_accepted_version,
+    );
+  } catch (error) {
+    // Fail closed: an unreadable verdict must not open the personal space.
+    sendInternalError(
+      res,
+      new AppError("db.query_failed", "managed account state lookup failed", {
+        cause: error,
+      }),
+    );
+    return;
+  }
+
   res.locals.userId = user.id;
+  res.locals.personalWorkspaceDisabled = personalWorkspaceDisabled;
+  bindRequestPrincipal({ userId: user.id, personalWorkspaceDisabled });
   // Baseline identity for the diagnostic scope; the report line never writes
   // the user id (lib/observability/report.ts keeps it out).
   setCurrentUser(user.id);

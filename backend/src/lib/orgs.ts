@@ -1227,7 +1227,7 @@ export async function resendInvitation(
  */
 export async function listMyInvitations(
     db: Db,
-    params: { userEmail?: string | null },
+    params: { userEmail?: string | null; userId?: string },
 ): Promise<OrgResult<{ invitations: unknown[] }>> {
     const email = normalizeEmail(params.userEmail);
     if (!email) return { ok: true, invitations: [] };
@@ -1246,9 +1246,26 @@ export async function listMyInvitations(
     const orgIds = [...new Set(rows.map((r) => r.org_id))];
     const { data: orgs } = await db
         .from("organizations")
-        .select("id, name")
+        .select("id, name, managed_accounts")
         .in("id", orgIds)
         .is("deleted_at", null);
+    // Whether accepting makes this account a managed one: the firm has the
+    // setting on and its invitation is what created the account.
+    const createdBy = params.userId
+        ? await db
+              .from("user_profiles")
+              .select("created_by_org_id")
+              .eq("user_id", params.userId)
+              .maybeSingle()
+        : null;
+    const creatingOrg =
+        (createdBy?.data as { created_by_org_id?: string | null } | null)
+            ?.created_by_org_id ?? null;
+    const managedOrgIds = new Set(
+        ((orgs ?? []) as { id: string; managed_accounts?: boolean }[])
+            .filter((o) => o.managed_accounts === true && o.id === creatingOrg)
+            .map((o) => o.id),
+    );
     const nameById = new Map(
         ((orgs ?? []) as { id: string; name: string }[]).map((o) => [
             o.id,
@@ -1266,6 +1283,7 @@ export async function listMyInvitations(
         invitations: rows.filter((r) => nameById.has(r.org_id)).map((r) => ({
             ...presentInvitation(r),
             org_name: nameById.get(r.org_id) ?? null,
+            managed_account: managedOrgIds.has(r.org_id),
             invited_by_email: r.invited_by
                 ? (profiles.get(r.invited_by)?.email ?? null)
                 : null,
@@ -1372,6 +1390,21 @@ export async function acceptInvitation(
             invitation_id: invite.id,
         },
     });
+    // The invitation screen told this person the firm manages the account it
+    // created only if the firm had the setting on when they accepted. In that
+    // case the "now managed" notice has nothing to add. If it was off, they
+    // were told nothing, and the notice must still appear when it is turned on.
+    const { data: firm } = await db
+        .from("organizations")
+        .select("managed_accounts")
+        .eq("id", invite.org_id)
+        .maybeSingle();
+    if ((firm as { managed_accounts?: boolean } | null)?.managed_accounts === true)
+        await db
+            .from("user_profiles")
+            .update({ managed_notice_seen_org_id: invite.org_id })
+            .eq("user_id", params.userId)
+            .eq("created_by_org_id", invite.org_id);
     return { ok: true, org_id: invite.org_id, role: effectiveRole };
 }
 

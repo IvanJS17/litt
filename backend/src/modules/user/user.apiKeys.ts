@@ -1,5 +1,9 @@
 // Personal settings adapters over the shared owner-aware credential capability.
 import type { Db } from "../../lib/supabase";
+import {
+    isManagedAccount,
+    PersonalWorkspaceDisabledError,
+} from "../../lib/managedAccounts";
 import type { ServiceResult } from "../../lib/serviceResult";
 import {
     getUserApiKeyStatus,
@@ -25,7 +29,7 @@ export function getApiKeyStatus(db: Db, userId: string) {
  *   Azure OpenAI, Azure AI Foundry) requires the key to be re-entered;
  * - neither removes the key and its settings.
  */
-export function saveApiKey(
+export async function saveApiKey(
     db: Db,
     params: {
         userId: string;
@@ -34,6 +38,12 @@ export function saveApiKey(
         settings?: unknown;
     },
 ): Promise<SaveApiKeyResult> {
+    // An account its firm manages saves no personal key (removing one is fine).
+    if (
+        (params.apiKey?.trim() || params.settings != null) &&
+        (await isManagedAccount(db, params.userId))
+    )
+        throw new PersonalWorkspaceDisabledError();
     return saveApiKeyForOwner(db, {
         owner: userKeyOwner(params.userId),
         provider: params.provider,
@@ -43,11 +53,13 @@ export function saveApiKey(
 }
 
 /** Toggle a saved credential without changing its encrypted value or models. */
-export function setApiKeyEnabled(
+export async function setApiKeyEnabled(
     db: Db,
     userId: string,
     provider: ApiKeyProvider,
     enabled: boolean,
 ): Promise<ServiceResult<ApiKeyStatus>> {
+    if (await isManagedAccount(db, userId))
+        throw new PersonalWorkspaceDisabledError();
     return setApiKeyEnabledFor(db, userKeyOwner(userId), provider, enabled);
 }

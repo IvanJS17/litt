@@ -21,7 +21,12 @@ const NONE: MemberDataActions = { canExport: false, canDelete: false };
  * offered and then withdrawn. The server decides each request regardless.
  */
 export function useMemberDataActions(): MemberDataActions {
-    const { workspaceId, activeOrganization } = useWorkspace();
+    const { workspaceId, activeOrganization, personalWorkspaceDisabled } =
+        useWorkspace();
+    // A firm-managed account keeps its right to download and delete what it
+    // has (Settings > Privacy & Data shows its personal export), whatever the
+    // firm lets other members do in its own workspace.
+    if (personalWorkspaceDisabled) return ALL;
     if (workspaceId === null || workspaceId === PERSONAL_WORKSPACE) return ALL;
     if (!activeOrganization) return NONE;
     if (isOrgOwner(activeOrganization.role)) return ALL;

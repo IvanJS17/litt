@@ -38,6 +38,50 @@
       "title": "Create your password",
       "toLogin": "Go to log in",
       "verifying": "Checking your invitation..."
+    },
+    "stats": {
+      "awaiting": "Haven't accepted the current terms",
+      "awaitingNote": "They count in the totals but don't appear by firm or by person until they accept.",
+      "byFirm": "By firm",
+      "byPerson": "By person",
+      "count": "Count",
+      "deletedUser": "Deleted user",
+      "deletedUsers": "Deleted users",
+      "email": "Email",
+      "feature": "Feature",
+      "features": {
+        "chats": "Chats",
+        "documents": "Documents uploaded",
+        "compared": "Comparisons",
+        "converted": "Conversions",
+        "scans": "Scan readings",
+        "split": "Case-file splits",
+        "tabular": "Tabular reviews",
+        "training": "Training exercises"
+      },
+      "firm": "Firm",
+      "firms": "Firms",
+      "heading": "Beta statistics",
+      "hint": "Counts only, for the platform administrator. They never include the content of chats or documents, prompts or keys. Each time you open this page it is recorded in the audit. Usage is counted over the last 30 days.",
+      "jurisdiction": "Jurisdiction",
+      "lastActivity": "Last activity",
+      "loadError": "We couldn't load the statistics.",
+      "members": "Members",
+      "name": "Name",
+      "noFirms": "No firms to show yet.",
+      "noPeople": "No people to show yet.",
+      "none": "—",
+      "notSet": "Not set",
+      "overview": "Overview",
+      "person": "Person",
+      "practiceArea": "Practice area",
+      "scope": "Professional setting",
+      "tab": "Beta statistics",
+      "title": "Title",
+      "usage": "Usage",
+      "usage30": "Usage, last 30 days",
+      "usage7": "Usage, last 7 days",
+      "users": "Users"
     }
   },
   "accountDeleted": {
@@ -464,7 +508,7 @@
       "mfaNetworkChanged": "Your network changed mid-verification. Start again from the login page.",
       "mfaTooManyFactors": "You already have the maximum number of authenticators. Remove one first.",
       "mfaTotpDisabled": "Authenticator apps are turned off for this workspace.",
-      "otherBrowser": "This link was opened in a different browser than the one that started sign-in. Start again from the login page.",
+      "otherBrowser": "This link must be opened in the same browser where you requested it. Open it there, or request a new one.",
       "otpExpired": "This link or code has expired. Request a new one.",
       "passwordLength": "Password must have at least {min} characters and use at most {max} UTF-8 bytes.",
       "passwordLoginDisabled": "Password login is turned off. Continue with Google or SSO instead.",
@@ -532,26 +576,30 @@
     },
     "onboarding": {
       "accept": "Accept",
-      "acceptInvitationFailed": "Could not accept this invitation. Please try again.",
+      "acceptInvitationFailed": "Could not record your answer to this invitation. Please try again.",
       "acceptName": "Accept {name}",
       "addTheDetailsWeShouldUse": "Add the details we should use across LiTT.",
       "back": "Back",
       "checkingYourInvitations": "Checking your invitations",
       "connectAModel": "Connect a model",
       "continue": "Continue",
+      "continueWithoutAnswering": "Continue without answering",
+      "decline": "Decline",
+      "declineName": "Decline {name}",
+      "declined": "Declined",
       "finish": "Finish",
       "finishing": "Finishing...",
       "fromInvitedByEmail": "From {invited_by_email}",
-      "invitationAcceptedFinishSetupToOpen": "Invitation accepted. Finish setup to open your organization workspace.",
-      "invitedAs": "Invited as",
+      "invitationTitle": "You have a pending invitation",
+      "invitedToJoin": "{name} invited you to join as {role}",
       "joined": "Joined",
-      "joinedAs": "Joined as",
       "loadInvitationsFailed": "Could not load your invitations.",
       "name": "Name",
       "optionallyAddYourProfessionalSettingPrimary": "Optionally add your professional setting, primary jurisdiction, and the areas you work in.",
       "organisation": "Organisation",
       "organizationFallback": "Organization",
       "organizationInvitations": "Organization invitations",
+      "ownKeysOptional": "Your own keys (optional)",
       "pleaseTryAgain": "Please try again.",
       "refreshInvitations": "Refresh invitations",
       "saveDetailsAction": "save your details",
@@ -560,13 +608,13 @@
       "skip": "Skip",
       "stepAddKey": "Add an API key for at least one provider to start using LiTT. Your key also works in an organization for any provider it has not set up, unless its owners turn that off. You can add or change keys later in Settings.",
       "stepDeployment": "This deployment already provides models, so you can finish now. A key you add here replaces the deployment's for your Personal workspace.",
-      "stepJoined": "You joined {name}, and its models are available there, so you can finish now. {ownKeys, select, allowed {Your own keys work in your Personal workspace and, in {name}, for any provider it has not set up.} other {{name} runs on its own keys only, so keys you add here are for your Personal workspace.}}",
+      "stepJoined": "{name} already gives you models; you can add your own if you like. Your own keys are only used in {name} for providers the firm has not set up, and always in your Personal workspace. If you do not need them, use Skip.",
+      "stepJoinedNoModels": "{name} has no models set up yet. Add an API key for at least one provider to work in {name}, or ask a firm administrator to set up the firm's. You can change them later in Settings.",
       "stepKeySaved": "Your key is saved. Add more providers now, or change them later in Settings.",
       "stepOf": "Step {step} of {total}",
       "tellUsAboutYou": "Tell us about you",
       "tryAgain": "Try again",
       "unableToFinishSetup": "Unable to finish setup",
-      "youHaveNoPendingInvitationsYou": "You have no pending invitations. You can join an organization later from Settings.",
       "yourLegalPractice": "Your legal practice"
     },
     "resetPassword": {
@@ -966,6 +1014,7 @@
       "ocr_too_large": "This document is too large to read.",
       "ocr_unavailable": "LandingAI isn’t available right now. Try again in a moment.",
       "org_creation_restricted": "Creating an organization needs an invitation.",
+      "personal_workspace_disabled": "Your firm manages this account: it has no personal workspace. Work in the firm’s workspace.",
       "platform_admin_required": "Only platform administrators can do this.",
       "platform_invitation_pending": "This email already has a pending invitation.",
       "playbook_change_decided": "This change has already been decided. Reload the proposed changes.",
@@ -1080,6 +1129,11 @@
     "upstream": {
       "schema_out_of_date": "The server's database needs an update before this can load. Please contact your administrator.",
       "upstream_unavailable": "The server is temporarily unreachable. Please try again shortly."
+    },
+    "action": {
+      "loadMoreChats": "load more chats",
+      "loadYourChats": "load your chats",
+      "startNewChat": "start a new chat"
     }
   },
   "history": {
@@ -1117,6 +1171,8 @@
         "invitationSent": "Invitation sent",
         "logoRemoved": "Logo removed",
         "logoUpdated": "Logo updated",
+        "managedAccountsDisabled": "Managed accounts turned off",
+        "managedAccountsEnabled": "Managed accounts turned on",
         "memberDataDeletionAllowed": "Member data deletion allowed",
         "memberDataDeletionTurnedOff": "Member data deletion turned off",
         "memberDeparted": "Member departed",
@@ -1385,6 +1441,14 @@
     "searchTemplates": "Search templates...",
     "templates": "Templates"
   },
+  "managedAccount": {
+    "title": "Account managed by {firm}",
+    "body": "{firm} manages the accounts it creates by invitation. With this account you can only use {firm}'s workspace and its keys; you won't have a personal workspace. What you do stays in the firm's workspace, even if you leave. If you leave {firm}, your account will have a personal workspace again.",
+    "termsLink": "See section 5.5 of the Terms",
+    "nowManaged": "{firm} now manages your account: you can only use {firm}'s workspace and its keys. What you had in your personal workspace was not deleted. You'll see it again if you leave {firm}, and you can download it in Settings.",
+    "dismiss": "Dismiss",
+    "noPersonalWorkspace": "{firm} manages your account; you don't have a personal workspace."
+  },
   "markdownDocument": {
     "cancel": "Cancel",
     "conflict": "Someone saved another version; reload to see the changes.",
@@ -1553,6 +1617,12 @@
     "youCannotShareThisWithYourself": "You cannot share this with yourself.",
     "zoom": "Zoom",
     "zoomOutToKeepTheWhole": "Zoom out to keep the whole image, or in on the part that reads best small."
+  },
+  "orgSettings": {
+    "managedAccounts": {
+      "label": "Firm-managed accounts",
+      "help": "Accounts created by invitation from {firm} won't have a personal workspace: they'll only use the firm's workspace and keys. People who already had an account before the invitation are not affected. Any personal content they had is not deleted, but its owner can't open it while in the firm. We'll notify those people. The firm is responsible for this setting."
+    }
   },
   "organizations": {
     "auditLog": "Audit log",
@@ -1895,13 +1965,14 @@
       "allowMembersOwnKeys2": "Allow members' own keys",
       "availableProviders": "Available Providers",
       "everyProviderHasAKeySaved": "Every provider has a key saved.",
+      "firmScope": "These keys belong to the firm {name}. They are used when you work in its workspace, not in your personal workspace.",
       "loadError": "The organization's model providers could not be loaded.",
       "membersOwnKeys": "Members’ Own Keys",
       "nameProvider": "{name} provider",
       "noProvidersYetAddAnApi": "No providers yet. Add an API key to one of the providers below.",
       "off": "Off",
       "on": "On",
-      "organizationProviders": "Organization Providers",
+      "organizationProviders": "Firm keys ({name})",
       "policyError": "The setting could not be updated. Please try again.",
       "providerUpdateFailed": "Provider update failed",
       "thisOrganizationHasNotSetUp": "This organization has not set up a model provider yet.",
@@ -2860,6 +2931,12 @@
       "youCantChangeYourEmailThis": "You can’t change your email this often. Wait a few minutes before trying again.",
       "yourAccountWasCreatedWithGoogle": "Your account was created with Google. To change your email, first add a password in Settings > Security > Password."
     },
+    "keyScope": {
+      "personalHeading": "My personal keys",
+      "personal": "These keys are yours and apply to your personal workspace.",
+      "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
+      "blocked": "{name} gives you the models; your firm does not allow your own keys."
+    },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
       "settings": "Settings",
@@ -2869,6 +2946,7 @@
         "byok": "Bring Your Own Keys",
         "connectors": "Connectors",
         "features": "Features",
+        "firmKeys": "Firm keys",
         "memory": "Memory",
         "models": "Model Preferences",
         "myActivity": "My Activity",
@@ -2961,8 +3039,7 @@
       "providerUpdateFailed": "Provider update failed",
       "savedProviders": "Saved Providers",
       "theProviderCouldNotBeUpdated": "The provider could not be updated. Please try again.",
-      "useName": "Use {name}",
-      "yourKeysRunYourWork": "Your keys run your work in your Personal workspace. In an organization its own keys come first, and yours cover any provider it has not set up, unless its owners turn members’ own keys off."
+      "useName": "Use {name}"
     },
     "personalisation": {
       "practiceAreas": "Practice areas",
@@ -2970,6 +3047,33 @@
       "yourBackground": "Your background"
     },
     "personalisationFields": {
+      "areas": {
+        "arbitration": "Arbitration",
+        "bankingAndFinance": "Banking and Finance",
+        "capitalMarkets": "Capital Markets",
+        "competitionAndAntitrust": "Competition and Antitrust",
+        "corporateAndMa": "Corporate and M&A",
+        "dataProtectionAndPrivacy": "Data Protection and Privacy",
+        "disputeResolution": "Dispute Resolution",
+        "employment": "Employment",
+        "energyAndNaturalResources": "Energy and Natural Resources",
+        "familyLaw": "Family Law",
+        "financialRegulation": "Financial Regulation",
+        "fundsAndAssetManagement": "Funds and Asset Management",
+        "immigration": "Immigration",
+        "insolvencyAndRestructuring": "Insolvency and Restructuring",
+        "insurance": "Insurance",
+        "intellectualProperty": "Intellectual Property",
+        "internationalTrade": "International Trade",
+        "litigation": "Litigation",
+        "privateClient": "Private Client",
+        "privateEquityAndVentureCapital": "Private Equity and Venture Capital",
+        "projectsAndInfrastructure": "Projects and Infrastructure",
+        "publicLawAndRegulatory": "Public Law and Regulatory",
+        "realEstate": "Real Estate",
+        "tax": "Tax",
+        "technologyAndTelecommunications": "Technology and Telecommunications"
+      },
       "enterYourJurisdiction": "Enter your jurisdiction",
       "enterYourJurisdictionOfPractice": "Enter your jurisdiction of practice",
       "enterYourOtherPracticeArea": "Enter your other practice area",
@@ -2992,7 +3096,17 @@
       "selectAProfessionalSetting": "Select a professional setting",
       "selectATitle": "Select a title",
       "selectPracticeAreas": "Select practice areas",
-      "title": "Title"
+      "title": "Title",
+      "titles": {
+        "partner": "Partner",
+        "seniorAssociate": "Senior Associate",
+        "associate": "Associate",
+        "lawClerk": "Law Clerk",
+        "counsel": "Counsel",
+        "generalCounsel": "General Counsel",
+        "legalCounsel": "Legal Counsel",
+        "other": "Other"
+      }
     },
     "privacyData": {
       "actions": {
@@ -3156,6 +3270,8 @@
       "couldNotUpdate": "turn scan reading on or off",
       "disclaimer": "When it is on, every scanned PDF you upload is sent in full to LandingAI, in the United States, to extract its text with your key or your firm's, and that text is saved in LiTT. LandingAI charges your account directly, about USD 0.01 per page at its rates. If your plan has no zero data retention (offered only on the Team and Enterprise plans), LandingAI may keep your documents and use them to improve its products and train its models; with zero data retention, it deletes them when it finishes and does not use them for training. LandingAI is a third party that you choose and contract, so LiTT does not control and is not responsible for how it handles your documents: check its terms before you send it client documents. It is optional: if you leave it off, LiTT does not read scans, and you can upload a PDF that has already been through OCR, using your scanner's searchable-PDF option or a PDF program.",
       "enable": "Turn on scan reading with LandingAI",
+      "firmConfigured": "{name} has set up scan reading with LandingAI. You can't add your own key.",
+      "firmNotConfigured": "{name} has not set up scan reading with LandingAI. Ask its owners or admins to add a key.",
       "getKey": "To use it, create an account and an API key with LandingAI:",
       "keyDocsLink": "How to get an API key",
       "keyLabel": "LandingAI API key",
@@ -3519,6 +3635,7 @@
     "appSidebar": {
       "accountMenu": "Account menu",
       "closeSidebar": "Close sidebar",
+      "firmWorkspace": "Firm: {name}",
       "history": "History",
       "loadMoreProjects": "load more projects",
       "loadYourRecentProjects": "load your recent projects",
@@ -3534,6 +3651,7 @@
       "noProjectsYet": "No projects yet",
       "openSidebar": "Open sidebar",
       "organization": "Organization",
+      "personalWorkspace": "My personal workspace",
       "recentProjects": "Recent Projects",
       "settings": "Settings",
       "signOut": "Sign out",
@@ -5442,6 +5560,10 @@
       "dismissNotification": "Dismiss notification"
     },
     "numberedList": "Numbered list",
+    "passwordInput": {
+      "hide": "Hide password",
+      "show": "Show password"
+    },
     "playbookPill": {
       "openPlaybookTitle": "Open playbook {title}",
       "removePlaybookTitle": "Remove playbook {title}"

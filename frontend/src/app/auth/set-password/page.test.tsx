@@ -46,7 +46,7 @@ describe("SetPasswordPage", () => {
         expect(mocks.startInviteSession).toHaveBeenCalledWith("a1", "r1");
         expect(window.location.hash).toBe("");
         expect(mocks.updateAuthPassword).toHaveBeenCalledWith("secret1234");
-        await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/onboarding/profile"));
+        await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/onboarding/invitations"));
     });
 
     it("says the link is unavailable when there is no usable session", async () => {

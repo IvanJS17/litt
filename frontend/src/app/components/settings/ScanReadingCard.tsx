@@ -35,6 +35,8 @@ export function ScanReadingCard({
   onToggle,
   onSaveKey,
   onRemoveKey,
+  keyScope,
+  keyNotice,
 }: {
   /** The owner (this person, or this organization) has a key saved. */
   hasSavedKey: boolean;
@@ -47,6 +49,10 @@ export function ScanReadingCard({
   onToggle: (enabled: boolean) => void;
   onSaveKey: (value: string) => Promise<boolean>;
   onRemoveKey: () => Promise<boolean>;
+  /** Says which workspace the key applies to. */
+  keyScope?: string;
+  /** Replaces the key field: why there is no key to set here. */
+  keyNotice?: string;
 }) {
   const t = useTranslations();
   const headingId = useId();
@@ -106,10 +112,18 @@ export function ScanReadingCard({
             </span>
           ) : null}
         </SettingsRow>
-        {canManage && !loading ? (
+        {keyNotice ? (
+          <SettingsRow>
+            <SettingsDescription>{keyNotice}</SettingsDescription>
+          </SettingsRow>
+        ) : canManage && !loading ? (
           <ApiKeyField
             label={t("settings.scanReading.keyLabel")}
-            description={t("settings.scanReading.saveToTurnOn")}
+            description={
+              keyScope
+                ? `${t("settings.scanReading.saveToTurnOn")} ${keyScope}`
+                : t("settings.scanReading.saveToTurnOn")
+            }
             hasSavedKey={hasSavedKey}
             onSave={onSaveKey}
             onRemove={onRemoveKey}

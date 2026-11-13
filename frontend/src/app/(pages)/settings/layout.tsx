@@ -9,6 +9,7 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import { useOrganizationInvitationCount } from "@/app/hooks/useOrganizationInvitationCount";
 import { usePlatformMe } from "@/app/hooks/usePlatformMe";
 import { useMemberDataActions } from "@/app/hooks/useMemberDataActions";
+import { useKeyScope } from "@/app/components/settings/KeyScope";
 import {
     SettingsShell,
     type SettingsShellTab,
@@ -76,10 +77,17 @@ export default function SettingsLayout({
     const hidePrivacyData = !canExport && !canDelete;
     // Beta invitations are for platform administrators only.
     const isPlatformAdmin = usePlatformMe(user?.id)?.admin === true;
+    // Where the person's own keys do not apply, this tab shows the firm's.
+    const { personalBlocked, firmName } = useKeyScope();
+    const firmKeysTab = personalBlocked && firmName !== null;
     const visibleTabs = useMemo(
         () =>
             settingsTabs(t).filter(
                 (tab) => !(hidePrivacyData && tab.id === "privacy-data"),
+            ).map((tab) =>
+                tab.id === "byok" && firmKeysTab
+                    ? { ...tab, label: t("settings.layout.tab.firmKeys") }
+                    : tab,
             ).flatMap((tab) =>
                 // LiTT training: the firm's written criteria sit beside Formación.
                 tab.id === "training"
@@ -99,10 +107,15 @@ export default function SettingsLayout({
                                 label: t("access.beta.tab"),
                                 href: "/settings/beta-invitations",
                             },
+                            {
+                                id: "beta-stats",
+                                label: t("access.stats.tab"),
+                                href: "/settings/beta-stats",
+                            },
                         ]
                       : [tab],
             ),
-        [hidePrivacyData, isPlatformAdmin, t],
+        [hidePrivacyData, firmKeysTab, isPlatformAdmin, t],
     );
     // Search only what is listed: an entry on a hidden tab would open a page
     // the person is not offered.

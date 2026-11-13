@@ -17,6 +17,7 @@
 
 import type { NextFunction, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
+import { findPersonalWorkspaceDisabled } from "../lib/managedAccounts";
 import { handleUnhandledError } from "./internalErrorResponse";
 
 export type AsyncRoute = (
@@ -55,6 +56,8 @@ export function routerErrorHandler(tag: string) {
     // the client; this line names the router that took it. Logging first
     // produced two different labels for one failure.
     handleUnhandledError(err, req, res, next);
+    // A managed account reaching for personal content is an answer, not a fault.
+    if (findPersonalWorkspaceDisabled(err)) return;
     console.error(`${tag} unhandled route error`, err);
   };
 }

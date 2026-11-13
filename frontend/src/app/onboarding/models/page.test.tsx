@@ -12,16 +12,17 @@ const mocks = vi.hoisted(() => ({
     updateApiKeyEnabled: vi.fn(),
     listOrgs: vi.fn(),
     getOrgApiKeys: vi.fn(),
+    managed: false,
     apiKeys: {} as Record<string, { configured: boolean; enabled?: boolean; source: string | null }>,
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => mocks }));
+vi.mock("next/navigation", () => ({ useRouter: () => mocks, usePathname: () => "/onboarding/models" }));
 vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({ user: { id: "user-1" }, authLoading: false }),
 }));
 vi.mock("@/app/contexts/UserProfileContext", () => ({
     useUserProfile: () => ({
-        profile: { onboardingComplete: false, apiKeys: mocks.apiKeys, apiKeySettings: {} },
+        profile: { personalWorkspaceDisabled: mocks.managed, onboardingComplete: false, apiKeys: mocks.apiKeys, apiKeySettings: {} },
         loading: false,
         completeOnboarding: mocks.completeOnboarding,
         updateApiKey: mocks.updateApiKey,
@@ -55,6 +56,7 @@ describe("OnboardingModelsPage", () => {
         vi.clearAllMocks();
         window.localStorage.clear();
         mocks.apiKeys = noKeys();
+        mocks.managed = false;
         mocks.completeOnboarding.mockResolvedValue(true);
         mocks.updateApiKey.mockResolvedValue(true);
         mocks.listOrgs.mockResolvedValue([]);
@@ -64,7 +66,8 @@ describe("OnboardingModelsPage", () => {
     it("offers every provider and finishes onboarding without a key", async () => {
         const user = userEvent.setup();
         render(<OnboardingModelsPage />);
-        expect(screen.getByText("Step 4 of 4")).toBeVisible();
+        expect(screen.getByText("Step 3 of 3")).toBeVisible();
+        expect(screen.queryByRole("button", { name: "Skip" })).not.toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Connect a model" })).toBeVisible();
         expect(screen.getByText(DEFAULT_COPY)).toBeVisible();
         const available = screen.getByRole("region", { name: "Available Providers" });
@@ -77,6 +80,14 @@ describe("OnboardingModelsPage", () => {
         expect(mocks.completeOnboarding).toHaveBeenCalledExactlyOnceWith();
         expect(mocks.replace).toHaveBeenCalledWith("/assistant");
         expect(mocks.listOrgs).not.toHaveBeenCalled();
+    });
+
+    it("tells a firm-managed account nothing about a Personal workspace or keys of its own", () => {
+        mocks.managed = true;
+        render(<OnboardingModelsPage />);
+        expect(screen.queryByText(DEFAULT_COPY)).toBeNull();
+        expect(screen.queryByRole("region", { name: "Available Providers" })).toBeNull();
+        expect(screen.getByRole("button", { name: "Finish" })).toBeEnabled();
     });
 
     it("saves a key through the same provider dialog as settings", async () => {
@@ -107,50 +118,58 @@ describe("OnboardingModelsPage", () => {
         expect(screen.getByText(/No saved providers yet/)).toBeVisible();
     });
 
-    it("names the organization just joined when it has models", async () => {
-        window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
-        mocks.listOrgs.mockResolvedValue([{ id: "org-1", name: "Example LLP", role: "member" }]);
-        mocks.getOrgApiKeys.mockResolvedValue({ effective: { claude: true, sources: { claude: "org" } } });
-        render(<OnboardingModelsPage />);
-        expect(await screen.findByText(/You joined Example LLP, and its models are available/)).toBeVisible();
-        expect(mocks.getOrgApiKeys).toHaveBeenCalledWith("org-1");
-        expect(screen.getByRole("button", { name: "Finish" })).toBeEnabled();
-    });
-
-    it("says a joined organization also takes the person's own keys, unless it turned them off", async () => {
+    it("says the firm already gives the models, and lets the person skip their own keys", async () => {
         window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
         mocks.listOrgs.mockResolvedValue([{ id: "org-1", name: "Example LLP", role: "member" }]);
         mocks.getOrgApiKeys.mockResolvedValue({
             effective: { claude: true, sources: { claude: "org" } },
             allow_personal_api_keys: true,
         });
-        const { unmount } = render(<OnboardingModelsPage />);
-        expect(await screen.findByText(/in Example LLP, for any provider it has not set up/)).toBeVisible();
-        unmount();
-
-        mocks.getOrgApiKeys.mockResolvedValue({
-            effective: { claude: true, sources: { claude: "org" } },
-            allow_personal_api_keys: false,
-        });
+        const user = userEvent.setup();
         render(<OnboardingModelsPage />);
-        expect(await screen.findByText(/Example LLP runs on its own keys only/)).toBeVisible();
+        expect(await screen.findByText(/Example LLP already gives you models; you can add your own if you like/)).toBeVisible();
+        expect(mocks.getOrgApiKeys).toHaveBeenCalledWith("org-1");
+        expect(screen.getByRole("heading", { name: "Your own keys (optional)" })).toBeVisible();
+        expect(screen.getByText("Step 3 of 3")).toBeVisible();
+        await user.click(screen.getByRole("button", { name: "Skip" }));
+        expect(mocks.completeOnboarding).toHaveBeenCalledOnce();
+        expect(mocks.replace).toHaveBeenCalledWith("/assistant");
+        // The firm joined stays the workspace the app opens in.
+        expect(window.localStorage.getItem("mike.activeWorkspace.user-1")).toBe("org-1");
     });
 
-    it("keeps the general wording when the joined organization has no models", async () => {
+    it("says plainly when the joined firm has no models yet, and does not offer to skip", async () => {
         window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
         mocks.listOrgs.mockResolvedValue([{ id: "org-1", name: "Example LLP", role: "member" }]);
         mocks.getOrgApiKeys.mockResolvedValue({ effective: { claude: false } });
         render(<OnboardingModelsPage />);
-        await vi.waitFor(() => expect(mocks.getOrgApiKeys).toHaveBeenCalledWith("org-1"));
-        expect(screen.getByText(DEFAULT_COPY)).toBeVisible();
-        expect(screen.queryByText(/You joined/)).not.toBeInTheDocument();
+        expect(await screen.findByText(/Example LLP has no models set up yet/)).toBeVisible();
+        expect(screen.getByRole("heading", { name: "Connect a model" })).toBeVisible();
+        expect(screen.queryByRole("button", { name: "Skip" })).not.toBeInTheDocument();
     });
 
-    it("returns to invitations without completing onboarding", async () => {
+    it("keeps the general wording when the firm cannot be looked up", async () => {
+        window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
+        mocks.listOrgs.mockRejectedValue(new Error("down"));
+        render(<OnboardingModelsPage />);
+        await vi.waitFor(() => expect(mocks.listOrgs).toHaveBeenCalled());
+        expect(await screen.findByText("Step 3 of 3")).toBeVisible();
+        expect(screen.getByText(DEFAULT_COPY)).toBeVisible();
+    });
+
+    it("keeps the general wording when the stored firm is no longer listed", async () => {
+        window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
+        mocks.listOrgs.mockResolvedValue([]);
+        render(<OnboardingModelsPage />);
+        expect(await screen.findByText("Step 3 of 3")).toBeVisible();
+        expect(screen.getByText(DEFAULT_COPY)).toBeVisible();
+    });
+
+    it("returns to practice without completing onboarding", async () => {
         const user = userEvent.setup();
         render(<OnboardingModelsPage />);
         await user.click(screen.getByRole("button", { name: "Back" }));
-        expect(mocks.push).toHaveBeenCalledWith("/onboarding/invitations");
+        expect(mocks.push).toHaveBeenCalledWith("/onboarding/practice");
         expect(mocks.completeOnboarding).not.toHaveBeenCalled();
     });
 

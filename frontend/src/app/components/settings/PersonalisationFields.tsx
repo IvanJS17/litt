@@ -21,11 +21,14 @@ import {
   OTHER_JURISDICTION_OPTION,
   PRACTICE_AREA_OPTIONS,
   PRACTICE_SETTING_OPTIONS,
+  PROFESSIONAL_TITLE_LABEL_KEYS,
   PROFESSIONAL_TITLE_OPTIONS,
+  countryLabel,
+  practiceAreaLabel,
   type PracticeSetting,
   type ProfessionalTitle,
 } from "@/app/onboarding/options";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 const COMMON_PRACTICE_AREAS = PRACTICE_AREA_OPTIONS.filter(
   (area) => area !== "Other",
@@ -217,6 +220,9 @@ export function PersonalisationFields({
   ) => ReactNode;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
+  // Saved values stay the stable English identifiers; only labels are translated.
+  const areaLabel = (area: string) => practiceAreaLabel(area, t);
   const groups: Record<PersonalisationFieldGroup, ReactNode> = {
     professionalTitle: (
       <ProfileDropdown
@@ -227,7 +233,7 @@ export function PersonalisationFields({
         placeholder={t("settings.personalisationFields.selectATitle")}
         options={PROFESSIONAL_TITLE_OPTIONS.map((title) => ({
           value: title,
-          label: title,
+          label: t(PROFESSIONAL_TITLE_LABEL_KEYS[title]),
         }))}
         onChange={(value) =>
           form.setProfessionalTitle(value ? (value as ProfessionalTitle) : null)
@@ -261,11 +267,11 @@ export function PersonalisationFields({
           options={[
             ...COUNTRY_OPTIONS.map((country) => ({
               value: country,
-              label: country,
-            })),
+              label: countryLabel(country, locale),
+            })).sort((a, b) => a.label.localeCompare(b.label, locale)),
             {
               value: OTHER_JURISDICTION_OPTION,
-              label: OTHER_JURISDICTION_OPTION,
+              label: t("settings.personalisationFields.other"),
             },
           ]}
           onChange={form.setJurisdictionChoice}
@@ -329,7 +335,7 @@ export function PersonalisationFields({
                 onCheckedChange={() => form.toggleArea(area)}
                 onSelect={(event) => event.preventDefault()}
               >
-                {area}
+                {areaLabel(area)}
               </DropdownCheckboxItem>
             ))}
             <DropdownCheckboxItem
@@ -350,9 +356,9 @@ export function PersonalisationFields({
               <OptionPill
                 key={area}
                 onClick={() => form.toggleArea(area)}
-                aria-label={t("settings.personalisationFields.removeArea", { area })}
+                aria-label={t("settings.personalisationFields.removeArea", { area: areaLabel(area) })}
               >
-                {area}
+                {areaLabel(area)}
                 <X className="h-3 w-3" />
               </OptionPill>
             ))}

@@ -8,6 +8,7 @@ import { signup } from "@/app/lib/authApi";
 import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
+    PasswordInputUI,
     PillButtonUI,
     pillButtonUIClassName,
     authGlassCardUIClassName,
@@ -216,9 +217,8 @@ function SignupContent() {
                             <FieldLabel htmlFor="password">
                                 {t("auth.signup.password")}
                             </FieldLabel>
-                            <InputUI
+                            <PasswordInputUI
                                 id="password"
-                                type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder={t("auth.signup.passwordPlaceholder", { min: MIN_PASSWORD_LENGTH })}
@@ -231,9 +231,8 @@ function SignupContent() {
                             <FieldLabel htmlFor="confirmPassword">
                                 {t("auth.signup.confirmPassword")}
                             </FieldLabel>
-                            <InputUI
+                            <PasswordInputUI
                                 id="confirmPassword"
-                                type="password"
                                 value={confirmPassword}
                                 onChange={(e) =>
                                     setConfirmPassword(e.target.value)

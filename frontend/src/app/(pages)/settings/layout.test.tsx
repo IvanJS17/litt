@@ -32,6 +32,12 @@ vi.mock("@/app/hooks/useMemberDataActions", () => ({
     useMemberDataActions: () => dataActions,
 }));
 
+// Where the person's own keys do not apply, the keys tab is the firm's.
+const keyScope = vi.hoisted(() => ({ personalBlocked: false, firmName: null as string | null }));
+vi.mock("@/app/components/settings/KeyScope", () => ({
+    useKeyScope: () => keyScope,
+}));
+
 describe("SettingsLayout", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -40,6 +46,29 @@ describe("SettingsLayout", () => {
         vi.mocked(getPlatformMe).mockResolvedValue({ admin: false, can_create_org: false });
         dataActions.canExport = true;
         dataActions.canDelete = true;
+        keyScope.personalBlocked = false;
+        keyScope.firmName = null;
+    });
+
+    it("names the keys tab after the firm's keys where the person's own do not apply", () => {
+        keyScope.personalBlocked = true;
+        keyScope.firmName = "Despacho Demo";
+        render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        expect(screen.getByRole("button", { name: "Firm keys" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Bring Your Own Keys" })).toBeNull();
+    });
+
+    it("keeps the personal keys tab otherwise", () => {
+        render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        expect(screen.getByRole("button", { name: "Bring Your Own Keys" })).toBeInTheDocument();
     });
 
     it("lists Privacy & Data while it has an export or a delete to offer", () => {
@@ -146,6 +175,9 @@ describe("SettingsLayout", () => {
         expect(
             screen.queryByRole("button", { name: "Beta invitations" }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Beta statistics" }),
+        ).not.toBeInTheDocument();
         unmount();
 
         vi.mocked(getPlatformMe).mockResolvedValue({ admin: true, can_create_org: true });
@@ -157,5 +189,6 @@ describe("SettingsLayout", () => {
         expect(
             await screen.findByRole("button", { name: "Beta invitations" }),
         ).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Beta statistics" })).toBeInTheDocument();
     });
 });

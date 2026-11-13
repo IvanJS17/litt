@@ -9,6 +9,7 @@ vi.mock("./observability/report", async (importOriginal) => ({
 import express from "express";
 import request from "supertest";
 import { SCHEMA_OUT_OF_DATE_MESSAGE, sendInternalError, sendUpstreamUnavailable } from "./httpError";
+import { PersonalWorkspaceDisabledError } from "./managedAccounts";
 import { resetUpstreamOutagesForTests } from "./upstreamOutage";
 import { resetSchemaOutOfDateReportsForTests } from "./schemaOutOfDate";
 
@@ -32,6 +33,24 @@ describe("sendInternalError", () => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
     resetSchemaOutOfDateReportsForTests();
+  });
+
+  it("answers a managed account's refused personal access with 403, not a reported 500", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const wrapped = new Error("could not list runs", {
+      cause: new PersonalWorkspaceDisabledError(),
+    });
+
+    const res = await request(appThatFails(wrapped)).get("/projects/p-1");
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      code: "personal_workspace_disabled",
+      detail: "Your firm manages this account: it has no personal workspace.",
+      request_id: "req-abc",
+    });
+    expect(reportError).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("answers 500 with the fixed body and logs the request id, never the query", async () => {

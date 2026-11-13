@@ -19,6 +19,8 @@ import {
     type ReactNode,
 } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
+import { useOptionalUserProfile } from "@/app/contexts/UserProfileContext";
 import {
     getOrgApiKeys,
     listOrgs,
@@ -30,6 +32,28 @@ export const PERSONAL_WORKSPACE = "personal";
 export const PERSONAL_WORKSPACE_LABEL = "Personal";
 
 const STORAGE_PREFIX = "mike.activeWorkspace.";
+
+export interface WorkspaceChoice {
+    id: string;
+    name: string;
+}
+
+/**
+ * The workspaces the person may switch between, Personal first. The single
+ * place that decides which workspaces are offered: an account whose personal
+ * space is removed (firm-managed accounts) drops the Personal entry here.
+ */
+export function workspaceChoices(
+    organizations: Org[],
+    personalWorkspaceDisabled = false,
+): WorkspaceChoice[] {
+    return [
+        ...(personalWorkspaceDisabled
+            ? []
+            : [{ id: PERSONAL_WORKSPACE, name: PERSONAL_WORKSPACE_LABEL }]),
+        ...organizations.map((org) => ({ id: org.id, name: org.name })),
+    ];
+}
 
 interface WorkspaceContextValue {
     /** Account that owns ephemeral state in this workspace. */
@@ -51,6 +75,12 @@ interface WorkspaceContextValue {
      * than on the caller's own keys.
      */
     orgApiKeys: OrgApiKeySettings | null;
+    /**
+     * The firm that created this account manages it: there is no personal
+     * workspace to be in or to switch to. Decided by the server on every
+     * request; this only keeps the screens from asking for it.
+     */
+    personalWorkspaceDisabled: boolean;
     setWorkspace: (workspaceId: string) => void;
     refreshOrganizations: () => Promise<void>;
     /** Re-read `orgApiKeys`, after they were changed in settings. */
@@ -62,6 +92,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue>({
     organizations: null,
     activeOrganization: null,
     orgApiKeys: null,
+    personalWorkspaceDisabled: false,
     setWorkspace: () => {},
     refreshOrganizations: async () => {},
     refreshOrgApiKeys: async () => {},
@@ -101,12 +132,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         workspaceId: readStoredWorkspace(userId),
     }));
     const [organizations, setOrganizations] = useState<Org[] | null>(null);
+    // Whether the first read of the organizations has ended, in either way.
+    const [organizationsSettled, setOrganizationsSettled] = useState(false);
 
     // A different account signed in under the same mounted provider: its
     // remembered workspace applies, not the previous account's.
     if (selection.userId !== userId) {
         setSelection({ userId, workspaceId: readStoredWorkspace(userId) });
         setOrganizations(null);
+        setOrganizationsSettled(false);
     }
     const storedWorkspaceId = selection.workspaceId;
 
@@ -118,9 +152,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } catch {
             // Keep whatever was known. A failed read is not evidence that the
             // caller left their organization, so the selection stands.
+            setOrganizationsSettled(true);
             return;
         }
         setOrganizations(next);
+        setOrganizationsSettled(true);
         // The remembered workspace is only as good as the membership behind
         // it. One the caller no longer belongs to falls back to Personal
         // rather than leaving every list empty — and stays there, so being
@@ -154,17 +190,43 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     // Derived as well as reset above, so the very render that learns the
     // organization is gone already asks for Personal.
-    const activeOrganization =
+    let activeOrganization =
         storedWorkspaceId === PERSONAL_WORKSPACE
             ? null
             : (organizations?.find((org) => org.id === storedWorkspaceId) ??
               null);
-    const workspaceId =
+    let workspaceId =
         storedWorkspaceId !== PERSONAL_WORKSPACE &&
         organizations !== null &&
         !activeOrganization
             ? PERSONAL_WORKSPACE
             : storedWorkspaceId;
+    // A firm-managed account has no Personal workspace (the one place this is
+    // decided on the screen): it lands in the firm's, whatever was remembered.
+    const profileState = useOptionalUserProfile();
+    const personalWorkspaceDisabled =
+        profileState?.profile?.personalWorkspaceDisabled === true;
+    if (
+        personalWorkspaceDisabled &&
+        workspaceId === PERSONAL_WORKSPACE &&
+        organizations &&
+        organizations.length > 0
+    ) {
+        activeOrganization = organizations[0];
+        workspaceId = activeOrganization.id;
+    }
+    // Nothing is listed until the workspace is certain. A remembered Personal
+    // is only good once the profile has said whether the account has one, and,
+    // when it has not, once the firm to move to is known; asking for Personal
+    // meanwhile is a request the server refuses. A failed read of either
+    // does not hold the screens back: the server still decides.
+    const profileKnown = !profileState?.loading;
+    const workspaceReady =
+        workspaceId !== PERSONAL_WORKSPACE ||
+        (profileKnown &&
+            (!personalWorkspaceDisabled ||
+                organizations !== null ||
+                organizationsSettled));
 
     useEffect(() => {
         storeWorkspace(userId, workspaceId);
@@ -239,6 +301,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             organizations,
             activeOrganization,
             orgApiKeys,
+            personalWorkspaceDisabled,
             setWorkspace,
             refreshOrganizations,
             refreshOrgApiKeys,
@@ -249,6 +312,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             organizations,
             activeOrganization,
             orgApiKeys,
+            personalWorkspaceDisabled,
             setWorkspace,
             refreshOrganizations,
             refreshOrgApiKeys,
@@ -257,7 +321,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     return (
         <WorkspaceContext.Provider value={value}>
-            {children}
+            {workspaceReady ? children : <FullScreenLoader />}
         </WorkspaceContext.Provider>
     );
 }

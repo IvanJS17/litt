@@ -1,4 +1,5 @@
 // user profile load — implementation behind the module facade.
+import { managedAccountState } from "../../lib/managedAccounts";
 import { type ApiKeyStatus } from "../../lib/providerCredentials/index";
 import { getAllUserRouterModels } from "../../lib/routerModels";
 import { errorMessage, type Db } from "./user.shared";
@@ -14,6 +15,15 @@ export async function ensureProfileRow(db: Db, userId: string) {
             { onConflict: "user_id", ignoreDuplicates: true },
         );
     return error;
+}
+
+async function profileManagedFields(db: Db, userId: string) {
+    const state = await managedAccountState(db, userId);
+    return {
+        personalWorkspaceDisabled: state.managed,
+        managedByFirmName: state.firm?.name ?? null,
+        managedNoticePending: state.noticePending,
+    };
 }
 
 export async function loadProfile(
@@ -66,7 +76,12 @@ export async function loadProfile(
     try {
         const routerModels = await getAllUserRouterModels(userId, db);
         return {
-            data: serializeProfile(routerModels, row, options.apiKeyStatus),
+            data: {
+                ...serializeProfile(routerModels, row, options.apiKeyStatus),
+                // Managed by the firm that created the account: no personal
+                // workspace (lib/managedAccounts.ts). Read live.
+                ...(await profileManagedFields(db, userId)),
+            },
             error: null,
         };
     } catch (routerModelsError) {

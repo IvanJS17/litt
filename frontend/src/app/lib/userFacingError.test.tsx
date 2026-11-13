@@ -1,6 +1,8 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastViewportUI, clearToasts } from "@mike/ui";
+import { configureClientLocale } from "@mike/client";
+import { SOURCE_LOCALE, SOURCE_MESSAGES, loadMessages } from "@litt/i18n";
 import { MikeApiError, SCHEMA_OUT_OF_DATE_MESSAGE, UPSTREAM_UNAVAILABLE_MESSAGE } from "./mikeApi";
 import {
     errorCode,
@@ -23,6 +25,26 @@ describe("userFacingApiError", () => {
         expect(userFacingApiError(error, "Fallback")).toBe(
             "The filename is required.",
         );
+    });
+
+    it("says a coded 4xx in the interface language, not in the server's English", async () => {
+        const error = new MikeApiError({
+            status: 403,
+            code: "platform_admin_required",
+            message: "Only platform administrators can do this.",
+        });
+        // The source locale keeps the server's own words.
+        expect(userFacingApiError(error, "Fallback")).toBe(
+            "Only platform administrators can do this.",
+        );
+        configureClientLocale("es-MX", await loadMessages("es-MX"));
+        try {
+            expect(userFacingApiError(error, "Fallback")).toBe(
+                "Solo los administradores de la plataforma pueden hacer esto.",
+            );
+        } finally {
+            configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
+        }
     });
 
     it("shows the intentional schema_out_of_date and upstream_unavailable messages despite the 5xx status", () => {

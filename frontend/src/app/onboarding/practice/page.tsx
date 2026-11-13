@@ -8,6 +8,13 @@ import {
     personalisationInitialValues,
     usePersonalisationFields,
 } from "@/app/components/settings/PersonalisationFields";
+import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import {
+    onboardingStepCount,
+    showsModelsStep,
+    useJoinedOrganization,
+} from "@/app/onboarding/joinedOrganization";
+import { useFinishOnboarding } from "@/app/onboarding/useFinishOnboarding";
 import { PillButtonUI } from "@mike/ui";
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -30,20 +37,30 @@ export default function OnboardingPracticePage() {
     return (
         <PracticeDetailsForm
             key={user.id}
+            userId={user.id}
             initial={personalisationInitialValues(profile)}
         />
     );
 }
 
 function PracticeDetailsForm({
+    userId,
     initial,
 }: {
+    userId: string;
     initial: ReturnType<typeof personalisationInitialValues>;
 }) {
     const t = useTranslations();
     const router = useRouter();
     const { updatePersonalisation } = useUserProfile();
     const form = usePersonalisationFields(initial);
+    const { ready, joined } = useJoinedOrganization(userId);
+    const finishing = useFinishOnboarding();
+    // Models come next, unless the firm the person joined leaves no use for
+    // keys of their own: then this is the last step.
+    const last = ready && !showsModelsStep(joined);
+    const goNext = () =>
+        last ? void finishing.finish() : router.push("/onboarding/models");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +72,10 @@ function PracticeDetailsForm({
         setError(null);
         const saved = await updatePersonalisation(details);
         if (saved) {
-            router.push("/onboarding/invitations");
+            goNext();
+            // Finishing can fail and leave the person here; opening the
+            // models step never does, so the form stays locked for it.
+            if (last) setSubmitting(false);
         } else {
             // `updatePersonalisation` already raised the notice with the
             // sentence, Retry and support; an inline line would repeat it.
@@ -88,7 +108,14 @@ function PracticeDetailsForm({
 
     return (
         <OnboardingShell
-            step={t("auth.onboarding.stepOf", { step: 2, total: 4 })}
+            step={
+                ready
+                    ? t("auth.onboarding.stepOf", {
+                          step: 2,
+                          total: onboardingStepCount(joined),
+                      })
+                    : undefined
+            }
             title={t("auth.onboarding.yourLegalPractice")}
             description={t("auth.onboarding.optionallyAddYourProfessionalSettingPrimary")}
         >
@@ -126,8 +153,8 @@ function PracticeDetailsForm({
                     <div className="flex items-center gap-4">
                         <button
                             type="button"
-                            disabled={submitting}
-                            onClick={() => router.push("/onboarding/invitations")}
+                            disabled={submitting || !ready || finishing.submitting}
+                            onClick={goNext}
                             className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-950 disabled:cursor-not-allowed disabled:text-gray-300"
                         >
                             {t("auth.onboarding.skip")}
@@ -136,13 +163,19 @@ function PracticeDetailsForm({
                             type="submit"
                             tone="black"
                             size="normal"
-                            disabled={submitting}
+                            disabled={submitting || !ready || finishing.submitting}
                         >
                             {submitting ? t("auth.onboarding.saving") : t("auth.onboarding.continue")}
                         </PillButtonUI>
                     </div>
                 </div>
             </form>
+            <WarningPopup
+                open={finishing.error}
+                onClose={finishing.dismissError}
+                title={t("auth.onboarding.unableToFinishSetup")}
+                message={t("auth.onboarding.pleaseTryAgain")}
+            />
         </OnboardingShell>
     );
 }

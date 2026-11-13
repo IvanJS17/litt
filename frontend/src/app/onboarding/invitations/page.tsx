@@ -29,38 +29,29 @@ export default function OnboardingInvitationsPage() {
 function InvitationStep({ userId }: { userId: string }) {
     const t = useTranslations();
     const router = useRouter();
-    const [invitationsBusy, setInvitationsBusy] = useState(true);
+    const [busy, setBusy] = useState(true);
+    const [loadFailed, setLoadFailed] = useState(false);
+    // The first screen after the password. Somebody with nothing waiting
+    // never sees it; somebody who declined everything carries on as a person
+    // who signed up alone ("invitations" tells the next page it was asked).
+    const next = () => router.replace("/onboarding/profile?invitations=answered");
 
     return (
-        <OnboardingShell
-            step={t("auth.onboarding.stepOf", { step: 3, total: 4 })}
-            title={t("auth.onboarding.organizationInvitations")}
-        >
+        <OnboardingShell title={t("auth.onboarding.invitationTitle")}>
             <OnboardingInvitations
                 userId={userId}
-                disabled={false}
-                onBusyChange={setInvitationsBusy}
+                onBusyChange={setBusy}
+                onAnswered={next}
+                onNone={next}
+                onLoadFailed={() => setLoadFailed(true)}
             />
-            <div className="flex items-center justify-between gap-3 pt-6">
-                <PillButtonUI
-                    type="button"
-                    tone="white"
-                    size="normal"
-                    disabled={invitationsBusy}
-                    onClick={() => router.push("/onboarding/practice")}
-                >
-                    {t("auth.onboarding.back")}
-                </PillButtonUI>
-                <PillButtonUI
-                    type="button"
-                    tone="black"
-                    size="normal"
-                    disabled={invitationsBusy}
-                    onClick={() => router.push("/onboarding/models")}
-                >
-                    {t("auth.onboarding.continue")}
-                </PillButtonUI>
-            </div>
+            {loadFailed && (
+                <div className="flex justify-end pt-6">
+                    <PillButtonUI type="button" tone="white" size="normal" disabled={busy} onClick={next}>
+                        {t("auth.onboarding.continueWithoutAnswering")}
+                    </PillButtonUI>
+                </div>
+            )}
         </OnboardingShell>
     );
 }

@@ -78,13 +78,13 @@ function emptyApiKeys() {
     };
 }
 
-function mockProfile(apiKeysDegraded: boolean) {
+function mockProfile(apiKeysDegraded: boolean, lastSelectedChatModel: string | null = "gpt-6-luna") {
     vi.mocked(useUserProfile).mockReturnValue({
         profile: {
             openRouterModels: [],
             vercelModels: [],
             openCodeGoModels: [],
-            lastSelectedChatModel: "gpt-6-luna",
+            lastSelectedChatModel,
             lastSelectedReasoningLevel: "high",
             apiKeys: emptyApiKeys(),
         },
@@ -151,6 +151,28 @@ describe("ChatInput model selection vs. a degraded profile", () => {
                 undefined,
             ),
         );
+    });
+
+    it("flags no missing key before a model is chosen: no key picker and no key lookup", async () => {
+        mockProfile(false, null);
+        render(<ChatInput onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
+
+        expect(screen.queryByRole("button", { name: /Key for this conversation/ })).toBeNull();
+        expect(getChatCredentialOptions).not.toHaveBeenCalled();
+
+        // Once a model is chosen, the key picker shows the server's default.
+        getChatCredentialOptions.mockResolvedValue({
+            provider: "openai",
+            options: [
+                { credential_ref: "org:o1:openai:v1", source: "organization" },
+                { credential_ref: "env:openai", source: "deployment" },
+            ],
+            default: "org:o1:openai:v1",
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Select test model" }));
+        expect(
+            await screen.findByRole("button", { name: "Key for this conversation: Organization key" }),
+        ).toBeInTheDocument();
     });
 
     it("keeps an existing chat on the model it was started with (LiTT)", async () => {

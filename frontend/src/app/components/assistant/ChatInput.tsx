@@ -1123,7 +1123,7 @@ function ChatInputForChatImpl(
                                     ? `${WORKFLOW_SLASH_MENU_ID}-${resolvedSlashIndex}`
                                     : undefined
                             }
-                            className="w-full resize-none text-sm overflow-x-hidden overflow-y-auto border-0 text-base p-0 bg-transparent outline-none placeholder:text-gray-400 leading-6 max-h-48"
+                            className="w-full resize-none overflow-x-hidden overflow-y-auto border-0 text-base p-0 bg-transparent outline-none placeholder:text-gray-400 leading-6 max-h-48"
                         />
                     </div>
 
@@ -1185,7 +1185,7 @@ function ChatInputForChatImpl(
                                     locked={routeFixed}
                                 />
                             )}
-                            {!chatSettingsLoading && offerCredentialChoice && !routeFixed && composerOpen && (
+                            {!chatSettingsLoading && offerCredentialChoice && !routeFixed && composerOpen && model !== "" && (
                                 <ChatCredentialPicker
                                     options={credential.options}
                                     value={credential.value}

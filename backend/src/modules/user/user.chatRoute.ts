@@ -27,6 +27,7 @@
 // Versions are assigned by the database (assign_api_key_credential_ref,
 // 20261023_15), so "read, then bump" never happens in the application.
 
+import { isManagedAccount } from "../../lib/managedAccounts";
 import type { Db } from "../../lib/supabase";
 import type { ApiKeyOrigin, Provider, UserApiKeys } from "../../lib/llm";
 import type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
@@ -212,8 +213,11 @@ export type ChatCredentialOption = {
  * pinChatRoute: a person's key only if the organization allows personal
  * keys, an organization's key only for its members (offered, never chosen
  * implicitly), the deployment's key when configured, and an operator route
- * for models that authenticate on the operator's side. `default` is what
- * pinChatRoute picks without an explicit choice (null: the user must choose).
+ * for models that authenticate on the operator's side. `default` is what the
+ * selector preselects (null: the user must choose): the person's own key, then
+ * the firm's when working in a firm, then the deployment's. The selection is
+ * sent as an explicit credential_ref, so the firm's key is chosen by the
+ * client, never substituted by the server (pinChatRoute stays explicit-only).
  * Returns null for a model the catalog does not know.
  */
 export async function listChatCredentialOptions(
@@ -244,7 +248,10 @@ export async function listChatCredentialOptions(
         : null;
     const options: ChatCredentialOption[] = [];
     let personal: string | null = null;
-    if (!args.orgId || !scope || scope.allowPersonal) {
+    if (
+        (!args.orgId || !scope || scope.allowPersonal) &&
+        !(await isManagedAccount(db, args.userId))
+    ) {
         const own = usableRow(
             await savedKey(db, { kind: "user", id: args.userId }, keyProvider),
             keyProvider,
@@ -268,7 +275,10 @@ export async function listChatCredentialOptions(
     }
     const env = envCredential(keyProvider) ? `env:${keyProvider}` : null;
     if (env) options.push({ credential_ref: env, source: "deployment" });
-    return { provider, options, default: personal ?? env };
+    // In a firm's workspace its key beats the deployment's; a person's own
+    // key (where the firm allows it) still comes first.
+    const firm = options.find((option) => option.source === "organization");
+    return { provider, options, default: personal ?? firm?.credential_ref ?? env };
 }
 
 /**
@@ -359,7 +369,9 @@ export async function pinChatRoute(
     const scope = args.orgId
         ? await loadOrgKeyScope(args.userId, args.orgId, db)
         : null;
-    const personalAllowed = !args.orgId || !scope || scope.allowPersonal;
+    const personalAllowed =
+        (!args.orgId || !scope || scope.allowPersonal) &&
+        !(await isManagedAccount(db, args.userId));
     if (personalAllowed) {
         const own = usableRow(
             await savedKey(db, { kind: "user", id: args.userId }, keyProvider),
@@ -443,6 +455,8 @@ export async function loadPinnedChatRoute(
     if (kind === "user") {
         // A person's key serves only that person, even in a shared chat.
         if (ownerId !== args.userId) return unavailable();
+        // Managed by the firm: no personal key (managedAccounts.ts).
+        if (await isManagedAccount(db, args.userId)) return unavailable();
         if (args.orgId) {
             const scope = await loadOrgKeyScope(args.userId, args.orgId, db);
             if (scope && !scope.allowPersonal) return unavailable();

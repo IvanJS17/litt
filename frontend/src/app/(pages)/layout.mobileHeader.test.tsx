@@ -48,6 +48,17 @@ beforeEach(() => {
 });
 
 describe("mobile page header", () => {
+    it("names the open workspace beside the sidebar button, even with the sidebar closed", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+
+        const header = document.querySelector('[data-slot="mobile-header"]');
+        expect(header).toHaveTextContent("My personal workspace");
+    });
+
     it("floats transparently over chat pages", () => {
         render(
             <MikeLayout>

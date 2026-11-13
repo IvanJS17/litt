@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastViewportUI, clearToasts } from "@mike/ui";
+import esMX from "../../../../packages/i18n/messages/es-MX.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 
 const { createChat, listChats } = vi.hoisted(() => ({
     createChat: vi.fn(),
@@ -77,6 +79,26 @@ describe("ChatHistoryProvider failures", () => {
                 "Couldn't load your chats",
             ),
         );
+    });
+
+    it("says it in Spanish, with no English left over, when the locale is es-MX", async () => {
+        listChats.mockRejectedValue(new Error("boom"));
+
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <ChatHistoryProvider>
+                    <Probe />
+                </ChatHistoryProvider>
+                <ToastViewportUI />
+            </IntlClientProvider>,
+        );
+
+        await waitFor(() =>
+            expect(screen.getByRole("alert")).toHaveTextContent(
+                "No fue posible cargar tus chats",
+            ),
+        );
+        expect(screen.getByRole("alert")).not.toHaveTextContent(/load your chats/);
     });
 
     it("retries the chat list from the toast", async () => {

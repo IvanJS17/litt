@@ -38,6 +38,50 @@
       "title": "Crea tu contraseña",
       "toLogin": "Ir a iniciar sesión",
       "verifying": "Verificando tu invitación…"
+    },
+    "stats": {
+      "awaiting": "No han aceptado los términos vigentes",
+      "awaitingNote": "Cuentan en los totales, pero no aparecen por despacho ni por persona hasta que acepten.",
+      "byFirm": "Por despacho",
+      "byPerson": "Por persona",
+      "count": "Cantidad",
+      "deletedUser": "Usuario eliminado",
+      "deletedUsers": "Usuarios eliminados",
+      "email": "Correo",
+      "feature": "Función",
+      "features": {
+        "chats": "Chats",
+        "documents": "Documentos subidos",
+        "compared": "Comparaciones",
+        "converted": "Conversiones",
+        "scans": "Lecturas de escaneados",
+        "split": "Separaciones de expediente",
+        "tabular": "Revisiones tabulares",
+        "training": "Ejercicios de formación"
+      },
+      "firm": "Despacho",
+      "firms": "Despachos",
+      "heading": "Estadísticas de la beta",
+      "hint": "Solo conteos, para el administrador de la plataforma. Nunca incluyen el contenido de chats ni documentos, instrucciones ni llaves. Cada vez que abres esta página queda registrado en la auditoría. El uso se cuenta en los últimos 30 días.",
+      "jurisdiction": "Jurisdicción",
+      "lastActivity": "Última actividad",
+      "loadError": "No pudimos cargar las estadísticas.",
+      "members": "Miembros",
+      "name": "Nombre",
+      "noFirms": "Todavía no hay despachos que mostrar.",
+      "noPeople": "Todavía no hay personas que mostrar.",
+      "none": "—",
+      "notSet": "Sin indicar",
+      "overview": "Vista general",
+      "person": "Persona",
+      "practiceArea": "Área de práctica",
+      "scope": "Ámbito profesional",
+      "tab": "Estadísticas de la beta",
+      "title": "Título",
+      "usage": "Uso",
+      "usage30": "Uso, últimos 30 días",
+      "usage7": "Uso, últimos 7 días",
+      "users": "Usuarios"
     }
   },
   "accountDeleted": {
@@ -464,7 +508,7 @@
       "mfaNetworkChanged": "Tu red cambió durante la verificación. Empieza de nuevo desde la página de inicio de sesión.",
       "mfaTooManyFactors": "Ya tienes el máximo de autenticadores. Quita uno primero.",
       "mfaTotpDisabled": "Las apps de autenticación están desactivadas en este espacio de trabajo.",
-      "otherBrowser": "Este enlace se abrió en un navegador distinto del que inició sesión. Empieza de nuevo desde la página de inicio de sesión.",
+      "otherBrowser": "Este enlace debe abrirse en el mismo navegador en el que lo pediste. Ábrelo ahí o pide uno nuevo.",
       "otpExpired": "Este enlace o código expiró. Pide uno nuevo.",
       "passwordLength": "La contraseña debe tener al menos {min} caracteres y ocupar como máximo {max} bytes UTF-8.",
       "passwordLoginDisabled": "El inicio de sesión con contraseña está desactivado. Continúa con Google o con SSO.",
@@ -532,26 +576,30 @@
     },
     "onboarding": {
       "accept": "Aceptar",
-      "acceptInvitationFailed": "No se pudo aceptar esta invitación. Inténtalo de nuevo.",
+      "acceptInvitationFailed": "No se pudo registrar tu respuesta a esta invitación. Inténtalo de nuevo.",
       "acceptName": "Aceptar {name}",
       "addTheDetailsWeShouldUse": "Agrega los detalles que debemos usar en todo LiTT.",
       "back": "Atrás",
       "checkingYourInvitations": "Revisando tus invitaciones",
       "connectAModel": "Conecta un modelo",
       "continue": "Continuar",
+      "continueWithoutAnswering": "Continuar sin responder",
+      "decline": "Rechazar",
+      "declineName": "Rechazar {name}",
+      "declined": "Rechazada",
       "finish": "Finalizar",
       "finishing": "Terminando…",
       "fromInvitedByEmail": "De {invited_by_email}",
-      "invitationAcceptedFinishSetupToOpen": "Invitación aceptada. Completa la configuración para abrir el espacio de trabajo de tu organización.",
-      "invitedAs": "Te invitaron como",
+      "invitationTitle": "Tienes una invitación pendiente",
+      "invitedToJoin": "{name} te invitó a unirte como {role}",
       "joined": "Te uniste",
-      "joinedAs": "Te uniste como",
       "loadInvitationsFailed": "No se pudieron cargar tus invitaciones.",
       "name": "Nombre",
       "optionallyAddYourProfessionalSettingPrimary": "Si quieres, agrega tu ámbito profesional, tu jurisdicción principal y las áreas en las que trabajas.",
       "organisation": "Organización",
       "organizationFallback": "Organización",
       "organizationInvitations": "Invitaciones a organizaciones",
+      "ownKeysOptional": "Tus propias llaves (opcional)",
       "pleaseTryAgain": "Inténtalo de nuevo.",
       "refreshInvitations": "Actualizar invitaciones",
       "saveDetailsAction": "guardar tus datos",
@@ -560,13 +608,13 @@
       "skip": "Omitir",
       "stepAddKey": "Agrega una llave de API de al menos un proveedor para empezar a usar LiTT. Tu llave también funciona en una organización para cualquier proveedor que no haya configurado, a menos que sus propietarios lo desactiven. Puedes agregar o cambiar llaves más tarde en Ajustes.",
       "stepDeployment": "La plataforma ya ofrece modelos, así que puedes terminar ahora. Una llave que agregues aquí reemplaza la de la plataforma para tu espacio de trabajo Personal.",
-      "stepJoined": "Te uniste a {name} y sus modelos están disponibles ahí, así que puedes terminar ahora. {ownKeys, select, allowed {Tus llaves propias funcionan en tu espacio de trabajo Personal y, en {name}, para cualquier proveedor que no haya configurado.} other {{name} solo funciona con sus llaves propias, así que las llaves que agregues aquí son para tu espacio de trabajo Personal.}}",
+      "stepJoined": "{name} ya te da los modelos; puedes agregar los tuyos si quieres. Tus llaves propias solo se usan en {name} para los proveedores que el despacho no tenga configurados, y siempre en tu espacio Personal. Si no las necesitas, usa «Omitir».",
+      "stepJoinedNoModels": "{name} todavía no tiene modelos configurados. Agrega una llave de API de al menos un proveedor para trabajar en {name}, o pídele a un administrador del despacho que configure las del despacho. Puedes cambiarlas más tarde en Ajustes.",
       "stepKeySaved": "Tu llave se guardó. Agrega más proveedores ahora o cámbialos más tarde en Ajustes.",
       "stepOf": "Paso {step} de {total}",
       "tellUsAboutYou": "Cuéntanos sobre ti",
       "tryAgain": "Inténtalo de nuevo",
       "unableToFinishSetup": "No se pudo completar la configuración",
-      "youHaveNoPendingInvitationsYou": "No tienes invitaciones pendientes. Puedes unirte a una organización más tarde desde Ajustes.",
       "yourLegalPractice": "Tu práctica legal"
     },
     "resetPassword": {
@@ -966,6 +1014,7 @@
       "ocr_too_large": "Este documento es demasiado grande para leerlo.",
       "ocr_unavailable": "LandingAI no está disponible por ahora. Inténtalo de nuevo en un momento.",
       "org_creation_restricted": "Crear un despacho requiere una invitación.",
+      "personal_workspace_disabled": "Tu despacho administra esta cuenta: no tiene espacio personal. Trabaja en el espacio del despacho.",
       "platform_admin_required": "Solo los administradores de la plataforma pueden hacer esto.",
       "platform_invitation_pending": "Este correo ya tiene una invitación pendiente.",
       "playbook_change_decided": "Este cambio ya se decidió. Recarga los cambios propuestos.",
@@ -1080,6 +1129,11 @@
     "upstream": {
       "schema_out_of_date": "La base de datos del servidor necesita una actualización antes de poder cargar esto. Contacta a tu administrador.",
       "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
+    },
+    "action": {
+      "loadMoreChats": "cargar más chats",
+      "loadYourChats": "cargar tus chats",
+      "startNewChat": "iniciar un chat nuevo"
     }
   },
   "history": {
@@ -1117,6 +1171,8 @@
         "invitationSent": "Invitación enviada",
         "logoRemoved": "Logotipo quitado",
         "logoUpdated": "Logotipo actualizado",
+        "managedAccountsDisabled": "Cuentas administradas desactivadas",
+        "managedAccountsEnabled": "Cuentas administradas activadas",
         "memberDataDeletionAllowed": "Borrado de datos de miembros permitido",
         "memberDataDeletionTurnedOff": "Borrado de datos de miembros desactivado",
         "memberDeparted": "Salida del miembro",
@@ -1385,6 +1441,14 @@
     "searchTemplates": "Buscar plantillas…",
     "templates": "Plantillas"
   },
+  "managedAccount": {
+    "title": "Cuenta administrada por {firm}",
+    "body": "{firm} administra las cuentas que crea por invitación. Con esta cuenta solo podrás usar el espacio de {firm} y sus llaves; no tendrás espacio personal. Lo que hagas quedará en el espacio del despacho, también si sales. Si sales de {firm}, tu cuenta tendrá de nuevo espacio personal.",
+    "termsLink": "Consulta la cláusula 5.5 de los Términos",
+    "nowManaged": "{firm} ahora administra tu cuenta: solo puedes usar el espacio de {firm} y sus llaves. Lo que tenías en tu espacio personal no se borró. Volverás a verlo si sales de {firm}, y puedes descargarlo en Ajustes.",
+    "dismiss": "Cerrar",
+    "noPersonalWorkspace": "Tu cuenta la administra {firm}; no tienes espacio personal."
+  },
   "markdownDocument": {
     "cancel": "Cancelar",
     "conflict": "Alguien guardó otra versión; recarga para ver los cambios.",
@@ -1553,6 +1617,12 @@
     "youCannotShareThisWithYourself": "No puedes compartir esto contigo mismo.",
     "zoom": "Zoom",
     "zoomOutToKeepTheWhole": "Aleja el zoom para ver la imagen completa, o acércalo a la parte que se lee mejor en tamaño pequeño."
+  },
+  "orgSettings": {
+    "managedAccounts": {
+      "label": "Cuentas administradas por el despacho",
+      "help": "Las cuentas que se crearon por invitación de {firm} no tendrán espacio personal: solo usarán el espacio y las llaves del despacho. No afecta a quien ya tenía cuenta antes de la invitación. Si alguna tenía contenido personal, no se borra, pero su titular no podrá abrirlo mientras esté en el despacho. Avisaremos a esas personas. El despacho responde de esta configuración."
+    }
   },
   "organizations": {
     "auditLog": "Registro de auditoría",
@@ -1895,13 +1965,14 @@
       "allowMembersOwnKeys2": "Permitir llaves propias de los miembros",
       "availableProviders": "Proveedores disponibles",
       "everyProviderHasAKeySaved": "Todos los proveedores tienen una llave guardada.",
+      "firmScope": "Estas llaves son del despacho {name}. Se usan cuando trabajas en su espacio, no en tu espacio personal.",
       "loadError": "No se pudieron cargar los proveedores de modelos de la organización.",
       "membersOwnKeys": "Llaves propias de los miembros",
       "nameProvider": "Proveedor {name}",
       "noProvidersYetAddAnApi": "Aún no hay proveedores. Agrega una llave de API a uno de los proveedores de abajo.",
       "off": "Desactivado",
       "on": "Activado",
-      "organizationProviders": "Proveedores de la organización",
+      "organizationProviders": "Llaves del despacho ({name})",
       "policyError": "No se pudo actualizar el ajuste. Inténtalo de nuevo.",
       "providerUpdateFailed": "Falló la actualización del proveedor",
       "thisOrganizationHasNotSetUp": "Esta organización aún no configura un proveedor de modelos.",
@@ -2860,6 +2931,12 @@
       "youCantChangeYourEmailThis": "No puedes cambiar tu correo tan seguido. Espera unos minutos antes de intentarlo de nuevo.",
       "yourAccountWasCreatedWithGoogle": "Tu cuenta se creó con Google. Para cambiar tu correo, primero agrega una contraseña en Ajustes > Seguridad > Contraseña."
     },
+    "keyScope": {
+      "personalHeading": "Mis llaves personales",
+      "personal": "Estas llaves son tuyas y aplican a tu espacio personal.",
+      "inFirm": "Estas llaves son tuyas. También se usan en el despacho {name}, pero solo para los proveedores que el despacho no tiene configurados; el despacho siempre usa primero las suyas.",
+      "blocked": "{name} te da los modelos; tu despacho no permite llaves propias."
+    },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {invitación pendiente} other {invitaciones pendientes}}",
       "settings": "Ajustes",
@@ -2869,6 +2946,7 @@
         "byok": "Llaves propias (BYOK)",
         "connectors": "Conectores",
         "features": "Funciones",
+        "firmKeys": "Llaves del despacho",
         "memory": "Memoria",
         "models": "Preferencias de modelos",
         "myActivity": "Mi actividad",
@@ -2961,8 +3039,7 @@
       "providerUpdateFailed": "Falló la actualización del proveedor",
       "savedProviders": "Proveedores guardados",
       "theProviderCouldNotBeUpdated": "No se pudo actualizar el proveedor. Inténtalo de nuevo.",
-      "useName": "Usar {name}",
-      "yourKeysRunYourWork": "Tus llaves se usan en tu espacio Personal. En una organización, sus propias llaves van primero, y las tuyas cubren cualquier proveedor que no haya configurado, a menos que sus dueños desactiven las llaves propias de los miembros."
+      "useName": "Usar {name}"
     },
     "personalisation": {
       "practiceAreas": "Áreas de práctica",
@@ -2970,6 +3047,33 @@
       "yourBackground": "Tu perfil profesional"
     },
     "personalisationFields": {
+      "areas": {
+        "arbitration": "Arbitraje",
+        "bankingAndFinance": "Banca y finanzas",
+        "capitalMarkets": "Mercado de valores",
+        "competitionAndAntitrust": "Competencia económica",
+        "corporateAndMa": "Corporativo y fusiones y adquisiciones",
+        "dataProtectionAndPrivacy": "Protección de datos personales y privacidad",
+        "disputeResolution": "Solución de controversias",
+        "employment": "Laboral",
+        "energyAndNaturalResources": "Energía y recursos naturales",
+        "familyLaw": "Derecho familiar",
+        "financialRegulation": "Regulación financiera",
+        "fundsAndAssetManagement": "Fondos y administración de activos",
+        "immigration": "Migratorio",
+        "insolvencyAndRestructuring": "Concursos mercantiles y reestructuras",
+        "insurance": "Seguros y fianzas",
+        "intellectualProperty": "Propiedad intelectual",
+        "internationalTrade": "Comercio exterior",
+        "litigation": "Litigio",
+        "privateClient": "Patrimonial y sucesiones",
+        "privateEquityAndVentureCapital": "Capital privado y capital de riesgo",
+        "projectsAndInfrastructure": "Proyectos e infraestructura",
+        "publicLawAndRegulatory": "Derecho público y regulatorio",
+        "realEstate": "Inmobiliario",
+        "tax": "Fiscal",
+        "technologyAndTelecommunications": "Tecnología y telecomunicaciones"
+      },
       "enterYourJurisdiction": "Escribe tu jurisdicción",
       "enterYourJurisdictionOfPractice": "Escribe tu jurisdicción de práctica",
       "enterYourOtherPracticeArea": "Escribe tu otra área de práctica",
@@ -2992,7 +3096,17 @@
       "selectAProfessionalSetting": "Selecciona un ámbito profesional",
       "selectATitle": "Selecciona un título",
       "selectPracticeAreas": "Selecciona áreas de práctica",
-      "title": "Título"
+      "title": "Título",
+      "titles": {
+        "partner": "Socio",
+        "seniorAssociate": "Asociado sénior",
+        "associate": "Asociado",
+        "lawClerk": "Pasante",
+        "counsel": "Consejero legal",
+        "generalCounsel": "Director jurídico",
+        "legalCounsel": "Abogado interno",
+        "other": "Otro"
+      }
     },
     "privacyData": {
       "actions": {
@@ -3156,6 +3270,8 @@
       "couldNotUpdate": "activar o desactivar la lectura de escaneados",
       "disclaimer": "Al activarla, cada PDF escaneado que subas se envía completo a LandingAI, en Estados Unidos, para extraer su texto con tu llave o la de tu despacho, y ese texto se guarda en LiTT. LandingAI cobra el servicio directamente a tu cuenta, alrededor de 0.01 USD por página según su tarifa. Si tu plan no tiene retención cero (solo existe en los planes Team y Enterprise), LandingAI puede conservar tus documentos y usarlos para mejorar sus productos y entrenar sus modelos; con retención cero, los borra al terminar y no los usa para entrenar. LandingAI es un tercero que tú eliges y contratas, así que LiTT no controla ni responde por cómo trata tus documentos: revisa sus condiciones antes de enviarle documentos de clientes. Es opcional: si no la activas, LiTT no lee escaneados, y puedes subir el PDF ya pasado por OCR con la función de PDF buscable de tu escáner o con un programa de PDF.",
       "enable": "Activar la lectura de escaneados con LandingAI",
+      "firmConfigured": "{name} configuró la lectura de escaneados con LandingAI. No puedes agregar una llave propia.",
+      "firmNotConfigured": "{name} no ha configurado la lectura de escaneados con LandingAI. Pide a sus propietarios o administradores que agreguen una llave.",
       "getKey": "Para usarla, crea una cuenta y una llave de API en LandingAI:",
       "keyDocsLink": "Cómo obtener la llave de API",
       "keyLabel": "Llave de API de LandingAI",
@@ -3519,6 +3635,7 @@
     "appSidebar": {
       "accountMenu": "Menú de la cuenta",
       "closeSidebar": "Cerrar barra lateral",
+      "firmWorkspace": "Despacho: {name}",
       "history": "Historial",
       "loadMoreProjects": "cargar más proyectos",
       "loadYourRecentProjects": "cargar tus proyectos recientes",
@@ -3534,6 +3651,7 @@
       "noProjectsYet": "Aún no hay proyectos",
       "openSidebar": "Abrir barra lateral",
       "organization": "Organización",
+      "personalWorkspace": "Mi espacio personal",
       "recentProjects": "Proyectos recientes",
       "settings": "Ajustes",
       "signOut": "Cerrar sesión",
@@ -5442,6 +5560,10 @@
       "dismissNotification": "Descartar notificación"
     },
     "numberedList": "Lista numerada",
+    "passwordInput": {
+      "hide": "Ocultar contraseña",
+      "show": "Mostrar contraseña"
+    },
     "playbookPill": {
       "openPlaybookTitle": "Abrir playbook {title}",
       "removePlaybookTitle": "Quitar playbook {title}"

@@ -12,6 +12,7 @@ import {
   sendInternalError,
 } from "../lib/httpError";
 import { safeRequestPath } from "../lib/safeRequestPath";
+import { findPersonalWorkspaceDisabled } from "../lib/managedAccounts";
 
 type ErrorBody = {
   code?: unknown;
@@ -124,6 +125,17 @@ export const handleUnhandledError: ErrorRequestHandler = (
     res.status(413).json({
       code: "request_too_large",
       detail: "The request body is too large.",
+      ...(requestId ? { request_id: requestId } : {}),
+    });
+    return;
+  }
+
+  // A managed account (lib/managedAccounts.ts) reached for personal content.
+  const personalDisabled = findPersonalWorkspaceDisabled(error);
+  if (personalDisabled) {
+    res.status(403).json({
+      code: personalDisabled.code,
+      detail: personalDisabled.message,
       ...(requestId ? { request_id: requestId } : {}),
     });
     return;

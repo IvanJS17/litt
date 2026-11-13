@@ -14,6 +14,7 @@ import { PillButtonUI } from "@mike/ui";
 import { ToggleSwitchUI } from "@mike/ui";
 import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { useKeyScope, usePersonalKeysScope } from "@/app/components/settings/KeyScope";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
@@ -47,7 +48,15 @@ const PROVIDER_SECTIONS = [
  * Bring Your Own Keys and by the last onboarding step, so a key saved in
  * either place goes through the same checks.
  */
-export function PersonalProviderKeys({
+export function PersonalProviderKeys(props: { intro?: ReactNode }) {
+    // A firm-managed account runs on the firm's keys: it has no personal ones
+    // to add, and the server refuses them.
+    const { managed } = useKeyScope();
+    if (managed) return null;
+    return <PersonalProviderKeysList {...props} />;
+}
+
+function PersonalProviderKeysList({
     intro,
 }: {
     /** The sentence above the grids; `null` when the page says it already. */
@@ -55,6 +64,7 @@ export function PersonalProviderKeys({
 }) {
     const t = useTranslations();
     const { profile, loading, updateApiKeyEnabled } = useUserProfile();
+    const scope = usePersonalKeysScope();
     const [busyProvider, setBusyProvider] = useState<ApiKeyProvider | null>(null);
     const [toggleError, setToggleError] = useState<string | null>(null);
     const [pendingToggle, setPendingToggle] = useState<{ provider: ApiKeyProvider; enabled: boolean } | null>(null);
@@ -134,7 +144,7 @@ export function PersonalProviderKeys({
     return (
         <div className="@container space-y-8">
             {intro === undefined ? (
-                <SettingsDescription>{t("settings.personalProviderKeys.yourKeysRunYourWork")}</SettingsDescription>
+                <SettingsDescription>{scope}</SettingsDescription>
             ) : intro}
             {PROVIDER_SECTIONS.map((section) => {
                 // While the profile loads, which providers are active is not

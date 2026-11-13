@@ -3,6 +3,7 @@ import type { Response } from "express";
 import { reportError, requestRoutePattern } from "./observability/report";
 import { safeRequestPath } from "./safeRequestPath";
 import { shouldReportUpstreamFailure } from "./upstreamOutage";
+import { findPersonalWorkspaceDisabled } from "./managedAccounts";
 import {
   SCHEMA_OUT_OF_DATE_CODE,
   gateSchemaOutOfDate,
@@ -140,6 +141,17 @@ export function sendInternalError(
   const { answer, operation, fingerprint } = options;
   const requestId =
     typeof res.locals.requestId === "string" ? res.locals.requestId : null;
+  // A managed account (lib/managedAccounts.ts) that reached for personal
+  // content was refused on purpose: that is an answer (403), not a fault, so
+  // a route's generic catch must not turn it into a reported 500.
+  const personalDisabled = findPersonalWorkspaceDisabled(error);
+  if (personalDisabled) {
+    return res.status(403).json({
+      code: personalDisabled.code,
+      detail: personalDisabled.message,
+      ...(requestId ? { request_id: requestId } : {}),
+    });
+  }
   // A caller that passes a raw non-Error would otherwise have the reporter
   // stringify it — `message`, `details` and all — into a stackless Error.
   error = asReportableError(error, sendInternalError);

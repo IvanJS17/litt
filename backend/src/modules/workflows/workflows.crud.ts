@@ -3,6 +3,7 @@ import { captureInlineDocumentCleanup, completeInlineDocumentCleanup } from "../
 import { type Db } from "../../lib/supabase";
 import { getOrgRole, parseContentVisibility } from "../../lib/access";
 import { isPersonalOrg } from "../../lib/personalOrgs";
+import { assertPersonalWorkspaceAllowed } from "../../lib/managedAccounts";
 // devLog comes from lib/chat/types (a leaf file — importing the whole chat
 // barrel here just for a logger would be a heavy dependency edge).
 import { devLog } from "../../lib/log";
@@ -64,6 +65,8 @@ export async function createWorkflow(
       };
     orgId = org_id;
   }
+  // No organization: a personal workflow, closed to a managed account.
+  if (!orgId) assertPersonalWorkspaceAllowed(userId);
   // An organization's workflow is private unless its creator opens it to the
   // whole organization; a personal workflow never can be.
   const requestedVisibility = parseContentVisibility(params.visibility, orgId);

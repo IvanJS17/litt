@@ -64,6 +64,10 @@ export const CODE_DETAILS: Readonly<Record<string, string>> = {
   flow_state_expired: "This sign-in attempt expired. Start again.",
   flow_state_not_found: "This sign-in attempt is no longer valid. Start again.",
   bad_code_verifier: "This sign-in attempt is no longer valid. Start again.",
+  // The link was opened where the request was not made (PKCE keeps its
+  // verifier in the browser that asked).
+  pkce_code_verifier_not_found:
+    "This link must be opened in the same browser where you requested it. Open it there, or request a new one.",
   session_expired: SESSION_EXPIRED_DETAIL,
   session_not_found: SESSION_EXPIRED_DETAIL,
   refresh_token_not_found: SESSION_EXPIRED_DETAIL,

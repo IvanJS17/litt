@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import {
-    InputUI,
+    PasswordInputUI,
     PillButtonUI,
     pillButtonUIClassName,
     authGlassCardUIClassName,
@@ -38,7 +38,7 @@ const SET_PASSWORD_ERROR_MESSAGES = authMessages({
 /**
  * Where the invitation email lands: GoTrue verified the link and sends the
  * person here with a session (tokens in the URL hash; a `code` is accepted
- * too). They choose a password and carry on with the normal onboarding,
+ * too). They choose a password and carry on with the normal onboarding (the invitation to the firm comes first),
  * where their organization invitation is waiting.
  */
 function SetPasswordContent() {
@@ -102,7 +102,7 @@ function SetPasswordContent() {
         setLoading(true);
         try {
             await updateAuthPassword(password);
-            router.replace("/onboarding/profile");
+            router.replace("/onboarding/invitations");
         } catch (caught) {
             setError(
                 describeError(caught, {
@@ -158,9 +158,8 @@ function SetPasswordContent() {
                                     <FieldLabel htmlFor="password">
                                         {t("access.setPassword.password")}
                                     </FieldLabel>
-                                    <InputUI
+                                    <PasswordInputUI
                                         id="password"
-                                        type="password"
                                         autoComplete="new-password"
                                         value={password}
                                         onChange={(event) => setPassword(event.target.value)}
@@ -172,9 +171,8 @@ function SetPasswordContent() {
                                     <FieldLabel htmlFor="confirmPassword">
                                         {t("access.setPassword.confirm")}
                                     </FieldLabel>
-                                    <InputUI
+                                    <PasswordInputUI
                                         id="confirmPassword"
-                                        type="password"
                                         autoComplete="new-password"
                                         value={confirmPassword}
                                         onChange={(event) => setConfirmPassword(event.target.value)}

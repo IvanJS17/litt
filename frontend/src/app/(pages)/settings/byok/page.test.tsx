@@ -2,7 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { updateApiKey, updateApiKeyEnabled, azureEnabled } = vi.hoisted(() => ({
+const { updateApiKey, updateApiKeyEnabled, azureEnabled, managed } = vi.hoisted(() => ({
+    managed: { value: false },
     updateApiKey: vi.fn(async () => true),
     updateApiKeyEnabled: vi.fn<(provider: string, enabled: boolean) => Promise<boolean>>(),
     azureEnabled: { value: true },
@@ -16,11 +17,33 @@ vi.mock("@/app/components/settings/RouterSettingsSection", () => ({
     RouterSettingsSection: ({ provider }: { provider: string }) => <div data-testid="model-selections">{provider}</div>,
 }));
 
+// The firm's own keys have their own tests (OrganizationProviderKeys.test.tsx).
+vi.mock("@/app/components/organizations/OrganizationProviderKeys", () => ({
+    OrganizationProviderKeys: ({ orgId, orgName }: { orgId: string; orgName: string }) => (
+        <p>Firm keys ({orgName}) {orgId}</p>
+    ),
+}));
+
+const workspace = vi.hoisted(() => ({
+    firm: null as null | { id?: string; name: string },
+    allowPersonal: true,
+}));
+vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
+    useWorkspace: () => ({
+        activeOrganization: workspace.firm && { id: "firm-1", ...workspace.firm },
+        orgApiKeys: workspace.firm
+            ? { allow_personal_api_keys: workspace.allowPersonal }
+            : null,
+    }),
+}));
+
 const notConfigured = { configured: false, source: null };
 
-vi.mock("@/app/contexts/UserProfileContext", () => ({
-    useUserProfile: () => ({
+vi.mock("@/app/contexts/UserProfileContext", () => {
+    const useUserProfile = () => ({
         profile: {
+            personalWorkspaceDisabled: managed.value,
             apiKeys: {
                 claude: notConfigured,
                 gemini: notConfigured,
@@ -40,14 +63,18 @@ vi.mock("@/app/contexts/UserProfileContext", () => ({
         },
         updateApiKey,
         updateApiKeyEnabled,
-    }),
-}));
+    });
+    return { useUserProfile };
+});
 
 import ByokPage from "./page";
 
 describe("BYOK page cloud-platform keys", () => {
     beforeEach(() => {
         updateApiKey.mockClear();
+        workspace.firm = null;
+        workspace.allowPersonal = true;
+        managed.value = false;
         azureEnabled.value = true;
         updateApiKeyEnabled.mockReset().mockImplementation(async (_provider, enabled) => {
             azureEnabled.value = enabled;
@@ -310,4 +337,51 @@ describe("BYOK page cloud-platform keys", () => {
         expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
     });
 
+    it("names the section and says the keys apply to the personal workspace", () => {
+        render(<ByokPage />);
+        expect(screen.getByRole("heading", { name: "My personal keys" })).toBeVisible();
+        expect(screen.getByText("These keys are yours and apply to your personal workspace.")).toBeVisible();
+    });
+
+    it("says the keys also reach the firm in a firm's workspace that allows them", () => {
+        workspace.firm = { name: "Socium" };
+        render(<ByokPage />);
+        expect(screen.getByText(/They are also used in the firm Socium/)).toBeVisible();
+        expect(screen.getByRole("button", { name: "Add OpenAI" })).toBeVisible();
+    });
+
+    it("replaces the own-key providers with the reason and the firm's keys in a firm that does not allow them", () => {
+        workspace.firm = { name: "Socium" };
+        workspace.allowPersonal = false;
+        render(<ByokPage />);
+        expect(
+            screen.getByText("Socium gives you the models; your firm does not allow your own keys."),
+        ).toBeVisible();
+        expect(screen.getByText("Firm keys (Socium) firm-1")).toBeVisible();
+        expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
+        expect(screen.queryByRole("region", { name: "Saved Providers" })).not.toBeInTheDocument();
+    });
+});
+
+describe("BYOK page for a firm-managed account", () => {
+    beforeEach(() => {
+        workspace.firm = null;
+        workspace.allowPersonal = true;
+        managed.value = true;
+    });
+
+    it("shows no personal keys but the firm's keys and why, never a blank page", () => {
+        workspace.firm = { name: "Despacho Demo" };
+        const { container } = render(<ByokPage />);
+        expect(container).not.toBeEmptyDOMElement();
+        expect(screen.getByText(/^Despacho Demo gives you the models;/)).toBeVisible();
+        expect(screen.getByText("Firm keys (Despacho Demo) firm-1")).toBeVisible();
+        expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
+        expect(screen.queryByText("My personal keys")).not.toBeInTheDocument();
+    });
+
+    it("shows a placeholder, not a blank page, while the firm loads", () => {
+        const { container } = render(<ByokPage />);
+        expect(container.querySelector(".animate-pulse")).not.toBeNull();
+    });
 });

@@ -8,6 +8,7 @@
 // client (`db`) plus request-derived primitives and RETURN typed results;
 // the thin route handlers in library.routes.ts map them onto HTTP responses.
 
+import { assertPersonalWorkspaceAllowed } from "../../lib/managedAccounts";
 import { parseFolderPath, validateFolderMove, walkFolderGraph } from "../../lib/folderTree";
 import { readFolderSubtree } from "../../lib/folderSubtree";
 import { ID_FILTER_BATCH_SIZE } from "../../lib/batchedQuery";
@@ -522,6 +523,8 @@ export async function resolveLibraryFolderPath(
     if (!parent) return err(404, "Parent folder not found");
     orgId = parent.org_id;
   }
+  // Personal library: closed to an account its firm manages.
+  if (!orgId) assertPersonalWorkspaceAllowed(userId);
 
   const { data, error } = await db.rpc("resolve_library_folder_path", {
     target_user_id: userId,
@@ -560,6 +563,8 @@ export async function createLibraryFolder(
     if (!parent) return err(404, "Parent folder not found");
     orgId = parent.org_id;
   }
+  // Personal library: closed to an account its firm manages.
+  if (!orgId) assertPersonalWorkspaceAllowed(userId);
 
   const { data, error } = await db
     .from("library_folders")

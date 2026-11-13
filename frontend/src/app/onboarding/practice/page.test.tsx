@@ -3,10 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OnboardingPracticePage from "./page";
 
-const { push, replace, updatePersonalisation } = vi.hoisted(() => ({
+const { push, replace, updatePersonalisation, completeOnboarding, listOrgs, getOrgApiKeys } = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
   updatePersonalisation: vi.fn(),
+  completeOnboarding: vi.fn(),
+  listOrgs: vi.fn(),
+  getOrgApiKeys: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,7 +33,14 @@ vi.mock("@/app/contexts/UserProfileContext", () => ({
     },
     loading: false,
     updatePersonalisation,
+    completeOnboarding,
   }),
+}));
+
+vi.mock("@/app/lib/mikeApi", async (original) => ({
+  ...(await original<typeof import("@/app/lib/mikeApi")>()),
+  listOrgs,
+  getOrgApiKeys,
 }));
 
 vi.mock("@/app/components/site-logo", () => ({
@@ -43,13 +53,17 @@ describe("OnboardingPracticePage", () => {
     replace.mockReset();
     updatePersonalisation.mockReset();
     updatePersonalisation.mockResolvedValue(true);
+    completeOnboarding.mockReset().mockResolvedValue(true);
+    listOrgs.mockReset().mockResolvedValue([{ id: "org-1", name: "Socium", role: "member" }]);
+    getOrgApiKeys.mockReset().mockResolvedValue({ effective: {}, allow_personal_api_keys: true });
+    window.localStorage.clear();
   });
 
-  it("saves practice details before advancing to invitations", async () => {
+  it("saves practice details before advancing to the models step", async () => {
     const user = userEvent.setup();
     const { container } = render(<OnboardingPracticePage />);
 
-    expect(screen.getByText("Step 2 of 4")).toBeVisible();
+    expect(screen.getByText("Step 2 of 3")).toBeVisible();
     expect(
       container.querySelector('[data-slot="settings-row"]'),
     ).not.toBeInTheDocument();
@@ -96,7 +110,8 @@ describe("OnboardingPracticePage", () => {
         practiceAreas: ["Litigation", "Data Protection and Privacy"],
       }),
     );
-    expect(push).toHaveBeenCalledWith("/onboarding/invitations");
+    expect(push).toHaveBeenCalledWith("/onboarding/models");
+    expect(completeOnboarding).not.toHaveBeenCalled();
   });
 
   it("requires free text when Other is selected", async () => {
@@ -137,7 +152,67 @@ describe("OnboardingPracticePage", () => {
     await user.click(screen.getByRole("button", { name: "Skip" }));
 
     expect(updatePersonalisation).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/onboarding/invitations");
+    expect(push).toHaveBeenCalledWith("/onboarding/models");
+  });
+
+  describe("after joining a firm", () => {
+    beforeEach(() => {
+      window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
+    });
+
+    it("keeps the models step when the firm takes members' own keys", async () => {
+      const user = userEvent.setup();
+      render(<OnboardingPracticePage />);
+      expect(await screen.findByText("Step 2 of 3")).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Skip" }));
+      expect(push).toHaveBeenCalledWith("/onboarding/models");
+    });
+
+    it("ends here, in the firm's workspace, when the firm does not take their own keys", async () => {
+      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_api_keys: false });
+      const user = userEvent.setup();
+      render(<OnboardingPracticePage />);
+      expect(await screen.findByText("Step 2 of 2")).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/assistant"));
+      expect(updatePersonalisation).toHaveBeenCalledTimes(1);
+      expect(completeOnboarding).toHaveBeenCalledOnce();
+      expect(push).not.toHaveBeenCalled();
+      // The workspace the invitation chose is still the stored one.
+      expect(window.localStorage.getItem("mike.activeWorkspace.user-1")).toBe("org-1");
+    });
+
+    it("can be skipped to the end, and reports a failed finish without leaving the form locked", async () => {
+      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_api_keys: false });
+      completeOnboarding.mockResolvedValueOnce(false);
+      const user = userEvent.setup();
+      render(<OnboardingPracticePage />);
+      await screen.findByText("Step 2 of 2");
+      await user.click(screen.getByRole("button", { name: "Skip" }));
+      expect(await screen.findByText("Unable to finish setup")).toBeVisible();
+      expect(replace).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: /close|ok|dismiss/i }));
+    });
+
+    it("reports a failed finish after saving and lets the person try again", async () => {
+      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_api_keys: false });
+      completeOnboarding.mockResolvedValueOnce(false);
+      const user = userEvent.setup();
+      render(<OnboardingPracticePage />);
+      await screen.findByText("Step 2 of 2");
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+      expect(await screen.findByText("Unable to finish setup")).toBeVisible();
+      await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
+    });
+
+    it("falls back to the models step when the firm cannot be looked up", async () => {
+      listOrgs.mockRejectedValue(new Error("down"));
+      const user = userEvent.setup();
+      render(<OnboardingPracticePage />);
+      expect(await screen.findByText("Step 2 of 3")).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/onboarding/models"));
+    });
   });
 
   it("stays on practice details when saving fails, leaving the report to the notice", async () => {
