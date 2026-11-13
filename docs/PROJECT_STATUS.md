@@ -3,32 +3,34 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-11-12<br>
+**Last reconciled:** 2026-11-13<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
 
-### Layer 7, «Separar expediente» (branch `feat/capa7-split-expediente`, not integrated)
+### Integrated, in production: layers 1 to 7 and upstream cycle 11 (#177, #182)
 
-- Split a PDF that holds several documents into one PDF per document, proposed by
-  LandingAI Split and adjusted by the lawyer before anything is created. The
-  original does not change. Details and design decisions in
-  [`document-split.md`](document-split.md). Migration
+- **Main and production:** `c10401f9` (merge of #182), deployed on 2026-11-13. It
+  carries layers 1 to 7 and upstream cycle 11 (#177), so the sections below that
+  call them «not merged» or «not in production» are history. The non-blocking
+  reserves of the reviews of layer 7 and cycle 11 are closed in
+  `fix/capa7-cycle11-reservations`.
+- **Layer 7, «Separar expediente»:** splits a PDF that holds several documents into
+  one PDF per document, proposed by LandingAI Split and adjusted by the lawyer
+  before anything is created. The original does not change. Details and design
+  decisions in [`document-split.md`](document-split.md). Migration
   `20261112_60_litt_split_expediente.sql` (adds `split` to
   `document_versions_source_check` and a `split_classes` column to
   `user_profiles` and `organizations`). New backend dependency: `pdf-lib` (MIT).
-- Branch on top of `main` `fc7bc082`, no pull request opened. Needs the independent
-  review of the exact snapshot ([`RELEASE_GATES.md`](RELEASE_GATES.md)) before
-  integration.
-- It carries the **final legal text** (socium-legal, task t_a4651c51): Terms 2, 6.10
-  and the new 6.13, Privacy Notice 3 to 7 and 13, the simplified notice, and
-  `LEGAL_VERSION` `2026-11-13` (frontend and backend). Every account accepts the new
-  text on first sign-in after the deploy, so deploy the text and the feature together.
-  Whether to launch the feature the same day or 15 days after publishing (Terms
-  19.2) is the owner's decision.
-- Not run here: the real LandingAI Split API from this code (only mocked `fetch`),
-  the migration against a database, a browser flow, a real case file.
+- **Legal text:** the final text (socium-legal, task t_a4651c51: Terms 2, 6.10 and
+  6.13, Privacy Notice 3 to 7 and 13, the simplified notice) went out with it, with
+  `LEGAL_VERSION` `2026-11-13`; every account accepts it on its next sign-in.
+  Whether to announce the feature the same day or 15 days after publishing the text
+  (Terms 19.2) is the owner's decision.
+- **Real smoke test, done:** the real LandingAI Split smoke took
+  3.7 s and cost 0.0948 credits. Still not done: a browser flow with a real case
+  file.
 
 ### DOCX editing in LiTT (branch `feat/capa3-docx-editing`, not yet merged)
 
@@ -50,14 +52,14 @@
   bold/italic; the editor makes no request outside the local origin (packaged
   fonts, no CDN).
 
-### Upstream cycle 11 (2026-11-12, branch `chore/upstream-cycle-11`, not merged)
+### Upstream cycle 11 (2026-11-12, integrated in #177, in production since `c10401f9`)
 
 - Pin `54c2cb59` (#861), 54 commits; topics 1 to 9 of the intake come in (more
   precise model-failure messages and key ownership, unreadable documents not
   retried, memory scopes, request id, queue listeners, storage endpoint
   warning, outside-Word notice, Node 22.19 floor, dependencies); Sentry and the
-  desktop app are rejected. Receipt: ledger §31. Not in production: it needs a
-  review and a deploy of the backend image (Node floor).
+  desktop app are rejected. Receipt: ledger §31. The backend image changed
+  (Node floor) and went out in the `c10401f9` deploy.
 - **Upstream pin after this cycle:** `54c2cb59` (`ffe49226` and later wait for
   the next intake).
 
