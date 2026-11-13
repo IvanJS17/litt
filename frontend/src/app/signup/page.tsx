@@ -206,6 +206,7 @@ function SignupContent() {
                             <InputUI
                                 id="email"
                                 type="email"
+                                autoComplete="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -219,6 +220,7 @@ function SignupContent() {
                             </FieldLabel>
                             <PasswordInputUI
                                 id="password"
+                                autoComplete="new-password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder={t("auth.signup.passwordPlaceholder", { min: MIN_PASSWORD_LENGTH })}
@@ -233,6 +235,7 @@ function SignupContent() {
                             </FieldLabel>
                             <PasswordInputUI
                                 id="confirmPassword"
+                                autoComplete="new-password"
                                 value={confirmPassword}
                                 onChange={(e) =>
                                     setConfirmPassword(e.target.value)
