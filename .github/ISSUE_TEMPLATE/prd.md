@@ -1,13 +1,14 @@
 ---
-name: New PRD
-about: Propose and scope a feature or change that touches multiple subsystems, the data model, or public API/behavior
+name: Proposal outline (not in use)
+about: Outline for a proposal. Issues are disabled; send it to soporte@asteroitt.com instead.
 title: 'PRD: '
 labels: ''
 assignees: ''
 ---
 
-<!-- Keep it short — 1-2 pages, not a process. For small, well-understood
-     fixes, just open a plain issue instead. See docs/templates/PRD.md. -->
+<!-- Issues are disabled on LiTT. Do not open an issue with this template.
+     Send the outline to soporte@asteroitt.com, or open a pull request for a
+     small fix. Keep it short, 1-2 pages. See docs/templates/PRD.md and CONTRIBUTING.md. -->
 
 ## Problem
 
