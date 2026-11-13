@@ -206,6 +206,19 @@ describe("OrganizationsOverview", () => {
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org-1/settings");
   });
 
+  it("offers a member View, not Manage, on the workspace they are in", async () => {
+    const user = userEvent.setup();
+    mocks.listOrgs.mockResolvedValue([{ ...JOINED_ORG, id: "org-1" }]);
+    render(<OrganizationsOverview />);
+    await screen.findByText("Community Legal");
+
+    expect(screen.queryByRole("button", { name: /^Manage/ })).not.toBeInTheDocument();
+    const view = screen.getByRole("button", { name: "View Community Legal" });
+    expect(view).toHaveTextContent("View");
+    await user.click(view);
+    expect(mocks.push).toHaveBeenCalledWith("/organizations/org-1/settings");
+  });
+
   describe("an organization that is not the workspace the person is in", () => {
     const SECOND = { ...ORG, id: "org-2", name: "Beta Chambers" };
 

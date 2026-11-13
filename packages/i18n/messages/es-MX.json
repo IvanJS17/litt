@@ -2083,7 +2083,9 @@
       "roleAndMembers": "Tu rol: {role} · {count, plural, one {# persona} other {# personas}}",
       "switch": "Cambiar",
       "switchToName": "Cambiar a {name}",
-      "tryAgain": "Inténtalo de nuevo"
+      "tryAgain": "Inténtalo de nuevo",
+      "view": "Ver",
+      "viewName": "Ver {name}"
     },
     "role": {
       "admin": {

@@ -21,6 +21,7 @@ import {
   type OrgInvitation,
 } from "@/app/lib/mikeApi";
 import { orgRoleLabel } from "./orgRoleText";
+import { isOrgAdmin } from "@/app/lib/permissions";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LIQUID_GLASS_SUBTLE_CLASS, PillButtonUI } from "@mike/ui";
 import { DeletedOrganizations } from "./DeletedOrganizations";
@@ -46,6 +47,8 @@ export function OrganizationsOverview() {
   const { workspaceId, setWorkspace, refreshOrganizations } = useWorkspace();
   // `null` is "no workspace to compare with" (outside a WorkspaceProvider),
   // where nothing is narrowed.
+  // A member opens the same settings, but can only read them.
+  const canManage = (org: Org) => isOrgAdmin(org.role);
   const isCurrentWorkspace = (org: Org) =>
     workspaceId === null || workspaceId === org.id;
   const [orgs, setOrgs] = useState<Org[] | null>(null);
@@ -208,14 +211,23 @@ export function OrganizationsOverview() {
                   action={
                     current ? (
                       <PillButtonUI
-                        tone="blue"
+                        tone={canManage(org) ? "blue" : "white"}
                         size="sm"
-                        aria-label={t("organizations.organizationsOverview.manageName", { name: org.name })}
+                        aria-label={t(
+                          canManage(org)
+                            ? "organizations.organizationsOverview.manageName"
+                            : "organizations.organizationsOverview.viewName",
+                          { name: org.name },
+                        )}
                         onClick={() =>
                           router.push(organizationSettingsHref(org.id))
                         }
                       >
-                        {t("organizations.organizationsOverview.manage")}
+                        {t(
+                          canManage(org)
+                            ? "organizations.organizationsOverview.manage"
+                            : "organizations.organizationsOverview.view",
+                        )}
                       </PillButtonUI>
                     ) : (
                       <PillButtonUI
