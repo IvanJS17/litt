@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SOURCE_LOCALE, SOURCE_MESSAGES, loadMessages } from "@litt/i18n";
 import { configureClientLocale } from "@mike/client";
+import { describeError } from "./userFacingError";
 import {
     AUTH_ERROR_MESSAGES,
     LINK_SPENT_MESSAGE,
@@ -98,6 +99,27 @@ describe("authMessages in es-MX", () => {
             expect(table.session_expired).toBe(
                 authSentenceText("tooManyAttempts"),
             );
+        } finally {
+            configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
+        }
+    });
+
+    it("tells a link opened in another browser to use the one that asked, in Spanish", async () => {
+        configureClientLocale("es-MX", await loadMessages("es-MX"));
+        try {
+            // What the exchange answers when the PKCE verifier is not in this
+            // browser: 400, the auth server's code, and the route's English fallback.
+            const { message } = describeError(
+                Object.assign(new Error("Authentication could not be completed."), {
+                    status: 400,
+                    code: "pkce_code_verifier_not_found",
+                }),
+                { codeMessages: authMessages() },
+            );
+            expect(message).toBe(
+                "Este enlace debe abrirse en el mismo navegador en el que lo pediste. Ábrelo ahí o pide uno nuevo.",
+            );
+            expect(message).not.toMatch(/Authentication/);
         } finally {
             configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
         }

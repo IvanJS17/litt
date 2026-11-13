@@ -36,7 +36,9 @@ export function userFacingApiError(
         error.status < 500 &&
         error.message
     ) {
-        return error.message;
+        // The server writes the detail in English; a code the catalog knows
+        // (errors.code) is said in the interface language instead.
+        return describeError(error).message;
     }
     return fallback;
 }

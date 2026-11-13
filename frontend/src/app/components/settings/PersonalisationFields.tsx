@@ -19,12 +19,12 @@ import type { PersonalisationDetails } from "@/app/lib/mikeApi";
 import {
   COUNTRY_OPTIONS,
   OTHER_JURISDICTION_OPTION,
-  PRACTICE_AREA_LABEL_KEYS,
   PRACTICE_AREA_OPTIONS,
   PRACTICE_SETTING_OPTIONS,
   PROFESSIONAL_TITLE_LABEL_KEYS,
   PROFESSIONAL_TITLE_OPTIONS,
   countryLabel,
+  practiceAreaLabel,
   type PracticeSetting,
   type ProfessionalTitle,
 } from "@/app/onboarding/options";
@@ -222,10 +222,7 @@ export function PersonalisationFields({
   const t = useTranslations();
   const locale = useLocale();
   // Saved values stay the stable English identifiers; only labels are translated.
-  const areaLabel = (area: string) =>
-    area in PRACTICE_AREA_LABEL_KEYS
-      ? t(PRACTICE_AREA_LABEL_KEYS[area as keyof typeof PRACTICE_AREA_LABEL_KEYS])
-      : area;
+  const areaLabel = (area: string) => practiceAreaLabel(area, t);
   const groups: Record<PersonalisationFieldGroup, ReactNode> = {
     professionalTitle: (
       <ProfileDropdown

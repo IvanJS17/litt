@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import {
@@ -15,6 +15,7 @@ import {
 import { cn } from "@/app/lib/utils";
 import { getPlatformStats, type PlatformStats } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import { countryLabel, practiceAreaLabel, professionalTitleLabel } from "@/app/onboarding/options";
 
 type Usage = PlatformStats["usage"]["last_7_days"];
 const FEATURES = ["chats", "documents", "compared", "converted", "scans", "split", "tabular", "training"] as const;
@@ -37,6 +38,7 @@ function Cell({ label, children, className }: { label: string; children: ReactNo
 /** Platform administrators: counts of use, by firm and by person. No content, no export. */
 export function BetaStatsSection() {
   const t = useTranslations();
+  const locale = useLocale();
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,12 +69,18 @@ export function BetaStatsSection() {
     not_practising: t("settings.personalisationFields.practiceSetting.notPractising"),
   };
   const feature = (key: (typeof FEATURES)[number]) => featureLabels[key];
-  const bucketLabel = (kind: "scope" | "other", key: string | null) =>
+  // Saved values are stable English identifiers; the labels are onboarding's.
+  const otherLabels = {
+    title: (value: string) => professionalTitleLabel(value, t),
+    jurisdiction: (value: string) => countryLabel(value, locale),
+    practiceArea: (value: string) => practiceAreaLabel(value, t),
+  };
+  const bucketLabel = (kind: "scope" | "title" | "jurisdiction" | "practiceArea", key: string | null) =>
     key === null
       ? t("access.stats.notSet")
-      : kind === "scope" && scopeLabels[key]
-        ? scopeLabels[key]
-        : key;
+      : kind === "scope"
+        ? (scopeLabels[key] ?? key)
+        : otherLabels[kind](key);
   const usageText = (usage: Usage) =>
     FEATURES.map((key) => `${feature(key)} ${usage[key]}`).join(" · ");
   const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : t("access.stats.none"));
@@ -152,9 +160,9 @@ export function BetaStatsSection() {
               {(
                 [
                   ["scope", "scope", stats.breakdowns.scope],
-                  ["title", "other", stats.breakdowns.title],
-                  ["jurisdiction", "other", stats.breakdowns.jurisdiction],
-                  ["practiceArea", "other", stats.breakdowns.practice_area],
+                  ["title", "title", stats.breakdowns.title],
+                  ["jurisdiction", "jurisdiction", stats.breakdowns.jurisdiction],
+                  ["practiceArea", "practiceArea", stats.breakdowns.practice_area],
                 ] as const
               ).map(([label, kind, buckets]) => (
                 <div key={label} className="min-w-0">
@@ -247,9 +255,9 @@ export function BetaStatsSection() {
                           ? t("access.stats.none")
                           : [
                               person.scope ? bucketLabel("scope", person.scope) : null,
-                              person.title,
-                              person.jurisdiction,
-                              person.practice_areas.join(", ") || null,
+                              person.title ? bucketLabel("title", person.title) : null,
+                              person.jurisdiction ? bucketLabel("jurisdiction", person.jurisdiction) : null,
+                              person.practice_areas.map((area) => bucketLabel("practiceArea", area)).join(", ") || null,
                             ]
                               .filter(Boolean)
                               .join(" · ") || t("access.stats.none")}

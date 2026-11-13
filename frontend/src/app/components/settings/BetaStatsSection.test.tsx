@@ -1,6 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BetaStatsSection } from "./BetaStatsSection";
+import esMX from "../../../../../packages/i18n/messages/es-MX.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 
 const mocks = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
@@ -18,8 +20,8 @@ const stats = {
     breakdowns: {
         scope: [{ key: "private_practice", count: 2 }],
         title: [{ key: "Partner", count: 1 }, { key: null, count: 1 }],
-        jurisdiction: [{ key: "CDMX", count: 2 }],
-        practice_area: [{ key: "Civil", count: 2 }],
+        jurisdiction: [{ key: "CDMX", count: 2 }, { key: "Mexico", count: 1 }],
+        practice_area: [{ key: "Civil", count: 2 }, { key: "Employment", count: 1 }],
     },
     usage: { last_7_days: usage(1), last_30_days: usage(2) },
     organizations: [{ name: "Firma Uno", members: 1, usage: usage(2) }],
@@ -63,6 +65,22 @@ describe("BetaStatsSection", () => {
         // Nothing to export.
         expect(screen.queryByRole("button")).not.toBeInTheDocument();
         expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("names areas, titles and jurisdictions in the interface language, as onboarding does", async () => {
+        mocks.get.mockResolvedValue(stats);
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <BetaStatsSection />
+            </IntlClientProvider>,
+        );
+        expect(await screen.findAllByText("Laboral")).not.toHaveLength(0);
+        expect(screen.getByText("Socio")).toBeInTheDocument();
+        expect(screen.getByText("México")).toBeInTheDocument();
+        expect(screen.queryByText("Employment")).not.toBeInTheDocument();
+        expect(screen.queryByText("Partner")).not.toBeInTheDocument();
+        // A value outside the lists is shown as saved.
+        expect(screen.getAllByText("Civil").length).toBeGreaterThan(0);
     });
 
     it("says so when the statistics cannot be loaded", async () => {

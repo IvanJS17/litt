@@ -508,7 +508,7 @@
       "mfaNetworkChanged": "Your network changed mid-verification. Start again from the login page.",
       "mfaTooManyFactors": "You already have the maximum number of authenticators. Remove one first.",
       "mfaTotpDisabled": "Authenticator apps are turned off for this workspace.",
-      "otherBrowser": "This link was opened in a different browser than the one that started sign-in. Start again from the login page.",
+      "otherBrowser": "This link must be opened in the same browser where you requested it. Open it there, or request a new one.",
       "otpExpired": "This link or code has expired. Request a new one.",
       "passwordLength": "Password must have at least {min} characters and use at most {max} UTF-8 bytes.",
       "passwordLoginDisabled": "Password login is turned off. Continue with Google or SSO instead.",
@@ -1129,6 +1129,11 @@
     "upstream": {
       "schema_out_of_date": "The server's database needs an update before this can load. Please contact your administrator.",
       "upstream_unavailable": "The server is temporarily unreachable. Please try again shortly."
+    },
+    "action": {
+      "loadMoreChats": "load more chats",
+      "loadYourChats": "load your chats",
+      "startNewChat": "start a new chat"
     }
   },
   "history": {

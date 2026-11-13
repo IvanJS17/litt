@@ -508,7 +508,7 @@
       "mfaNetworkChanged": "Tu red cambió durante la verificación. Empieza de nuevo desde la página de inicio de sesión.",
       "mfaTooManyFactors": "Ya tienes el máximo de autenticadores. Quita uno primero.",
       "mfaTotpDisabled": "Las apps de autenticación están desactivadas en este espacio de trabajo.",
-      "otherBrowser": "Este enlace se abrió en un navegador distinto del que inició sesión. Empieza de nuevo desde la página de inicio de sesión.",
+      "otherBrowser": "Este enlace debe abrirse en el mismo navegador en el que lo pediste. Ábrelo ahí o pide uno nuevo.",
       "otpExpired": "Este enlace o código expiró. Pide uno nuevo.",
       "passwordLength": "La contraseña debe tener al menos {min} caracteres y ocupar como máximo {max} bytes UTF-8.",
       "passwordLoginDisabled": "El inicio de sesión con contraseña está desactivado. Continúa con Google o con SSO.",
@@ -1129,6 +1129,11 @@
     "upstream": {
       "schema_out_of_date": "La base de datos del servidor necesita una actualización antes de poder cargar esto. Contacta a tu administrador.",
       "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
+    },
+    "action": {
+      "loadMoreChats": "cargar más chats",
+      "loadYourChats": "cargar tus chats",
+      "startNewChat": "iniciar un chat nuevo"
     }
   },
   "history": {

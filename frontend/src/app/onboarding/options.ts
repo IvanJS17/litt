@@ -1,4 +1,4 @@
-import type { SettingsKey } from "@/i18n/Translate";
+import type { AppTranslate, SettingsKey } from "@/i18n/Translate";
 import type {
     PracticeSetting,
     ProfessionalTitle,
@@ -585,3 +585,21 @@ export const PROFESSIONAL_TITLE_LABEL_KEYS = {
     "Legal Counsel": "settings.personalisationFields.titles.legalCounsel",
     "Other": "settings.personalisationFields.titles.other",
 } as const satisfies Record<(typeof PROFESSIONAL_TITLE_OPTIONS)[number], SettingsKey>;
+
+/**
+ * The label of a saved practice area, title or jurisdiction in the interface
+ * language. A value outside the lists (typed by hand, or saved by an older
+ * version) is shown as saved. Shared by onboarding, Settings and the platform
+ * statistics, so one value reads the same everywhere.
+ */
+export function practiceAreaLabel(value: string, t: AppTranslate): string {
+    return value in PRACTICE_AREA_LABEL_KEYS
+        ? t(PRACTICE_AREA_LABEL_KEYS[value as keyof typeof PRACTICE_AREA_LABEL_KEYS])
+        : value;
+}
+
+export function professionalTitleLabel(value: string, t: AppTranslate): string {
+    return value in PROFESSIONAL_TITLE_LABEL_KEYS
+        ? t(PROFESSIONAL_TITLE_LABEL_KEYS[value as keyof typeof PROFESSIONAL_TITLE_LABEL_KEYS])
+        : value;
+}

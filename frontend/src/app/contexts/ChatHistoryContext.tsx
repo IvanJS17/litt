@@ -23,6 +23,7 @@ import {
     listChats,
     renameChat,
 } from "@/app/lib/mikeApi";
+import { clientTranslator } from "@mike/client";
 import { notifyError } from "@/app/lib/userFacingError";
 import type { Chat, Message } from "@/app/components/shared/types";
 import type { ProjectRole } from "@/app/lib/permissions";
@@ -159,7 +160,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
             // An empty sidebar is how "you have no chats" looks, so a failed
             // load has to say that it failed.
             notifyError(error, {
-                action: "load your chats",
+                action: clientTranslator()("errors.action.loadYourChats"),
                 dedupeKey: "chat-history",
                 onRetry: () => retryRef.current.loadChats(),
             });
@@ -227,7 +228,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
             // A page for a workspace no longer on screen failed: not news.
             if (request !== chatsRequestRef.current || activeIdentity.current !== identity) return;
             notifyError(error, {
-                action: "load more chats",
+                action: clientTranslator()("errors.action.loadMoreChats"),
                 dedupeKey: "chat-history-more",
                 onRetry: () => retryRef.current.loadMoreChats(),
             });
@@ -345,7 +346,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
                 // chat was never created. No Retry: repeating the create
                 // alone would strand an empty chat, and no caller re-runs
                 // its whole submit (create + send) from here.
-                notifyError(error, { action: "start a new chat" });
+                notifyError(error, { action: clientTranslator()("errors.action.startNewChat") });
                 return null;
             }
         },

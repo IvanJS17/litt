@@ -94,6 +94,7 @@ export const AUTH_ERROR_SENTENCES = {
     flow_state_expired: "linkSpent",
     flow_state_not_found: "linkSpent",
     bad_code_verifier: "otherBrowser",
+    pkce_code_verifier_not_found: "otherBrowser",
     bad_oauth_state: "signInIncomplete",
     bad_oauth_callback: "signInIncomplete",
 
