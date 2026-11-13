@@ -723,6 +723,7 @@
     "or": "o",
     "retry": "Reintentar",
     "save": "Guardar",
+    "skipToContent": "Saltar al contenido",
     "sourceCode": {
       "description": "de esta versión (se abre en una pestaña nueva)",
       "label": "Código fuente"
@@ -3716,6 +3717,7 @@
       "loadingWorkspace": "Cargando espacio de trabajo",
       "navAssistant": "Asistente",
       "navIde": "IDE",
+      "navLabel": "Navegación principal",
       "navLibrary": "Biblioteca",
       "navPlaybooks": "Playbooks",
       "navProjects": "Proyectos",

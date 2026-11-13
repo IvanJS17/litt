@@ -82,6 +82,7 @@ import {
     LIQUID_GLASS_HOVER_CLASS,
 } from "@/app/components/ui/liquid-surface";
 import { SETTINGS_PHONE_HOME } from "@/app/lib/settingsRoutes";
+import { useIsPhone } from "@/app/hooks/useIsPhone";
 import { useTranslations } from "next-intl";
 
 /** Where a workspace opens: the page the logo leads to. */
@@ -176,12 +177,43 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     // Fade the contents in whenever the sidebar opens, from its own toggle or
     // from a page calling setSidebarOpen, but not when it is already open on
     // first render.
+    // The sidebar slides in as a whole on a phone, so its contents do not
+    // fade as well. On a phone it is always laid out in full (only slid out
+    // of sight), so its contents are always the expanded ones.
+    const phone = useIsPhone();
+    const expanded = isOpen || phone;
     const [shouldAnimate, setShouldAnimate] = useState(false);
     const [wasOpen, setWasOpen] = useState(isOpen);
     if (isOpen !== wasOpen) {
         setWasOpen(isOpen);
-        if (isOpen) setShouldAnimate(true);
+        if (isOpen && !phone) setShouldAnimate(true);
     }
+    const toggleRef = useRef<HTMLButtonElement>(null);
+    // A phone's open sidebar is a window: focus moves into it, Escape closes
+    // it, and focus goes back to the button that opened it.
+    const onToggleRef = useRef(onToggle);
+    useEffect(() => {
+        onToggleRef.current = onToggle;
+    }, [onToggle]);
+    useEffect(() => {
+        if (!phone || !isOpen) return;
+        toggleRef.current?.focus({ preventScroll: true });
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && !event.defaultPrevented) {
+                onToggleRef.current();
+            }
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown);
+            const active = document.activeElement;
+            if (!active || active === document.body || active.closest("#app-sidebar")) {
+                document
+                    .querySelector<HTMLElement>("[data-sidebar-trigger]")
+                    ?.focus({ preventScroll: true });
+            }
+        };
+    }, [phone, isOpen]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // The toggle slides out from under the pointer as the sidebar resizes, so
     // its hover background is held off after a click until the pointer next
@@ -488,40 +520,72 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
     return (
         <>
-            {/* Mobile: tapping outside the expanded sidebar closes it. The
-                sidebar (z-[99]) sits above this scrim (z-[98]); md+ is
-                unaffected since the sidebar is part of the layout there. */}
-            {isOpen && (
-                <div
-                    className="fixed inset-0 z-[98] bg-gray-300/20 md:hidden"
-                    onClick={handleToggle}
-                    aria-hidden="true"
-                />
-            )}
+            {/* Phone: the veil behind the open sidebar, ink at 25 %. It fades
+                with the slide (250 ms in, 180 ms out) and a tap on it closes
+                the sidebar. Always mounted so it can fade out; md+ never
+                shows it. */}
             <div
                 className={cn(
+                    "fixed inset-0 z-[98] bg-[color-mix(in_srgb,var(--litt-tinta)_25%,transparent)] transition-[opacity,visibility] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:hidden",
                     isOpen
-                        ? "w-62 h-[calc(100dvh-max(0.5rem,env(safe-area-inset-top))-max(0.5rem,env(safe-area-inset-bottom)))] md:h-[calc(100dvh-1.5rem)]"
-                        : "max-md:hidden w-[46px] md:h-[calc(100dvh-1.5rem)] h-auto pointer-events-none md:pointer-events-auto",
+                        ? "opacity-100 duration-[250ms]"
+                        : "pointer-events-none invisible opacity-0 duration-[180ms]",
+                )}
+                onClick={handleToggle}
+                aria-hidden="true"
+            />
+            {/* From md up the column in the layout is as wide as the sidebar
+                will be, at once; only the panel inside animates its width, so
+                the page beside it is laid out once, not on every frame. On a
+                phone this wrapper takes no box. */}
+            <div
+                className={cn(
+                    "max-md:contents md:relative md:shrink-0",
+                    isOpen
+                        ? "md:w-[calc(15.5rem+0.75rem)]"
+                        : "md:w-[calc(46px+0.75rem)]",
+                )}
+            >
+            <div
+                id="app-sidebar"
+                // Open on a phone, the sidebar is a window over the page: the
+                // page is inert (layout), Escape closes it, and it is named
+                // for a screen reader. Closed, it is inert and invisible.
+                role={phone && isOpen ? "dialog" : undefined}
+                aria-modal={phone && isOpen ? true : undefined}
+                aria-label={phone && isOpen ? t("shared.appSidebar.navLabel") : undefined}
+                inert={phone && !isOpen}
+                data-state={isOpen ? "open" : "closed"}
+                className={cn(
+                    // Phone: always laid out at full size and slid in and out
+                    // with transform (never the width), 250 ms in / 180 ms out.
+                    "max-md:fixed max-md:left-0 max-md:top-0 max-md:ml-[max(0.5rem,env(safe-area-inset-left))] max-md:mt-[max(0.5rem,env(safe-area-inset-top))] max-md:w-62 max-md:h-[calc(100dvh-max(0.5rem,env(safe-area-inset-top))-max(0.5rem,env(safe-area-inset-bottom)))] max-md:rounded-2xl max-md:transition-[transform,visibility]",
+                    isOpen
+                        ? "max-md:[transform:none] max-md:duration-[250ms]"
+                        : "max-md:pointer-events-none max-md:invisible max-md:[transform:translateX(calc(-100%-1rem))] max-md:duration-[180ms]",
+                    // Desktop: the panel floats in its column and animates only
+                    // the width and the radius, in 200 ms.
+                    "md:absolute md:left-3 md:top-3 md:h-[calc(100dvh-1.5rem)] md:transition-[width,border-radius] md:duration-200",
                     // Collapsed, the ends are full semicircles. The radii are
                     // lengths, not rounded-full, so the change animates with
                     // the width.
-                    isOpen ? "rounded-2xl" : "rounded-[23px]",
-                    // On a phone the sidebar's top and bottom keep clear of the
-                    // notch and the home indicator. Its left already does: the
-                    // page shell pads the safe-area side insets.
-                    "mt-[max(0.5rem,env(safe-area-inset-top))] mb-[max(0.5rem,env(safe-area-inset-bottom))] ml-2 mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
+                    isOpen ? "md:w-62 md:rounded-2xl" : "md:w-[46px] md:rounded-[23px]",
+                    "ease-[cubic-bezier(0.32,0.72,0,1)] overflow-visible",
                     LIQUID_GLASS_FLOAT_CLASS,
-                    "absolute z-[99] flex shrink-0 flex-col transition-[width,border-radius,transform] duration-300 motion-reduce:transition-none md:relative",
+                    "z-[99] flex shrink-0 flex-col motion-reduce:transition-none",
                 )}
             >
+              <nav
+                aria-label={t("shared.appSidebar.navLabel")}
+                className="flex min-h-0 flex-1 flex-col"
+              >
                 {/* Toggle + Logo */}
                 <div
                     className={`h-11 shrink-0 items-center justify-between gap-1 px-1.5 ${
-                        !isOpen ? "hidden md:flex" : "flex"
+                        !expanded ? "hidden md:flex" : "flex"
                     }`}
                 >
-                    {isOpen && headedByWordmark && (
+                    {expanded && headedByWordmark && (
                         <div className="min-w-0 flex-1">
                             {/* X = 22, the wordmark's on-screen minimum; its
                                 box carries the 4u protection area. The mark
@@ -535,7 +599,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             </Link>
                         </div>
                     )}
-                    {isOpen && !headedByWordmark && (
+                    {expanded && !headedByWordmark && (
                         <div className="min-w-0 flex-1 px-1.5">
                             <Link
                                 href="/assistant"
@@ -567,6 +631,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         </div>
                     )}
                     <button
+                        ref={toggleRef}
                         type="button"
                         onClick={() => {
                             setToggleHoverSuppressed(true);
@@ -577,12 +642,12 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         aria-label={isOpen ? t("shared.appSidebar.closeSidebar") : t("shared.appSidebar.openSidebar")}
                         className={cn(
                             "group flex h-8 w-8 pointer-coarse:h-10 pointer-coarse:w-10 shrink-0 items-center justify-center transition-[border-radius] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
-                            isOpen ? "rounded-md" : "rounded-[16px]",
+                            expanded ? "rounded-md" : "rounded-[16px]",
                             !toggleHoverSuppressed && LIQUID_GLASS_HOVER_CLASS,
                         )}
                         title={isOpen ? t("shared.appSidebar.closeSidebar") : t("shared.appSidebar.openSidebar")}
                     >
-                        {isOpen ? (
+                        {expanded ? (
                             <PanelLeft aria-hidden="true" className="h-4 w-4 shrink-0" />
                         ) : (
                             <span aria-hidden="true" className="relative flex h-[18px] w-[18px] items-center justify-center">
@@ -599,7 +664,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
                 {/* Whose work is on screen, in words, whatever the heading
                     above says; a firm's name is already the heading. */}
-                {isOpen && (
+                {expanded && (
                     <div className="px-2.5 pb-1">
                         <WorkspaceBadge showName={headedByWordmark} />
                     </div>
@@ -633,13 +698,13 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 <div key={href} className="px-1.5 py-0.5">
                                     <button
                                         onClick={() => router.push(href)}
-                                        title={!isOpen ? label : ""}
+                                        title={!expanded ? label : ""}
                                         className={cn(
                                             "w-full h-8 flex items-center gap-2 px-2 py-2 rounded-md transition-colors text-left pointer-coarse:h-11",
                                             isActive
                                                 ? `${LIQUID_GLASS_SELECTED_CLASS} text-gray-900`
                                                 : `text-gray-700 ${LIQUID_GLASS_HOVER_CLASS}`,
-                                            !isOpen ? "hidden md:flex" : "flex",
+                                            !expanded ? "hidden md:flex" : "flex",
                                         )}
                                     >
                                         <Icon
@@ -649,7 +714,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                                     : "text-black"
                                             }`}
                                         />
-                                        {isOpen && (
+                                        {expanded && (
                                             <span
                                                 className={`text-sm font-medium ${
                                                     shouldAnimate
@@ -666,7 +731,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         })}
                     </div>
 
-                    {isOpen && (
+                    {expanded && (
                         <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
                             {/* Recent Projects */}
                             <div>
@@ -990,17 +1055,17 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 aria-label={t("shared.appSidebar.accountMenu")}
                                 className={cn(
                                     "flex h-9 pointer-coarse:h-11 w-full shrink-0 items-center px-[7px] outline-none [transition:border-radius_300ms_cubic-bezier(0.4,0,0.2,1),background-color_150ms,color_150ms] focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
-                                    isOpen ? "rounded-xl" : "rounded-[18px]",
-                                    !isOpen ? "hidden md:flex" : "",
+                                    expanded ? "rounded-xl" : "rounded-[18px]",
+                                    !expanded ? "hidden md:flex" : "",
                                     pathname.startsWith("/settings") ||
                                         isDropdownOpen
                                         ? LIQUID_GLASS_SELECTED_CLASS
                                         : LIQUID_GLASS_HOVER_CLASS,
                                 )}
-                                title={!isOpen ? user.email : undefined}
+                                title={!expanded ? user.email : undefined}
                             >
                                 <UserAvatar photo={profile?.profilePhoto} name={profile?.displayName} email={user.email} className="h-5.5 w-5.5 text-[10px]" />
-                                {isOpen && (
+                                {expanded && (
                                     <div
                                         className={`text-left flex-1 min-w-0 pl-2 flex items-center justify-between gap-2 ${
                                             shouldAnimate
@@ -1021,7 +1086,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                               align="start"
                               className={cn(
                                   "whitespace-nowrap",
-                                  isOpen
+                                  expanded
                                       ? "w-[var(--radix-dropdown-menu-trigger-width)]"
                                       : "w-56",
                               )}
@@ -1110,6 +1175,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         </Dropdown>
                     )}
                 </div>
+              </nav>
+            </div>
             </div>
         </>
     );

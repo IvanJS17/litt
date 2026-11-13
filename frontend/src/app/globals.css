@@ -109,16 +109,18 @@
         font-family: var(--font-eb-garamond);
     }
 
+    /* The sidebar opens in 200 ms (AppSidebar). Its contents fade in as it
+       does, with no wait longer than 50 ms. */
     .sidebar-fade-in {
-        animation: sidebarFadeIn 0.3s ease-out forwards;
-        animation-delay: 0.1s;
+        animation: sidebarFadeIn 0.15s ease-out forwards;
         opacity: 0;
     }
 
-    /* Wait for the sidebar's 300ms width transition before showing the
-       measured heading, so its compact layout cannot flash while expanding. */
+    /* The one longer wait: the heading is measured, so it holds back until
+       the sidebar's 200 ms width transition has ended, or its compact layout
+       would flash while expanding. */
     .sidebar-heading-enter {
-        animation: sidebarFadeIn 0.15s ease-out 0.3s both;
+        animation: sidebarFadeIn 0.15s ease-out 0.2s both;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -128,8 +130,8 @@
     }
 
     .sidebar-fade-in-2 {
-        animation: sidebarFadeIn 0.3s ease-out forwards;
-        animation-delay: 0.2s;
+        animation: sidebarFadeIn 0.15s ease-out forwards;
+        animation-delay: 0.05s;
         opacity: 0;
     }
 
@@ -527,5 +529,21 @@ body {
         transition-duration: 0.01ms !important;
         transition-delay: 0s !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* Lote 2 · móvil
+   Changing between a firm's workspace and the personal one fades the page and
+   its workspace label in over 150 ms (useWorkspaceFade), so the change of
+   context is felt. No movement, and none at all with "Reduce motion". */
+@media (prefers-reduced-motion: no-preference) {
+    .workspace-fade {
+        animation: workspace-fade 150ms ease-out;
+    }
+}
+
+@keyframes workspace-fade {
+    from {
+        opacity: 0;
     }
 }

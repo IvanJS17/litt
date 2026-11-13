@@ -723,6 +723,7 @@
     "or": "or",
     "retry": "Retry",
     "save": "Save",
+    "skipToContent": "Skip to content",
     "sourceCode": {
       "description": "of this version (opens in a new tab)",
       "label": "Source code"
@@ -3716,6 +3717,7 @@
       "loadingWorkspace": "Loading workspace",
       "navAssistant": "Assistant",
       "navIde": "IDE",
+      "navLabel": "Main navigation",
       "navLibrary": "Library",
       "navPlaybooks": "Playbooks",
       "navProjects": "Projects",

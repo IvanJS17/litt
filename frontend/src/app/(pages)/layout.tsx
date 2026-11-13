@@ -7,7 +7,8 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import { ChatHistoryProvider } from "@/app/contexts/ChatHistoryContext";
 import { ManagedAccountBanner } from "@/app/components/organizations/ManagedAccountBanner";
 import { PersonalWorkspaceNotice } from "@/app/components/organizations/PersonalWorkspaceNotice";
-import { WorkspaceProvider } from "@/app/contexts/WorkspaceContext";
+import { WorkspaceProvider, useWorkspace } from "@/app/contexts/WorkspaceContext";
+import { useWorkspaceFade } from "@/app/hooks/useWorkspaceFade";
 import { WorkspaceBadge } from "@/app/components/shared/WorkspaceBadge";
 import { SidebarContext } from "@/app/contexts/SidebarContext";
 import { PageChromeContext } from "@/app/contexts/PageChromeContext";
@@ -15,8 +16,32 @@ import { AppSidebar } from "@/app/components/shared/AppSidebar";
 import { preloadSidebarIcons } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { HeaderButtonUI, HeaderButtonsUI } from "@mike/ui";
+import { useIsPhone } from "@/app/hooks/useIsPhone";
 import { cn } from "@/app/lib/utils";
 import { useTranslations } from "next-intl";
+
+const MAIN_CONTENT_ID = "main-content";
+
+/**
+ * The page itself. It is the target of "Skip to content" (focusable, but not
+ * in the tab order) and fades in for 150 ms when the workspace changes.
+ */
+function PageMain({ children }: { children: React.ReactNode }) {
+    const { workspaceId } = useWorkspace();
+    const fading = useWorkspaceFade(workspaceId);
+    return (
+        <main
+            id={MAIN_CONTENT_ID}
+            tabIndex={-1}
+            className={cn(
+                "flex h-full w-full flex-1 flex-col overflow-y-auto outline-none md:overflow-hidden",
+                fading && "workspace-fade",
+            )}
+        >
+            {children}
+        </main>
+    );
+}
 
 /**
  * The project workspace (explorer, documents and chat). "New chat" renders
@@ -37,6 +62,7 @@ export default function MikeLayout({
     const { isAuthenticated, authLoading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const isPhone = useIsPhone();
     const isProjectWorkspace = PROJECT_WORKSPACE_PATH.test(pathname);
     // Only the chat page lets its thread scroll under a floating header. The
     // project workspace keeps the header in flow above its panels: floating,
@@ -166,12 +192,32 @@ export default function MikeLayout({
                             edges; this keeps the pane clear of the home indicator and of a
                             notch in landscape. */}
                         <div className="h-dvh flex flex-col bg-app-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+                            {/* First stop for the keyboard and a screen reader:
+                                jumps past the sidebar to the page. */}
+                            <a
+                                href={`#${MAIN_CONTENT_ID}`}
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    document
+                                        .getElementById(MAIN_CONTENT_ID)
+                                        ?.focus();
+                                }}
+                                className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[300] focus:rounded-lg focus:bg-app-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gray-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-focus"
+                            >
+                                {t("common.skipToContent")}
+                            </a>
                             <div className="flex-1 flex min-w-0 overflow-visible">
                                 <AppSidebar
                                     isOpen={isSidebarOpen}
                                     onToggle={handleSidebarToggle}
                                 />
-                                <div className="flex-1 flex flex-col h-[calc(100dvh-env(safe-area-inset-bottom))] md:overflow-hidden relative w-full">
+                                {/* With the sidebar open on a phone it is a window
+                                    over the page: nothing behind it takes focus
+                                    or is read out. */}
+                                <div
+                                    inert={isPhone && isSidebarOpen}
+                                    className="flex-1 flex flex-col h-[calc(100dvh-env(safe-area-inset-bottom))] md:overflow-hidden relative w-full"
+                                >
                                     {/* Mobile header */}
                                     <div
                                         data-slot="mobile-header"
@@ -195,6 +241,9 @@ export default function MikeLayout({
                                         >
                                             <HeaderButtonUI
                                                 iconOnly
+                                                data-sidebar-trigger=""
+                                                aria-expanded={isSidebarOpen}
+                                                aria-controls="app-sidebar"
                                                 onClick={handleSidebarToggle}
                                                 title={t("common.openSidebar")}
                                                 aria-label={t("common.openSidebar")}
@@ -218,11 +267,11 @@ export default function MikeLayout({
                                             className="pointer-events-auto ml-auto flex shrink-0 items-center justify-end"
                                         />
                                     </div>
-                                    <main className="flex h-full w-full flex-1 flex-col overflow-y-auto md:overflow-hidden">
+                                    <PageMain>
                                         <ManagedAccountBanner />
                                         <PersonalWorkspaceNotice />
                                         {children}
-                                    </main>
+                                    </PageMain>
                                 </div>
                             </div>
                         </div>
