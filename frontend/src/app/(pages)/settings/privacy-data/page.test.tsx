@@ -45,6 +45,7 @@ const workspaceState = vi.hoisted(() => ({
         allow_member_deletes?: boolean;
     } | null,
     organizations: [] as { id: string; name: string }[] | null,
+    personalWorkspaceDisabled: false,
 }));
 
 vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
@@ -68,6 +69,7 @@ const mockedDeleteChats = vi.mocked(deleteAllChats);
 beforeEach(() => {
     vi.clearAllMocks();
     workspaceState.workspaceId = null;
+    workspaceState.personalWorkspaceDisabled = false;
     workspaceState.activeOrganization = null;
     workspaceState.organizations = [];
     // The page shortens its poll interval to 10ms under NODE_ENV=test, so
@@ -341,5 +343,24 @@ describe("privacy-data async exports", () => {
 
         expect(screen.getByText("Export data")).toBeVisible();
         expect(screen.getByText("Delete data")).toBeVisible();
+    });
+});
+
+describe("privacy-data for a firm-managed account", () => {
+    it("still downloads the personal data it can no longer open, whatever firm is active", async () => {
+        workspaceState.personalWorkspaceDisabled = true;
+        workspaceState.workspaceId = "org-1";
+        workspaceState.activeOrganization = { id: "org-1", name: "Aurora", role: "member" };
+        mockedStart.mockResolvedValue({ export_id: "job-1" });
+        mockedStatus.mockResolvedValue({ status: "done", filename: "x.json" });
+        mockedDownload.mockResolvedValue({ blob: new Blob(["{}"]), filename: "x.json" });
+        globalThis.URL.createObjectURL = vi.fn(() => "blob:mock");
+        globalThis.URL.revokeObjectURL = vi.fn();
+
+        render(<PrivacyDataPage />);
+        await userEvent.click(screen.getAllByRole("button", { name: "Export" })[2]);
+
+        await waitFor(() => expect(mockedDownload).toHaveBeenCalledWith("job-1"));
+        expect(mockedStart).toHaveBeenCalledWith("account", { workspace: "personal" });
     });
 });

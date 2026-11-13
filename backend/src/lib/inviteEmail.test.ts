@@ -61,7 +61,7 @@ describe("recording the firm whose invitation created an account", () => {
     it("still reports the email as sent when recording fails", async () => {
         vi.spyOn(console, "warn").mockImplementation(() => {});
         const invite = vi.fn().mockResolvedValue({ data: { user: { id: "new", created_at: now() } }, error: null });
-        const { db, tables } = world(invite);
+        const { tables } = world(invite);
         const mem = memoryDb(tables);
         (mem.db as { auth?: unknown }).auth = { admin: { inviteUserByEmail: invite } };
         mem.failNext("user_profiles", "update", { message: "boom" });

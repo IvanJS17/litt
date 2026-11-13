@@ -215,6 +215,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         workspaceId,
         organizations,
         activeOrganization,
+        personalWorkspaceDisabled,
         setWorkspace,
     } = useWorkspace();
     const workspaceParam = workspaceId ?? undefined;
@@ -263,7 +264,9 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     const workspaceOptions =
         workspaceId && organizations && organizations.length > 0
             ? [
-                  { id: PERSONAL_WORKSPACE, name: PERSONAL_WORKSPACE_LABEL },
+                  ...(personalWorkspaceDisabled
+                      ? []
+                      : [{ id: PERSONAL_WORKSPACE, name: PERSONAL_WORKSPACE_LABEL }]),
                   ...organizations.map((org) => ({
                       id: org.id,
                       name: org.name,

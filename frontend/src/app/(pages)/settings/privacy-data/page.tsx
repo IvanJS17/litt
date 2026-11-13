@@ -104,9 +104,23 @@ const DELETE_ACTION_KEYS = {
 // than carrying it into the new one.
 export default function PrivacyDataPage() {
   const t = useTranslations();
-  const { workspaceId, activeOrganization } = useWorkspace();
+  const { workspaceId, activeOrganization, personalWorkspaceDisabled } =
+    useWorkspace();
   const multipleWorkspaces = useHasMultipleWorkspaces();
   const { canExport, canDelete } = useMemberDataActions();
+  // A firm-managed account cannot open its personal space, but the data in it
+  // is still the person's: they keep downloading and deleting it from here.
+  if (personalWorkspaceDisabled) {
+    return (
+      <PrivacyData
+        key={PERSONAL_WORKSPACE}
+        workspace={PERSONAL_WORKSPACE}
+        workspaceName={null}
+        canExport
+        canDelete
+      />
+    );
+  }
   const workspace = workspaceId ?? PERSONAL_WORKSPACE;
   if (!canExport && !canDelete) {
     return (

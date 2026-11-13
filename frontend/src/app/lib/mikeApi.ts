@@ -911,6 +911,10 @@ export interface UserProfile extends RouterProfileLists {
     onboardingComplete: boolean;
     passwordSet: boolean;
     termsRequired: boolean;
+    /** The firm that created this account manages it: no personal workspace. */
+    personalWorkspaceDisabled?: boolean;
+    managedByFirmName?: string | null;
+    managedNoticePending?: boolean;
     messageCreditsUsed: number;
     creditsResetDate: string;
     creditsRemaining: number;
@@ -1975,6 +1979,11 @@ export interface Org {
      */
     allow_member_exports?: boolean;
     allow_member_deletes?: boolean;
+    /**
+     * Whether the accounts this organization's invitation created have no
+     * personal workspace. Absent from a server that predates it: off.
+     */
+    managed_accounts?: boolean;
 }
 
 /**
@@ -2030,6 +2039,11 @@ export interface OrgInvitation {
     /** Recipient list only — the recipient is not a member yet, so they
      *  cannot look the organization's name up any other way. */
     org_name?: string | null;
+    /**
+     * Recipient list only: accepting makes this a firm-managed account (the
+     * firm's invitation created it and the firm has the setting on).
+     */
+    managed_account?: boolean;
 }
 
 export async function listOrgs(): Promise<Org[]> {
@@ -2237,6 +2251,29 @@ export async function setOrgMemberDataPolicy(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(policy),
     });
+}
+
+export interface OrgManagedAccounts {
+    managed_accounts: boolean;
+    /** Current members whose account this firm's invitation created. */
+    managed_members: number;
+}
+
+/** Turn "firm-managed accounts" on or off (owners and admins). */
+export async function setOrgManagedAccounts(
+    orgId: string,
+    enabled: boolean,
+): Promise<OrgManagedAccounts> {
+    return apiRequest<OrgManagedAccounts>("organizations.manage", `/orgs/${orgId}/managed-accounts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ managed_accounts: enabled }),
+    });
+}
+
+/** Close the "your firm now manages your account" notice. */
+export async function dismissManagedNotice(): Promise<void> {
+    await apiRequest<void>("settings.profile", "/user/managed-notice/dismiss", { method: "POST" });
 }
 
 export async function setOrgPersonalApiKeysAllowed(

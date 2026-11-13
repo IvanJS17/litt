@@ -69,6 +69,9 @@ interface UserProfile extends RouterProfileLists {
     onboardingComplete: boolean;
     passwordSet: boolean;
     termsRequired: boolean;
+    personalWorkspaceDisabled: boolean;
+    managedByFirmName: string | null;
+    managedNoticePending: boolean;
     messageCreditsUsed: number;
     creditsResetDate: string;
     creditsRemaining: number;
@@ -201,6 +204,9 @@ function toProfile(data: ApiUserProfile): UserProfile {
         onboardingComplete: profile.onboardingComplete !== false,
         passwordSet: profile.passwordSet === true,
         termsRequired: profile.termsRequired === true,
+        personalWorkspaceDisabled: profile.personalWorkspaceDisabled === true,
+        managedByFirmName: profile.managedByFirmName ?? null,
+        managedNoticePending: profile.managedNoticePending === true,
         memoryCuratorModel: profile.memoryCuratorModel ?? null,
         subagentModel: profile.subagentModel ?? null,
         subagentReasoning: profile.subagentReasoning ?? null,
@@ -317,6 +323,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 onboardingComplete: true,
                 passwordSet: false,
                 termsRequired: false,
+                personalWorkspaceDisabled: false,
+                managedByFirmName: null,
+                managedNoticePending: false,
                 messageCreditsUsed: 0,
                 creditsResetDate: futureResetDate.toISOString(),
                 creditsRemaining: 999999, // temporarily unlimited

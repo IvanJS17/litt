@@ -47,7 +47,15 @@ const PROVIDER_SECTIONS = [
  * Bring Your Own Keys and by the last onboarding step, so a key saved in
  * either place goes through the same checks.
  */
-export function PersonalProviderKeys({
+export function PersonalProviderKeys(props: { intro?: ReactNode }) {
+    const { profile } = useUserProfile();
+    // A firm-managed account runs on the firm's keys: it has no personal ones
+    // to add, and the server refuses them.
+    if (profile?.personalWorkspaceDisabled) return null;
+    return <PersonalProviderKeysList {...props} />;
+}
+
+function PersonalProviderKeysList({
     intro,
 }: {
     /** The sentence above the grids; `null` when the page says it already. */

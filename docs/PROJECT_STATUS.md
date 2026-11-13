@@ -32,6 +32,18 @@
   3.7 s and cost 0.0948 credits. Still not done: a browser flow with a real case
   file.
 
+### Firm-managed accounts (branch `feat/managed-accounts`, not yet merged)
+
+- A firm setting, «Cuentas administradas por el despacho»: the accounts a firm
+  invited and that were created by that invitation have no personal workspace
+  and use only the firm's workspace and keys. Enforced on the server (403
+  `personal_workspace_disabled`), applied at once and ended by leaving the firm
+  or turning it off. Migration `20261113_10_litt_managed_accounts.sql`
+  (`organizations.managed_accounts`, `user_profiles.created_by_org_id`,
+  `managed_notice_seen_org_id`). Design, covered routes and gaps in
+  [`managed-accounts.md`](managed-accounts.md). Waits on the legal text (Terms
+  5.5, Privacy Notice §8) and the new `LEGAL_VERSION`; not for production before.
+
 ### DOCX editing in LiTT (branch `feat/capa3-docx-editing`, not yet merged)
 
 - The Word editor (`@docx-editor.dev` 2.33.0 → 2.35.0, as upstream) is on for

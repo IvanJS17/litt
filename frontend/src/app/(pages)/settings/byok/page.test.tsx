@@ -2,7 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { updateApiKey, updateApiKeyEnabled, azureEnabled } = vi.hoisted(() => ({
+const { updateApiKey, updateApiKeyEnabled, azureEnabled, managed } = vi.hoisted(() => ({
+    managed: { value: false },
     updateApiKey: vi.fn(async () => true),
     updateApiKeyEnabled: vi.fn<(provider: string, enabled: boolean) => Promise<boolean>>(),
     azureEnabled: { value: true },
@@ -21,6 +22,7 @@ const notConfigured = { configured: false, source: null };
 vi.mock("@/app/contexts/UserProfileContext", () => ({
     useUserProfile: () => ({
         profile: {
+            personalWorkspaceDisabled: managed.value,
             apiKeys: {
                 claude: notConfigured,
                 gemini: notConfigured,
@@ -48,6 +50,7 @@ import ByokPage from "./page";
 describe("BYOK page cloud-platform keys", () => {
     beforeEach(() => {
         updateApiKey.mockClear();
+        managed.value = false;
         azureEnabled.value = true;
         updateApiKeyEnabled.mockReset().mockImplementation(async (_provider, enabled) => {
             azureEnabled.value = enabled;
@@ -310,4 +313,12 @@ describe("BYOK page cloud-platform keys", () => {
         expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
     });
 
+});
+
+describe("BYOK page for a firm-managed account", () => {
+    it("shows no personal keys: it runs on the firm's", () => {
+        managed.value = true;
+        const { container } = render(<ByokPage />);
+        expect(container).toBeEmptyDOMElement();
+    });
 });

@@ -19,6 +19,7 @@ import {
     type ReactNode,
 } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useOptionalUserProfile } from "@/app/contexts/UserProfileContext";
 import {
     getOrgApiKeys,
     listOrgs,
@@ -51,6 +52,12 @@ interface WorkspaceContextValue {
      * than on the caller's own keys.
      */
     orgApiKeys: OrgApiKeySettings | null;
+    /**
+     * The firm that created this account manages it: there is no personal
+     * workspace to be in or to switch to. Decided by the server on every
+     * request; this only keeps the screens from asking for it.
+     */
+    personalWorkspaceDisabled: boolean;
     setWorkspace: (workspaceId: string) => void;
     refreshOrganizations: () => Promise<void>;
     /** Re-read `orgApiKeys`, after they were changed in settings. */
@@ -62,6 +69,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue>({
     organizations: null,
     activeOrganization: null,
     orgApiKeys: null,
+    personalWorkspaceDisabled: false,
     setWorkspace: () => {},
     refreshOrganizations: async () => {},
     refreshOrgApiKeys: async () => {},
@@ -154,17 +162,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     // Derived as well as reset above, so the very render that learns the
     // organization is gone already asks for Personal.
-    const activeOrganization =
+    let activeOrganization =
         storedWorkspaceId === PERSONAL_WORKSPACE
             ? null
             : (organizations?.find((org) => org.id === storedWorkspaceId) ??
               null);
-    const workspaceId =
+    let workspaceId =
         storedWorkspaceId !== PERSONAL_WORKSPACE &&
         organizations !== null &&
         !activeOrganization
             ? PERSONAL_WORKSPACE
             : storedWorkspaceId;
+    // A firm-managed account has no Personal workspace (the one place this is
+    // decided on the screen): it lands in the firm's, whatever was remembered.
+    const personalWorkspaceDisabled =
+        useOptionalUserProfile()?.profile?.personalWorkspaceDisabled === true;
+    if (
+        personalWorkspaceDisabled &&
+        workspaceId === PERSONAL_WORKSPACE &&
+        organizations &&
+        organizations.length > 0
+    ) {
+        activeOrganization = organizations[0];
+        workspaceId = activeOrganization.id;
+    }
 
     useEffect(() => {
         storeWorkspace(userId, workspaceId);
@@ -239,6 +260,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             organizations,
             activeOrganization,
             orgApiKeys,
+            personalWorkspaceDisabled,
             setWorkspace,
             refreshOrganizations,
             refreshOrgApiKeys,
@@ -249,6 +271,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             organizations,
             activeOrganization,
             orgApiKeys,
+            personalWorkspaceDisabled,
             setWorkspace,
             refreshOrganizations,
             refreshOrgApiKeys,

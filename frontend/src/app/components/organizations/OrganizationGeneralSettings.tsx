@@ -42,6 +42,7 @@ import {
 } from "@/app/lib/permissions";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LittMonogramPixel, PillButtonUI } from "@mike/ui";
+import { ManagedAccountsSetting } from "./ManagedAccountsSetting";
 import { OrganizationLogoModal } from "./OrganizationLogoModal";
 import { useOrganizationSettings } from "./OrganizationSettingsShell";
 import { useTranslations } from "next-intl";
@@ -355,6 +356,9 @@ export function OrganizationGeneralSettings() {
           ) : null}
         </GlassCardUI>
       </section>
+      {org && canRename ? (
+        <ManagedAccountsSetting org={org} setOrg={setOrg} />
+      ) : null}
 
       <section aria-labelledby="org-general-membership" className="space-y-3">
         <SettingsHeading id="org-general-membership">

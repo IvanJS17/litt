@@ -1388,6 +1388,13 @@
     "searchTemplates": "Search templates...",
     "templates": "Templates"
   },
+  "managedAccount": {
+    "title": "Account managed by {firm}",
+    "body": "{firm} manages the accounts it creates by invitation. With this account you can only use {firm}'s workspace and its keys; you won't have a personal workspace. What you do stays in the firm's workspace, even if you leave. If you leave {firm}, your account will have a personal workspace again.",
+    "termsLink": "See section 5.5 of the Terms",
+    "nowManaged": "{firm} now manages your account: you can only use {firm}'s workspace and its keys. What you had in your personal workspace was not deleted. You'll see it again if you leave {firm}, and you can download it in Settings.",
+    "dismiss": "Dismiss"
+  },
   "markdownDocument": {
     "cancel": "Cancel",
     "conflict": "Someone saved another version; reload to see the changes.",
@@ -1556,6 +1563,12 @@
     "youCannotShareThisWithYourself": "You cannot share this with yourself.",
     "zoom": "Zoom",
     "zoomOutToKeepTheWhole": "Zoom out to keep the whole image, or in on the part that reads best small."
+  },
+  "orgSettings": {
+    "managedAccounts": {
+      "label": "Firm-managed accounts",
+      "help": "Accounts created by invitation from {firm} won't have a personal workspace: they'll only use the firm's workspace and keys. People who already had an account before the invitation are not affected. Any personal content they had is not deleted, but its owner can't open it while in the firm. We'll notify those people. The firm is responsible for this setting."
+    }
   },
   "organizations": {
     "auditLog": "Audit log",
