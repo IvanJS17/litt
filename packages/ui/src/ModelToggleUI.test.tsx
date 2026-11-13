@@ -108,5 +108,16 @@ describe("shortModelLabel", () => {
         expect(shortModelLabel("Claude Fable 5.2")).toBe("Fable 5.2");
         expect(shortModelLabel("Mistral Large 4 (Preview)")).toBe("Mistral Large 4");
         expect(shortModelLabel("GPT-6.1 Sol")).toBe("GPT-6.1 Sol");
+        expect(shortModelLabel("Claude Fable 5.2 (vista previa) ")).toBe("Fable 5.2");
+        expect(shortModelLabel("Claudette 2")).toBe("Claudette 2");
+        expect(shortModelLabel("Claude (Preview)")).toBe("Claude (Preview)");
+    });
+
+    it("stays linear on a label of many tabs", () => {
+        const label = `x${"\t".repeat(50_000)}y`;
+        const started = performance.now();
+        expect(shortModelLabel(label)).toBe(label);
+        expect(shortModelLabel("\t".repeat(50_000))).toBe("\t".repeat(50_000));
+        expect(performance.now() - started).toBeLessThan(250);
     });
 });

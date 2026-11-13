@@ -162,16 +162,27 @@ export function orderedModelGroups(
   return [...known, ...[...present].sort((a, b) => a.localeCompare(b))];
 }
 
+const MAKER_PREFIX = "Claude";
+const PREVIEW_NOTES = ["(preview)", "(vista previa)"];
+
 /**
  * The short name for a narrow trigger: "Claude Fable 5.2" → "Fable 5.2",
  * "Mistral Large 4 (Preview)" → "Mistral Large 4". The full name stays in the
  * list and in the trigger's title.
  */
 export function shortModelLabel(label: string): string {
-  const short = label
-    .replace(/^Claude\s+/, "")
-    .replace(/\s*\((?:Preview|Vista previa)\)\s*$/i, "")
-    .trim();
+  // Plain string checks, not a regex: a label comes from the model catalog,
+  // and `\s*…\s*$` backtracks quadratically on a long run of whitespace.
+  let short =
+    label.startsWith(MAKER_PREFIX) && /\s/.test(label.charAt(MAKER_PREFIX.length))
+      ? label.slice(MAKER_PREFIX.length)
+      : label;
+  short = short.trimEnd();
+  const note = PREVIEW_NOTES.find(
+    (candidate) => short.slice(-candidate.length).toLowerCase() === candidate,
+  );
+  if (note) short = short.slice(0, -note.length);
+  short = short.trim();
   return short || label;
 }
 

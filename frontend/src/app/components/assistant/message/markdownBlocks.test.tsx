@@ -53,6 +53,14 @@ describe("splitMarkdownBlocks", () => {
         expect(splitMarkdownBlocks(DOCUMENTS.references)).toHaveLength(1);
         expect(splitMarkdownBlocks(DOCUMENTS.footnote)).toHaveLength(1);
     });
+
+    it("stays linear on text of unclosed brackets", () => {
+        const started = performance.now();
+        for (const text of [`${"[a\n".repeat(50_000)}\n\nEnd`, `${"[^".repeat(50_000)}\n\nEnd`]) {
+            expect(splitMarkdownBlocks(text).join("")).toBe(text);
+        }
+        expect(performance.now() - started).toBeLessThan(250);
+    });
 });
 
 describe("MarkdownContent while streaming", () => {

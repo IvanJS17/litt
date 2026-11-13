@@ -14,7 +14,9 @@
 
 const LIST_ITEM = /^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:\s|$)/;
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
-const CROSS_BLOCK_SYNTAX = /^ {0,3}\[[^\]]+\]:\s*\S|\[\^[^\]\s]+\]/m;
+// A label stops at the next bracket either way, so no attempt rescans the
+// text after it: the test stays linear on streamed (model-written) text.
+const CROSS_BLOCK_SYNTAX = /^ {0,3}\[[^[\]]+\]:\s*\S|\[\^[^[\]\s]+\]/m;
 
 function safeBoundary(block: string[], next: string): boolean {
     if (next.length === 0 || /^\s/.test(next)) return false;
