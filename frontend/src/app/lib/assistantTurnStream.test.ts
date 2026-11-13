@@ -44,6 +44,40 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("consumeAssistantTurnStream drawing rate", () => {
+  it("draws a burst of content_delta frames once, with all of the text, and the end of the stream leaves nothing behind", async () => {
+    const turn = begin();
+    const words = Array.from({ length: 40 }, (_, i) => `w${i} `);
+    const draws: string[] = [];
+    const real = turn.update;
+    const counting = { ...turn, update: (fn: Parameters<typeof real>[0]) => { real(fn); draws.push(text(turn.turn.assistant)); } };
+    await consumeAssistantTurnStream(
+      sseResponse([...words.map((w, i) => frame(i + 1, { type: "content_delta", text: w })), "data: [DONE]\n\n"]),
+      { turn: counting, sink: createTurnEventSink(turn, []), cursor: createTurnCursor("chat-a") },
+    );
+    // The first block appears at once; the 39 appended pieces are drawn together.
+    expect(draws.length).toBeLessThan(10);
+    expect(text(turn.turn.assistant)).toBe(words.join(""));
+    expect(draws.at(-1)).toBe(words.join(""));
+  });
+
+  it("draws the pending text before a tool event, in order", async () => {
+    const turn = begin();
+    await consumeAssistantTurnStream(
+      sseResponse([
+        frame(1, { type: "content_delta", text: "One " }),
+        frame(2, { type: "content_delta", text: "two" }),
+        frame(3, { type: "text_card", card_id: "c", title: "T", text: "body" }),
+        frame(4, { type: "content_delta", text: "after" }),
+        "data: [DONE]\n\n",
+      ]),
+      { turn, sink: createTurnEventSink(turn, []), cursor: createTurnCursor("chat-a") },
+    );
+    const types = (turn.turn.assistant.events ?? []).map((e) => (e.type === "content" ? e.text : e.type));
+    expect(types).toEqual(["One two", "text_card", "after"]);
+  });
+});
+
 describe("consumeAssistantTurnStream", () => {
   it("keeps text cards between prose segments and ignores malformed cards", async () => {
     const turn = begin();

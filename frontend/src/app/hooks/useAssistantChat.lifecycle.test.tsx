@@ -314,6 +314,9 @@ describe("returning to a thread while its answer streams", () => {
     /** The stored question, as a history read returns it before the answer row has content. */
     const storedQuestion = (): Message => ({ id: "u1", role: "user", content: "hello" });
 
+    /** A growing answer is drawn at most every 32 ms; wait one interval out. */
+    const nextDraw = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+
     it("shows the live answer, token by token, after switching away and back", async () => {
         const body = controllableSseResponse();
         fetchMock.mockResolvedValue(body.response);
@@ -328,6 +331,7 @@ describe("returning to a thread while its answer streams", () => {
         rerender({ chatId: "chat-b" });
         act(() => result.current.setMessages([userMessage("about b")]));
         await body.send('data: {"type":"content_delta","text":" while away"}\n\n');
+        await nextDraw();
         // Nothing from the detached turn lands in the other thread.
         expect(result.current.messages).toEqual([userMessage("about b")]);
         expect(result.current.isResponseLoading).toBe(false);
@@ -341,6 +345,7 @@ describe("returning to a thread while its answer streams", () => {
         expect(assistantText(result.current.messages)).toBe("Partial while away");
 
         await body.send('data: {"type":"content_delta","text":" and back"}\n\n');
+        await nextDraw();
         expect(assistantText(result.current.messages)).toBe("Partial while away and back");
 
         await body.close();
@@ -369,6 +374,7 @@ describe("returning to a thread while its answer streams", () => {
         expect(returned.result.current.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
 
         await body.send('data: {"type":"content_delta","text":" and the rest"}\n\n');
+        await nextDraw();
         expect(assistantText(returned.result.current.messages)).toBe("Partial and the rest");
         await body.close();
         await turn;

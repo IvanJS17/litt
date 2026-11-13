@@ -1,4 +1,4 @@
-import { memo, type RefObject, type ComponentProps } from "react";
+import { Fragment, memo, type RefObject, type ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -9,6 +9,7 @@ import { CitationPillUI, EXCERPT_SOURCE_PROPS } from "@mike/ui";
 import { withoutMarkdownNode } from "./messageStyles";
 import { useTranslations } from "next-intl";
 import { citationTooltip } from "./CitationSources";
+import { splitMarkdownBlocks } from "./markdownBlocks";
 import {
     citationVerificationAriaLabel,
     citationVerificationPillClassName,
@@ -25,30 +26,23 @@ function isSameOrigin(url: string): boolean {
     }
 }
 
-function MarkdownContentImpl({
-    text,
-    inlineCitationTargets,
-    activeCitation,
-    onCitationClick,
-    divRef,
-    excerptSource = false,
-}: {
-    /** Lets a reader highlight this text to quote it in the composer. */
-    excerptSource?: boolean;
+interface BlockProps {
     text: string;
     inlineCitationTargets: Citation[];
     activeCitation?: Citation | null;
     onCitationClick?: (c: Citation) => void;
-    divRef?: RefObject<HTMLDivElement | null>;
-}) {
+}
+
+/** One run of Markdown parsed and drawn by itself. */
+function MarkdownBlockImpl({
+    text,
+    inlineCitationTargets,
+    activeCitation,
+    onCitationClick,
+}: BlockProps) {
     const t = useTranslations();
 
     return (
-        <div
-            ref={divRef}
-            {...(excerptSource ? EXCERPT_SOURCE_PROPS : {})}
-            className="text-gray-900 mb-4 text-base prose prose-sm max-w-none font-serif"
-        >
             <ReactMarkdown
                 remarkPlugins={[
                     [remarkMath, { singleDollarTextMath: false }],
@@ -282,16 +276,73 @@ function MarkdownContentImpl({
             >
                 {text}
             </ReactMarkdown>
-        </div>
     );
 }
 
-export const MarkdownContent = memo(MarkdownContentImpl, (previous, next) => {
-    for (const key of Object.keys(previous) as (keyof ComponentProps<typeof MarkdownContentImpl>)[]) {
+/** Same props, same drawing: skip the block when none of them changed. */
+function sameBlockProps<P extends { inlineCitationTargets: Citation[] }>(
+    previous: P,
+    next: P,
+): boolean {
+    for (const key of Object.keys(previous) as (keyof P)[]) {
         if (key === "inlineCitationTargets") continue;
         if (previous[key] !== next[key]) return false;
     }
     if (Object.keys(previous).length !== Object.keys(next).length) return false;
     if (previous.inlineCitationTargets.length !== next.inlineCitationTargets.length || previous.inlineCitationTargets.some((value, index) => value !== next.inlineCitationTargets[index])) return false;
     return true;
-});
+}
+
+const MarkdownBlock = memo(MarkdownBlockImpl, sameBlockProps);
+
+function MarkdownContentImpl({
+    text,
+    inlineCitationTargets,
+    activeCitation,
+    onCitationClick,
+    divRef,
+    excerptSource = false,
+    streaming = false,
+}: {
+    /** Lets a reader highlight this text to quote it in the composer. */
+    excerptSource?: boolean;
+    text: string;
+    inlineCitationTargets: Citation[];
+    activeCitation?: Citation | null;
+    onCitationClick?: (c: Citation) => void;
+    divRef?: RefObject<HTMLDivElement | null>;
+    /**
+     * The text is still arriving: parse and draw it block by block, so the
+     * blocks that have closed are not rebuilt with every new piece. Once it
+     * stops, the whole text is drawn as one, as it always was.
+     */
+    streaming?: boolean;
+}) {
+    const blocks = streaming ? splitMarkdownBlocks(text) : [text];
+    return (
+        <div
+            ref={divRef}
+            {...(excerptSource ? EXCERPT_SOURCE_PROPS : {})}
+            className="text-gray-900 mb-4 text-base prose prose-sm max-w-none font-serif"
+        >
+            {blocks.map((block, index) => (
+                <Fragment key={index}>
+                    {/* The line break the parser leaves between top-level
+                        nodes, so the pieces build the same DOM as the whole. */}
+                    {index > 0 ? "\n" : null}
+                    <MarkdownBlock
+                        text={block}
+                        inlineCitationTargets={inlineCitationTargets}
+                        activeCitation={activeCitation}
+                        onCitationClick={onCitationClick}
+                    />
+                </Fragment>
+            ))}
+        </div>
+    );
+}
+
+export const MarkdownContent = memo(
+    MarkdownContentImpl,
+    sameBlockProps<ComponentProps<typeof MarkdownContentImpl>>,
+);

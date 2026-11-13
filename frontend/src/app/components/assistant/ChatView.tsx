@@ -193,6 +193,19 @@ const CHAT_MESSAGE_TOP_PADDING = 76;
  * The assistant page for one chat: the conversation with its document side
  * panel. A page showing two chats composes `AssistantChatColumn` itself.
  */
+/**
+ * A message the page can stop drawing while it is off screen: neither of the
+ * last two (the latest question, which the scroll is measured from, and the
+ * answer that may still be streaming) and not one waiting on the user.
+ */
+function settledMessage(
+    index: number,
+    count: number,
+    pendingAskInputIndex: number,
+): boolean | undefined {
+    return index < count - 2 && index !== pendingAskInputIndex ? true : undefined;
+}
+
 export function ChatView(props: Props) {
     const documentPanel = useAssistantDocumentPanel();
     return (
@@ -1116,6 +1129,28 @@ export function AssistantChatColumn({
                                                     i === lastUserIndex
                                                         ? latestUserMessageRef
                                                         : null
+                                                }
+                                                // A finished message far above
+                                                // the end is skipped by the
+                                                // browser until it nears the
+                                                // screen. The last exchange,
+                                                // the question the scroll is
+                                                // anchored to and a message
+                                                // waiting on the user stay
+                                                // drawn.
+                                                data-settled={settledMessage(
+                                                    i,
+                                                    messages.length,
+                                                    pendingAskInputIndex,
+                                                )}
+                                                className={
+                                                    settledMessage(
+                                                        i,
+                                                        messages.length,
+                                                        pendingAskInputIndex,
+                                                    )
+                                                        ? "chat-message-settled"
+                                                        : undefined
                                                 }
                                             >
                                                 {msg.role === "user" ? (

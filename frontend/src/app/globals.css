@@ -529,3 +529,19 @@ body {
         scroll-behavior: auto !important;
     }
 }
+
+/* Lote 2 · acabado */
+
+/* A finished chat message far above the end is not drawn until it nears the
+   screen (content-visibility), with an estimated height that the browser
+   replaces by the real one once it has been seen (`auto`), so the scrollbar
+   and the position do not jump. Paint containment would clip a focus ring or
+   a shadow at the message's edge, so the box keeps a margin. The newest
+   exchange and a message waiting on the user are never marked (ChatView). */
+.chat-message-settled {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 14rem;
+    overflow-clip-margin: 0.5rem;
+    padding-inline: 0.5rem;
+    margin-inline: -0.5rem;
+}

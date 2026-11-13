@@ -346,6 +346,9 @@ export function createTurnEventSink(
 
 export type TurnEventSink = ReturnType<typeof createTurnEventSink>;
 
+/** How often a growing answer is drawn: about 30 times a second. */
+const CONTENT_PUBLISH_INTERVAL_MS = 32;
+
 /** Apply one stream's frames to the turn record until [DONE] or the signal aborts. */
 export async function consumeAssistantTurnStream(
   response: Response,
@@ -371,6 +374,24 @@ export async function consumeAssistantTurnStream(
   } = sink;
   const updateLatestAssistantMessage = turn.update;
 
+  // A burst of content_delta frames is drawn at most once per interval: the
+  // record in eventsRef is always current, and the publish that draws it is
+  // held back for a few milliseconds. Any other frame, the end of the stream
+  // and an abort publish it first, so nothing is ever drawn out of order or
+  // left behind.
+  let contentPublish: ReturnType<typeof setTimeout> | null = null;
+  const flushContentPublish = () => {
+    if (contentPublish === null) return;
+    clearTimeout(contentPublish);
+    contentPublish = null;
+    const snapshot = [...eventsRef.current];
+    updateLatestAssistantMessage((message) => ({
+      ...message,
+      events: snapshot,
+    }));
+  };
+
+  try {
   for await (const frame of readSseFrames(response, {
     signal,
     onEventId: (id) => {
@@ -379,6 +400,7 @@ export async function consumeAssistantTurnStream(
     },
   })) {
     const data = frame as Record<string, unknown>;
+    if (data.type !== "content_delta") flushContentPublish();
 
     try {
         if (data.type === "chat_id") {
@@ -497,11 +519,10 @@ export async function consumeAssistantTurnStream(
               isStreaming: true,
             };
             eventsRef.current = nextEvents;
-            const snapshot = [...nextEvents];
-            updateLatestAssistantMessage((message) => ({
-              ...message,
-              events: snapshot,
-            }));
+            contentPublish ??= setTimeout(
+              flushContentPublish,
+              CONTENT_PUBLISH_INTERVAL_MS,
+            );
           }
           continue;
         }
@@ -1200,6 +1221,9 @@ export async function consumeAssistantTurnStream(
     } catch (e) {
       console.warn("[useAssistantChat] failed to handle SSE event:", data, e);
     }
+  }
+  } finally {
+    flushContentPublish();
   }
 
   finalizeStreamingReasoning();

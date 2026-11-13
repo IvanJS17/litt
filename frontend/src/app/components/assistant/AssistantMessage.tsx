@@ -751,6 +751,11 @@ function AssistantMessageImpl({
                                             }
                                             activeCitation={activeCitation}
                                             onCitationClick={onCitationClick}
+                                            streaming={
+                                                isLastContent &&
+                                                isStreaming &&
+                                                contentIsTail
+                                            }
                                             divRef={
                                                 isLastContent
                                                     ? contentDivRef

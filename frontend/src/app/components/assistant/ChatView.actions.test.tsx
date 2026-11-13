@@ -458,6 +458,37 @@ describe("ChatView responses waiting on the user", () => {
     });
 });
 
+describe("ChatView long conversations", () => {
+    const user = (n: number): Message => ({ role: "user", content: `Question ${n}` });
+    const answer = (n: number): Message =>
+        ({ role: "assistant", content: `Answer ${n}`, events: [{ type: "content", text: `Answer ${n}` }] }) as unknown as Message;
+
+    it("lets the browser skip finished messages far above the end, never the last exchange", () => {
+        const messages = [1, 2, 3].flatMap((n) => [user(n), answer(n)]);
+        const { container } = render(
+            <PageChromeContext.Provider value={{ mobileActionsContainer: null }}>
+                <ChatView chatId="chat-1" chat={activeChat} messages={messages} isResponseLoading={false}
+                    handleChat={vi.fn().mockResolvedValue("chat-1")} cancel={vi.fn()} onNewChat={vi.fn()} />
+            </PageChromeContext.Provider>,
+        );
+        const marked = [...container.querySelectorAll("[class~='chat-message-settled']")].map((el) => el.textContent);
+        expect(marked).toHaveLength(4);
+        expect(marked.join(" ")).toContain("Question 1");
+        expect(marked.join(" ")).toContain("Question 2");
+        expect(marked.join(" ")).not.toContain("Question 3");
+    });
+
+    it("leaves a short conversation alone", () => {
+        const { container } = render(
+            <PageChromeContext.Provider value={{ mobileActionsContainer: null }}>
+                <ChatView chatId="chat-1" chat={activeChat} messages={[user(1), answer(1)]} isResponseLoading={false}
+                    handleChat={vi.fn().mockResolvedValue("chat-1")} cancel={vi.fn()} onNewChat={vi.fn()} />
+            </PageChromeContext.Provider>,
+        );
+        expect(container.querySelector(".chat-message-settled")).toBeNull();
+    });
+});
+
 describe("ChatView header actions", () => {
     it.each(["viewer", "editor"] as const)("uses the detail role and lets a directly shared %s leave", async (role) => {
         // The history fixture still says owner; refreshed detail is authoritative.
