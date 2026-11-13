@@ -69,8 +69,9 @@ Training has three layers, all integrated into `main`:
   would. Making any stage in the organization count inside workflows would
   be a product decision; it would harden sealing too, since both use the
   same effective stage.
-- **Mentor.** Designated by an owner or admin of the organization. Each pupil
-  has exactly one current mentor per organization.
+- **Mentor.** Designated by an owner or admin of the organization, who may be a
+  mentor themselves. Each pupil has exactly one current mentor per organization,
+  and is never an owner or admin.
 
 ## Who sees what
 
@@ -183,27 +184,37 @@ Enforced in `training.service.ts` and covered by
 | Action | Who |
 |---|---|
 | Designate or retire a mentor | an owner or admin; a mentor with pupils is not retired (`409 training_mentor_has_pupils`) |
-| Take a member as pupil | a mentor, for themselves, when the member has no mentor |
-| Move a pupil to another mentor | an owner or admin only (`409 training_pupil_has_mentor` for anybody else) |
+| Take a member as pupil | a mentor, for themselves, when the member has no mentor; an owner or admin, for any mentor of the firm (`mentor_user_id`) |
+| Move a pupil to another mentor | an owner or admin only (`409 training_pupil_has_mentor` for anybody else); never to themselves |
 | Set, change or remove a stage | the pupil's current mentor only |
 | Release a pupil (mentor and stages) | their mentor, or an owner or admin |
 | Read | the pupil: their mentor and stages; a mentor: their pupils' stages; an owner or admin: who mentors whom, never the stages |
 
-Nobody is their own pupil.
+Nobody is their own pupil. **An owner or admin can be a mentor but never a
+pupil.** Taking or moving one is refused (`400`), and a pupil who is promoted to
+admin or owner stops being one in the same statement: the trigger
+`org_members_training_role_change` (`20261113_50_litt_training_role_rules.sql`)
+deletes their `training_pupils` row, and their stages go with it. It acts on
+every path that changes the role, not only `PATCH …/members/:userId`. A mentor
+who is promoted stays a mentor. The rest of their learning data (notes,
+readings) stays, as it does when a pupil is released. One insert-only audit
+event, `training.pupil_ended_by_role`, is filed under the promoted person with
+ids and roles only.
 
-**Accepted: a mentor can tell that a member already has a mentor.** The list of
+**A mentor can still tell that a member already has a mentor.** The list of
 members a mentor may take (`candidates` in `GET …/pupils`) leaves out those who
-have one, and taking one of them answers `409 training_pupil_has_mentor`. This
-is kept on purpose. The approved specification limits the owner's and admin's
-role to naming mentors, so pupils cannot be assigned only by them, and a mentor
-cannot take a pupil without a list of members who are free. What can be
-inferred is only that somebody has a mentor: never who, never a stage, never a
-note. Only designated mentors see it (`candidates` and the `POST` require being
-one); owners and admins already see who mentors whom.
+have one, and taking one of them answers `409 training_pupil_has_mentor`. Owners
+and admins now assign pupils to any mentor from Settings of the firm →
+Formación, but a mentor still takes free members from their own «Mis
+aprendices», so the list stays. What can be inferred is only that somebody has a
+mentor: never who, never a stage, never a note. Only designated mentors see it
+(`candidates` and the `POST` require being one); owners and admins already see
+who mentors whom. **Stages stay the current mentor's alone**; an owner or admin
+assigns and moves, never grades.
 
 Each change writes one insert-only audit event, with
 ids and labels only: `training.mentor_designated`, `training.mentor_removed`,
-`training.pupil_assigned`, `training.pupil_released`, `training.stage_set`,
+`training.pupil_assigned`, `training.pupil_released`, `training.pupil_ended_by_role`, `training.stage_set`,
 `training.stage_removed`.
 
 ## Criterion: verdict, thermometer and basis (layer 3)

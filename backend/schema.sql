@@ -17523,6 +17523,40 @@ create trigger org_members_training_departure
   before delete on public.org_members
   for each row execute procedure public.org_members_training_departure();
 
+-- 20261113_50: an owner or admin is never a pupil; promotion ends the training.
+create or replace function public.org_members_training_role_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare ended int;
+begin
+  if new.role not in ('owner', 'admin') or new.role is not distinct from old.role then
+    return new;
+  end if;
+  with gone as (
+    delete from public.training_pupils
+      where org_id = new.org_id and trainee_user_id = new.user_id
+      returning 1
+  )
+  select count(*) into ended from gone;
+  if ended > 0 then
+    insert into public.audit_events(user_id, org_id, action, surface, detail)
+    values (new.user_id, new.org_id, 'training.pupil_ended_by_role', 'organization',
+      jsonb_build_object('org_id', new.org_id, 'target_user_id', new.user_id,
+        'previous_role', old.role, 'role', new.role));
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.org_members_training_role_change() from public, anon, authenticated;
+
+drop trigger if exists org_members_training_role_change on public.org_members;
+create trigger org_members_training_role_change
+  after update of role on public.org_members
+  for each row execute procedure public.org_members_training_role_change();
+
 -- A pasante's private notes: the attempt they wrote before a chat turn
 -- ("Tu planteamiento") and the contrast the model produced afterwards with
 -- the conversation's own provider, model and credential. They are learning
@@ -20695,5 +20729,6 @@ insert into public.schema_migrations (filename) values
   ('20261112_50_litt_ocr_keep_reading.sql'),
   ('20261112_60_litt_split_expediente.sql'),
   ('20261113_10_litt_managed_accounts.sql'),
-  ('20261113_30_litt_firm_profile.sql')
+  ('20261113_30_litt_firm_profile.sql'),
+  ('20261113_50_litt_training_role_rules.sql')
 on conflict (filename) do nothing;

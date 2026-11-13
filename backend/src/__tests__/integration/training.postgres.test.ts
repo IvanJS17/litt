@@ -56,6 +56,12 @@ describe.skipIf(!container)("LiTT training rows in PostgreSQL", () => {
         );
         psql(migration);
         psql(migration);
+        const roleRules = readFileSync(
+            resolve(process.cwd(), "migrations/20261113_50_litt_training_role_rules.sql"),
+            "utf8",
+        );
+        psql(roleRules);
+        psql(roleRules);
     }, 120_000);
 
     afterAll(() => {
@@ -105,6 +111,52 @@ describe.skipIf(!container)("LiTT training rows in PostgreSQL", () => {
         expect(count("training_pupils")).toBe(0);
         expect(count("training_stages")).toBe(0);
         expect(count("training_mentors")).toBe(1);
+    });
+
+    describe("an owner or admin is never a pupil", () => {
+        const promote = (user: number, role: string) =>
+            psql(`update public.org_members set role='${role}' where org_id=${q(ORG)} and user_id=${q(user)};`);
+        // audit_events is insert-only, so count what this test added.
+        let seen = 0;
+        const all = () => count("audit_events", "action='training.pupil_ended_by_role'");
+        const ended = () => all() - seen;
+        beforeEach(() => {
+            seen = all();
+        });
+
+        it.each(["admin", "owner"])("ends the pupil row and the stages when promoted to %s", (role) => {
+            expect(count("training_stages")).toBeGreaterThan(0);
+            promote(PUPIL, role);
+            expect(count("training_pupils")).toBe(0);
+            expect(count("training_stages")).toBe(0);
+            expect(count("training_mentors")).toBe(1);
+            expect(ended()).toBe(1);
+            expect(
+                psql(`select detail->>'target_user_id' || ':' || (detail->>'previous_role') || ':' || (detail->>'role')
+                    from public.audit_events where action='training.pupil_ended_by_role'
+                    order by created_at desc limit 1`),
+            ).toBe(`${uid(PUPIL)}:member:${role}`);
+        });
+
+        it("leaves a pupil alone when the role stays a member's, and audits nothing", () => {
+            promote(PUPIL, "member");
+            expect(count("training_pupils")).toBe(1);
+            expect(count("training_stages")).toBeGreaterThan(0);
+            expect(ended()).toBe(0);
+        });
+
+        it("keeps a mentor and their pupils when the mentor is promoted", () => {
+            promote(MENTOR, "admin");
+            expect(count("training_mentors")).toBe(1);
+            expect(count("training_pupils")).toBe(1);
+            expect(ended()).toBe(0);
+        });
+
+        it("audits nothing when a promoted member was never a pupil", () => {
+            psql(`delete from public.training_pupils;`);
+            promote(PUPIL, "admin");
+            expect(ended()).toBe(0);
+        });
     });
 
     it("refuses a mentor with pupils leaving, and lets them go once released", () => {
