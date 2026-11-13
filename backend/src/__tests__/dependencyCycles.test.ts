@@ -10,7 +10,7 @@ import {
     resolveDependency,
 } from "./helpers/sourceDependencies";
 const ROOT = resolve(__dirname, "../../..");
-// LiTT has no desktop app (removed; AGENTS.md "LiTT fork").
+// The applications scanned for import cycles (see AGENTS.md).
 const APPS = ["backend", "frontend", "word-addin"];
 beforeAll(loadSourceParser);
 /** A throwaway repository: `files` maps repo-relative paths to contents. */
