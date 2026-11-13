@@ -190,7 +190,7 @@ export default function MikeLayout({
                                                 "pointer-events-auto",
                                                 // Only the chat page floats this
                                                 // bar over scrolling content.
-                                                isChatPage && "backdrop-blur-2xl",
+                                                isChatPage && "backdrop-blur-[18px]",
                                             )}
                                         >
                                             <HeaderButtonUI

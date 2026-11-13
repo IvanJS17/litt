@@ -833,7 +833,7 @@ export function AssistantChatColumn({
                 />
             ) : null;
         return (
-            <HeaderButtonsUI className="pointer-events-auto backdrop-blur-2xl">
+            <HeaderButtonsUI className="pointer-events-auto backdrop-blur-[18px]">
                 {isNewChat ? (
                     // Nothing to leave yet, so the slot offers past chats.
                     historyMenu(

@@ -75,6 +75,19 @@ describe("mobile page header", () => {
         );
     });
 
+    it("blurs what scrolls under the floating chat header lightly (16-20 px), not at 40 px", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+
+        const header = document.querySelector('[data-slot="mobile-header"]')!;
+        const blur = header.querySelector('[class*="backdrop-blur"]')!;
+        expect(blur.className).toMatch(/backdrop-blur-\[(1[6-9]|20)px\]/);
+        expect(blur.className).not.toContain("backdrop-blur-2xl");
+    });
+
     it("backs the workspace label with the solid page colour and lets it shrink before the actions", () => {
         render(
             <MikeLayout>
