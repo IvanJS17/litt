@@ -1092,14 +1092,14 @@ test("the composer swaps Send for a Stop control while streaming, then restores"
     .locator("[data-assistant-message-id]")
     .last()
     .getByTestId("assistant-response-status");
-  const mikeLoader = responseStatus.locator('svg[viewBox="100 100 300 300"]');
+  const statusMark = responseStatus.locator("svg.litt-status-mark");
 
   // While streaming: the textarea remains available for composing the next
   // turn, while Send is replaced by a reachable Stop control.
   await expect(input).toBeEnabled();
   await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send" })).toHaveCount(0);
-  await expect(mikeLoader).toBeVisible();
+  await expect(statusMark).toBeVisible();
   await expect(
     page
       .locator("[data-assistant-message-id]")
@@ -1112,25 +1112,14 @@ test("the composer swaps Send for a Stop control while streaming, then restores"
       .last()
       .getByRole("button", { name: /^(Working|Completed in \d+ steps?)/ }),
   ).toHaveCount(0);
-  await expect
-    .poll(() =>
-      mikeLoader.evaluate(
-        (icon) => (icon.parentElement as HTMLElement).style.animationPlayState,
-      ),
-    )
-    .toBe("running");
+  await expect(statusMark).toHaveAttribute("data-state", "working");
 
   stream.release();
 
   // Once the stream finishes Send returns.
   await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
-  await expect
-    .poll(() =>
-      mikeLoader.evaluate(
-        (icon) => (icon.parentElement as HTMLElement).style.animationPlayState,
-      ),
-    )
-    .toBe("paused");
+  // It stops blinking: done first, then idle.
+  await expect(statusMark).not.toHaveAttribute("data-state", "working");
 });
 
 // ---------------------------------------------------------------------------

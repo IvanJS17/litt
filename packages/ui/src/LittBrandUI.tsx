@@ -16,6 +16,9 @@
  * surface in the dark theme.
  *
  * Nothing here animates. The square is a cursor that never blinks or pulses.
+ * The one exception is the response-status indicator (`LittStatusMarkUI`),
+ * whose motion spec the owner approved on 2026-11-13 (DESIGN.md, rules 9
+ * and 10); these two marks stay still.
  */
 
 /** Unit grid of the wordmark, protection area included: 36u × 18.3709u. */

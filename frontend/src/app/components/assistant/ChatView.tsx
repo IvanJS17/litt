@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import {
     ArrowDown,
     History,
+    ListChecks,
     LogOut,
     MessageSquare,
     PanelRightClose,
@@ -26,7 +27,6 @@ import {
     Trash2,
     Users,
     X,
-    Zap,
 } from "lucide-react";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
@@ -959,7 +959,7 @@ export function AssistantChatColumn({
                             : []),
                         {
                             label: t("assistant.chatView.editQuickActions"),
-                            icon: Zap,
+                            icon: ListChecks,
                             onSelect: () => setQuickActionsModalOpen(true),
                         },
                         ...(isNewChat ? [] : chatActionItems),

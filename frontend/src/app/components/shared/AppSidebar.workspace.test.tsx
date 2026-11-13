@@ -84,7 +84,7 @@ vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
 
 vi.mock("@mike/ui", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@mike/ui")>()),
-  MikeIcon: () => <span aria-hidden="true" />,
+  LittStatusMarkUI: () => <span aria-hidden="true" />,
 }));
 
 const project = (id: string, name: string) => ({

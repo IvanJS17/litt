@@ -1,5 +1,10 @@
 import { useId, useState, type ReactNode } from "react";
-import { MIKE_ICON_TINTS, MikeIcon, type MikeIconTint, TabPillButtonUI } from "@mike/ui";
+import {
+    LITT_STATUS_MARK_HUES,
+    LittStatusMarkUI,
+    type LittStatusMarkHue,
+    TabPillButtonUI,
+} from "@mike/ui";
 import type { AssistantEvent } from "../../shared/types";
 import { EventBlock, ReasoningContent } from "./EventBlocks";
 import { EventChevron, EventDisclosureButton, EventLabel } from "./EventDisclosure";
@@ -127,14 +132,14 @@ function DetailDisclosureRow({
  * A colour per subagent in a message, in the order they first appear. A
  * subagent Mike resumes in the same message keeps the colour it started with.
  */
-export function subagentTints(events: AssistantEvent[]): Map<string, MikeIconTint> {
-    const tints = new Map<string, MikeIconTint>();
+export function subagentTints(events: AssistantEvent[]): Map<string, LittStatusMarkHue> {
+    const tints = new Map<string, LittStatusMarkHue>();
     for (const event of events) {
         if (event.type !== "delegation" || tints.has(event.delegation_id)) continue;
         const earlier = event.continued_from && tints.get(event.continued_from);
         tints.set(
             event.delegation_id,
-            earlier || MIKE_ICON_TINTS[tints.size % MIKE_ICON_TINTS.length],
+            earlier || LITT_STATUS_MARK_HUES[tints.size % LITT_STATUS_MARK_HUES.length],
         );
     }
     return tints;
@@ -149,7 +154,7 @@ function SubagentPill({
     onSelect,
 }: {
     event: DelegationEvent;
-    tint: MikeIconTint;
+    tint: LittStatusMarkHue;
     selected: boolean;
     detailsId: string;
     onSelect: () => void;
@@ -167,7 +172,7 @@ function SubagentPill({
             {/* The pill centres this row; within it the mark lines up with
                 the title's first line when a long title wraps. */}
             <span className="flex min-w-0 items-start gap-1.5">
-                {/* The subagent's own mark, in its colour, turning while it
+                {/* The subagent's own mark, in its colour, blinking while it
                     works. One text line tall (h-4 is text-xs's line height)
                     and centred in it. */}
                 <span
@@ -176,7 +181,11 @@ function SubagentPill({
                     data-tint={tint}
                     className="flex h-4 shrink-0 items-center"
                 >
-                    <MikeIcon size={14} tint={tint} spin={!!event.isStreaming} error={status.failed} />
+                    <LittStatusMarkUI
+                        size={14}
+                        hue={tint}
+                        state={status.failed ? "error" : event.isStreaming ? "working" : "idle"}
+                    />
                 </span>
                 <span className="min-w-0 [overflow-wrap:anywhere]">
                     {event.title || t("assistant.subagentGroup.subagent")}
@@ -307,7 +316,7 @@ export function SubagentGroup({
 }: {
     delegations: DelegationEvent[];
     /** Each subagent's colour, from `subagentTints` over the whole message. */
-    tints: Map<string, MikeIconTint>;
+    tints: Map<string, LittStatusMarkHue>;
     /** Show each subagent's model, effort and tokens (Settings > Features). */
     showDetails?: boolean;
     /** Whether one of Mike's steps follows the group. */
@@ -332,7 +341,7 @@ export function SubagentGroup({
                         <SubagentPill
                             key={event.delegation_id}
                             event={event}
-                            tint={tints.get(event.delegation_id) ?? MIKE_ICON_TINTS[0]}
+                            tint={tints.get(event.delegation_id) ?? LITT_STATUS_MARK_HUES[0]}
                             selected={event.delegation_id === selectedId}
                             detailsId={detailsId}
                             onSelect={() =>

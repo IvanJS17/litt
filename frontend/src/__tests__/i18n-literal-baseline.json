@@ -277,7 +277,6 @@
     "packages/ui/src/InputUI.tsx",
     "packages/ui/src/LiquidGlassUI.ts",
     "packages/ui/src/LittBrandUI.tsx",
-    "packages/ui/src/MikeIconUI.tsx",
     "packages/ui/src/ModalUI.tsx",
     "packages/ui/src/ModelToggleUI.tsx",
     "packages/ui/src/NoticeCardUI.tsx",
