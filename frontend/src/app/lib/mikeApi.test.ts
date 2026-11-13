@@ -133,6 +133,7 @@ import {
     createOrg,
     createOrgInvitation,
     getPlatformMe,
+    getPlatformStats,
     listPlatformInvitations,
     createPlatformInvitation,
     deletePlatformInvitation,
@@ -3713,6 +3714,7 @@ describe("thin endpoint wrappers", () => {
             body: { name: "Smith & Jones LLP" },
         },
         { name: "getPlatformMe", call: () => getPlatformMe(), url: "/platform/me" },
+        { name: "getPlatformStats", call: () => getPlatformStats(), url: "/platform/stats" },
         { name: "listPlatformInvitations", call: () => listPlatformInvitations(), url: "/platform/invitations" },
         {
             name: "createPlatformInvitation",
