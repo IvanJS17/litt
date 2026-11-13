@@ -13,9 +13,11 @@ import type {
     AccountDeletionStarted,
     PlatformMe,
     PlatformInvitation,
+    PlatformStats,
 } from "@mike/contracts";
 export type {
     PlatformMe,
+    PlatformStats,
     PlatformInvitation,
     AuditActor,
     AuditActorPage,
@@ -2073,6 +2075,10 @@ export async function createOrg(name: string): Promise<Org> {
 
 export async function getPlatformMe(): Promise<PlatformMe> {
     return apiRequest<PlatformMe>("organizations.manage", "/platform/me");
+}
+
+export async function getPlatformStats(): Promise<PlatformStats> {
+    return apiRequest<PlatformStats>("organizations.manage", "/platform/stats");
 }
 
 export async function listPlatformInvitations(): Promise<PlatformInvitation[]> {

@@ -116,6 +116,17 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
    periodo limitado y después se borra, salvo que un dueño lo reasigne antes. La aplicación
    muestra a los dueños la fecha de borrado.
 5. **Espacio personal.** El espacio personal de cada Usuario es suyo. Ningún despacho lo adquiere.
+
+   **Cuentas administradas por el despacho.** Como excepción, el despacho puede activar esta
+   opción. Mientras esté activada, las cuentas que se crearon por invitación de ese despacho no
+   tienen espacio personal: solo usan el espacio del despacho y sus llaves. No afecta a quien ya
+   tenía cuenta antes de la invitación. Si la cuenta tenía contenido en su espacio personal, ese
+   contenido no se borra ni pasa al despacho, pero no puede abrirse mientras la cuenta esté
+   administrada. Al salir del despacho, o si el despacho desactiva la opción, la cuenta recupera su espacio personal. Lo que el Usuario
+   haga en el espacio del despacho se rige por las cláusulas 5.4 y 10.4. Aun con la cuenta
+   administrada, el Usuario puede descargar sus datos, incluido el contenido de su espacio
+   personal, y borrar su cuenta (cláusulas 14.1 y 14.2). El despacho responde de activar esta
+   opción (cláusula 5.6).
 6. **Responsabilidad del despacho.** El despacho es responsable de la configuración que elige, de
    las personas a las que da acceso y de las instrucciones que da a LiTT sobre su Contenido.
    También responde de lo que hagan en el Servicio las personas a las que da acceso, como si lo

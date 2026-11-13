@@ -32,36 +32,32 @@
   3.7 s and cost 0.0948 credits. Still not done: a browser flow with a real case
   file.
 
-### Invitee onboarding, workspaces and managed accounts (branch `feat/invite-onboarding-workspace`, not yet merged)
+### Invitee onboarding, workspaces, managed accounts, beta statistics and legal text 2026-11-13.2 (branch `feat/invite-onboarding-workspace`, not yet merged)
 
-- Integrates three lanes: mobile zoom and the password reveal button
-  (`fix/mobile-zoom-password-reveal`), the invitee onboarding with the workspace
-  labels (this branch) and firm-managed accounts (`feat/managed-accounts`).
-- `/auth/set-password` leads to `/onboarding/invitations`, which answers the
-  invitations first. The managed-account notice (`ManagedAccountNotice`, texts
-  `managedAccount.*`) is shown there, before Accept, next to each invitation
-  with `managed_account: true`.
-- One place decides each thing for a managed account: `workspaceChoices()`
-  drops Personal; `useKeyScope().personalBlocked` hides personal keys,
-  LandingAI and Brave in every workspace; `WorkspaceBadge` never says
-  «Mi espacio personal».
-- `created_by_org_id` is still sealed only for accounts under 2 minutes old:
-  GoTrue re-sends `inviteUserByEmail` to an unconfirmed earlier sign-up instead
-  of failing with `email_exists`, and the beta sign-up does the same, so only the
-  account age tells a new account from an old one.
-- Legal text and `LEGAL_VERSION` are applied in `feat/beta-stats-legal`, not here.
-
-### Firm-managed accounts (branch `feat/managed-accounts`, not yet merged)
-
-- A firm setting, «Cuentas administradas por el despacho»: the accounts a firm
-  invited and that were created by that invitation have no personal workspace
-  and use only the firm's workspace and keys. Enforced on the server (403
-  `personal_workspace_disabled`), applied at once and ended by leaving the firm
-  or turning it off. Migration `20261113_10_litt_managed_accounts.sql`
-  (`organizations.managed_accounts`, `user_profiles.created_by_org_id`,
-  `managed_notice_seen_org_id`). Design, covered routes and gaps in
-  [`managed-accounts.md`](managed-accounts.md). Waits on the legal text (Terms
-  5.5, Privacy Notice §8) and the new `LEGAL_VERSION`; not for production before.
+- Mobile: text fields stay at 16px on phones so iOS Safari does not zoom; every
+  password field has a show/hide button (`PasswordInputUI`).
+- Invitee onboarding: `/auth/set-password` leads to `/onboarding/invitations`,
+  which answers the invitations first (with `ManagedAccountNotice` before Accept
+  when `managed_account: true`); no Organization field once in a firm; the
+  models step is skipped when the firm does not allow own keys; the person lands
+  in the firm's workspace. Practice areas, titles and countries show in the UI
+  language (stored ids unchanged).
+- Workspace label «Despacho: X» / «Mi espacio personal»; Settings separates
+  «Llaves del despacho (X)» from «Mis llaves personales». One place decides each
+  thing: `workspaceChoices()`, `useKeyScope()`, `WorkspaceBadge`.
+- Firm-managed accounts (migration `20261113_10_litt_managed_accounts.sql`):
+  accounts created by a firm's invitation have no personal workspace while the
+  firm has the option on; enforced on the server (403
+  `personal_workspace_disabled`), ended by leaving the firm or turning it off.
+  `created_by_org_id` is sealed only for accounts under 2 minutes old, because
+  GoTrue re-sends `inviteUserByEmail` to an unconfirmed earlier sign-up. Details
+  in [`managed-accounts.md`](managed-accounts.md).
+- Beta statistics for platform administrators, audited on every view, counts
+  only, no export: [`beta-stats.md`](beta-stats.md).
+- Legal text from socium-legal (t_9bb77c49): statistics (Aviso §3 to §8, §13,
+  simplified notice) and managed accounts (Terms 5.5, Aviso §8).
+  `LEGAL_VERSION` `2026-11-13.2`: everyone accepts again; the managed mode and
+  the per-person statistics apply only after acceptance.
 
 ### DOCX editing in LiTT (branch `feat/capa3-docx-editing`, not yet merged)
 

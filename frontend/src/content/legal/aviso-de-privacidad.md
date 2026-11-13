@@ -44,8 +44,8 @@ Tratamos estos datos de las personas usuarias:
 
 - **Cuenta:** correo electrónico, contraseña (que guardamos de forma que no podamos leerla), la
   confirmación de tu correo y los factores de verificación en dos pasos, si los activas.
-- **Perfil:** nombre y organización. De manera opcional, tu entorno profesional, tu jurisdicción
-  principal y tus áreas de práctica.
+- **Perfil:** nombre y organización. De manera opcional, tu ámbito profesional, tu título, tu
+  jurisdicción principal y tus áreas de práctica.
 - **Organización:** los despachos y espacios de trabajo a los que perteneces, tu función en cada
   uno (por ejemplo, dueño, administrador o miembro) y las invitaciones que envías o recibes.
   Durante la beta, a LiTT solo se entra por invitación. Si te invita alguien de tu despacho, esa
@@ -62,6 +62,9 @@ Tratamos estos datos de las personas usuarias:
   la conexión requiera.
 - **Datos técnicos y de seguridad:** dirección IP, navegador, fechas y horas de inicio de sesión,
   y los registros de auditoría de tus acciones en el servicio.
+- **Datos de uso:** cuántos chats y documentos tienes, qué funciones usas (por ejemplo, comparar,
+  convertir, leer escaneados, separar expediente, revisión tabular o formación), cuántas veces, y
+  la fecha de tu última actividad. No incluyen el contenido de tus chats ni de tus documentos.
 
 **No te pedimos datos personales sensibles** para usar LiTT. Durante la beta el servicio es
 gratuito, así que no tratamos datos financieros ni de pago.
@@ -90,6 +93,12 @@ solicitas y, por eso, no requieren tu consentimiento:
 10. Administrar tu participación en la beta: avisarte de cambios, interrupciones, la revocación
     de tu acceso o el fin de la beta, y recibir, analizar y responder la retroalimentación que nos
     envíes.
+11. Evaluar la beta y mejorar el servicio: saber quién usa LiTT, cómo y para qué. Para eso
+    preparamos estadísticas internas, generales, por despacho y por persona, con tu nombre, tu
+    correo, tu despacho, los datos de tu perfil que hayas llenado (ámbito profesional, título,
+    jurisdicción y áreas de práctica) y tus datos de uso. Nunca incluyen el contenido de tus chats
+    o documentos, el texto de tus mensajes o instrucciones, ni tus llaves. Solo las consulta el
+    responsable, se generan en nuestro servidor y no se comparten con terceros.
 
 **No usamos tus datos para finalidades secundarias.** No los usamos para publicidad ni
 mercadotecnia, no los vendemos y no los usamos para entrenar modelos de inteligencia artificial.
@@ -121,7 +130,8 @@ usas con tu llave no son encargados nuestros; la sección 6 explica qué reciben
 condiciones.
 
 **Sin telemetría de terceros.** LiTT no envía datos de uso a servicios externos de analítica,
-publicidad o monitoreo de errores.
+publicidad o monitoreo de errores. Las estadísticas de la finalidad 11 de la sección 4 se
+preparan dentro de LiTT.
 
 ## 6. Servicios que tú eliges: proveedores de IA, búsqueda web, lectura de escaneados, Google y otros conectores
 
@@ -132,8 +142,8 @@ llave de su propio proveedor y decide qué activa o usa.
 Cuando usas el asistente, LiTT envía al proveedor y al modelo que **tú elegiste** lo necesario para
 responderte: tu mensaje, los documentos o fragmentos que seleccionas y el contexto de la
 conversación. Ese contexto incluye los datos de tu perfil que hayas llenado (nombre,
-organización, entorno profesional, jurisdicción y áreas de práctica) y tus instrucciones y
-memoria.
+organización, ámbito profesional, título, jurisdicción y áreas de práctica) y tus instrucciones
+y memoria.
 
 **Búsqueda web.** Si activas la búsqueda web con un servicio de búsqueda, LiTT le envía, con tu
 llave, las consultas que formula el asistente a partir de tu conversación y las direcciones de
@@ -176,7 +186,8 @@ retención y uso de datos para entrenamiento.
 
 ## 7. Cómo puedes limitar el uso o la divulgación de tus datos
 
-- Deja vacíos los campos opcionales del perfil; así no se usan ni se envían al proveedor de IA.
+- Deja vacíos los campos opcionales del perfil; así no se usan, no se envían al proveedor de IA
+  y no aparecen en las estadísticas de uso.
 - Consulta y borra la memoria del asistente y tus instrucciones personales en Ajustes.
 - Desactiva la búsqueda web o la lectura de escaneados, elimina tus llaves propias o desconecta
   Google y los demás conectores cuando quieras. «Separar expediente» solo envía información a
@@ -191,7 +202,9 @@ Tienes derecho a **acceder** a tus datos, a **rectificarlos** si son inexactos o
 
 **Desde la aplicación.** En Ajustes puedes corregir tu perfil, descargar tus datos y borrar tu
 cuenta. Si perteneces a un despacho, su configuración puede limitar algunas descargas o borrados
-del contenido del despacho. Esa limitación no te impide ejercer tus derechos por correo.
+del contenido del despacho y, si tu cuenta la administra el despacho, el acceso a tu espacio
+personal (cláusula 5.5 de los Términos y Condiciones). Esa limitación no te impide ejercer tus
+derechos por correo.
 
 **Por correo.** Escribe a soporte@asteroitt.com con:
 
@@ -287,7 +300,7 @@ personas) que un despacho o una persona usuaria sube o escribe en LiTT.
 - **Qué hace LiTT.** Trata ese contenido solo para prestar el servicio y conforme a las
   instrucciones del despacho, que se expresan en los Términos y Condiciones y en la configuración
   de la aplicación. LiTT no lo usa para fines propios, no lo vende y no lo usa para entrenar
-  modelos.
+  modelos. Las estadísticas de uso de la sección 4 cuentan la actividad; no leen ese contenido.
 - **Confidencialidad.** LiTT guarda confidencialidad sobre ese contenido, también después de que
   termine el servicio. Nuestro personal no lo consulta, salvo para atender una solicitud de
   soporte del propio despacho, para proteger la seguridad del servicio o para cumplir un mandato

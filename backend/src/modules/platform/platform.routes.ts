@@ -13,6 +13,7 @@ import {
   deleteInvitation,
   listInvitations,
   platformMe,
+  viewPlatformStats,
 } from "./platform.service";
 
 export const platformRouter = Router();
@@ -31,6 +32,17 @@ function requirePlatformAdmin(_req: Request, res: Response, next: NextFunction) 
 platformRouter.get("/me", requireAuth, asyncRoute(async (_req, res) => {
   const result = await platformMe(createServerSupabase(), { email: res.locals.userEmail });
   if (!result.ok) return sendServiceFailure(res, result);
+  res.json(result.data);
+}));
+
+// Beta statistics: counts only, never exported; each view is audited.
+platformRouter.get("/stats", requireAuth, requirePlatformAdmin, asyncRoute(async (_req, res) => {
+  const result = await viewPlatformStats(createServerSupabase(), {
+    userId: res.locals.userId,
+    email: res.locals.userEmail ?? null,
+  });
+  if (!result.ok) return sendServiceFailure(res, result);
+  res.setHeader("Cache-Control", "no-store");
   res.json(result.data);
 }));
 

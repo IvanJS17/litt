@@ -99,6 +99,11 @@ export default function SettingsLayout({
                                 label: t("access.beta.tab"),
                                 href: "/settings/beta-invitations",
                             },
+                            {
+                                id: "beta-stats",
+                                label: t("access.stats.tab"),
+                                href: "/settings/beta-stats",
+                            },
                         ]
                       : [tab],
             ),

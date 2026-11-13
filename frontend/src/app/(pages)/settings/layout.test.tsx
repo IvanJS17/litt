@@ -146,6 +146,9 @@ describe("SettingsLayout", () => {
         expect(
             screen.queryByRole("button", { name: "Beta invitations" }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Beta statistics" }),
+        ).not.toBeInTheDocument();
         unmount();
 
         vi.mocked(getPlatformMe).mockResolvedValue({ admin: true, can_create_org: true });
@@ -157,5 +160,6 @@ describe("SettingsLayout", () => {
         expect(
             await screen.findByRole("button", { name: "Beta invitations" }),
         ).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Beta statistics" })).toBeInTheDocument();
     });
 });

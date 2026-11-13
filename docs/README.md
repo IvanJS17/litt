@@ -32,6 +32,7 @@
   reference
 - [Word add-in development and deployment](word-addin-development.md) — manual
   setup, sideloading, builds, storage behavior, testing, and troubleshooting
+- [Beta statistics](beta-stats.md) — counts for platform administrators, audited, no export.
 - [Tamper-evident exports](tamper-evident-exports.md) — document hashes and
   optional signed manifests
 
