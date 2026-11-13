@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 const AUTH_REDIRECT_PATHS = new Set([
     "/assistant",
     "/login",
@@ -49,10 +50,10 @@ export function authErrorDescription(
     );
     if (!error) return null;
     if (/expired|invalid/i.test(error)) {
-        return "This confirmation link is invalid or has expired.";
+        return clientTranslator()("auth.errors.confirmationLinkInvalid");
     }
     if (/access.denied|cancel/i.test(error)) {
-        return "Authentication was cancelled or denied.";
+        return clientTranslator()("auth.errors.authCancelled");
     }
-    return "Authentication could not be completed. Please try again.";
+    return clientTranslator()("auth.errors.authIncomplete");
 }

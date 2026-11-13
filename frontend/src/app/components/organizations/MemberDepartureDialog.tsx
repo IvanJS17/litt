@@ -207,7 +207,7 @@ export function MemberDepartureDialog({
         leaving ? t("organizations.memberDepartureDialog.breadcrumb.leave") : t("organizations.memberDepartureDialog.breadcrumb.remove"),
       ]}
       size="sm"
-      className="h-auto max-h-[calc(100vh-2rem)]"
+      className="h-auto max-h-[calc(100dvh-2rem)]"
       cancelAction={{
         label: t("common.cancel"),
         disabled: working,

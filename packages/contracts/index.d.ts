@@ -465,6 +465,8 @@ export type AssistantEvent =
       document: SourceDocument;
     }
   | { type: "content"; text: string }
+  /** The user pressed Stop. A mark, not a sentence: each client words it itself. */
+  | { type: "stopped" }
   | {
       /**
        * Placement marker for one edit a client tool proposed, spliced into

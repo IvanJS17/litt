@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import {
@@ -12,6 +12,7 @@ import {
   TableHeaderRow,
   TableRow,
 } from "@/app/components/shared/TablePrimitive";
+import { formatShortDateTime } from "@/app/lib/dateText";
 import { cn } from "@/app/lib/utils";
 import { getPlatformStats, type PlatformStats } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
@@ -22,12 +23,16 @@ const FEATURES = ["chats", "documents", "compared", "converted", "scans", "split
 
 // Each table is a header row on wide screens. Below `lg` the header is gone and
 // every row stacks its cells under their own labels, wrapping instead of
-// truncating, so an email is always whole.
+// truncating, so an email is always whole. Only an email may break inside a
+// word; every other cell breaks between words.
 const ROW = "h-auto min-w-0 grid-cols-1 gap-x-4 gap-y-1 py-3 pr-3 pl-3 lg:items-start";
 // The overview table's columns: the feature name, then the two usage counts.
 // The header and every row take the same template and gap, so the columns line up.
 const OVERVIEW_COLS = "lg:grid-cols-[minmax(0,1fr)_8rem_8rem]";
-const CELL = "min-w-0 overflow-visible text-clip whitespace-normal break-all text-xs text-gray-700";
+// «Por persona»: the Persona column keeps room for a whole email while there
+// is width (`lg:break-words` below); only a narrow screen breaks it inside.
+const PEOPLE_COLS = "lg:grid-cols-[minmax(16rem,1.6fr)_1fr_1.4fr_2fr_0.9fr]";
+const CELL = "min-w-0 overflow-visible text-clip whitespace-normal break-words text-xs text-gray-700";
 
 function Cell({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
@@ -42,6 +47,7 @@ function Cell({ label, children, className }: { label: string; children: ReactNo
 export function BetaStatsSection() {
   const t = useTranslations();
   const locale = useLocale();
+  const format = useFormatter();
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,7 +92,7 @@ export function BetaStatsSection() {
         : otherLabels[kind](key);
   const usageText = (usage: Usage) =>
     FEATURES.map((key) => `${feature(key)} ${usage[key]}`).join(" · ");
-  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : t("access.stats.none"));
+  const when = (iso: string | null) => (iso ? formatShortDateTime(format, iso) : t("access.stats.none"));
 
   return (
     <section aria-labelledby="beta-stats-heading" className="space-y-6">
@@ -173,7 +179,7 @@ export function BetaStatsSection() {
                 ] as const
               ).map(([label, kind, buckets]) => (
                 <div key={label} className="min-w-0">
-                  <TableHeaderRow className="h-8 min-w-0 justify-between gap-4">
+                  <TableHeaderRow className="h-8 min-w-0 justify-between gap-4 pl-3">
                     <TableHeaderCell>{t(`access.stats.${label}`)}</TableHeaderCell>
                     <TableHeaderCell>{t("access.stats.count")}</TableHeaderCell>
                   </TableHeaderRow>
@@ -232,7 +238,7 @@ export function BetaStatsSection() {
               <SettingsDescription>{t("access.stats.noPeople")}</SettingsDescription>
             ) : (
               <>
-                <TableHeaderRow className="hidden h-8 min-w-0 grid-cols-[1.4fr_1fr_1.6fr_2.2fr_0.9fr] gap-x-4 pl-3 lg:grid">
+                <TableHeaderRow className={cn("hidden h-8 min-w-0 gap-x-4 pl-3 lg:grid", PEOPLE_COLS)}>
                   <TableHeaderCell>{t("access.stats.person")}</TableHeaderCell>
                   <TableHeaderCell>{t("access.stats.firm")}</TableHeaderCell>
                   <TableHeaderCell>{`${t("access.stats.scope")} · ${t("access.stats.title")} · ${t("access.stats.jurisdiction")} · ${t("access.stats.practiceArea")}`}</TableHeaderCell>
@@ -244,14 +250,14 @@ export function BetaStatsSection() {
                     <TableRow
                       key={index}
                       interactive={false}
-                      className={cn(ROW, "grid lg:grid-cols-[1.4fr_1fr_1.6fr_2.2fr_0.9fr]")}
+                      className={cn(ROW, "grid", PEOPLE_COLS)}
                     >
                       {person.deleted ? (
                         <Cell label={t("access.stats.person")}>{t("access.stats.deletedUser")}</Cell>
                       ) : (
                         <TableCell className={CELL}>
                           <span className="block font-medium text-gray-900">{person.name ?? t("access.stats.none")}</span>
-                          <span className="block break-all">{person.email}</span>
+                          <span className="block break-all lg:[word-break:normal] lg:break-words">{person.email}</span>
                         </TableCell>
                       )}
                       <Cell label={t("access.stats.firm")}>

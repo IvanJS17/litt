@@ -355,6 +355,7 @@ export function PersonalisationFields({
             {form.selectedAreas.map((area) => (
               <OptionPill
                 key={area}
+                className="pointer-coarse:min-h-11 pointer-coarse:px-3"
                 onClick={() => form.toggleArea(area)}
                 aria-label={t("settings.personalisationFields.removeArea", { area: areaLabel(area) })}
               >
@@ -364,6 +365,7 @@ export function PersonalisationFields({
             ))}
             {form.otherSelected && form.otherArea.trim() && (
               <OptionPill
+                className="pointer-coarse:min-h-11 pointer-coarse:px-3"
                 onClick={() => form.setOtherSelected(false)}
                 aria-label={t("settings.personalisationFields.removeArea", { area: form.otherArea.trim() })}
               >

@@ -49,6 +49,23 @@ describe("SetPasswordPage", () => {
         await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/onboarding/invitations"));
     });
 
+    it("keeps the button live and says what is missing when a field is empty", async () => {
+        const user = userEvent.setup();
+        render(<SetPasswordPage />);
+
+        const save = await screen.findByRole("button", { name: "Save password" });
+        expect(save).toBeEnabled();
+        await user.click(save);
+        expect(await screen.findByRole("alert")).toHaveTextContent("Enter the password in both fields.");
+        expect(mocks.updateAuthPassword).not.toHaveBeenCalled();
+
+        await user.type(screen.getByLabelText("Password"), "secret1234");
+        await user.click(save);
+        expect(await screen.findByRole("alert")).toHaveTextContent("Enter the password in both fields.");
+        expect(screen.getByLabelText("Confirm your password")).toHaveFocus();
+        expect(mocks.updateAuthPassword).not.toHaveBeenCalled();
+    });
+
     it("says the link is unavailable when there is no usable session", async () => {
         window.history.replaceState(null, "", "/auth/set-password");
         mocks.getAuthSession.mockResolvedValue(null);

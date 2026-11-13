@@ -110,3 +110,21 @@ describe("AssistantMessage export", () => {
         expect(screen.queryByRole("button", { name: "Download .md" })).toBeNull();
     });
 });
+
+describe("AssistantMessage stopped answers", () => {
+    it("shows the stopped mark as one translated line, not as content", () => {
+        render(<AssistantMessage events={[{ type: "content", text: "Half an ans" }, { type: "stopped" }]} />);
+        expect(screen.getByText("You stopped the response.")).toBeInTheDocument();
+        expect(screen.getByText("Half an ans")).toBeInTheDocument();
+    });
+
+    it("reads the sentence earlier versions stored as the same line", () => {
+        render(
+            <AssistantMessage
+                events={[{ type: "content", text: "Half an ans" }, { type: "content", text: "Cancelled by user." }]}
+            />,
+        );
+        expect(screen.getByText("You stopped the response.")).toBeInTheDocument();
+        expect(screen.queryByText("Cancelled by user.")).not.toBeInTheDocument();
+    });
+});

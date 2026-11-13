@@ -7,6 +7,7 @@ import {
     DropdownContent,
     DropdownItem,
     DropdownTrigger,
+    TOUCH_TARGET_CLASS,
 } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
 import { LIQUID_GLASS_HOVER_CLASS } from "@/app/components/ui/liquid-surface";
@@ -49,7 +50,8 @@ export function HeaderActionsMenu({
                 <button
                     type="button"
                     className={cn(
-                        "inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-600 transition-all",
+                        TOUCH_TARGET_CLASS,
+                        "inline-flex h-7 w-7 pointer-coarse:h-9 pointer-coarse:w-9 items-center justify-center rounded-full text-gray-600 transition-colors",
                         LIQUID_GLASS_HOVER_CLASS,
                         "hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                         triggerClassName,

@@ -50,6 +50,8 @@ function ResetPasswordContent() {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [failure, setFailure] = useState<UserFacingError | null>(null);
+    // The error is about an empty field, not about the link: the form stays.
+    const [fieldsMissing, setFieldsMissing] = useState(false);
     const preview =
         process.env.NODE_ENV !== "production"
             ? searchParams.get("preview")
@@ -61,8 +63,7 @@ function ResetPasswordContent() {
         ? t("auth.resetPassword.thisPasswordResetLinkIsInvalid")
         : error;
     const resetUnavailable =
-        displayedReady && !!displayedError && !password && !confirmPassword;
-    const verticallyCentered = !displayedReady || success || resetUnavailable;
+        displayedReady && !!displayedError && !fieldsMissing && !password && !confirmPassword;
 
     useEffect(() => {
         if (isVerifyingPreview || isUnavailablePreview) return;
@@ -105,6 +106,14 @@ function ResetPasswordContent() {
         event.preventDefault();
         setError(null);
         setFailure(null);
+        setFieldsMissing(false);
+        if (!password || !confirmPassword) {
+            setFieldsMissing(true);
+            // The button is always live; this says what is missing.
+            setError(t("auth.errors.enterBothPasswords"));
+            document.getElementById(password ? "confirmPassword" : "password")?.focus();
+            return;
+        }
         if (password.length < MIN_PASSWORD_LENGTH) {
             setError(
                 t("auth.errors.passwordTooShort", {
@@ -142,7 +151,7 @@ function ResetPasswordContent() {
     }
 
     return (
-        <AuthPageShell align={verticallyCentered ? "center" : "top"}>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     {!displayedReady ? (
@@ -203,6 +212,7 @@ function ResetPasswordContent() {
                             </p>
                             <form
                                 onSubmit={handleSubmit}
+                                noValidate
                                 className="mt-6 space-y-4"
                             >
                                 <div>
@@ -216,7 +226,6 @@ function ResetPasswordContent() {
                                         onChange={(event) =>
                                             setPassword(event.target.value)
                                         }
-                                        required
                                         className={`w-full ${authInputUIClassName}`}
                                     />
                                 </div>
@@ -233,7 +242,6 @@ function ResetPasswordContent() {
                                                 event.target.value,
                                             )
                                         }
-                                        required
                                         className={`w-full ${authInputUIClassName}`}
                                     />
                                 </div>
@@ -260,9 +268,7 @@ function ResetPasswordContent() {
                                     type="submit"
                                     tone="black"
                                     size="normal"
-                                    disabled={
-                                        loading || !password || !confirmPassword
-                                    }
+                                    disabled={loading}
                                     className="w-full"
                                 >
                                     {loading

@@ -89,4 +89,12 @@ describe("app error boundary", () => {
         ).not.toBeInTheDocument();
         expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
     });
+
+    it("is drawn in the sign-in frame, at phone height, with the logo", () => {
+        const { container } = render(<ErrorBoundaryPage error={new Error("boom")} />);
+        const frame = container.firstElementChild as HTMLElement;
+        expect(frame.className).toContain("min-h-dvh");
+        expect(frame.className).toContain("bg-app-background");
+        expect(screen.getByRole("heading", { name: "LiTT" })).toBeInTheDocument();
+    });
 });

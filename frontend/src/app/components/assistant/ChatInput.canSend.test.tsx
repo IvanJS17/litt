@@ -98,6 +98,13 @@ describe("ChatInput canSend gating", () => {
         mockProfile();
     });
 
+    it("keeps the Send button 40 px to the eye with a 44 px touch zone", () => {
+        renderInput(true);
+        const send = screen.getByRole("button", { name: "Send message" });
+        expect(send).toHaveClass("pointer-coarse:h-10", "pointer-coarse:w-10");
+        expect(send.className).toContain("pointer-coarse:after:size-11");
+    });
+
     it("opens documents, workflows, and playbooks from the add menu", async () => {
         const user = userEvent.setup();
         renderInput(true);

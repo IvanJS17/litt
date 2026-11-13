@@ -199,22 +199,34 @@ describe("auth routes", () => {
       const off = await request(app).get("/auth/providers");
       expect(off.status).toBe(200);
       expect(off.headers["cache-control"]).toBe("private, no-store");
-      expect(off.body).toEqual({ sso: false, google: true });
+      expect(off.body).toEqual({ sso: false, google: true, inviteOnly: false });
 
       process.env.SSO_ENABLED = " TRUE ";
       process.env.SSO_ALLOWED_DOMAINS = "example.com, other.example";
       const on = await request(app).get("/auth/providers");
       expect(on.status).toBe(200);
       // The allowed domains say which firms use the instance: never public.
-      expect(on.body).toEqual({ sso: true, google: true });
+      expect(on.body).toEqual({ sso: true, google: true, inviteOnly: false });
       expect(on.text).not.toContain("example.com");
       expect(createRequestSupabase).not.toHaveBeenCalled();
+    });
+
+    it("says the sign-up is by invitation only while the beta mode is on", async () => {
+      gotrue.mockResolvedValue(settings(true));
+      process.env.PLATFORM_ADMIN_EMAILS = "owner@firm.test";
+      try {
+        const response = await request(app).get("/auth/providers");
+        expect(response.body.inviteOnly).toBe(true);
+        expect(response.text).not.toContain("owner@firm.test");
+      } finally {
+        delete process.env.PLATFORM_ADMIN_EMAILS;
+      }
     });
 
     it("reads Google from GoTrue's own settings", async () => {
       gotrue.mockResolvedValue(settings(false));
       const response = await request(app).get("/auth/providers");
-      expect(response.body).toEqual({ sso: false, google: false });
+      expect(response.body).toEqual({ sso: false, google: false, inviteOnly: false });
       // Only GoTrue's verdict leaves the server, not its other settings.
       expect(response.text).not.toContain("disable_signup");
       expect(gotrue).toHaveBeenCalledWith(
@@ -238,11 +250,11 @@ describe("auth routes", () => {
       gotrue.mockImplementation(answer);
       const response = await request(app).get("/auth/providers");
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ sso: false, google: null });
+      expect(response.body).toEqual({ sso: false, google: null, inviteOnly: false });
 
       gotrue.mockResolvedValue(settings(false));
       const recovered = await request(app).get("/auth/providers");
-      expect(recovered.body).toEqual({ sso: false, google: false });
+      expect(recovered.body).toEqual({ sso: false, google: false, inviteOnly: false });
     });
   });
 

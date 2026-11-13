@@ -147,7 +147,11 @@ describe("OnboardingGate", () => {
 
             expect(screen.queryByText("Main app")).not.toBeInTheDocument();
             const submit = screen.getByRole("button", { name: "Accept and continue" });
-            expect(submit).toBeDisabled();
+            // Always live: unticked, it says what is missing instead of doing nothing.
+            expect(submit).toBeEnabled();
+            await user.click(submit);
+            expect(await screen.findByRole("alert")).toHaveTextContent("Tick the box to continue.");
+            expect(state.acceptTerms).not.toHaveBeenCalled();
             expect(screen.getAllByRole("link", { name: /Terms/ })[0]).toHaveAttribute("href", "/terminos");
 
             // The accessible name is the whole sentence, not a cut-off prefix.

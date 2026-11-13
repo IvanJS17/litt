@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAuthProviders } from "./useAuthProviders";
 
-type Providers = { sso: boolean; google: boolean | null };
+type Providers = { sso: boolean; google: boolean | null; inviteOnly?: boolean };
 
 const { getAuthProviders } = vi.hoisted(() => ({
     getAuthProviders: vi.fn<() => Promise<Providers>>(),
@@ -28,14 +28,14 @@ describe("useAuthProviders", () => {
     it("offers no external route while the answer is pending", () => {
         getAuthProviders.mockReturnValue(new Promise(() => {}));
         const { result } = renderHook(() => useAuthProviders());
-        expect(result.current).toEqual({ showSso: false, showGoogle: false });
+        expect(result.current).toEqual({ showSso: false, showGoogle: false, inviteOnly: null });
     });
 
     it.each([
-        [{ sso: false, google: false }, { showSso: false, showGoogle: false }],
-        [{ sso: true, google: false }, { showSso: true, showGoogle: false }],
-        [{ sso: false, google: true }, { showSso: false, showGoogle: true }],
-        [{ sso: true, google: null }, { showSso: true, showGoogle: true }],
+        [{ sso: false, google: false }, { showSso: false, showGoogle: false, inviteOnly: false }],
+        [{ sso: true, google: false }, { showSso: true, showGoogle: false, inviteOnly: false }],
+        [{ sso: false, google: true }, { showSso: false, showGoogle: true, inviteOnly: false }],
+        [{ sso: true, google: null }, { showSso: true, showGoogle: true, inviteOnly: false }],
     ])("hides only what the server says is off: %o", async (answer, shown) => {
         getAuthProviders.mockResolvedValue(answer);
         const { result } = renderHook(() => useAuthProviders());
@@ -43,11 +43,18 @@ describe("useAuthProviders", () => {
         expect(result.current).toEqual(shown);
     });
 
+    it("reports the closed beta only when the server says so", async () => {
+        getAuthProviders.mockResolvedValue({ sso: false, google: true, inviteOnly: true });
+        const { result } = renderHook(() => useAuthProviders());
+        await act(async () => {});
+        expect(result.current.inviteOnly).toBe(true);
+    });
+
     it("offers both routes when the read fails", async () => {
         getAuthProviders.mockRejectedValue(new TypeError("Failed to fetch"));
         const { result } = renderHook(() => useAuthProviders());
         await act(async () => {});
-        expect(result.current).toEqual({ showSso: true, showGoogle: true });
+        expect(result.current).toEqual({ showSso: true, showGoogle: true, inviteOnly: false });
     });
 
     it.each([
@@ -60,7 +67,7 @@ describe("useAuthProviders", () => {
         const { result, unmount } = renderHook(() => useAuthProviders());
         unmount();
         await act(async () => settle(pending));
-        expect(result.current).toEqual({ showSso: false, showGoogle: false });
+        expect(result.current).toEqual({ showSso: false, showGoogle: false, inviteOnly: null });
         expect(error).not.toHaveBeenCalled();
     });
 });

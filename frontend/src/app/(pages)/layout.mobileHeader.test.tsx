@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MikeLayout from "./layout";
 
 const navigation = vi.hoisted(() => ({
@@ -73,6 +73,34 @@ describe("mobile page header", () => {
             "top-0",
             "bg-transparent",
         );
+    });
+
+    it("backs the workspace label with the solid page colour and lets it shrink before the actions", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+
+        const badge = document.querySelector('[data-slot="workspace-badge"]');
+        expect(badge).toHaveClass("bg-app-background", "min-w-0", "shrink");
+        expect(badge?.className).not.toMatch(/bg-app-background\//);
+        expect(badge?.nextElementSibling).toHaveClass("shrink-0");
+    });
+
+    it("keeps the header clear of the notch and the shell clear of the home indicator", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+
+        const header = document.querySelector('[data-slot="mobile-header"]');
+        expect(header?.className).toContain("env(safe-area-inset-top)");
+        expect(header?.className).toContain("env(safe-area-inset-left)");
+        expect(header?.className).toContain("env(safe-area-inset-right)");
+        const shell = header?.closest(".h-dvh");
+        expect(shell?.className).toContain("pb-[env(safe-area-inset-bottom)]");
     });
 
     // Floating, the sidebar button covered the Explorer title on a phone.
@@ -233,5 +261,57 @@ describe("desktop sidebar persistence", () => {
 
         expect(sidebarState.isOpen).toBe(false);
         expect(localStorage.getItem("sidebarOpen")).toBe("false");
+    });
+});
+
+describe("sidebar overlay on a phone", () => {
+    const setWidth = (w: number) =>
+        Object.defineProperty(window, "innerWidth", {
+            configurable: true,
+            writable: true,
+            value: w,
+        });
+    const original = window.innerWidth;
+    afterEach(() => setWidth(original));
+
+    it("closes when navigating on a screen under 768 px", async () => {
+        setWidth(390);
+        const view = render(
+            <MikeLayout>
+                <div>Page</div>
+            </MikeLayout>,
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: "Open sidebar" }),
+        );
+        expect(sidebarState.isOpen).toBe(true);
+
+        navigation.pathname = "/projects";
+        view.rerender(
+            <MikeLayout>
+                <div>Projects</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.isOpen).toBe(false);
+    });
+
+    it("stays open when navigating on desktop", () => {
+        setWidth(1280);
+        const view = render(
+            <MikeLayout>
+                <div>Page</div>
+            </MikeLayout>,
+        );
+        expect(sidebarState.isOpen).toBe(true);
+
+        navigation.pathname = "/projects";
+        view.rerender(
+            <MikeLayout>
+                <div>Projects</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.isOpen).toBe(true);
     });
 });

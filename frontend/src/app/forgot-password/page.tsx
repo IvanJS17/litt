@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <AuthPageShell align={submitted ? "center" : "top"}>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     {submitted ? (

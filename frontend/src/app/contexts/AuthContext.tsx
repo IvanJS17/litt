@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import {
     createContext,
     useContext,
@@ -26,6 +27,8 @@ import {
     notifyError,
 } from "@/app/lib/userFacingError";
 import { clearToasts, dismissToastsWithKey } from "@mike/ui";
+import { usePathname } from "next/navigation";
+import { isLegalPath } from "@/app/lib/legalRoutes";
 
 type User = AuthUser;
 
@@ -44,11 +47,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_SYNC_CHANNEL = "mike-auth-state";
 const AUTH_SYNC_STORAGE_KEY = "mike-auth-state-change";
-const SESSION_ERROR_MESSAGE =
-    "We could not check your session. Please try again.";
+const sessionErrorMessage = () => clientTranslator()("auth.errors.sessionCheckFailed");
 /** One toast for the session, however many background checks fail. */
 const SESSION_TOAST_KEY = "auth-session";
-const EXPIRED_SESSION_MESSAGE = "Your session expired. Please log in again.";
+const expiredSessionMessage = () => clientTranslator()("auth.errors.sessionExpired");
 /** Retry delays for a session check the server could not answer. */
 const SESSION_RETRY_BASE_MS = 1_000;
 const SESSION_RETRY_MAX_MS = 30_000;
@@ -92,6 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [authError, setAuthError] = useState<string | null>(null);
     const channelRef = useRef<BroadcastChannel | null>(null);
     const sessionRequestRef = useRef<Promise<User | null> | null>(null);
+    // The legal texts need no session, so a visit that starts on one does not
+    // ask for it (the 401 for a visitor is noise in the console and a wasted
+    // request). The first move to any other screen does. `sessionAsked` is
+    // whether the check has been made yet.
+    const sessionAsked = useRef(false);
+    const pathname = usePathname();
 
     const sessionUserIdRef = useRef<string | null>(null);
     const applySessionUser = useCallback((nextUser: User | null) => {
@@ -143,13 +151,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         async () => {},
     );
     const reportSessionFailure = useCallback((error: unknown) => {
-        setAuthError(SESSION_ERROR_MESSAGE);
+        setAuthError(sessionErrorMessage());
         // Sign-in screens show `authError` themselves, with their own
         // Retry; a toast there repeated it and then contradicted the
         // form's next error.
         if (isOnAuthRoute()) return;
         notifyError(error, {
-            action: "check your session",
+            action: clientTranslator()("errors.action.checkYourSession"),
             dedupeKey: SESSION_TOAST_KEY,
             onRetry: () => void checkSessionRef.current(true),
         });
@@ -205,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setAuthLoading(false);
                 }
                 if (notify || firstOfStreak) reportSessionFailure(error);
-                else setAuthError(SESSION_ERROR_MESSAGE);
+                else setAuthError(sessionErrorMessage());
             }
         },
         [fetchAndApplySession, reportSessionFailure],
@@ -272,15 +280,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         const onInvalidated = () => {
             applySessionUser(null);
-            setAuthError(EXPIRED_SESSION_MESSAGE);
+            setAuthError(expiredSessionMessage());
             setAuthLoading(false);
             broadcastAuthState("signed-out");
         };
         const onVisibilityChange = () => {
-            if (document.visibilityState !== "visible") return;
+            if (document.visibilityState !== "visible" || !sessionAsked.current) return;
             void checkSession(false);
         };
         const onFocus = () => {
+            if (!sessionAsked.current) return;
             void checkSession(false);
         };
 
@@ -292,7 +301,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Through the ref (assigned by the effect above, which runs first):
         // the check only sets state after its request settles.
-        void checkSessionRef.current(true);
+        if (!isLegalPath(window.location.pathname)) {
+            sessionAsked.current = true;
+            void checkSessionRef.current(true);
+        }
 
         return () => {
             channel?.removeEventListener("message", onChannelMessage);
@@ -311,6 +323,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, [applySessionUser, broadcastAuthState, checkSession]);
 
+    // Left a legal text for the app: now the session matters.
+    useEffect(() => {
+        if (sessionAsked.current || !pathname || isLegalPath(pathname)) return;
+        sessionAsked.current = true;
+        void checkSessionRef.current(true);
+    }, [pathname]);
+
     const refreshSession = useCallback(async () => {
         try {
             const nextUser = await fetchAndApplySession();
@@ -318,7 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             broadcastAuthState(nextUser ? "signed-in" : "signed-out");
             return nextUser;
         } catch (error) {
-            setAuthError(SESSION_ERROR_MESSAGE);
+            setAuthError(sessionErrorMessage());
             setAuthLoading(false);
             throw error;
         }
@@ -331,7 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setAuthError(null);
             broadcastAuthState("signed-out");
         } catch (error) {
-            setAuthError("Unable to sign out. Please try again.");
+            setAuthError(clientTranslator()("auth.errors.signOutFailed"));
             throw error;
         }
     }, [applySessionUser, broadcastAuthState]);

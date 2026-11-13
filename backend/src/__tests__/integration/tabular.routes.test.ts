@@ -2923,7 +2923,7 @@ describe("tabular.routes", () => {
                     content: [
                         { type: "content", text: "Partial" },
                         reason === "user"
-                            ? { type: "content", text: "Cancelled by user." }
+                            ? { type: "stopped" }
                             : {
                                   type: "error",
                                   message: expect.any(String),

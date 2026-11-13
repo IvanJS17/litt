@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronUp, Download } from "lucide-react";
@@ -218,7 +219,7 @@ function CompareBody({
             await downloadDocumentFile(documentId, id, version?.filename ?? "document");
         } catch (error) {
             notifyError(error, {
-                action: "download this version",
+                action: clientTranslator()("errors.action.downloadThisVersion"),
                 operation: "documents.download",
             });
         } finally {
@@ -238,7 +239,7 @@ function CompareBody({
     } else if (response?.error) {
         content = (
             <Message role="alert">
-                <p>{describeError(response.error, { action: "load the comparison" }).message}</p>
+                <p>{describeError(response.error, { action: clientTranslator()("errors.action.loadTheComparison") }).message}</p>
                 <TextButtonUI
                     size="sm"
                     className="mt-2"

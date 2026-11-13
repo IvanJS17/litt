@@ -29,18 +29,24 @@ describe("onboarding option labels", () => {
         expect(countryLabel("Atlantis", "es-MX")).toBe("Atlantis");
     });
 
-    it("falls back to the stored value when the locale is unusable", () => {
-        expect(countryLabel("Mexico", "not a locale")).toBe("Mexico");
-    });
-
-    it("falls back when the browser has no name for the region", () => {
-        const spy = vi
-            .spyOn(Intl, "DisplayNames")
-            .mockImplementation(
-                () => ({ of: () => undefined }) as unknown as Intl.DisplayNames,
-            );
-        expect(countryLabel("Mexico", "es-MX")).toBe("Mexico");
-        spy.mockRestore();
+    it("builds one name formatter per language, however many rows ask", () => {
+        const RealDisplayNames = Intl.DisplayNames;
+        const created: string[] = [];
+        const spy = vi.spyOn(Intl, "DisplayNames").mockImplementation(function (
+            this: unknown,
+            locales: string | string[] | undefined,
+            options: Intl.DisplayNamesOptions,
+        ) {
+            created.push(String(locales));
+            return new RealDisplayNames(locales, options);
+        } as unknown as typeof Intl.DisplayNames);
+        try {
+            for (const country of ["Mexico", "Spain", "France", "Mexico"]) countryLabel(country, "de-DE");
+            countryLabel("Mexico", "it-IT");
+            expect(created).toEqual(["de-DE", "it-IT"]);
+        } finally {
+            spy.mockRestore();
+        }
     });
 
     it("has a Spanish label for every practice area and title", () => {

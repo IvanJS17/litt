@@ -20,7 +20,7 @@ const {
     startGoogleOAuth: vi.fn(),
     // Unanswered by default: the page as it looks while the read is in flight.
     getAuthProviders: vi.fn(
-        (): Promise<{ sso: boolean; google: boolean | null }> =>
+        (): Promise<{ sso: boolean; google: boolean | null; inviteOnly?: boolean }> =>
             new Promise(() => {}),
     ),
     refreshSession: vi.fn(),
@@ -65,6 +65,19 @@ describe("LoginPage", () => {
         refreshSession.mockResolvedValue(null);
         replace.mockReset();
         push.mockReset();
+    });
+
+    // Lets the iPhone Keychain / Face ID offer the saved password.
+    it("tells the browser which field is the account and which the saved password", () => {
+        render(<LoginPage />);
+
+        expect(
+            screen.getByRole("textbox", { name: "Email" }),
+        ).toHaveAttribute("autocomplete", "username");
+        expect(screen.getByLabelText("Password")).toHaveAttribute(
+            "autocomplete",
+            "current-password",
+        );
     });
 
     it("allows an existing account to submit a password shorter than the new minimum", async () => {
@@ -181,6 +194,18 @@ describe("LoginPage", () => {
         expect(
             screen.getByRole("button", { name: "Continue with SSO" }),
         ).toBeInTheDocument();
+    });
+
+    it("offers the sign-up link on an open instance and an invitation hint in the closed beta", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: false, google: false, inviteOnly: false });
+        const open = render(<LoginPage />);
+        expect(await screen.findByRole("link", { name: "Sign up" })).toHaveAttribute("href", "/signup");
+        open.unmount();
+
+        getAuthProviders.mockResolvedValueOnce({ sso: false, google: false, inviteOnly: true });
+        render(<LoginPage />);
+        expect(await screen.findByText("Were you invited? Check your email.")).toBeVisible();
+        expect(screen.queryByRole("link", { name: "Sign up" })).not.toBeInTheDocument();
     });
 
     it("hides Continue with SSO once the server says SSO is off", async () => {
@@ -331,6 +356,7 @@ it("shows a sign-in failure ahead of the session warning", async () => {
 
 it("speaks Spanish (es-MX) and offers the language choice", async () => {
     const messages = await loadMessages("es-MX");
+    getAuthProviders.mockResolvedValueOnce({ sso: false, google: false, inviteOnly: false });
     render(
         <IntlClientProvider locale="es-MX" messages={messages}>
             <LoginPage />
@@ -342,7 +368,7 @@ it("speaks Spanish (es-MX) and offers the language choice", async () => {
     expect(screen.getByLabelText("Contraseña")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Iniciar sesión" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "¿Olvidaste tu contraseña?" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Regístrate" })).toHaveAttribute("href", "/signup");
+    expect(await screen.findByRole("link", { name: "Regístrate" })).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("combobox", { name: "Idioma" })).toHaveValue("es-MX");
     expect(screen.queryByText("Forgot password?")).not.toBeInTheDocument();
 });

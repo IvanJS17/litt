@@ -16,7 +16,7 @@ export function ManagedAccountNotice({ firm }: { firm: string }) {
   return (
     <section
       aria-label={t("managedAccount.title", { firm })}
-      className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-gray-800"
+      className="space-y-1 rounded-lg bg-app-surface px-4 py-3 text-sm text-gray-800"
     >
       <h2 className="font-medium">{t("managedAccount.title", { firm })}</h2>
       <p>{t("managedAccount.body", { firm })}</p>

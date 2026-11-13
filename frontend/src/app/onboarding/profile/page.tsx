@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { OnboardingShell } from "@/app/components/auth/OnboardingShell";
 import { authInputUIClassName, InputUI, PillButtonUI } from "@mike/ui";
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
@@ -22,6 +22,8 @@ export default function OnboardingProfilePage() {
     const { user, authLoading } = useAuth();
     const { profile, loading } = useUserProfile();
     const [invitationsChecked, setInvitationsChecked] = useState(false);
+    // `?invitations` says they were already asked: nothing to look up.
+    const alreadyAsked = useSearchParams().has("invitations");
 
     useEffect(() => {
         if (!authLoading && !user) router.replace("/login");
@@ -32,12 +34,7 @@ export default function OnboardingProfilePage() {
     // already went through it, or could not load it, is let through.
     const userId = user?.id;
     useEffect(() => {
-        if (!userId) return;
-        if (new URLSearchParams(window.location.search).has("invitations")) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- nothing to look up
-            setInvitationsChecked(true);
-            return;
-        }
+        if (!userId || alreadyAsked) return;
         let cancelled = false;
         void listMyOrgInvitations().then(
             (pending) => {
@@ -52,9 +49,9 @@ export default function OnboardingProfilePage() {
         return () => {
             cancelled = true;
         };
-    }, [router, userId]);
+    }, [alreadyAsked, router, userId]);
 
-    if (authLoading || loading || !user || !profile || !invitationsChecked) {
+    if (authLoading || loading || !user || !profile || !(invitationsChecked || alreadyAsked)) {
         return <FullScreenLoader />;
     }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { useDocumentTitle } from "@/app/hooks/useDocumentTitle";
+import { clientTranslator } from "@mike/client";
 import { findPendingAskInput } from "@/app/lib/pendingAskInput";
 import {
     useCallback,
@@ -307,6 +309,8 @@ export function AssistantChatColumn({
         (chatId ? chats?.find((entry) => entry.id === chatId) : null) ??
         (chat?.id === chatId ? chat : null) ??
         null;
+    // The tab carries the chat's name once it is known ("Contract review · LiTT").
+    useDocumentTitle(activeChat?.title);
     // LiTT training: private notes beside the pasante's own messages.
     const trainingNotes = matchTrainingNotes(
         messages,
@@ -989,7 +993,7 @@ export function AssistantChatColumn({
                     id: playbook.id,
                     title: playbook.name || t("assistant.chatView.untitledPlaybook"),
                 }),
-            (error) => notifyError(error, { action: "attach the playbook" }),
+            (error) => notifyError(error, { action: clientTranslator()("errors.action.attachThePlaybook") }),
         );
     }, [paneId, canWrite, chatLoading]);
 
@@ -1060,7 +1064,7 @@ export function AssistantChatColumn({
                         {/* Scrollable messages */}
                         <div
                             ref={messagesContainerRef}
-                            className="flex-1 w-full overflow-y-auto"
+                            className="flex-1 w-full overflow-y-auto pt-[env(safe-area-inset-top)] md:pt-0"
                             style={{ scrollbarGutter: "stable both-edges" }}
                         >
                             <div
@@ -1267,7 +1271,7 @@ export function AssistantChatColumn({
                                             type="button"
                                             aria-label={t("assistant.chatView.scrollToBottom")}
                                             onClick={scrollToBottom}
-                                            className={`absolute bottom-full right-7 z-30 translate-y-1/2 cursor-pointer rounded-full p-2 transition-all md:right-9 ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
+                                            className={`absolute bottom-full right-7 z-30 translate-y-1/2 cursor-pointer rounded-full p-2 transition-[opacity,transform,background-color,box-shadow] md:right-9 ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
                                         >
                                             <ArrowDown className="h-6 w-6 text-gray-500" />
                                         </button>

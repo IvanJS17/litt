@@ -238,7 +238,8 @@ describe("AppSidebar workspace switcher", () => {
     state.organizations = [ACME];
     state.workspaceId = ACME.id;
     const { rerender } = render(<AppSidebar isOpen onToggle={vi.fn()} />);
-    expect(screen.getByText("Firm: Acme LLP")).toBeVisible();
+    // The firm's name is the sidebar's heading: the label does not repeat it.
+    expect(document.querySelector('[data-slot="workspace-badge"]')).toHaveTextContent(/^Firm$/);
 
     state.workspaceId = "personal";
     rerender(<AppSidebar isOpen onToggle={vi.fn()} />);

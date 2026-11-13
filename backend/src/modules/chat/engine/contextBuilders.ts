@@ -929,6 +929,7 @@ const COMPLETES_TEXTLESS_TURN = {
   response_details: false,
   case_opinions: false,
   content: false,
+  stopped: false,
   word_edit_block: false,
   error: true,
 } satisfies Record<AssistantEvent["type"], boolean>;
@@ -1297,7 +1298,7 @@ export async function appendAskInputsResponseToAssistantMessage(
 }
 
 export function appendCancelledAssistantEvent(events: AssistantEvent[]) {
-  return [...events, { type: "content" as const, text: "Cancelled by user." }];
+  return [...events, { type: "stopped" as const }];
 }
 
 export function buildCancelledAssistantMessage(args: {

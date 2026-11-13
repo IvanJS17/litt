@@ -244,6 +244,7 @@ export type AssistantEvent =
   | (WireActivity<"web_read"> & { isStreaming?: boolean })
   | WireActivity<"web_sources">
   | WireActivity<"firm_criteria">
+  | WireActivity<"stopped">
   | WireActivity<"response_details">
   | (Omit<WireDelegation, "events" | "status" | "model" | "effort"> & {
       events: AssistantEvent[];

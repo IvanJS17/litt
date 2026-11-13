@@ -338,7 +338,7 @@ describe("POST /projects/:projectId/chat", () => {
                 content: [
                     { type: "content", text: "Partial" },
                     reason === "user"
-                        ? { type: "content", text: "Cancelled by user." }
+                        ? { type: "stopped" }
                         : { type: "error", safe_to_display: true },
                 ],
             });

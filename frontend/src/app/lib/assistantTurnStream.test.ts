@@ -130,7 +130,7 @@ describe("consumeAssistantTurnStream", () => {
     );
     expect(turn.turn.assistant.events).toEqual([
       { type: "content", text: "Partial" },
-      { type: "content", text: "Cancelled by user." },
+      { type: "stopped" },
     ]);
     turn.finish();
   });
@@ -593,7 +593,7 @@ describe("tool placeholders and cancellation", () => {
         version_number: null,
         isStreaming: false,
       },
-      { type: "content", text: "Cancelled by user." },
+      { type: "stopped" },
     ]);
   });
 
@@ -607,7 +607,7 @@ describe("tool placeholders and cancellation", () => {
     ).toEqual([
       { type: "content", text: "partial" },
       { type: "workflow_applied", workflow_id: "wf-1", title: "Intake" },
-      { type: "content", text: "Cancelled by user." },
+      { type: "stopped" },
     ]);
   });
 });
@@ -1596,7 +1596,7 @@ describe("delegation", () => {
   it("stops a running delegation on Stop", async () => {
     expect(await eventsOf([start("d1"), { type: "cancelled" }])).toEqual([
       { ...running("d1"), isStreaming: undefined },
-      { type: "content", text: "Cancelled by user." },
+      { type: "stopped" },
     ]);
   });
 });

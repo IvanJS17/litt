@@ -65,6 +65,19 @@ describe("BetaStatsSection", () => {
         expect(header.className).toContain("pl-3");
     });
 
+    it("pads the small tables' header like their rows, and gives the Persona column room for an email", async () => {
+        mocks.get.mockResolvedValue(stats);
+        render(<BetaStatsSection />);
+        const email = await screen.findByText("a-very-long-address.for.mobile@firma-uno.example");
+        // Whole on a phone, broken inside a word only below a wide screen.
+        expect(email.className).toContain("lg:break-words");
+        expect(email.className).toContain("lg:[word-break:normal]");
+        const row = email.closest("[class*='lg:grid-cols-']") as HTMLElement;
+        expect(row.className).toContain("lg:grid-cols-[minmax(16rem,");
+        const small = screen.getAllByText("Count")[0].closest("[class*='justify-between']") as HTMLElement;
+        expect(small.className).toContain("pl-3");
+    });
+
     it("renders the overview, firms and people, with the email whole and a deleted user without profile", async () => {
         mocks.get.mockResolvedValue(stats);
         render(<BetaStatsSection />);
@@ -97,6 +110,19 @@ describe("BetaStatsSection", () => {
         expect(screen.queryByText("Partner")).not.toBeInTheDocument();
         // A value outside the lists is shown as saved.
         expect(screen.getAllByText("Civil").length).toBeGreaterThan(0);
+    });
+
+    it("shows the last activity in the interface language and breaks only emails inside a word", async () => {
+        mocks.get.mockResolvedValue(stats);
+        render(<BetaStatsSection />);
+        await screen.findByText("Ana Pérez");
+        // The app's formatter (en-US here), never the browser's "11/12/2026, 4:00:00 AM".
+        expect(screen.getByText(/Nov 12, 2026/)).toBeInTheDocument();
+        expect(document.body.textContent).not.toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/);
+        const firm = screen.getAllByText("Firma Uno").find((el) => el.tagName === "TD" || el.closest("[class*='break-']"));
+        expect(firm!.closest("[class*='break-words']")).not.toBeNull();
+        expect(firm!.closest("[class*='break-all']")).toBeNull();
+        expect(screen.getByText("a-very-long-address.for.mobile@firma-uno.example").className).toContain("break-all");
     });
 
     it("says so when the statistics cannot be loaded", async () => {

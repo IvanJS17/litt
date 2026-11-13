@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 
 import { useEffect, useRef, useState } from "react";
@@ -144,7 +145,7 @@ function AddDocumentsModalForWorkspace({
                 setProjectDocuments([]);
                 setProjectFolders([]);
                 notifyError(error, {
-                    action: "load this project's files",
+                    action: clientTranslator()("errors.action.loadProjectFiles"),
                     dedupeKey: `add-documents-directory:${projectId}`,
                     onRetry: () => setDirectoryReloadKey((key) => key + 1),
                 });

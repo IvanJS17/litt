@@ -18,8 +18,8 @@ describe("AuthPageShell", () => {
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
         expect(logo.closest(".absolute")).toBeNull();
-        expect(card.parentElement).toHaveAttribute("data-align", "center");
-        expect(card.parentElement?.className).toContain("justify-center");
+        // Never centred: the card starts at the same place on every screen.
+        expect(card.parentElement?.className).not.toContain("justify-center");
     });
 
     it("tightens the frame and draws the wordmark at X = 33 in a short window", () => {
@@ -38,7 +38,6 @@ describe("AuthPageShell", () => {
         );
         expect(frame.className).toContain("[@media(min-height:861px)]:md:py-10");
         expect(area.className).toContain("[@media(max-height:700px)]:pt-1");
-        expect(area.className).toContain("[@media(max-height:700px)]:pb-0");
         // 108 × 56 px is 36u × 18.371u at u = 3 px: the brand's X = 33.
         expect(logoBox.className).toContain(
             "[@media(max-height:700px)]:[&_[data-slot=litt-wordmark]]:w-[108px]",
@@ -48,15 +47,21 @@ describe("AuthPageShell", () => {
         );
     });
 
-    it("keeps a growing form right under the wordmark with align=top", () => {
-        render(
-            <AuthPageShell align="top">
-                <p>form</p>
-            </AuthPageShell>,
-        );
-        const area = screen.getByText("form").parentElement;
-        expect(area).toHaveAttribute("data-align", "top");
-        expect(area?.className).not.toContain("justify-center");
+    it("starts the card the same distance under the wordmark whatever its height", () => {
+        const heights = ["short", "a much taller card with\nmany more lines"];
+        const classes = heights.map((text) => {
+            const { unmount } = render(
+                <AuthPageShell>
+                    <p>{text}</p>
+                </AuthPageShell>,
+            );
+            const area = screen.getByText(/short|taller/).parentElement!;
+            const value = area.className;
+            unmount();
+            return value;
+        });
+        expect(classes[0]).toBe(classes[1]);
+        expect(classes[0]).not.toContain("justify-center");
     });
 
     it("offers the language selector under the card", () => {

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -128,8 +129,8 @@ function orgSettings(
   } as OrgApiKeySettings;
 }
 
-const renderTab = () =>
-  render(<OrganizationProviderKeys orgId="org-1" orgName="Acme LLP" />);
+const renderTab = (props: { notice?: ReactNode } = {}) =>
+  render(<OrganizationProviderKeys orgId="org-1" orgName="Acme LLP" {...props} />);
 const savedSection = () =>
   screen.getByRole("region", { name: "Firm keys (Acme LLP)" });
 
@@ -481,11 +482,10 @@ describe("a member who cannot manage the organization", () => {
     expect(
       screen.queryByRole("region", { name: "Available Providers" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "A member's own keys are never used for work in this organization.",
-      ),
-    ).toBeInTheDocument();
+    // The members' own-keys policy is the managers' to change: a member
+    // reads it in the notice above, not as a setting.
+    expect(screen.queryByText(/A member's own key/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Members' own keys" })).not.toBeInTheDocument();
   });
 
   it("is told when nothing has been set up", async () => {
@@ -497,11 +497,15 @@ describe("a member who cannot manage the organization", () => {
         "This organization has not set up a model provider yet.",
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "A member's own key is used for a provider the organization has not set up.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/A member's own key/)).not.toBeInTheDocument();
+  });
+
+  it("shows the notice it is given in place of the scope line", async () => {
+    asMember({ openai: {} });
+    renderTab({ notice: <p>Only said once.</p> });
+
+    expect(await screen.findByText("Only said once.")).toBeInTheDocument();
+    expect(screen.queryByText(/These keys belong to the firm/)).not.toBeInTheDocument();
   });
 });
 

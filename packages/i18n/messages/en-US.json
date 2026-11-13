@@ -152,7 +152,8 @@
       "littCouldnTWriteTo": "LiTT couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
       "responseCopied": "Response copied",
       "thinking": "Thinking...",
-      "usingConnector": "Using connector..."
+      "usingConnector": "Using connector...",
+      "stopped": "You stopped the response."
     },
     "assistantSidePanel": {
       "assistantDocuments": "Assistant documents",
@@ -203,6 +204,7 @@
       "onlySomeoneWithEditAccess": "Only someone with edit access can add documents.",
       "openWorkflowTitle": "Open workflow {title}",
       "projects": "Projects",
+      "removeWorkflowTitle": "Remove workflow {title}",
       "selectAModel": "Select a model",
       "sendMessage": "Send message",
       "stopResponse": "Stop response",
@@ -529,7 +531,13 @@
       "ssoUnavailable": "Unable to start single sign-on for this email domain.",
       "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
       "userBanned": "This account is locked. Contact support to have it unlocked.",
-      "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols."
+      "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols.",
+      "sessionCheckFailed": "We could not check your session. Please try again.",
+      "enterBothPasswords": "Enter the password in both fields.",
+      "confirmationLinkInvalid": "This confirmation link is invalid or has expired.",
+      "authCancelled": "Authentication was cancelled or denied.",
+      "authIncomplete": "Authentication could not be completed. Please try again.",
+      "signOutFailed": "Unable to sign out. Please try again."
     },
     "forgotPassword": {
       "checkYourEmail": "Check your email",
@@ -572,7 +580,8 @@
       "retry": "Retry",
       "retrying": "Retrying...",
       "signUp": "Sign up",
-      "signupDisabled": "This account can't be used to log in."
+      "signupDisabled": "This account can't be used to log in.",
+      "inviteOnly": "Were you invited? Check your email."
     },
     "onboarding": {
       "accept": "Accept",
@@ -719,7 +728,33 @@
       "label": "Source code"
     },
     "switchedToName": "Switched to {name}",
-    "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace."
+    "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace.",
+    "seeMore": "See more",
+    "seeLess": "See less",
+    "pageTitle": {
+      "login": "Log in",
+      "signup": "Sign up",
+      "checkEmail": "Check your email",
+      "forgotPassword": "Recover your password",
+      "resetPassword": "New password",
+      "setPassword": "Create your password",
+      "verifyMfa": "Two-step verification",
+      "accountDeleted": "Account deleted",
+      "onboarding": "Set up your account",
+      "support": "Support",
+      "terms": "Terms and Conditions",
+      "notFound": "Page not found",
+      "privacy": "Privacy Notice",
+      "assistant": "Chat",
+      "history": "History",
+      "library": "Library",
+      "organizations": "Firms",
+      "playbooks": "Playbooks",
+      "projects": "Projects",
+      "settings": "Settings",
+      "tabularReviews": "Tabular reviews",
+      "workflows": "Workflows"
+    }
   },
   "documents": {
     "compare": {
@@ -1133,7 +1168,34 @@
     "action": {
       "loadMoreChats": "load more chats",
       "loadYourChats": "load your chats",
-      "startNewChat": "start a new chat"
+      "startNewChat": "start a new chat",
+      "saveYourAcceptance": "save your acceptance",
+      "updateYourPassword": "update your password",
+      "attachThePlaybook": "attach the playbook",
+      "loadProjectFiles": "load this project's files",
+      "importThePlaybook": "import the playbook",
+      "checkGoogleAuthorization": "check the Google authorization",
+      "cancelGoogleAuthorization": "cancel the Google authorization",
+      "refreshGoogleConnector": "refresh the Google connector",
+      "loadYourPupils": "load your pupils",
+      "downloadThisVersion": "download this version",
+      "loadTheComparison": "load the comparison",
+      "checkYourSession": "check your session",
+      "loadYourProfile": "load your profile",
+      "loadThisPage": "load this page",
+      "saveYourPlaybook": "save your playbook",
+      "deleteThoseReviews": "delete those reviews",
+      "uploadThatFile": "upload that file",
+      "uploadThoseFiles": "upload those files",
+      "addSource": "add {name}",
+      "removeSource": "remove {name}",
+      "deleteProject": "delete “{name}”",
+      "loadYourFiles": "load your files",
+      "loadYourTemplates": "load your templates",
+      "loadYourProjects": "load your projects",
+      "loadMoreFiles": "load more files",
+      "loadMoreTemplates": "load more templates",
+      "loadMoreProjects": "load more projects"
     }
   },
   "history": {
@@ -1412,7 +1474,8 @@
     "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
     "simplifiedTitle": "Simplified privacy notice",
     "submit": "Accept and continue",
-    "title": "Terms and Privacy Notice"
+    "title": "Terms and Privacy Notice",
+    "checkRequired": "Tick the box to continue."
   },
   "library": {
     "actions": {
@@ -1965,7 +2028,7 @@
       "allowMembersOwnKeys2": "Allow members' own keys",
       "availableProviders": "Available Providers",
       "everyProviderHasAKeySaved": "Every provider has a key saved.",
-      "firmScope": "These keys belong to the firm {name}. They are used when you work in its workspace, not in your personal workspace.",
+      "firmScope": "These keys belong to the firm and are used when you work in its workspace, not in your personal workspace.",
       "loadError": "The organization's model providers could not be loaded.",
       "membersOwnKeys": "Members’ Own Keys",
       "nameProvider": "{name} provider",
@@ -2017,10 +2080,12 @@
       "newOrganization": "New organization",
       "noOrganizationsYetCreateOneTo": "No organizations yet. Create one to share projects and workflows with your team.",
       "organizations": "Organizations",
-      "roleAndMembers": "{role} · {count, plural, one {# member} other {# members}}",
+      "roleAndMembers": "Your role: {role} · {count, plural, one {# person} other {# people}}",
       "switch": "Switch",
       "switchToName": "Switch to {name}",
-      "tryAgain": "Try again"
+      "tryAgain": "Try again",
+      "view": "View",
+      "viewName": "View {name}"
     },
     "role": {
       "admin": {
@@ -2935,7 +3000,8 @@
       "personalHeading": "My personal keys",
       "personal": "These keys are yours and apply to your personal workspace.",
       "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
-      "blocked": "{name} gives you the models; your firm does not allow your own keys."
+      "blocked": "You work with the keys of {name}. Your firm does not allow adding your own keys.",
+      "blockedNoName": "You work with your firm's keys. Your firm does not allow adding your own keys."
     },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
@@ -2970,6 +3036,7 @@
     },
     "modelProviders": {
       "apiKey": "{name} API Key",
+      "customEndpoint": "OpenAI-compatible endpoint",
       "serviceAccountKey": "{name} service-account key",
       "serviceAccountKeyJson": "Service-account key (JSON)"
     },
@@ -4073,6 +4140,10 @@
       "loadMoreProjects": "load more projects",
       "openTheFolder": "open the folder",
       "openTheProjectFolder": "open the project folder"
+    },
+    "workspaceBadge": {
+      "firm": "Firm",
+      "firmLabel": "Firm:"
     }
   },
   "support": {
@@ -6017,7 +6088,8 @@
     "workflowActions": "Workflow actions",
     "workflowCommands": "Workflow commands",
     "workflowUsed": "Workflow used",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "responseStopped": "You stopped the response."
   },
   "workflows": {
     "access": "Access",

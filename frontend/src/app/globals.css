@@ -33,10 +33,12 @@
         var(--table-cell-background);
 }
 
-.table-surface
-    .group:hover
-    .table-sticky-cell.liquid-glass-group-hover {
-    background-color: var(--liquid-glass-hover-background);
+@media (hover: hover) and (pointer: fine) {
+    .table-surface
+        .group:hover
+        .table-sticky-cell.liquid-glass-group-hover {
+        background-color: var(--liquid-glass-hover-background);
+    }
 }
 
 .table-surface.tabular-review-table-surface {
@@ -456,15 +458,11 @@
    bottom-right corner. A chat composer floats at the bottom of the page and
    reaches the right edge on most widths, so while one is on screen the
    column rises above it (the composer is about 106 px tall with its margin)
-   and a warning never covers Send. The composer is found by its send
-   button's accessible name ("Stop response" while a reply streams), which
-   its tests already pin. Unlayered on purpose, so it wins over the
+   and a warning never covers Send. The composer is found by its
+   `data-slot="chat-composer"` marker, never by the send button's accessible
+   name, which is translated. Unlayered on purpose, so it wins over the
    `bottom-*` utilities. */
-body:has(
-        button[aria-label="Send message"],
-        button[aria-label="Stop response"]
-    )
-    .notice-stack {
+body:has([data-slot="chat-composer"]) .notice-stack {
     bottom: calc(7.5rem + env(safe-area-inset-bottom));
 }
 
@@ -476,4 +474,58 @@ body:has(
 :root[data-input-modality="pointer"] .keyboard-focus-ring:focus-visible {
     --tw-ring-shadow: 0 0 #0000;
     --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+/* Lote 1 · táctil
+   Base for a finger on a phone. Unlayered, like the other global rules
+   here, so a component's utilities do not need to opt in. */
+
+/* No grey flash when a control is tapped (Safari). */
+html {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* A tap is a tap: no double-tap-to-zoom delay on controls. Pinch-zoom of the
+   page stays available. */
+a,
+button,
+summary,
+select,
+label,
+input:is([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"]),
+[role="button"],
+[role="menuitem"],
+[role="tab"],
+[role="switch"] {
+    touch-action: manipulation;
+}
+
+/* Holding a finger on a button must not select its label or open the
+   callout. Buttons only: the text of a message stays selectable. */
+button {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* No rubber-band of the whole page: the app scrolls inside its own panes. */
+html,
+body {
+    overscroll-behavior: none;
+}
+
+/* Respect "Reduce motion" (iOS, Android, desktop) everywhere. Near-zero
+   rather than none, so `animationend` / `transitionend` handlers still run.
+   Loaders keep their text; the spinner holds still. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        animation-delay: 0s !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0s !important;
+        scroll-behavior: auto !important;
+    }
 }

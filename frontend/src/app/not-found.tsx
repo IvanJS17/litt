@@ -1,29 +1,35 @@
 import Link from "next/link";
-import { pillButtonUIClassName } from "@mike/ui";
+import { authGlassCardUIClassName, pillButtonUIClassName } from "@mike/ui";
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useTranslations } from "next-intl";
+import { pageTitle } from "@/app/lib/pageTitle";
+
+export const generateMetadata = pageTitle("notFound");
 
 export default function NotFound() {
     const t = useTranslations();
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center px-4">
-            <div className="text-center max-w-md">
-                <h1 className="text-3xl font-eb-garamond font-light text-gray-900 mb-3">
-                    {t("errors.page.pageNotFound")}
-                </h1>
-                <p className="text-[0.9375rem] text-gray-500 leading-relaxed mb-8">
-                    {t("errors.page.thePageYoureLookingForDoesnt")}
-                </p>
-
-                <Link
-                    href="/"
-                    className={pillButtonUIClassName({
-                        tone: "black",
-                        size: "normal",
-                    })}
-                >
-                    {t("errors.page.goHome")}
-                </Link>
+        <AuthPageShell withLocaleSwitcher={false}>
+            <div className="w-full max-w-md">
+                <div className={authGlassCardUIClassName}>
+                    <h2 className="font-serif text-2xl font-medium text-gray-950">
+                        {t("errors.page.pageNotFound")}
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                        {t("errors.page.thePageYoureLookingForDoesnt")}
+                    </p>
+                    <Link
+                        href="/"
+                        className={pillButtonUIClassName({
+                            tone: "black",
+                            size: "normal",
+                            className: "mt-6",
+                        })}
+                    >
+                        {t("errors.page.goHome")}
+                    </Link>
+                </div>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }

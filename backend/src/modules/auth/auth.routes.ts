@@ -251,7 +251,14 @@ async function startSso(req: Request, res: Response) {
 // never the allowed domains or anything else about the providers.
 authRouter.get("/providers", asyncRoute(async (_req, res) => {
   setOperation("auth.signin");
-  res.json({ sso: ssoEnabled(), google: await googleSignInEnabled() });
+  res.json({
+    sso: ssoEnabled(),
+    google: await googleSignInEnabled(),
+    // Closed beta: the sign-up page only works for someone invited, so the
+    // login page words its footer accordingly. Not a secret: the sign-up
+    // route says so to anyone who tries.
+    inviteOnly: betaMode(),
+  });
 }));
 
 authRouter.post("/oauth", asyncRoute(async (req, res) => {

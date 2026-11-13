@@ -22,6 +22,9 @@ const {
     updateAuthPassword: vi.fn(),
 }));
 
+const nav = vi.hoisted(() => ({ path: null as string | null }));
+vi.mock("next/navigation", () => ({ usePathname: () => nav.path }));
+
 vi.mock("@/app/lib/authApi", () => ({
     clearLegacyBrowserAuthStorage,
     getAuthSession,
@@ -64,6 +67,46 @@ describe("AuthProvider", () => {
         updateAuthEmail.mockReset();
         updateAuthPassword.mockReset();
         window.localStorage.clear();
+        nav.path = null;
+        window.history.replaceState(null, "", "/");
+    });
+
+    it("does not ask for a session on a legal text, and asks at the first move to the app", async () => {
+        window.history.replaceState(null, "", "/terminos");
+        nav.path = "/terminos";
+        getAuthSession.mockResolvedValue(user);
+
+        const { rerender } = render(
+            <AuthProvider>
+                <Consumer />
+            </AuthProvider>,
+        );
+        fireEvent.focus(window);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(getAuthSession).not.toHaveBeenCalled();
+
+        // Client navigation to the app: now the session matters.
+        window.history.replaceState(null, "", "/assistant");
+        nav.path = "/assistant";
+        rerender(
+            <AuthProvider>
+                <Consumer />
+            </AuthProvider>,
+        );
+        await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("lawyer@example.test"));
+        expect(getAuthSession).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks for the session on every other screen from the start", async () => {
+        window.history.replaceState(null, "", "/login");
+        nav.path = "/login";
+        getAuthSession.mockResolvedValue(null);
+        render(
+            <AuthProvider>
+                <Consumer />
+            </AuthProvider>,
+        );
+        await waitFor(() => expect(getAuthSession).toHaveBeenCalledTimes(1));
     });
 
     it("surfaces an initial session failure without leaving loading stuck", async () => {
@@ -133,7 +176,7 @@ describe("AuthProvider", () => {
 
         expect(screen.getByTestId("user")).toHaveTextContent("signed-out");
         expect(screen.getByTestId("error")).toHaveTextContent(
-            "Your session expired",
+            "Your session has expired",
         );
     });
 

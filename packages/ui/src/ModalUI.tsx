@@ -2,6 +2,7 @@
 
 import {
     useEffect,
+    useLayoutEffect,
     useRef,
     useState,
     type ReactNode,
@@ -35,6 +36,23 @@ const sizeClassName: Record<ModalUISize, string> = {
     xl: "max-w-4xl",
 };
 
+/** A finger is the primary pointer: no hover, and a focused text field opens
+ * the on-screen keyboard. */
+const prefersTouch = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(pointer: coarse)").matches === true;
+
+/** An element that opens the on-screen keyboard when it takes focus. */
+function isTextEntry(element: Element | null): boolean {
+    if (element instanceof HTMLTextAreaElement) return true;
+    if (element instanceof HTMLInputElement) {
+        return !["checkbox", "radio", "range", "button", "submit", "reset", "file", "image", "color"].includes(
+            element.type,
+        );
+    }
+    return element instanceof HTMLElement && element.isContentEditable;
+}
+
 export function ModalUI({
     open,
     onClose,
@@ -61,8 +79,22 @@ export function ModalUI({
         onCloseRef.current = onClose;
     }, [onClose]);
 
+    // On a phone, a field focused as the dialog opens (`autoFocus`) raises
+    // the keyboard over the dialog before it has been read. Hand focus to the
+    // dialog itself; the field takes it when it is tapped. Layout effect, so
+    // it runs in the commit that mounted the field, before the keyboard shows.
+    useLayoutEffect(() => {
+        if (!open || !hasMounted || !prefersTouch()) return;
+        const dialog = dialogRef.current;
+        const active = document.activeElement;
+        if (dialog && active && dialog.contains(active) && isTextEntry(active)) {
+            dialog.focus({ preventScroll: true });
+        }
+    }, [open, hasMounted]);
+
     useEffect(() => {
         if (!open) return;
+        const touch = prefersTouch();
         const previouslyFocused = document.activeElement as HTMLElement | null;
         const dialog = dialogRef.current;
         const focusable = (): HTMLElement[] =>
@@ -84,11 +116,18 @@ export function ModalUI({
             if (dialog && active && active !== dialog && dialog.contains(active)) {
                 return;
             }
+            // The layout effect above already parked focus on the dialog for
+            // a finger; leave it there.
+            if (touch && active === dialog) return;
+            // With a finger, never pick a text field: that opens the keyboard.
+            const candidates = touch
+                ? focusable().filter((element) => !isTextEntry(element))
+                : focusable();
             const target =
-                focusable().find((element) =>
+                candidates.find((element) =>
                     element.hasAttribute("autofocus"),
                 ) ??
-                focusable()[0] ??
+                candidates[0] ??
                 dialog;
             target?.focus();
         });

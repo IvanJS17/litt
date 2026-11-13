@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,8 +20,19 @@ vi.mock("@/app/components/settings/RouterSettingsSection", () => ({
 
 // The firm's own keys have their own tests (OrganizationProviderKeys.test.tsx).
 vi.mock("@/app/components/organizations/OrganizationProviderKeys", () => ({
-    OrganizationProviderKeys: ({ orgId, orgName }: { orgId: string; orgName: string }) => (
-        <p>Firm keys ({orgName}) {orgId}</p>
+    OrganizationProviderKeys: ({
+        orgId,
+        orgName,
+        notice,
+    }: {
+        orgId: string;
+        orgName: string;
+        notice?: ReactNode;
+    }) => (
+        <>
+            <p>Firm keys ({orgName}) {orgId}</p>
+            {notice}
+        </>
     ),
 }));
 
@@ -355,9 +367,11 @@ describe("BYOK page cloud-platform keys", () => {
         workspace.allowPersonal = false;
         render(<ByokPage />);
         expect(
-            screen.getByText("Socium gives you the models; your firm does not allow your own keys."),
+            screen.getByText("You work with the keys of Socium. Your firm does not allow adding your own keys."),
         ).toBeVisible();
         expect(screen.getByText("Firm keys (Socium) firm-1")).toBeVisible();
+        // The restriction is said once, under the title, not repeated as a setting.
+        expect(screen.getAllByText(/does not allow adding your own keys/)).toHaveLength(1);
         expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
         expect(screen.queryByRole("region", { name: "Saved Providers" })).not.toBeInTheDocument();
     });
@@ -374,7 +388,7 @@ describe("BYOK page for a firm-managed account", () => {
         workspace.firm = { name: "Despacho Demo" };
         const { container } = render(<ByokPage />);
         expect(container).not.toBeEmptyDOMElement();
-        expect(screen.getByText(/^Despacho Demo gives you the models;/)).toBeVisible();
+        expect(screen.getByText(/^You work with the keys of Despacho Demo\./)).toBeVisible();
         expect(screen.getByText("Firm keys (Despacho Demo) firm-1")).toBeVisible();
         expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
         expect(screen.queryByText("My personal keys")).not.toBeInTheDocument();

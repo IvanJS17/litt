@@ -51,6 +51,16 @@ describe("ResetPasswordPage", () => {
         );
     });
 
+    it("keeps the button live and says what is missing when a field is empty", async () => {
+        render(<ResetPasswordPage />);
+        const user = userEvent.setup();
+        const update = await screen.findByRole("button", { name: "Update password" });
+        expect(update).toBeEnabled();
+        await user.click(update);
+        expect(await screen.findByRole("alert")).toHaveTextContent("Enter the password in both fields.");
+        expect(updateAuthPassword).not.toHaveBeenCalled();
+    });
+
     it("refuses a password past bcrypt's limit before calling the API", async () => {
         render(<ResetPasswordPage />);
 

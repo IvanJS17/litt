@@ -43,6 +43,14 @@ it("names the firm, the offered role and the inviter before anything is accepted
     expect(busy).toHaveBeenLastCalledWith(false);
 });
 
+it("gives Decline and Accept a 44 px touch target", async () => {
+    renderInvitations();
+    for (const name of ["Accept Example LLP", "Decline Example LLP"]) {
+        const button = await screen.findByRole("button", { name });
+        expect(button.className).toContain("pointer-coarse:after:size-11");
+    }
+});
+
 it("lists every invitation and moves on only when all are answered", async () => {
     mocks.list.mockResolvedValue([invitation, second]);
     const user = userEvent.setup(); renderInvitations();

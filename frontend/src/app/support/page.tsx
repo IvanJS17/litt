@@ -170,7 +170,7 @@ export default function SupportPage() {
                                             onClick={() =>
                                                 setFeedbackType(type.value)
                                             }
-                                            className={`p-4 rounded-lg border-2 text-left transition-all ${
+                                            className={`p-4 rounded-lg border-2 text-left transition-colors ${
                                                 feedbackType === type.value
                                                     ? "border-interactive bg-interactive-soft"
                                                     : "border-gray-200 hover:border-gray-300"
@@ -207,7 +207,7 @@ export default function SupportPage() {
                                             setLink(e.target.value)
                                         }
                                         placeholder="https://litt.asteroitt.com/..."
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-all"
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-[box-shadow,border-color]"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">
                                         {t("support.ifTheBugIsInA")}
@@ -225,7 +225,7 @@ export default function SupportPage() {
                                     id="subject"
                                     value={subject}
                                     onChange={(e) => setSubject(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-all"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-[box-shadow,border-color]"
                                     required
                                 />
                             </div>
@@ -241,7 +241,7 @@ export default function SupportPage() {
                                     onChange={(e) => setMessage(e.target.value)}
                                     placeholder={t("support.pleaseDescribeYourQuestionIssueOr")}
                                     rows={5}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-all resize-none"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-[box-shadow,border-color] resize-none"
                                     required
                                 />
                             </div>

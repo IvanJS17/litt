@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { getAuthProviders } from "@/app/lib/authApi";
 
-type Shown = { showSso: boolean; showGoogle: boolean };
+/** `inviteOnly` is null until the server answers, so the footer is not worded twice. */
+type Shown = { showSso: boolean; showGoogle: boolean; inviteOnly: boolean | null };
 
-const PENDING: Shown = { showSso: false, showGoogle: false };
-const UNKNOWN: Shown = { showSso: true, showGoogle: true };
+const PENDING: Shown = { showSso: false, showGoogle: false, inviteOnly: null };
+const UNKNOWN: Shown = { showSso: true, showGoogle: true, inviteOnly: false };
 
 /**
  * Which optional sign-in routes to offer. Nothing is drawn until the server
@@ -26,6 +27,7 @@ export function useAuthProviders(): Shown {
                 setShown({
                     showSso: providers?.sso !== false,
                     showGoogle: providers?.google !== false,
+                    inviteOnly: providers?.inviteOnly === true,
                 });
             },
             () => {

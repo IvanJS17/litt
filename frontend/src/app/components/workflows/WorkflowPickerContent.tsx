@@ -174,7 +174,7 @@ export function WorkflowPickerContent({
                                                 isSelected ? null : workflow,
                                             )
                                         }
-                                        className={`flex min-w-0 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-xs transition-all ${
+                                        className={`flex min-w-0 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-xs transition-colors ${
                                             isSelected
                                                 ? `${LIQUID_GLASS_MODAL_ROW_SELECTED_CLASS} text-gray-900`
                                                 : LIQUID_GLASS_MODAL_ROW_HOVER_CLASS
@@ -417,7 +417,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                         isExpanded ? null : column.index,
                                     )
                                 }
-                                className={`flex min-w-0 w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs transition-all ${
+                                className={`flex min-w-0 w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs transition-colors ${
                                     isExpanded
                                         ? LIQUID_GLASS_MODAL_ROW_SELECTED_CLASS
                                         : LIQUID_GLASS_MODAL_ROW_HOVER_CLASS

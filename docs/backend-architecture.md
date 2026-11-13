@@ -74,7 +74,7 @@ id in `meta`). `attachAssistantTurnSse(res, run)` hands back the same
   chat is enough, as it is for reading the transcript.
 - `POST /chat/:chatId/turn/:turnId/stop` is the one way to cut a generation
   short; it needs the standing that sending does. The route's abort path
-  then persists the partial answer labelled "Cancelled by user." and writes
+  then persists the partial answer marked with a `stopped` event (each client words it) and writes
   a `cancelled` frame before `[DONE]`, so attached readers learn the outcome.
 - `GET /chat/:chatId` reports `active_turn` (`{ id, seq, assistant_message_id }`)
   while a run is generating, which is how a freshly loaded client knows to

@@ -24,6 +24,7 @@ import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { LIQUID_GLASS_FLOAT_CLASS } from "./LiquidGlassUI";
 import { pillButtonUIClassName } from "./PillButtonUI.styles";
 import { textButtonUIClassName } from "./TextButtonUI.styles";
+import { TOUCH_TARGET_CLASS } from "./touchTargetUI.styles";
 import { CloseButton } from "./CloseButton";
 import type { ToastTone } from "@mike/client";
 
@@ -79,11 +80,15 @@ export function noticeActionClassName(
 ) {
     if (emphasis === "tertiary") {
         // `h-7` matches the small pills beside it.
-        return textButtonUIClassName({ size: "sm", className: "h-7" });
+        return textButtonUIClassName({
+            size: "sm",
+            className: `${TOUCH_TARGET_CLASS} h-7`,
+        });
     }
     return pillButtonUIClassName({
         tone: tone ?? (emphasis === "primary" ? "black" : "white"),
         size: "sm",
+        className: TOUCH_TARGET_CLASS,
     });
 }
 
@@ -145,8 +150,10 @@ export function NoticeCardUI({
                         {toneIconNode}
                     </div>
                 ) : null}
-                {/* One text column keeps every line aligned for any icon width. */}
-                <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                {/* One text column keeps every line aligned for any icon width.
+                    `pr-5` keeps it clear of the absolutely placed close
+                    button (16 px wide, 8 px in from the card's edge). */}
+                <div className="min-w-0 flex-1 pr-5 [overflow-wrap:anywhere]">
                     {title ? (
                         <div className={clsx(
                             "text-sm font-medium",

@@ -135,6 +135,23 @@ describe("SignupPage", () => {
         }
     });
 
+    // Lets the browser offer a strong generated password and save it.
+    it("marks the email and both passwords for the password manager", () => {
+        render(<SignupPage />);
+
+        expect(
+            screen.getByRole("textbox", { name: "Email" }),
+        ).toHaveAttribute("autocomplete", "email");
+        expect(screen.getByLabelText("Password")).toHaveAttribute(
+            "autocomplete",
+            "new-password",
+        );
+        expect(screen.getByLabelText("Confirm password")).toHaveAttribute(
+            "autocomplete",
+            "new-password",
+        );
+    });
+
     it("creates credentials and waits for email confirmation", async () => {
         signup.mockResolvedValue({
             user: { id: "user-1" },

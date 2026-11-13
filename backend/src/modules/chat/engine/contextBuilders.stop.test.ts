@@ -32,7 +32,7 @@ describe("stored stop outcomes", () => {
       buildCitations: () => [],
     });
     expect(result.events).toEqual([
-      { type: "content", text: "Cancelled by user." },
+      { type: "stopped" },
     ]);
   });
 });

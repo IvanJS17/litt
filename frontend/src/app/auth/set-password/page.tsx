@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { SignupLegal } from "@/app/components/legal/LegalDocument";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -87,6 +88,12 @@ function SetPasswordContent() {
     async function handleSubmit(event: React.FormEvent) {
         event.preventDefault();
         setError(null);
+        if (!password || !confirmPassword) {
+            // The button is always live; this says what is missing.
+            setError(t("auth.errors.enterBothPasswords"));
+            document.getElementById(password ? "confirmPassword" : "password")?.focus();
+            return;
+        }
         if (password.length < MIN_PASSWORD_LENGTH) {
             setError(t("auth.errors.passwordTooShort", { min: MIN_PASSWORD_LENGTH }));
             return;
@@ -106,7 +113,7 @@ function SetPasswordContent() {
         } catch (caught) {
             setError(
                 describeError(caught, {
-                    action: "update your password",
+                    action: clientTranslator()("errors.action.updateYourPassword"),
                     codeMessages: SET_PASSWORD_ERROR_MESSAGES,
                     fallback: t("access.setPassword.invalid"),
                 }).message,
@@ -116,7 +123,7 @@ function SetPasswordContent() {
     }
 
     return (
-        <AuthPageShell align={ready && !linkInvalid ? "top" : "center"}>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     {!ready ? (
@@ -153,7 +160,7 @@ function SetPasswordContent() {
                             <p className="mt-2 text-sm text-gray-500">
                                 {t("access.setPassword.subtitle", { min: MIN_PASSWORD_LENGTH })}
                             </p>
-                            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                            <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
                                 <div>
                                     <FieldLabel htmlFor="password">
                                         {t("access.setPassword.password")}
@@ -163,7 +170,6 @@ function SetPasswordContent() {
                                         autoComplete="new-password"
                                         value={password}
                                         onChange={(event) => setPassword(event.target.value)}
-                                        required
                                         className={`w-full ${authInputUIClassName}`}
                                     />
                                 </div>
@@ -176,7 +182,6 @@ function SetPasswordContent() {
                                         autoComplete="new-password"
                                         value={confirmPassword}
                                         onChange={(event) => setConfirmPassword(event.target.value)}
-                                        required
                                         className={`w-full ${authInputUIClassName}`}
                                     />
                                 </div>
@@ -189,7 +194,7 @@ function SetPasswordContent() {
                                     type="submit"
                                     tone="black"
                                     size="normal"
-                                    disabled={loading || !password || !confirmPassword}
+                                    disabled={loading}
                                     className="w-full"
                                 >
                                     {loading ? t("access.setPassword.saving") : t("access.setPassword.submit")}

@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
 // The server picks the interface language per request (frontend/src/i18n/request.ts):
-// the LITT_LOCALE cookie, then Accept-Language, then es-MX. The page title is
-// the catalog's common.meta.title, so it shows which catalog was served. No
-// screen is translated yet; the rest of the UI stays English until its card.
+// the LITT_LOCALE cookie, then Accept-Language, then es-MX. The login page's
+// tab title comes from the catalog (common.pageTitle.login + " · LiTT"), so it
+// shows which catalog was served.
 // Every /api call is mocked: this spec needs no backend (synthetic project).
 
-const TITLE = { "es-MX": "LiTT - Plataforma legal con IA", "en-US": "LiTT - Legal AI Platform" };
+const TITLE = { "es-MX": "Entrar · LiTT", "en-US": "Log in · LiTT" };
 
 test.use({ storageState: { cookies: [], origins: [] } });
 

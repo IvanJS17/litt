@@ -54,18 +54,6 @@ const nextConfig: NextConfig = {
         ];
         return config;
     },
-    async rewrites() {
-        return [
-            {
-                source: "/sitemap.xml",
-                destination: "/api/sitemap/sitemap.xml",
-            },
-            {
-                source: "/sitemap_:slug.xml",
-                destination: "/api/sitemap/sitemap_:slug.xml",
-            },
-        ];
-    },
     async redirects() {
         return [
             {

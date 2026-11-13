@@ -193,7 +193,7 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
           // Sized for the model list from the start, so the dialog does not
           // grow the moment a key is saved.
           size={routerSlug && (!store || store.routerModels) ? "md" : "sm"}
-          className="h-auto max-h-[calc(100vh-2rem)]"
+          className="h-auto max-h-[calc(100dvh-2rem)]"
           // With no key waiting to be saved (models save as they are picked),
           // the primary button closes the dialog instead of sitting disabled.
           primaryAction={

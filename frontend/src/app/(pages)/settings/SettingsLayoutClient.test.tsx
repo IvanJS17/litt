@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPlatformMe, listMyOrgInvitations, type OrgInvitation } from "@/app/lib/mikeApi";
-import SettingsLayout from "./layout";
+import SettingsLayout from "./SettingsLayoutClient";
 
 const push = vi.fn();
 let pathname = "/settings/memory";

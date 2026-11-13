@@ -1634,7 +1634,7 @@ describe("POST /chat — streaming endpoint", () => {
         expect(assistantUpdate?.value).toMatchObject({
             content: expect.arrayContaining([
                 { type: "content", text: "partial" },
-                { type: "content", text: "Cancelled by user." },
+                { type: "stopped" },
             ]),
         });
     expect(releaseMemoryConversationTurn).toHaveBeenCalledWith({
@@ -3711,7 +3711,7 @@ describe("server-owned turns: resume, stop, concurrency", () => {
         expect(savedBeforeTitleResolved).toMatchObject({
             content: [
                 { type: "content", text: "Partial before stop" },
-                { type: "content", text: "Cancelled by user." },
+                { type: "stopped" },
             ],
         });
     });
@@ -3757,7 +3757,7 @@ describe("server-owned turns: resume, stop, concurrency", () => {
         expect(findAssistantUpdate()?.value).toMatchObject({
             content: [
                 { type: "content", text: "Partial" },
-                { type: "content", text: "Cancelled by user." },
+                { type: "stopped" },
             ],
         });
 

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModalUI } from "./ModalUI";
 
 describe("ModalUI", () => {
@@ -61,5 +61,45 @@ describe("ModalUI", () => {
             key: "Escape",
         });
         expect(onClose).not.toHaveBeenCalled();
+    });
+});
+
+describe("ModalUI focus on a touch screen", () => {
+    const stubPointer = (coarse: boolean) =>
+        vi.stubGlobal("matchMedia", (query: string) => ({
+            matches: coarse && query === "(pointer: coarse)",
+            media: query,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            onchange: null,
+            dispatchEvent: () => false,
+        }));
+    afterEach(() => vi.unstubAllGlobals());
+
+    const renderRename = () =>
+        render(
+            <ModalUI open onClose={() => {}} ariaLabel="Rename">
+                {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                <input aria-label="Title" autoFocus />
+            </ModalUI>,
+        );
+
+    it("does not leave a text field focused (the keyboard would open) with a finger", async () => {
+        stubPointer(true);
+        renderRename();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        expect(screen.getByLabelText("Title")).not.toHaveFocus();
+        expect(screen.getByRole("dialog")).toHaveFocus();
+    });
+
+    it("still focuses the field with a mouse", async () => {
+        stubPointer(false);
+        renderRename();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        expect(screen.getByLabelText("Title")).toHaveFocus();
     });
 });

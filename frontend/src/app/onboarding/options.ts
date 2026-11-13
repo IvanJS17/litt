@@ -531,15 +531,19 @@ const COUNTRY_CODES: Record<(typeof COUNTRY_OPTIONS)[number], string> = {
     "Zimbabwe": "ZW",
 };
 
+const regionNames = new Map<string, Intl.DisplayNames>();
+
 /** A country's name in `locale`; anything not in the list is shown as saved. */
 export function countryLabel(value: string, locale: string): string {
     const code = (COUNTRY_CODES as Record<string, string>)[value];
     if (!code) return value;
-    try {
-        return new Intl.DisplayNames([locale], { type: "region" }).of(code) ?? value;
-    } catch {
-        return value;
+    // One formatter per language: the statistics table asks once per row.
+    let names = regionNames.get(locale);
+    if (!names) {
+        names = new Intl.DisplayNames([locale], { type: "region" });
+        regionNames.set(locale, names);
     }
+    return names.of(code) ?? value;
 }
 
 /**

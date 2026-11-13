@@ -4,6 +4,21 @@ import { describe, expect, it, vi } from "vitest";
 import { NoticeCardUI, noticeActionClassName } from "./NoticeCardUI";
 
 describe("NoticeCardUI", () => {
+    // The close button is absolutely placed in the card's top-right corner;
+    // a long title ran underneath it.
+    it("keeps the text column clear of the close button", () => {
+        render(
+            <NoticeCardUI
+                role="alert"
+                title="A very long title that wraps onto a second line"
+                onDismiss={vi.fn()}
+            />,
+        );
+
+        const column = screen.getByText(/A very long title/).parentElement;
+        expect(column).toHaveClass("pr-5");
+    });
+
     it("draws the glass card with title, indented message and a named close button", () => {
         const onDismiss = vi.fn();
         render(
@@ -90,5 +105,11 @@ describe("NoticeCardUI", () => {
         expect(card).toHaveClass("h-auto");
         expect(screen.getByRole("button", { name: "Open" }).parentElement)
             .toHaveClass("justify-end");
+    });
+
+    it("gives every kind of action a 44 px touch target", () => {
+        for (const emphasis of ["primary", "secondary", "tertiary"] as const) {
+            expect(noticeActionClassName(emphasis)).toContain("pointer-coarse:after:size-11");
+        }
     });
 });

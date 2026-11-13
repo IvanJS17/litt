@@ -271,7 +271,7 @@ export function createTurnEventSink(
     cancelled = true;
     eventsRef.current = [
       ...cancelStreamingEvents(eventsRef.current),
-      { type: "content" as const, text: "Cancelled by user." },
+      { type: "stopped" as const },
     ];
     publish();
   };

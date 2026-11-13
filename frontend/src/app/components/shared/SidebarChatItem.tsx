@@ -117,14 +117,14 @@ export function SidebarChatItem({
     return (
         <div
             className={cn(
-                "group relative flex h-8 w-full items-center rounded-md transition-colors",
+                "group relative flex h-8 w-full items-center rounded-md transition-colors pointer-coarse:h-11",
                 // The ring for the row's own button (data-focus-fill).
                 SIDEBAR_ROW_FOCUS_RING_CLASS,
                 isActive
                     ? `${LIQUID_GLASS_SELECTED_CLASS} pr-1`
                     : menuOpen
                       ? `pr-1 ${LIQUID_GLASS_HOVER_CLASS}`
-                      : `pr-3 ${LIQUID_GLASS_HOVER_CLASS} hover:pr-1`,
+                      : `pr-3 ${LIQUID_GLASS_HOVER_CLASS} hover:pr-1 pointer-coarse:pr-0`,
             )}
         >
                 {/* 16px icon slot + ml-2/pl-2 match the top nav rows'
@@ -154,7 +154,7 @@ export function SidebarChatItem({
                     // The row owns the hover fill, so it draws the ring.
                     data-focus-fill
                     className={cn(
-                        "min-w-0 flex-1 overflow-hidden whitespace-nowrap py-1 pl-2 text-left text-xs outline-none",
+                        "min-w-0 flex-1 overflow-hidden whitespace-nowrap py-1 pl-2 text-left text-xs outline-none pointer-coarse:h-full",
                         isActive
                             ? "pr-3 text-gray-900"
                             : menuOpen
@@ -203,7 +203,7 @@ export function SidebarChatItem({
                         <button
                             type="button"
                             aria-label={t("shared.sidebarChatItem.actionsFor", { title: chat.title ?? t("shared.sidebarChatItem.untitledChat") })}
-                            className={`flex h-6 w-0 shrink-0 items-center justify-center overflow-hidden rounded-md bg-transparent text-gray-500 opacity-0 transition-opacity hover:text-gray-900 ${
+                            className={`flex h-6 w-0 shrink-0 items-center justify-center overflow-hidden rounded-md bg-transparent text-gray-500 opacity-0 transition-opacity hover:text-gray-900 pointer-coarse:pointer-events-auto pointer-coarse:h-11 pointer-coarse:w-11 pointer-coarse:opacity-100 ${
                                 actionsRevealed
                                     ? "w-6 opacity-100"
                                     : "pointer-events-none group-hover:w-6 group-hover:pointer-events-auto group-hover:opacity-100"
@@ -217,17 +217,17 @@ export function SidebarChatItem({
                             // Two chats need a wide page.
                             <DropdownItem
                                 onSelect={onOpenInSideChat}
-                                className="max-md:hidden"
+                                className="max-md:hidden pointer-coarse:min-h-11"
                             >
                                 <MessageSquare aria-hidden="true" className="mr-2 h-4 w-4" />
                                 {t("shared.sidebarChatItem.openInSideChat")}
                             </DropdownItem>
                         )}
-                        {canShare && <DropdownItem onSelect={() => setShareOpen(true)}>
+                        {canShare && <DropdownItem className="pointer-coarse:min-h-11" onSelect={() => setShareOpen(true)}>
                             <Users className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.share")}
                         </DropdownItem>}
-                        {canRename && <DropdownItem onSelect={() => setRenameOpen(true)}>
+                        {canRename && <DropdownItem className="pointer-coarse:min-h-11" onSelect={() => setRenameOpen(true)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.rename")}
                         </DropdownItem>}
@@ -238,12 +238,12 @@ export function SidebarChatItem({
                                         t("shared.sidebarChatItem.theChatCouldNotBeDeleted")));
                                 });
                             }}
-                            className="text-red-600 focus:text-red-600"
+                            className="text-red-600 focus:text-red-600 pointer-coarse:min-h-11"
                         >
                             <Trash2 className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.delete")}
                         </DropdownItem>}
-                        {canLeave && <DropdownItem onSelect={() => setLeaveOpen(true)}>
+                        {canLeave && <DropdownItem className="pointer-coarse:min-h-11" onSelect={() => setLeaveOpen(true)}>
                             <LogOut className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.leave")}
                         </DropdownItem>}

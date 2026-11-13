@@ -6,6 +6,7 @@ import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { TermsAcceptance } from "@/app/components/legal/TermsAcceptance";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
+import { isLegalPath } from "@/app/lib/legalRoutes";
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
     const pathname = usePathname();
@@ -28,7 +29,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         pathname === "/reset-password" ||
         pathname === "/verify-mfa";
     // The published texts stay readable to everyone, signed in or not.
-    const isLegalRoute = pathname === "/privacidad" || pathname === "/terminos";
+    const isLegalRoute = isLegalPath(pathname);
     const needsTerms =
         profile?.termsRequired === true && !isLegalRoute && !isAuthTransitionRoute;
     const needsOnboarding = profile?.onboardingComplete === false;

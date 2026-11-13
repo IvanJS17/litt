@@ -105,9 +105,13 @@ services:
       GOTRUE_MAILER_TEMPLATES_INVITE: http://litt-web:3000/email-templates/invite.html
       GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://litt-web:3000/email-templates/confirmation.html
       GOTRUE_MAILER_TEMPLATES_RECOVERY: http://litt-web:3000/email-templates/recovery.html
+      GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE: http://litt-web:3000/email-templates/email_change.html
+      GOTRUE_MAILER_TEMPLATES_REAUTHENTICATION: http://litt-web:3000/email-templates/reauthentication.html
       GOTRUE_MAILER_SUBJECTS_INVITE: Te invitaron a LiTT
       GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Confirma tu correo de LiTT
       GOTRUE_MAILER_SUBJECTS_RECOVERY: Recupera tu contraseña de LiTT
+      GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE: Confirma el cambio de tu correo en LiTT
+      GOTRUE_MAILER_SUBJECTS_REAUTHENTICATION: Tu código de verificación de LiTT
     depends_on:
       db:
         condition: service_healthy

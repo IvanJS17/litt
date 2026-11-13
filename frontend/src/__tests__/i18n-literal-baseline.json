@@ -8,7 +8,7 @@
     "frontend/src/app/(pages)/settings/connectors/page.tsx",
     "frontend/src/app/(pages)/settings/features/page.tsx",
     "frontend/src/app/(pages)/settings/firm-criteria",
-    "frontend/src/app/(pages)/settings/layout.tsx",
+    "frontend/src/app/(pages)/settings/SettingsLayoutClient.tsx",
     "frontend/src/app/(pages)/settings/models/page.tsx",
     "frontend/src/app/(pages)/settings/page.tsx",
     "frontend/src/app/(pages)/settings/personalisation/page.tsx",
