@@ -29,6 +29,9 @@ const ROW = "h-auto min-w-0 grid-cols-1 gap-x-4 gap-y-1 py-3 pr-3 pl-3 lg:items-
 // The overview table's columns: the feature name, then the two usage counts.
 // The header and every row take the same template and gap, so the columns line up.
 const OVERVIEW_COLS = "lg:grid-cols-[minmax(0,1fr)_8rem_8rem]";
+// «Por persona»: the Persona column keeps room for a whole email while there
+// is width (`lg:break-words` below); only a narrow screen breaks it inside.
+const PEOPLE_COLS = "lg:grid-cols-[minmax(16rem,1.6fr)_1fr_1.4fr_2fr_0.9fr]";
 const CELL = "min-w-0 overflow-visible text-clip whitespace-normal break-words text-xs text-gray-700";
 
 function Cell({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
@@ -176,7 +179,7 @@ export function BetaStatsSection() {
                 ] as const
               ).map(([label, kind, buckets]) => (
                 <div key={label} className="min-w-0">
-                  <TableHeaderRow className="h-8 min-w-0 justify-between gap-4">
+                  <TableHeaderRow className="h-8 min-w-0 justify-between gap-4 pl-3">
                     <TableHeaderCell>{t(`access.stats.${label}`)}</TableHeaderCell>
                     <TableHeaderCell>{t("access.stats.count")}</TableHeaderCell>
                   </TableHeaderRow>
@@ -235,7 +238,7 @@ export function BetaStatsSection() {
               <SettingsDescription>{t("access.stats.noPeople")}</SettingsDescription>
             ) : (
               <>
-                <TableHeaderRow className="hidden h-8 min-w-0 grid-cols-[1.4fr_1fr_1.6fr_2.2fr_0.9fr] gap-x-4 pl-3 lg:grid">
+                <TableHeaderRow className={cn("hidden h-8 min-w-0 gap-x-4 pl-3 lg:grid", PEOPLE_COLS)}>
                   <TableHeaderCell>{t("access.stats.person")}</TableHeaderCell>
                   <TableHeaderCell>{t("access.stats.firm")}</TableHeaderCell>
                   <TableHeaderCell>{`${t("access.stats.scope")} · ${t("access.stats.title")} · ${t("access.stats.jurisdiction")} · ${t("access.stats.practiceArea")}`}</TableHeaderCell>
@@ -247,14 +250,14 @@ export function BetaStatsSection() {
                     <TableRow
                       key={index}
                       interactive={false}
-                      className={cn(ROW, "grid lg:grid-cols-[1.4fr_1fr_1.6fr_2.2fr_0.9fr]")}
+                      className={cn(ROW, "grid", PEOPLE_COLS)}
                     >
                       {person.deleted ? (
                         <Cell label={t("access.stats.person")}>{t("access.stats.deletedUser")}</Cell>
                       ) : (
                         <TableCell className={CELL}>
                           <span className="block font-medium text-gray-900">{person.name ?? t("access.stats.none")}</span>
-                          <span className="block break-all">{person.email}</span>
+                          <span className="block break-all lg:[word-break:normal] lg:break-words">{person.email}</span>
                         </TableCell>
                       )}
                       <Cell label={t("access.stats.firm")}>
