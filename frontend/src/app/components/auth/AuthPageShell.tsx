@@ -38,7 +38,17 @@ const SHORT_LOGO_CLASS =
  * with the card's height, so it jumped from one step to the next. The
  * language selector sits under the card on every screen that uses the frame.
  */
-export function AuthPageShell({ children }: { children: ReactNode }) {
+export function AuthPageShell({
+    children,
+    withLocaleSwitcher = true,
+}: {
+    children: ReactNode;
+    /**
+     * False for the crash screens: `global-error` replaces the root layout and
+     * has no intl provider, which the language selector needs.
+     */
+    withLocaleSwitcher?: boolean;
+}) {
     return (
         <div
             className={`flex min-h-dvh flex-col items-center bg-app-background px-6 ${FRAME_CLASS}`}
@@ -50,9 +60,11 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
                 {children}
             </div>
             {/* Every signed-out screen offers the language choice (plan i18n §2.3). */}
-            <div className="shrink-0 pt-2 [@media(max-height:700px)]:pt-0">
-                <LocaleSwitcher />
-            </div>
+            {withLocaleSwitcher ? (
+                <div className="shrink-0 pt-2 [@media(max-height:700px)]:pt-0">
+                    <LocaleSwitcher />
+                </div>
+            ) : null}
         </div>
     );
 }
