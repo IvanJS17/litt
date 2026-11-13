@@ -19,6 +19,7 @@ import {
     type ReactNode,
 } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { useOptionalUserProfile } from "@/app/contexts/UserProfileContext";
 import {
     getOrgApiKeys,
@@ -131,12 +132,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         workspaceId: readStoredWorkspace(userId),
     }));
     const [organizations, setOrganizations] = useState<Org[] | null>(null);
+    // Whether the first read of the organizations has ended, in either way.
+    const [organizationsSettled, setOrganizationsSettled] = useState(false);
 
     // A different account signed in under the same mounted provider: its
     // remembered workspace applies, not the previous account's.
     if (selection.userId !== userId) {
         setSelection({ userId, workspaceId: readStoredWorkspace(userId) });
         setOrganizations(null);
+        setOrganizationsSettled(false);
     }
     const storedWorkspaceId = selection.workspaceId;
 
@@ -148,9 +152,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } catch {
             // Keep whatever was known. A failed read is not evidence that the
             // caller left their organization, so the selection stands.
+            setOrganizationsSettled(true);
             return;
         }
         setOrganizations(next);
+        setOrganizationsSettled(true);
         // The remembered workspace is only as good as the membership behind
         // it. One the caller no longer belongs to falls back to Personal
         // rather than leaving every list empty — and stays there, so being
@@ -197,8 +203,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             : storedWorkspaceId;
     // A firm-managed account has no Personal workspace (the one place this is
     // decided on the screen): it lands in the firm's, whatever was remembered.
+    const profileState = useOptionalUserProfile();
     const personalWorkspaceDisabled =
-        useOptionalUserProfile()?.profile?.personalWorkspaceDisabled === true;
+        profileState?.profile?.personalWorkspaceDisabled === true;
     if (
         personalWorkspaceDisabled &&
         workspaceId === PERSONAL_WORKSPACE &&
@@ -208,6 +215,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         activeOrganization = organizations[0];
         workspaceId = activeOrganization.id;
     }
+    // Nothing is listed until the workspace is certain. A remembered Personal
+    // is only good once the profile has said whether the account has one, and,
+    // when it has not, once the firm to move to is known; asking for Personal
+    // meanwhile is a request the server refuses. A failed read of either
+    // does not hold the screens back: the server still decides.
+    const profileKnown = !profileState?.loading;
+    const workspaceReady =
+        workspaceId !== PERSONAL_WORKSPACE ||
+        (profileKnown &&
+            (!personalWorkspaceDisabled ||
+                organizations !== null ||
+                organizationsSettled));
 
     useEffect(() => {
         storeWorkspace(userId, workspaceId);
@@ -302,7 +321,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     return (
         <WorkspaceContext.Provider value={value}>
-            {children}
+            {workspaceReady ? children : <FullScreenLoader />}
         </WorkspaceContext.Provider>
     );
 }

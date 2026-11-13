@@ -6,6 +6,7 @@ import { PanelLeft } from "lucide-react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { ChatHistoryProvider } from "@/app/contexts/ChatHistoryContext";
 import { ManagedAccountBanner } from "@/app/components/organizations/ManagedAccountBanner";
+import { PersonalWorkspaceNotice } from "@/app/components/organizations/PersonalWorkspaceNotice";
 import { WorkspaceProvider } from "@/app/contexts/WorkspaceContext";
 import { WorkspaceBadge } from "@/app/components/shared/WorkspaceBadge";
 import { SidebarContext } from "@/app/contexts/SidebarContext";
@@ -195,6 +196,7 @@ export default function MikeLayout({
                                     </div>
                                     <main className="flex h-full w-full flex-1 flex-col overflow-y-auto md:overflow-hidden">
                                         <ManagedAccountBanner />
+                                        <PersonalWorkspaceNotice />
                                         {children}
                                     </main>
                                 </div>

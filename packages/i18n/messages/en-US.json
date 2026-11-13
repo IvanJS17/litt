@@ -1446,7 +1446,8 @@
     "body": "{firm} manages the accounts it creates by invitation. With this account you can only use {firm}'s workspace and its keys; you won't have a personal workspace. What you do stays in the firm's workspace, even if you leave. If you leave {firm}, your account will have a personal workspace again.",
     "termsLink": "See section 5.5 of the Terms",
     "nowManaged": "{firm} now manages your account: you can only use {firm}'s workspace and its keys. What you had in your personal workspace was not deleted. You'll see it again if you leave {firm}, and you can download it in Settings.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "noPersonalWorkspace": "{firm} manages your account; you don't have a personal workspace."
   },
   "markdownDocument": {
     "cancel": "Cancel",
@@ -2945,6 +2946,7 @@
         "byok": "Bring Your Own Keys",
         "connectors": "Connectors",
         "features": "Features",
+        "firmKeys": "Firm keys",
         "memory": "Memory",
         "models": "Model Preferences",
         "myActivity": "My Activity",
@@ -3268,6 +3270,8 @@
       "couldNotUpdate": "turn scan reading on or off",
       "disclaimer": "When it is on, every scanned PDF you upload is sent in full to LandingAI, in the United States, to extract its text with your key or your firm's, and that text is saved in LiTT. LandingAI charges your account directly, about USD 0.01 per page at its rates. If your plan has no zero data retention (offered only on the Team and Enterprise plans), LandingAI may keep your documents and use them to improve its products and train its models; with zero data retention, it deletes them when it finishes and does not use them for training. LandingAI is a third party that you choose and contract, so LiTT does not control and is not responsible for how it handles your documents: check its terms before you send it client documents. It is optional: if you leave it off, LiTT does not read scans, and you can upload a PDF that has already been through OCR, using your scanner's searchable-PDF option or a PDF program.",
       "enable": "Turn on scan reading with LandingAI",
+      "firmConfigured": "{name} has set up scan reading with LandingAI. You can't add your own key.",
+      "firmNotConfigured": "{name} has not set up scan reading with LandingAI. Ask its owners or admins to add a key.",
       "getKey": "To use it, create an account and an API key with LandingAI:",
       "keyDocsLink": "How to get an API key",
       "keyLabel": "LandingAI API key",

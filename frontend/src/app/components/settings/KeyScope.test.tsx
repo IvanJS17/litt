@@ -26,20 +26,20 @@ describe("key scope", () => {
     it("is never blocked in the personal workspace", () => {
         workspace.orgApiKeys = { allow_personal_api_keys: false };
         const { result } = renderHook(() => useKeyScope());
-        expect(result.current).toEqual({ firmName: null, personalBlocked: false, managed: false });
+        expect(result.current).toEqual({ firmName: null, personalBlocked: false, managed: false, orgApiKeys: null });
     });
 
     it("never has personal keys for a firm-managed account, in any workspace", () => {
         profile.managed = true;
         const { result } = renderHook(() => useKeyScope());
-        expect(result.current).toEqual({ firmName: null, personalBlocked: true, managed: true });
+        expect(result.current).toEqual({ firmName: null, personalBlocked: true, managed: true, orgApiKeys: null });
     });
 
     it("is blocked only once the firm is known to turn members' own keys off", () => {
         workspace.firm = { name: "Socium" };
         const { result, rerender } = renderHook(() => useKeyScope());
         // Still loading, or the read failed: not blocked; the server decides.
-        expect(result.current).toEqual({ firmName: "Socium", personalBlocked: false, managed: false });
+        expect(result.current).toEqual({ firmName: "Socium", personalBlocked: false, managed: false, orgApiKeys: null });
         workspace.orgApiKeys = { allow_personal_api_keys: true };
         rerender();
         expect(result.current.personalBlocked).toBe(false);

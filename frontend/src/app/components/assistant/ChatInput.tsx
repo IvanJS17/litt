@@ -1185,7 +1185,7 @@ function ChatInputForChatImpl(
                                     locked={routeFixed}
                                 />
                             )}
-                            {!chatSettingsLoading && offerCredentialChoice && !routeFixed && composerOpen && (
+                            {!chatSettingsLoading && offerCredentialChoice && !routeFixed && composerOpen && model !== "" && (
                                 <ChatCredentialPicker
                                     options={credential.options}
                                     value={credential.value}

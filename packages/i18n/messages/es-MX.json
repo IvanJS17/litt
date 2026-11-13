@@ -1446,7 +1446,8 @@
     "body": "{firm} administra las cuentas que crea por invitación. Con esta cuenta solo podrás usar el espacio de {firm} y sus llaves; no tendrás espacio personal. Lo que hagas quedará en el espacio del despacho, también si sales. Si sales de {firm}, tu cuenta tendrá de nuevo espacio personal.",
     "termsLink": "Consulta la cláusula 5.5 de los Términos",
     "nowManaged": "{firm} ahora administra tu cuenta: solo puedes usar el espacio de {firm} y sus llaves. Lo que tenías en tu espacio personal no se borró. Volverás a verlo si sales de {firm}, y puedes descargarlo en Ajustes.",
-    "dismiss": "Cerrar"
+    "dismiss": "Cerrar",
+    "noPersonalWorkspace": "Tu cuenta la administra {firm}; no tienes espacio personal."
   },
   "markdownDocument": {
     "cancel": "Cancelar",
@@ -2945,6 +2946,7 @@
         "byok": "Llaves propias (BYOK)",
         "connectors": "Conectores",
         "features": "Funciones",
+        "firmKeys": "Llaves del despacho",
         "memory": "Memoria",
         "models": "Preferencias de modelos",
         "myActivity": "Mi actividad",
@@ -3268,6 +3270,8 @@
       "couldNotUpdate": "activar o desactivar la lectura de escaneados",
       "disclaimer": "Al activarla, cada PDF escaneado que subas se envía completo a LandingAI, en Estados Unidos, para extraer su texto con tu llave o la de tu despacho, y ese texto se guarda en LiTT. LandingAI cobra el servicio directamente a tu cuenta, alrededor de 0.01 USD por página según su tarifa. Si tu plan no tiene retención cero (solo existe en los planes Team y Enterprise), LandingAI puede conservar tus documentos y usarlos para mejorar sus productos y entrenar sus modelos; con retención cero, los borra al terminar y no los usa para entrenar. LandingAI es un tercero que tú eliges y contratas, así que LiTT no controla ni responde por cómo trata tus documentos: revisa sus condiciones antes de enviarle documentos de clientes. Es opcional: si no la activas, LiTT no lee escaneados, y puedes subir el PDF ya pasado por OCR con la función de PDF buscable de tu escáner o con un programa de PDF.",
       "enable": "Activar la lectura de escaneados con LandingAI",
+      "firmConfigured": "{name} configuró la lectura de escaneados con LandingAI. No puedes agregar una llave propia.",
+      "firmNotConfigured": "{name} no ha configurado la lectura de escaneados con LandingAI. Pide a sus propietarios o administradores que agreguen una llave.",
       "getKey": "Para usarla, crea una cuenta y una llave de API en LandingAI:",
       "keyDocsLink": "Cómo obtener la llave de API",
       "keyLabel": "Llave de API de LandingAI",

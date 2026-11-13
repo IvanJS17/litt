@@ -14,6 +14,7 @@ import {
 const mocks = vi.hoisted(() => ({
     userId: "u1" as string | null,
     managed: false,
+    profileLoading: false,
     listOrgs: vi.fn(),
     getOrgApiKeys: vi.fn(),
 }));
@@ -23,7 +24,8 @@ vi.mock("@/app/contexts/AuthContext", () => ({
 }));
 vi.mock("@/app/contexts/UserProfileContext", () => ({
     useOptionalUserProfile: () => ({
-        profile: { personalWorkspaceDisabled: mocks.managed },
+        profile: mocks.profileLoading ? null : { personalWorkspaceDisabled: mocks.managed },
+        loading: mocks.profileLoading,
     }),
 }));
 vi.mock("@/app/lib/mikeApi", () => ({
@@ -78,6 +80,7 @@ beforeEach(() => {
     window.localStorage.clear();
     mocks.userId = "u1";
     mocks.managed = false;
+    mocks.profileLoading = false;
     mocks.listOrgs.mockResolvedValue([ACME, BETA]);
     mocks.getOrgApiKeys.mockImplementation(async (orgId: string) =>
         keysFor(orgId),
@@ -428,5 +431,65 @@ describe("a firm-managed account", () => {
         renderProvider();
         await waitFor(() => expect(screen.getByText(/personal\|personal\|loaded\|none/)).toBeInTheDocument());
         expect(latest.personalWorkspaceDisabled).toBe(false);
+    });
+});
+
+describe("the first render of a remembered Personal workspace", () => {
+    // What the lists would ask for: every workspace the children rendered with.
+    function Asked({ log }: { log: string[] }) {
+        const param = useWorkspaceParam();
+        useEffect(() => {
+            log.push(param ?? "unscoped");
+        });
+        return <p>shown:{param}</p>;
+    }
+
+    it("asks for nothing until the profile says whether the account has a Personal workspace", async () => {
+        const asked: string[] = [];
+        window.localStorage.setItem(STORAGE_KEY, PERSONAL_WORKSPACE);
+        mocks.profileLoading = true;
+        const view = renderProvider(<Asked log={asked} />);
+        await act(async () => {});
+        expect(asked).toEqual([]);
+        expect(screen.queryByText(/^shown:/)).not.toBeInTheDocument();
+
+        mocks.profileLoading = false;
+        view.rerender(
+            <WorkspaceProvider>
+                <Asked log={asked} />
+            </WorkspaceProvider>,
+        );
+        expect(await screen.findByText("shown:personal")).toBeInTheDocument();
+    });
+
+    it("moves a managed account to its firm before anything is asked, when Personal was remembered", async () => {
+        const asked: string[] = [];
+        window.localStorage.setItem(STORAGE_KEY, PERSONAL_WORKSPACE);
+        mocks.managed = true;
+        let release: (orgs: unknown[]) => void = () => {};
+        mocks.listOrgs.mockReturnValue(new Promise((resolve) => (release = resolve)));
+        renderProvider(<Asked log={asked} />);
+        // The profile already says "managed"; the firm is not known yet.
+        expect(screen.queryByText(/^shown:/)).not.toBeInTheDocument();
+        expect(asked).toEqual([]);
+
+        await act(async () => release([ACME, BETA]));
+        expect(await screen.findByText(`shown:${ACME.id}`)).toBeInTheDocument();
+        expect(asked).not.toContain(PERSONAL_WORKSPACE);
+    });
+
+    it("does not hold the screens back when the organizations cannot be read", async () => {
+        window.localStorage.setItem(STORAGE_KEY, PERSONAL_WORKSPACE);
+        mocks.managed = true;
+        mocks.listOrgs.mockRejectedValue(new Error("offline"));
+        renderProvider(<Asked log={[]} />);
+        expect(await screen.findByText("shown:personal")).toBeInTheDocument();
+    });
+
+    it("does not wait for the profile when an organization was remembered", () => {
+        window.localStorage.setItem(STORAGE_KEY, ACME.id);
+        mocks.profileLoading = true;
+        renderProvider(<Asked log={[]} />);
+        expect(screen.getByText(`shown:${ACME.id}`)).toBeInTheDocument();
     });
 });

@@ -5,6 +5,7 @@ import { useMemberDataActions } from "./useMemberDataActions";
 const state = vi.hoisted(() => ({
     workspaceId: "personal" as string | null,
     activeOrganization: null as Record<string, unknown> | null,
+    personalWorkspaceDisabled: false,
 }));
 
 vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
@@ -21,6 +22,7 @@ const inOrg = (org: Record<string, unknown>) => {
 beforeEach(() => {
     state.workspaceId = "personal";
     state.activeOrganization = null;
+    state.personalWorkspaceDisabled = false;
 });
 
 describe("useMemberDataActions", () => {
@@ -41,6 +43,12 @@ describe("useMemberDataActions", () => {
     it("allows other members only what the owners allow", () => {
         inOrg({ role: "admin", allow_member_exports: true, allow_member_deletes: false });
         expect(actions()).toEqual({ canExport: true, canDelete: false });
+    });
+
+    it("keeps a firm-managed account's right to download and delete its data, whatever the firm lets members do", () => {
+        inOrg({ role: "member", allow_member_exports: false, allow_member_deletes: false });
+        state.personalWorkspaceDisabled = true;
+        expect(actions()).toEqual({ canExport: true, canDelete: true });
     });
 
     it("allows nothing when the organization says nothing", () => {

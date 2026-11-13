@@ -15,7 +15,10 @@ const ctx = vi.hoisted(() => ({
   updateApiKeyEnabled: vi.fn(),
 }));
 vi.mock("@/app/contexts/UserProfileContext", () => ({
-  useUserProfile: () => ctx,
+  useUserProfile: () => ({
+    ...ctx,
+    profile: ctx.profile && { ...ctx.profile, personalWorkspaceDisabled: workspace.managed },
+  }),
 }));
 vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
   MfaVerificationPopup: ({ open, onVerified }: { open: boolean; onVerified: () => void }) =>
@@ -26,13 +29,22 @@ vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
 const workspace = vi.hoisted(() => ({
   firm: null as null | { name: string },
   allowPersonal: true,
+  /** Whether the firm holds a LandingAI key, and whether it is on. */
+  firmLandingai: null as null | { enabled: boolean },
+  managed: false,
 }));
 vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
   useWorkspace: () => ({
     activeOrganization: workspace.firm,
     orgApiKeys: workspace.firm
-      ? { allow_personal_api_keys: workspace.allowPersonal }
+      ? {
+          allow_personal_api_keys: workspace.allowPersonal,
+          keys: {
+            sources: workspace.firmLandingai ? { landingai: "org" } : {},
+            enabled: workspace.firmLandingai ? { landingai: workspace.firmLandingai.enabled } : {},
+          },
+        }
       : null,
   }),
 }));
@@ -45,6 +57,8 @@ beforeEach(() => {
   ctx.profile = saved(true);
   workspace.firm = null;
   workspace.allowPersonal = true;
+  workspace.firmLandingai = null;
+  workspace.managed = false;
   ctx.updateApiKey.mockReset().mockResolvedValue(true);
   ctx.updateApiKeyEnabled.mockReset().mockResolvedValue(true);
   vi.mocked(notifyError).mockReset();
@@ -56,11 +70,30 @@ describe("ScanReadingSection", () => {
     expect(screen.getByText(/These keys are yours and apply to your personal workspace\./)).toBeVisible();
   });
 
-  it("offers no key, and no switch, in a firm that does not allow members' own keys", () => {
+  it("offers no personal key, and says the firm has none set up, in a firm that does not allow members' own keys", () => {
     workspace.firm = { name: "Socium" };
     workspace.allowPersonal = false;
     render(<ScanReadingSection />);
-    expect(screen.getByText("Socium gives you the models; your firm does not allow your own keys.")).toBeVisible();
+    expect(screen.getByText(/^Socium has not set up scan reading with LandingAI\./)).toBeVisible();
+    expect(screen.queryByText(/gives you the models/)).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.queryByLabelText(/API key/i)).toBeNull();
+  });
+
+  it("gives a managed account no key of its own, and shows whether the firm has LandingAI", () => {
+    workspace.firm = { name: "Despacho Demo" };
+    workspace.managed = true;
+    const view = render(<ScanReadingSection />);
+    expect(screen.getByText(/^Despacho Demo has not set up scan reading with LandingAI\./)).toBeVisible();
+    expect(screen.queryByText(/gives you the models|does not allow your own keys/)).toBeNull();
+    expect(screen.queryByLabelText(/API key/i)).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
+    view.unmount();
+
+    workspace.firmLandingai = { enabled: true };
+    render(<ScanReadingSection />);
+    expect(screen.getByText("Despacho Demo has set up scan reading with LandingAI. You can't add your own key.")).toBeVisible();
+    expect(screen.getByText("On")).toBeVisible();
     expect(screen.queryByRole("switch")).toBeNull();
     expect(screen.queryByLabelText(/API key/i)).toBeNull();
   });

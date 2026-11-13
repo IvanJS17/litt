@@ -404,6 +404,23 @@ describe("ModelToggle availability states", () => {
     });
 });
 
+describe("ModelToggle with no model chosen yet", () => {
+    it("asks for a model without flagging a missing key", () => {
+        render(<ModelToggle value="" onChange={vi.fn()} apiKeys={keys({ gemini: true })} />);
+        const trigger = screen.getByRole("button", { name: "Choose model" });
+        expect(trigger).toHaveTextContent("Select model");
+        expect(trigger).not.toHaveAttribute("title", "API key missing for selected model");
+    });
+
+    it("still flags a chosen model whose key is missing", () => {
+        render(<ModelToggle value="claude-fable-5-1" onChange={vi.fn()} apiKeys={keys({ gemini: true })} compact />);
+        expect(screen.getByRole("button", { name: "Choose model" })).toHaveAttribute(
+            "title",
+            "API key missing for selected model",
+        );
+    });
+});
+
 describe("ModelToggle provider grouping", () => {
     it("groups router rows under the router, not the model's maker", () => {
         expect(
