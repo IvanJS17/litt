@@ -27,6 +27,8 @@ import {
     notifyError,
 } from "@/app/lib/userFacingError";
 import { clearToasts, dismissToastsWithKey } from "@mike/ui";
+import { usePathname } from "next/navigation";
+import { isLegalPath } from "@/app/lib/legalRoutes";
 
 type User = AuthUser;
 
@@ -92,6 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [authError, setAuthError] = useState<string | null>(null);
     const channelRef = useRef<BroadcastChannel | null>(null);
     const sessionRequestRef = useRef<Promise<User | null> | null>(null);
+    // The legal texts need no session, so a visit that starts on one does not
+    // ask for it (the 401 for a visitor is noise in the console and a wasted
+    // request). The first move to any other screen does. `sessionAsked` is
+    // whether the check has been made yet.
+    const sessionAsked = useRef(false);
+    const pathname = usePathname();
 
     const sessionUserIdRef = useRef<string | null>(null);
     const applySessionUser = useCallback((nextUser: User | null) => {
@@ -277,10 +285,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             broadcastAuthState("signed-out");
         };
         const onVisibilityChange = () => {
-            if (document.visibilityState !== "visible") return;
+            if (document.visibilityState !== "visible" || !sessionAsked.current) return;
             void checkSession(false);
         };
         const onFocus = () => {
+            if (!sessionAsked.current) return;
             void checkSession(false);
         };
 
@@ -292,7 +301,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Through the ref (assigned by the effect above, which runs first):
         // the check only sets state after its request settles.
-        void checkSessionRef.current(true);
+        if (!isLegalPath(window.location.pathname)) {
+            sessionAsked.current = true;
+            void checkSessionRef.current(true);
+        }
 
         return () => {
             channel?.removeEventListener("message", onChannelMessage);
@@ -310,6 +322,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             );
         };
     }, [applySessionUser, broadcastAuthState, checkSession]);
+
+    // Left a legal text for the app: now the session matters.
+    useEffect(() => {
+        if (sessionAsked.current || !pathname || isLegalPath(pathname)) return;
+        sessionAsked.current = true;
+        void checkSessionRef.current(true);
+    }, [pathname]);
 
     const refreshSession = useCallback(async () => {
         try {
