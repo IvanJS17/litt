@@ -85,8 +85,14 @@ Los SVG llevan contornos, sin dependencia de fuentes, e incluyen el área de pro
 6. No usar el corte serifa del monograma por debajo de 64 px ni el corte pixel por encima de 48 px.
 7. No poner el ámbar fósforo sobre papel ni sobre fondos claros, ni el ámbar tinta sobre tinta. El ámbar nunca va en las letras: es exclusivo del cuadrado.
 8. No aplicar tracking, kerning ni cambios a los espacios: 2.045u del espolón a la ı y 2u entre glifos pixel.
-9. No deformar, inclinar, rotar, contornear, sombrear, degradar ni aplicar brillo o glow.
-10. No animar el cuadrado (parpadeo de cursor, pulso) sin una spec de movimiento aprobada.
+9. No deformar, inclinar, rotar, contornear, sombrear, degradar ni aplicar brillo o glow. Excepción aprobada (2026-11-13, decisión del dueño): en el estado de error del indicador de estado (`LittStatusMarkUI`), el cuadrado se apaga y queda solo su contorno en `gray-500`. No aplica al wordmark ni al monograma.
+10. No animar el cuadrado (parpadeo de cursor, pulso) sin una spec de movimiento aprobada. Spec aprobada (2026-11-13, decisión del dueño), solo para el indicador de estado del asistente (`LittStatusMarkUI`, «A · Cursor») y nunca para el wordmark ni el monograma:
+    - Trabajando: el cuadrado parpadea de opacidad 1 a 0.2 en un ciclo de 1200 ms, sin bajar de 0.2.
+    - Esperando: el cuadrado queda en ámbar atenuado (opacidad 0.55) y bajo él se forman tres puntos, uno cada 450 ms, en el mismo ámbar atenuado; ciclo de 1800 ms.
+    - Terminado: bajo el cuadrado, que sigue en ámbar, se traza un renglón verde (`--litt-status-done`: emerald-700 en claro, emerald-400 en oscuro) en 7 pasos de 30 ms; se sostiene 1.5 s y sale en 160 ms. El verde es excepción aprobada y solo va en ese renglón.
+    - Error: el relleno se apaga en 120 ms y queda el contorno (regla 9).
+    - Con `prefers-reduced-motion: reduce` no hay animación: trabajando = renglón estático hasta el cuadrado, esperando = tres puntos fijos, terminado = renglón completo.
+    - Subagentes: cada uno toma un tono propio (teal, pink, lime, stone); el ámbar queda solo para LiTT.
 11. No colocar el wordmark sobre fondos o fotos con menos de 4.5:1 frente al color de las letras, ni invadir el área de protección de 4u.
 12. No usar una versión de color en el tema contrario (color claro sobre fondo oscuro o al revés).
 13. No escalar el corte pixel con interpolación: los favicons se usan a su tamaño nativo.
