@@ -1,5 +1,4 @@
-import { addBreadcrumb } from "@sentry/node";
-import { reportError } from "../observability/sentry";
+import { reportError } from "../observability/report";
 
 type Warning = { type?: string; feature?: string; setting?: string; message?: string; details?: string };
 type WarningOptions = { warnings?: Warning[]; provider?: string };
@@ -26,7 +25,6 @@ export function resetProviderWarningsForTests(): void { seen.clear(); }
 
 export function logProviderWarnings({ warnings = [], provider }: WarningOptions): void {
   for (const warning of warnings) {
-    addBreadcrumb({ category: "mike.stage", message: "provider.compatibility", level: "warning" });
     // A cooldown bounds per-request warnings without hiding a recurring
     // warning forever. Raw identity stays local and never becomes a tag.
     const key = JSON.stringify([provider, warning.type, warning.feature, warning.setting, warning.message, warning.details]);

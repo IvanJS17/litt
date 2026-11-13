@@ -1,7 +1,7 @@
 import { isNotConnectionError } from "bullmq";
 import type { EventEmitter } from "node:events";
 import { AppError } from "../appError";
-import { reportError } from "../observability/sentry";
+import { reportError } from "../observability/report";
 import {
     createPollFailureGate,
     pollFailureClass,
@@ -10,9 +10,8 @@ import {
 /**
  * Error listeners for BullMQ: the shared consumer connection, each Worker,
  * and each producer Queue. Without one, ioredis prints "[ioredis] Unhandled
- * error event" and BullMQ's QueueBase.emit falls back to console.error, and the Sentry
- * console bridge files each line as an untyped "Failure in application" under
- * a node_modules culprit (MIK-91).
+ * error event" and BullMQ's QueueBase.emit falls back to console.error, which writes
+ * an untyped line under a node_modules culprit.
  *
  * Two kinds of error reach these listeners, and they need opposite handling:
  *
@@ -26,13 +25,12 @@ import {
  *   scheduling, a lost lock. Those can be real defects, so they are reported
  *   at error level, stage=worker, through their own gate that reports a class
  *   again once its window has passed. A recurring defect therefore keeps
- *   reaching Sentry (once per window) instead of once per process.
+ *   reaching the report log (once per window) instead of once per process.
  *
- * The outage warning alone does not page anyone: the org's high-priority
- * alert matches level:error, and a self-hosted install whose Redis stays down
+ * The outage warning alone does not page anyone: a self-hosted install whose Redis stays down
  * has stalled uploads. So an outage that is still failing
- * OUTAGE_ESCALATION_MS after its first error without proven recovery files
- * ONE error-level event, queue.redis_outage_persisting, and nothing more
+ * OUTAGE_ESCALATION_MS after its first error without proven recovery writes
+ * ONE error-level report, queue.redis_outage_persisting, and nothing more
  * until the connection recovers.
  */
 
