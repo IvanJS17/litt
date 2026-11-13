@@ -17,7 +17,7 @@ const DOCUMENT_CLASS =
     "[&_a]:underline [&_table]:my-4 [&_table]:block [&_table]:overflow-x-auto " +
     "[&_th]:border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_td]:border [&_td]:px-3 [&_td]:py-2 " +
     "[&_[id]]:scroll-mt-6 [&_li:target]:rounded-md [&_li:target]:outline [&_li:target]:outline-2 " +
-    "[&_li:target]:outline-offset-4 [&_li:target]:outline-focus";
+    "[&_li:target]:outline-offset-4 [&_li:target]:outline-interactive-border";
 
 /**
  * A published legal text on the signed-out page frame (logo, back link,
