@@ -69,6 +69,16 @@ create table if not exists public.user_profiles (
   ui_locale text
     constraint user_profiles_ui_locale_check
     check (ui_locale is null or ui_locale in ('en-US', 'es-MX')),
+  -- LiTT layer 7: this person's own list of document types for splitting a
+  -- case file ([{name, description, identifier?}], at most 19), or NULL to use
+  -- the firm's and then the built-in list. Validated by the server.
+  split_classes jsonb
+    constraint user_profiles_split_classes_check
+    check (split_classes is null or (
+      jsonb_typeof(split_classes) = 'array'
+      and jsonb_array_length(split_classes) between 1 and 19
+      and octet_length(split_classes::text) <= 20000
+    )),
   -- Whether projects this user creates start with shared memory enabled. Any
   -- project owner can still turn a given project's memory on or off later.
   project_memory_default boolean not null default true,
@@ -418,6 +428,15 @@ create table if not exists public.organizations (
   -- Whether work in this organization may run on a member's own provider
   -- key when the organization has none for that provider (org_api_keys).
   allow_personal_api_keys boolean not null default true,
+  -- LiTT layer 7: the firm's list of document types for splitting a case file
+  -- (same shape as user_profiles.split_classes), or NULL for the built-in list.
+  split_classes jsonb
+    constraint organizations_split_classes_check
+    check (split_classes is null or (
+      jsonb_typeof(split_classes) = 'array'
+      and jsonb_array_length(split_classes) between 1 and 19
+      and octet_length(split_classes::text) <= 20000
+    )),
   -- Whether members other than its owners may export, and bulk-delete, their
   -- own work in this organization from Settings > Privacy & Data. Off until
   -- an owner allows it.
@@ -12532,7 +12551,8 @@ alter table public.document_versions
     'ai_review_report'::text,
     'user_edit'::text,
     'converted'::text,
-    'compared'::text
+    'compared'::text,
+    'split'::text
   ]));
 
 create table if not exists public.ai_document_version_pages (
@@ -20647,5 +20667,6 @@ insert into public.schema_migrations (filename) values
   ('20261112_20_litt_compared_source.sql'),
   ('20261112_30_litt_landingai_key.sql'),
   ('20261112_40_litt_document_ocr.sql'),
-  ('20261112_50_litt_ocr_keep_reading.sql')
+  ('20261112_50_litt_ocr_keep_reading.sql'),
+  ('20261112_60_litt_split_expediente.sql')
 on conflict (filename) do nothing;
