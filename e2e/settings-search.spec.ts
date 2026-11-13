@@ -17,8 +17,8 @@
  */
 import { test, expect, type Page } from "./fixtures";
 
-async function openSettings(page: Page) {
-    await page.goto("/settings");
+async function openSettings(page: Page, path = "/settings") {
+    await page.goto(path);
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({
         timeout: 10_000,
     });
@@ -180,10 +180,12 @@ test.describe("Settings search", () => {
 test.describe("Settings search on a phone", () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
+    // Under 768 px the search sits above the grouped list, which is
+    // /settings/menu; a section page leads with its "← Settings" button.
     test("sits full width under the title and keeps its results inside the screen", async ({
         page,
     }) => {
-        const search = await openSettings(page);
+        const search = await openSettings(page, "/settings/menu");
         await expect(search).toBeInViewport();
         const heading = page.getByRole("heading", { name: "Settings" });
         const headingBox = (await heading.boundingBox())!;

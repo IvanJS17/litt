@@ -1,5 +1,6 @@
 "use client";
 
+import { useSoftKeyboard } from "@/app/hooks/useSoftKeyboard";
 import {
     useState,
     useCallback,
@@ -385,6 +386,7 @@ function ChatInputForChatImpl(
         },
     });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const softKeyboard = useSoftKeyboard();
     const controlsRef = useRef<HTMLDivElement>(null);
     const [compactControls, setCompactControls] = useState(false);
     const [docSelectorOpen, setDocSelectorOpen] = useState(false);
@@ -820,6 +822,9 @@ function ChatInputForChatImpl(
         draftStore?.delete(draftKey);
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
+            // Close the on-screen keyboard, so the answer arriving under it
+            // can be seen. A physical keyboard keeps the focus.
+            if (softKeyboard) textareaRef.current.blur();
         }
 
         const files = attachedDocs.map((d) => ({
@@ -933,7 +938,10 @@ function ChatInputForChatImpl(
             setSlashMenuDismissed(true);
             return;
         }
-        if (e.key === "Enter" && !e.shiftKey) {
+        // On a touch screen with only its on-screen keyboard, Enter is a line
+        // break (the arrow sends): that keyboard has no Shift+Enter. With a
+        // physical keyboard, or on a desktop, Enter sends and Shift+Enter breaks.
+        if (e.key === "Enter" && !e.shiftKey && !softKeyboard) {
             e.preventDefault();
             handleSubmit();
         }
@@ -1115,6 +1123,7 @@ function ChatInputForChatImpl(
                             onChange={(event) => updateInput(event.target)}
                             onPaste={handlePaste}
                             onKeyDown={handleKeyDown}
+                            enterKeyHint={softKeyboard ? "enter" : "send"}
                             role="combobox"
                             aria-autocomplete="list"
                             aria-controls={
@@ -1180,10 +1189,10 @@ function ChatInputForChatImpl(
                                     }
                                     routerSelections={savedRouterSelections}
                                     compact={compactControls}
+                                    compactShowsName
                                     triggerClassName={cn(
                                         TOUCH_TARGET_CLASS,
                                         "h-7.5 pointer-coarse:h-9",
-                                        compactControls && "w-7.5 pointer-coarse:w-9",
                                     )}
                                     onNoModelsClick={setNoModelsWarning}
                                     reasoningLevel={reasoningLevel}

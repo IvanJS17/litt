@@ -475,7 +475,8 @@
   },
   "assistantExport": {
     "defaultName": "response",
-    "downloadMarkdown": "Download .md"
+    "downloadMarkdown": "Download .md",
+    "stoppedNote": "Response stopped"
   },
   "auth": {
     "callback": {
@@ -723,6 +724,7 @@
     "or": "or",
     "retry": "Retry",
     "save": "Save",
+    "skipToContent": "Skip to content",
     "sourceCode": {
       "description": "of this version (opens in a new tab)",
       "label": "Source code"
@@ -1466,6 +1468,8 @@
     "openProject": "Open project"
   },
   "legal": {
+    "back": "Back",
+    "toc": "Contents",
     "checkbox": "I have read and accept the Terms and Conditions and the Privacy Notice",
     "intro": "To keep using LiTT, read and accept the <terms>Terms and Conditions</terms> and the <privacy>Privacy Notice</privacy>.",
     "notice": "By continuing you accept the <terms>Terms</terms> and the <privacy>Privacy Notice</privacy>.",
@@ -1478,6 +1482,8 @@
     "checkRequired": "Tick the box to continue."
   },
   "library": {
+    "emptyDocuments": "You have no documents yet",
+    "emptyTemplates": "You have no templates yet",
     "actions": {
       "loadFileTypeFilter": "load the file type filter",
       "loadMoreFiles": "load more files",
@@ -2346,7 +2352,7 @@
     "noMatchingPlaybooks": "No matching playbooks",
     "noMatchingRuns": "No matching runs",
     "noPlaybooksFound": "No playbooks found",
-    "noPlaybooksYet": "No playbooks yet",
+    "noPlaybooksYet": "You have no playbooks yet",
     "noPublicPlaybooks": "No public playbooks",
     "noReferenceDocuments": "No reference documents",
     "noRulesYet": "No rules yet",
@@ -2760,6 +2766,8 @@
     "updating": "Updating...",
     "upload": "Upload",
     "uploadCount": "Upload ({count})",
+    "emptyDescription": "A project gathers the documents, chats and tabular reviews of one matter.",
+    "emptyTitle": "You have no projects yet",
     "uploadDocumentsIntoProjectsAndTo": "Upload documents into projects and to commence chats and tabular reviews with them.",
     "uploadDocumentsToThisProject": "upload documents to this project",
     "uploadingFilename": "Uploading {filename}",
@@ -3004,6 +3012,13 @@
       "blockedNoName": "You work with your firm's keys. Your firm does not allow adding your own keys."
     },
     "layout": {
+      "group": {
+        "account": "Account",
+        "firm": "Firm",
+        "keys": "Keys",
+        "preferences": "Preferences",
+        "privacy": "Privacy"
+      },
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
       "settings": "Settings",
       "tab": {
@@ -3348,6 +3363,8 @@
       "saveToTurnOn": "Saving a key turns scan reading on.",
       "siteLink": "LandingAI",
       "termsLink": "Terms and Conditions",
+      "summary": "Reads scanned PDFs with LandingAI, an external service in the US.",
+      "moreInfo": "More information",
       "title": "Scan reading",
       "turnedOff": "If you turn it off, the text already read is kept and LiTT stops reading new documents.",
       "why": "Reading the images of scanned documents takes a specialized service that LiTT does not include."
@@ -3709,6 +3726,7 @@
       "loadingWorkspace": "Loading workspace",
       "navAssistant": "Assistant",
       "navIde": "IDE",
+      "navLabel": "Main navigation",
       "navLibrary": "Library",
       "navPlaybooks": "Playbooks",
       "navProjects": "Projects",
@@ -4174,6 +4192,7 @@
     "whatCanWeHelpYouWith": "What can we help you with?"
   },
   "tabular": {
+    "emptyTitle": "You have no tabular reviews yet",
     "aNewerVersionIsAvailable": "A newer version is available",
     "aResultArrivedThatLittCouldnt": "A result arrived that LiTT couldn't display. Reload to see it.",
     "access": "Access",
@@ -6092,6 +6111,7 @@
     "responseStopped": "You stopped the response."
   },
   "workflows": {
+    "emptyTitle": "You have no workflows yet",
     "access": "Access",
     "acmeLlp": "Acme LLP",
     "addAnyAdditionalInstructions": "Add any additional instructions...",

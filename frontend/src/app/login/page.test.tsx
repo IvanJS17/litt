@@ -208,6 +208,15 @@ describe("LoginPage", () => {
         expect(screen.queryByRole("link", { name: "Sign up" })).not.toBeInTheDocument();
     });
 
+    it("offers no sign-up link, and no invitation hint, while the providers are unknown or when the read fails", async () => {
+        getAuthProviders.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+        render(<LoginPage />);
+        // The sign-in routes stay; the sign-up footer is not drawn.
+        expect(await screen.findByRole("button", { name: "Continue with SSO" })).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Sign up" })).not.toBeInTheDocument();
+        expect(screen.queryByText("Were you invited? Check your email.")).not.toBeInTheDocument();
+    });
+
     it("hides Continue with SSO once the server says SSO is off", async () => {
         getAuthProviders.mockResolvedValueOnce({ sso: false, google: true });
         render(<LoginPage />);

@@ -249,6 +249,19 @@ export function ProjectsOverview() {
         [filterOptions.owners],
     );
 
+    // No project at all, not "none match": there is nothing to filter, sort or
+    // select, so the filters, the column header and the select-all box give
+    // way to one explanation and the way to start.
+    const nothingYet =
+        !effectiveLoading &&
+        !loadError &&
+        visibleProjects.length === 0 &&
+        selectedIds.length === 0 &&
+        activeFilter === "all" &&
+        search.trim() === "" &&
+        practiceFilter === null &&
+        ownerFilter === null;
+
     const allSelected =
         visibleProjects.length > 0 &&
         visibleProjects.every((p) => selectedIdSet.has(p.id));
@@ -624,34 +637,40 @@ export function ProjectsOverview() {
             {/* Page header */}
             <PageHeader
                 loading={loading}
-                actions={[
-                    {
-                        type: "search",
-                        value: search,
-                        onChange: setSearch,
-                        placeholder: t("projects.searchProjects"),
-                    },
-                    {
-                        type: "new",
-                        onClick: () => setModalOpen(true),
-                        title: t("projects.newProject"),
-                    },
-                ]}
+                actions={
+                    nothingYet
+                        ? []
+                        : [
+                              {
+                                  type: "search",
+                                  value: search,
+                                  onChange: setSearch,
+                                  placeholder: t("projects.searchProjects"),
+                              },
+                              {
+                                  type: "new",
+                                  onClick: () => setModalOpen(true),
+                                  title: t("projects.newProject"),
+                              },
+                          ]
+                }
             >
                 <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
                     {t("projects.projects")}
                 </h1>
             </PageHeader>
 
-            <TableToolbar
-                items={projectFilters}
-                active={activeFilter}
-                onChange={(nextFilter) => {
-                    setActiveFilter(nextFilter);
-                    clearSelection();
-                }}
-                actions={toolbarActions}
-            />
+            {nothingYet ? null : (
+                <TableToolbar
+                    items={projectFilters}
+                    active={activeFilter}
+                    onChange={(nextFilter) => {
+                        setActiveFilter(nextFilter);
+                        clearSelection();
+                    }}
+                    actions={toolbarActions}
+                />
+            )}
 
             {/* Table */}
             <TableScrollArea
@@ -663,6 +682,7 @@ export function ProjectsOverview() {
                     if (distanceToBottom < 200) void loadMore();
                 }}
                 header={
+                    nothingYet ? undefined : (
                     <TableHeaderRow>
                         <TableStickyCell header>
                             {effectiveLoading ? (
@@ -730,6 +750,7 @@ export function ProjectsOverview() {
                         </TableHeaderCell>
                         <TableHeaderCell className="w-8" />
                     </TableHeaderRow>
+                    )
                 }
             >
                 {effectiveLoading ? (
@@ -801,15 +822,15 @@ export function ProjectsOverview() {
                         ) : (
                             <EmptyState
                                 icon={<OpenProjectSvgIcon />}
-                                title={t("projects.projects")}
-                                description={t("projects.uploadDocumentsIntoProjectsAndTo")}
+                                title={t("projects.emptyTitle")}
+                                description={t("projects.emptyDescription")}
                                 action={
                                     <PillButtonUI
                                         tone="black"
                                         size="sm"
                                         onClick={() => setModalOpen(true)}
                                     >
-                                        {t("projects.create")}
+                                        {t("projects.newProject")}
                                     </PillButtonUI>
                                 }
                             />

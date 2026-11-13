@@ -68,7 +68,7 @@ export * from "./useTrainingBacking";
 
 // Brand and auth (LittBrandUI is LiTT's wordmark and pixel monogram)
 export * from "./LittBrandUI";
-export * from "./MikeIconUI";
+export * from "./LittStatusMarkUI";
 export * from "./GoogleIconUI";
 export * from "./AuthDividerUI";
 

@@ -531,7 +531,9 @@ const COUNTRY_CODES: Record<(typeof COUNTRY_OPTIONS)[number], string> = {
     "Zimbabwe": "ZW",
 };
 
-const regionNames = new Map<string, Intl.DisplayNames>();
+// null: the language is not a valid tag (a stale cookie, a bad header), so
+// the saved value is shown as it is.
+const regionNames = new Map<string, Intl.DisplayNames | null>();
 
 /** A country's name in `locale`; anything not in the list is shown as saved. */
 export function countryLabel(value: string, locale: string): string {
@@ -539,10 +541,17 @@ export function countryLabel(value: string, locale: string): string {
     if (!code) return value;
     // One formatter per language: the statistics table asks once per row.
     let names = regionNames.get(locale);
-    if (!names) {
-        names = new Intl.DisplayNames([locale], { type: "region" });
+    if (names === undefined) {
+        try {
+            names = new Intl.DisplayNames([locale], { type: "region" });
+        } catch (error) {
+            // Only a malformed language tag throws here (RangeError).
+            if (!(error instanceof RangeError)) throw error;
+            names = null;
+        }
         regionNames.set(locale, names);
     }
+    if (names === null) return value;
     return names.of(code) ?? value;
 }
 

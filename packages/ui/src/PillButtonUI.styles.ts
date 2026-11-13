@@ -5,7 +5,7 @@ import {
     LIQUID_GLASS_HOVER_CLASS,
 } from "./LiquidGlassUI";
 
-export type PillButtonUITone = "black" | "white" | "blue" | "danger";
+export type PillButtonUITone = "black" | "white" | "whiteDanger" | "blue" | "danger";
 export type PillButtonUISize = "xs" | "icon-xs" | "sm" | "normal";
 
 // `black` is the primary action: tinta on the light theme and, through the
@@ -15,6 +15,10 @@ export type PillButtonUISize = "xs" | "icon-xs" | "sm" | "normal";
 const toneClasses: Record<PillButtonUITone, string> = {
     black: "bg-gray-950/88 text-white shadow-[0_3px_9px_rgba(21,26,38,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.10),inset_-4px_-4px_9px_rgba(21,26,38,0.2)] hover:bg-gray-900/90 disabled:hover:bg-gray-950/88 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:disabled:hover:bg-primary",
     white: `${LIQUID_GLASS_FLAT_CLASS} ${LIQUID_GLASS_HOVER_CLASS} text-gray-700`,
+    // A destructive action that is not the confirmation: white like the other
+    // secondary actions, with red text. The filled red `danger` is for the
+    // confirmation inside a dialog.
+    whiteDanger: `${LIQUID_GLASS_FLAT_CLASS} ${LIQUID_GLASS_HOVER_CLASS} text-red-600 hover:text-red-700`,
     blue: "bg-interactive text-interactive-foreground shadow-[0_3px_9px_rgba(21,26,38,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.10),inset_-4px_-4px_9px_rgba(21,26,38,0.2)] hover:bg-interactive-hover disabled:hover:bg-interactive",
     danger: "bg-red-600/90 text-white shadow-[0_3px_9px_rgba(127,29,29,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.12),inset_-4px_-4px_9px_rgba(127,29,29,0.18)] hover:bg-red-600 disabled:hover:bg-red-600/90",
 };

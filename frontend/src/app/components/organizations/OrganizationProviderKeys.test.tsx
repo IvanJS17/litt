@@ -589,12 +589,11 @@ describe("scan reading with LandingAI", () => {
     expect(mocks.saveOrgApiKey).not.toHaveBeenCalled();
   });
 
-  it("is shown to a member, who can read but not change it", async () => {
+  it("is not repeated for a member: Features already says it, so this page leaves it out", async () => {
     mocks.getOrgApiKeys.mockResolvedValue(orgSettings({ landingai: {} }, { can_manage: false }));
     renderTab();
 
-    expect(await within(card()).findByText("On")).toBeInTheDocument();
-    expect(within(card()).queryByRole("switch")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Scan reading" })).toBeNull());
     expect(screen.queryByLabelText("LandingAI API key")).toBeNull();
   });
 });

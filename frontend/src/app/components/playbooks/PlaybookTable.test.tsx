@@ -72,3 +72,41 @@ describe("PlaybookTable creator filter", () => {
     expect(labels.filter((label) => ["Yo", "Ana", "Beto"].includes(label ?? ""))).toEqual(["Yo", "Ana", "Beto"]);
   });
 });
+
+describe("PlaybookTable with no playbook at all", () => {
+  const props = {
+    loading: false,
+    error: null,
+    disabled: false,
+    selectedIds: new Set<string>(),
+    onSelect: vi.fn(),
+    onRetry: vi.fn(),
+    onImport: vi.fn(),
+    onCreate: vi.fn(),
+    onOpen: vi.fn(),
+    onDetails: vi.fn(),
+    onRun: vi.fn(),
+    onPeople: vi.fn(),
+    onDelete: vi.fn(),
+    onDeleteSelected: vi.fn(),
+  };
+
+  it("says so once and offers to start, with no column header", () => {
+    render(
+      <IntlClientProvider locale="es-MX" messages={esMX}>
+        <PlaybookTable {...props} playbooks={[]} filtered={false} />
+      </IntlClientProvider>,
+    );
+    expect(screen.getByText("Aún no tienes playbooks")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
+  });
+
+  it("keeps the header when a filter leaves none", () => {
+    render(
+      <IntlClientProvider locale="es-MX" messages={esMX}>
+        <PlaybookTable {...props} playbooks={[]} filtered />
+      </IntlClientProvider>,
+    );
+    expect(screen.getAllByRole("columnheader").length).toBeGreaterThan(0);
+  });
+});

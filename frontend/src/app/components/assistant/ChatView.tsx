@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import {
     ArrowDown,
     History,
+    ListChecks,
     LogOut,
     MessageSquare,
     PanelRightClose,
@@ -26,7 +27,6 @@ import {
     Trash2,
     Users,
     X,
-    Zap,
 } from "lucide-react";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
@@ -193,6 +193,19 @@ const CHAT_MESSAGE_TOP_PADDING = 76;
  * The assistant page for one chat: the conversation with its document side
  * panel. A page showing two chats composes `AssistantChatColumn` itself.
  */
+/**
+ * A message the page can stop drawing while it is off screen: neither of the
+ * last two (the latest question, which the scroll is measured from, and the
+ * answer that may still be streaming) and not one waiting on the user.
+ */
+function settledMessage(
+    index: number,
+    count: number,
+    pendingAskInputIndex: number,
+): boolean | undefined {
+    return index < count - 2 && index !== pendingAskInputIndex ? true : undefined;
+}
+
 export function ChatView(props: Props) {
     const documentPanel = useAssistantDocumentPanel();
     return (
@@ -613,8 +626,49 @@ export function AssistantChatColumn({
         // The container mounts when the initial screen becomes a conversation.
     }, [isInitialView]);
 
+    const cancelScrollSettleRef = useRef<(() => void) | null>(null);
+    useEffect(() => () => cancelScrollSettleRef.current?.(), []);
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        cancelScrollSettleRef.current?.();
+        const end = messagesEndRef.current;
+        const container = messagesContainerRef.current;
+        end?.scrollIntoView({ behavior: "smooth" });
+        if (!end || !container) return;
+        // A smooth scroll aims at where the end was when it started. Messages
+        // the page skipped while off screen (content-visibility) take their
+        // real height as they pass, so the end moves while the scroll runs
+        // and it stops short. Once it stops, aim again until it is at the
+        // end. Any wheel, touch or key press from the reader cancels it.
+        let frame = 0;
+        let attempts = 0;
+        let lastTop = container.scrollTop;
+        let stillFrames = 0;
+        const stop = () => {
+            cancelAnimationFrame(frame);
+            container.removeEventListener("wheel", stop);
+            container.removeEventListener("touchstart", stop);
+            container.removeEventListener("keydown", stop);
+            cancelScrollSettleRef.current = null;
+        };
+        const tick = () => {
+            const top = container.scrollTop;
+            stillFrames = top === lastTop ? stillFrames + 1 : 0;
+            lastTop = top;
+            if (stillFrames >= 6) {
+                const gap =
+                    container.scrollHeight - top - container.clientHeight;
+                if (gap <= 2 || attempts >= 5) return stop();
+                attempts += 1;
+                stillFrames = 0;
+                end.scrollIntoView({ behavior: "smooth" });
+            }
+            frame = requestAnimationFrame(tick);
+        };
+        container.addEventListener("wheel", stop, { passive: true });
+        container.addEventListener("touchstart", stop, { passive: true });
+        container.addEventListener("keydown", stop);
+        cancelScrollSettleRef.current = stop;
+        frame = requestAnimationFrame(tick);
     };
 
     const scrollLatestUserToTop = useCallback(
@@ -820,7 +874,7 @@ export function AssistantChatColumn({
                 />
             ) : null;
         return (
-            <HeaderButtonsUI className="pointer-events-auto backdrop-blur-2xl">
+            <HeaderButtonsUI className="pointer-events-auto backdrop-blur-[18px]">
                 {isNewChat ? (
                     // Nothing to leave yet, so the slot offers past chats.
                     historyMenu(
@@ -905,7 +959,7 @@ export function AssistantChatColumn({
                             : []),
                         {
                             label: t("assistant.chatView.editQuickActions"),
-                            icon: Zap,
+                            icon: ListChecks,
                             onSelect: () => setQuickActionsModalOpen(true),
                         },
                         ...(isNewChat ? [] : chatActionItems),
@@ -1116,6 +1170,28 @@ export function AssistantChatColumn({
                                                     i === lastUserIndex
                                                         ? latestUserMessageRef
                                                         : null
+                                                }
+                                                // A finished message far above
+                                                // the end is skipped by the
+                                                // browser until it nears the
+                                                // screen. The last exchange,
+                                                // the question the scroll is
+                                                // anchored to and a message
+                                                // waiting on the user stay
+                                                // drawn.
+                                                data-settled={settledMessage(
+                                                    i,
+                                                    messages.length,
+                                                    pendingAskInputIndex,
+                                                )}
+                                                className={
+                                                    settledMessage(
+                                                        i,
+                                                        messages.length,
+                                                        pendingAskInputIndex,
+                                                    )
+                                                        ? "chat-message-settled"
+                                                        : undefined
                                                 }
                                             >
                                                 {msg.role === "user" ? (

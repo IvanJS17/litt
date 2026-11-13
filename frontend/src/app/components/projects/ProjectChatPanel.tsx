@@ -95,7 +95,7 @@ function AssistantGreeting({ username }: { username: string }) {
             >
                 <LittMonogramPixel size={ICON_SIZE} decorative />
                 <h1
-                    className="text-3xl font-serif font-light text-gray-900 whitespace-nowrap transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
+                    className="text-3xl font-serif font-light text-gray-900 whitespace-nowrap transition-opacity duration-250 ease-out motion-reduce:transition-none"
                     style={{ opacity: loaded ? 1 : 0 }}
                 >
                     {t("projects.hiUsername", { username })}

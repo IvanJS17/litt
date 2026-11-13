@@ -50,11 +50,11 @@ describe("useAuthProviders", () => {
         expect(result.current.inviteOnly).toBe(true);
     });
 
-    it("offers both routes when the read fails", async () => {
+    it("offers both routes when the read fails, and says nothing about sign-up", async () => {
         getAuthProviders.mockRejectedValue(new TypeError("Failed to fetch"));
         const { result } = renderHook(() => useAuthProviders());
         await act(async () => {});
-        expect(result.current).toEqual({ showSso: true, showGoogle: true, inviteOnly: false });
+        expect(result.current).toEqual({ showSso: true, showGoogle: true, inviteOnly: null });
     });
 
     it.each([

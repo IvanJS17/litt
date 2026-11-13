@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { MikeIcon } from "../../../../shared/chat/mike-icon";
+import { LittStatusMarkUI, type LittStatusMarkState } from "@mike/ui";
+
+/** The done stroke draws (210 ms), holds 1.5 s and leaves (160 ms). */
+const DONE_MS = 1870;
 
 export type StatusState = "active" | "error" | null;
 
 /**
- * Mirrors the web assistant's response marker: Mike spins while the response
- * is active, flashes green when it finishes, and turns red on an error.
+ * Mirrors the web assistant's response marker: LiTT's square blinks while the
+ * response is active, draws a green rule when it finishes, and shows only its
+ * outline on an error.
  */
 export function ResponseStatus({
   status,
@@ -19,6 +23,14 @@ export function ResponseStatus({
   const isActive = status === "active";
   const isError = status === "error";
 
+  const markState: LittStatusMarkState = isError
+    ? "error"
+    : isActive
+      ? "working"
+      : showDone && doneVisible
+        ? "done"
+        : "idle";
+
   useEffect(() => {
     const wasActive = wasActiveRef.current;
     wasActiveRef.current = isActive;
@@ -29,7 +41,7 @@ export function ResponseStatus({
       frame = window.requestAnimationFrame(() => {
         setShowDone(true);
         setDoneVisible(true);
-        doneTimeout = window.setTimeout(() => setDoneVisible(false), 1500);
+        doneTimeout = window.setTimeout(() => setDoneVisible(false), DONE_MS);
       });
     } else if (!wasActive && isActive) {
       frame = window.requestAnimationFrame(() => {
@@ -49,13 +61,7 @@ export function ResponseStatus({
       data-testid="assistant-response-status"
       className="mb-2 flex h-9 w-full items-center"
     >
-      <MikeIcon
-        spin={isActive}
-        done={showDone && doneVisible}
-        error={isError}
-        mike={!isError && !(showDone && doneVisible)}
-        size={22}
-      />
+      <LittStatusMarkUI state={markState} size={22} />
     </div>
   );
 }

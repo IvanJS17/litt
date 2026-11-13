@@ -55,6 +55,8 @@ interface Props {
   /** Each router's saved Model Selections; omitted while none are known. */
   routerSelections?: Partial<RouterSelections>;
   compact?: boolean;
+  /** A compact host with room (the phone's composer) names the model, not an icon. */
+  compactShowsName?: boolean;
   tone?: "muted" | "default";
   /** A full-width form field: liquid glass, or "flat" grey like a flat select. */
   modalInput?: boolean | "flat";
@@ -78,6 +80,7 @@ export function ModelToggle({
   apiKeysLoading = false,
   routerSelections = {},
   compact = false,
+  compactShowsName = false,
   tone,
   modalInput = false,
   toolbar = false,
@@ -147,6 +150,7 @@ export function ModelToggle({
       selectedAvailable={selected !== undefined || value === ""}
       loading={apiKeysLoading}
       compact={compact}
+      compactShowsName={compactShowsName}
       tone={tone}
       modalInput={modalInput}
       toolbar={toolbar}

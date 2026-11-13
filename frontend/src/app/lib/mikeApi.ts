@@ -2331,23 +2331,38 @@ export async function getTrainingStage(scope: {
  * Only the author and their current mentor can read them; anyone else, and a
  * chat with nothing to read, gets a uniform 404, which is "no notes" here.
  */
-export async function getTrainingTurnNotes(
+// The chat, the project chat panel and the review chat each read a chat's notes
+// when they mount, and several mount per load: asking at the same moment for
+// the same chat is one request, not one 404 per component.
+const trainingNotesInFlight = new Map<
+    string,
+    Promise<import("@mike/contracts").TrainingTurnNote[]>
+>();
+
+export function getTrainingTurnNotes(
     chatId: string,
     messageId?: string,
 ): Promise<import("@mike/contracts").TrainingTurnNote[]> {
+    const key = `${chatId}\u0000${messageId ?? ""}`;
+    const pending = trainingNotesInFlight.get(key);
+    if (pending) return pending;
     const query = messageId
         ? `?${new URLSearchParams({ message_id: messageId })}`
         : "";
-    try {
-        const result = await apiRequest<import("@mike/contracts").TrainingTurnNotes>(
-            "training.read",
-            `/training-notes/chats/${encodeURIComponent(chatId)}${query}`,
-        );
-        return result.notes;
-    } catch (error) {
-        if (error instanceof MikeApiError && error.status === 404) return [];
-        throw error;
-    }
+    const request = apiRequest<import("@mike/contracts").TrainingTurnNotes>(
+        "training.read",
+        `/training-notes/chats/${encodeURIComponent(chatId)}${query}`,
+    )
+        .then((result) => result.notes)
+        // The expected answer for a chat with no notes of the caller's to read
+        // is a 404: it is "no notes", not a failure to report or to retry.
+        .catch((error: unknown) => {
+            if (error instanceof MikeApiError && error.status === 404) return [];
+            throw error;
+        })
+        .finally(() => trainingNotesInFlight.delete(key));
+    trainingNotesInFlight.set(key, request);
+    return request;
 }
 
 // ---------------------------------------------------------------------------

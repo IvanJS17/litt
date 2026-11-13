@@ -9,6 +9,12 @@ const CARD_WIDTH_CLASS = {
     wide: "max-w-2xl",
 } as const;
 
+// A short window (an iPhone's Safari is about 660 px tall) gets a tighter card,
+// so a step that is a few dozen pixels taller than the screen fits it instead
+// of scrolling. Written out in full: Tailwind finds classes by reading this file.
+const SHORT_CARD_CLASS = "[@media(max-height:700px)]:p-5";
+const SHORT_BODY_CLASS = "mt-6 [@media(max-height:700px)]:mt-4";
+
 export function OnboardingShell({
     step,
     title,
@@ -25,9 +31,9 @@ export function OnboardingShell({
     return (
         <AuthPageShell>
             <div className={`w-full ${CARD_WIDTH_CLASS[width]}`}>
-                <div className={authGlassCardUIClassName}>
+                <div className={`${authGlassCardUIClassName} ${SHORT_CARD_CLASS}`}>
                     {step && (
-                        <p className="mb-2 text-xs font-medium text-gray-500">
+                        <p className="mb-2 text-xs font-medium text-gray-500 [@media(max-height:700px)]:mb-1">
                             {step}
                         </p>
                     )}
@@ -39,7 +45,7 @@ export function OnboardingShell({
                             {description}
                         </p>
                     )}
-                    <div className="mt-6">{children}</div>
+                    <div className={SHORT_BODY_CLASS}>{children}</div>
                 </div>
             </div>
         </AuthPageShell>

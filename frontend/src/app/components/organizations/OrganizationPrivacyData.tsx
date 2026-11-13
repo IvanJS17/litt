@@ -380,7 +380,7 @@ export function OrganizationPrivacyData() {
                 <SettingsDescription>{t("organizations.organizationPrivacyData.departedDescription")}</SettingsDescription>
               </div>
               <PillButtonUI
-                tone="black"
+                tone="white"
                 size="sm"
                 aria-label={t("organizations.organizationPrivacyData.reviewDepartedMembers")}
                 onClick={() =>
@@ -406,7 +406,7 @@ export function OrganizationPrivacyData() {
                 <SettingsDescription>{t(row.description)}</SettingsDescription>
               </div>
               <PillButtonUI
-                tone="danger"
+                tone="whiteDanger"
                 size="sm"
                 aria-label={t(row.label)}
                 onClick={() => setPendingKind(row.kind)}

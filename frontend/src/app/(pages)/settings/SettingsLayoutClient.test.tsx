@@ -12,10 +12,11 @@ vi.mock("next/navigation", () => ({
     useRouter: () => ({ push }),
 }));
 
+const auth = vi.hoisted(() => ({ authLoading: false }));
 vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({
         isAuthenticated: true,
-        authLoading: false,
+        authLoading: auth.authLoading,
         user: { id: "me" },
     }),
 }));
@@ -42,12 +43,27 @@ describe("SettingsLayout", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         pathname = "/settings/memory";
+        auth.authLoading = false;
         vi.mocked(listMyOrgInvitations).mockResolvedValue([]);
         vi.mocked(getPlatformMe).mockResolvedValue({ admin: false, can_create_org: false });
         dataActions.canExport = true;
         dataActions.canDelete = true;
         keyScope.personalBlocked = false;
         keyScope.firmName = null;
+    });
+
+    it("while the session loads draws the settings frame in grey lines, not a full-screen spinner", () => {
+        auth.authLoading = true;
+        const { container } = render(
+            <SettingsLayout>
+                <div>page</div>
+            </SettingsLayout>,
+        );
+        const skeleton = container.querySelector("[data-slot='settings-shell-skeleton']");
+        expect(skeleton).not.toBeNull();
+        expect(skeleton?.querySelectorAll(".animate-pulse").length).toBeGreaterThan(10);
+        expect(container.querySelector(".animate-spin")).toBeNull();
+        expect(screen.queryByText("page")).not.toBeInTheDocument();
     });
 
     it("names the keys tab after the firm's keys where the person's own do not apply", () => {

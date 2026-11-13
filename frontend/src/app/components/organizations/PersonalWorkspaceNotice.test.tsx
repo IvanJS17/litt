@@ -37,9 +37,9 @@ describe("PersonalWorkspaceNotice", () => {
 
     it("tells a managed account that asked for the personal workspace why it did not get it", () => {
         open("?workspace=personal");
-        expect(
-            screen.getByText("Tu cuenta la administra Despacho Demo; no tienes espacio personal."),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("toast")).toHaveTextContent(
+            "Tu cuenta la administra Despacho Demo; no tienes espacio personal.",
+        );
     });
 
     it("says nothing when no personal workspace was asked for", () => {

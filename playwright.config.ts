@@ -9,8 +9,10 @@ const SYNTHETIC_SPECS = [
     /assistant-streaming\.spec\.ts/,
     /auth-layout\.spec\.ts/,
     /i18n-request-locale\.spec\.ts/,
+    /lote2-acabado\.spec\.ts/,
     /tabular-chat-lifecycle\.spec\.ts/,
     /settings-search-latency\.spec\.ts/,
+    /lote2-mobile\.spec\.ts/,
 ];
 
 export default defineConfig({

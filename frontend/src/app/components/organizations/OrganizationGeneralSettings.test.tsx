@@ -278,12 +278,12 @@ describe("renaming", () => {
 });
 
 describe("leaving", () => {
-  it("is a black button, the one action the section offers everyone", () => {
+  it("is a white button with red text, not a primary action; confirming asks first", () => {
     mocks.org = orgAs("member");
     render(<OrganizationGeneralSettings />);
     const leave = screen.getByRole("button", { name: "Leave" });
-    // Same pill as Delete beside it for an owner, set apart by tone.
-    expect(leave.className).toMatch(/bg-(black|gray-9\d\d)/);
+    expect(leave).toHaveClass("text-red-600");
+    expect(leave.className).not.toMatch(/bg-(black|gray-9\d\d|red-600|interactive)/);
   });
 
   it("asks first, then removes the caller and takes them to their organizations", async () => {

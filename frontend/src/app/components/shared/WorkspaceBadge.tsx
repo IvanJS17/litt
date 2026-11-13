@@ -8,6 +8,7 @@ import {
     type WorkspaceChoice,
 } from "@/app/contexts/WorkspaceContext";
 import { Building2, User } from "lucide-react";
+import { useWorkspaceFade } from "@/app/hooks/useWorkspaceFade";
 import { cn } from "@/app/lib/utils";
 
 /** "Firm: Socium" / "My personal workspace": a workspace named in words. */
@@ -39,6 +40,7 @@ export function WorkspaceBadge({
     const t = useTranslations();
     const { workspaceId, activeOrganization, personalWorkspaceDisabled } =
         useWorkspace();
+    const fading = useWorkspaceFade(workspaceId);
     if (workspaceId === null) return null;
     // A firm-managed account has no personal workspace to name, not even
     // for the moment before its firm has loaded.
@@ -54,6 +56,7 @@ export function WorkspaceBadge({
             data-workspace={firm ? "firm" : "personal"}
             className={cn(
                 "flex max-w-full items-start gap-1.5 text-xs text-gray-500",
+                fading && "workspace-fade",
                 className,
             )}
         >

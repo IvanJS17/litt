@@ -113,7 +113,7 @@ export function ChatCredentialPicker({
                     aria-label={t("assistant.chatCredentialPicker.keyForThisConversationLabel", { label })}
                     className={textButtonUIClassName({
                         size: compact ? "icon-xs" : "xs",
-                        className: `${TOUCH_TARGET_CLASS} h-7.5 pointer-coarse:h-9`,
+                        className: `keyboard-focus-ring ${TOUCH_TARGET_CLASS} h-7.5 pointer-coarse:h-9`,
                     })}
                 >
                     <KeyRound aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />

@@ -302,7 +302,10 @@ function AssistantMessageImpl({
     const webSources = [...webSourcesByUrl.values()];
     const showCitationBlock =
         !!citationStatus || (!isStreaming && citations.length > 0);
-    const exportedMarkdown = responseMarkdown(events);
+    const exportedMarkdown = responseMarkdown(
+        events,
+        stopped ? t("assistantExport.stoppedNote") : undefined,
+    );
     const handleDownloadMarkdown = () =>
         downloadResponseMarkdown(
             exportedMarkdown,
@@ -751,6 +754,11 @@ function AssistantMessageImpl({
                                             }
                                             activeCitation={activeCitation}
                                             onCitationClick={onCitationClick}
+                                            streaming={
+                                                isLastContent &&
+                                                isStreaming &&
+                                                contentIsTail
+                                            }
                                             divRef={
                                                 isLastContent
                                                     ? contentDivRef

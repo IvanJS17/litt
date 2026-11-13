@@ -43,3 +43,16 @@ it.each(["/signup/check-email", "/onboarding/profile", "/verify-mfa"])(
         expect(container.querySelector(".animate-spin")).not.toBeNull();
     },
 );
+
+it("loads Settings with the sidebar and the settings frame (a column of sections) in grey lines", () => {
+    nav.pathname = "/settings/security";
+    const { container } = render(<FullScreenLoader />);
+    expect(container.querySelector(SIDEBAR)).not.toBeNull();
+    const frame = container.querySelector('[data-slot="settings-shell-skeleton"]');
+    expect(frame).not.toBeNull();
+    // One live region, not one inside another.
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(frame?.querySelectorAll("li").length).toBeGreaterThan(8);
+    expect(container.querySelector(".animate-spin")).toBeNull();
+    expect(serverRender(<FullScreenLoader />)).toBe(container.innerHTML);
+});

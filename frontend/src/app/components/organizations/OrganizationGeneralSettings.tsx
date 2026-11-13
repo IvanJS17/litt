@@ -385,7 +385,7 @@ export function OrganizationGeneralSettings() {
               </SettingsDescription>
             </div>
             <PillButtonUI
-              tone="black"
+              tone="whiteDanger"
               size="sm"
               disabled={!org || working !== null}
               loading={working === "leave"}
@@ -413,7 +413,7 @@ export function OrganizationGeneralSettings() {
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="danger"
+                tone="whiteDanger"
                 size="sm"
                 disabled={working !== null}
                 loading={working === "delete"}

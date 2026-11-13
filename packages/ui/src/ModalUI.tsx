@@ -27,6 +27,14 @@ export interface ModalUIProps {
     secondaryAction?: ReactNode;
     cancelAction?: ReactNode;
     keepMounted?: boolean;
+    /**
+     * On a phone (under 768 px) the dialog is a sheet that rises from the
+     * bottom edge: grabber, rounded top corners, `dvh` height cap and the
+     * home-indicator inset below the footer. Off by default so the Word
+     * task pane, which shares this component, does not change; the web
+     * adapter turns it on. From 768 px up it is the centred dialog.
+     */
+    sheet?: boolean;
 }
 
 const sizeClassName: Record<ModalUISize, string> = {
@@ -41,6 +49,16 @@ const sizeClassName: Record<ModalUISize, string> = {
 const prefersTouch = () =>
     typeof window !== "undefined" &&
     window.matchMedia?.("(pointer: coarse)").matches === true;
+
+/** How long the sheet's exit animation runs (see LiquidGlassUI.css). */
+const SHEET_EXIT_MS = 180;
+
+/** A phone with motion allowed: the sheet slides, so it must stay mounted
+ * while it leaves. With "Reduce motion" it just appears and disappears. */
+const sheetAnimates = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(max-width: 767px)").matches === true &&
+    window.matchMedia("(prefers-reduced-motion: no-preference)").matches === true;
 
 /** An element that opens the on-screen keyboard when it takes focus. */
 function isTextEntry(element: Element | null): boolean {
@@ -67,8 +85,23 @@ export function ModalUI({
     secondaryAction,
     cancelAction,
     keepMounted = false,
+    sheet = false,
 }: ModalUIProps) {
     const [hasMounted, setHasMounted] = useState(false);
+    // Held true for the length of the sheet's exit animation after `open`
+    // turns false (adjusted while rendering, so the sheet never unmounts
+    // for a frame first).
+    const [closing, setClosing] = useState(false);
+    const [wasOpen, setWasOpen] = useState(open);
+    if (open !== wasOpen) {
+        setWasOpen(open);
+        setClosing(!open && sheet && sheetAnimates());
+    }
+    useEffect(() => {
+        if (!closing) return;
+        const timer = window.setTimeout(() => setClosing(false), SHEET_EXIT_MS);
+        return () => window.clearTimeout(timer);
+    }, [closing]);
     const dialogRef = useRef<HTMLElement>(null);
     const onCloseRef = useRef(onClose);
 
@@ -167,7 +200,8 @@ export function ModalUI({
         };
     }, [open]);
 
-    if (!open && (!keepMounted || !hasMounted)) return null;
+    const visible = open || closing;
+    if (!visible && (!keepMounted || !hasMounted)) return null;
 
     const hasHeader = Boolean(breadcrumbs?.length);
     const hasFooter = Boolean(
@@ -176,7 +210,8 @@ export function ModalUI({
 
     return createPortal(
         <div
-            className={`fixed inset-0 z-[200] flex items-center justify-center bg-white/10 px-4 py-4 backdrop-blur-[2px] ${open ? "" : "hidden"}`}
+            data-state={open ? "open" : "closed"}
+            className={`fixed inset-0 z-[200] flex items-center justify-center bg-white/10 px-4 py-4 backdrop-blur-[2px] ${sheet ? "modal-sheet-backdrop max-md:items-end max-md:p-0" : ""} ${visible ? "" : "hidden"} ${closing ? "pointer-events-none" : ""}`}
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget) onClose();
             }}
@@ -188,8 +223,15 @@ export function ModalUI({
                 aria-label={ariaLabel}
                 aria-hidden={open ? undefined : true}
                 tabIndex={-1}
-                className={`flex w-full flex-col rounded-3xl ${LIQUID_GLASS_MODAL_CLASS} backdrop-blur-3xl ${sizeClassName[size]} ${className}`}
+                className={`flex w-full flex-col rounded-3xl ${LIQUID_GLASS_MODAL_CLASS} backdrop-blur-3xl ${sizeClassName[size]} ${sheet ? "modal-sheet max-md:max-h-[calc(100dvh-max(0.5rem,env(safe-area-inset-top)))] max-md:max-w-none max-md:rounded-b-none max-md:pb-[env(safe-area-inset-bottom)]" : ""} ${className}`}
             >
+                {sheet && (
+                    <div
+                        aria-hidden="true"
+                        data-slot="modal-grabber"
+                        className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-gray-300 md:hidden"
+                    />
+                )}
                 {hasHeader && (
                     <header className="flex items-center justify-between gap-3 p-4 pl-5">
                         <div className="flex min-w-0 flex-1 items-center justify-between gap-3">

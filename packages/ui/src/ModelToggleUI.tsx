@@ -162,6 +162,30 @@ export function orderedModelGroups(
   return [...known, ...[...present].sort((a, b) => a.localeCompare(b))];
 }
 
+const MAKER_PREFIX = "Claude";
+const PREVIEW_NOTES = ["(preview)", "(vista previa)"];
+
+/**
+ * The short name for a narrow trigger: "Claude Fable 5.2" → "Fable 5.2",
+ * "Mistral Large 4 (Preview)" → "Mistral Large 4". The full name stays in the
+ * list and in the trigger's title.
+ */
+export function shortModelLabel(label: string): string {
+  // Plain string checks, not a regex: a label comes from the model catalog,
+  // and `\s*…\s*$` backtracks quadratically on a long run of whitespace.
+  let short =
+    label.startsWith(MAKER_PREFIX) && /\s/.test(label.charAt(MAKER_PREFIX.length))
+      ? label.slice(MAKER_PREFIX.length)
+      : label;
+  short = short.trimEnd();
+  const note = PREVIEW_NOTES.find(
+    (candidate) => short.slice(-candidate.length).toLowerCase() === candidate,
+  );
+  if (note) short = short.slice(0, -note.length);
+  short = short.trim();
+  return short || label;
+}
+
 export interface ModelToggleUIProps {
   value: string;
   onChange: (id: string) => void;
@@ -170,6 +194,12 @@ export interface ModelToggleUIProps {
   selectedAvailable?: boolean;
   loading?: boolean;
   compact?: boolean;
+  /**
+   * In a compact host, name the model (short, with a chevron) instead of
+   * showing a bare icon. For a host with the room, such as a phone's chat
+   * composer; a narrow task pane keeps the icon.
+   */
+  compactShowsName?: boolean;
   /** `default` matches the toolbar's other buttons; `muted` is the lighter chat-composer look. */
   tone?: "muted" | "default";
   /** A full-width form field: liquid glass, or "flat" grey like a flat select. */
@@ -210,6 +240,7 @@ export function ModelToggleUI({
   selectedAvailable = true,
   loading = false,
   compact = false,
+  compactShowsName = false,
   tone = "muted",
   modalInput = false,
   toolbar = false,
@@ -317,14 +348,14 @@ export function ModelToggleUI({
               : modalInput === "flat"
               ? FLAT_INPUT_CLASS
               : modalInput
-              ? `flex h-10 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm text-gray-700 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${open ? LIQUID_GLASS_SELECTED_CLASS : ""}`
+              ? `keyboard-focus-ring flex h-10 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm text-gray-700 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${open ? LIQUID_GLASS_SELECTED_CLASS : ""}`
               : twMerge(
-                  `flex h-8 shrink-0 items-center rounded-lg text-sm ${tone === "default" ? "text-gray-700 enabled:hover:text-gray-900 disabled:hover:text-gray-700" : "text-gray-400 enabled:hover:text-gray-700 disabled:hover:text-gray-400"} transition-colors enabled:cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${compact ? "w-8 justify-center px-0" : "gap-1.5 px-2"} ${open ? "text-gray-700" : ""}`,
+                  `keyboard-focus-ring flex h-8 shrink-0 items-center rounded-lg text-sm ${tone === "default" || selected ? "text-gray-700 enabled:hover:text-gray-900 disabled:hover:text-gray-700" : "text-gray-400 enabled:hover:text-gray-700 disabled:hover:text-gray-400"} transition-colors enabled:cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${compact ? (compactShowsName ? "gap-1 px-2" : "w-8 justify-center px-0") : "gap-1.5 px-2"} ${open ? "text-gray-700" : ""}`,
                   triggerClassName,
                 )
           }
         >
-          {compact ? (
+          {compact && !compactShowsName ? (
             loading ? (
               <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
             ) : selectedAvailable ? (
@@ -332,12 +363,17 @@ export function ModelToggleUI({
             ) : (
               <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
             )
+          ) : compact && loading ? (
+            <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
           ) : (
             <>
+              {compact && !selectedAvailable && (
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+              )}
               <span
-                className={`${modalInput ? "min-w-0 flex-1 text-left" : "min-w-0 max-w-[200px]"} truncate`}
+                className={`${modalInput ? "min-w-0 flex-1 text-left" : compact ? "min-w-0 max-w-[7.5rem]" : "min-w-0 max-w-[200px]"} truncate`}
               >
-                {label}
+                {compact ? shortModelLabel(label) : label}
               </span>
               <ChevronDown
                 className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}

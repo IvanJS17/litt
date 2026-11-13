@@ -346,6 +346,9 @@ export function OrganizationProviderKeys({
           </section>
         ) : null}
 
+        {/* The scan-reading explanation is on Features for everyone; here it
+            is only the firm key's field, for those who manage it. */}
+        {loading || canManage ? (
         <ScanReadingCard
           loading={loading}
           keyScope={t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
@@ -357,6 +360,7 @@ export function OrganizationProviderKeys({
           onSaveKey={(value) => saveKey("landingai", value)}
           onRemoveKey={() => saveKey("landingai", null)}
         />
+        ) : null}
 
         <SplitClassesCard
           title={t("settings.splitClasses.title")}

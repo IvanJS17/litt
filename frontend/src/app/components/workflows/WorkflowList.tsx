@@ -800,6 +800,15 @@ function WorkflowTable({
     onSelectedIdsChange([]);
   }
 
+  // No workflow at all: nothing to sort, filter or select, so the column
+  // header gives way to the explanation and the way to start.
+  const nothingYet =
+    !loading &&
+    !error &&
+    workflows.length === 0 &&
+    typeFilter === null &&
+    practiceFilter === null;
+
   return (
     <TableScrollArea
       onScroll={(event) => {
@@ -810,6 +819,7 @@ function WorkflowTable({
         if (distanceToBottom < 200) onLoadMore();
       }}
       header={
+        nothingYet ? undefined : (
         <TableHeaderRow>
           <TableStickyCell header>
             {loading ? (
@@ -914,6 +924,7 @@ function WorkflowTable({
           </TableHeaderCell>
           <TableHeaderCell className="w-8" />
         </TableHeaderRow>
+        )
       }
     >
       {loading ? (
@@ -949,13 +960,13 @@ function WorkflowTable({
         <TableEmptyState>
           <EmptyState
             icon={<WorkflowSkeuoIcon />}
-            title={t("workflows.workflows")}
+            title={t("workflows.emptyTitle")}
             description={
               error || t("workflows.createAReusableWorkflowOrImport")
             }
             action={
               <PillButtonUI tone="black" size="sm" onClick={onCreate}>
-                {t("workflows.create")}
+                {t("workflows.newWorkflow")}
               </PillButtonUI>
             }
           />

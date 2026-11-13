@@ -70,3 +70,16 @@ describe("touch base in globals.css", () => {
         expect(media?.[0]).toMatch(/scroll-behavior:\s*auto !important/);
     });
 });
+
+describe("Lote 2 · acabado", () => {
+    it("skips drawing a settled chat message with an estimated, remembered height", () => {
+        let found: postcss.Rule | undefined;
+        globals.walkRules(".chat-message-settled", (rule) => {
+            found = rule;
+        });
+        expect(found).toBeDefined();
+        const decl = (prop: string) => found?.nodes?.find((n) => n.type === "decl" && n.prop === prop) as postcss.Declaration | undefined;
+        expect(decl("content-visibility")?.value).toBe("auto");
+        expect(decl("contain-intrinsic-size")?.value).toMatch(/^auto \d/);
+    });
+});

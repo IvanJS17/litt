@@ -1,9 +1,7 @@
 "use client";
 
 import { useRef, type RefObject } from "react";
-import { SvgAssetIcon } from "@/app/components/ui/svg-asset-icon";
-import quickActionsIcon from "../../../../public/icons/features/quick-actions.svg";
-import { MoreHorizontal } from "lucide-react";
+import { ListChecks, MoreHorizontal } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
@@ -79,7 +77,7 @@ export function InitialView({
                 >
                     <LittMonogramPixel size={ICON_SIZE} decorative />
                     <h1
-                        className="min-w-0 text-balance break-words text-3xl font-serif font-light text-gray-900 transition-opacity duration-700 ease-in-out motion-reduce:transition-none sm:text-4xl"
+                        className="min-w-0 text-balance break-words text-3xl font-serif font-light text-gray-900 transition-opacity duration-250 ease-out motion-reduce:transition-none sm:text-4xl"
                         style={{ opacity: loaded ? 1 : 0 }}
                     >
                         {t("assistant.initialView.hiUsername", { username })}
@@ -109,13 +107,7 @@ export function InitialView({
                     <div className="flex flex-col items-center">
                         <div className="group relative flex h-5 items-center justify-center">
                             <span className="flex items-center gap-1.5 text-xs font-medium text-gray-800">
-                                <SvgAssetIcon
-                                    src={quickActionsIcon}
-                                    width={14}
-                                    height={14}
-                                    aria-hidden="true"
-                                    className="h-3.5 w-3.5 shrink-0"
-                                />
+                                <ListChecks aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                                 {t("assistant.initialView.quickActions")}
                             </span>
                             <button

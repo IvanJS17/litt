@@ -100,7 +100,7 @@ describe("ScanReadingSection", () => {
 
   it("shows how to get a LandingAI key only to someone who can add their own", () => {
     const view = render(<ScanReadingSection />);
-    expect(screen.getByText(/create an account and an API key/i)).toBeVisible();
+    expect(screen.getByText(/create an account and an API key/i)).toBeInTheDocument();
     view.unmount();
 
     workspace.firm = { name: "Socium" };

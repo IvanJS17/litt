@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Translate } from "@/i18n/Translate";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -12,10 +11,31 @@ import { useMemberDataActions } from "@/app/hooks/useMemberDataActions";
 import { useKeyScope } from "@/app/components/settings/KeyScope";
 import {
     SettingsShell,
+    SettingsShellSkeleton,
     type SettingsShellTab,
 } from "@/app/components/settings/SettingsShell";
+import { SETTINGS_PHONE_HOME } from "@/app/lib/settingsRoutes";
 import { SettingsSearch } from "@/app/components/settings/SettingsSearch";
 import { SETTINGS_SEARCH_ENTRIES } from "@/app/lib/settingsSearch";
+
+/** The phone list's groups, by tab id. A tab named in none is listed last. */
+function phoneGroups(t: Translate) {
+    return [
+        { id: "account", label: t("settings.layout.group.account"), tabIds: ["account", "security"] },
+        {
+            id: "preferences",
+            label: t("settings.layout.group.preferences"),
+            tabIds: ["personalisation", "memory", "appearance", "features", "models"],
+        },
+        { id: "keys", label: t("settings.layout.group.keys"), tabIds: ["byok", "connectors"] },
+        {
+            id: "firm",
+            label: t("settings.layout.group.firm"),
+            tabIds: ["organizations", "training", "firm-criteria", "beta-invitations", "beta-stats"],
+        },
+        { id: "privacy", label: t("settings.layout.group.privacy"), tabIds: ["privacy-data", "my-activity"] },
+    ];
+}
 
 function settingsTabs(t: Translate): SettingsShellTab[] {
     return [
@@ -133,11 +153,7 @@ export default function SettingsLayout({
     }, [isAuthenticated, authLoading, router]);
 
     if (authLoading) {
-        return (
-            <div className="h-dvh flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-interactive" />
-            </div>
-        );
+        return <SettingsShellSkeleton />;
     }
 
     if (!isAuthenticated) {
@@ -170,6 +186,11 @@ export default function SettingsLayout({
                     : tab,
             )}
             rootHref="/settings"
+            mobileHome={{
+                href: SETTINGS_PHONE_HOME,
+                backLabel: t("settings.layout.settings"),
+                groups: phoneGroups(t),
+            }}
         >
             {children}
         </SettingsShell>

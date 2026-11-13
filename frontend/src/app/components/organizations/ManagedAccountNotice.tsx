@@ -20,7 +20,7 @@ export function ManagedAccountNotice({ firm }: { firm: string }) {
     >
       <h2 className="font-medium">{t("managedAccount.title", { firm })}</h2>
       <p>{t("managedAccount.body", { firm })}</p>
-      <Link href="/terminos" className="underline">
+      <Link href="/terminos#5-5" className="underline">
         {t("managedAccount.termsLink")}
       </Link>
     </section>

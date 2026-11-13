@@ -475,7 +475,8 @@
   },
   "assistantExport": {
     "defaultName": "respuesta",
-    "downloadMarkdown": "Descargar .md"
+    "downloadMarkdown": "Descargar .md",
+    "stoppedNote": "Respuesta detenida"
   },
   "auth": {
     "callback": {
@@ -723,6 +724,7 @@
     "or": "o",
     "retry": "Reintentar",
     "save": "Guardar",
+    "skipToContent": "Saltar al contenido",
     "sourceCode": {
       "description": "de esta versión (se abre en una pestaña nueva)",
       "label": "Código fuente"
@@ -1466,6 +1468,8 @@
     "openProject": "Abrir proyecto"
   },
   "legal": {
+    "back": "Volver",
+    "toc": "Índice",
     "checkbox": "Leí y acepto los Términos y condiciones y el Aviso de privacidad",
     "intro": "Para seguir usando LiTT, lee y acepta los <terms>Términos y condiciones</terms> y el <privacy>Aviso de privacidad</privacy>.",
     "notice": "Al continuar aceptas los <terms>Términos</terms> y el <privacy>Aviso de privacidad</privacy>.",
@@ -1478,6 +1482,8 @@
     "checkRequired": "Marca la casilla para continuar."
   },
   "library": {
+    "emptyDocuments": "Aún no tienes documentos",
+    "emptyTemplates": "Aún no tienes plantillas",
     "actions": {
       "loadFileTypeFilter": "cargar el filtro de tipo de archivo",
       "loadMoreFiles": "cargar más archivos",
@@ -2346,7 +2352,7 @@
     "noMatchingPlaybooks": "No hay playbooks que coincidan",
     "noMatchingRuns": "No hay ejecuciones que coincidan",
     "noPlaybooksFound": "No se encontraron playbooks",
-    "noPlaybooksYet": "Todavía no hay playbooks",
+    "noPlaybooksYet": "Aún no tienes playbooks",
     "noPublicPlaybooks": "No hay playbooks públicos",
     "noReferenceDocuments": "No hay documentos de referencia",
     "noRulesYet": "Todavía no hay reglas",
@@ -2760,6 +2766,8 @@
     "updating": "Actualizando…",
     "upload": "Subir",
     "uploadCount": "Subir ({count})",
+    "emptyDescription": "Un proyecto reúne los documentos, chats y revisiones tabulares de un asunto.",
+    "emptyTitle": "Aún no tienes proyectos",
     "uploadDocumentsIntoProjectsAndTo": "Sube documentos a los proyectos para empezar chats y revisiones tabulares con ellos.",
     "uploadDocumentsToThisProject": "subir documentos a este proyecto",
     "uploadingFilename": "Subiendo {filename}",
@@ -3004,6 +3012,13 @@
       "blockedNoName": "Trabajas con las llaves de tu despacho. Tu despacho no permite agregar llaves propias."
     },
     "layout": {
+      "group": {
+        "account": "Cuenta",
+        "firm": "Despacho",
+        "keys": "Llaves",
+        "preferences": "Preferencias",
+        "privacy": "Privacidad"
+      },
       "pendingInvitations": "{invitationCount, plural, one {invitación pendiente} other {invitaciones pendientes}}",
       "settings": "Ajustes",
       "tab": {
@@ -3348,6 +3363,8 @@
       "saveToTurnOn": "Al guardar una llave se activa la lectura de escaneados.",
       "siteLink": "LandingAI",
       "termsLink": "Términos y Condiciones",
+      "summary": "Lee PDF escaneados con LandingAI, un servicio externo en EE. UU.",
+      "moreInfo": "Más información",
       "title": "Lectura de escaneados",
       "turnedOff": "Si la desactivas, el texto ya leído se conserva y LiTT deja de leer los documentos nuevos.",
       "why": "Leer las imágenes de documentos escaneados requiere un servicio especializado que LiTT no incluye."
@@ -3709,6 +3726,7 @@
       "loadingWorkspace": "Cargando espacio de trabajo",
       "navAssistant": "Asistente",
       "navIde": "IDE",
+      "navLabel": "Navegación principal",
       "navLibrary": "Biblioteca",
       "navPlaybooks": "Playbooks",
       "navProjects": "Proyectos",
@@ -4174,6 +4192,7 @@
     "whatCanWeHelpYouWith": "¿En qué te podemos ayudar?"
   },
   "tabular": {
+    "emptyTitle": "Aún no tienes revisiones tabulares",
     "aNewerVersionIsAvailable": "Hay una versión más reciente disponible",
     "aResultArrivedThatLittCouldnt": "Llegó un resultado que LiTT no pudo mostrar. Recarga para verlo.",
     "access": "Acceso",
@@ -6092,6 +6111,7 @@
     "responseStopped": "Detuviste la respuesta."
   },
   "workflows": {
+    "emptyTitle": "Aún no tienes flujos de trabajo",
     "access": "Acceso",
     "acmeLlp": "Acme LLP",
     "addAnyAdditionalInstructions": "Agrega instrucciones adicionales…",

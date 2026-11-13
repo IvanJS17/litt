@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { MikeIcon } from "@mike/ui";
+import { LittStatusMarkUI, type LittStatusMarkState } from "@mike/ui";
+
+/** The done stroke draws (210 ms), holds 1.5 s and leaves (160 ms). */
+const DONE_MS = 1870;
 
 /**
  * `waiting`: the response has paused to ask the user for input or approval.
- * The icon stops spinning but does not show "done", because nothing has been
- * delivered yet.
+ * The mark stops blinking and shows dimmed with three dots, but does not show
+ * "done", because nothing has been delivered yet.
  */
 export type StatusState = "active" | "waiting" | "error" | null;
 
@@ -16,6 +19,16 @@ export function ResponseStatus({ status }: { status: StatusState }) {
     const isActive = status === "active";
     const isWaiting = status === "waiting";
     const isError = status === "error";
+
+    const markState: LittStatusMarkState = isError
+        ? "error"
+        : isActive
+          ? "working"
+          : isWaiting
+            ? "waiting"
+            : showDone && doneVisible
+              ? "done"
+              : "idle";
 
     useEffect(() => {
         const wasActive = wasActiveRef.current;
@@ -32,7 +45,7 @@ export function ResponseStatus({ status }: { status: StatusState }) {
                 setDoneVisible(true);
                 doneTimeout = window.setTimeout(
                     () => setDoneVisible(false),
-                    1500,
+                    DONE_MS,
                 );
             });
         } else if (!wasActive && isActive) {
@@ -50,13 +63,7 @@ export function ResponseStatus({ status }: { status: StatusState }) {
 
     return (
         <div className="w-full h-9 flex items-center mb-2">
-            <MikeIcon
-                spin={isActive}
-                done={showDone && doneVisible}
-                error={isError}
-                mike={!isError && !(showDone && doneVisible)}
-                size={22}
-            />
+            <LittStatusMarkUI state={markState} size={22} />
         </div>
     );
 }

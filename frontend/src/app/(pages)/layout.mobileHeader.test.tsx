@@ -75,6 +75,19 @@ describe("mobile page header", () => {
         );
     });
 
+    it("blurs what scrolls under the floating chat header lightly (16-20 px), not at 40 px", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+
+        const header = document.querySelector('[data-slot="mobile-header"]')!;
+        const blur = header.querySelector('[class*="backdrop-blur"]')!;
+        expect(blur.className).toMatch(/backdrop-blur-\[(1[6-9]|20)px\]/);
+        expect(blur.className).not.toContain("backdrop-blur-2xl");
+    });
+
     it("backs the workspace label with the solid page colour and lets it shrink before the actions", () => {
         render(
             <MikeLayout>
@@ -313,5 +326,68 @@ describe("sidebar overlay on a phone", () => {
         );
 
         expect(sidebarState.isOpen).toBe(true);
+    });
+});
+
+describe("page shell accessibility", () => {
+    const width = window.innerWidth;
+    beforeEach(() => {
+        // A phone: the sidebar starts closed.
+        window.innerWidth = 500;
+    });
+    afterEach(() => {
+        window.innerWidth = width;
+        vi.unstubAllGlobals();
+    });
+
+    it("starts with a Skip to content link that focuses the page", async () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+        const skip = screen.getByRole("link", { name: "Skip to content" });
+        expect(skip).toHaveAttribute("href", "#main-content");
+        expect(skip).toHaveClass("skip-link");
+        await userEvent.click(skip);
+        expect(document.activeElement).toBe(document.getElementById("main-content"));
+        expect(document.getElementById("main-content")!.tagName).toBe("MAIN");
+    });
+
+    it("tells the sidebar button what it opens and whether it is open", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+        const button = screen.getByRole("button", { name: "Open sidebar" });
+        expect(button).toHaveAttribute("aria-controls", "app-sidebar");
+        expect(button).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("makes the page inert while the sidebar is open on a phone", async () => {
+        vi.stubGlobal("matchMedia", (query: string) => ({
+            matches: query === "(max-width: 767px)",
+            media: query,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            onchange: null,
+            dispatchEvent: () => false,
+        }));
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+        const page = document.getElementById("main-content")!.parentElement!;
+        expect(page).not.toHaveAttribute("inert");
+        await userEvent.click(screen.getByRole("button", { name: "Open sidebar" }));
+        expect(page).toHaveAttribute("inert");
+        expect(screen.getByRole("button", { name: "Open sidebar" })).toHaveAttribute(
+            "aria-expanded",
+            "true",
+        );
     });
 });

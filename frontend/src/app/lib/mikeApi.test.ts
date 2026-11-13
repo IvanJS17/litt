@@ -1526,6 +1526,21 @@ describe("getTrainingTurnNotes", () => {
         await expect(getTrainingTurnNotes("c1")).resolves.toEqual([]);
     });
 
+    it("asks once for the same chat when several screens ask at the same moment, and again afterwards", async () => {
+        fetchMock.mockImplementation(async () => jsonResponse({}, { status: 404 }));
+        const calls = fetchMock.mock.calls.length;
+        const answers = await Promise.all([
+            getTrainingTurnNotes("same"),
+            getTrainingTurnNotes("same"),
+            getTrainingTurnNotes("same"),
+        ]);
+        expect(answers).toEqual([[], [], []]);
+        expect(fetchMock.mock.calls.length - calls).toBe(1);
+        // Not remembered: a later turn may have written notes.
+        await getTrainingTurnNotes("same");
+        expect(fetchMock.mock.calls.length - calls).toBe(2);
+    });
+
     it("rethrows any other failure", async () => {
         fetchMock.mockResolvedValue(jsonResponse({}, { status: 500 }));
         await expect(getTrainingTurnNotes("c1")).rejects.toBeInstanceOf(

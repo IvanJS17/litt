@@ -5,6 +5,7 @@ import {
   FileCheck,
   ChevronLeft,
   Ellipsis,
+  ListChecks,
   Menu,
   Pencil,
   Plus,
@@ -26,7 +27,6 @@ import {
   DropdownTrigger,
 } from "@mike/ui";
 import chatIcon from "@icons/features/chat.svg";
-import quickActionsIcon from "@icons/features/quick-actions.svg";
 import workflowIcon from "@icons/features/workflow.svg";
 import chatHistoryIcon from "@icons/features/chat-history.svg";
 import settingsIcon from "@icons/settings.svg";
@@ -76,7 +76,7 @@ function sections(t: ReturnType<typeof useTranslations>) {
   {
     value: "actions" as const,
     label: t("word.quickActions2"),
-    icon: quickActionsIcon,
+    icon: ListChecks,
   },
   { value: "workflows" as const, label: t("word.workflows"), icon: workflowIcon },
   { value: "settings" as const, label: t("word.settings.title"), icon: settingsIcon },
@@ -158,13 +158,20 @@ export function FloatingHeader({
                   onSelect={() => onSectionChange(item.value)}
                   selected={section === item.value}
                 >
-                  <img
-                    src={item.icon}
-                    alt=""
-                    aria-hidden="true"
-                    draggable={false}
-                    className="h-4 w-4 shrink-0 object-contain"
-                  />
+                  {typeof item.icon === "string" ? (
+                    <img
+                      src={item.icon}
+                      alt=""
+                      aria-hidden="true"
+                      draggable={false}
+                      className="h-4 w-4 shrink-0 object-contain"
+                    />
+                  ) : (
+                    <item.icon
+                      className="h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  )}
                   <span className="min-w-0 flex-1">{item.label}</span>
                 </DropdownItem>
               );

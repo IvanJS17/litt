@@ -20,6 +20,10 @@ describe("onboarding option labels", () => {
         expect(countryLabel("Mexico", "es-MX")).toBe("México");
         expect(countryLabel("United States", "es-MX")).toBe("Estados Unidos");
         expect(countryLabel("Mexico", "en-US")).toBe("Mexico");
+        // A malformed language tag does not throw: the saved value is shown.
+        expect(countryLabel("Mexico", "not a locale!")).toBe("Mexico");
+        expect(countryLabel("Mexico", "")).toBe("Mexico");
+        expect(countryLabel("Mexico", "not a locale!")).toBe("Mexico");
         for (const country of COUNTRY_OPTIONS) {
             expect(countryLabel(country, "es-MX")).not.toBe("");
         }

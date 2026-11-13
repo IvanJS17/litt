@@ -108,7 +108,7 @@ vi.mock("@/app/components/shared/views/DocxView", () => ({
 }));
 vi.mock("@mike/ui", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@mike/ui")>()),
-    MikeIcon: () => null,
+    LittStatusMarkUI: () => null,
 }));
 
 // PageHeader renders its custom actions; HeaderActionsMenu is flattened to

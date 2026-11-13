@@ -94,7 +94,11 @@ it: use the rendered files.
   never animate the square: no cursor blink, no pulse. The wordmark links on
   the auth pages and in the sidebar have no hover effect; they show focus with
   the ring. The chat greeting's monogram stays still; only the greeting text
-  beside it fades in.
+  beside it fades in. The one exception is the response-status indicator,
+  `LittStatusMarkUI`, whose motion, green done rule, dimmed waiting amber and
+  error outline the owner approved on 2026-11-13 (see
+  [Status mark](#status-mark-approved-exception-2026-11-13) and DESIGN.md
+  rules 9 and 10).
 - Do not scale the pixel monogram between its sizes, and keep
   `shape-rendering="crispEdges"`. Favicons are used at their native sizes:
   `favicon.ico` holds 16, 32 and 48 px, and `icon.svg` switches to the native
@@ -148,8 +152,8 @@ The only exceptions are third-party marks drawn in their owners' colors (file
 types, AI providers, Google), which stay as their owners publish them. The
 `slate` family, a blue-grey, is replaced by the tinta-derived `gray` scale,
 and so are Tailwind's stock cool greys: the shading inside LiTT's own SVG
-icons and the `MikeIconUI` white variant sit on the tinta→papel neutral of
-the same luminance, with no exception.
+icons sit on the tinta→papel neutral of the same luminance, with no
+exception.
 The `blue` tone of `PillButtonUI` and the `"blue"` modal variant keep their
 names for API stability and render the interactive tokens.
 
@@ -281,19 +285,45 @@ no blue family and no amber:
 
 | Family | Steps used | Where |
 | --- | --- | --- |
-| stone | 100–600 (`#f5f5f4` … `#57534e`) | `MikeIconUI` tint, chart series 5 |
-| teal | 100–600 (`#ccfbf1` … `#0d9488`) | `MikeIconUI` tint, chart series 2 (light) |
-| rose | 100–600 (`#ffe4e6` … `#e11d48`) | `MikeIconUI` tint, chart series 3 |
-| lime | 100–600 (`#ecfccb` … `#65a30d`) | `MikeIconUI` tint, chart series 4 |
-| pink | 100–600 (`#fce7f3` … `#db2777`) | `MikeIconUI` tint |
-| emerald | 100–600 (`#d1fae5` … `#059669`) | `MikeIconUI` tint, chart series 2 (dark) |
+| stone | 100–600 (`#f5f5f4` … `#57534e`) | chart series 5; status-mark hue (500 light, 400 dark) |
+| teal | 100–600 (`#ccfbf1` … `#0d9488`) | chart series 2 (light); status-mark hue (700 light, 400 dark) |
+| rose | 100–600 (`#ffe4e6` … `#e11d48`) | chart series 3 |
+| lime | 100–600 (`#ecfccb` … `#65a30d`) | chart series 4; status-mark hue (700 light, 400 dark) |
+| pink | 100–600 (`#fce7f3` … `#db2777`) | status-mark hue (600 light, 400 dark) |
+| emerald | 100–600 (`#d1fae5` … `#059669`) | chart series 2 (dark) |
 
-`MikeIconUI` (the animated response-status glyph) builds each tint from those
-six steps, in the order `stone, teal, rose, lime, pink, emerald`
-(`MIKE_ICON_TINTS`). Its white variant for dark surfaces is shaded with the
-tinta-papel gray ramp. Tags, currencies, avatars, column formats and subagent
-marks keep their own lists in their components, under the same rule: no
-blue, indigo, violet, purple, sky, cyan or amber.
+`LittStatusMarkUI` (the response-status indicator) takes a `hue` from
+`LITT_STATUS_MARK_HUES`, in the order `teal, pink, lime, stone`. The four are
+tokens, `--litt-status-hue-*`: teal-700 `#0f766e`, pink-600 `#db2777`, lime-700
+`#4d7c0f` and stone-500 `#78716c` in the light theme, and the 400 steps
+(`#2dd4bf`, `#f472b6`, `#a3e635`, `#a8a29e`) in the dark one. Each is at least
+3:1 against white, papel, `#f9f9f7` and `#e2e2dd` (light) and against tinta
+(dark). Rose and emerald are left out of it because they read as error and as
+done. Tags, currencies, avatars and column formats keep their own lists in
+their components, under the same rule: no blue, indigo, violet, purple, sky,
+cyan or amber. The mark's own amber is never a hue.
+
+#### Status mark (approved exception, 2026-11-13)
+
+`LittStatusMarkUI` ("A · Cursor") replaces the MikeOSS `MikeIcon` as the
+response mark. It is a LiTT square, not the logo: `state` is `idle | working |
+waiting | done | error`. The owner approved its motion as an exception to
+DESIGN.md rule 10, and its error outline against rule 9; the wordmark and the
+monogram stay still. Its colors, as tokens in `DesignTokensUI.css`:
+
+- The square is `--litt-mark-accent` (ámbar tinta / ámbar fósforo), or a
+  subagent hue.
+- **Done** is the one green: `--litt-status-done`, emerald-700 `#047857`
+  (4.22–5.48:1 on white, papel, `#f9f9f7`, `#e2e2dd`) in light and emerald-400
+  `#34d399` (6.97–9.05:1) in dark. It colors only the rule under the square.
+- **Waiting** is the same amber at 0.55 opacity, with three dots at the same
+  opacity, as the owner asked for a dimmer amber. Measured, that is 2.11–2.35:1
+  on the light surfaces and 3.29–3.77:1 on the dark ones, so on light the dots
+  and the motion carry the state, not the color alone.
+- The rule and the error outline are `--litt-status-line` (gray-500 `#5d6169`,
+  `#9b9d9f` in dark).
+- With `prefers-reduced-motion: reduce` nothing animates: a static rule while
+  working, three fixed dots while waiting, the full rule when done.
 
 ### Dark mode
 
@@ -304,12 +334,10 @@ liquid-glass material tokens all have `.dark` values. The user preference adds
 without component-level `dark:` shadow recipes. The preference lives in
 Settings > Appearance.
 
-`MikeIcon` is the exception: the mark is inline SVG, so no class-based
-remapping reaches its gradient stops. It subscribes to the document theme class
-itself and swaps its dark-glass blades for the white ones. It survives only as
-the animated response-status glyph; it is not the LiTT logo. The LiTT marks
-(`LittBrandUI.tsx`) need no subscription: their fills are
-`var(--litt-mark-ink)` and `var(--litt-mark-accent)`, which `.dark` switches.
+The LiTT marks (`LittBrandUI.tsx`) and the status mark
+(`LittStatusMarkUI.tsx`) need no theme subscription: their fills are
+`var(--litt-mark-ink)`, `var(--litt-mark-accent)` and the `--litt-status-*`
+tokens, which `.dark` switches.
 
 ### User avatars
 
@@ -785,11 +813,56 @@ Contact support comes first in the row, so it is black only when it is the
 sole action. Style a custom action with
 `noticeActionClassName(noticeActionEmphasis(index, count))`.
 
+A notice fades in rising 8 px over 200 ms and fades out over 150 ms
+(`.notice-card` in `LiquidGlassUI.css`, so the web app and the add-in draw it
+alike). On a touch screen it is dismissed by swiping it sideways
+(`NoticeCardUI`); a mouse is not affected. All of it is off with "Reduce
+motion". `ToastViewportUI` keeps a visually hidden polite live region mounted
+from the start and writes a success or info text into it as the toast is
+raised, because a card inserted with its text already inside is announced
+unreliably; an error card stays its own `role="alert"`.
+
 Use a **toast** only for a short confirmation ("Changes saved") or
 information.
 
 The Word add-in has no `WarningPopup`, so there `ToastViewportUI` draws
 errors as toasts, in its default column at the top centre of the task pane.
+
+## Phone and motion
+
+How the shell behaves under 768 px, and the timings it shares. The curve is
+always `cubic-bezier(0.32, 0.72, 0, 1)`, and everything moves only under
+`motion-safe` (the global "Reduce motion" rule in `globals.css` covers the
+rest).
+
+- **Dialogs are a bottom sheet** (`ModalUI` with `sheet`, which the web
+  `Modal` adapter turns on): full width, rounded top corners, a grabber, a
+  `dvh` height cap and the home-indicator inset under the footer; 250 ms in,
+  180 ms out. From 768 px up it is the centred dialog, and the Word add-in
+  never sets `sheet`.
+- **The sidebar** on a phone is a window: it slides in with `transform`
+  (250 ms in, 180 ms out) over a veil of ink at 25 %, is `role="dialog"`
+  `aria-modal` while open, makes the page `inert`, closes on Escape and gives
+  focus back to its button (`aria-expanded`, `aria-controls="app-sidebar"`).
+  Closed, it is `inert`. On desktop only the panel's width and radius animate
+  (200 ms); the column beside it is as wide as the final sidebar from the
+  first frame, so the page is laid out once.
+- **Settings on a phone** opens on a grouped list at `/settings/menu`; a row
+  opens its section with a "‹ Settings" button. `/settings` stays the Account
+  page, so existing links work. Desktop keeps the tab column.
+- **The chat box on an on-screen keyboard** (`useSoftKeyboard`: a coarse
+  pointer and no physical keyboard seen): Enter is a line break, the arrow
+  sends, and sending closes the keyboard. Otherwise Enter sends and
+  Shift+Enter breaks the line.
+- **Screen readers:** the pages layout starts with a "Skip to content" link
+  (`.skip-link`) to `main#main-content`, and the sidebar is a `<nav>` named
+  "Main navigation".
+- **Add to Home Screen:** `app/manifest.ts` (full-screen LiTT, starting at
+  `/assistant`, the icons already in `public/`), the Apple web-app meta tags,
+  and a `theme-color` that is papel or tinta by the person's theme
+  (`lib/theme.ts`). There is no service worker and no offline mode.
+- **Search engines:** off while the beta is closed; see
+  [search-indexing.md](search-indexing.md).
 
 ## Component catalog
 

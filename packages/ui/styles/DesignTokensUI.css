@@ -111,6 +111,17 @@
     /* Colors of the wordmark and monogram (LittBrandUI.tsx) in this theme. */
     --litt-mark-ink: var(--litt-tinta);
     --litt-mark-accent: var(--litt-ambar-tinta);
+    /* LittStatusMarkUI (approved motion exception, 2026-11-13). Done is the
+       one green in the product's marks: emerald-700, 4.22–5.48:1 on white,
+       papel, #f9f9f7 and #e2e2dd. The rule and the error outline are
+       gray-500 (4.78–6.21:1). Subagent hues: teal-700, pink-600, lime-700
+       and stone-500, 3.54–5.47:1 on the same four surfaces. */
+    --litt-status-done: #047857;
+    --litt-status-line: #5d6169;
+    --litt-status-hue-teal: #0f766e;
+    --litt-status-hue-pink: #db2777;
+    --litt-status-hue-lime: #4d7c0f;
+    --litt-status-hue-stone: #78716c;
     /* The one amber accent outside the marks: the keyboard focus ring. Ámbar
        tinta on the light theme: 4.75:1 on papel, 5.64:1 on white. */
     --litt-accent: var(--litt-ambar-tinta);
@@ -180,6 +191,14 @@
     color-scheme: dark;
     --litt-mark-ink: var(--litt-papel);
     --litt-mark-accent: var(--litt-ambar-fosforo);
+    /* Dark: emerald-400 (6.97–9.05:1 on tinta and its raised surfaces), the
+       400 steps of the four hues, and the dark gray-500. */
+    --litt-status-done: #34d399;
+    --litt-status-line: #9b9d9f;
+    --litt-status-hue-teal: #2dd4bf;
+    --litt-status-hue-pink: #f472b6;
+    --litt-status-hue-lime: #a3e635;
+    --litt-status-hue-stone: #a8a29e;
     /* Ámbar fósforo on the dark theme: 9.64:1 on tinta, 7.43:1 on the
        lightest surface (--app-surface-active). */
     --litt-accent: var(--litt-ambar-fosforo);
@@ -240,4 +259,123 @@
     --sidebar-accent-foreground: var(--litt-papel);
     --sidebar-border: rgb(236 236 230 / 10%);
     --sidebar-ring: var(--litt-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   LittStatusMarkUI: the status indicator, "A · Cursor". Motion spec approved
+   by the owner on 2026-11-13 as an exception to DESIGN.md rule 10 (and the
+   error outline to rule 9). Only opacity and a stepped stroke animate; nothing
+   moves. Geometry is set by the component (u = floor(size / 7)).
+   --------------------------------------------------------------------------- */
+.litt-status-mark {
+    display: block;
+    flex-shrink: 0;
+    overflow: visible;
+    shape-rendering: crispEdges;
+}
+.litt-status-mark .lsm-square {
+    fill: var(--litt-status-hue, var(--litt-mark-accent));
+}
+.litt-status-mark .lsm-outline,
+.litt-status-mark .lsm-rule,
+.litt-status-mark .lsm-lead {
+    fill: var(--litt-status-line);
+}
+.litt-status-mark .lsm-outline,
+.litt-status-mark .lsm-rule,
+.litt-status-mark .lsm-lead,
+.litt-status-mark .lsm-dot {
+    opacity: 0;
+}
+.litt-status-mark .lsm-dot {
+    fill: var(--litt-status-hue, var(--litt-mark-accent));
+}
+
+/* Working: the cursor blinks 1 → 0.2 in 1200 ms, never reaching 0. */
+.litt-status-mark[data-state="working"] .lsm-square {
+    animation: lsm-blink 1200ms linear infinite;
+}
+@keyframes lsm-blink {
+    0%, 45% { opacity: 1; }
+    50%, 95% { opacity: 0.2; }
+    100% { opacity: 1; }
+}
+
+/* Waiting: the same amber, dimmed; three dots form one by one (450 ms each),
+   hold, and start again (1800 ms). */
+.litt-status-mark[data-state="waiting"] .lsm-square {
+    opacity: 0.55;
+}
+.litt-status-mark[data-state="waiting"] .lsm-dot {
+    opacity: 0.55;
+    animation: lsm-dot 1800ms linear infinite;
+}
+.litt-status-mark[data-state="waiting"] .lsm-dot-2 { animation-name: lsm-dot-2; }
+.litt-status-mark[data-state="waiting"] .lsm-dot-3 { animation-name: lsm-dot-3; }
+@keyframes lsm-dot {
+    0% { opacity: 0; }
+    1%, 83% { opacity: 0.55; }
+    84%, 100% { opacity: 0; }
+}
+@keyframes lsm-dot-2 {
+    0%, 24% { opacity: 0; }
+    25%, 83% { opacity: 0.55; }
+    84%, 100% { opacity: 0; }
+}
+@keyframes lsm-dot-3 {
+    0%, 49% { opacity: 0; }
+    50%, 83% { opacity: 0.55; }
+    84%, 100% { opacity: 0; }
+}
+
+/* Done: the rule under the square is green and draws in 7 steps of 30 ms,
+   holds 1.5 s and leaves in 160 ms. */
+.litt-status-mark[data-state="done"] .lsm-rule {
+    fill: var(--litt-status-done);
+    opacity: 1;
+    transform-box: fill-box;
+    transform-origin: 0 0;
+    animation:
+        lsm-draw 210ms steps(7, jump-end) both,
+        lsm-leave 160ms cubic-bezier(0.23, 1, 0.32, 1) 1710ms both;
+}
+@keyframes lsm-draw {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+@keyframes lsm-leave {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Error: the fill goes out in 120 ms and only the gray-500 outline stays. */
+.litt-status-mark .lsm-square {
+    transition: opacity 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.litt-status-mark[data-state="error"] .lsm-square {
+    opacity: 0;
+}
+.litt-status-mark[data-state="error"] .lsm-outline {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .litt-status-mark,
+    .litt-status-mark * {
+        animation: none !important;
+        transition: none !important;
+    }
+    /* Working: a static rule that reaches the square, like text behind a cursor. */
+    .litt-status-mark[data-state="working"] .lsm-lead {
+        opacity: 1;
+    }
+    /* Waiting: three fixed dots. */
+    .litt-status-mark[data-state="waiting"] .lsm-dot {
+        opacity: 0.55;
+    }
+    /* Done: the complete rule, which stays (nothing times it out). */
+    .litt-status-mark[data-state="done"] .lsm-rule {
+        opacity: 1;
+        transform: none;
+    }
 }

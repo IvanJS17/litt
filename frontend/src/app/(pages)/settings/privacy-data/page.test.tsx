@@ -81,6 +81,17 @@ afterEach(() => {
 });
 
 describe("privacy-data async exports", () => {
+    it("keeps the page's buttons secondary: no black exports, no red-filled deletes", () => {
+        render(<PrivacyDataPage />);
+        for (const button of screen.getAllByRole("button", { name: "Export" })) {
+            expect(button.className).not.toMatch(/bg-gray-950|bg-interactive/);
+        }
+        for (const button of screen.getAllByRole("button", { name: /^Delete|^Delete all/ })) {
+            expect(button.className).not.toMatch(/bg-red-600/);
+            expect(button).toHaveClass("text-red-600");
+        }
+    });
+
     it("schedules the job, polls to done, then downloads the artifact", async () => {
         mockedStart.mockResolvedValue({ export_id: "job-9" });
         mockedStatus

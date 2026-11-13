@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ModelToggleUI, type ModelToggleOption } from "./ModelToggleUI";
+import { ModelToggleUI, shortModelLabel, type ModelToggleOption } from "./ModelToggleUI";
 
 const models: ModelToggleOption[] = [
     { id: "claude-opus-5-5", label: "Claude Opus 5.5", group: "Anthropic" },
@@ -100,5 +100,24 @@ describe("ModelToggleUI opened by its host", () => {
 
         await userEvent.keyboard("{Escape}");
         expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    });
+});
+
+describe("shortModelLabel", () => {
+    it("drops the maker's prefix and a Preview note, never the version", () => {
+        expect(shortModelLabel("Claude Fable 5.2")).toBe("Fable 5.2");
+        expect(shortModelLabel("Mistral Large 4 (Preview)")).toBe("Mistral Large 4");
+        expect(shortModelLabel("GPT-6.1 Sol")).toBe("GPT-6.1 Sol");
+        expect(shortModelLabel("Claude Fable 5.2 (vista previa) ")).toBe("Fable 5.2");
+        expect(shortModelLabel("Claudette 2")).toBe("Claudette 2");
+        expect(shortModelLabel("Claude (Preview)")).toBe("Claude (Preview)");
+    });
+
+    it("stays linear on a label of many tabs", () => {
+        const label = `x${"\t".repeat(50_000)}y`;
+        const started = performance.now();
+        expect(shortModelLabel(label)).toBe(label);
+        expect(shortModelLabel("\t".repeat(50_000))).toBe("\t".repeat(50_000));
+        expect(performance.now() - started).toBeLessThan(250);
     });
 });

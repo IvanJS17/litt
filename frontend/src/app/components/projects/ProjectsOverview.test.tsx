@@ -102,7 +102,14 @@ describe("ProjectsOverview tabs", () => {
     beforeEach(() => {
         activeTab.current = "all";
         workspace.current = "org-1";
-        projectRows.current = [];
+        // One project, so the table chrome (tabs, filters, header) is on screen;
+        // the tests about an empty list say so.
+        projectRows.current = [
+            {
+                id: "project-0", name: "Existing", user_id: "user-1", access_role: "owner",
+                created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+            },
+        ];
         setActiveTab.mockReset();
         retrySpy.mockReset();
         usePaginatedProjectsSpy.mockReset();
@@ -213,10 +220,11 @@ describe("ProjectsOverview tabs", () => {
     it("explains when no projects have been shared with the user", () => {
         workspace.current = "personal";
         activeTab.current = "shared";
+        projectRows.current = [];
         render(<ProjectsOverview />);
 
         expect(screen.getByText("No projects shared with you")).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+        expect(screen.queryByText("You have no projects yet")).not.toBeInTheDocument();
     });
 
     it("filters Public and Private from the Access column header", async () => {
@@ -249,6 +257,7 @@ describe("ProjectsOverview tabs", () => {
 
     it("says there are no public projects, without offering to create one there", () => {
         activeTab.current = "public";
+        projectRows.current = [];
         render(<ProjectsOverview />);
         expect(screen.getByText("No public projects")).toBeInTheDocument();
     });
@@ -260,12 +269,19 @@ describe("ProjectsOverview tabs", () => {
         expect(lastScope()).toBe("all");
     });
 
-    it("offers project creation when All is empty", () => {
+    it("with no project at all: one explanation and New project, no filters, header or select-all", () => {
+        projectRows.current = [];
         render(<ProjectsOverview />);
 
-        expect(
-            screen.getByRole("button", { name: "Create" }),
-        ).toBeInTheDocument();
+        expect(screen.getByText("You have no projects yet")).toBeInTheDocument();
+        expect(screen.getByText(/gathers the documents, chats and tabular reviews/)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "New project" })).toBeInTheDocument();
+        // Exactly one way to start, and nothing to filter or select.
+        expect(screen.getAllByRole("button", { name: "New project" })).toHaveLength(1);
+        expect(screen.queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Filter by access" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("checkbox", { name: "Select all projects" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
         expect(screen.queryByText(/No all projects/i)).not.toBeInTheDocument();
     });
 
@@ -357,7 +373,7 @@ describe("ProjectsOverview tabs", () => {
         const user = userEvent.setup();
         render(<ProjectsOverview />);
 
-        await user.click(screen.getByRole("button", { name: "Create" }));
+        await user.click(screen.getAllByRole("button", { name: "New project" })[0]);
         await user.click(
             screen.getByRole("button", { name: "close after partial create" }),
         );
@@ -369,7 +385,7 @@ describe("ProjectsOverview tabs", () => {
         const user = userEvent.setup();
         render(<ProjectsOverview />);
 
-        await user.click(screen.getByRole("button", { name: "Create" }));
+        await user.click(screen.getAllByRole("button", { name: "New project" })[0]);
         await user.click(
             screen.getByRole("button", { name: "close untouched" }),
         );

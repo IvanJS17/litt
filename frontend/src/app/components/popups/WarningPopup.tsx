@@ -56,6 +56,8 @@ interface WarningPopupProps {
      */
     actions?: ReactNode;
     className?: string;
+    /** Dismissed, and on screen only to fade out. */
+    leaving?: boolean;
 }
 
 export function WarningPopup({
@@ -68,6 +70,7 @@ export function WarningPopup({
     primaryAction,
     actions,
     className,
+    leaving = false,
 }: WarningPopupProps) {
     const t = useTranslations();
     const stackSlot = useNoticeStackSlot();
@@ -89,6 +92,7 @@ export function WarningPopup({
             role="alert"
             aria-live="assertive"
             aria-atomic="true"
+            leaving={leaving}
             title={title}
             message={message}
             icon={icon}
