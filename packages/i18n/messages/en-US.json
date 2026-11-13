@@ -3350,6 +3350,8 @@
       "saveToTurnOn": "Saving a key turns scan reading on.",
       "siteLink": "LandingAI",
       "termsLink": "Terms and Conditions",
+      "summary": "Reads scanned PDFs with LandingAI, an external service in the US.",
+      "moreInfo": "More information",
       "title": "Scan reading",
       "turnedOff": "If you turn it off, the text already read is kept and LiTT stops reading new documents.",
       "why": "Reading the images of scanned documents takes a specialized service that LiTT does not include."

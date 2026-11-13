@@ -29,6 +29,32 @@ describe("ScanReadingCard", () => {
     expect(toggle).toHaveAttribute("aria-describedby");
   });
 
+  it("keeps the whole legal disclaimer visible, not folded, wherever scan reading can be turned on", () => {
+    const { container } = render(<ScanReadingCard {...base} hasSavedKey enabled={false} />);
+    const disclaimer = screen.getByText(/sent in full to LandingAI, in the United States/);
+    expect(disclaimer.closest("details")).toBeNull();
+    // Whole, to the last sentence.
+    expect(disclaimer.textContent).toMatch(/using your scanner's searchable-PDF option or a PDF program\.$/);
+    // Only the explanation folds.
+    const details = container.querySelector("details");
+    expect(details).toHaveTextContent(/the text already read is kept/);
+    expect(details).toHaveTextContent(/To use it, create an account/);
+    expect(details?.open).toBe(false);
+    expect(screen.queryByText(/Reads scanned PDFs with LandingAI, an external service/)).toBeNull();
+  });
+
+  it("where it cannot be turned on, says it in one line and folds the disclaimer under More information", () => {
+    const { container } = render(
+      <ScanReadingCard {...base} canManage={false} showKeyHelp={false} hasSavedKey enabled keyNotice="Aurora set it up." />,
+    );
+    expect(
+      screen.getByText("Reads scanned PDFs with LandingAI, an external service in the US."),
+    ).not.toHaveTextContent(/Team and Enterprise/);
+    expect(screen.getByText("More information").closest("details")).toBe(container.querySelector("details"));
+    // The disclaimer is still in the page, inside the fold.
+    expect(screen.getByText(/Team and Enterprise/).closest("details")).not.toBeNull();
+  });
+
   it("links the official LandingAI pages and the legal texts", () => {
     render(<ScanReadingCard {...base} />);
     expect(screen.getByRole("link", { name: "LandingAI" })).toHaveAttribute("href", "https://www.landing.ai/");
@@ -40,8 +66,8 @@ describe("ScanReadingCard", () => {
       "href",
       "https://www.landing.ai/pricing-agentic-apis",
     );
-    expect(screen.getByRole("link", { name: "Terms and Conditions" })).toHaveAttribute("href", "/terminos");
-    expect(screen.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacidad");
+    expect(screen.getByRole("link", { name: "Terms and Conditions" })).toHaveAttribute("href", "/terminos#6-12");
+    expect(screen.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacidad#6");
   });
 
   it("offers no switch until a key is saved; saving and removing go through the field", async () => {
