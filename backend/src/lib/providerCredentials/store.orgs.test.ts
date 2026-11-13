@@ -2,11 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Managed accounts (lib/managedAccounts.ts) have their own tests; these ones
 // are about the key layers, with an account nobody manages.
+const managed = vi.hoisted(() => ({ value: false }));
 vi.mock("../managedAccounts", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../managedAccounts")>()),
-    isManagedAccount: async () => false,
+    isManagedAccount: async () => managed.value,
 }));
 
+import { webSearchAccountFor, webSearchPlanFor } from "../webSearch/plan";
+import { DEFAULT_WEB_SEARCH_SETTINGS } from "../webSearch/settings";
 import {
     getApiKeyStatusFor,
     getEffectiveApiKeyStatus,
@@ -93,11 +96,25 @@ function memoryDb(seed: { members?: Row[]; organizations?: Row[] } = {}) {
 const USER = "user-1";
 const ORG = "org-1";
 
-const firm = (allowPersonal: boolean) =>
-    memoryDb({
+const firm = (
+    allowPersonal: boolean | Partial<Record<"ai" | "web_search" | "scan", boolean>>,
+) => {
+    const policy =
+        typeof allowPersonal === "boolean"
+            ? { ai: allowPersonal, web_search: allowPersonal, scan: allowPersonal }
+            : allowPersonal;
+    return memoryDb({
         members: [{ org_id: ORG, user_id: USER }],
-        organizations: [{ id: ORG, allow_personal_api_keys: allowPersonal }],
+        organizations: [
+            {
+                id: ORG,
+                allow_personal_ai_keys: policy.ai ?? true,
+                allow_personal_web_search_keys: policy.web_search ?? true,
+                allow_personal_scan_keys: policy.scan ?? true,
+            },
+        ],
     });
+};
 
 const ENV_VARS = [
     "ANTHROPIC_API_KEY",
@@ -112,6 +129,7 @@ const ENV_VARS = [
 ];
 
 beforeEach(() => {
+    managed.value = false;
     for (const name of ENV_VARS) delete process.env[name];
     process.env.USER_API_KEYS_ENCRYPTION_SECRET = "test-secret";
 });
@@ -258,7 +276,7 @@ describe("getEffectiveApiKeys", () => {
     it("does not hand an organization's key to somebody who is not a member", async () => {
         const { db } = memoryDb({
             members: [{ org_id: ORG, user_id: "someone-else" }],
-            organizations: [{ id: ORG, allow_personal_api_keys: false }],
+            organizations: [{ id: ORG, allow_personal_ai_keys: false }],
         });
         await saveApiKeyFor(userKeyOwner(USER), "claude", "my-claude", db);
         await saveApiKeyFor(orgKeyOwner(ORG), "openai", "org-openai", db);
@@ -273,7 +291,7 @@ describe("getEffectiveApiKeys", () => {
         await saveApiKeyFor(userKeyOwner(USER), "claude", "my-claude", db);
         errors.organizations = {
             code: "42703",
-            message: "column organizations.allow_personal_api_keys does not exist",
+            message: "column organizations.allow_personal_ai_keys does not exist",
         };
         errors.org_api_keys = {
             code: "PGRST205",
@@ -417,6 +435,119 @@ describe("the scan-reading (LandingAI) key", () => {
         expect(keys.landingai).toBeNull();
         const status = await getEffectiveApiKeyStatus(USER, ORG, db);
         expect(status.landingai).toBe(false);
+    });
+});
+
+// One switch per capability: blocking one kind of personal key leaves the other
+// two on the member's own keys. AI models, web search and scan reading.
+describe("personal keys by capability", () => {
+    const SAVED = {
+        claude: "my-claude",
+        brave: "my-brave",
+        landingai: "my-landing",
+    } as const;
+    const CASES = [
+        { blocked: "ai", gone: ["claude"], kept: ["brave", "landingai"] },
+        { blocked: "web_search", gone: ["brave"], kept: ["claude", "landingai"] },
+        { blocked: "scan", gone: ["landingai"], kept: ["claude", "brave"] },
+    ] as const;
+
+    async function saveAll(db: never) {
+        for (const [provider, key] of Object.entries(SAVED))
+            await saveApiKeyFor(
+                userKeyOwner(USER),
+                provider as keyof typeof SAVED,
+                key,
+                db,
+            );
+    }
+
+    it.each(CASES)(
+        "blocking $blocked does not block the other two (keys and status)",
+        async ({ blocked, gone, kept }) => {
+            const { db } = firm({ [blocked]: false });
+            await saveAll(db);
+
+            const keys = await getEffectiveApiKeys(USER, ORG, db);
+            const status = await getEffectiveApiKeyStatus(USER, ORG, db);
+            for (const provider of gone) {
+                expect(keys[provider]).toBeNull();
+                expect(status[provider]).toBe(false);
+                expect(status.sources[provider]).toBeNull();
+            }
+            for (const provider of kept) {
+                expect(keys[provider]).toBe(SAVED[provider]);
+                expect(status[provider]).toBe(true);
+                expect(status.sources[provider]).toBe("user");
+            }
+        },
+    );
+
+    it("keeps every personal key for personal work, whatever the firm decides", async () => {
+        const { db } = firm(false);
+        await saveAll(db);
+        await expect(getEffectiveApiKeys(USER, null, db)).resolves.toMatchObject(
+            SAVED,
+        );
+    });
+
+    it("never gives a managed account a personal key of any capability", async () => {
+        const { db } = firm(true);
+        await saveAll(db);
+        managed.value = true;
+
+        const keys = await getEffectiveApiKeys(USER, ORG, db);
+        const status = await getEffectiveApiKeyStatus(USER, ORG, db);
+        for (const provider of Object.keys(SAVED) as (keyof typeof SAVED)[]) {
+            expect(keys[provider]).toBeNull();
+            expect(status[provider]).toBe(false);
+        }
+    });
+
+    it("lets the firm's own key stand even where the capability is blocked", async () => {
+        const { db } = firm({ web_search: false });
+        await saveAll(db);
+        await saveApiKeyFor(orgKeyOwner(ORG), "brave", "org-brave", db);
+        await expect(getEffectiveApiKeys(USER, ORG, db)).resolves.toMatchObject({
+            brave: "org-brave",
+            claude: "my-claude",
+        });
+    });
+});
+
+// The firm's search keys (Brave, Tavily, DeepSeek) are saved like its model
+// keys, and the search of the firm's workspace runs on them.
+describe("the firm's web-search keys", () => {
+    it.each(["brave", "tavily", "deepseek"] as const)(
+        "%s: saved for the firm, used by a member who has none, over their own",
+        async (backend) => {
+            const { db, tables } = firm(true);
+            await saveApiKeyFor(userKeyOwner(USER), backend, "my-search", db);
+            await saveApiKeyFor(orgKeyOwner(ORG), backend, "org-search", db, {}, USER);
+            expect(tables.org_api_keys[0]).toMatchObject({ provider: backend });
+
+            const keys = await getEffectiveApiKeys(USER, ORG, db);
+            expect(keys[backend]).toBe("org-search");
+            const settings = {
+                ...DEFAULT_WEB_SEARCH_SETTINGS,
+                enabled: true,
+                other: backend,
+            };
+            const plan = webSearchPlanFor(settings, "gemini-3.1-pro-preview", keys);
+            expect(plan).toBe(backend);
+            expect(webSearchAccountFor(plan, keys)).toEqual({
+                backend,
+                apiKey: "org-search",
+            });
+        },
+    );
+
+    it("is used even when members may not bring their own search keys", async () => {
+        const { db } = firm({ web_search: false });
+        await saveApiKeyFor(userKeyOwner(USER), "tavily", "my-search", db);
+        await saveApiKeyFor(orgKeyOwner(ORG), "tavily", "org-search", db);
+        const keys = await getEffectiveApiKeys(USER, ORG, db);
+        expect(keys.tavily).toBe("org-search");
     });
 });
 

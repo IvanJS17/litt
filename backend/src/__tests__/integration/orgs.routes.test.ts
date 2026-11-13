@@ -430,7 +430,7 @@ describe("a personal organization", () => {
         ["delete", "/orgs/mine/invitations/inv-1", undefined],
         ["post", "/orgs/mine/invitations/inv-1/resend", undefined],
         ["get", "/orgs/mine/api-keys", undefined],
-        ["put", "/orgs/mine/api-keys/policy", { allow_personal: false }],
+        ["put", "/orgs/mine/api-keys/policy", { capability: "ai", allowed: false }],
         ["put", "/orgs/mine/api-keys/openrouter/models", { models: [] }],
         ["put", "/orgs/mine/api-keys/openai", { api_key: "sk-test" }],
         ["patch", "/orgs/mine/api-keys/openai", { enabled: false }],
@@ -1466,7 +1466,11 @@ describe("organization provider keys", () => {
             savedEnv[name] = process.env[name];
             delete process.env[name];
         }
-        tables.organizations[0].allow_personal_api_keys = true;
+        Object.assign(tables.organizations[0], {
+            allow_personal_ai_keys: true,
+            allow_personal_web_search_keys: true,
+            allow_personal_scan_keys: true,
+        });
         tables.org_api_keys = [];
         tables.user_api_keys = [];
         tables.org_router_models = [];
@@ -1493,7 +1497,7 @@ describe("organization provider keys", () => {
         expect(res.body).toMatchObject({
             keys: { openai: true, sources: { openai: "org" } },
             effective: { openai: true, sources: { openai: "org" } },
-            allow_personal_api_keys: true,
+            allow_personal_keys: { ai: true, web_search: true, scan: true },
             can_manage: true,
         });
         expect(JSON.stringify(res.body)).not.toContain(SECRET);
@@ -1533,11 +1537,11 @@ describe("organization provider keys", () => {
                 await request(app)
                     .put("/orgs/org-1/api-keys/policy")
                     .set(...AUTH)
-                    .send({ allow_personal_api_keys: false })
+                    .send({ capability: "ai", allowed: false })
             ).status,
         ).toBe(403);
         expect(tables.org_api_keys).toEqual([]);
-        expect(tables.organizations[0].allow_personal_api_keys).toBe(true);
+        expect(tables.organizations[0].allow_personal_ai_keys).toBe(true);
         expect(tables.audit_events).toEqual([]);
     });
 
@@ -1630,24 +1634,139 @@ describe("organization provider keys", () => {
                 await request(app)
                     .put("/orgs/org-1/api-keys/policy")
                     .set(...AUTH)
-                    .send({ allow_personal_api_keys: "no" })
+                    .send({ capability: "ai", allowed: "no" })
             ).status,
         ).toBe(400);
+        for (const capability of [undefined, "everything", "brave"])
+            expect(
+                (
+                    await request(app)
+                        .put("/orgs/org-1/api-keys/policy")
+                        .set(...AUTH)
+                        .send({ capability, allowed: false })
+                ).status,
+            ).toBe(400);
+        expect(tables.audit_events).toEqual([]);
     });
 
     it("reads \"policy\" as the setting, not as a provider", async () => {
         const res = await request(app)
             .put("/orgs/org-1/api-keys/policy")
             .set(...AUTH)
-            .send({ allow_personal_api_keys: false });
+            .send({ capability: "ai", allowed: false });
 
         expect(res.status).toBe(200);
-        expect(res.body.allow_personal_api_keys).toBe(false);
-        expect(tables.organizations[0].allow_personal_api_keys).toBe(false);
+        expect(res.body.allow_personal_keys).toEqual({
+            ai: false,
+            web_search: true,
+            scan: true,
+        });
+        expect(tables.organizations[0].allow_personal_ai_keys).toBe(false);
         expect(tables.audit_events).toEqual([
-            expect.objectContaining({ action: "org.personal_api_keys.blocked" }),
+            expect.objectContaining({
+                action: "org.personal_api_keys.policy_changed",
+                detail: expect.objectContaining({
+                    capability: "ai",
+                    allowed: false,
+                }),
+            }),
         ]);
     });
+
+    it("changes one capability at a time and audits each with its capability", async () => {
+        const put = (capability: string, allowed: boolean) =>
+            request(app)
+                .put("/orgs/org-1/api-keys/policy")
+                .set(...AUTH)
+                .send({ capability, allowed });
+
+        expect((await put("web_search", false)).body.allow_personal_keys).toEqual({
+            ai: true,
+            web_search: false,
+            scan: true,
+        });
+        expect((await put("scan", false)).body.allow_personal_keys).toEqual({
+            ai: true,
+            web_search: false,
+            scan: false,
+        });
+        expect((await put("web_search", true)).body.allow_personal_keys).toEqual({
+            ai: true,
+            web_search: true,
+            scan: false,
+        });
+        expect(
+            tables.audit_events.map((event) => [
+                event.action,
+                (event.detail as Record<string, unknown>).capability,
+                (event.detail as Record<string, unknown>).allowed,
+            ]),
+        ).toEqual([
+            ["org.personal_api_keys.policy_changed", "web_search", false],
+            ["org.personal_api_keys.policy_changed", "scan", false],
+            ["org.personal_api_keys.policy_changed", "web_search", true],
+        ]);
+    });
+
+    it("blocking one capability leaves a member's other personal keys in play", async () => {
+        for (const provider of ["mistral", "brave", "landingai"])
+            tables.user_api_keys.push({
+                user_id: "member-1",
+                provider,
+                enabled: true,
+                settings: {},
+            });
+        const effective = async () => {
+            as("member-1", "member@firm.example");
+            const res = await request(app)
+                .get("/orgs/org-1/api-keys")
+                .set(...AUTH);
+            as("owner-1", "owner@firm.example");
+            return res.body.effective;
+        };
+        const block = (capability: string) =>
+            request(app)
+                .put("/orgs/org-1/api-keys/policy")
+                .set(...AUTH)
+                .send({ capability, allowed: false });
+
+        await block("web_search");
+        expect(await effective()).toMatchObject({
+            mistral: true,
+            brave: false,
+            landingai: true,
+        });
+        await block("scan");
+        expect(await effective()).toMatchObject({
+            mistral: true,
+            brave: false,
+            landingai: false,
+        });
+        await block("ai");
+        expect(await effective()).toMatchObject({
+            mistral: false,
+            brave: false,
+            landingai: false,
+        });
+    });
+
+    it.each(["brave", "tavily", "deepseek"])(
+        "accepts the organization's own %s search key and reports it as the firm's",
+        async (provider) => {
+            const res = await saveKey(provider);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toMatchObject({
+                keys: { [provider]: true, sources: { [provider]: "org" } },
+                effective: { [provider]: true, sources: { [provider]: "org" } },
+            });
+            expect(tables.org_api_keys[0]).toMatchObject({
+                org_id: "org-1",
+                provider,
+            });
+            expect(JSON.stringify(res.body)).not.toContain(SECRET);
+        },
+    );
 
     it("takes a member's own key out of play once personal keys are blocked", async () => {
         // The member has saved a key of their own for a provider the
@@ -1675,7 +1794,7 @@ describe("organization provider keys", () => {
         await request(app)
             .put("/orgs/org-1/api-keys/policy")
             .set(...AUTH)
-            .send({ allow_personal_api_keys: false });
+            .send({ capability: "ai", allowed: false });
 
         expect(await asMember()).toMatchObject({
             mistral: false,

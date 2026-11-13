@@ -17,8 +17,17 @@ export {
     envApiKeys,
     isSettingsApiKeyProvider,
     loadOrgKeyScope,
+    policyFromRow,
     normalizeProviderSettings,
 } from "./store";
+export {
+    KEY_CAPABILITIES,
+    POLICY_COLUMN,
+    capabilityOfProvider,
+    isKeyCapability,
+    personalKeyAllowed,
+} from "./capability";
+export type { KeyCapability, PersonalKeyPolicy } from "./capability";
 export type { ApiKeyProvider, ApiKeyStatus, ApiKeyOwner } from "./types";
 export type { EncryptedKeyRow } from "./store";
 export { saveApiKeyForOwner, REENTER_KEY_FOR_ENDPOINT } from "./settings";

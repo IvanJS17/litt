@@ -11,7 +11,7 @@ reading ([`document-ocr.md`](document-ocr.md)): the person's or the firm's own.
 
 1. **«Separar expediente»** appears in the document panel of a PDF only when a
    LandingAI key is available in that context (the firm's first; the member's own
-   only if `allow_personal_api_keys` allows it, the same `resolveScanKey` as layer 6)
+   only if `allow_personal_scan_keys` allows it, the same `resolveScanKey` as layer 6)
    and the person can edit the document. A document held for training answers 409
    `training_approval_required`.
 2. The dialog first shows the notice (`documents.split.notice` and

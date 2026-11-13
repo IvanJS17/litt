@@ -124,7 +124,7 @@ describe("pinChatRoute", () => {
     it("never resolves an organization's key implicitly", async () => {
         const { db } = fakeDb({
             org_members: [{ org_id: "o1", user_id: "u1" }],
-            organizations: [{ id: "o1", allow_personal_api_keys: false }],
+            organizations: [{ id: "o1", allow_personal_ai_keys: false }],
             org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm")],
         });
         const result = await pinChatRoute(db, {
@@ -142,7 +142,7 @@ describe("pinChatRoute", () => {
     it("uses an organization's key when it is chosen explicitly", async () => {
         const { db } = fakeDb({
             org_members: [{ org_id: "o1", user_id: "u1" }],
-            organizations: [{ id: "o1", allow_personal_api_keys: true }],
+            organizations: [{ id: "o1", allow_personal_ai_keys: true }],
             org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm", 2)],
         });
         const result = await pinChatRoute(db, {
@@ -254,7 +254,7 @@ describe("loadPinnedChatRoute", () => {
         const orgRoute = { ...route, credentialRef: "org:o1:claude:v1" };
         const { db } = fakeDb({
             org_members: [],
-            organizations: [{ id: "o1", allow_personal_api_keys: true }],
+            organizations: [{ id: "o1", allow_personal_ai_keys: true }],
             org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm")],
         });
         await expect(
@@ -388,7 +388,7 @@ describe("listChatCredentialOptions", () => {
         vi.stubEnv("ANTHROPIC_API_KEY", "sk-deploy");
         const { db } = fakeDb({
             org_members: [{ org_id: "o1", user_id: "u1" }],
-            organizations: [{ id: "o1", allow_personal_api_keys: true }],
+            organizations: [{ id: "o1", allow_personal_ai_keys: true }],
             user_api_keys: [await keyRow({ kind: "user", id: "u1" }, "claude", "sk-own", 2)],
             org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm", 5)],
         });
@@ -414,7 +414,7 @@ describe("listChatCredentialOptions", () => {
         vi.stubEnv("ANTHROPIC_API_KEY", "sk-deploy");
         const { db } = fakeDb({
             org_members: [{ org_id: "o1", user_id: "u1" }],
-            organizations: [{ id: "o1", allow_personal_api_keys: false }],
+            organizations: [{ id: "o1", allow_personal_ai_keys: false }],
             user_api_keys: [await keyRow({ kind: "user", id: "u1" }, "claude", "sk-own")],
             org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm")],
         });
@@ -436,7 +436,7 @@ describe("listChatCredentialOptions", () => {
         vi.stubEnv("ANTHROPIC_API_KEY", "");
         const { db } = fakeDb({
             org_members: [{ org_id: "o1", user_id: "u1" }],
-            organizations: [{ id: "o1", allow_personal_api_keys: false }],
+            organizations: [{ id: "o1", allow_personal_ai_keys: false }],
         });
         const listed = await listChatCredentialOptions(db, {
             userId: "u1",
@@ -449,7 +449,7 @@ describe("listChatCredentialOptions", () => {
 
     it("offers a firm's key only to its members", async () => {
         const { db } = fakeDb({
-            organizations: [{ id: "o1", allow_personal_api_keys: true }],
+            organizations: [{ id: "o1", allow_personal_ai_keys: true }],
             org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm")],
         });
         const listed = await listChatCredentialOptions(db, {

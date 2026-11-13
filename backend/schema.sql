@@ -425,9 +425,13 @@ create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   created_by uuid references auth.users(id) on delete set null,
-  -- Whether work in this organization may run on a member's own provider
-  -- key when the organization has none for that provider (org_api_keys).
-  allow_personal_api_keys boolean not null default true,
+  -- Whether work in this organization may run on a member's own key when the
+  -- organization has none for that provider (org_api_keys), decided per
+  -- capability: AI models, web search (Brave, Tavily, DeepSeek) and scan
+  -- reading (LandingAI).
+  allow_personal_ai_keys boolean not null default true,
+  allow_personal_web_search_keys boolean not null default true,
+  allow_personal_scan_keys boolean not null default true,
   -- LiTT managed accounts (docs/managed-accounts.md): when on, the accounts
   -- this organization invited and that were created by that invitation have
   -- no personal space (user_profiles.created_by_org_id). Backend-only.
@@ -719,10 +723,11 @@ alter table public.user_api_keys enable row level security;
 -- are user_api_keys' exactly, so one store reads and writes both
 -- (modules/user/user.apiKeyStore.ts).
 --
--- organizations.allow_personal_api_keys decides what happens for a provider
--- the organization has no key for: when true (the default, and the behaviour
--- before this table existed) a member's own key is used; when false, work in
--- the organization never runs on a member's personal key.
+-- organizations.allow_personal_{ai,web_search,scan}_keys decide, per kind of
+-- key, what happens for a provider the organization has no key for: when true
+-- (the default, and the behaviour before this table existed) a member's own
+-- key is used; when false, that kind of work in the organization never runs
+-- on a member's personal key.
 create table if not exists public.org_api_keys (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations(id) on delete cascade,
@@ -20695,5 +20700,6 @@ insert into public.schema_migrations (filename) values
   ('20261112_50_litt_ocr_keep_reading.sql'),
   ('20261112_60_litt_split_expediente.sql'),
   ('20261113_10_litt_managed_accounts.sql'),
-  ('20261113_30_litt_firm_profile.sql')
+  ('20261113_30_litt_firm_profile.sql'),
+  ('20261113_40_litt_key_policy_by_capability.sql')
 on conflict (filename) do nothing;

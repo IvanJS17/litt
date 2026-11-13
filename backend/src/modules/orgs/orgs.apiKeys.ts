@@ -22,11 +22,16 @@ import type { Db } from "../../lib/supabase";
 import {
     getApiKeyStatusFor,
     getEffectiveApiKeyStatus,
+    isKeyCapability,
     orgKeyOwner,
+    policyFromRow,
+    POLICY_COLUMN,
     saveApiKeyForOwner,
     setApiKeyEnabledFor,
     type ApiKeyProvider,
     type ApiKeyStatus,
+    type KeyCapability,
+    type PersonalKeyPolicy,
 } from "../../lib/providerCredentials/index";
 import { normalizeRouterModels } from "../../lib/routerModelValidation";
 
@@ -50,11 +55,12 @@ export type OrgApiKeySettings = {
      */
     effective_router_models: RouterModelSelections;
     /**
-     * Whether a member's own key is used for a provider the organization has
-     * no key for. When false, work in the organization never runs on a
-     * personal key.
+     * Per capability (AI models, web search, scan reading): whether a
+     * member's own key is used for a provider the organization has no key
+     * for. When false, that kind of work in the organization never runs on a
+     * personal key; the other two are not affected.
      */
-    allow_personal_api_keys: boolean;
+    allow_personal_keys: PersonalKeyPolicy;
     /** Whether the caller may change any of this. */
     can_manage: boolean;
 };
@@ -67,7 +73,7 @@ async function readSettings(
 ): Promise<OrgResult<{ settings: OrgApiKeySettings }>> {
     const { data, error } = await db
         .from("organizations")
-        .select("allow_personal_api_keys")
+        .select(Object.values(POLICY_COLUMN).join(", "))
         .eq("id", orgId)
         .maybeSingle();
     if (error) return { ok: false, kind: "db_error", detail: error.message };
@@ -87,9 +93,7 @@ async function readSettings(
                 effective,
                 router_models: routerModels,
                 effective_router_models: effectiveRouterModels,
-                allow_personal_api_keys:
-                    (data as { allow_personal_api_keys?: boolean })
-                        .allow_personal_api_keys !== false,
+                allow_personal_keys: policyFromRow(data),
                 can_manage: canManage,
             },
         };
@@ -286,9 +290,10 @@ export async function saveOrgRouterModels(
 }
 
 /**
- * Decide whether members' own keys may be used for work in the
- * organization. Turning it off is how a firm makes sure its matters only
- * ever run on accounts it holds.
+ * Decide, for one capability (AI models, web search or scan reading),
+ * whether members' own keys may be used for work in the organization.
+ * Turning one off is how a firm makes sure that kind of work only ever runs
+ * on accounts it holds. One audit event per change, with the capability.
  */
 export async function setOrgPersonalApiKeysAllowed(
     db: Db,
@@ -296,23 +301,31 @@ export async function setOrgPersonalApiKeysAllowed(
         actorId: string;
         actorEmail?: string | null;
         orgId: string;
+        capability: unknown;
         allowed: unknown;
     },
 ): Promise<OrgResult<{ settings: OrgApiKeySettings }>> {
     const role = await getOrgRole(params.actorId, params.orgId, db);
     if (!role) return { ok: false, kind: "not_found" };
     if (!isOrgAdmin(role)) return { ok: false, kind: "forbidden" };
+    if (!isKeyCapability(params.capability))
+        return {
+            ok: false,
+            kind: "validation",
+            detail: "capability must be ai, web_search or scan",
+        };
     if (typeof params.allowed !== "boolean")
         return {
             ok: false,
             kind: "validation",
-            detail: "allow_personal_api_keys must be true or false",
+            detail: "allowed must be true or false",
         };
+    const capability: KeyCapability = params.capability;
 
     const { data, error } = await db
         .from("organizations")
         .update({
-            allow_personal_api_keys: params.allowed,
+            [POLICY_COLUMN[capability]]: params.allowed,
             updated_at: new Date().toISOString(),
         })
         .eq("id", params.orgId)
@@ -323,10 +336,12 @@ export async function setOrgPersonalApiKeysAllowed(
     await recordAudit(db, {
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,
-        action: params.allowed
-            ? "org.personal_api_keys.allowed"
-            : "org.personal_api_keys.blocked",
-        detail: { org_id: params.orgId },
+        action: "org.personal_api_keys.policy_changed",
+        detail: {
+            org_id: params.orgId,
+            capability,
+            allowed: params.allowed,
+        },
     });
     return readSettings(db, params.orgId, params.actorId, true);
 }
