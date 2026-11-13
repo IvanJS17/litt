@@ -35,6 +35,23 @@ describe("ManagedAccountBanner", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("keeps the legal wording whole and lets a phone expand a clamped strip", async () => {
+    render(<ManagedAccountBanner />);
+    const text = screen.getByText(/now manages your account: you can only use/);
+    expect(text).toHaveClass("line-clamp-2");
+    await userEvent.click(screen.getByRole("button", { name: "See more" }));
+    expect(text).not.toHaveClass("line-clamp-2");
+    expect(screen.getByRole("button", { name: "See less" })).toHaveAttribute("aria-expanded", "true");
+    // The wording is the one the catalog holds, not a shortened copy.
+    expect(text).toHaveTextContent("you can download it in Settings.");
+  });
+
+  it("uses the paper surface, not the amber of Tailwind", () => {
+    render(<ManagedAccountBanner />);
+    expect(screen.getByRole("status").className).toContain("bg-app-surface");
+    expect(screen.getByRole("status").className).not.toMatch(/amber/);
+  });
+
   it("closes even when the server could not be told", async () => {
     mocks.dismissManagedNotice.mockRejectedValue(new Error("offline"));
     render(<ManagedAccountBanner />);

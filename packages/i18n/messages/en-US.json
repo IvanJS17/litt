@@ -722,7 +722,9 @@
       "label": "Source code"
     },
     "switchedToName": "Switched to {name}",
-    "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace."
+    "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace.",
+    "seeMore": "See more",
+    "seeLess": "See less"
   },
   "documents": {
     "compare": {
