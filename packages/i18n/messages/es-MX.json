@@ -4270,7 +4270,6 @@
     "whatCanWeHelpYouWith": "¿En qué te podemos ayudar?"
   },
   "tabular": {
-    "emptyTitle": "Aún no tienes revisiones tabulares",
     "aNewerVersionIsAvailable": "Hay una versión más reciente disponible",
     "aResultArrivedThatLittCouldnt": "Llegó un resultado que LiTT no pudo mostrar. Recarga para verlo.",
     "access": "Acceso",
@@ -4337,6 +4336,8 @@
     "creator": "Creador",
     "delete": "Borrar",
     "deleteAllSelectedReviews": "¿Borrar todas las revisiones seleccionadas?",
+    "deleteColumnConfirmMessage": "Se quitará la columna «{name}» de esta revisión, junto con sus resultados.",
+    "deleteColumnConfirmTitle": "¿Eliminar la columna?",
     "deleteTabularReview": "¿Borrar revisión tabular?",
     "deleteTheColumn": "borrar la columna",
     "deleteThisChat": "borrar este chat",
@@ -4349,6 +4350,7 @@
     "editColumn": "Editar columna",
     "editDetails": "Editar detalles",
     "editTabularReviewDetails": "editar detalles de la revisión tabular",
+    "emptyTitle": "Aún no tienes revisiones tabulares",
     "expandDocumentPane": "Expandir panel de documentos",
     "export": "Exportar",
     "extractDataFromDocumentsInto": "Extrae datos de documentos a tablas con IA.",

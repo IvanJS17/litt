@@ -4270,7 +4270,6 @@
     "whatCanWeHelpYouWith": "What can we help you with?"
   },
   "tabular": {
-    "emptyTitle": "You have no tabular reviews yet",
     "aNewerVersionIsAvailable": "A newer version is available",
     "aResultArrivedThatLittCouldnt": "A result arrived that LiTT couldn't display. Reload to see it.",
     "access": "Access",
@@ -4337,6 +4336,8 @@
     "creator": "Creator",
     "delete": "Delete",
     "deleteAllSelectedReviews": "Delete all selected reviews?",
+    "deleteColumnConfirmMessage": "The column “{name}” will be removed from this review, along with its results.",
+    "deleteColumnConfirmTitle": "Delete this column?",
     "deleteTabularReview": "Delete tabular review?",
     "deleteTheColumn": "delete the column",
     "deleteThisChat": "delete this chat",
@@ -4349,6 +4350,7 @@
     "editColumn": "Edit Column",
     "editDetails": "Edit details",
     "editTabularReviewDetails": "edit tabular review details",
+    "emptyTitle": "You have no tabular reviews yet",
     "expandDocumentPane": "Expand document pane",
     "export": "Export",
     "extractDataFromDocumentsInto": "Extract data from documents into tables using AI.",
