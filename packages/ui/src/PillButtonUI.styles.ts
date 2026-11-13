@@ -24,8 +24,8 @@ const toneClasses: Record<PillButtonUITone, string> = {
 };
 
 const sizeClasses: Record<PillButtonUISize, string> = {
-    xs: "h-6 px-2.5 text-[11px] leading-none has-[svg]:pl-1.5 has-[img]:pl-1.5",
-    "icon-xs": "h-6 w-6 p-0 text-[11px] leading-none",
+    xs: "h-6 px-2.5 text-2xs leading-none has-[svg]:pl-1.5 has-[img]:pl-1.5",
+    "icon-xs": "h-6 w-6 p-0 text-2xs leading-none",
     sm: "h-7 px-3 text-xs leading-none has-[svg]:pl-2 has-[img]:pl-2",
     normal: "h-8 px-4 text-sm leading-none has-[svg]:pl-3 has-[img]:pl-3",
 };

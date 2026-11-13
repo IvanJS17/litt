@@ -1064,7 +1064,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 )}
                                 title={!expanded ? user.email : undefined}
                             >
-                                <UserAvatar photo={profile?.profilePhoto} name={profile?.displayName} email={user.email} className="h-5.5 w-5.5 text-[10px]" />
+                                <UserAvatar photo={profile?.profilePhoto} name={profile?.displayName} email={user.email} className="h-5.5 w-5.5 text-3xs" />
                                 {expanded && (
                                     <div
                                         className={`text-left flex-1 min-w-0 pl-2 flex items-center justify-between gap-2 ${

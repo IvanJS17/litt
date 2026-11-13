@@ -434,7 +434,7 @@ export function ModelToggleUI({
                           (routeCounts.get(
                             `${model.group}\u0000${model.label.toLocaleLowerCase()}`,
                           ) ?? 0) > 1) && (
-                          <span className="shrink-0 text-right text-[10px] font-medium text-gray-400">
+                          <span className="shrink-0 text-right text-3xs font-medium text-gray-400">
                             {routeLabel(t, model.source)}
                           </span>
                         )}
@@ -460,7 +460,7 @@ export function ModelToggleUI({
               <div>
                 <div className="mb-1.5 flex items-center gap-2 text-xs text-gray-700">
                   <span className="font-medium">{t("ui.modelToggle.reasoning")}</span>
-                  <span className="ml-auto text-[10px] text-gray-500">
+                  <span className="ml-auto text-3xs text-gray-500">
                     {t(REASONING_LEVEL_LABEL_KEYS[reasoningLevel])}
                   </span>
                 </div>

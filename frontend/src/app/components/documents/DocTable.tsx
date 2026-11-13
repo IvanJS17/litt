@@ -2928,7 +2928,7 @@ export function DocTable({
                                                                 {docName}
                                                             </span>
                                                             {isTrainingHeld(doc) && (
-                                                                <TrainingHeldNoteUI className="text-[11px]" />
+                                                                <TrainingHeldNoteUI className="text-2xs" />
                                                             )}
                                                         </span>
                                                     )}
@@ -4921,7 +4921,7 @@ export function DocTable({
                                                                                 {docName}
                                                                             </span>
                                                                             {isTrainingHeld(doc) && (
-                                                                                <TrainingHeldNoteUI className="text-[11px]" />
+                                                                                <TrainingHeldNoteUI className="text-2xs" />
                                                                             )}
                                                                         </span>
                                                                     )}

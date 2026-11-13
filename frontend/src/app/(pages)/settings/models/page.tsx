@@ -286,7 +286,7 @@ function ModelPreferenceDropdown({
                       (routeCounts.get(
                         `${m.group}\u0000${m.label.toLocaleLowerCase()}`,
                       ) ?? 0) > 1 && (
-                        <span className="text-[9px] font-medium text-gray-400">
+                        <span className="text-[0.5625rem] font-medium text-gray-400">
                           {m.source}
                         </span>
                       )}

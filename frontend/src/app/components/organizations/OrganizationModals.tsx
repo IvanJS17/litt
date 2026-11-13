@@ -445,7 +445,7 @@ export function InviteOrganizationMemberModal({
                         <p className="truncate text-xs text-gray-700">
                           {invitation.email}
                         </p>
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-3xs text-gray-400">
                           {orgRoleLabel(t, invitation.role)} ·{" "}
                           {invitation.status === "expired"
                             ? t("organizations.organizationModals.expired")

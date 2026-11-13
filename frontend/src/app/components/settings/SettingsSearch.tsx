@@ -230,7 +230,7 @@ export function SettingsSearch({
                                     {groups.length > 1 ? (
                                         <p
                                             aria-hidden
-                                            className="px-3 pb-0.5 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400"
+                                            className="px-3 pb-0.5 pt-1.5 text-2xs font-medium uppercase tracking-wide text-gray-400"
                                         >
                                             {t(GROUP_LABEL[group.kind])}
                                         </p>

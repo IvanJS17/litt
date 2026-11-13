@@ -154,7 +154,7 @@ function CellMarkdown({
                         if (content !== undefined) {
                             return (
                                 <span
-                                    className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${getPillClass(content, column)}`}
+                                    className={`inline-block rounded-full px-1.5 py-0.5 text-3xs font-medium leading-none ${getPillClass(content, column)}`}
                                 >
                                     {content}
                                 </span>
@@ -163,7 +163,7 @@ function CellMarkdown({
                     }
                     return (
                         <code
-                            className="bg-gray-100 px-1 py-0.5 rounded text-[11px] font-mono"
+                            className="bg-gray-100 px-1 py-0.5 rounded text-2xs font-mono"
                             {...props}
                         >
                             {children}

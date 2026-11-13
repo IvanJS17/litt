@@ -460,7 +460,7 @@ export function AskInputPopup({
                                                 onClick={() =>
                                                     setActiveInputId(item.id)
                                                 }
-                                                className="h-6 px-2 font-sans text-[10px]"
+                                                className="h-6 px-2 font-sans text-3xs"
                                             >
                                                 {isResolved ? (
                                                     <Check className="h-3 w-3" />
@@ -707,7 +707,7 @@ export function AskInputPopup({
                                                 !skipped.has(activeItem.id),
                                             )
                                         }
-                                        className="px-1 font-sans text-[10px] text-gray-500 transition-colors hover:text-gray-800"
+                                        className="px-1 font-sans text-3xs text-gray-500 transition-colors hover:text-gray-800"
                                     >
                                         {skipped.has(activeItem.id)
                                             ? t("assistant.askInputPopup.unskip")
@@ -805,7 +805,7 @@ function OpenTextInput({
             />
             <p
                 id={`answer-${item.id}-limit`}
-                className="mt-1 text-right font-sans text-[10px] text-gray-400"
+                className="mt-1 text-right font-sans text-3xs text-gray-400"
             >
                 {value.length.toLocaleString()} /{" "}
                 {OPEN_TEXT_MAX_LENGTH.toLocaleString()}
@@ -906,7 +906,7 @@ function OptionInput({
                                     placeholder={t("assistant.askInputPopup.typeYourAnswer")}
                                     className="flex-1 resize-none overflow-hidden bg-transparent text-sm leading-5 text-gray-600 outline-none placeholder:text-gray-400"
                                 />
-                                <span id={`other-${item.id}-limit`} className="mt-0.5 shrink-0 font-sans text-[10px] text-gray-400">
+                                <span id={`other-${item.id}-limit`} className="mt-0.5 shrink-0 font-sans text-3xs text-gray-400">
                                     {otherValue.length.toLocaleString()} / {MAX_CHOICE_LENGTH.toLocaleString()}
                                 </span>
                             </span>
@@ -1025,7 +1025,7 @@ function DocumentInput({
                                     </span>
                                 )}
                             </span>
-                            <span className="mt-0.5 shrink-0 whitespace-nowrap font-sans text-[10px] text-gray-500">
+                            <span className="mt-0.5 shrink-0 whitespace-nowrap font-sans text-3xs text-gray-500">
                                 {docs.length > 0
                                     ? t("assistant.askInputPopup.lengthFilesAdded", { length: docs.length })
                                     : t("assistant.askInputPopup.add")}
