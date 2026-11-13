@@ -24,6 +24,7 @@ import {
     PERSONAL_WORKSPACE,
     PERSONAL_WORKSPACE_LABEL,
     useWorkspace,
+    workspaceChoices,
 } from "@/app/contexts/WorkspaceContext";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -71,6 +72,10 @@ import { usePlaybookRunHistoryStatuses } from "@/app/hooks/usePlaybookRunHistory
 import { useViewedPlaybookRun } from "@/app/lib/playbookRunActivity";
 import { SidebarPlaybookRunItem } from "@/app/components/shared/SidebarPlaybookRunItem";
 import { notifyWorkspaceSwitched } from "@/app/hooks/useItemWorkspace";
+import {
+    WorkspaceBadge,
+    workspaceChoiceLabel,
+} from "@/app/components/shared/WorkspaceBadge";
 import {
     LIQUID_GLASS_FLOAT_CLASS,
     LIQUID_GLASS_SELECTED_CLASS,
@@ -262,13 +267,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     // menu stays exactly as it was.
     const workspaceOptions =
         workspaceId && organizations && organizations.length > 0
-            ? [
-                  { id: PERSONAL_WORKSPACE, name: PERSONAL_WORKSPACE_LABEL },
-                  ...organizations.map((org) => ({
-                      id: org.id,
-                      name: org.name,
-                  })),
-              ]
+? workspaceChoices(organizations)
             : null;
     // The sidebar is headed by whose work it is showing: the organization's
     // name in its workspace, and plain "LiTT" for personal work. `null` while
@@ -592,6 +591,14 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         )}
                     </button>
                 </div>
+
+                {/* Whose work is on screen, in words, whatever the heading
+                    above says. */}
+                {isOpen && (
+                    <div className="px-2.5 pb-1">
+                        <WorkspaceBadge />
+                    </div>
+                )}
 
                 {/* Everything between the header and the account button
                     scrolls as one when the window is short, so the sidebar
@@ -1039,7 +1046,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                                   className="min-h-8 gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-gray-700"
                                               >
                                                   <span className="min-w-0 flex-1 whitespace-normal break-words">
-                                                      {option.name}
+                                                      {workspaceChoiceLabel(t, option)}
                                                   </span>
                                                   {option.id === workspaceId ? (
                                                       <Check

@@ -31,6 +31,23 @@ export const PERSONAL_WORKSPACE_LABEL = "Personal";
 
 const STORAGE_PREFIX = "mike.activeWorkspace.";
 
+export interface WorkspaceChoice {
+    id: string;
+    name: string;
+}
+
+/**
+ * The workspaces the person may switch between, Personal first. The single
+ * place that decides which workspaces are offered: an account whose personal
+ * space is removed (firm-managed accounts) drops the Personal entry here.
+ */
+export function workspaceChoices(organizations: Org[]): WorkspaceChoice[] {
+    return [
+        { id: PERSONAL_WORKSPACE, name: PERSONAL_WORKSPACE_LABEL },
+        ...organizations.map((org) => ({ id: org.id, name: org.name })),
+    ];
+}
+
 interface WorkspaceContextValue {
     /** Account that owns ephemeral state in this workspace. */
     accountId?: string;

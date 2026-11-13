@@ -3560,6 +3560,7 @@
     "appSidebar": {
       "accountMenu": "Account menu",
       "closeSidebar": "Close sidebar",
+      "firmWorkspace": "Firm: {name}",
       "history": "History",
       "loadMoreProjects": "load more projects",
       "loadYourRecentProjects": "load your recent projects",
@@ -3575,6 +3576,7 @@
       "noProjectsYet": "No projects yet",
       "openSidebar": "Open sidebar",
       "organization": "Organization",
+      "personalWorkspace": "My personal workspace",
       "recentProjects": "Recent Projects",
       "settings": "Settings",
       "signOut": "Sign out",

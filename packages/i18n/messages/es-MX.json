@@ -3560,6 +3560,7 @@
     "appSidebar": {
       "accountMenu": "Menú de la cuenta",
       "closeSidebar": "Cerrar barra lateral",
+      "firmWorkspace": "Despacho: {name}",
       "history": "Historial",
       "loadMoreProjects": "cargar más proyectos",
       "loadYourRecentProjects": "cargar tus proyectos recientes",
@@ -3575,6 +3576,7 @@
       "noProjectsYet": "Aún no hay proyectos",
       "openSidebar": "Abrir barra lateral",
       "organization": "Organización",
+      "personalWorkspace": "Mi espacio personal",
       "recentProjects": "Proyectos recientes",
       "settings": "Ajustes",
       "signOut": "Cerrar sesión",
