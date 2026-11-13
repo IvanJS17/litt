@@ -200,8 +200,14 @@ services:
   # so the two allowlists cannot disagree. Keep these three blocks in step
   # with the backend service (backend/src/__tests__/storageCors.test.ts).
   storage-cors:
-    build: *backend-build
-    image: *backend-image
+    # Same image as the backend service below (declared after this one, so the
+    # block is repeated instead of aliased).
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+    image: mike-backend:local
     env_file:
       - path: ./backend/.env
         required: false

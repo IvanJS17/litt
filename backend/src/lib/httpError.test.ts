@@ -107,6 +107,7 @@ describe("sendInternalError", () => {
     expect(res.body).toEqual({
       code: "internal_error",
       detail: "Something went wrong. Please try again.",
+      reporting_owner: "backend",
       request_id: "req-abc",
     });
   });
