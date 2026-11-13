@@ -113,3 +113,18 @@ export function workspaceRpcArg(
 ): { p_workspace?: string } {
     return workspace ? { p_workspace: workspace } : {};
 }
+
+/**
+ * The organization a single-workspace route acts in: the named one, or null
+ * for Personal. Personal is also what an absent `?workspace=` means there, so
+ * it is refused here to an account its firm manages, as `?workspace=personal`
+ * is (lib/managedAccounts.ts).
+ */
+export function organizationOrPersonal(
+    workspace: WorkspaceFilter,
+    userId: string,
+): string | null {
+    if (workspace && workspace !== PERSONAL_WORKSPACE) return workspace;
+    assertPersonalWorkspaceAllowed(userId);
+    return null;
+}

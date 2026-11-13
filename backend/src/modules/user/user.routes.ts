@@ -48,6 +48,7 @@ import { isWebSearchBackend } from "../../lib/webSearch";
 import type { ConnectorOwner } from "../../lib/connectorOwner";
 import {
     PERSONAL_WORKSPACE,
+    organizationOrPersonal,
     resolveWorkspaceFilter,
     sendWorkspaceFailure,
 } from "../../lib/workspace";
@@ -137,10 +138,7 @@ async function connectorOwner(
     }
     return {
         userId,
-        orgId:
-            resolved.workspace && resolved.workspace !== PERSONAL_WORKSPACE
-                ? resolved.workspace
-                : null,
+        orgId: organizationOrPersonal(resolved.workspace, userId),
     };
 }
 

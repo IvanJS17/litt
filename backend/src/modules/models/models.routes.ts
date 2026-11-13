@@ -12,7 +12,7 @@ import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { sendInternalError } from "../../lib/httpError";
 import {
-    PERSONAL_WORKSPACE,
+    organizationOrPersonal,
     resolveWorkspaceFilter,
     sendWorkspaceFailure,
 } from "../../lib/workspace";
@@ -69,10 +69,7 @@ async function sendCatalog(
             req.query.workspace,
         );
         if (!workspace.ok) return void sendWorkspaceFailure(res, workspace);
-        const orgId =
-            workspace.workspace && workspace.workspace !== PERSONAL_WORKSPACE
-                ? workspace.workspace
-                : null;
+        const orgId = organizationOrPersonal(workspace.workspace, userId);
         const result = await lookup(db, userId, orgId);
         if (!result.ok) return void sendCatalogFailure(res, result);
         res.json({ models: result.models });

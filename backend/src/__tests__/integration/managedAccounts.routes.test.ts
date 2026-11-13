@@ -81,6 +81,16 @@ describe("a managed account", () => {
         expect(res.body.code).toBe("personal_workspace_disabled");
     });
 
+    it.each([
+        "/user/memory",
+        "/user/mcp-connectors",
+        "/models/openrouter",
+    ])("answers 403 on %s without ?workspace=, where it would default to Personal", async (path) => {
+        const res = await request(app).get(path).set(...AUTH);
+        expect(res.status).toBe(403);
+        expect(res.body.code).toBe("personal_workspace_disabled");
+    });
+
     it("is refused saving a personal key, even where the firm lets members bring their own", async () => {
         h.state!.tables.organizations[0].allow_personal_api_keys = true;
         const res = await request(app)

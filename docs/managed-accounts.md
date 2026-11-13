@@ -54,6 +54,7 @@ The seams that open or file personal content then answer
 
 | Seam | Covers |
 |---|---|
+| `organizationOrPersonal` (`lib/workspace.ts`) | `/user/memory`, `/user/mcp-connectors` and the `/models/*` catalogs, where no `?workspace=` means Personal: refused as `?workspace=personal` is |
 | `resolveWorkspaceFilter` (`lib/workspace.ts`), `?workspace=personal` | list/overview routes of projects, chats, tabular reviews, workflows, library, memory, models, quick actions, playbooks |
 | `resolveStandaloneOrgId`, `resolveContentOrgId` (`lib/access.ts`) | creating a chat, tabular review, upload or copy with no organization; filing under a personal project; moving or copying firm content to personal |
 | `checkProjectAccess`, `checkWorkflowAccess`, `ensureDocAccess`, `ensureReviewAccess`, `ensureChatAccess` (and the batch checkers) | opening any personal project, document, review, chat, workflow (also through `/projects/:id/...`, `/documents/...`, `/tabular-review/...`, `/chat/...` routes) |
