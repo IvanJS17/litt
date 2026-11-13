@@ -113,3 +113,77 @@ describe("NoticeCardUI", () => {
         }
     });
 });
+
+describe("NoticeCardUI swipe to dismiss", () => {
+    const touch = (target: Element, type: string, x: number, y = 0) =>
+        fireEvent(
+            target,
+            Object.assign(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y }), {
+                pointerType: "touch",
+                pointerId: 1,
+            }),
+        );
+
+    const setup = () => {
+        const onDismiss = vi.fn();
+        render(<NoticeCardUI role="alert" title="Hi" onDismiss={onDismiss} />);
+        const card = screen.getByRole("alert");
+        card.setPointerCapture = vi.fn();
+        return { card, onDismiss };
+    };
+
+    it("is a vertical-pan card that fades in", () => {
+        const { card } = setup();
+        expect(card).toHaveClass("notice-card", "touch-pan-y");
+    });
+
+    it("dismisses with a long sideways swipe of a finger, after the card has left", () => {
+        vi.useFakeTimers();
+        const { card, onDismiss } = setup();
+        touch(card, "pointerdown", 200);
+        touch(card, "pointermove", 120);
+        expect(card.style.transform).toBe("translateX(-80px)");
+        touch(card, "pointermove", 60);
+        touch(card, "pointerup", 60);
+        expect(card.style.transform).toBe("translateX(-110%)");
+        expect(onDismiss).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(150);
+        expect(onDismiss).toHaveBeenCalledOnce();
+        vi.useRealTimers();
+    });
+
+    it("springs back from a short swipe and ignores a mouse", () => {
+        vi.useFakeTimers();
+        const { card, onDismiss } = setup();
+        touch(card, "pointerdown", 200);
+        touch(card, "pointermove", 185);
+        touch(card, "pointerup", 185);
+        vi.advanceTimersByTime(1000);
+        expect(card.style.transform).toBe("");
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        fireEvent(
+            card,
+            Object.assign(new MouseEvent("pointerdown", { bubbles: true, clientX: 200 }), {
+                pointerType: "mouse",
+                pointerId: 2,
+            }),
+        );
+        fireEvent(
+            card,
+            Object.assign(new MouseEvent("pointermove", { bubbles: true, clientX: 0 }), {
+                pointerType: "mouse",
+                pointerId: 2,
+            }),
+        );
+        expect(card.style.transform).toBe("");
+        vi.useRealTimers();
+    });
+
+    it("leaves a mostly vertical drag to the page", () => {
+        const { card } = setup();
+        touch(card, "pointerdown", 200, 0);
+        touch(card, "pointermove", 215, 80);
+        expect(card.style.transform).toBe("");
+    });
+});

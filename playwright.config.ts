@@ -12,6 +12,7 @@ const SYNTHETIC_SPECS = [
     /lote2-acabado\.spec\.ts/,
     /tabular-chat-lifecycle\.spec\.ts/,
     /settings-search-latency\.spec\.ts/,
+    /lote2-mobile\.spec\.ts/,
 ];
 
 export default defineConfig({

@@ -724,6 +724,7 @@
     "or": "o",
     "retry": "Reintentar",
     "save": "Guardar",
+    "skipToContent": "Saltar al contenido",
     "sourceCode": {
       "description": "de esta versión (se abre en una pestaña nueva)",
       "label": "Código fuente"
@@ -3011,6 +3012,13 @@
       "blockedNoName": "Trabajas con las llaves de tu despacho. Tu despacho no permite agregar llaves propias."
     },
     "layout": {
+      "group": {
+        "account": "Cuenta",
+        "firm": "Despacho",
+        "keys": "Llaves",
+        "preferences": "Preferencias",
+        "privacy": "Privacidad"
+      },
       "pendingInvitations": "{invitationCount, plural, one {invitación pendiente} other {invitaciones pendientes}}",
       "settings": "Ajustes",
       "tab": {
@@ -3718,6 +3726,7 @@
       "loadingWorkspace": "Cargando espacio de trabajo",
       "navAssistant": "Asistente",
       "navIde": "IDE",
+      "navLabel": "Navegación principal",
       "navLibrary": "Biblioteca",
       "navPlaybooks": "Playbooks",
       "navProjects": "Proyectos",

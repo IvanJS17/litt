@@ -28,3 +28,18 @@ describe("root viewport", () => {
         expect(viewport).not.toHaveProperty("userScalable");
     });
 });
+
+describe("root metadata", () => {
+    it("says noindex on every page while the beta is closed", async () => {
+        const { generateMetadata } = await import("./layout");
+        const metadata = await generateMetadata();
+        expect(metadata.robots).toEqual({ index: false, follow: false });
+    });
+
+    it("makes LiTT an installable web app", async () => {
+        const { generateMetadata } = await import("./layout");
+        const metadata = await generateMetadata();
+        expect(metadata.appleWebApp).toMatchObject({ capable: true, title: "LiTT" });
+        expect(metadata.other).toMatchObject({ "apple-mobile-web-app-capable": "yes" });
+    });
+});

@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
 import type { resolveSourceCommit as ResolveSourceCommit } from "@mike/client";
+import { NOINDEX_DIRECTIVE, SEARCH_INDEXING_ALLOWED } from "./src/app/lib/searchIndexing";
 
 // The repository root: the parent of this directory, here and in the Docker
 // image (frontend/Dockerfile mirrors the layout at /app/frontend and
@@ -53,6 +54,17 @@ const nextConfig: NextConfig = {
             path.join(__dirname, "node_modules"),
         ];
         return config;
+    },
+    // Closed beta: every response, pages and files alike, asks search engines
+    // not to list it (src/app/lib/searchIndexing.ts).
+    async headers() {
+        if (SEARCH_INDEXING_ALLOWED) return [];
+        return [
+            {
+                source: "/:path*",
+                headers: [{ key: "X-Robots-Tag", value: NOINDEX_DIRECTIVE }],
+            },
+        ];
     },
     async redirects() {
         return [

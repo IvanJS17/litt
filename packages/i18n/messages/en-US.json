@@ -724,6 +724,7 @@
     "or": "or",
     "retry": "Retry",
     "save": "Save",
+    "skipToContent": "Skip to content",
     "sourceCode": {
       "description": "of this version (opens in a new tab)",
       "label": "Source code"
@@ -3011,6 +3012,13 @@
       "blockedNoName": "You work with your firm's keys. Your firm does not allow adding your own keys."
     },
     "layout": {
+      "group": {
+        "account": "Account",
+        "firm": "Firm",
+        "keys": "Keys",
+        "preferences": "Preferences",
+        "privacy": "Privacy"
+      },
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
       "settings": "Settings",
       "tab": {
@@ -3718,6 +3726,7 @@
       "loadingWorkspace": "Loading workspace",
       "navAssistant": "Assistant",
       "navIde": "IDE",
+      "navLabel": "Main navigation",
       "navLibrary": "Library",
       "navPlaybooks": "Playbooks",
       "navProjects": "Projects",
