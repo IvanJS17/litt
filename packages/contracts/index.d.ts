@@ -2005,6 +2005,92 @@ export interface DocumentConversionResult {
 export type DocumentCompareResult = DocumentConversionResult;
 
 /**
+ * A document type Split sorts pages into. Product data (the built-in list is
+ * Spanish and is never translated), not interface text.
+ */
+export interface SplitClass {
+    name: string;
+    description: string;
+    identifier?: string;
+}
+
+/**
+ * `GET`/`PUT /user/split-classes` and `/orgs/:orgId/split-classes`: the list in
+ * force for that scope (its own, else the built-in one), whether it is the
+ * scope's own, the built-in list to restore, and the limit (19, Split's).
+ * `can_manage` only on the firm's.
+ */
+export interface SplitClassesSettings {
+    classes: SplitClass[];
+    custom: boolean;
+    defaults: SplitClass[];
+    max: number;
+    can_manage?: boolean;
+}
+
+/**
+ * `GET /single-documents/:documentId/split`: what "Separar expediente" would
+ * do to the current version of a PDF, computed locally. Nothing is sent to
+ * LandingAI. `estimated_*` is Split's price for the text (1 credit per 5,000
+ * characters, 1 credit = 0.01 USD). Decide by the booleans, never by text.
+ */
+export interface DocumentSplitState {
+    version_id: string;
+    page_count: number;
+    characters: number;
+    estimated_credits: number;
+    estimated_cost_usd: number;
+    /** Pages with no text layer and no scan reading: Split must wait for "Read scan". */
+    unread_pages: number;
+    needs_scan_reading: boolean;
+    /** More pages (400) or text (4 MiB) than Split takes. */
+    too_large: boolean;
+    key_available: boolean;
+    can_edit: boolean;
+    classes: SplitClass[];
+    classes_source: "user" | "org" | "default";
+}
+
+/** One proposed document. `type` is a name from `classes`, or null when none fits. Pages are 1-indexed. */
+export interface DocumentSplitGroup {
+    type: string | null;
+    identifier: string | null;
+    pages: number[];
+}
+
+/**
+ * `POST /single-documents/:documentId/split`: sends the text to LandingAI and
+ * returns its proposal. Nothing is stored and nothing is created. The groups
+ * partition the pages of `version_id`.
+ */
+export interface DocumentSplitProposal {
+    version_id: string;
+    page_count: number;
+    groups: DocumentSplitGroup[];
+    classes: SplitClass[];
+    /** What LandingAI charged, in credits. */
+    credits: number;
+}
+
+/** A group the person confirmed, in `POST /single-documents/:documentId/split/create`. */
+export interface DocumentSplitCreateGroup {
+    pages: number[];
+    name: string;
+    type: string | null;
+}
+
+/**
+ * `POST /single-documents/:documentId/split/create`, body `{ version_id,
+ * groups }`: one NEW PDF per group, with the original pages, in the original's
+ * folder, version 1, `source` 'split'. The original is not changed. 201.
+ * 409 `document_version_conflict` if `version_id` is no longer the current
+ * version; 400 `split_invalid_groups`.
+ */
+export interface DocumentSplitCreateResult {
+    documents: DocumentConversionResult[];
+}
+
+/**
  * Interface language a user can choose (`uiLocale` in `GET`/`PATCH
  * /user/profile`, `locale` in `POST /auth/signup`). `null` in the profile
  * means automatic: the client negotiates from the browser or Word language

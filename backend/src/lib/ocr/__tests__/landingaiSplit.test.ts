@@ -36,7 +36,8 @@ describe("the markdown Split reads", () => {
     it("estimates 1 credit per 5,000 characters and 0.01 US dollars per credit", () => {
         expect(estimateSplitCost(0)).toEqual({ credits: 0, usd: 0 });
         expect(estimateSplitCost(5000)).toEqual({ credits: 1, usd: 0.01 });
-        expect(estimateSplitCost(79500)).toEqual({ credits: 15.9, usd: 0.16 });
+        expect(estimateSplitCost(79500)).toEqual({ credits: 15.9, usd: 0.159 });
+        expect(estimateSplitCost(100)).toEqual({ credits: 0.1, usd: 0.001 });
         expect(estimateSplitCost(-5)).toEqual({ credits: 0, usd: 0 });
     });
 });

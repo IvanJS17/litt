@@ -40,6 +40,9 @@ import {
     compareDocuments,
     getScanReadingState,
     requestScanReading,
+    getSplitState,
+    proposeSplit,
+    createSplitDocuments,
 } from "./documents.service";
 
 export const documentsRouter = Router();
@@ -464,6 +467,73 @@ documentsRouter.post(
         });
         if (!result.ok) return void sendServiceFailure(res, result);
         res.status(202).json(result.data);
+    }),
+);
+
+// GET /single-documents/:documentId/split
+// Separar expediente, step 1 (docs/document-split.md): pages, characters, the
+// estimated cost and the document types, computed here. Nothing is sent to
+// LandingAI. Same access as opening the document.
+documentsRouter.get(
+    "/:documentId/split",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.split_state");
+        const result = await getSplitState(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.setHeader("Cache-Control", "no-store");
+        res.json(result.data);
+    }),
+);
+
+// POST /single-documents/:documentId/split
+// Step 2: sends the document's TEXT to LandingAI Split, with the caller's key
+// or the firm's, only because the caller asked, and returns its proposal.
+// Nothing is stored or created. Edit rights; 409 training_approval_required for
+// a version held for training; 409 ocr_key_missing without a key; 409
+// split_needs_scan_reading while scanned pages are unread; 400 split_too_large /
+// split_not_supported; LandingAI's refusals as ocr_key_invalid / ocr_no_credits
+// (400) and ocr_unavailable (503).
+documentsRouter.post(
+    "/:documentId/split",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.split_propose");
+        const result = await proposeSplit(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.setHeader("Cache-Control", "no-store");
+        res.json(result.data);
+    }),
+);
+
+// POST /single-documents/:documentId/split/create
+// Step 3. Body { version_id, groups: [{ pages, name, type }] }: the groups the
+// person confirmed. Creates one NEW PDF per group with the original pages
+// (version 1, source 'split') in the original's folder; the original does not
+// change. 201. 409 document_version_conflict if version_id is no longer current;
+// 400 split_invalid_groups.
+documentsRouter.post(
+    "/:documentId/split/create",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.split_create");
+        const result = await createSplitDocuments(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+            versionId: req.body?.version_id,
+            body: req.body,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.status(201).json(result.data);
     }),
 );
 

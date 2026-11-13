@@ -323,7 +323,7 @@ async function scannedPages(raw: ArrayBuffer): Promise<{ pages: number[]; total:
 }
 
 /** Merge the saved reading into the version's text and clear the scanned-page warning for what it read. */
-async function publishReading(
+export async function publishReading(
   db: Db,
   version: { versionId: string; revision: string; storage_path: string; content_sha256: string | null },
 ): Promise<void> {

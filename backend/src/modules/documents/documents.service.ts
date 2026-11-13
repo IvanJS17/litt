@@ -19,6 +19,7 @@
 //   documents.authorship.ts — estimated authorship of a version (training)
 //   documents.convert.ts   — convert between Markdown, Word and PDF as a new document
 //   documents.compare.ts   — compare two Word files into a new one with tracked changes
+//   documents.split.ts     — split a case-file PDF into one PDF per document (LandingAI Split)
 //
 // Upload sessions own transport and destination authorization; version metadata
 // creation, activation, replacement, copying, and cleanup use this facade.
@@ -96,3 +97,5 @@ export {
     markDocumentOcrFailed,
 } from "./documents.ocr";
 export type { ScanReadingState } from "./documents.ocr";
+
+export { getSplitState, proposeSplit, createSplitDocuments } from "./documents.split";

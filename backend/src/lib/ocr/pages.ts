@@ -83,8 +83,8 @@ export function buildSplitMarkdown(pageTexts: readonly string[]): string {
     return pageTexts.map((text) => text.replaceAll(OCR_PAGE_BREAK, "").trim()).join(`\n\n${OCR_PAGE_BREAK}\n\n`);
 }
 
-/** An estimate of what Split will charge for `chars` characters of Markdown, in credits (to a tenth) and US dollars. */
+/** An estimate of what Split will charge for `chars` characters of Markdown, in credits (to a tenth) and US dollars (to a hundredth of a cent, so a small text does not read as free). */
 export function estimateSplitCost(chars: number): { credits: number; usd: number } {
     const credits = Math.ceil((Math.max(0, chars) / SPLIT_CHARS_PER_CREDIT) * 10) / 10;
-    return { credits, usd: Math.round(credits * SPLIT_USD_PER_CREDIT * 100) / 100 };
+    return { credits, usd: Math.round(credits * SPLIT_USD_PER_CREDIT * 10000) / 10000 };
 }
