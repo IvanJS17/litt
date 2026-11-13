@@ -9,6 +9,8 @@
 
 ## Executive status
 
+- **Public presentation (2026-11-13):** the README presents LiTT (closed beta by invitation, MikeOSS attribution, es-MX summary); issues are disabled, and each production deploy is published as a `prod-YYYYMMDDx` release.
+
 ### Integrated, in production: layers 1 to 7 and upstream cycle 11 (#177, #182)
 
 - **Main and production:** `c10401f9` (merge of #182), deployed on 2026-11-13. It
