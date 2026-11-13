@@ -67,3 +67,24 @@ export function readOcrPages(markdown: string, structure: unknown, pageCount: nu
     const split = splitOcrPages(markdown, only ? only.length : pageCount);
     return split ? split.map((text, index) => ({ page: only ? only[index] : index + 1, text })) : null;
 }
+
+// --- Split (layer 7, docs/document-split.md) ---------------------------------
+
+/** LandingAI Split takes at most this much Markdown, this many pages and this many types per call. */
+export const SPLIT_MAX_MARKDOWN_BYTES = 4 * 1024 * 1024;
+export const SPLIT_MAX_PAGES = 400;
+
+/** Split charges 1 credit per 5,000 characters of Markdown; 1 credit = 0.01 USD. */
+export const SPLIT_CHARS_PER_CREDIT = 5000;
+export const SPLIT_USD_PER_CREDIT = 0.01;
+
+/** The Markdown Split reads: one entry per real PDF page, in order, joined by LandingAI's own page marker. */
+export function buildSplitMarkdown(pageTexts: readonly string[]): string {
+    return pageTexts.map((text) => text.replaceAll(OCR_PAGE_BREAK, "").trim()).join(`\n\n${OCR_PAGE_BREAK}\n\n`);
+}
+
+/** An estimate of what Split will charge for `chars` characters of Markdown, in credits (to a tenth) and US dollars. */
+export function estimateSplitCost(chars: number): { credits: number; usd: number } {
+    const credits = Math.ceil((Math.max(0, chars) / SPLIT_CHARS_PER_CREDIT) * 10) / 10;
+    return { credits, usd: Math.round(credits * SPLIT_USD_PER_CREDIT * 100) / 100 };
+}

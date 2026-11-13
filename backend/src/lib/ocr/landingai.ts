@@ -25,7 +25,9 @@ export type OcrErrorCode =
     | "ocr_no_credits"
     | "ocr_unavailable"
     | "ocr_too_large"
-    | "ocr_not_supported";
+    | "ocr_not_supported"
+    // Split (layer 7, landingaiSplit.ts): more text, pages or types than Split takes.
+    | "split_too_large";
 
 /**
  * A reading that failed in a way the person can be told about. `retryable`
@@ -85,11 +87,13 @@ function failedJobError(code: unknown): OcrError {
     return new OcrError("ocr_unavailable");
 }
 
-async function request(
+/** One call to the fixed LandingAI host: redirects refused, a static OcrError for every failure. Shared with Split. */
+export async function landingAiRequest(
     doFetch: typeof fetch,
     url: string,
     init: RequestInit,
     signal: AbortSignal,
+    timeoutMs: number = REQUEST_TIMEOUT_MS,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
     let response: Response;
     try {
@@ -98,7 +102,7 @@ async function request(
             // The key rides in a header, and fetch forwards custom headers
             // across origins on a redirect. LandingAI needs none.
             redirect: "manual",
-            signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
+            signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
         });
     } catch {
         // Timeout, abort or network failure: nothing about it is the person's to fix.
@@ -115,7 +119,7 @@ async function request(
     }
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === "object" && !Array.isArray(value);
 
 /** Read one scanned PDF with LandingAI and return its Markdown. */
@@ -141,7 +145,7 @@ export async function parsePdfWithLandingAi(
     form.set("service_tier", LANDINGAI_SERVICE_TIER);
     form.set("options", JSON.stringify({ atomic_grounding: false, ...(deps.pages ? { pages: deps.pages } : {}) }));
 
-    const created = await request(
+    const created = await landingAiRequest(
         doFetch,
         `${LANDINGAI_HOST}/v2/parse/jobs`,
         { method: "POST", headers, body: form },
@@ -153,7 +157,7 @@ export async function parsePdfWithLandingAi(
 
     for (;;) {
         if (signal.aborted) throw new OcrError("ocr_unavailable");
-        const polled = await request(
+        const polled = await landingAiRequest(
             doFetch,
             `${LANDINGAI_HOST}/v2/parse/jobs/${jobId}`,
             { method: "GET", headers },
