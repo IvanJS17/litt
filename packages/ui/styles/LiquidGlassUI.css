@@ -160,6 +160,32 @@
     }
 }
 
+/* Lote 2 · móvil: notices (NoticeCardUI) fade in rising 8 px over 200 ms and
+   fade out over 150 ms. Opacity only on the way out, so a card swiped away
+   keeps the place its finger left it. Nothing moves with "Reduce motion". */
+@media (prefers-reduced-motion: no-preference) {
+    .notice-card {
+        animation: notice-enter 200ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+    }
+    .notice-card[data-leaving] {
+        pointer-events: none;
+        animation: notice-leave 150ms ease-in forwards;
+    }
+}
+
+@keyframes notice-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@keyframes notice-leave {
+    to {
+        opacity: 0;
+    }
+}
+
 .liquid-glass-translucent {
     box-shadow: var(--liquid-glass-shadow-translucent);
     backdrop-filter: blur(40px);

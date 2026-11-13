@@ -20,7 +20,9 @@
 import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
+    useState,
     useSyncExternalStore,
     type ReactElement,
 } from "react";
@@ -41,6 +43,8 @@ import {
     type ToastRecord,
 } from "@mike/client";
 import { useTranslations } from "use-intl";
+import { useExitingList } from "./useExitingList";
+export { useExitingList, type ExitingListEntry } from "./useExitingList";
 export {
     showToast,
     dismissToast,
@@ -147,8 +151,18 @@ export function useToasts(): readonly ToastRecord[] {
     return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-function ToastItemUI({ toast }: { toast: ToastRecord }) {
+/** How long a dismissed notice takes to fade out (see `.notice-card` in LiquidGlassUI.css). */
+export const NOTICE_EXIT_MS = 150;
+
+function ToastItemUI({
+    toast,
+    leaving = false,
+}: {
+    toast: ToastRecord;
+    leaving?: boolean;
+}) {
     const t = useTranslations();
+    const isError = toast.tone === "error";
     const pausedRef = useRef(false);
     const hoveredRef = useRef(false);
     const focusedRef = useRef(false);
@@ -194,8 +208,6 @@ function ToastItemUI({ toast }: { toast: ToastRecord }) {
         return clearTimer;
     }, [arm, clearTimer]);
 
-    const isError = toast.tone === "error";
-
     // The card's look lives in NoticeCardUI, shared with WarningPopup. This
     // wrapper adds only toast behaviour: the timer, hover/focus pause, and
     // the node registry `focusToast` uses.
@@ -206,11 +218,14 @@ function ToastItemUI({ toast }: { toast: ToastRecord }) {
             message={toast.message}
             onDismiss={() => dismissToast(toast.id)}
             dismissLabel={t("ui.noticeCard.dismissNotification")}
-            // The item owns the live semantics: `alert` is implicitly
-            // assertive, `status` polite. The viewport around it is a plain
-            // region, because a live region nested in a live region is
-            // announced unpredictably (or twice).
-            role={isError ? "alert" : "status"}
+            leaving={leaving}
+            // An error is an `alert` (assertive), as before. A success or an
+            // info card is not a live region: a node inserted with its text
+            // already inside is announced unreliably, so the viewport writes
+            // that text into the polite region it keeps mounted (see
+            // `useAnnouncements`). The viewport itself is a plain region, as
+            // a live region nested in a live region is announced twice.
+            role={isError ? "alert" : undefined}
             // Not in the tab order, but focusable so `focusToast` can put
             // the keyboard on a critical failure and its actions.
             tabIndex={-1}
@@ -246,11 +261,47 @@ export interface ToastViewportUIProps {
     className?: string;
 }
 
+interface Announcement {
+    id: string;
+    text: string;
+}
+
+/** What a toast says aloud: its title and message as plain text. */
+function announcementText(toast: ToastRecord): string {
+    return [toast.title, toast.message]
+        .filter((part): part is string => typeof part === "string" && part !== "")
+        .join(". ");
+}
+
+/**
+ * The text of the newest success or info toast, for the polite live region,
+ * until that toast goes. Errors announce themselves as `alert` cards.
+ */
+function useAnnouncement(toasts: readonly ToastRecord[]): Announcement | null {
+    const [seen, setSeen] = useState<ReadonlySet<string>>(
+        () => new Set(toasts.map((toast) => toast.id)),
+    );
+    const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+    if (toasts.some((toast) => !seen.has(toast.id))) {
+        const fresh = toasts.filter((toast) => !seen.has(toast.id));
+        setSeen(new Set(toasts.map((toast) => toast.id)));
+        const latest = fresh.filter((toast) => toast.tone !== "error").at(-1);
+        if (latest) {
+            setAnnouncement({ id: latest.id, text: announcementText(latest) });
+        }
+    }
+    return announcement && toasts.some((toast) => toast.id === announcement.id)
+        ? announcement
+        : null;
+}
+
 /**
  * Renders the toast stack. Mount exactly once per client, near the root.
  * The region is always present so assistive tech registers it before the
- * first notification arrives; the live announcement belongs to each toast,
- * not to this container.
+ * first notification arrives. So is the (visually hidden) polite live region
+ * after it: a success or info text is written into it as the toast is raised,
+ * which screen readers announce reliably, unlike a card inserted with its
+ * text.
  */
 export function ToastViewportUI({
     showErrors = true,
@@ -258,9 +309,15 @@ export function ToastViewportUI({
 }: ToastViewportUIProps) {
     const t = useTranslations();
     const toasts = useToasts();
-    const items = showErrors
-        ? toasts
-        : toasts.filter((toast) => toast.tone !== "error");
+    const visible = useMemo(
+        () =>
+            showErrors
+                ? toasts
+                : toasts.filter((toast) => toast.tone !== "error"),
+        [showErrors, toasts],
+    );
+    const entries = useExitingList(visible, NOTICE_EXIT_MS);
+    const announcement = useAnnouncement(toasts);
 
     return (
         <div
@@ -279,9 +336,19 @@ export function ToastViewportUI({
             {/* `contents`, so popups portalled in here are flex items of
                 the column and take its gap. */}
             <div ref={setNoticeStackSlot} className="contents" />
-            {items.map((toast) => (
-                <ToastItemUI key={toast.id} toast={toast} />
+            {entries.map(({ item, leaving }) => (
+                <ToastItemUI key={item.id} toast={item} leaving={leaving} />
             ))}
+            <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="sr-only"
+            >
+                {announcement ? (
+                    <span key={announcement.id}>{announcement.text}</span>
+                ) : null}
+            </div>
         </div>
     );
 }

@@ -17,7 +17,8 @@
  */
 
 import { useTranslations } from "use-intl";
-import type { HTMLAttributes, ReactNode, Ref } from "react";
+import type { HTMLAttributes, PointerEvent, ReactNode, Ref } from "react";
+import { useRef } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { AlertCircle, CheckCircle2, Info } from "lucide-react";
@@ -92,6 +93,107 @@ export function noticeActionClassName(
     });
 }
 
+/** Past this distance (px), or this speed (px/ms), a sideways swipe dismisses. */
+const SWIPE_DISTANCE = 80;
+const SWIPE_VELOCITY = 0.5;
+const SWIPE_EXIT_MS = 150;
+const SWIPE_SPRING_MS = 300;
+
+/**
+ * Swipe a notice sideways to dismiss it, with a finger (not a mouse). The
+ * card follows the finger; let go past the threshold and it leaves the way it
+ * was going, otherwise it springs back. Vertical movement stays the page's
+ * (`touch-action: pan-y`). It moves the card's own style, so a drag costs no
+ * React render.
+ */
+function useSwipeToDismiss(onDismiss: () => void) {
+    const drag = useRef<{
+        id: number;
+        x: number;
+        y: number;
+        time: number;
+        dx: number;
+        active: boolean;
+    } | null>(null);
+    const reduceMotion = () =>
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+    return {
+        onPointerDown(event: PointerEvent<HTMLDivElement>) {
+            if (event.pointerType !== "touch") return;
+            drag.current = {
+                id: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+                time: event.timeStamp,
+                dx: 0,
+                active: false,
+            };
+        },
+        onPointerMove(event: PointerEvent<HTMLDivElement>) {
+            const state = drag.current;
+            if (!state || state.id !== event.pointerId) return;
+            const card = event.currentTarget;
+            const dx = event.clientX - state.x;
+            if (!state.active) {
+                // Wait for a clearly sideways move, so a tap on a button
+                // and a vertical scroll are left alone.
+                if (
+                    Math.abs(dx) < 10 ||
+                    Math.abs(dx) < Math.abs(event.clientY - state.y)
+                )
+                    return;
+                state.active = true;
+                card.setPointerCapture(event.pointerId);
+                card.style.transition = "none";
+            }
+            state.dx = dx;
+            card.style.transform = `translateX(${dx}px)`;
+            card.style.opacity = String(
+                1 - Math.min(Math.abs(dx) / card.offsetWidth, 1) * 0.7,
+            );
+        },
+        onPointerUp(event: PointerEvent<HTMLDivElement>) {
+            const state = drag.current;
+            drag.current = null;
+            if (!state || !state.active) return;
+            const card = event.currentTarget;
+            const elapsed = Math.max(event.timeStamp - state.time, 1);
+            const distance = Math.abs(state.dx);
+            const dismiss =
+                distance > SWIPE_DISTANCE ||
+                (distance > 20 && distance / elapsed > SWIPE_VELOCITY);
+            if (dismiss) {
+                if (reduceMotion()) {
+                    onDismiss();
+                    return;
+                }
+                card.style.transition = `transform ${SWIPE_EXIT_MS}ms ease-out, opacity ${SWIPE_EXIT_MS}ms ease-out`;
+                card.style.transform = `translateX(${state.dx < 0 ? "-" : ""}110%)`;
+                card.style.opacity = "0";
+                window.setTimeout(onDismiss, SWIPE_EXIT_MS);
+                return;
+            }
+            // A light spring back; none when motion is reduced.
+            card.style.transition = reduceMotion()
+                ? "none"
+                : `transform ${SWIPE_SPRING_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity ${SWIPE_SPRING_MS}ms ease-out`;
+            card.style.transform = "";
+            card.style.opacity = "";
+            window.setTimeout(() => {
+                card.style.transition = "";
+            }, SWIPE_SPRING_MS);
+        },
+        onPointerCancel(event: PointerEvent<HTMLDivElement>) {
+            drag.current = null;
+            const card = event.currentTarget;
+            card.style.transition = "";
+            card.style.transform = "";
+            card.style.opacity = "";
+        },
+    };
+}
+
 export interface NoticeCardUIProps
     extends Omit<HTMLAttributes<HTMLDivElement>, "title" | "children"> {
     tone?: NoticeTone;
@@ -106,6 +208,8 @@ export interface NoticeCardUIProps
     onDismiss: () => void;
     /** Accessible name of the close button. */
     dismissLabel?: string;
+    /** The notice has been dismissed and is on screen only to animate out. */
+    leaving?: boolean;
     ref?: Ref<HTMLDivElement>;
 }
 
@@ -118,11 +222,13 @@ export function NoticeCardUI({
     actions,
     onDismiss,
     dismissLabel,
+    leaving = false,
     className,
     ref,
     ...rest
 }: NoticeCardUIProps) {
     const t = useTranslations();
+    const swipe = useSwipeToDismiss(onDismiss);
     const toneIconNode = icon ?? toneIcon[tone];
 
     // Every popup and toast in the app moves with this markup, so change it
@@ -132,11 +238,13 @@ export function NoticeCardUI({
         <div
             ref={ref}
             data-tone={tone}
+            data-leaving={leaving ? "" : undefined}
             {...rest}
+            {...swipe}
             className={twMerge(
                 clsx(
                     // 8px sides, matching the close button's inset.
-                    "pointer-events-auto relative flex rounded-2xl px-2 py-2 text-xs",
+                    "notice-card pointer-events-auto relative flex touch-pan-y rounded-2xl px-2 py-2 text-xs",
                     LIQUID_GLASS_FLOAT_CLASS,
                     // Only visible when a toast is focused with the keyboard.
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",

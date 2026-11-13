@@ -7,13 +7,15 @@
  * while the browser reports no connection.
  */
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
+    NOTICE_EXIT_MS,
     ToastActionsUI,
     ToastViewportUI,
     dismissToast,
     showToast,
     toastHasActions,
+    useExitingList,
     useToasts,
 } from "@mike/ui";
 import {
@@ -75,7 +77,12 @@ export function useOfflineNotice() {
 
 export function AppToasts() {
     useOfflineNotice();
-    const warnings = useToasts().filter((toast) => toast.tone === "error");
+    const toasts = useToasts();
+    const errors = useMemo(
+        () => toasts.filter((toast) => toast.tone === "error"),
+        [toasts],
+    );
+    const warnings = useExitingList(errors, NOTICE_EXIT_MS);
 
     return (
         <>
@@ -85,10 +92,11 @@ export function AppToasts() {
                 showErrors={false}
                 className={NOTICE_STACK_POSITION_CLASS}
             />
-            {warnings.map((toast) => (
+            {warnings.map(({ item: toast, leaving }) => (
                 <WarningPopup
                     key={toast.id}
                     open
+                    leaving={leaving}
                     title={toast.title}
                     message={toast.message}
                     onClose={() => dismissToast(toast.id)}

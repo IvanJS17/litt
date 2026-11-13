@@ -34,7 +34,7 @@ describe("AppToasts", () => {
             window.dispatchEvent(new Event("online"));
         });
         expect(screen.queryByRole("alert")).toBeNull();
-        expect(screen.getByRole("status")).toHaveTextContent(
+        expect(screen.getByTestId("toast")).toHaveTextContent(
             "You're back online.",
         );
     });
@@ -49,14 +49,16 @@ describe("AppToasts", () => {
             }
         });
         expect(screen.getByRole("alert")).toHaveTextContent("You're offline");
-        expect(screen.getAllByRole("status")).toHaveLength(2);
+        expect(screen.getAllByTestId("toast")).toHaveLength(2);
         expect(screen.queryByText("Saved 0")).toBeNull();
 
         act(() => {
             window.dispatchEvent(new Event("online"));
         });
         expect(screen.queryByRole("alert")).toBeNull();
-        expect(screen.getByText("You're back online.")).toBeVisible();
+        expect(
+            screen.getAllByTestId("toast").map((card) => card.textContent),
+        ).toContain("You're back online.");
     });
 
     it("puts the notification column in the bottom-right corner, clear of the page header", () => {
@@ -76,11 +78,11 @@ describe("AppToasts", () => {
         expect(region).not.toHaveClass("left-1/2");
         expect(region).not.toHaveClass("-translate-x-1/2");
         // Information still closes on its own.
-        expect(screen.getByRole("status")).toHaveTextContent("Switched to Despacho");
+        expect(screen.getByTestId("toast")).toHaveTextContent("Switched to Despacho");
         act(() => {
             vi.advanceTimersByTime(10_000);
         });
-        expect(screen.queryByRole("status")).toBeNull();
+        expect(screen.queryByTestId("toast")).toBeNull();
     });
 
     it("draws an error as a WarningPopup in the notification column, with its actions", () => {
@@ -102,7 +104,7 @@ describe("AppToasts", () => {
         const region = screen.getByRole("region", { name: "Notifications" });
         const warning = screen.getByRole("alert");
         expect(region).toContainElement(warning);
-        expect(region).toContainElement(screen.getByRole("status"));
+        expect(region).toContainElement(screen.getByTestId("toast"));
         expect(warning).toHaveTextContent("Select another model.");
         expect(
             within(warning).getByRole("link", { name: "Contact support" }),
@@ -120,7 +122,7 @@ describe("AppToasts", () => {
             vi.advanceTimersByTime(60_000);
         });
         expect(screen.getByRole("alert")).toBeVisible();
-        expect(screen.queryByRole("status")).toBeNull();
+        expect(screen.queryByTestId("toast")).toBeNull();
 
         fireEvent.click(within(warning).getByRole("button", { name: "Retry" }));
         expect(onRetry).toHaveBeenCalledOnce();
