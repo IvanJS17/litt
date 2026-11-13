@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -18,6 +19,17 @@ import type { Document, LibraryFolder, Project } from "./types";
 export type DirectoryTab = "files" | "templates" | "projects";
 
 type LibraryDirectoryTab = Exclude<DirectoryTab, "projects">;
+
+const LOAD_TAB_ACTION = {
+  files: "errors.action.loadYourFiles",
+  templates: "errors.action.loadYourTemplates",
+  projects: "errors.action.loadYourProjects",
+} as const;
+const LOAD_MORE_TAB_ACTION = {
+  files: "errors.action.loadMoreFiles",
+  templates: "errors.action.loadMoreTemplates",
+  projects: "errors.action.loadMoreProjects",
+} as const;
 
 const DIRECTORY_PAGE_SIZE = 40;
 const ROOT_LEVEL_KEY = "root";
@@ -229,7 +241,7 @@ export function useDirectoryData(
                 // so say so instead of passing an empty shelf off as the
                 // truth.
                 notifyError(error, {
-                    action: `load your ${tab}`,
+                    action: clientTranslator()(LOAD_TAB_ACTION[tab]),
                     dedupeKey: `directory:${tab}`,
                     onRetry: () => retryRef.current?.loadTab(tab),
                 });
@@ -358,7 +370,7 @@ export function useDirectoryData(
           }));
         } catch (error) {
           notifyError(error, {
-            action: `load more ${tab}`,
+            action: clientTranslator()(LOAD_MORE_TAB_ACTION[tab]),
             dedupeKey: `directory-more:${tab}:${levelKey}`,
             onRetry: () =>
               retryRef.current?.loadMoreLibraryDocuments(tab, parentId),

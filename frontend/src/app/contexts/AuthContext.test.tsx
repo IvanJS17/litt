@@ -133,7 +133,7 @@ describe("AuthProvider", () => {
 
         expect(screen.getByTestId("user")).toHaveTextContent("signed-out");
         expect(screen.getByTestId("error")).toHaveTextContent(
-            "Your session expired",
+            "Your session has expired",
         );
     });
 

@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { notifyPartialFailure } from "@/app/lib/userFacingError";
 import {
     BULK_REQUEST_CONCURRENCY,
@@ -47,7 +48,7 @@ export function notifyBulkReviewDeleteOutcome({
     ].filter((notice): notice is string => notice !== null);
     if (notices.length === 0) return;
     notifyPartialFailure(notices.join(" "), {
-        action: "delete those reviews",
+        action: clientTranslator()("errors.action.deleteThoseReviews"),
         onRetry: failedCount > 0 ? retry : undefined,
     });
 }

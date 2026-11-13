@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { findPendingAskInput } from "@/app/lib/pendingAskInput";
 import {
     useCallback,
@@ -989,7 +990,7 @@ export function AssistantChatColumn({
                     id: playbook.id,
                     title: playbook.name || t("assistant.chatView.untitledPlaybook"),
                 }),
-            (error) => notifyError(error, { action: "attach the playbook" }),
+            (error) => notifyError(error, { action: clientTranslator()("errors.action.attachThePlaybook") }),
         );
     }, [paneId, canWrite, chatLoading]);
 

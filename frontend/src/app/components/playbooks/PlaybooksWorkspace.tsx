@@ -74,7 +74,7 @@ import { Modal } from "@/app/components/modals/Modal";
 import { ModalFieldLabel } from "@/app/components/modals/ModalFieldLabel";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
 import { ModalTextInput } from "@/app/components/modals/ModalTextInput";
-import { modelDisplayName, SETTINGS_MODELS } from "@mike/client";
+import { modelDisplayName, SETTINGS_MODELS, clientTranslator} from "@mike/client";
 import { useOllamaModels } from "@/app/hooks/useOllamaModels";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { buildPlaybookModelOptions } from "@/app/components/playbooks/playbookModelOptions";
@@ -821,7 +821,7 @@ function PlaybooksWorkspace() {
     } catch (err) {
       setImportError(
         reportFault(err, {
-          action: "import the playbook",
+          action: clientTranslator()("errors.action.importThePlaybook"),
           operation: "playbooks.import",
         }).message,
       );

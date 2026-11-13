@@ -50,6 +50,7 @@ import {
     routerProfileLists,
     type RouterProfileLists,
     type RouterSlug,
+    clientTranslator,
 } from "@mike/client";
 import { publishTabularChatSettingsUpdate } from "@/app/lib/tabularChatSettingsEvents";
 import {
@@ -301,7 +302,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             // the load has to say that it failed rather than let the user read
             // placeholders as answers.
             notifyError(error, {
-                action: "load your profile",
+                action: clientTranslator()("errors.action.loadYourProfile"),
                 dedupeKey: "profile-load",
                 onRetry: () => {
                     void retryRef.current?.reloadProfile();

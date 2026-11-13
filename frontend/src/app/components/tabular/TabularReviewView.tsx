@@ -1,5 +1,5 @@
 "use client";
-import { BACKEND_REPORTING_OWNER } from "@mike/client";
+import { BACKEND_REPORTING_OWNER, clientTranslator} from "@mike/client";
 
 import { RowActionMenuItems } from "@/app/components/shared/RowActions";
 import { rowActionSelectionIds } from "@/app/components/shared/TablePrimitive";
@@ -645,7 +645,7 @@ export function TRView({ reviewId, projectId }: Props) {
                     { kind: "unknown", retryable: true, cause: dropUploadError },
                 ),
                 {
-                    action: `upload ${failedNames.length === 1 ? "that file" : "those files"}`,
+                    action: clientTranslator()(failedNames.length === 1 ? "errors.action.uploadThatFile" : "errors.action.uploadThoseFiles"),
                     // Retry only the files that never landed, so the ones
                     // already attached are not uploaded twice.
                     onRetry: () => {

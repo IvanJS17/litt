@@ -529,7 +529,8 @@
       "ssoUnavailable": "No se pudo iniciar el inicio de sesión único (SSO) para este dominio de correo.",
       "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
       "userBanned": "Esta cuenta está bloqueada. Contacta a soporte para desbloquearla.",
-      "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos."
+      "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos.",
+      "sessionCheckFailed": "No pudimos comprobar tu sesión. Inténtalo de nuevo."
     },
     "forgotPassword": {
       "checkYourEmail": "Revisa tu correo",
@@ -1133,7 +1134,34 @@
     "action": {
       "loadMoreChats": "cargar más chats",
       "loadYourChats": "cargar tus chats",
-      "startNewChat": "iniciar un chat nuevo"
+      "startNewChat": "iniciar un chat nuevo",
+      "saveYourAcceptance": "guardar tu aceptación",
+      "updateYourPassword": "actualizar tu contraseña",
+      "attachThePlaybook": "adjuntar el playbook",
+      "loadProjectFiles": "cargar los archivos de este proyecto",
+      "importThePlaybook": "importar el playbook",
+      "checkGoogleAuthorization": "comprobar la autorización de Google",
+      "cancelGoogleAuthorization": "cancelar la autorización de Google",
+      "refreshGoogleConnector": "actualizar el conector de Google",
+      "loadYourPupils": "cargar a tus pupilos",
+      "downloadThisVersion": "descargar esta versión",
+      "loadTheComparison": "cargar la comparación",
+      "checkYourSession": "comprobar tu sesión",
+      "loadYourProfile": "cargar tu perfil",
+      "loadThisPage": "cargar esta página",
+      "saveYourPlaybook": "guardar tu playbook",
+      "deleteThoseReviews": "eliminar esas revisiones",
+      "uploadThatFile": "subir ese archivo",
+      "uploadThoseFiles": "subir esos archivos",
+      "addSource": "agregar {name}",
+      "removeSource": "quitar {name}",
+      "deleteProject": "eliminar «{name}»",
+      "loadYourFiles": "cargar tus archivos",
+      "loadYourTemplates": "cargar tus plantillas",
+      "loadYourProjects": "cargar tus proyectos",
+      "loadMoreFiles": "cargar más archivos",
+      "loadMoreTemplates": "cargar más plantillas",
+      "loadMoreProjects": "cargar más proyectos"
     }
   },
   "history": {

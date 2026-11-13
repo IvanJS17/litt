@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   updatePlaybook,
@@ -61,7 +62,7 @@ export function usePlaybookAutosave(onSaved: (playbook: Playbook) => void) {
       } catch (error) {
         setStatus("error");
         notifyError(error, {
-          action: "save your playbook",
+          action: clientTranslator()("errors.action.saveYourPlaybook"),
           dedupeKey: `playbook-autosave:${pending.current.keys().next().value}`,
           onRetry: () => {
             void flush();

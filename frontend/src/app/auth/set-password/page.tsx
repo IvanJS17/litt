@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { SignupLegal } from "@/app/components/legal/LegalDocument";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -106,7 +107,7 @@ function SetPasswordContent() {
         } catch (caught) {
             setError(
                 describeError(caught, {
-                    action: "update your password",
+                    action: clientTranslator()("errors.action.updateYourPassword"),
                     codeMessages: SET_PASSWORD_ERROR_MESSAGES,
                     fallback: t("access.setPassword.invalid"),
                 }).message,

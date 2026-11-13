@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -238,7 +239,7 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
         try {
             setData(await getMyPupils(orgId));
         } catch (error) {
-            notifyError(error, { action: "load your pupils", operation: "training.manage" });
+            notifyError(error, { action: clientTranslator()("errors.action.loadYourPupils"), operation: "training.manage" });
         }
     }, [orgId]);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { PillButtonUI, authGlassCardUIClassName } from "@mike/ui";
@@ -25,7 +26,7 @@ export function TermsAcceptance() {
             await acceptTerms(LEGAL_VERSION);
             await reloadProfile();
         } catch (error) {
-            notifyError(error, { action: "save your acceptance" });
+            notifyError(error, { action: clientTranslator()("errors.action.saveYourAcceptance") });
         } finally {
             setSaving(false);
         }

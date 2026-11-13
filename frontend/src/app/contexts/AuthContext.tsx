@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import {
     createContext,
     useContext,
@@ -44,11 +45,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_SYNC_CHANNEL = "mike-auth-state";
 const AUTH_SYNC_STORAGE_KEY = "mike-auth-state-change";
-const SESSION_ERROR_MESSAGE =
-    "We could not check your session. Please try again.";
+const sessionErrorMessage = () => clientTranslator()("auth.errors.sessionCheckFailed");
 /** One toast for the session, however many background checks fail. */
 const SESSION_TOAST_KEY = "auth-session";
-const EXPIRED_SESSION_MESSAGE = "Your session expired. Please log in again.";
+const expiredSessionMessage = () => clientTranslator()("auth.errors.sessionExpired");
 /** Retry delays for a session check the server could not answer. */
 const SESSION_RETRY_BASE_MS = 1_000;
 const SESSION_RETRY_MAX_MS = 30_000;
@@ -143,13 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         async () => {},
     );
     const reportSessionFailure = useCallback((error: unknown) => {
-        setAuthError(SESSION_ERROR_MESSAGE);
+        setAuthError(sessionErrorMessage());
         // Sign-in screens show `authError` themselves, with their own
         // Retry; a toast there repeated it and then contradicted the
         // form's next error.
         if (isOnAuthRoute()) return;
         notifyError(error, {
-            action: "check your session",
+            action: clientTranslator()("errors.action.checkYourSession"),
             dedupeKey: SESSION_TOAST_KEY,
             onRetry: () => void checkSessionRef.current(true),
         });
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setAuthLoading(false);
                 }
                 if (notify || firstOfStreak) reportSessionFailure(error);
-                else setAuthError(SESSION_ERROR_MESSAGE);
+                else setAuthError(sessionErrorMessage());
             }
         },
         [fetchAndApplySession, reportSessionFailure],
@@ -272,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         const onInvalidated = () => {
             applySessionUser(null);
-            setAuthError(EXPIRED_SESSION_MESSAGE);
+            setAuthError(expiredSessionMessage());
             setAuthLoading(false);
             broadcastAuthState("signed-out");
         };
@@ -318,7 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             broadcastAuthState(nextUser ? "signed-in" : "signed-out");
             return nextUser;
         } catch (error) {
-            setAuthError(SESSION_ERROR_MESSAGE);
+            setAuthError(sessionErrorMessage());
             setAuthLoading(false);
             throw error;
         }

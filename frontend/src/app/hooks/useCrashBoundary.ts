@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { useEffect } from "react";
 import { isReported, reportError } from "@/app/lib/errorReporting";
 import {
@@ -40,7 +41,7 @@ export function useCrashBoundary(
     }, [component, error, level, operation]);
 
     return supportMailtoFor(
-        describeError(error, { action: "load this page" }),
+        describeError(error, { action: clientTranslator()("errors.action.loadThisPage") }),
         `Error reference: ${error.digest ?? "unavailable"}`,
     );
 }

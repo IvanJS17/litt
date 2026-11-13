@@ -529,7 +529,8 @@
       "ssoUnavailable": "Unable to start single sign-on for this email domain.",
       "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
       "userBanned": "This account is locked. Contact support to have it unlocked.",
-      "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols."
+      "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols.",
+      "sessionCheckFailed": "We could not check your session. Please try again."
     },
     "forgotPassword": {
       "checkYourEmail": "Check your email",
@@ -1133,7 +1134,34 @@
     "action": {
       "loadMoreChats": "load more chats",
       "loadYourChats": "load your chats",
-      "startNewChat": "start a new chat"
+      "startNewChat": "start a new chat",
+      "saveYourAcceptance": "save your acceptance",
+      "updateYourPassword": "update your password",
+      "attachThePlaybook": "attach the playbook",
+      "loadProjectFiles": "load this project's files",
+      "importThePlaybook": "import the playbook",
+      "checkGoogleAuthorization": "check the Google authorization",
+      "cancelGoogleAuthorization": "cancel the Google authorization",
+      "refreshGoogleConnector": "refresh the Google connector",
+      "loadYourPupils": "load your pupils",
+      "downloadThisVersion": "download this version",
+      "loadTheComparison": "load the comparison",
+      "checkYourSession": "check your session",
+      "loadYourProfile": "load your profile",
+      "loadThisPage": "load this page",
+      "saveYourPlaybook": "save your playbook",
+      "deleteThoseReviews": "delete those reviews",
+      "uploadThatFile": "upload that file",
+      "uploadThoseFiles": "upload those files",
+      "addSource": "add {name}",
+      "removeSource": "remove {name}",
+      "deleteProject": "delete “{name}”",
+      "loadYourFiles": "load your files",
+      "loadYourTemplates": "load your templates",
+      "loadYourProjects": "load your projects",
+      "loadMoreFiles": "load more files",
+      "loadMoreTemplates": "load more templates",
+      "loadMoreProjects": "load more projects"
     }
   },
   "history": {

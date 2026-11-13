@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import {
   useCallback,
   useEffect,
@@ -152,7 +153,7 @@ export function PlaybookSources({
         setSupplementary((current) => [...(current ?? []), added]);
         setSelectedId(added.id);
       } catch (error) {
-        notifyError(error, { action: `add ${name}` });
+        notifyError(error, { action: clientTranslator()("errors.action.addSource", { name }) });
       } finally {
         setPending((current) => {
           const next = [...current];
@@ -181,7 +182,7 @@ export function PlaybookSources({
       );
       setRemoving(null);
     } catch (error) {
-      notifyError(error, { action: `remove ${source.filename}` });
+      notifyError(error, { action: clientTranslator()("errors.action.removeSource", { name: source.filename }) });
     } finally {
       setRemoveStatus("idle");
     }

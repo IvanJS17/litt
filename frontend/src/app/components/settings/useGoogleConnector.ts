@@ -202,7 +202,7 @@ export function useGoogleConnector(
             if (!pollFailureReported) {
               pollFailureReported = true;
               reportFault(error, {
-                action: "check the Google authorization",
+                action: clientTranslator()("errors.action.checkGoogleAuthorization"),
                 operation: GOOGLE_OPERATIONS[provider],
               });
             }
@@ -224,13 +224,13 @@ export function useGoogleConnector(
         // here is still a fault in the connector, so it is reported as one.
         await api.cancel(state).catch((error: unknown) => {
           reportFault(error, {
-            action: "cancel the Google authorization",
+            action: clientTranslator()("errors.action.cancelGoogleAuthorization"),
             operation: GOOGLE_OPERATIONS[provider],
           });
         });
         await refresh().catch((error: unknown) => {
           reportFault(error, {
-            action: "refresh the Google connector",
+            action: clientTranslator()("errors.action.refreshGoogleConnector"),
             operation: GOOGLE_OPERATIONS[provider],
           });
         });

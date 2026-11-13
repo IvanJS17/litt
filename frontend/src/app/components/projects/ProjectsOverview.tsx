@@ -1,5 +1,6 @@
 "use client";
 
+import { clientTranslator } from "@mike/client";
 import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -510,7 +511,7 @@ export function ProjectsOverview() {
             // with no explanation. The row is back; Retry asks again, as the
             // document panel does, because the delete still has no undo.
             notifyError(error, {
-                action: `delete “${project.name}”`,
+                action: clientTranslator()("errors.action.deleteProject", { name: project.name }),
                 dedupeKey: `project-delete:${project.id}`,
                 onRetry: () => requestDeleteProject(project),
                 supportNote: `Project: ${project.name} (${project.id})`,
