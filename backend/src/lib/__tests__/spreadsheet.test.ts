@@ -42,3 +42,13 @@ describe("spreadsheetToLLMText", () => {
     expect(encodeCell.mock.calls.length).toBeLessThan(100);
   });
 });
+
+describe("spreadsheetToLLMText cell escaping", () => {
+  it("escapes a backslash before a pipe, so the pipe stays inside the cell", () => {
+    const ws = XLSX.utils.aoa_to_sheet([["a\\|b", "c|d"]]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "S");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+    expect(spreadsheetToLLMText(buffer)).toContain("| 1 | a\\\\\\|b | c\\|d |");
+  });
+});

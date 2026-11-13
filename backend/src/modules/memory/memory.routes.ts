@@ -16,7 +16,7 @@ import { setOperation } from "../../lib/observability/report";
 import type { Capability } from "../../lib/permissions";
 import { createServerSupabase } from "../../lib/supabase";
 import {
-  PERSONAL_WORKSPACE,
+  organizationOrPersonal,
   resolveWorkspaceFilter,
   sendWorkspaceFailure,
 } from "../../lib/workspace";
@@ -69,9 +69,7 @@ async function userContext(
   return resolveUserMemoryContext(
     db,
     userId,
-    workspace.workspace && workspace.workspace !== PERSONAL_WORKSPACE
-      ? workspace.workspace
-      : null,
+    organizationOrPersonal(workspace.workspace, userId),
   );
 }
 

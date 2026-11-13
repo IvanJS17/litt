@@ -30,6 +30,7 @@ export function ScanReadingCard({
   hasSavedKey,
   enabled,
   canManage = true,
+  showKeyHelp = true,
   busy = false,
   loading = false,
   onToggle,
@@ -44,6 +45,8 @@ export function ScanReadingCard({
   enabled: boolean;
   /** Read-only for somebody who may not change it. */
   canManage?: boolean;
+  /** Show how to get a LandingAI key; off where this person cannot add one. */
+  showKeyHelp?: boolean;
   busy?: boolean;
   loading?: boolean;
   onToggle: (enabled: boolean) => void;
@@ -80,20 +83,22 @@ export function ScanReadingCard({
               </a>
             </SettingsDescription>
             <SettingsDescription>{t("settings.scanReading.why")}</SettingsDescription>
-            <SettingsDescription>
-              {t("settings.scanReading.getKey")}{" "}
-              <a href={LANDINGAI_SITE} target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                {t("settings.scanReading.siteLink")}
-              </a>
-              {" · "}
-              <a href={LANDINGAI_KEY_DOCS} target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                {t("settings.scanReading.keyDocsLink")}
-              </a>
-              {" · "}
-              <a href={LANDINGAI_PRICING} target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                {t("settings.scanReading.pricingLink")}
-              </a>
-            </SettingsDescription>
+            {showKeyHelp ? (
+              <SettingsDescription>
+                {t("settings.scanReading.getKey")}{" "}
+                <a href={LANDINGAI_SITE} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                  {t("settings.scanReading.siteLink")}
+                </a>
+                {" · "}
+                <a href={LANDINGAI_KEY_DOCS} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                  {t("settings.scanReading.keyDocsLink")}
+                </a>
+                {" · "}
+                <a href={LANDINGAI_PRICING} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                  {t("settings.scanReading.pricingLink")}
+                </a>
+              </SettingsDescription>
+            ) : null}
           </div>
           {loading ? (
             <div className="h-5 w-9 shrink-0 animate-pulse rounded-full bg-app-surface" aria-hidden="true" />

@@ -86,3 +86,15 @@ describe("documents-zip export of a pasante's draft", () => {
     expect(download).not.toHaveBeenCalled();
   });
 });
+
+describe("documents-zip entry names", () => {
+  it("keeps every document name one entry of the archive, never a path, and keeps case-only twins apart", async () => {
+    tables.document_versions[0].filename = "../../.zshrc";
+    tables.document_versions[1].training_stage = null;
+    tables.document_versions[1].filename = "../../.ZSHRC";
+    const zip = await exportedZip();
+    const names = Object.keys(zip.files).sort();
+    expect(names).toEqual([".._.._ (2).ZSHRC", ".._.._.zshrc"].sort());
+    expect(names.some((name) => name.includes("/") || name.includes("\\"))).toBe(false);
+  });
+});

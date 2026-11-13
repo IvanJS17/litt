@@ -24,6 +24,9 @@ const FEATURES = ["chats", "documents", "compared", "converted", "scans", "split
 // every row stacks its cells under their own labels, wrapping instead of
 // truncating, so an email is always whole.
 const ROW = "h-auto min-w-0 grid-cols-1 gap-x-4 gap-y-1 py-3 pr-3 pl-3 lg:items-start";
+// The overview table's columns: the feature name, then the two usage counts.
+// The header and every row take the same template and gap, so the columns line up.
+const OVERVIEW_COLS = "lg:grid-cols-[minmax(0,1fr)_8rem_8rem]";
 const CELL = "min-w-0 overflow-visible text-clip whitespace-normal break-all text-xs text-gray-700";
 
 function Cell({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
@@ -129,26 +132,30 @@ export function BetaStatsSection() {
               <SettingsDescription>{t("access.stats.awaitingNote")}</SettingsDescription>
             )}
 
-            <TableHeaderRow className="hidden h-8 min-w-0 lg:flex">
-              <TableHeaderCell className="min-w-0 flex-1">{t("access.stats.feature")}</TableHeaderCell>
-              <TableHeaderCell className="w-32">{t("access.stats.usage7")}</TableHeaderCell>
-              <TableHeaderCell className="w-32">{t("access.stats.usage30")}</TableHeaderCell>
+            <TableHeaderRow
+              data-testid="stats-overview-header"
+              className={cn("hidden h-8 min-w-0 gap-x-4 pl-3 lg:grid", OVERVIEW_COLS)}
+            >
+              <TableHeaderCell>{t("access.stats.feature")}</TableHeaderCell>
+              <TableHeaderCell>{t("access.stats.usage7")}</TableHeaderCell>
+              <TableHeaderCell>{t("access.stats.usage30")}</TableHeaderCell>
             </TableHeaderRow>
             <TableBody>
               {FEATURES.map((key) => (
                 <TableRow
                   key={key}
                   interactive={false}
-                  className="h-auto min-w-0 flex-wrap gap-x-4 py-2 pl-3 lg:flex-nowrap"
+                  data-testid="stats-overview-row"
+                  className={cn("grid h-auto min-w-0 grid-cols-1 gap-x-4 gap-y-1 py-2 pl-3", OVERVIEW_COLS)}
                 >
-                  <TableCell className="min-w-0 flex-1 basis-full overflow-visible text-clip whitespace-normal text-xs text-gray-700 lg:basis-0">
+                  <TableCell className="min-w-0 overflow-visible text-clip whitespace-normal text-xs text-gray-700">
                     {feature(key)}
                   </TableCell>
-                  <TableCell className="overflow-visible text-clip whitespace-normal lg:w-32">
+                  <TableCell className="min-w-0 overflow-visible text-clip whitespace-normal">
                     <span className="text-gray-500 lg:hidden">{t("access.stats.usage7")}: </span>
                     {stats.usage.last_7_days[key]}
                   </TableCell>
-                  <TableCell className="overflow-visible text-clip whitespace-normal lg:w-32">
+                  <TableCell className="min-w-0 overflow-visible text-clip whitespace-normal">
                     <span className="text-gray-500 lg:hidden">{t("access.stats.usage30")}: </span>
                     {stats.usage.last_30_days[key]}
                   </TableCell>

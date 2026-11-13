@@ -98,6 +98,23 @@ describe("ScanReadingSection", () => {
     expect(screen.queryByLabelText(/API key/i)).toBeNull();
   });
 
+  it("shows how to get a LandingAI key only to someone who can add their own", () => {
+    const view = render(<ScanReadingSection />);
+    expect(screen.getByText(/create an account and an API key/i)).toBeVisible();
+    view.unmount();
+
+    workspace.firm = { name: "Socium" };
+    workspace.allowPersonal = false;
+    const blocked = render(<ScanReadingSection />);
+    expect(screen.queryByText(/create an account and an API key/i)).toBeNull();
+    blocked.unmount();
+
+    workspace.allowPersonal = true;
+    workspace.managed = true;
+    render(<ScanReadingSection />);
+    expect(screen.queryByText(/create an account and an API key/i)).toBeNull();
+  });
+
   it("reflects the saved key and turns it off without deleting it", async () => {
     render(<ScanReadingSection />);
     const toggle = screen.getByRole("switch");

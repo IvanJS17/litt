@@ -49,6 +49,22 @@ describe("BetaStatsSection", () => {
         expect(screen.queryByText("Overview")).not.toBeInTheDocument();
     });
 
+    it("lays the overview header and its rows on the same columns, so the usage columns line up", async () => {
+        mocks.get.mockResolvedValue(stats);
+        render(<BetaStatsSection />);
+        const header = await screen.findByTestId("stats-overview-header");
+        const rows = screen.getAllByTestId("stats-overview-row");
+        const template = (el: HTMLElement) => el.className.split(" ").find((c) => c.startsWith("lg:grid-cols-"));
+        expect(template(header)).toBeDefined();
+        for (const row of rows) {
+            expect(template(row)).toBe(template(header));
+            expect(row.className).toContain("gap-x-4");
+            expect(row.className).toContain("pl-3");
+        }
+        expect(header.className).toContain("gap-x-4");
+        expect(header.className).toContain("pl-3");
+    });
+
     it("renders the overview, firms and people, with the email whole and a deleted user without profile", async () => {
         mocks.get.mockResolvedValue(stats);
         render(<BetaStatsSection />);
