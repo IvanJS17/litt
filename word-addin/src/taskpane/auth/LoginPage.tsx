@@ -3,6 +3,7 @@ import { useTranslations } from "use-intl";
 import { useAuth } from "./useAuth";
 import {
   InputUI,
+  PasswordInputUI,
   PillButtonUI as PillButton,
   GoogleIconUI,
   AuthDividerUI as AuthDivider,
@@ -102,9 +103,8 @@ export function LoginPage(): React.ReactElement {
                     {t("auth.login.forgotPassword")}
                   </a>
                 </div>
-                <InputUI
+                <PasswordInputUI
                   id="password"
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"

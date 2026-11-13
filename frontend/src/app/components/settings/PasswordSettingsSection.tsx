@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { authInputUIClassName, InputUI, PillButtonUI, GlassCardUI } from "@mike/ui";
+import { authInputUIClassName, PasswordInputUI, PillButtonUI, GlassCardUI } from "@mike/ui";
 import {
   MIN_PASSWORD_LENGTH,
   isPasswordTooLong,
@@ -192,9 +192,8 @@ export function PasswordSettingsSection() {
           </p>
           <div>
             <FieldLabel htmlFor="new-account-password">{t("settings.passwordSettingsSection.password")}</FieldLabel>
-            <InputUI
+            <PasswordInputUI
               id="new-account-password"
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPasswordValue(event.target.value)}
@@ -205,9 +204,8 @@ export function PasswordSettingsSection() {
             <FieldLabel htmlFor="confirm-account-password">
               {t("settings.passwordSettingsSection.confirmPassword")}
             </FieldLabel>
-            <InputUI
+            <PasswordInputUI
               id="confirm-account-password"
-              type="password"
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}

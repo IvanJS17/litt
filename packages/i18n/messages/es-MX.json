@@ -5491,6 +5491,10 @@
       "dismissNotification": "Descartar notificación"
     },
     "numberedList": "Lista numerada",
+    "passwordInput": {
+      "hide": "Ocultar contraseña",
+      "show": "Mostrar contraseña"
+    },
     "playbookPill": {
       "openPlaybookTitle": "Abrir playbook {title}",
       "removePlaybookTitle": "Quitar playbook {title}"

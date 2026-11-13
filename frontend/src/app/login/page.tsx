@@ -8,6 +8,7 @@ import { login } from "@/app/lib/authApi";
 import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
+    PasswordInputUI,
     PillButtonUI,
     authGlassCardUIClassName,
     authInputUIClassName,
@@ -200,9 +201,8 @@ export default function LoginPage() {
                                     {t("auth.login.forgotPassword")}
                                 </Link>
                             </div>
-                            <InputUI
+                            <PasswordInputUI
                                 id="password"
-                                type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
