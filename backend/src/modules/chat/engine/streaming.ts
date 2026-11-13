@@ -17,8 +17,9 @@ import {
 } from "../../../lib/modelSelection";
 import { UserFacingError } from "../../../lib/userFacingError";
 import { InvalidApiKeyError } from "../../../lib/llm/apiKeyErrors";
-import { markStage, reportError } from "../../../lib/observability/report";
-import { providerFailureKind } from "../../../lib/llm/providerErrors";
+import { markStage, markErrorHandled, isReported } from "../../../lib/observability/report";
+import { ProviderConfigurationError, isUserProviderRefusal, providerFailureKind } from "../../../lib/llm/providerErrors";
+import { reportModelFailure } from "../../../lib/llm/providerFailureReport";
 import {
   chatSubagentsEnabled,
   chatWebSearchEnabled,
@@ -155,10 +156,12 @@ export function assistantStreamErrorPayload(
 } {
   // The request id is the one handle a user can quote that finds the report
   // entry and the access-log line for this failure; it carries no content.
-  // The server owns reporting for terminal failures, even when third-party
-  // telemetry is disabled. This states ownership; it does not promise entry
-  // delivery.
-  const reporting = { reporting_owner: "backend" as const, ...(requestId ? { request_id: requestId } : {}) };
+  // Only an explicit report or source-owned handling establishes ownership.
+  // A safe message/code says nothing about who accounted for the failure.
+  const reporting: { reporting_owner?: typeof BACKEND_REPORTING_OWNER; request_id?: string } = {
+    ...(isReported(error) ? { reporting_owner: BACKEND_REPORTING_OWNER } : {}),
+    ...(requestId ? { request_id: requestId } : {}),
+  };
   const safe =
     error instanceof AssistantStreamError
       ? [...error.events]
@@ -1158,14 +1161,10 @@ export async function runLLMStream(params: {
       flushPartialTurn();
       const safeToDisplay = err instanceof UserFacingError;
       // The response already started, so the HTTP 500 path never sees this:
-      // This is the one report of the turn's failure. Reporting it HERE,
-      // before any console.error, means the entry carries the turn's own
-      // identity; the route's later log of the AssistantStreamError below,
-      // whose `cause` is `err`, is then a second line for the same failure.
-      // A UserFacingError (rejected or missing API key, model not allowed)
-      // is the user's configuration rather than our bug: still one entry, so
-      // operators see a rejected key with its provider_error tag, but at
-      // warning level, not error.
+      // it is the one report of the turn's failure. Reporting it HERE, before
+      // any console.error, marks it reported, so the route's later log of the
+      // AssistantStreamError below, whose `cause` is `err`, is not a second
+      // report of the same failure.
       // The kind says what the provider did (rejected the key, rate limited,
       // unavailable) so one cause is one entry; the provider's own error
       // stays underneath as the cause, where provider_error and
@@ -1177,16 +1176,15 @@ export async function runLLMStream(params: {
           : new AppError(providerFailureKind(err), "Model stream failed", {
               cause: err,
             });
-      // A subagent's run is its own flow inside the turn's request: name it
-      // on the entry so a failing delegate is not filed under the answer.
-      reportError(failure, {
-        tags: {
-          component: "chat-stream",
-          ...(isSubagent ? { operation: "chat.subagent" as const } : {}),
-        },
-        ...(safeToDisplay ? { level: "warning" as const } : {}),
-      });
-      console.error("[chat/stream] model stream failed", failure);
+      if (safeToDisplay && isUserProviderRefusal(err)) {
+        // This turn returns the remedy to the owner of the rejected account.
+        markErrorHandled(failure);
+        console.warn("[chat/stream] model account refused", failure);
+      } else {
+        reportModelFailure(failure, {
+          tags: { component: "chat-stream", ...(isSubagent ? { operation: "chat.subagent" as const } : {}) },
+        }, "[chat/stream] model stream failed");
+      }
       const message = safeToDisplay ? err.message : ASSISTANT_ERROR_MESSAGE;
       events.push({
         type: "error",

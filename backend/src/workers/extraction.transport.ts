@@ -3,7 +3,7 @@ import { Worker, UnrecoverableError, type Job } from "bullmq";
 import { ExtractionParseError } from "../lib/extraction/failure";
 import { ExtractionLimitError } from "../lib/extraction/limits";
 import { runIsolated } from "../lib/dbq/jobScope";
-import { getRedisConnection } from "../lib/queue/connection";
+import { getRedisConnection, watchQueueErrors } from "../lib/queue/connection";
 import { EXTRACTION_QUEUE, type ExtractionJobData } from "../lib/queue/extractionQueue";
 import { reportError } from "../lib/observability/report";
 import { extractionJobOperation, runExtractionJob, markExtractionFailed } from "../modules/tabular/tabular.service";

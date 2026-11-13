@@ -1,6 +1,9 @@
 import { abortable } from "../../lib/abortable";
 import { completeText, type UserApiKeys } from "../../lib/llm";
-import { providerFailureStatus } from "../../lib/llm/providerErrors";
+import {
+    providerFailureKind,
+    providerFailureStatus,
+} from "../../lib/llm/providerErrors";
 import { reportError } from "../../lib/observability/report";
 import { UserFacingError } from "../../lib/userFacingError";
 

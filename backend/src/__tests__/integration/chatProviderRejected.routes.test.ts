@@ -1,4 +1,4 @@
-// PR #792 live recording: a revoked DEPLOYMENT key filed no Sentry event in
+// PR #792 live recording: a revoked DEPLOYMENT key wrote no report line in
 // a real chat turn. The credential store starts from the environment's keys
 // and lays the user's saved keys over them, so with no saved key the adapter
 // received ANTHROPIC_API_KEY as `apiKeys.claude`, read it as the user's own,
@@ -6,13 +6,13 @@
 //
 // This drives POST /chat end to end: the real router, the real credential
 // store (reading user_api_keys rows from the stub database), the real
-// Anthropic adapter through the AI SDK, and the real Sentry client with the
-// production initSentry() configuration. Only the network answer (a 401
+// Anthropic adapter through the AI SDK, and the real local report writer.
+// LiTT sends nothing to third parties: a report is one sanitized `[report]`
+// line in the server log, which is what this test reads. Only the network answer (a 401
 // from Anthropic, the shape the recorder's provider-stub.mjs sends) and the
 // database are faked.
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
-import * as Sentry from "@sentry/node";
 
 vi.hoisted(() => {
     process.env.RATE_LIMIT_CHAT_MAX = "1000";
@@ -110,7 +110,6 @@ vi.mock("../../modules/user/user.settings", async (importOriginal) => {
 
 import { app } from "../../app";
 import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
-import { initSentry, resetSentryForTests } from "../../lib/observability/sentry";
 import { saveUserApiKey } from "../../lib/providerCredentials/store";
 
 const DEPLOYMENT_KEY = "sk-ant-deployment-DEPLOY";
@@ -127,38 +126,21 @@ function anthropicRejectsKey(): Response {
     );
 }
 
-let sent: Sentry.Event[] = [];
+type ReportLine = { level?: string; component?: string; error_kind?: string };
 
-// One beforeExit listener per initSentry() (see chatTurnSentryEvents.test.ts).
-let maxListeners = 0;
-beforeAll(() => {
-    maxListeners = process.getMaxListeners();
-    process.setMaxListeners(maxListeners + 20);
-});
-afterAll(() => {
-    process.setMaxListeners(maxListeners);
-});
+/** The sanitized `[report]` lines the turn wrote, at either level. */
+function sentReports(): ReportLine[] {
+    return [...vi.mocked(console.error).mock.calls, ...vi.mocked(console.warn).mock.calls]
+        .filter((call) => call[0] === "[report]")
+        .map((call) => JSON.parse(String(call[1])) as ReportLine);
+}
 
 beforeEach(() => {
     resetAssistantTurnRunsForTests();
     keyRows.length = 0;
     providerRequests.length = 0;
-    sent = [];
     vi.stubEnv("ANTHROPIC_API_KEY", DEPLOYMENT_KEY);
     vi.stubEnv("USER_API_KEYS_ENCRYPTION_SECRET", "test-secret");
-    resetSentryForTests("community");
-    expect(
-        initSentry("api", {
-            SENTRY_DSN: "http://public@127.0.0.1:9/1",
-            SENTRY_ALLOW_IN_TESTS: "true",
-            NODE_ENV: "test",
-        } as NodeJS.ProcessEnv),
-    ).toBe(true);
-    Sentry.getClient()!.on("beforeEnvelope", (envelope) => {
-        for (const [header, payload] of envelope[1]) {
-            if (header.type === "event") sent.push(payload as Sentry.Event);
-        }
-    });
     vi.stubGlobal(
         "fetch",
         vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -174,12 +156,10 @@ beforeEach(() => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
-afterEach(async () => {
+afterEach(() => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
-    await Sentry.close(0);
-    resetSentryForTests();
 });
 
 async function chatTurn() {
@@ -198,25 +178,24 @@ async function chatTurn() {
 }
 
 function rejectedKeyEvents() {
-    return sent
-        .filter((event) => event.tags?.error_kind === "chat.provider_rejected")
-        .map((event) => [event.tags?.component, event.level]);
+    return sentReports()
+        .filter((report) => report.error_kind === "chat.provider_rejected")
+        .map((report) => [report.component, report.level]);
 }
 
 describe("POST /chat when Anthropic rejects the key", () => {
-    it("reports each failed deployment-key turn before repeat sampling", async () => {
+    it("reports each failed deployment-key turn", async () => {
         await chatTurn();
         await chatTurn();
-        await Sentry.flush(2000);
 
         // No saved key: the store's answer is the environment's key.
         expect(providerRequests).toEqual([DEPLOYMENT_KEY, DEPLOYMENT_KEY]);
         expect(rejectedKeyEvents()).toEqual([["chat-stream", "error"], ["chat-stream", "error"]]);
-        expect(sent).toHaveLength(2);
-        expect(JSON.stringify(sent)).not.toContain(DEPLOYMENT_KEY);
+        expect(sentReports()).toHaveLength(2);
+        expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(DEPLOYMENT_KEY);
     });
 
-    it("files nothing for the user's own key", async () => {
+    it("reports nothing for the user's own key", async () => {
         await saveUserApiKey("u1", "claude", USER_KEY, {
             from: () => ({
                 upsert: async (row: Record<string, unknown>) => {
@@ -227,10 +206,9 @@ describe("POST /chat when Anthropic rejects the key", () => {
         } as never);
 
         await chatTurn();
-        await Sentry.flush(2000);
 
         expect(providerRequests).toEqual([USER_KEY]);
-        expect(sent).toEqual([]);
+        expect(sentReports()).toEqual([]);
         expect(console.warn).toHaveBeenCalledWith(
             "[chat/stream] model account refused",
             expect.anything(),

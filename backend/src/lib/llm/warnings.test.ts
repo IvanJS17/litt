@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const { reportError } = vi.hoisted(() => ({ reportError: vi.fn() }));
-vi.mock("../observability/sentry", () => ({ reportError }));
+vi.mock("../observability/report", () => ({ reportError }));
 import { installProviderWarningLogger, logProviderWarnings, resetProviderWarningsForTests } from "./warnings";
 beforeEach(() => { resetProviderWarningsForTests(); vi.clearAllMocks(); });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });

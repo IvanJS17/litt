@@ -2165,21 +2165,8 @@ describe("tabular.routes", () => {
             expect(extractRowColumns).not.toHaveBeenCalled();
         });
 
-        it("owns a terminal generation failure once in the final envelope and the error frame", async () => {
-            const Sentry = await import("@sentry/node");
-            const { resetSentryForTests, scrubEvent } = await import("../../lib/observability/sentry.js");
-            const { privacyBoundaryIntegration } = await import("../../lib/observability/sentryPrivacy.js");
-            const sent: import("@sentry/node").Event[] = [];
-            resetSentryForTests("official", { initialized: true });
-            Sentry.init({
-                dsn: "https://test@sentry.invalid/1", defaultIntegrations: false,
-                integrations: [Sentry.linkedErrorsIntegration(), privacyBoundaryIntegration(), Sentry.captureConsoleIntegration({ levels: ["error"] })],
-                beforeSend: scrubEvent,
-                transport: () => ({ send: async envelope => {
-                    for (const [header, payload] of envelope[1]) if (header.type === "event") sent.push(payload as import("@sentry/node").Event);
-                    return { statusCode: 200 };
-                }, flush: async () => true }),
-            });
+        it("owns a terminal generation failure once in the report line and the error frame", async () => {
+            const logged = vi.spyOn(console, "error").mockImplementation(() => {});
             try {
                 const original = new TypeError("PRIVATE_SOURCE_DOCUMENT");
                 original.stack = "TypeError: PRIVATE_SOURCE_DOCUMENT\n    at extractRow (backend/src/modules/tabular/tabular.extractRow.ts:42:7)";
@@ -2189,14 +2176,14 @@ describe("tabular.routes", () => {
                 expect(res.text).toContain('"reporting_owner":"backend"');
                 expect(res.text).toContain("data: [DONE]");
                 expect(res.text).not.toContain("PRIVATE_SOURCE_DOCUMENT");
-                await Sentry.flush(2000);
-                expect(sent).toHaveLength(1);
-                expect(sent[0]?.tags).toMatchObject({ operation: "tabular.generate", stage: "generation-stream" });
-                expect(sent[0]?.exception?.values?.some(value => value.stacktrace?.frames?.some(frame => frame.lineno === 42))).toBe(true);
-                expect(JSON.stringify(sent)).not.toContain("PRIVATE_SOURCE_DOCUMENT");
+                const reports = logged.mock.calls
+                    .filter((call) => call[0] === "[report]")
+                    .map((call) => JSON.parse(String(call[1])) as Record<string, unknown>);
+                expect(reports).toHaveLength(1);
+                expect(reports[0]).toMatchObject({ operation: "tabular.generate", stage: "generation-stream" });
+                expect(JSON.stringify(reports)).not.toContain("PRIVATE_SOURCE_DOCUMENT");
             } finally {
-                await Sentry.close();
-                resetSentryForTests();
+                logged.mockRestore();
             }
         });
 

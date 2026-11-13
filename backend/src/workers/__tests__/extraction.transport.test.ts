@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { UnrecoverableError, type Job } from "bullmq";
 import { ExtractionParseError } from "../../lib/extraction/failure";
-import { reportError } from "../../lib/observability/sentry";
+import { reportError } from "../../lib/observability/report";
 import { ExtractionBusyError, ExtractionLimitError } from "../../lib/extraction/limits";
 import type { ExtractionJobData } from "../../lib/queue/extractionQueue";
 
@@ -14,7 +14,7 @@ vi.mock("bullmq", async (importOriginal) => ({
         close = vi.fn();
     },
 }));
-vi.mock("../../lib/queue/connection", () => ({ getRedisConnection: () => ({}) }));
+vi.mock("../../lib/queue/connection", () => ({ getRedisConnection: () => ({}), watchQueueErrors: vi.fn() }));
 vi.mock("../../lib/observability/report", async (importOriginal) => ({
     ...await importOriginal<typeof import("../../lib/observability/report")>(),
     reportError: vi.fn(),

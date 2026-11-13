@@ -33,7 +33,7 @@ import { createServerSupabase } from "../../lib/supabase";
 import { recordAudit } from "../../lib/audit";
 import { parseCredentialRef } from "../user/user.service";
 import { sendInternalError } from "../../lib/httpError";
-import { reportError, setOperation } from "../../lib/observability/report";
+import { isReported, reportError, setOperation } from "../../lib/observability/report";
 import { AppError } from "../../lib/appError";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import {

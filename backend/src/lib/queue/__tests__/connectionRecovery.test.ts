@@ -4,12 +4,12 @@ import { createServer, type Socket } from "node:net";
 import { RedisQueueBackend } from "bullmq";
 
 const mocks = vi.hoisted(() => ({ reportError: vi.fn() }));
-vi.mock("../../observability/sentry", async load => ({
-    ...(await load<typeof import("../../observability/sentry")>()),
+vi.mock("../../observability/report", async load => ({
+    ...(await load<typeof import("../../observability/report")>()),
     reportError: mocks.reportError,
 }));
 import { queueConnectionRecovered, watchQueueErrors } from "../consumerErrors";
-import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../observability/diagnostics";
 
 afterEach(() => {
     mocks.reportError.mockClear();

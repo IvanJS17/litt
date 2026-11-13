@@ -37,7 +37,7 @@ import { UnrecoverableError, type Job } from "bullmq";
 import { ExtractionLimitError } from "../../lib/extraction/limits";
 import type { ExtractionJobData } from "../../lib/queue/extractionQueue";
 import { AssistantStreamError } from "../../modules/chat/chat.service";
-import { markErrorHandled } from "../../lib/observability/sentry";
+import { markErrorHandled } from "../../lib/observability/report";
 
 type Call = {
     table: string;

@@ -31,7 +31,7 @@ import {
     type DbJob,
     type DbJobHandlers,
 } from "./types";
-import { reportError, setOperation } from "../observability/report";
+import { markErrorHandled, reportError, setOperation } from "../observability/report";
 import {
     createPollFailureGate,
     type PollFailureGate,

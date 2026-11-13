@@ -26,7 +26,7 @@ import type { TextExtractionCache } from "../../lib/textExtractionCache";
 // lease itself.
 
 import { ExtractionParseError } from "../../lib/extraction/failure";
-import { reportError } from "../../lib/observability/sentry";
+import { reportError } from "../../lib/observability/report";
 import { ExtractionBusyError, ExtractionLimitError } from "../../lib/extraction/limits";
 import { type UserApiKeys } from "../../lib/llm";
 import { queryTabularAllColumns } from "./tabular.extract";

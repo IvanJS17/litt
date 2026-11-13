@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
-import { isReported } from "../../lib/observability/sentry";
+import { isReported } from "../../lib/observability/report";
 import { streamAiSdk } from "../../lib/llm/aiSdk";
 import {
     callStep,

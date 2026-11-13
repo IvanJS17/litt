@@ -44,7 +44,7 @@ import {
     requestIdOf,
     reserveAssistantMessage,
 } from "./engine/index";
-import { setOperation } from "../../lib/observability/report";
+import { setOperation, isReported, reportError } from "../../lib/observability/report";
 import { normalizeEmail } from "../../lib/access";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { can } from "../../lib/permissions";

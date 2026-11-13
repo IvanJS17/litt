@@ -1,5 +1,5 @@
 import { Worker, type Job } from "bullmq";
-import { getRedisConnection } from "../lib/queue/connection";
+import { getRedisConnection, watchQueueErrors } from "../lib/queue/connection";
 import { asReportableError } from "../lib/httpError";
 import {
     APP_JOBS_QUEUE,

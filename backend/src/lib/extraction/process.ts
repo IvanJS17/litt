@@ -2,6 +2,7 @@
 import { EXTRACTION_OPS, type ExtractionOp } from "./ops";
 import type { OcrFill } from "../ocr/pages";
 import { EXTRACTION_MAX_BINARY_BYTES, EXTRACTION_MAX_TEXT_BYTES, ExtractionLimitError, isAllocationFailure } from "./limits";
+import { extractionFailureToWire } from "./failure";
 
 process.on("message", (request: { op: ExtractionOp; bytes: ArrayBuffer; fileType: string; ocr?: OcrFill }) => {
   void (async () => {

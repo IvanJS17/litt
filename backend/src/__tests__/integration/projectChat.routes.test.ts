@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
-import { isReported } from "../../lib/observability/sentry";
+import { isReported } from "../../lib/observability/report";
 
 // The training describe at the end pushes this file past the chat limiter's
 // 30-requests-per-window budget. Hoisted so it precedes app.ts's limiter

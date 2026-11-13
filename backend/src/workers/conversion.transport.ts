@@ -1,7 +1,7 @@
 // conversion transport — implementation behind the module facade.
 import { Worker, type Job } from "bullmq";
 import { runIsolated } from "../lib/dbq/jobScope";
-import { getRedisConnection } from "../lib/queue/connection";
+import { getRedisConnection, watchQueueErrors } from "../lib/queue/connection";
 import { CONVERSION_QUEUE, type ConversionJobData } from "../lib/queue/conversionQueue";
 import { createServerSupabase } from "../lib/supabase";
 import { reportError } from "../lib/observability/report";

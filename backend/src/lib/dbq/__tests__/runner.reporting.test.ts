@@ -7,7 +7,7 @@ vi.mock("../../supabase", () => ({ createServerSupabase: vi.fn() }));
 vi.mock("../../storage", () => ({ deleteFile: vi.fn() }));
 
 import { diagnosticErrorTags } from "../../observability/diagnostics";
-import { createDbJobClaimGate, createDbJobPool, processClaimedJob } from "../runner";
+import { createDbJobClaimGate, createDbJobPool, NonRetryableJobError, processClaimedJob } from "../runner";
 import { DbJobDeferredError, type DbJob } from "../types";
 
 /** One claim through the production pool, then wait for the claimed jobs. */
@@ -211,6 +211,25 @@ describe("processClaimedJob console lines", () => {
         );
         expect(logged).toBeDefined();
         expect((logged![1] as { error: unknown }).error).toBeInstanceOf(Error);
+    });
+
+    it("fails a job its handler marks unreported at once, and reports nothing", async () => {
+        // A provider rejecting the user's own key (MIKE-BACKEND-1W): the job
+        // ends, and neither a report nor an error-level log line is filed.
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        const db = makeDb(async () => ({ data: [], error: null }));
+        await processClaimedJob(db as never, {
+            "test.kind": async () => {
+                throw new NonRetryableJobError("provider refused", { reportLevel: null });
+            },
+        }, JOB({ attempts: 1, max_attempts: 20 }));
+
+        expect(consoleError).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledWith(
+            "[dbq] job permanently failed",
+            expect.objectContaining({ id: "job-1" }),
+        );
+        warn.mockRestore();
     });
 
     it("never logs a deferral at error level", async () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
-import { isReported } from "../../lib/observability/sentry";
+import { isReported } from "../../lib/observability/report";
 
 type QueryError = { message: string } | null;
 type QueryResult = { data: unknown; error: QueryError };

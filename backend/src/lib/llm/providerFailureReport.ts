@@ -1,4 +1,4 @@
-import { reportError, type ReportContext } from "../observability/sentry";
+import { reportError, type ReportContext } from "../observability/report";
 import { providerFailureLevel } from "./providerErrors";
 
 /** Preserve the failure and its context; the final transport samples repeats. */

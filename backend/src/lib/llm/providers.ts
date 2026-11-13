@@ -254,6 +254,7 @@ async function createRouterAdapter(
       modelId: model,
       defaultMaxOutputTokens: () => ROUTER_DEFAULT_MAX_OUTPUT_TOKENS,
       alwaysReasoningHeadroom: true,
+      keySource,
     };
   }
 
@@ -271,6 +272,7 @@ async function createRouterAdapter(
       modelId: model,
       defaultMaxOutputTokens: () => ROUTER_DEFAULT_MAX_OUTPUT_TOKENS,
       alwaysReasoningHeadroom: true,
+      keySource,
     };
   }
 
@@ -402,6 +404,7 @@ async function createAzureAdapter(
     // get reasoning controls and arbitrary names run without them.
     model: azure.responses(azureDeploymentName(model)),
     modelId: model,
+    keySource: keySourceFor(apiKeys, "azure"),
   };
 }
 
@@ -612,6 +615,19 @@ async function createConfiguredAdapter(
   };
 }
 
+/**
+ * Whose key a declared model sends, in apiKeyForConfiguredModel's order: a
+ * key written into the declaration is the deployment's, then the user's own
+ * key for apiKeyProvider, then the deployment's apiKeyEnv.
+ */
+function configuredModelKeySource(
+  configured: ConfiguredModel,
+  apiKeys?: UserApiKeys,
+): ProviderKeySource {
+  if (configured.apiKey?.trim() || !configured.apiKeyProvider) return "deployment";
+  return keySourceFor(apiKeys, configured.apiKeyProvider);
+}
+
 function ollamaBaseUrl(): string {
   return (
     process.env.OLLAMA_BASE_URL?.trim() || "http://localhost:11434/v1"
@@ -685,6 +701,7 @@ async function createProviderAdapter(
       label: "OpenAI",
       model: openai.responses(model),
       modelId: model,
+      keySource: keySourceFor(apiKeys, "openai"),
       webSearchTool: () => openai.tools.webSearch({}),
     };
   }

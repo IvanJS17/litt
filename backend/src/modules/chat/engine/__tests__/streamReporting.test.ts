@@ -1,15 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { assistantStreamErrorPayload, AssistantStreamError, ASSISTANT_ERROR_MESSAGE } from "../streaming";
-import { markErrorHandled, reportError, resetSentryForTests } from "../../../../lib/observability/sentry";
+import { markErrorHandled, reportError } from "../../../../lib/observability/report";
 import { BACKEND_REPORTING_OWNER } from "../../../../lib/reportedUpstreamCodes";
 
-afterEach(() => resetSentryForTests());
 describe("terminal stream reporting ownership", () => {
   it("leaves an unreported terminal exception unowned", () => {
     expect(assistantStreamErrorPayload(new Error("private payload"))).toEqual({ message: ASSISTANT_ERROR_MESSAGE });
   });
-  it("preserves an explicit report through wrappers, even with telemetry disabled", () => {
-    resetSentryForTests();
+  it("preserves an explicit report through wrappers, (LiTT sends no telemetry)", () => {
     const original = new Error("private original");
     reportError(original);
     expect(assistantStreamErrorPayload(new Error("wrapper", { cause: original }))).toEqual({

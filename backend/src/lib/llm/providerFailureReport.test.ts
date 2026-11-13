@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 const { reportError } = vi.hoisted(() => ({ reportError: vi.fn() }));
-vi.mock("../observability/sentry", () => ({ reportError }));
+vi.mock("../observability/report", () => ({ reportError }));
 import { reportModelFailure } from "./providerFailureReport";
 import { withKeySource } from "./providerErrors";
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); });

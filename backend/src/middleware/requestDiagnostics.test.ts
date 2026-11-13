@@ -42,6 +42,8 @@ it("keeps each request's identity in its own sanitized report line", async () =>
   // Fails before a route is selected.
   const malformed = await request(app).post(`/documents/${PRIVATE_FILE}`).set("Content-Type", "application/json").send(`{"private":"${PRIVATE_EMAIL}"`);
   expect([documents.status, workflow.status, malformed.status]).toEqual([204, 204, 400]);
+  expect(documents.headers["x-request-id"]).toBe("11111111-1111-4111-8111-111111111111");
+  expect(workflow.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);
 
   const reports = errors.mock.calls.filter(call => call[0] === "[report]").map(call => JSON.parse(String(call[1])) as Record<string, unknown>);
   expect(reports).toHaveLength(3);

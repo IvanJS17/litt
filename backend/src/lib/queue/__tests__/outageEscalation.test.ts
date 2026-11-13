@@ -8,12 +8,12 @@ import { EventEmitter } from "node:events";
 // until the connection recovers.
 
 const mocks = vi.hoisted(() => ({ reportError: vi.fn() }));
-vi.mock("../../observability/sentry", async (load) => ({
-    ...(await load<typeof import("../../observability/sentry")>()),
+vi.mock("../../observability/report", async (load) => ({
+    ...(await load<typeof import("../../observability/report")>()),
     reportError: mocks.reportError,
 }));
 
-import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../observability/diagnostics";
 import { queueConnectionRecovered, watchQueueErrors } from "../consumerErrors";
 
 afterEach(() => {

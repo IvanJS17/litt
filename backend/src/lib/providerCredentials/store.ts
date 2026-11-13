@@ -11,7 +11,7 @@ import { createServerSupabase } from "../supabase";
 import type { Db } from "../supabase";
 import { logError } from "../log";
 import { AppError } from "../appError";
-import { reportError } from "../observability/sentry";
+import { reportError } from "../observability/report";
 import type { ProviderSettings, UserApiKeys } from "../llm";
 import {
     envAzureCredentials,
@@ -586,7 +586,7 @@ export async function getUserApiKeys(
     db: Db = createServerSupabase(),
 ): Promise<UserApiKeys> {
     const apiKeys = envApiKeys();
-    overlayKeyRows(apiKeys, await loadKeyRows(userKeyOwner(userId), db));
+    overlayKeyRows(apiKeys, await loadKeyRows(userKeyOwner(userId), db), "user");
     return apiKeys;
 }
 
@@ -622,7 +622,7 @@ export async function getEffectiveApiKeys(
     const apiKeys = scope.allowPersonal
         ? await getUserApiKeys(userId, db)
         : envApiKeys();
-    overlayKeyRows(apiKeys, await loadKeyRows(orgKeyOwner(orgId), db));
+    overlayKeyRows(apiKeys, await loadKeyRows(orgKeyOwner(orgId), db), "org");
     return apiKeys;
 }
 

@@ -23,7 +23,7 @@ import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
 import { enqueueChatTurnAudit } from "../../lib/audit";
-import { setOperation } from "../../lib/observability/report";
+import { setOperation, isReported, reportError } from "../../lib/observability/report";
 import {
     appendAssistantEventsToMessage,
     AssistantStreamError,

@@ -18,7 +18,7 @@ type Result<K extends ExtractionOp> = Awaited<ReturnType<ExtractionOps[K]>>;
 /** `ocr` is a read scan to merge into a PDF's text (documentText only). */
 export type ExtractOptions = { fileType?: string; ocr?: OcrFill };
 export type ExtractInSlot = <K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options?: ExtractOptions) => Promise<Result<K>>;
-type Reply = { ok: true; result: unknown } | { ok: false; limited: boolean; message: string };
+type Reply = { ok: true; result: unknown } | ({ ok: false; limited: boolean } & ExtractionFailureWire);
 
 /** Hard OS memory boundary on Linux, including native buffers. Fail closed if
  * prlimit is unavailable. Other platforms retain process/heap and input/output
@@ -122,7 +122,12 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
   if (bytes.byteLength > EXTRACTION_MAX_BYTES) throw new ExtractionLimitError("source exceeds 150 MB");
   if (process.env.EXTRACTION_ISOLATION === "off") {
     const { EXTRACTION_OPS } = await import("./ops.js");
-    return await EXTRACTION_OPS[op](bytes, options.fileType ?? "", options.ocr) as Result<K>;
+    try {
+      return await EXTRACTION_OPS[op](bytes, options.fileType ?? "", options.ocr) as Result<K>;
+    } catch (error) {
+      // Classified as the isolated path is, so callers treat both alike.
+      throw error instanceof ExtractionLimitError ? error : asExtractionFailure(error);
+    }
   }
   if (parser && parser.memoryMb !== extractionMemoryMb()) await stopExtractionProcess();
   const p = parser ?? (parser = await startParser());

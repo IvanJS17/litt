@@ -14,8 +14,8 @@ const mocks = vi.hoisted(() => {
     process.env.ASYNC_TABULAR_EXTRACTION = "true";
     return { reportError: vi.fn() };
 });
-vi.mock("../../observability/sentry", async (load) => ({
-    ...(await load<typeof import("../../observability/sentry")>()),
+vi.mock("../../observability/report", async (load) => ({
+    ...(await load<typeof import("../../observability/report")>()),
     reportError: mocks.reportError,
 }));
 vi.mock("../../../modules/tabular/tabular.shared", () => ({
@@ -25,7 +25,7 @@ vi.mock("../../supabase", () => ({ createServerSupabase: () => ({}) }));
 
 import { closeRedisConnection, getRedisProducerConnection } from "../connection";
 import { closeExtractionQueue, getExtractionQueue } from "../extractionQueue";
-import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../observability/diagnostics";
 import { sweepStaleGeneratingCells } from "../../../modules/tabular/tabular.maintenance";
 import { makeFakeDb } from "../../../modules/tabular/__tests__/fakeDb";
 

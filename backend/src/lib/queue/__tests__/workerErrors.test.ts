@@ -13,13 +13,13 @@ const mocks = vi.hoisted(() => {
     process.env.REDIS_URL = "redis://127.0.0.1:6398";
     return { reportError: vi.fn() };
 });
-vi.mock("../../observability/sentry", async (load) => ({
-    ...(await load<typeof import("../../observability/sentry")>()),
+vi.mock("../../observability/report", async (load) => ({
+    ...(await load<typeof import("../../observability/report")>()),
     reportError: mocks.reportError,
 }));
 
 import { closeRedisConnection, getRedisConnection, watchQueueErrors } from "../connection";
-import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../observability/diagnostics";
 
 let worker: Worker | null = null;
 

@@ -17,6 +17,7 @@ import {
 import { can } from "../../lib/permissions";
 import { failure, internalFailure } from "../../lib/serviceResult";
 import { AppError } from "../../lib/appError";
+import { ExtractionParseError } from "../../lib/extraction/failure";
 import { reportError } from "../../lib/observability/report";
 import {
     enqueueExtraction,

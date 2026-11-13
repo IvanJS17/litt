@@ -37,6 +37,7 @@ vi.mock("../../../lib/convert", () => ({
 }));
 
 import { AppError } from "../../../lib/appError";
+import { withKeySource } from "../../../lib/llm/providerErrors";
 import { diagnosticErrorTags } from "../../../lib/observability/diagnostics";
 import { queryTabularAllColumns, queryTabularCell } from "../tabular.extract";
 

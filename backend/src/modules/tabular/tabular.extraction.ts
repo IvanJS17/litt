@@ -1,6 +1,7 @@
 import { createTextExtractionCache } from "../../lib/textExtractionCache";
 // extraction body — implementation behind the module facade.
 import { assertAuthorizationStamp } from "../../lib/authorizationEpoch";
+import { ExtractionParseError } from "../../lib/extraction/failure";
 import { ExtractionLimitError } from "../../lib/extraction/limits";
 import { type ExtractionJobData } from "../../lib/queue/extractionQueue";
 import { publishCellUpdate as defaultPublish, type RunProgressUpdate } from "../../lib/queue/runProgress";

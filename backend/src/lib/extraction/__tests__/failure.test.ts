@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AppError } from "../../appError";
 import { ConversionError } from "../../convert";
-import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../observability/diagnostics";
 import {
   ExtractionParseError,
   asExtractionFailure,

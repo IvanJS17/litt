@@ -2,7 +2,7 @@
 // labels. Messages and stacks remain local until the final outbound privacy
 // boundary reconstructs safe fields. Proven invalid bytes stop retries.
 import { AppError } from "../appError";
-import { diagnosticErrorTags } from "../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../observability/diagnostics";
 
 /**
  * The parser ran and rejected these bytes (corrupt, encrypted, unsupported

@@ -49,7 +49,7 @@ import {
 } from "../chat/chat.service";
 import { enqueueChatTurnAudit } from "../../lib/audit";
 import { parseCredentialRef } from "../user/user.service";
-import { setOperation } from "../../lib/observability/report";
+import { setOperation, isReported, reportError } from "../../lib/observability/report";
 import {
   persistWordDocumentEdits,
   WORD_EDIT_FORMATS,

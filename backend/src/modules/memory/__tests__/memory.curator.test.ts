@@ -1,6 +1,8 @@
 import { inspect } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import { diagnosticErrorTags } from "../../../lib/observability/diagnostics";
+import { NonRetryableJobError } from "../../../lib/dbq/runner";
+import { toProviderStreamError } from "../../../lib/llm/providerErrors";
 import type { StreamChatParams } from "../../../lib/llm";
 import {
   buildMemoryCuratorTranscript,

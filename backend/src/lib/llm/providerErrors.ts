@@ -261,7 +261,7 @@ export function providerFailureLevel(error: unknown): "warning" | "error" {
 // "The" rather than "your" key: requiredKey() may fall back to the
 // deployment's key, as noted on InvalidApiKeyError.
 function accessFailureMessage(
-  { statusCode, responseBody = "", message }: ApiCallErrorLike,
+  error: ApiCallErrorLike,
   { label, modelId }: ProviderContext,
 ): string | null {
   const { statusCode } = error;
@@ -273,10 +273,10 @@ function accessFailureMessage(
     return `${modelId} isn't available with the ${label} API key. Select another model.`;
   }
   if (statusCode === 429) {
-    if (/overloaded/i.test(responseBody) || /overloaded/i.test(message)) {
+    if (/overloaded/i.test(error.responseBody ?? "") || /overloaded/i.test(error.message)) {
       return `${label}: this model is overloaded right now. Try again in a moment, or select another model.`;
     }
-    return /limit: 0\b/.test(responseBody)
+    return quota === "plan"
       ? `The ${label} plan doesn't include ${modelId}. Select another model, or upgrade the ${label} plan.`
       : `${label} rate limit or quota reached. Wait a moment and try again, or select another model.`;
   }

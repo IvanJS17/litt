@@ -8,14 +8,14 @@ const mocks = vi.hoisted(() => {
     process.env.REDIS_URL = "redis://127.0.0.1:6399";
     return { reportError: vi.fn() };
 });
-vi.mock("../../observability/sentry", async (load) => ({
-    ...(await load<typeof import("../../observability/sentry")>()),
+vi.mock("../../observability/report", async (load) => ({
+    ...(await load<typeof import("../../observability/report")>()),
     reportError: mocks.reportError,
 }));
 
 import { closeRedisConnection, getRedisConnection } from "../connection";
 import { AppError } from "../../appError";
-import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../observability/diagnostics";
 
 afterAll(async () => {
     await closeRedisConnection().catch(() => {});
