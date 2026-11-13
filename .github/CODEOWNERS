@@ -1,0 +1,6 @@
+# Owners for review. Every path is owned by the maintainer. Owner rules request
+# review; they block merges only if branch protection requires code-owner approval.
+# Sensitive paths (AGENTS.md, backend/migrations/, backend/schema.sql, deploy/,
+# frontend/src/content/legal/, backend/src/middleware/) fall under this rule.
+# Add per-path owners here if a second maintainer joins.
+* @IvanJS17

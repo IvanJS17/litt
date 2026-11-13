@@ -1,10 +1,23 @@
 # Contributing
 
-Thanks for helping improve Mike. Please keep contributions small, focused, and easy to review.
+Thanks for helping improve LiTT. Please keep contributions small, focused, and easy to review.
+
+LiTT is a modified version of MikeOSS; see [Attribution in the README](README.md#attribution).
+
+## Contact and how to propose changes
+
+- **Issues are disabled** on this repository. Write to
+  [soporte@asteroitt.com](mailto:soporte@asteroitt.com) for questions and proposals.
+- **Code changes come in as pull requests.** For a change that touches several
+  subsystems, the data model, or public API/behavior, send the outline first
+  (`docs/templates/PRD.md`) to `soporte@asteroitt.com`; for small, well-understood
+  fixes, go straight to a pull request.
+- Security problems do not go through either channel; see [Security](#security).
 
 ## Guidelines
 
-- For changes that touch multiple subsystems, the data model, or public API/behavior, open a PRD issue first using the "New PRD" template (`docs/templates/PRD.md`); for small, well-understood fixes, a plain issue is fine.
+- Keep the invariants of LiTT: tenancy, BYOK, audit, telemetry and the other rules
+  in the [LiTT fork section of `AGENTS.md`](AGENTS.md#litt-fork). They apply to every change.
 - Prefer targeted edits over broad refactors.
 - Keep each PR focused on one bug, feature, or cleanup.
 - Update docs or env examples when changing setup, config, or user-facing behavior.
@@ -30,15 +43,28 @@ focus ring, accessible name on icon-only controls, `type="button"`, ARIA state
 alongside color). See [docs/design-system.md](docs/design-system.md) for the
 tokens, the primitive inventory, and the full baseline.
 
+## Branches and Pull Requests
+
+- Name the branch after the change, with a prefix such as `docs/`, `fix/`, `feat/`,
+  `refactor/`, `test/` or `chore/` (for example `docs/shorten-readme-telemetry`).
+- One pull request per change: one bug, feature or cleanup.
+- Before handing a change over, it gets one independent review of the exact
+  snapshot that will be merged; see [`docs/RELEASE_GATES.md`](docs/RELEASE_GATES.md).
+  Any change after the review needs a new review.
+- Fill in the [pull request template](.github/PULL_REQUEST_TEMPLATE.md), including
+  its checklist of LiTT invariants.
+
 ## Before Opening a PR
 
-- Run the relevant build or test command for the area you changed.
-- Check `git diff` and remove unrelated changes.
-- Write a concise Markdown PR description with:
-    - summary
-    - changes
-    - why
-    - testing
+- Read the invariants in [`AGENTS.md`](AGENTS.md#litt-fork) and, for UI work,
+  [`docs/design-system.md`](docs/design-system.md).
+- Use Node.js 22 (the CI workflows use Node 22; the packages require 22.19 or newer).
+- Run the relevant build or test command for the area you changed (see
+  [Testing](#testing)).
+- Check `git diff` and remove unrelated changes. Run `git diff --check`.
+- Migrations: follow [Database Migrations in `AGENTS.md`](AGENTS.md#database-migrations)
+  (new file, `backend/schema.sql` and the ledger updated in the same change).
+- Write the PR description with summary, changes, why and testing.
 
 ## Mike Workflows
 
@@ -117,9 +143,17 @@ link points at the code that runs. See `deploy/prod/README.md`.
 ```bash
 npm test --prefix backend            # backend unit + route integration tests (vitest)
 npm test --prefix frontend           # frontend component/hook tests (vitest + jsdom)
+npm run lint --prefix frontend       # ESLint
+npm run typecheck --prefix frontend  # TypeScript, frontend
+npm run build --prefix backend       # TypeScript build, backend
 npm run test:e2e                     # Playwright end-to-end suite — see docs/e2e-ci.md
 npm run test:stack --prefix backend  # gated: real-Supabase auth/access tests (run `supabase start` first)
 ```
+
+The Word add-in has its own checks: `npm run typecheck --prefix word-addin`,
+`npm run build --prefix word-addin` and `npm run test:e2e --prefix word-addin`.
+Before handing off a change to a Dockerfile or a cross-application import, build
+the affected image locally; see [`AGENTS.md`](AGENTS.md#verification).
 
 - New features and bug fixes should come with a test at the lowest layer that
   can catch the regression: unit first, then route-level integration, then
