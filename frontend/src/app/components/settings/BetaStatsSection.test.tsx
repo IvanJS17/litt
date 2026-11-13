@@ -99,6 +99,19 @@ describe("BetaStatsSection", () => {
         expect(screen.getAllByText("Civil").length).toBeGreaterThan(0);
     });
 
+    it("shows the last activity in the interface language and breaks only emails inside a word", async () => {
+        mocks.get.mockResolvedValue(stats);
+        render(<BetaStatsSection />);
+        await screen.findByText("Ana Pérez");
+        // The app's formatter (en-US here), never the browser's "11/12/2026, 4:00:00 AM".
+        expect(screen.getByText(/Nov 12, 2026/)).toBeInTheDocument();
+        expect(document.body.textContent).not.toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/);
+        const firm = screen.getAllByText("Firma Uno").find((el) => el.tagName === "TD" || el.closest("[class*='break-']"));
+        expect(firm!.closest("[class*='break-words']")).not.toBeNull();
+        expect(firm!.closest("[class*='break-all']")).toBeNull();
+        expect(screen.getByText("a-very-long-address.for.mobile@firma-uno.example").className).toContain("break-all");
+    });
+
     it("says so when the statistics cannot be loaded", async () => {
         mocks.get.mockRejectedValue(new Error("boom"));
         render(<BetaStatsSection />);
