@@ -634,6 +634,7 @@ describe("UserProfileProvider when the server omits apiKeyStatus", () => {
     it.each([
         ["missing", withoutKeyStatus],
         ["malformed", () => ({ ...apiProfile(false), apiKeyStatus: "enabled" })],
+        ["empty", () => ({ ...apiProfile(false), apiKeyStatus: {} })],
     ])("shows the real profile when the key status is %s, fails open and reports once", async (_case, body) => {
         getUserProfile.mockResolvedValue(body());
         renderProfile();

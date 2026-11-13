@@ -21,12 +21,16 @@ export const API_KEY_PROVIDERS: readonly ApiKeyProvider[] = [
 ];
 
 /**
- * Whether a server payload carries a key status at all. A forked server, or
+ * Whether a server payload carries a key status at all (an object that states at
+ * least one provider as true or false). A forked server, or
  * a proxy or misrouted API URL answering 200 with some other body, can leave
  * it out; then the client cannot tell which providers have keys.
  */
 export function hasApiKeyStatus(status: unknown): status is ApiKeyStatus {
-    return typeof status === "object" && status !== null && !Array.isArray(status);
+    if (typeof status !== "object" || status === null || Array.isArray(status)) return false;
+    // The real shape states, as a boolean, whether each provider has a key: `{}`
+    // or an object with only `sources` is some other answer, not "no keys".
+    return API_KEY_PROVIDERS.some((provider) => typeof (status as Record<string, unknown>)[provider] === "boolean");
 }
 
 /**
