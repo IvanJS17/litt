@@ -25,6 +25,9 @@ export * from "./documentUploadTypes";
 export * from "./settleWithConcurrency";
 export * from "./secureUuid";
 
+// The mark a stopped answer carries
+export * from "./stoppedEvent";
+
 // Response excerpts (quote-and-annotate wire format)
 export * from "./messageExcerpts";
 

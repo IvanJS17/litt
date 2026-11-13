@@ -152,7 +152,8 @@
       "littCouldnTWriteTo": "LiTT couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
       "responseCopied": "Response copied",
       "thinking": "Thinking...",
-      "usingConnector": "Using connector..."
+      "usingConnector": "Using connector...",
+      "stopped": "You stopped the response."
     },
     "assistantSidePanel": {
       "assistantDocuments": "Assistant documents",
@@ -6045,7 +6046,8 @@
     "workflowActions": "Workflow actions",
     "workflowCommands": "Workflow commands",
     "workflowUsed": "Workflow used",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "responseStopped": "You stopped the response."
   },
   "workflows": {
     "access": "Access",

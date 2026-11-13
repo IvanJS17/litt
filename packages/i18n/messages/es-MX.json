@@ -152,7 +152,8 @@
       "littCouldnTWriteTo": "LiTT no pudo copiar al portapapeles. Revisa el permiso del portapapeles de tu navegador y luego inténtalo de nuevo.",
       "responseCopied": "Respuesta copiada",
       "thinking": "Pensando…",
-      "usingConnector": "Usando conector…"
+      "usingConnector": "Usando conector…",
+      "stopped": "Detuviste la respuesta."
     },
     "assistantSidePanel": {
       "assistantDocuments": "Documentos del asistente",
@@ -6045,7 +6046,8 @@
     "workflowActions": "Acciones del flujo de trabajo",
     "workflowCommands": "Comandos del flujo de trabajo",
     "workflowUsed": "Flujo de trabajo usado",
-    "workflows": "Flujos de trabajo"
+    "workflows": "Flujos de trabajo",
+    "responseStopped": "Detuviste la respuesta."
   },
   "workflows": {
     "access": "Acceso",

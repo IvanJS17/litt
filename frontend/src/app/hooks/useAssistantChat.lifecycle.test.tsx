@@ -151,7 +151,7 @@ describe("useAssistantChat stream lifecycle", () => {
             .map((event) => (event.type === "content" ? event.text : ""))
             .join("");
         expect(text).not.toContain("and rest");
-        expect(text).not.toContain("Cancelled by user.");
+        expect((assistant?.events ?? []).some((event) => event.type === "stopped")).toBe(false);
     });
 
     it("detaches without aborting when detach() is called (leaving for another chat)", async () => {
@@ -248,7 +248,7 @@ describe("useAssistantChat stream lifecycle", () => {
         );
         expect(assistant?.events).toEqual([
             { type: "content", text: "Partial" },
-            { type: "content", text: "Cancelled by user." },
+            { type: "stopped" },
         ]);
         expect(result.current.isResponseLoading).toBe(false);
     });
@@ -418,7 +418,7 @@ describe("returning to a thread while its answer streams", () => {
         // What the server will store, shown without waiting for it.
         expect(returned.result.current.messages.at(-1)?.events).toEqual([
             { type: "content", text: "Partial" },
-            { type: "content", text: "Cancelled by user." },
+            { type: "stopped" },
         ]);
         await body.send(": keep-alive\n\n");
         await act(async () => { await turn; });
@@ -452,7 +452,7 @@ describe("Stop reaches the server", () => {
         await turn;
         expect(result.current.messages.at(-1)?.events).toEqual([
             { type: "content", text: "Partial" },
-            { type: "content", text: "Cancelled by user." },
+            { type: "stopped" },
         ]);
     });
 });

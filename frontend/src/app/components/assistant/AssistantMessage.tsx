@@ -1,5 +1,6 @@
 "use client";
 
+import { isStoppedEvent } from "@mike/client";
 import { useLatestRef } from "@/app/hooks/useLatestRef";
 import { useMarkdownCheckpoint } from "./message/markdownCheckpoint";
 import { createCitationPreprocessor } from "./message/citationPreprocessor";
@@ -140,7 +141,7 @@ interface Props {
 }
 
 function AssistantMessageImpl({
-    events,
+    events: allEvents,
     isStreaming = false,
     awaitingInput = false,
     isError = false,
@@ -163,6 +164,9 @@ function AssistantMessageImpl({
 }: Props) {
     const t = useTranslations();
     const format = useFormatter();
+    // A stopped answer ends in one translated line, never in a content block.
+    const stopped = (allEvents ?? []).some(isStoppedEvent);
+    const events = stopped ? allEvents?.filter((event) => !isStoppedEvent(event)) : allEvents;
     const contentDivRef = useRef<HTMLDivElement | null>(null);
     const [isCopied, setIsCopied] = useState(false);
     // Per-document override of the download URL, set as Accept/Reject resolves
@@ -1034,6 +1038,10 @@ function AssistantMessageImpl({
                             })}
                         </div>
                     )}
+
+                {stopped && (
+                    <p className="mb-3 text-sm text-gray-500">{t("assistant.assistantMessage.stopped")}</p>
+                )}
 
                 {webSources.length > 0 && (
                     <div className="mt-2 mb-3">

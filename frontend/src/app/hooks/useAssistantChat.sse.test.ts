@@ -419,14 +419,14 @@ describe("useAssistantChat SSE parsing", () => {
         await waitFor(() => expect(fetchMock).toHaveBeenCalled());
         act(() => result.current.cancel());
         expect(result.current.messages.at(-1)?.events).toEqual([
-            { type: "content", text: "Cancelled by user." },
+            { type: "stopped" },
         ]);
         await act(async () => {
             rejectRequest(new DOMException("Aborted", "AbortError"));
             await pending;
         });
         expect(result.current.messages.at(-1)?.events).toEqual([
-            { type: "content", text: "Cancelled by user." },
+            { type: "stopped" },
         ]);
     });
 

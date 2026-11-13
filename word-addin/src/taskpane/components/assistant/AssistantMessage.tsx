@@ -1,5 +1,6 @@
 import React from "react";
 import { LoaderCircle } from "lucide-react";
+import { isStoppedEvent } from "@mike/client";
 import { ProseBlock } from "./message/ProseBlock";
 import { projectRedlineStream } from "../../lib/redline";
 import type { StreamingRedlineEdit } from "../../lib/redline";
@@ -217,6 +218,17 @@ function AssistantMessageImpl({
     };
 
     message.events.forEach((event, eventIndex) => {
+      // The mark of a stopped answer (or the sentence older answers stored
+      // in its place) reads as one line in the interface language.
+      if (isStoppedEvent(event)) {
+        flushPre();
+        result.push({
+          kind: "prose",
+          text: t("word.responseStopped"),
+          key: `stopped-${eventIndex}`,
+        });
+        return;
+      }
       if (isWordTextCardEvent(event)) {
         flushPre();
         result.push({ kind: "text_card", event });
@@ -267,7 +279,7 @@ function AssistantMessageImpl({
     });
     flushPre();
     return result;
-  }, [editById, isStreaming, message.events]);
+  }, [editById, isStreaming, message.events, t]);
   const firstEditGroupIndex = groups.findIndex(
     (group) => group.kind === "edits",
   );

@@ -342,7 +342,7 @@ describe("resuming a server-owned turn after a reload", () => {
     expect(stopChatTurnMock).toHaveBeenCalledWith("a", "turn-1");
     expect(live.assistant.events).toEqual([
       { type: "content", text: "Partial" },
-      { type: "content", text: "Cancelled by user." },
+      { type: "stopped" },
     ]);
     expect(live.finished).toBe(true);
     // The reader notices the abort on its next read; the label is not
