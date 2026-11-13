@@ -201,9 +201,9 @@ describe("VersionCompareModal", () => {
         expect(screen.getAllByText(/Change 1 of 1/).length).toBeGreaterThan(0);
         expect(within(diffTable()).queryByText(/puntualmente/)).toBeNull();
         expect(within(diffTable()).getByText(/45/)).toBeVisible();
-        // Gaps stand in for what is hidden.
+        // A gap that also folds a change the filter left out says "hidden", not "unchanged".
         expect(
-            within(diffTable()).getAllByRole("button", { name: /Show \d+ unchanged lines?/ }).length,
+            within(diffTable()).getAllByRole("button", { name: /Show \d+ hidden lines?/ }).length,
         ).toBeGreaterThan(0);
         expect(screen.getAllByText("Contains numbers").length).toBeGreaterThan(0);
     });
@@ -215,7 +215,11 @@ describe("VersionCompareModal", () => {
         const gaps = () =>
             within(diffTable()).getAllByRole("button", { name: /Show \d+ unchanged lines?/ });
         const before = gaps().length;
+        expect(gaps()[0]).toHaveAttribute("aria-expanded", "false");
         await user.click(gaps()[0]);
+        // The button is gone; focus lands on the first line it revealed, not on the page.
+        expect(document.body).not.toHaveFocus();
+        expect(diffTable().contains(document.activeElement)).toBe(true);
         expect(within(diffTable()).queryAllByRole("button", { name: /Show \d+ unchanged/ }).length).toBe(before - 1);
     });
 

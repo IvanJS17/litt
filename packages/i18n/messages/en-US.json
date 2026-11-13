@@ -5522,6 +5522,7 @@
     "sameVersion": "Pick two different versions to compare.",
     "sectionNone": "Before the first heading",
     "showHiddenLines": "{count, plural, one {Show # unchanged line} other {Show # unchanged lines}}",
+    "showHiddenLinesWithChanges": "{count, plural, one {Show # hidden line} other {Show # hidden lines}}",
     "sideBySide": "Side by side",
     "textNotFormat": "Compares the text, not the formatting.",
     "textlessPages": "{count, plural, one {# page of this version is scanned and has no text, so it cannot be compared.} other {# pages of this version are scanned and have no text, so they cannot be compared.}}",

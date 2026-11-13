@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/app/lib/utils";
 import type { DiffLine, DiffSegment, TextChange } from "@/app/lib/textDiff";
@@ -132,6 +132,14 @@ export function VersionDiff({
     const sideBySide = mode === "side-by-side";
     const columns = sideBySide ? 4 : 3;
     const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+    // The button that opened a gap disappears; focus goes to the first line it revealed.
+    const focusKey = useRef<string | null>(null);
+    const focusIfFirst = (key: string) => (element: HTMLElement | null) => {
+        if (element && focusKey.current === key) {
+            focusKey.current = null;
+            element.focus();
+        }
+    };
     const renderBlock = (block: CompareBlock): React.ReactNode => {
                 if (block.kind === "gap") {
                     if (open.has(block.key))
@@ -142,10 +150,16 @@ export function VersionDiff({
                                 <td colSpan={columns} className="bg-gray-50 dark:bg-gray-100">
                                     <button
                                         type="button"
-                                        onClick={() => setOpen((prev) => new Set(prev).add(block.key))}
+                                        aria-expanded={false}
+                                        onClick={() => {
+                                            focusKey.current = block.hidden[0].key;
+                                            setOpen((prev) => new Set(prev).add(block.key));
+                                        }}
                                         className="w-full px-2 py-1 text-center text-[11px] text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     >
-                                        {t("showHiddenLines", { count: block.count })}
+                                        {t(block.withChanges ? "showHiddenLinesWithChanges" : "showHiddenLines", {
+                                            count: block.count,
+                                        })}
                                     </button>
                                 </td>
                             </tr>
@@ -154,7 +168,12 @@ export function VersionDiff({
                 }
                 if (block.kind === "context") {
                     return (
-                        <tbody key={block.key}>
+                        <tbody
+                            key={block.key}
+                            ref={focusIfFirst(block.key)}
+                            tabIndex={-1}
+                            className="focus-visible:outline-none"
+                        >
                             <tr>
                                 <td className={NUMBER}>{block.oldNo}</td>
                                 {sideBySide ? (
@@ -179,7 +198,10 @@ export function VersionDiff({
                 return (
                     <tbody
                         key={block.key}
-                        ref={(element) => registerChange(change.index, element)}
+                        ref={(element) => {
+                            registerChange(change.index, element);
+                            focusIfFirst(block.key)(element);
+                        }}
                         tabIndex={-1}
                         data-change-index={change.index}
                         aria-current={activeIndex === change.index ? "true" : undefined}
