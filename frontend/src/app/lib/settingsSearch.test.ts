@@ -163,7 +163,7 @@ describe("settings search in the interface language", () => {
     it("shows the labels of the active language", async () => {
         const entries = localizedSettingsEntries(await translate("es-MX"));
         const pupils = entries.find((entry) => entry.id === "training-pupils");
-        expect(pupils?.title).toBe("Mis pupilos");
+        expect(pupils?.title).toBe("Mis aprendices");
         expect(pupils?.source?.title).toBe("My mentees");
     });
 

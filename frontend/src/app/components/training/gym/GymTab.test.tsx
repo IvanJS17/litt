@@ -66,9 +66,9 @@ describe("Gimnasio del mentor", () => {
         );
         const another = await screen.findAllByRole("button", { name: /Dar otro intento/ });
         expect(another).toHaveLength(1);
-        expect(screen.getByRole("button", { name: "Asignar a este pupilo: Caso B" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Asignar a este aprendiz: Caso B" })).toBeDisabled();
 
-        await user.click(screen.getByRole("button", { name: "Asignar a este pupilo: Caso C" }));
+        await user.click(screen.getByRole("button", { name: "Asignar a este aprendiz: Caso C" }));
         expect(api.assignGymAttempt).toHaveBeenLastCalledWith("org-1", "pupil-1", "C");
         await user.click(another[0]);
         expect(api.assignGymAttempt).toHaveBeenLastCalledWith("org-1", "pupil-1", "A");

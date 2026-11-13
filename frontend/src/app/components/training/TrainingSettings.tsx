@@ -88,6 +88,7 @@ export function TrainingSettings() {
         <div className="space-y-8">
             <section className="space-y-3">
                 <SettingsHeading id="mi-formacion">{tr("training.miFormacion")}</SettingsHeading>
+                <SettingsDescription>{tr("training.personal.intro")}</SettingsDescription>
                 {asPupil.length === 0 ? (
                     <SettingsDescription>
                         {tr("training.noTienesMentor")}
@@ -105,6 +106,7 @@ export function TrainingSettings() {
             {asMentor.length > 0 && (
                 <section className="space-y-3">
                     <SettingsHeading id="mis-pupilos">{tr("training.misPupilos")}</SettingsHeading>
+                    <SettingsDescription>{tr("training.personal.pupilsHelp")}</SettingsDescription>
                     <Link
                         href="/settings/training/mentor"
                         className="inline-flex rounded text-sm font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
@@ -164,6 +166,9 @@ function StageList({
                 >
                     <span className="break-words">
                         {practiceLabel(entry.practice)}: {stageLabel(entry.stage)}
+                    </span>
+                    <span className="basis-full break-words text-gray-500">
+                        {t(`training.stageHelp.${entry.stage}`)}
                     </span>
                     {onRemove && (
                         <button
@@ -429,6 +434,7 @@ export function StageEditor({
                     {t("training.guardarEtapa")}
                 </PillButtonUI>
             </div>
+            <p className="text-sm text-gray-500">{t(`training.stageHelp.${stage}`)}</p>
             <p className="text-sm text-gray-500">{t("training.practiceHelp")}</p>
         </div>
     );

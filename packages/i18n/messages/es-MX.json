@@ -1082,13 +1082,13 @@
       "training_gym_attempt_open": "Este caso ya tiene un intento sin entregar.",
       "training_gym_closed": "El tiempo de este intento ya terminó. Se entregó lo que tenías guardado.",
       "training_gym_no_hint": "No quedan pistas para los párrafos que no has marcado.",
-      "training_gym_not_assigned": "Esta persona no es tu pupilo, así que no puedes darle intentos.",
+      "training_gym_not_assigned": "Esta persona no es tu aprendiz, así que no puedes darle intentos.",
       "training_hint_limit_reached": "Ya pediste las tres pistas de esta conversación. Envía tu consulta para ver la respuesta.",
-      "training_mentor_has_pupils": "Este mentor todavía tiene pupilos. Libéralos o pásalos a otro mentor primero.",
+      "training_mentor_has_pupils": "Este mentor todavía tiene aprendices. Libéralos o pásalos a otro mentor primero.",
       "training_mode_not_allowed": "Esta ayuda no está disponible en este turno. Recarga la página si todavía la ves.",
       "training_note_not_judgeable": "Este turno no tiene nada que juzgar: una pista no tiene respuesta con la cual comparar.",
       "training_pass_duplicate": "Ese pase ya está concedido.",
-      "training_pass_pupil_no_access": "Tu pupilo no puede abrir este asunto; dale acceso antes de concederle el pase.",
+      "training_pass_pupil_no_access": "Tu aprendiz no puede abrir este asunto; dale acceso antes de concederle el pase.",
       "training_promotion_not_proposed": "LiTT ya no propone esta promoción. Recarga para ver la evidencia actual.",
       "training_pupil_has_mentor": "Este miembro ya tiene mentor. Un propietario o administrador puede cambiarlo.",
       "training_reading_document_unavailable": "Este documento ya no está disponible para leerlo.",
@@ -1180,7 +1180,7 @@
       "checkGoogleAuthorization": "comprobar la autorización de Google",
       "cancelGoogleAuthorization": "cancelar la autorización de Google",
       "refreshGoogleConnector": "actualizar el conector de Google",
-      "loadYourPupils": "cargar a tus pupilos",
+      "loadYourPupils": "cargar a tus aprendices",
       "downloadThisVersion": "descargar esta versión",
       "loadTheComparison": "cargar la comparación",
       "checkYourSession": "comprobar tu sesión",
@@ -3503,11 +3503,6 @@
         "keywords": "número de tokens|tokens|uso|nombre del modelo|esfuerzo de razonamiento|metadatos|depurar|estadísticas|mostrar modelo|costo",
         "title": "Detalles de la respuesta"
       },
-      "firmCriteria": {
-        "description": "Posturas y votos particulares que escriben las personas de tu despacho, con su nombre, y que el asistente puede consultar para quien está en formación.",
-        "keywords": "criterios|criterio|firm criteria|criteria|voto particular|dissenting opinion|postura|posturas|despacho|firm|socio|partner|formacion|training",
-        "title": "Criterios del despacho"
-      },
       "memory": {
         "description": "Indica si LiTT recuerda información duradera de tus conversaciones.",
         "keywords": "recordar|olvidar|recuerdos|memoria|contexto|historial|aprender|retener|memorizar",
@@ -3583,21 +3578,20 @@
         "keywords": "cambiar contraseña|restablecer contraseña|olvidé contraseña|nueva contraseña|código de acceso|credenciales|inicio de sesión|iniciar sesión",
         "title": "Contraseña"
       },
-      "tabFirmCriteria": "Criterios del despacho",
       "training": {
         "description": "Tu mentor y tus etapas como pasante: tu turno primero, notas y aprobación de tus borradores.",
         "keywords": "formacion|training|mentor|mentora|pasante|intern|trainee|etapa|etapas|stage|tu turno primero|notas|sello|aprobacion|approval|supervisor",
         "title": "Mi formación"
       },
       "trainingMentorPanel": {
-        "description": "Supervisa a cada pupilo: resúmenes de su trabajo, defensa oral, pase de urgencia y promoción.",
+        "description": "Supervisa a cada aprendiz: resúmenes de su trabajo, defensa oral, pase de urgencia y promoción.",
         "keywords": "mentor panel|panel|supervision|supervisión|resumen|review|defensa oral|oral defense|pase de urgencia|urgency pass|promocion|promoción|promotion|pupilos",
         "title": "Panel del mentor"
       },
       "trainingPupils": {
         "description": "Los pasantes que supervisas como mentor y la etapa de cada uno.",
         "keywords": "pupilo|pupilos|pupils|mentor|pasantes|supervisar|supervise|aprobar|approve|etapa",
-        "title": "Mis pupilos"
+        "title": "Mis aprendices"
       }
     },
     "security": {
@@ -4492,7 +4486,7 @@
     "writeTheAnalysisPromptDescribeWhat": "Escribe la instrucción de análisis: describe qué debe extraer LiTT de cada documento para esta columna…"
   },
   "training": {
-    "agregarPupilo": "Agregar pupilo",
+    "agregarPupilo": "Agregar aprendiz",
     "allPractices": "Todas las materias",
     "credentialSource": {
       "deployment": "Llave de la plataforma",
@@ -4564,12 +4558,12 @@
           "codes": {
             "stale": "La revisión se volvió a generar después de esta auditoría, así que ya no se puede evaluar."
           },
-          "empty": "Este pupilo todavía no tiene auditorías.",
+          "empty": "Este aprendiz todavía no tiene auditorías.",
           "evaluate": "Tu evaluación",
           "evaluatedOn": "Evaluada el {date, date, medium}",
-          "intro": "Las preguntas que diseñó cada pupilo y la muestra que auditó a mano. Solo ves una revisión si puedes abrir su asunto. Tu evaluación no bloquea nada: es evidencia.",
+          "intro": "Las preguntas que diseñó cada aprendiz y la muestra que auditó a mano. Solo ves una revisión si puedes abrir su asunto. Tu evaluación no bloquea nada: es evidencia.",
           "keepMark": "Dejar su marca",
-          "noteLabel": "Nota para el pupilo (opcional)",
+          "noteLabel": "Nota para el aprendiz (opcional)",
           "personMark": "Su marca: {mark}",
           "save": "Guardar evaluación",
           "started": "Empezó el {date, date, medium}",
@@ -4581,7 +4575,7 @@
           "title": "Revisiones masivas",
           "unmarked": "Sin marcar todavía",
           "untitled": "Revisión sin título",
-          "waiting": "Podrás evaluarla cuando el pupilo termine la auditoría.",
+          "waiting": "Podrás evaluarla cuando el aprendiz termine la auditoría.",
           "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra.",
           "withoutAccess": "{count, plural, one {# auditoría es de una revisión en un asunto que no puedes abrir.} other {# auditorías son de revisiones en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso.",
           "yourMark": "Tu marca"
@@ -4847,7 +4841,7 @@
         },
         "hints": {
           "mentor": {
-            "none": "Este pupilo no ha pedido pistas.",
+            "none": "Este aprendiz no ha pedido pistas.",
             "some": "{count, plural, one {Pidió # pista} other {Pidió # pistas}}; la más alta fue el escalón {level}."
           },
           "mine": {
@@ -4859,9 +4853,9 @@
         "intro": "Con qué frecuencia tu planteamiento coincidió con la respuesta de la IA, por tema, y qué tan bien coincidió tu propia seguridad. Cuenta coincidencias con la respuesta de la IA, nunca si tuviste la razón. Solo tú y tu mentor lo ven.",
         "mentor": {
           "actions": {
-            "load": "cargar el mapa del pupilo"
+            "load": "cargar el mapa del aprendiz"
           },
-          "intro": "Con qué frecuencia el planteamiento de este pupilo coincidió con la respuesta de la IA, por tema, cómo coincidió su seguridad, las pistas que pidió y sus retomas. Son conteos de este pupilo: sin puntajes, rankings ni comparaciones.",
+          "intro": "Con qué frecuencia el planteamiento de este aprendiz coincidió con la respuesta de la IA, por tema, cómo coincidió su seguridad, las pistas que pidió y sus retomas. Son conteos de este aprendiz: sin puntajes, rankings ni comparaciones.",
           "retakesWithoutAccess": "{count, plural, one {# retoma es de un trabajo en un asunto que no puedes abrir, por eso no se lista aquí.} other {# retomas son de trabajos en asuntos que no puedes abrir, por eso no se listan aquí.}}",
           "title": "Mapa y calibración",
           "withoutAccess": "{count, plural, one {# nota es de un trabajo en un asunto que no puedes abrir, por eso no se cuenta aquí.} other {# notas son de trabajos en asuntos que no puedes abrir, por eso no se cuentan aquí.}}"
@@ -4873,7 +4867,7 @@
           "count": "{length}/{max} caracteres.",
           "generating": "Generando la pregunta…",
           "none": "Cuando un tema débil lleva 14 días sin trabajarse, puedes retomarlo aquí con una pregunta nueva.",
-          "noneMentor": "Este pupilo no tiene retomas.",
+          "noneMentor": "Este aprendiz no tiene retomas.",
           "once": "Solo puedes enviarla una vez. La IA la contrasta con lo que escribiste antes; no es una calificación.",
           "question": "Pregunta",
           "refresh": "Actualizar",
@@ -5213,7 +5207,7 @@
       "createdOn": "Creada el {date, date, medium} {date, time, short}",
       "empty": "Todavía no hay defensas.",
       "generateQuestions": "Generar preguntas",
-      "intro": "Cinco preguntas sobre el razonamiento del propio pupilo; una es un cambio de hechos. El resultado se registra una vez; para corregirlo, haz una defensa nueva.",
+      "intro": "Cinco preguntas sobre el razonamiento del propio aprendiz; una es un cambio de hechos. El resultado se registra una vez; para corregirlo, haz una defensa nueva.",
       "listenFor": "Qué escuchar: {text}",
       "newTitle": "Nueva defensa",
       "noWork": "Sin trabajo en particular",
@@ -5243,7 +5237,6 @@
       "scheduled": "Programada; todavía sin resultado.",
       "work": "Trabajo"
     },
-    "designaALosMentoresDelDespacho": "Designa a los mentores del despacho. Cada mentor toma a sus pupilos y les asigna su etapa por materia en Ajustes → Formación.",
     "eligeAUnMiembroSinMentor": "Elige a un miembro sin mentor",
     "escribeLaMateria": "Escribe la materia",
     "etapa": "Etapa",
@@ -5283,9 +5276,7 @@
         "kindLabel": "Tipo",
         "limit": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
         "loadFailed": "No se pudieron cargar los criterios del despacho.",
-        "loadingLabel": "Cargando los criterios del despacho",
         "mine": "Tuyo",
-        "noOrganizations": "Todavía no perteneces a ningún despacho.",
         "noPlaybooks": "Todavía no hay playbooks de los que discrepar.",
         "playbookLabel": "Playbook",
         "playbookPlaceholder": "Elige un playbook",
@@ -5305,11 +5296,11 @@
         "save": "Guardar",
         "saved": "Se guardó el criterio.",
         "saving": "Guardando…",
-        "tab": "Criterios del despacho",
         "title": "Criterios del despacho",
         "topicHelp": "Unas palabras, por ejemplo «Prescripción cambiaria».",
         "topicLabel": "Tema",
         "voteHelp": "Un voto particular nombra la regla del playbook de la que discrepas. No cambia la regla.",
+        "who": "Las lee todo el despacho. Las escribe quien no esté en formación; el dueño y los administradores pueden quitar cualquiera.",
         "write": "Escribir un criterio"
       }
     },
@@ -5320,7 +5311,7 @@
       "codes": {
         "closed": "El tiempo de este intento ya terminó. Se entregó lo que tenías guardado.",
         "noHint": "No quedan pistas para los párrafos que no has marcado.",
-        "open": "Este caso ya tiene un intento sin entregar con este pupilo."
+        "open": "Este caso ya tiene un intento sin entregar con este aprendiz."
       },
       "form": {
         "addError": "Agregar error",
@@ -5364,12 +5355,12 @@
         },
         "another": "Dar otro intento",
         "anotherName": "Dar otro intento: {title}",
-        "assign": "Asignar a este pupilo",
-        "assignName": "Asignar a este pupilo: {title}",
+        "assign": "Asignar a este aprendiz",
+        "assignName": "Asignar a este aprendiz: {title}",
         "assignedOpen": "Hay un intento sin entregar de este caso.",
         "attemptLine": "{status} · {found} de {total} encontrados · {hints, plural, one {# pista} other {# pistas}}",
         "attemptLineOpen": "{status} · {hints, plural, one {# pista} other {# pistas}}",
-        "attemptsTitle": "Intentos de este pupilo",
+        "attemptsTitle": "Intentos de este aprendiz",
         "caseLine": "{practice} · {minutes} · {errors}",
         "casesIntro": "Solo tú ves tus casos. Asignar uno crea un intento con una copia, así que editarlo o borrarlo no cambia lo ya hecho.",
         "casesTitle": "Mis casos",
@@ -5382,7 +5373,7 @@
         "editName": "Editar {title}",
         "errorsCount": "{count, plural, one {# error sembrado} other {# errores sembrados}}",
         "newCase": "Nuevo caso",
-        "noAttempts": "Este pupilo todavía no tiene intentos.",
+        "noAttempts": "Este aprendiz todavía no tiene intentos.",
         "noCases": "Todavía no tienes casos."
       },
       "minutes": "{count, plural, one {# minuto} other {# minutos}}",
@@ -5448,13 +5439,13 @@
     "mentorNombre": "Mentor: {name}",
     "mentorPanel": {
       "actions": {
-        "load": "cargar tus pupilos"
+        "load": "cargar tus aprendices"
       },
-      "allPupils": "Todos los pupilos",
+      "allPupils": "Todos los aprendices",
       "back": "Volver a Formación",
-      "intro": "Supervisa a un pupilo a la vez. Aquí nada compara ni ordena a tus pupilos, y solo tú y cada pupilo ven sus datos.",
+      "intro": "Supervisa a un aprendiz a la vez. Aquí nada compara ni ordena a tus aprendices, y solo tú y cada aprendiz ven sus datos.",
       "lastWork": "Último trabajo: {date, date, medium} {date, time, short}",
-      "noPupils": "Todavía no tienes pupilos aquí. Agrégalos en Formación, en Mis pupilos.",
+      "noPupils": "Todavía no tienes aprendices aquí. Agrégalos en Formación, en Mis aprendices.",
       "noWork": "Sin trabajos todavía",
       "notMentor": "No eres mentor en ningún despacho. El dueño o un administrador del despacho designa a los mentores.",
       "open": "Abrir el panel del mentor",
@@ -5490,7 +5481,7 @@
     "miFormacion": "Mi formación",
     "miembro": "Miembro",
     "miembroSinMentor": "Miembro sin mentor",
-    "misPupilos": "Mis pupilos",
+    "misPupilos": "Mis aprendices",
     "noTienesMentor": "No tienes mentor en ningún despacho. Sin etapa, LiTT funciona para ti como para cualquier abogado.",
     "nombreDeLaMateria": "Nombre de la materia",
     "notes": {
@@ -5506,12 +5497,12 @@
       },
       "chooseProject": "Elige un asunto",
       "codes": {
-        "duplicate": "Este pupilo ya tiene un pase vigente en ese asunto que termina a la misma hora.",
+        "duplicate": "Este aprendiz ya tiene un pase vigente en ese asunto que termina a la misma hora.",
         "invalid": "Revisa el asunto, la duración y el motivo.",
-        "limit": "Este pupilo ya tiene el máximo de pases vigentes. Revoca uno primero.",
-        "pupilNoAccess": "El pupilo no puede abrir ese asunto, así que el pase no aplicaría."
+        "limit": "Este aprendiz ya tiene el máximo de pases vigentes. Revoca uno primero.",
+        "pupilNoAccess": "El aprendiz no puede abrir ese asunto, así que el pase no aplicaría."
       },
-      "confirmMessage": "Desde el siguiente turno, el pupilo vuelve a escribir su planteamiento en {project}.",
+      "confirmMessage": "Desde el siguiente turno, el aprendiz vuelve a escribir su planteamiento en {project}.",
       "confirmTitle": "¿Revocar este pase?",
       "duration": "Duración",
       "empty": "Todavía no hay pases.",
@@ -5519,10 +5510,10 @@
       "grant": "Conceder pase",
       "hours": "{hours, plural, one {# hora} other {# horas}}",
       "inForce": "Vigente hasta el {end, date, medium} {end, time, short}",
-      "intro": "Un pase quita «Tu turno primero» a este pupilo en un asunto, por tiempo limitado. Sus borradores siguen sellados hasta que se aprueben, y el pase no aplica en Word.",
+      "intro": "Un pase quita «Tu turno primero» a este aprendiz en un asunto, por tiempo limitado. Sus borradores siguen sellados hasta que se aprueben, y el pase no aplica en Word.",
       "minutes": "{minutes, plural, one {# minuto} other {# minutos}}",
       "newTitle": "Nuevo pase",
-      "noGrantableProjects": "Tu pupilo no puede abrir ninguno de tus asuntos en este despacho",
+      "noGrantableProjects": "Tu aprendiz no puede abrir ninguno de tus asuntos en este despacho",
       "noProjects": "No tienes asuntos en este despacho",
       "project": "Asunto",
       "reason": {
@@ -5562,9 +5553,9 @@
       "confirmTitle": "¿Aceptar esta promoción?",
       "decideWithout": "Puedes cambiar la etapa sin la propuesta de LiTT, cuando quieras, en Formación. La propuesta es una lectura de la evidencia, no una condición.",
       "defenses": "Defensas aprobadas: {count} de {required}",
-      "empty": "Este pupilo no tiene etapa que promover.",
+      "empty": "Este aprendiz no tiene etapa que promover.",
       "gym": "Gimnasio: {attempts, plural, one {# intento entregado} other {# intentos entregados}}, {found} de {errors} errores encontrados, {hints, plural, one {# pista} other {# pistas}}",
-      "intro": "LiTT propone; tú decides. Una propuesta se apoya en las defensas aprobadas y los trabajos revisados de este pupilo desde el último cambio de su etapa. El resto de la evidencia se te muestra, pero no es requisito.",
+      "intro": "LiTT propone; tú decides. Una propuesta se apoya en las defensas aprobadas y los trabajos revisados de este aprendiz desde el último cambio de su etapa. El resto de la evidencia se te muestra, pero no es requisito.",
       "move": "{practice}: {from} → {to}",
       "notYet": "Todavía no se propone.",
       "proposed": "LiTT propone esta promoción.",
@@ -5573,7 +5564,6 @@
       "withoutAccess": "La evidencia en asuntos que no puedes abrir solo se cuenta, no se muestra. Turnos marcados: {turns}. Auditorías: {audits}. Lecturas: {readings}.",
       "works": "Trabajos revisados: {count} de {required}"
     },
-    "pupiloDe": "Pupilo de",
     "quitar": "Quitar",
     "review": {
       "aiCorrected": "Qué corrigió la IA",
@@ -5592,7 +5582,6 @@
       "unverified": "Qué quedó sin verificar"
     },
     "sinEtapaAsignada": "Sin etapa asignada.",
-    "soloElDuenoOUnAdministrador": "Solo el dueño o un administrador del despacho designa mentores.",
     "stage": {
       "abogado": "Abogado",
       "junior": "Junior",
@@ -5603,7 +5592,7 @@
       "tabular": "Revisión tabular",
       "word": "Word"
     },
-    "todaviaNoTienesPupilosAqui": "Todavía no tienes pupilos aquí.",
+    "todaviaNoTienesPupilosAqui": "Todavía no tienes aprendices aquí.",
     "todosLosMiembrosTienenMentor": "Todos los miembros tienen mentor",
     "unMentor": "un mentor",
     "works": {
@@ -5614,7 +5603,7 @@
         "markReviewed": "marcar el trabajo como revisado"
       },
       "approve": "Aprobar",
-      "approveMessage": "Aprobarás el borrador del pupilo tal como está ahora. Si su contenido cambia, necesitará una nueva aprobación.",
+      "approveMessage": "Aprobarás el borrador del aprendiz tal como está ahora. Si su contenido cambia, necesitará una nueva aprobación.",
       "approveTitle": "¿Aprobar esta versión?",
       "chooseKey": "Elige una llave",
       "codes": {
@@ -5622,7 +5611,7 @@
         "inProgress": "Ya se está generando un resumen de este trabajo. Espera un momento y vuelve a cargar.",
         "keyRequired": "Necesitas una llave de IA que puedas usar en este despacho."
       },
-      "empty": "Este pupilo todavía no tiene trabajos con notas de turno.",
+      "empty": "Este aprendiz todavía no tiene trabajos con notas de turno.",
       "generate": "Generar resumen",
       "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación. Apruébalo con el botón de su fila de arriba o desde su documento.} other {# borradores sellados siguen pendientes de aprobación. Apruébalos con el botón de su fila de arriba o desde cada documento.}}",
       "intro": "Cada trabajo es una conversación con notas de turno. El resumen muestra cuatro datos; lo que quedó sin verificar se calcula, no se genera.",
@@ -5635,6 +5624,26 @@
       "regenerate": "Regenerar",
       "untitled": "Trabajo sin título",
       "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso."
+    },
+    "org": {
+      "cannotBePupil": "El dueño y los administradores no pueden ser aprendices.",
+      "loadFailed": "No se pudo cargar la formación.",
+      "memberIntro": "Aquí lees los criterios de tu despacho. Tu formación personal (tu mentor y tus etapas) está en Ajustes → Formación.",
+      "mentorHasPupils": "Esta persona todavía tiene aprendices. Libéralos o asígnales otro mentor primero.",
+      "mentorLabel": "Su mentor:",
+      "mentorOf": "Elegir mentor para {name}",
+      "mentorsHeading": "Mentores y aprendices",
+      "mentorsHelp": "Un mentor acompaña a sus aprendices y es el único que les pone la etapa. Cada aprendiz tiene un solo mentor; quien no tiene mentor no está en formación. El dueño y los administradores pueden ser mentores, pero no aprendices.",
+      "noMentor": "Sin mentor",
+      "noMentorsYet": "Todavía no hay mentores. Activa «Mentor» en alguien para poder asignarle aprendices."
+    },
+    "stageHelp": {
+      "junior": "La IA responde con su metodología y en modo de responsabilidad.",
+      "pasante": "Intenta primero: escribe su planteamiento antes de que la IA responda."
+    },
+    "personal": {
+      "intro": "Aquí ves solo lo tuyo: tu mentor, tus etapas y tu criterio. Quién es mentor y a quién guía lo decide el dueño o un administrador en Ajustes del despacho → Formación.",
+      "pupilsHelp": "Toma a miembros que aún no tienen mentor y ponles la etapa por materia. Solo tú, como su mentor, pones la etapa; el dueño y los administradores ven quiénes son tus aprendices, nunca su etapa."
     }
   },
   "ui": {

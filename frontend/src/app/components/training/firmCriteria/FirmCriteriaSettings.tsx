@@ -6,7 +6,6 @@ import { GlassCardUI, PillButtonUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { SettingsDescription, SettingsLabel } from "@/app/components/settings/SettingsText";
-import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import {
   createFirmCriterion,
   deleteFirmCriterion,
@@ -22,60 +21,25 @@ import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { FirmCriterionForm } from "./FirmCriterionForm";
 import { usePracticeOptionLabel } from "../trainingShared";
 
-// Ajustes → Criterios del despacho (docs/training.md, "One mold of
-// criterion"). Every member reads the firm's criteria; a member with no
-// training stage writes their own; an owner or admin may remove any. The
-// server decides all of it and says so in the list (can_write, can_manage):
-// this page only offers what it allows. A criterion is a position a person
-// wrote, shown with their name and the date. LiTT gives it no legal
+// Ajustes del despacho → Formación → Criterios del despacho (docs/training.md,
+// "One mold of criterion"). Every member reads the firm's criteria; a member
+// with no training stage writes their own; an owner or admin may remove any.
+// The server decides all of it and says so in the list (can_write,
+// can_manage): this page only offers what it allows. A criterion is a position
+// a person wrote, shown with their name and the date. LiTT gives it no legal
 // authority and stores no legal source for it.
 
-export function FirmCriteriaSettings() {
+export function FirmCriteriaSection({ orgId, orgName }: { orgId: string; orgName: string }) {
   const t = useTranslations("training.firmCriteria.settings");
-  const { organizations } = useWorkspace();
-
-  if (organizations === null) return <FirmCriteriaSkeleton label={t("loadingLabel")} />;
   return (
     <div className="space-y-6">
       <section className="min-w-0 space-y-3">
         <SettingsHeading id="criterios-del-despacho">{t("title")}</SettingsHeading>
         <SettingsDescription>{t("intro")}</SettingsDescription>
+        <SettingsDescription>{t("who")}</SettingsDescription>
       </section>
-      {organizations.length === 0 ? (
-        <SettingsDescription>{t("noOrganizations")}</SettingsDescription>
-      ) : (
-        organizations.map((org) => (
-          <OrgCriteria key={org.id} orgId={org.id} orgName={org.name} showName={organizations.length > 1} />
-        ))
-      )}
+      <OrgCriteria orgId={orgId} orgName={orgName} showName={false} />
     </div>
-  );
-}
-
-/** The same blocks as the loaded page: a heading, a description and a card of rows. */
-function FirmCriteriaSkeleton({ label }: { label: string }) {
-  return (
-    <div className="space-y-6" role="status" aria-busy="true" aria-label={label}>
-      <div className="min-w-0 space-y-3">
-        <div className="h-6 w-48 animate-pulse rounded bg-gray-100" />
-        <div className="h-10 w-full max-w-xl animate-pulse rounded bg-gray-100" />
-      </div>
-      <SkeletonCard />
-    </div>
-  );
-}
-
-function SkeletonCard() {
-  return (
-    <GlassCardUI>
-      {[0, 1].map((row) => (
-        <SettingsRow key={row} layout="stacked">
-          <div className="h-4 w-40 animate-pulse rounded bg-gray-100" />
-          <div className="h-16 w-full animate-pulse rounded bg-gray-100" />
-          <div className="h-3 w-56 animate-pulse rounded bg-gray-100" />
-        </SettingsRow>
-      ))}
-    </GlassCardUI>
   );
 }
 
@@ -239,5 +203,19 @@ export function OrgCriteria({ orgId, orgName, showName }: { orgId: string; orgNa
         )}
       </GlassCardUI>
     </section>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <GlassCardUI>
+      {[0, 1].map((row) => (
+        <SettingsRow key={row} layout="stacked">
+          <div className="h-4 w-40 animate-pulse rounded bg-gray-100" />
+          <div className="h-16 w-full animate-pulse rounded bg-gray-100" />
+          <div className="h-3 w-56 animate-pulse rounded bg-gray-100" />
+        </SettingsRow>
+      ))}
+    </GlassCardUI>
   );
 }

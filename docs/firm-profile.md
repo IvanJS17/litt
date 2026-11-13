@@ -13,7 +13,7 @@ is optional; an empty profile is `NULL`.
 | `hq_state`, `other_states` | Mexican state codes (`JAL`, `NLE`, `CMX`, ...) |
 | `hq_city` | text, up to 80 characters |
 | `size` | `1`, `2-5`, `6-20`, `21-50`, `51+` (lawyers) |
-| `practice_areas` | up to 12 items of 60 characters |
+| `practice_areas` | up to 12 items of 60 characters; Formación offers them as the subjects of a stage (see [`training.md`](training.md#settings)) |
 | `client_type` | `individuals`, `companies`, `public_sector`, `mixed` |
 | `industries` | up to 8 items of 60 characters |
 | `brief_language` | `es-MX` (default) or `en-US` |

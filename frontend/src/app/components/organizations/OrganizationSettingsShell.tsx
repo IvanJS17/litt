@@ -221,14 +221,16 @@ export function OrganizationSettingsFrame({
               label: t("organizations.organizationSettingsShell.bringYourOwnKeys"),
               href: organizationSettingsHref(orgId, "providers"),
             },
-            // LiTT training: who mentors whom (never the stages).
-            {
-              id: "training",
-              label: t("organizations.organizationSettingsShell.formacion"),
-              href: organizationSettingsHref(orgId, "training"),
-            },
           ]
         : []),
+      // LiTT training, the firm's one home for it: owners and admins manage
+      // mentors and pupils; a member finds the firm's criteria here, which the
+      // server lets them read and, when they are not in training, write.
+      {
+        id: "training",
+        label: t("organizations.organizationSettingsShell.formacion"),
+        href: organizationSettingsHref(orgId, "training"),
+      },
       // Its actions reach every member's work, so it is its owners' alone.
       ...(isOwner
         ? [

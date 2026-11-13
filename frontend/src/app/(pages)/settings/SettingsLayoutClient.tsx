@@ -31,7 +31,7 @@ function phoneGroups(t: Translate) {
         {
             id: "firm",
             label: t("settings.layout.group.firm"),
-            tabIds: ["organizations", "training", "firm-criteria", "beta-invitations", "beta-stats"],
+            tabIds: ["organizations", "training", "beta-invitations", "beta-stats"],
         },
         { id: "privacy", label: t("settings.layout.group.privacy"), tabIds: ["privacy-data", "my-activity"] },
     ];
@@ -109,31 +109,21 @@ export default function SettingsLayout({
                     ? { ...tab, label: t("settings.layout.tab.firmKeys") }
                     : tab,
             ).flatMap((tab) =>
-                // LiTT training: the firm's written criteria sit beside Formación.
-                tab.id === "training"
+                tab.id === "organizations" && isPlatformAdmin
                     ? [
                           tab,
                           {
-                              id: "firm-criteria",
-                              label: t("training.firmCriteria.settings.tab"),
-                              href: "/settings/firm-criteria",
+                              id: "beta-invitations",
+                              label: t("access.beta.tab"),
+                              href: "/settings/beta-invitations",
+                          },
+                          {
+                              id: "beta-stats",
+                              label: t("access.stats.tab"),
+                              href: "/settings/beta-stats",
                           },
                       ]
-                    : tab.id === "organizations" && isPlatformAdmin
-                      ? [
-                            tab,
-                            {
-                                id: "beta-invitations",
-                                label: t("access.beta.tab"),
-                                href: "/settings/beta-invitations",
-                            },
-                            {
-                                id: "beta-stats",
-                                label: t("access.stats.tab"),
-                                href: "/settings/beta-stats",
-                            },
-                        ]
-                      : [tab],
+                    : [tab],
             ),
         [hidePrivacyData, firmKeysTab, isPlatformAdmin, t],
     );

@@ -627,13 +627,28 @@ against a clock, the paragraphs they think hold an error.
 
 ## Settings
 
-- **Organization → Formación** (owners and admins): members with a «Mentor»
-  switch and whose mentor each one is.
-- **Settings → Formación**: «Mi formación» shows a pupil their mentor and
-  stages and, per organization, «Lo que mi mentor ve de mí» (layer 2, below);
-  «Mis pupilos» lets a mentor take members without a mentor, set their
-  stage per practice area («Todas las materias», the practice options, or
-  another), and release them, and links to the mentor panel.
+- **The firm's settings → Formación** (`/organizations/:id/settings/training`,
+  the one place of the firm for training). An owner or admin, on one screen:
+  names or retires mentors (the «Mentor» switch, any member, themselves
+  included), **assigns each member to a mentor, moves them or frees them** (a
+  «Su mentor» choice per member; an owner or admin row offers none, since they
+  are never pupils), sees who is a mentor of whom, and below it the firm's
+  criteria. Stages are not shown or changed here. A member who is not an owner or
+  admin sees only the criteria (the tab is offered to every member): they read
+  them, and write them when the server allows it (no stage), unchanged.
+- **Settings → Formación** holds only what is the person's own: «Mi formación»
+  shows a pupil their mentor and stages and, per organization, «Lo que mi
+  mentor ve de mí» (layer 2, below); «Mis aprendices» lets a mentor take members
+  who have no mentor, set their stage per practice area, and release them, and
+  links to the mentor panel. Each stage line says what it changes: a pasante
+  tries first, before the AI answers; a junior gets the AI's answer with its
+  methodology and in accountability mode.
+- **Stage subjects.** The stage editor offers «Todas las materias», the practice
+  areas of the firm's profile (`organizations.firm_profile.practice_areas`,
+  [`firm-profile.md`](firm-profile.md); the whole list when the profile names
+  none, or cannot be read) and «Otra materia». Every area, and every saved
+  practice, is shown with its translated label (`practiceAreaLabel`); what is
+  stored stays the normalized English name.
 - **Settings → Formación → Panel del mentor** (`/settings/training/mentor`,
   layer 2, below).
 - **Settings → Formación**, layer 3, per organization: «Mi criterio» (the map,
@@ -641,8 +656,9 @@ against a clock, the paragraphs they think hold an error.
   reading (`/settings/training/reading/[readingId]`), and the criteria contrast
   (`/settings/training/contrast`). A tabular review's menu offers «Auditar
   preguntas» (`/tabular-reviews/[id]/audit`) to a junior.
-- **Settings → Criterios del despacho** (`/settings/firm-criteria`): the firm's
-  criteria, read by everybody in the firm and written by those without a stage.
+- **Firm's settings → Formación → Criterios del despacho**: the firm's criteria, read by everybody in
+  the firm and written by those without a stage. `/settings/firm-criteria` no longer
+  exists as a tab; it redirects to the active firm's page.
 
 ## The pasante seal and its approval (layer 1b)
 
@@ -1586,8 +1602,8 @@ Migration `backend/migrations/20261108_76_litt_firm_criteria.sql` (also in
 in `backend/src/lib/firmCriteria.ts`, the tool in
 `backend/src/modules/chat/engine/tools/firmCriteriaTool.ts`, the turn behavior
 in `backend/src/lib/trainingTurn/criteria.ts`, the screen in
-`frontend/src/app/components/training/firmCriteria/` (Settings → «Criterios del
-despacho», `/settings/firm-criteria`) and the panel in
+`frontend/src/app/components/training/firmCriteria/` (the firm's settings → Formación → «Criterios del
+despacho», `/organizations/:id/settings/training`) and the panel in
 `packages/ui/src/FirmCriteriaConsultedUI.tsx`. Strings are in the
 `training.firmCriteria` namespace of the catalog.
 

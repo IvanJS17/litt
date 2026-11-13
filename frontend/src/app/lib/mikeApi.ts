@@ -2467,11 +2467,21 @@ export async function getMyPupils(orgId: string) {
     );
 }
 
-export async function assignTrainingPupil(orgId: string, userId: string): Promise<void> {
+/**
+ * A mentor takes a member for themselves (no `mentorUserId`). An owner or admin
+ * names the mentor, to assign a member who has none or to move one who has.
+ */
+export async function assignTrainingPupil(
+    orgId: string,
+    userId: string,
+    mentorUserId?: string,
+): Promise<void> {
     await apiRequest("training.manage", `/orgs/${orgId}/training/pupils`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId }),
+        body: JSON.stringify(
+            mentorUserId ? { user_id: userId, mentor_user_id: mentorUserId } : { user_id: userId },
+        ),
     });
 }
 

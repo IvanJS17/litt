@@ -66,6 +66,11 @@ describe("the practice areas of a stage", () => {
 
         fireEvent.change(select, { target: { value: "Employment" } });
         fireEvent.click(screen.getByRole("button", { name: "Guardar etapa" }));
+        // The line under the editor says what the chosen stage changes.
+        expect(screen.getByText("Intenta primero: escribe su planteamiento antes de que la IA responda.")).toBeInTheDocument();
+        fireEvent.change(screen.getByRole("combobox", { name: "Etapa" }), { target: { value: "junior" } });
+        expect(screen.getByText("La IA responde con su metodología y en modo de responsabilidad.")).toBeInTheDocument();
+        fireEvent.change(screen.getByRole("combobox", { name: "Etapa" }), { target: { value: "pasante" } });
         // What is saved is the stored English name, never the label.
         expect(onSave).toHaveBeenCalledWith("Employment", "pasante");
     });
