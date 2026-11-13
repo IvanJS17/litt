@@ -1257,6 +1257,37 @@ describe("org invitations", () => {
         expect(invite.accepted_at).toBeTruthy();
     });
 
+    it.each([
+        [true, "acme"],
+        [false, undefined],
+    ])(
+        "accepting while managed accounts is %s marks the 'now managed' notice seen: %s",
+        async (managed, seen) => {
+            const db = seedOrg();
+            const org = (db._tables.organizations as Row[])[0];
+            org.managed_accounts = managed;
+            Object.assign(org, { id: "acme" });
+            (db._tables.org_invitations as Row[]).push({
+                id: "i-m",
+                org_id: "acme",
+                email: "newbie@acme.example",
+                role: "member",
+                status: "pending",
+                expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+            });
+            const newbie = (db._tables.user_profiles as Row[]).find((p) => p.user_id === "newbie")!;
+            newbie.created_by_org_id = "acme";
+            await expect(
+                acceptInvitation(db, {
+                    userId: "newbie",
+                    userEmail: "newbie@acme.example",
+                    invitationId: "i-m",
+                }),
+            ).resolves.toMatchObject({ ok: true, org_id: "acme" });
+            expect(newbie.managed_notice_seen_org_id).toBe(seen);
+        },
+    );
+
     it("declining records the answer and creates nothing", async () => {
         const db = seedOrg();
         const created = await createInvitation(db, {

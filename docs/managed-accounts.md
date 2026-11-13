@@ -81,7 +81,9 @@ export for managed accounts) and can delete the account.
   (`managedAccount.nowManaged`) shows until closed
   (`POST /user/managed-notice/dismiss`, stored in
   `user_profiles.managed_notice_seen_org_id`). Accepting the invitation marks it
-  seen. No email.
+  seen only if the firm had the setting on at that moment (the invitation screen
+  showed the notice); a person who accepted while it was off still sees the
+  banner once it is turned on. No email.
 - **Screens:** `WorkspaceContext` drops Personal and enters the firm's workspace
   (one place); the switcher, personal keys page and onboarding key texts are
   hidden for managed accounts.

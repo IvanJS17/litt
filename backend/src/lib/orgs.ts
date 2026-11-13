@@ -1390,13 +1390,21 @@ export async function acceptInvitation(
             invitation_id: invite.id,
         },
     });
-    // The invitation screen already told this person the firm manages the
-    // account it created, so the "now managed" notice has nothing to add.
-    await db
-        .from("user_profiles")
-        .update({ managed_notice_seen_org_id: invite.org_id })
-        .eq("user_id", params.userId)
-        .eq("created_by_org_id", invite.org_id);
+    // The invitation screen told this person the firm manages the account it
+    // created only if the firm had the setting on when they accepted. In that
+    // case the "now managed" notice has nothing to add. If it was off, they
+    // were told nothing, and the notice must still appear when it is turned on.
+    const { data: firm } = await db
+        .from("organizations")
+        .select("managed_accounts")
+        .eq("id", invite.org_id)
+        .maybeSingle();
+    if ((firm as { managed_accounts?: boolean } | null)?.managed_accounts === true)
+        await db
+            .from("user_profiles")
+            .update({ managed_notice_seen_org_id: invite.org_id })
+            .eq("user_id", params.userId)
+            .eq("created_by_org_id", invite.org_id);
     return { ok: true, org_id: invite.org_id, role: effectiveRole };
 }
 

@@ -71,6 +71,16 @@ describe("a managed account", () => {
         expect(typeof res.body.detail).toBe("string");
     });
 
+    it.each([
+        "/playbooks/runs/history?workspace=personal",
+        "/playbooks?workspace=personal",
+        "/chat?workspace=personal",
+    ])("answers 403, never a 500, on %s", async (path) => {
+        const res = await request(app).get(path).set(...AUTH);
+        expect(res.status).toBe(403);
+        expect(res.body.code).toBe("personal_workspace_disabled");
+    });
+
     it("is refused saving a personal key, even where the firm lets members bring their own", async () => {
         h.state!.tables.organizations[0].allow_personal_api_keys = true;
         const res = await request(app)
