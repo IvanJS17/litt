@@ -40,6 +40,7 @@ import {
 import { apiKeyStateFromStatus, hasApiKeyStatus } from "@/app/lib/apiKeyState";
 import type { Message } from "@/app/components/shared/types";
 import { applyDarkMode } from "@/app/lib/theme";
+import { prefetchPlatformMe } from "@/app/hooks/usePlatformMe";
 import { applyTextSize, DEFAULT_TEXT_SIZE, type TextSize } from "@/app/lib/textSize";
 import { syncUiLocale } from "@/app/lib/uiLocaleSync";
 import { notifyError } from "@/app/lib/userFacingError";
@@ -374,6 +375,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (isAuthenticated && userId) {
             setLoading(true);
+            // The beta tabs in Settings need this too; asking now, in
+            // parallel with the profile, means it is there when they open.
+            prefetchPlatformMe(userId);
             loadProfile();
         } else {
             setProfile(null);

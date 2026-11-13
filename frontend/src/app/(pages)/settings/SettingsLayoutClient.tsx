@@ -95,8 +95,12 @@ export default function SettingsLayout({
     // owners allow neither exports nor bulk deletes, so it is not listed.
     const { canExport, canDelete } = useMemberDataActions();
     const hidePrivacyData = !canExport && !canDelete;
-    // Beta invitations are for platform administrators only.
-    const isPlatformAdmin = usePlatformMe(user?.id)?.admin === true;
+    // Beta invitations are for platform administrators only. The answer is
+    // read with the profile when the session starts and shared with the
+    // Organizations page; the frame waits for it (below) so these tabs
+    // appear together with the others.
+    const platform = usePlatformMe(isAuthenticated ? user?.id : undefined);
+    const isPlatformAdmin = platform.me?.admin === true;
     // Where the person's own keys do not apply, this tab shows the firm's.
     const { personalBlocked, firmName } = useKeyScope();
     const firmKeysTab = personalBlocked && firmName !== null;
@@ -152,7 +156,7 @@ export default function SettingsLayout({
         }
     }, [isAuthenticated, authLoading, router]);
 
-    if (authLoading) {
+    if (authLoading || (isAuthenticated && platform.status === "loading")) {
         return <SettingsShellSkeleton />;
     }
 

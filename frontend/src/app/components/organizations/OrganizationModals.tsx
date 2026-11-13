@@ -23,6 +23,7 @@ import {
 } from "@/app/lib/permissions";
 import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
+import { invalidatePlatformMe } from "@/app/hooks/usePlatformMe";
 import { orgRoleDescription, orgRoleLabel } from "./orgRoleText";
 import {
   invitationIssueReason,
@@ -96,6 +97,8 @@ export function CreateOrganizationModal({
     setError(null);
     try {
       const org = await createOrg(trimmedName);
+      // Whether this person may create another organization just changed.
+      invalidatePlatformMe();
       if (memberEmails.length === 0) {
         onCreated(org);
         return;

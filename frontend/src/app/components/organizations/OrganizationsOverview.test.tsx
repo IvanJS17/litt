@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MikeApiError } from "@/app/lib/mikeApi";
+import { invalidatePlatformMe } from "@/app/hooks/usePlatformMe";
 import { OrganizationsOverview } from "./OrganizationsOverview";
 import SettingsLayout from "@/app/(pages)/settings/SettingsLayoutClient";
 
@@ -92,6 +93,7 @@ const INVITATION = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  invalidatePlatformMe();
   mocks.workspaceId = "org-1";
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: true,

@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPlatformMe, listMyOrgInvitations, type OrgInvitation } from "@/app/lib/mikeApi";
+import { invalidatePlatformMe } from "@/app/hooks/usePlatformMe";
+import { ToastViewportUI, clearToasts } from "@mike/ui";
 import SettingsLayout from "./SettingsLayoutClient";
 
 const push = vi.fn();
@@ -42,6 +44,8 @@ vi.mock("@/app/components/settings/KeyScope", () => ({
 describe("SettingsLayout", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        invalidatePlatformMe();
+        clearToasts();
         pathname = "/settings/memory";
         auth.authLoading = false;
         vi.mocked(listMyOrgInvitations).mockResolvedValue([]);
@@ -66,7 +70,7 @@ describe("SettingsLayout", () => {
         expect(screen.queryByText("page")).not.toBeInTheDocument();
     });
 
-    it("names the keys tab after the firm's keys where the person's own do not apply", () => {
+    it("names the keys tab after the firm's keys where the person's own do not apply", async () => {
         keyScope.personalBlocked = true;
         keyScope.firmName = "Despacho Demo";
         render(
@@ -74,20 +78,20 @@ describe("SettingsLayout", () => {
                 <div />
             </SettingsLayout>,
         );
-        expect(screen.getByRole("button", { name: "Firm keys" })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: "Firm keys" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Bring Your Own Keys" })).toBeNull();
     });
 
-    it("keeps the personal keys tab otherwise", () => {
+    it("keeps the personal keys tab otherwise", async () => {
         render(
             <SettingsLayout>
                 <div />
             </SettingsLayout>,
         );
-        expect(screen.getByRole("button", { name: "Bring Your Own Keys" })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: "Bring Your Own Keys" })).toBeInTheDocument();
     });
 
-    it("lists Privacy & Data while it has an export or a delete to offer", () => {
+    it("lists Privacy & Data while it has an export or a delete to offer", async () => {
         dataActions.canDelete = false;
         render(
             <SettingsLayout>
@@ -95,11 +99,11 @@ describe("SettingsLayout", () => {
             </SettingsLayout>,
         );
         expect(
-            screen.getByRole("button", { name: "Privacy & Data" }),
+            await screen.findByRole("button", { name: "Privacy & Data" }),
         ).toBeInTheDocument();
     });
 
-    it("does not list Privacy & Data when the organization allows members neither", () => {
+    it("does not list Privacy & Data when the organization allows members neither", async () => {
         dataActions.canExport = false;
         dataActions.canDelete = false;
         render(
@@ -107,10 +111,10 @@ describe("SettingsLayout", () => {
                 <div />
             </SettingsLayout>,
         );
+        expect(await screen.findByRole("button", { name: "Memory" })).toBeInTheDocument();
         expect(
             screen.queryByRole("button", { name: "Privacy & Data" }),
         ).toBeNull();
-        expect(screen.getByRole("button", { name: "Memory" })).toBeInTheDocument();
     });
 
     it("exposes Memory as a dedicated settings page and marks it current", async () => {
@@ -121,7 +125,7 @@ describe("SettingsLayout", () => {
             </SettingsLayout>,
         );
 
-        const memoryTab = screen.getByRole("button", { name: "Memory" });
+        const memoryTab = await screen.findByRole("button", { name: "Memory" });
         expect(memoryTab).toHaveAttribute("aria-current", "page");
         expect(screen.getByText("Memory content")).toBeVisible();
 
@@ -137,12 +141,12 @@ describe("SettingsLayout", () => {
             </SettingsLayout>,
         );
 
-        const activityTab = screen.getByRole("button", { name: "My Activity" });
+        const activityTab = await screen.findByRole("button", { name: "My Activity" });
         await user.click(activityTab);
         expect(push).toHaveBeenCalledWith("/settings/my-activity");
     });
 
-    it("lets My Activity use a full table page outside the settings frame", () => {
+    it("lets My Activity use a full table page outside the settings frame", async () => {
         pathname = "/settings/my-activity";
         render(
             <SettingsLayout>
@@ -150,7 +154,7 @@ describe("SettingsLayout", () => {
             </SettingsLayout>,
         );
 
-        expect(screen.getByText("Activity table")).toBeVisible();
+        expect(await screen.findByText("Activity table")).toBeVisible();
         expect(
             screen.queryByRole("navigation", { name: "Settings" }),
         ).toBeNull();
@@ -195,6 +199,7 @@ describe("SettingsLayout", () => {
             screen.queryByRole("button", { name: "Beta statistics" }),
         ).not.toBeInTheDocument();
         unmount();
+        invalidatePlatformMe();
 
         vi.mocked(getPlatformMe).mockResolvedValue({ admin: true, can_create_org: true });
         render(
@@ -207,4 +212,92 @@ describe("SettingsLayout", () => {
         ).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Beta statistics" })).toBeInTheDocument();
     });
+
+    it("keeps the frame in grey lines until the beta answer arrives, then shows every tab at once", async () => {
+        let answer!: (me: { admin: boolean; can_create_org: boolean }) => void;
+        vi.mocked(getPlatformMe).mockReturnValue(
+            new Promise((resolve) => {
+                answer = resolve;
+            }),
+        );
+        const { container } = render(
+            <SettingsLayout>
+                <div>page</div>
+            </SettingsLayout>,
+        );
+        expect(container.querySelector("[data-slot='settings-shell-skeleton']")).not.toBeNull();
+        expect(screen.queryByRole("button", { name: "Memory" })).toBeNull();
+
+        answer({ admin: true, can_create_org: true });
+        // The usual tabs and the beta ones arrive in the same render.
+        const memory = await screen.findByRole("button", { name: "Memory" });
+        expect(memory).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Beta invitations" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Beta statistics" })).toBeInTheDocument();
+        expect(container.querySelector("[data-slot='settings-shell-skeleton']")).toBeNull();
+    });
+
+    it("asks once for the beta answer, however many times the frame is shown", async () => {
+        const first = render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        await screen.findByRole("button", { name: "Memory" });
+        first.unmount();
+        render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        await screen.findByRole("button", { name: "Memory" });
+        expect(getPlatformMe).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries a failed beta read and then still shows the tabs", async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+            vi.mocked(getPlatformMe)
+                .mockRejectedValueOnce(new Error("blip"))
+                .mockResolvedValueOnce({ admin: true, can_create_org: true });
+            render(
+                <SettingsLayout>
+                    <div />
+                </SettingsLayout>,
+            );
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(
+                await screen.findByRole("button", { name: "Beta invitations" }),
+            ).toBeInTheDocument();
+            expect(getPlatformMe).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("does not hide the settings for good when the beta read keeps failing", async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+            vi.mocked(getPlatformMe).mockRejectedValue(new Error("down"));
+            render(
+                <>
+                    <SettingsLayout>
+                        <div />
+                    </SettingsLayout>
+                    <ToastViewportUI />
+                </>,
+            );
+            await vi.advanceTimersByTimeAsync(5_000);
+            expect(await screen.findByRole("button", { name: "Memory" })).toBeInTheDocument();
+            expect(screen.queryByRole("button", { name: "Beta invitations" })).toBeNull();
+            // It says so, with a way to try again.
+            expect(await screen.findByText(/load all your settings tabs/i)).toBeInTheDocument();
+            expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+            // Three reads (first try and two retries), then it reports.
+            expect(getPlatformMe).toHaveBeenCalledTimes(3);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
 });
