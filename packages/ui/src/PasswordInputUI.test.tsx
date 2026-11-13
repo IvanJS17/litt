@@ -14,9 +14,15 @@ describe("PasswordInputUI", () => {
     expect(show).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(show);
     expect(input).toHaveAttribute("type", "text");
-    const hide = screen.getByRole("button", { name: "Hide password" });
-    expect(hide).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(hide);
+    // Same name, state in aria-pressed only.
+    expect(screen.queryByRole("button", { name: "Hide password" })).toBeNull();
+    const pressed = screen.getByRole("button", { name: "Show password" });
+    expect(pressed).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(pressed);
+    expect(screen.getByRole("button", { name: "Show password" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
     expect(input).toHaveAttribute("type", "password");
   });
 
