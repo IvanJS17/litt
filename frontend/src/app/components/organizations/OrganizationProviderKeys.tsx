@@ -6,6 +6,7 @@ import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { ByokProviderModal } from "@/app/components/settings/ByokProviderModal";
 import { ConnectorCard } from "@/app/components/settings/ConnectorCard";
 import { ScanReadingCard } from "@/app/components/settings/ScanReadingCard";
+import { SplitClassesCard } from "@/app/components/settings/SplitClassesCard";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import {
   SettingsDescription,
@@ -22,6 +23,8 @@ import { routerSelectionsFromLists } from "@/app/hooks/useModelRouterSelections"
 import {
   MikeApiError,
   getOrgApiKeys,
+  getOrgSplitClasses,
+  saveOrgSplitClasses,
   isMfaRequiredError,
   saveOrgApiKey,
   saveOrgRouterModels,
@@ -331,6 +334,13 @@ export function OrganizationProviderKeys({
           onToggle={(enabled) => void toggleProvider("landingai", enabled)}
           onSaveKey={(value) => saveKey("landingai", value)}
           onRemoveKey={() => saveKey("landingai", null)}
+        />
+
+        <SplitClassesCard
+          title={t("settings.splitClasses.title")}
+          intro={t("settings.splitClasses.orgIntro")}
+          load={() => getOrgSplitClasses(orgId)}
+          save={(classes) => saveOrgSplitClasses(orgId, classes)}
         />
       </div>
 

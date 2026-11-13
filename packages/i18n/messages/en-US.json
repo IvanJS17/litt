@@ -3460,6 +3460,38 @@
       "tavilySearchesAndReadsPages": "Tavily searches and reads pages. Works with any model.",
       "theseModelsWontSearchTheWeb": "These models won't search the web.",
       "webSearch": "Web Search"
+    },
+    "splitClasses": {
+      "add": "Add a type",
+      "couldNotLoad": "load the document types",
+      "couldNotSave": "save the document types",
+      "count": "{count} of {max} types",
+      "description": "Description",
+      "identifier": "Identifier (optional)",
+      "name": "Name",
+      "noClientData": "Don’t write client data here. Descriptions and identifiers are also sent to LandingAI along with the document text.",
+      "orgIntro": "The types “Split file” sorts pages into for everyone in this firm who has no list of their own. If you leave it as is, the included list for Mexican case files is used.",
+      "personalIntro": "The types “Split file” sorts pages into when you split a case file. Your list is used first; if you have none, your firm’s; if neither, the included list for Mexican case files.",
+      "readOnly": "Only owners and admins can change this list.",
+      "remove": "Remove type {name}",
+      "removeShort": "Remove",
+      "restore": "Restore the included types",
+      "save": "Save types",
+      "saved": "Types saved.",
+      "saving": "Saving…",
+      "title": "Document types for splitting a file",
+      "typeNumber": "Type {number}",
+      "usingBuiltIn": "Using the included list.",
+      "usingOwn": "Using a list of your own.",
+      "problem": {
+        "description": "Every type needs a description of up to 800 characters.",
+        "duplicate": "Two types have the same name.",
+        "empty": "Add at least one type.",
+        "identifier": "An identifier can have up to 80 characters.",
+        "name": "Every type needs a name of up to 80 characters.",
+        "reserved": "“uncategorized” is reserved. Choose another name.",
+        "too_many": "A list can have at most {max} types."
+      }
     }
   },
   "shared": {
