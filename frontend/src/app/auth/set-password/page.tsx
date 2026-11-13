@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import {
-    InputUI,
+    PasswordInputUI,
     PillButtonUI,
     pillButtonUIClassName,
     authGlassCardUIClassName,
@@ -158,9 +158,8 @@ function SetPasswordContent() {
                                     <FieldLabel htmlFor="password">
                                         {t("access.setPassword.password")}
                                     </FieldLabel>
-                                    <InputUI
+                                    <PasswordInputUI
                                         id="password"
-                                        type="password"
                                         autoComplete="new-password"
                                         value={password}
                                         onChange={(event) => setPassword(event.target.value)}
@@ -172,9 +171,8 @@ function SetPasswordContent() {
                                     <FieldLabel htmlFor="confirmPassword">
                                         {t("access.setPassword.confirm")}
                                     </FieldLabel>
-                                    <InputUI
+                                    <PasswordInputUI
                                         id="confirmPassword"
-                                        type="password"
                                         autoComplete="new-password"
                                         value={confirmPassword}
                                         onChange={(event) => setConfirmPassword(event.target.value)}

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import {
-    InputUI,
+    PasswordInputUI,
     PillButtonUI,
     pillButtonUIClassName,
     authGlassCardUIClassName,
@@ -209,9 +209,8 @@ function ResetPasswordContent() {
                                     <FieldLabel htmlFor="password">
                                         {t("auth.resetPassword.newPassword")}
                                     </FieldLabel>
-                                    <InputUI
+                                    <PasswordInputUI
                                         id="password"
-                                        type="password"
                                         autoComplete="new-password"
                                         value={password}
                                         onChange={(event) =>
@@ -225,9 +224,8 @@ function ResetPasswordContent() {
                                     <FieldLabel htmlFor="confirmPassword">
                                         {t("auth.resetPassword.confirmNewPassword")}
                                     </FieldLabel>
-                                    <InputUI
+                                    <PasswordInputUI
                                         id="confirmPassword"
-                                        type="password"
                                         autoComplete="new-password"
                                         value={confirmPassword}
                                         onChange={(event) =>

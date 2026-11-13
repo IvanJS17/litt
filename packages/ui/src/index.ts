@@ -24,6 +24,7 @@ export * from "./ToggleSwitchUI";
 
 // Inputs
 export * from "./InputUI";
+export * from "./PasswordInputUI";
 export * from "./dropdown";
 export * from "./ModelToggleUI";
 export * from "./WorkflowSlashCommandUI";
