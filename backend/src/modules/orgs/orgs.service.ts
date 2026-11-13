@@ -45,6 +45,12 @@ export {
 export { setOrgManagedAccounts, type OrgManagedAccounts } from "./orgs.managedAccounts";
 
 export {
+    getOrgFirmProfile,
+    saveOrgFirmProfileBody,
+    type OrgFirmProfile,
+} from "./orgs.firmProfile";
+
+export {
     getOrgSplitClasses,
     saveOrgSplitClassesList,
     type OrgSplitClasses,
