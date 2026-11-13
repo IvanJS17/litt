@@ -2,7 +2,7 @@
 
 import { clientTranslator } from "@mike/client";
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
-import { SignupLegal } from "@/app/components/legal/LegalDocument";
+import { SignupLegal } from "@/app/components/legal/SignupLegal";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

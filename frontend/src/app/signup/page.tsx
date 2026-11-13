@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
-import { SignupLegal } from "@/app/components/legal/LegalDocument";
+import { SignupLegal } from "@/app/components/legal/SignupLegal";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signup } from "@/app/lib/authApi";

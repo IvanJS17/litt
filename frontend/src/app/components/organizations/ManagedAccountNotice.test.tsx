@@ -10,6 +10,6 @@ describe("ManagedAccountNotice", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/you won't have a personal workspace/)).toBeInTheDocument();
     expect(screen.getByText(/If you leave Despacho Aurora, your account will have a personal workspace again/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See section 5.5 of the Terms" })).toHaveAttribute("href", "/terminos");
+    expect(screen.getByRole("link", { name: "See section 5.5 of the Terms" })).toHaveAttribute("href", "/terminos#5-5");
   });
 });

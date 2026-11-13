@@ -1466,6 +1466,8 @@
     "openProject": "Abrir proyecto"
   },
   "legal": {
+    "back": "Volver",
+    "toc": "Índice",
     "checkbox": "Leí y acepto los Términos y condiciones y el Aviso de privacidad",
     "intro": "Para seguir usando LiTT, lee y acepta los <terms>Términos y condiciones</terms> y el <privacy>Aviso de privacidad</privacy>.",
     "notice": "Al continuar aceptas los <terms>Términos</terms> y el <privacy>Aviso de privacidad</privacy>.",
