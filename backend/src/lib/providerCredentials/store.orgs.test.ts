@@ -433,10 +433,12 @@ describe("keySources", () => {
         });
 
         const orgWork = await getEffectiveApiKeys(USER, ORG, db);
-        expect(orgWork).toMatchObject({ claude: "env-claude", gemini: "env-gemini", openai: "org-openai" });
+        // The firm allows personal keys (firm(true)), so the person's own
+        // Gemini key still runs in firm work, labelled as theirs.
+        expect(orgWork).toMatchObject({ claude: "env-claude", gemini: "my-gemini", openai: "org-openai" });
         expect(orgWork.keySources).toMatchObject({
             claude: "env",
-            gemini: "env",
+            gemini: "user",
             openai: "org",
         });
     });

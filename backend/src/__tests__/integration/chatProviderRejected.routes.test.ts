@@ -46,7 +46,14 @@ function routeDb() {
         ]) {
             q[method] = vi.fn(() => q);
         }
-        const one = () => Promise.resolve({ data: SINGLE_ROWS[table] ?? null, error: null });
+        // LiTT pins each conversation to one credential: the pinned route reads
+        // the saved key as a single row, with the reference it was saved under.
+        const savedKey = keyRows[0] ? { ...keyRows[0], credential_ref: "claude:v1" } : null;
+        const one = () =>
+            Promise.resolve({
+                data: table === "user_api_keys" ? savedKey : SINGLE_ROWS[table] ?? null,
+                error: null,
+            });
         q.single = vi.fn(one);
         q.maybeSingle = vi.fn(one);
         q.then = (resolve: (value: unknown) => unknown, reject?: (error: unknown) => unknown) =>

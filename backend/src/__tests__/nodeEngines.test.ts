@@ -24,9 +24,7 @@ import { nodeVersionProblem, parseFloor } from "../../scripts/check-node-version
 //     other platform, and their engines are often stale copies of the parent
 //     package's (sharp-win32-ia32 still says ^20.9.0).
 const repoRoot = path.resolve(__dirname, "../../..");
-// desktop/ runs the backend on Electron's bundled Node (its supervisor checks
-// that Node against backend/package.json before spawning it).
-const PACKAGES = [".", "backend", "frontend", "word-addin", "desktop"];
+const PACKAGES = [".", "backend", "frontend", "word-addin"];
 const DEV_ONLY_ABOVE_FLOOR = new Set([
   "jsdom",
   "w3c-xmlserializer",

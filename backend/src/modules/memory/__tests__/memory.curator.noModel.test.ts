@@ -34,6 +34,13 @@ vi.mock("../../../lib/memory/files", async (importOriginal) => ({
 vi.mock("../../../lib/wordWorkspace", () => ({
   wordChatHasWorkspaceAttachments: vi.fn(async () => false),
 }));
+// LiTT governs the curator's egress (memory.curatorEgress.test.ts covers the
+// block). This test is about the no-model path, which sits behind that gate,
+// so the gate lets the host through here.
+vi.mock("../memory.curatorEgress", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../memory.curatorEgress")>()),
+  curatorEgressAllowed: () => true,
+}));
 vi.mock("../../../lib/llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/llm")>()),
   streamChatWithTools,

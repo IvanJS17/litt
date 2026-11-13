@@ -116,6 +116,9 @@ describe("pinChatRoute", () => {
         // Every other provider is off, so nothing in the turn can reach one.
         expect(result.apiKeys.disabledProviders).toContain("openai");
         expect(result.apiKeys.disabledProviders).not.toContain("claude");
+        // Whose key the route sends travels with it: a refusal of a person's
+        // own key is theirs to fix, not an operator error.
+        expect(result.apiKeys.keySources).toEqual({ claude: "user" });
     });
 
     it("never resolves an organization's key implicitly", async () => {
@@ -152,7 +155,11 @@ describe("pinChatRoute", () => {
             ok: true,
             route: { credentialRef: "org:o1:claude:v2" },
         });
-        if (result.ok) expect(result.apiKeys.claude).toBe("sk-firm");
+        if (result.ok) {
+            expect(result.apiKeys.claude).toBe("sk-firm");
+            // The firm's key is labelled as the firm's, so its refusal is an error to act on.
+            expect(result.apiKeys.keySources).toEqual({ claude: "org" });
+        }
     });
 
     it("falls back to the deployment key only when there is no personal key", async () => {
@@ -167,6 +174,7 @@ describe("pinChatRoute", () => {
             ok: true,
             route: { provider: "gemini", credentialRef: "env:gemini" },
         });
+        if (result.ok) expect(result.apiKeys.keySources).toEqual({ gemini: "env" });
     });
 
     it("pins an operator endpoint without any saved key", async () => {
@@ -263,6 +271,7 @@ describe("loadPinnedChatRoute", () => {
         if (result.ok) {
             expect(result.apiKeys.claude).toBe("sk-own");
             expect(result.apiKeys.gemini).toBeUndefined();
+            expect(result.apiKeys.keySources).toEqual({ claude: "user" });
         }
     });
 });

@@ -8,10 +8,8 @@
 // check only warns, and `npm run dev` / `npm start` skip it entirely.
 //
 // Runs as the backend's `predev` and `prestart` script, before any backend
-// module loads, and is also required by the desktop app's supervisor before
-// it spawns the backend on Electron's Node. Plain CommonJS with no
-// dependencies, so it works from a production install (no semver) and from
-// the packaged app.
+// module loads. Plain CommonJS with no dependencies, so it works from a
+// production install (no semver).
 "use strict";
 
 const fs = require("fs");
@@ -58,7 +56,7 @@ function backendNodeRange(backendDir = path.resolve(__dirname, "..")) {
 function nodeVersionProblem(version, range) {
   if (satisfiesFloor(version, range)) return null;
   return (
-    `Mike's backend needs Node ${range} (package.json "engines"), but this is Node ${version}. ` +
+    `LiTT's backend needs Node ${range} (package.json "engines"), but this is Node ${version}. ` +
     "Older 22.x releases crash at boot inside undici. Install a newer Node 22 " +
     "(for example `nvm install 22`) and run the command again."
   );
