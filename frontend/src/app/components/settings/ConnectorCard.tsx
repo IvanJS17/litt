@@ -20,6 +20,7 @@ export function ConnectorCard({
   onOpen,
   action,
   kind = "connector",
+  stacked = false,
 }: {
   name: string;
   /** A second line under the name, for a tile with more to say about itself. */
@@ -31,11 +32,17 @@ export function ConnectorCard({
   placeholderClassName?: string;
   onOpen?: () => void;
   action: ReactNode;
+  /**
+   * The control goes under the text, aligned to the end, instead of beside
+   * it. For a tile whose control is two buttons and whose text is long (an
+   * invitation), where side by side leaves the text a sliver.
+   */
+  stacked?: boolean;
 }) {
   const t = useTranslations();
   const body = (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="flex min-w-0 flex-[1_0_8rem] items-center gap-3">
+    <div className={stacked ? "flex flex-col gap-3" : "flex flex-wrap items-center gap-3"}>
+      <div className={stacked ? "flex min-w-0 items-center gap-3" : "flex min-w-0 flex-[1_0_8rem] items-center gap-3"}>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-transparent">
           {icon ?? (
             <span
@@ -57,7 +64,7 @@ export function ConnectorCard({
           opens the tile. Key presses pass through: the tile ignores keys
           that did not start on itself, and Escape must still reach a dialog
           the control just opened. */}
-      <div className="ml-auto flex h-9 shrink-0 items-center">
+      <div className={stacked ? "flex h-9 shrink-0 items-center justify-end" : "ml-auto flex h-9 shrink-0 items-center"}>
         <div
           className="flex"
           onClick={(event) => event.stopPropagation()}

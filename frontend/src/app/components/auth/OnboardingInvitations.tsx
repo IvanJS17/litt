@@ -157,7 +157,7 @@ export function OnboardingInvitations({
                     {invitation.managed_account && !result ? (
                         <ManagedAccountNotice firm={orgName} />
                     ) : null}
-                    <ConnectorCard kind="invitation"
+                    <ConnectorCard kind="invitation" stacked
                         name={t("auth.onboarding.invitedToJoin", { name: orgName, role: orgRoleLabel(t, invitation.role) })}
                         icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                         detail={invitation.invited_by_email ? (
