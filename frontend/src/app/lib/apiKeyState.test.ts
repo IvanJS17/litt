@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { API_KEY_PROVIDERS, apiKeyStateFromStatus } from "./apiKeyState";
+import { API_KEY_PROVIDERS, apiKeyStateFromStatus, hasApiKeyStatus } from "./apiKeyState";
 import type { ApiKeyStatus } from "./mikeApi";
 
 const status = (overrides: Partial<ApiKeyStatus>): ApiKeyStatus =>
@@ -60,12 +60,22 @@ describe("apiKeyStateFromStatus", () => {
         // with another body, sends a profile without `apiKeyStatus` (this
         // threw a TypeError on `status[provider]`).
         const none = { configured: false, enabled: true, source: null };
-        for (const missing of [undefined, null, "<html>", ["claude"]]) {
+        for (const missing of [undefined, null, "<html>", ["claude"], {}, { sources: {} }]) {
             const state = apiKeyStateFromStatus(missing as ApiKeyStatus | undefined);
             expect(Object.keys(state).sort()).toEqual([...API_KEY_PROVIDERS].sort());
             for (const provider of API_KEY_PROVIDERS) {
                 expect(state[provider]).toEqual(none);
             }
+        }
+    });
+});
+
+describe("hasApiKeyStatus", () => {
+    it("asks for a provider stated as true or false, not just any object", () => {
+        expect(hasApiKeyStatus(status({}))).toBe(true);
+        expect(hasApiKeyStatus({ claude: false })).toBe(true);
+        for (const other of [undefined, null, "x", [], {}, { sources: {} }, { claude: "yes" }]) {
+            expect(hasApiKeyStatus(other)).toBe(false);
         }
     });
 });

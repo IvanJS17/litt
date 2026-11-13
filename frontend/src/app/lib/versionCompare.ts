@@ -12,7 +12,7 @@ export function versionAuthor(source: string | null | undefined): VersionAuthor 
 }
 
 export type CompareBlock =
-    | { kind: "gap"; key: string; count: number; hidden: CompareBlock[] }
+    | { kind: "gap"; key: string; count: number; withChanges: boolean; hidden: CompareBlock[] }
     | { kind: "context"; key: string; oldNo: number; newNo: number; text: string }
     | { kind: "change"; key: string; change: TextChange };
 
@@ -44,7 +44,14 @@ export function compareBlocks(
     let folded: CompareBlock[] = [];
     const flush = (key: string) => {
         if (hidden > 0)
-            blocks.push({ kind: "gap", key: `gap-${key}`, count: hidden, hidden: folded });
+            blocks.push({
+                kind: "gap",
+                key: `gap-${key}`,
+                count: hidden,
+                // A gap that also folds a change the filter left out is not only "unchanged lines".
+                withChanges: folded.some((block) => block.kind === "change"),
+                hidden: folded,
+            });
         hidden = 0;
         folded = [];
     };

@@ -1884,6 +1884,10 @@ the deletion, and 68 `content` conflicts resolved by hand. Files upstream added
 that only serve Sentry (`sentryVolume*`, envelope tests) or the desktop app were
 removed in separate commits.
 
+Erratum on the counts: **96** is the number of conflicts when the merge was made
+against `origin/main` before #176 went in; after #176 the
+working list had **69**. The 96 broken down above (28 + 68) belongs to the first count.
+
 ### 31.2 Disposition by capability
 
 | Capability | Disposition | What stays |

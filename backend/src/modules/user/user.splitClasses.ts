@@ -17,7 +17,7 @@ export async function getSplitClasses(db: Db, userId: string): Promise<ServiceRe
 
 export async function saveSplitClasses(db: Db, userId: string, body: unknown): Promise<ServiceResult<SplitClassesSettings>> {
     const parsed = parseSplitClassesBody(body);
-    if (!parsed.ok) return failure("validation", parsed.detail);
+    if (!parsed.ok) return failure("validation", parsed.detail, parsed.code);
     try {
         if (!(await saveUserSplitClasses(db, userId, parsed.classes))) return failure("not_found", "Profile not found");
         return ok(splitClassesSettings(parsed.classes));

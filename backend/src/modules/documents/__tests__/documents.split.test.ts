@@ -277,7 +277,14 @@ describe("the proposal (POST /split)", () => {
     expect(result).toMatchObject({ ok: false, kind, code });
     expect(JSON.stringify(result)).not.toContain(SECRET);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(mocks.audit).not.toHaveBeenCalled();
+    // The text had left: the failed send is recorded too, with the code and nothing else.
+    expect(mocks.audit).toHaveBeenCalledTimes(1);
+    expect(mocks.audit).toHaveBeenCalledWith(
+      fake.db,
+      expect.objectContaining({ action: "document.split_sent", detail: expect.objectContaining({ ok: false, error_code: code, document_id: DOC, version_id: VERSION }) }),
+    );
+    expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain(SECRET);
+    expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain("Uno");
   });
 
   it("reports an unexpected failure as internal", async () => {

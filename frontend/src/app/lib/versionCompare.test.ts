@@ -60,6 +60,10 @@ describe("compareBlocks", () => {
         const blocks = compareBlocks(result, (change) => change.numeric);
         expect(blocks.filter((b) => b.kind === "change")).toHaveLength(1);
         expect(compareBlocks(result, () => false).every((b) => b.kind === "gap")).toBe(true);
+        // Only the gaps that fold a change say so; a gap of plain unchanged lines does not.
+        const gaps = compareBlocks(result, (change) => change.numeric).filter((b) => b.kind === "gap");
+        expect(gaps.map((g) => g.kind === "gap" && g.withChanges)).toContain(true);
+        expect(gaps.map((g) => g.kind === "gap" && g.withChanges)).toContain(false);
     });
 
     it("draws only a gap for identical text", () => {

@@ -38,7 +38,7 @@ export async function saveOrgSplitClassesList(
     if (!role) return { ok: false, kind: "not_found" };
     if (!isOrgAdmin(role)) return { ok: false, kind: "forbidden" };
     const parsed = parseSplitClassesBody(params.body);
-    if (!parsed.ok) return { ok: false, kind: "validation", detail: parsed.detail };
+    if (!parsed.ok) return { ok: false, kind: "validation", detail: parsed.detail, code: parsed.code };
     try {
         if (!(await saveOrgSplitClasses(db, params.orgId, parsed.classes))) return { ok: false, kind: "not_found" };
     } catch (error) {
