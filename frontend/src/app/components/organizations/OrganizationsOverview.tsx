@@ -156,9 +156,11 @@ export function OrganizationsOverview() {
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               {t("organizations.organizationsOverview.new")}
             </PillButtonUI>
-          ) : (
+          ) : orgs !== null && listedOrgs.length === 0 ? (
+            // Said to someone who belongs to no firm yet; once they belong
+            // to one, "ask for an invitation" is not news.
             <SettingsDescription>{t("access.noOrgInvite")}</SettingsDescription>
-          )}
+          ) : null}
         </div>
         {loading ? (
           <div className={CARD_GRID_CLASS} aria-busy="true">

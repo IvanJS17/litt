@@ -2051,7 +2051,7 @@
       "newOrganization": "Nuevo despacho",
       "noOrganizationsYetCreateOneTo": "Aún no hay despachos. Crea uno para compartir proyectos y flujos de trabajo con tu equipo.",
       "organizations": "Despachos",
-      "roleAndMembers": "{role} · {count, plural, one {# miembro} other {# miembros}}",
+      "roleAndMembers": "Tu rol: {role} · {count, plural, one {# persona} other {# personas}}",
       "switch": "Cambiar",
       "switchToName": "Cambiar a {name}",
       "tryAgain": "Inténtalo de nuevo"

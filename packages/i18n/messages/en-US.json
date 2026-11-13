@@ -2051,7 +2051,7 @@
       "newOrganization": "New organization",
       "noOrganizationsYetCreateOneTo": "No organizations yet. Create one to share projects and workflows with your team.",
       "organizations": "Organizations",
-      "roleAndMembers": "{role} · {count, plural, one {# member} other {# members}}",
+      "roleAndMembers": "Your role: {role} · {count, plural, one {# person} other {# people}}",
       "switch": "Switch",
       "switchToName": "Switch to {name}",
       "tryAgain": "Try again"

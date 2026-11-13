@@ -42,14 +42,15 @@ export function SettingsShell({
 
     return (
         <div className="flex h-full flex-col overflow-y-auto">
-            <header className="mx-auto flex h-16 w-full max-w-5xl shrink-0 items-end justify-between gap-4 px-6 pb-2 md:h-24 md:pb-4">
+            <header className="mx-auto flex min-h-16 w-full max-w-5xl shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-3 px-6 pb-2 md:h-24 md:flex-nowrap md:pb-4">
                 <h1 className="shrink-0 text-3xl font-medium font-eb-garamond">
                     {title}
                 </h1>
                 {/* The search sits at the right end of the heading's row, so the
                     sections and the open page keep their places. */}
                 {search ? (
-                    <div className="relative z-20 w-full min-w-0 max-w-[18rem]">
+                    // Full width under the title on a phone; at the right end from md up.
+                    <div className="relative z-20 w-full min-w-0 md:max-w-[18rem]">
                         {search}
                     </div>
                 ) : null}

@@ -45,8 +45,10 @@ vi.mock("@/app/contexts/WorkspaceContext", () => ({
 vi.mock("@/app/components/settings/KeyScope", () => ({
     useKeyScope: () => ({ personalBlocked: false, firmName: null }),
 }));
+const platform = vi.hoisted(() => ({ me: null as null | { can_create_org: boolean } }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
+  getPlatformMe: vi.fn(async () => platform.me),
   listOrgs: mocks.listOrgs,
   listDeletedOrganizations: vi.fn(async () => []),
   listMyOrgInvitations: mocks.listMyOrgInvitations,
@@ -128,9 +130,9 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
 
     expect(await screen.findByText("Elite Law LLP")).toBeInTheDocument();
-    expect(within(card("Elite Law LLP")).getByText("Admin · 3 members")).toBeInTheDocument();
+    expect(within(card("Elite Law LLP")).getByText("Your role: Admin · 3 people")).toBeInTheDocument();
     expect(
-      within(card("Community Legal")).getByText("Member · 8 members"),
+      within(card("Community Legal")).getByText("Your role: Member · 8 people"),
     ).toBeInTheDocument();
     // Cards, not a table: no tabs, no column sorts, no rows.
     for (const name of ["Managing", "Joined", "Invites"])
@@ -141,10 +143,27 @@ describe("OrganizationsOverview", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("says one member, not one members", async () => {
+  it("says one person, not one people", async () => {
     mocks.listOrgs.mockResolvedValue([{ ...ORG, member_count: 1 }]);
     render(<OrganizationsOverview />);
-    expect(await screen.findByText("Admin · 1 member")).toBeInTheDocument();
+    expect(await screen.findByText("Your role: Admin · 1 person")).toBeInTheDocument();
+  });
+
+  it("asks for an invitation only from someone who belongs to no firm yet", async () => {
+    platform.me = { can_create_org: false };
+    try {
+      mocks.listOrgs.mockResolvedValue([]);
+      const { unmount } = render(<OrganizationsOverview />);
+      expect(await screen.findByText("Ask your firm for an invitation")).toBeInTheDocument();
+      unmount();
+
+      mocks.listOrgs.mockResolvedValue([JOINED_ORG]);
+      render(<OrganizationsOverview />);
+      expect(await screen.findByText("Community Legal")).toBeInTheDocument();
+      expect(screen.queryByText("Ask your firm for an invitation")).not.toBeInTheDocument();
+    } finally {
+      platform.me = null;
+    }
   });
 
   it("puts the workspace the person is in first, then the rest by name", async () => {
