@@ -9,6 +9,8 @@ import { GlassCardUI, ToggleSwitchUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { ScanReadingSection } from "@/app/components/settings/ScanReadingSection";
+import { SplitClassesCard } from "@/app/components/settings/SplitClassesCard";
+import { getUserSplitClasses, saveUserSplitClasses } from "@/app/lib/mikeApi";
 import { WebSearchSection } from "@/app/components/settings/WebSearchSection";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useTranslations } from "next-intl";
@@ -85,6 +87,12 @@ export default function FeaturesPage() {
 
       <WebSearchSection />
       <ScanReadingSection />
+      <SplitClassesCard
+        title={t("settings.splitClasses.title")}
+        intro={t("settings.splitClasses.personalIntro")}
+        load={getUserSplitClasses}
+        save={saveUserSplitClasses}
+      />
     </div>
   );
 }

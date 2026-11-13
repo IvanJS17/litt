@@ -4089,6 +4089,81 @@ export async function startScanReading(documentId: string): Promise<ScanReadingS
     );
 }
 
+/**
+ * Separar expediente (docs/document-split.md). The state is computed on the
+ * server without calling LandingAI; only `proposeDocumentSplit` sends the text,
+ * and only when the person confirms. Nothing is created until
+ * `createSplitDocuments`.
+ */
+export async function getDocumentSplitState(
+    documentId: string,
+    signal?: AbortSignal,
+): Promise<import("@mike/contracts").DocumentSplitState> {
+    return apiRequest(
+        "documents.split_state",
+        `/single-documents/${encodeURIComponent(documentId)}/split`,
+        { signal },
+    );
+}
+
+export async function proposeDocumentSplit(
+    documentId: string,
+): Promise<import("@mike/contracts").DocumentSplitProposal> {
+    return apiRequest(
+        "documents.split",
+        `/single-documents/${encodeURIComponent(documentId)}/split`,
+        { method: "POST" },
+    );
+}
+
+export async function createSplitDocuments(
+    documentId: string,
+    versionId: string,
+    groups: import("@mike/contracts").DocumentSplitCreateGroup[],
+): Promise<import("@mike/contracts").DocumentSplitCreateResult> {
+    return apiRequest(
+        "documents.split_create",
+        `/single-documents/${encodeURIComponent(documentId)}/split/create`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ version_id: versionId, groups }),
+        },
+    );
+}
+
+/** The person's own list of document types for splitting (Settings > Features). */
+export async function getUserSplitClasses(): Promise<import("@mike/contracts").SplitClassesSettings> {
+    return apiRequest("settings.split_classes", "/user/split-classes");
+}
+
+/** Save the list, or `null` to restore the built-in one. */
+export async function saveUserSplitClasses(
+    classes: import("@mike/contracts").SplitClass[] | null,
+): Promise<import("@mike/contracts").SplitClassesSettings> {
+    return apiRequest("settings.split_classes", "/user/split-classes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classes }),
+    });
+}
+
+/** The firm's list; any member reads it, owners and admins save it. */
+export async function getOrgSplitClasses(orgId: string): Promise<import("@mike/contracts").SplitClassesSettings> {
+    return apiRequest("settings.split_classes", `/orgs/${encodeURIComponent(orgId)}/split-classes`);
+}
+
+export async function saveOrgSplitClasses(
+    orgId: string,
+    classes: import("@mike/contracts").SplitClass[] | null,
+): Promise<import("@mike/contracts").SplitClassesSettings> {
+    return apiRequest("settings.split_classes", `/orgs/${encodeURIComponent(orgId)}/split-classes`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classes }),
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Chat
 // ---------------------------------------------------------------------------

@@ -125,4 +125,35 @@ describe("ScanReadingStatus", () => {
     await waitFor(() => expect(getScanReading).toHaveBeenCalledWith("d2", expect.anything()));
     expect(container).toBeEmptyDOMElement();
   });
+
+  describe("Separar expediente", () => {
+    it("offers the button with a key and edit rights, and only calls onSplit when it is pressed", async () => {
+      vi.mocked(getScanReading).mockResolvedValue(state({ needs_reading: false, textless_page_count: 0 }));
+      const onSplit = vi.fn();
+      render(<ScanReadingStatus documentId="d1" onSplit={onSplit} />);
+      const button = await screen.findByRole("button", { name: "Split file…" });
+      expect(onSplit).not.toHaveBeenCalled();
+      fireEvent.click(button);
+      expect(onSplit).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["no key", { key_available: false }],
+      ["no right to edit", { can_edit: false }],
+      ["a reading in progress", { status: "processing" as const }],
+    ])("hides the button with %s", async (_label, patch) => {
+      vi.mocked(getScanReading).mockResolvedValue(state(patch));
+      render(<ScanReadingStatus documentId="d1" onSplit={vi.fn()} />);
+      await waitFor(() => expect(getScanReading).toHaveBeenCalled());
+      await act(async () => undefined);
+      expect(screen.queryByRole("button", { name: "Split file…" })).toBeNull();
+    });
+
+    it("hides the button when the host does not offer splitting", async () => {
+      vi.mocked(getScanReading).mockResolvedValue(state());
+      render(<ScanReadingStatus documentId="d1" />);
+      await screen.findByRole("button", { name: "Read scan" });
+      expect(screen.queryByRole("button", { name: "Split file…" })).toBeNull();
+    });
+  });
 });

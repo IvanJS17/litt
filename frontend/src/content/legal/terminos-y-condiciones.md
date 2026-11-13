@@ -1,8 +1,8 @@
 # Términos y Condiciones de LiTT (Beta)
 
-**Última actualización:** 12 de noviembre de 2026
+**Última actualización:** 13 de noviembre de 2026
 
-**Entrada en vigor:** 12 de noviembre de 2026
+**Entrada en vigor:** 13 de noviembre de 2026
 
 ## 1. Quiénes somos y qué regulan estos Términos
 
@@ -54,8 +54,9 @@ participes en la Beta.
 - **Llave propia:** la credencial del Usuario o del despacho ante su Proveedor de IA o ante un
   Servicio con llave propia.
 - **Servicio con llave propia:** el servicio de un tercero, distinto del Proveedor de IA, que el
-  Usuario o el despacho activa en LiTT con su Llave propia. Por ejemplo, la búsqueda web (Brave
-  Search, Tavily o DeepSeek) y la lectura de escaneados (LandingAI).
+  Usuario o el despacho activa o usa en LiTT con su Llave propia. Por ejemplo, la búsqueda web
+  (Brave Search, Tavily o DeepSeek), y la lectura de escaneados y la separación de expedientes
+  (LandingAI).
 - **Información de la Beta:** la información no pública sobre el Servicio que conoces por
   participar en la Beta (cláusula 8.6).
 - **Retroalimentación:** los comentarios, sugerencias, ideas y reportes de errores que nos das
@@ -149,10 +150,11 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
 9. **Costos con tu proveedor.** Te recomendamos fijar un límite de gasto con tu Proveedor de IA.
    LiTT no responde por los cargos que te haga tu proveedor, tampoco por los que resulten de un
    error, una repetición o un uso no previsto del Servicio.
-10. **Otros servicios con tu llave.** Además de los Proveedores de IA, puedes activar en LiTT
-    otros Servicios con llave propia, como la búsqueda web o la lectura de escaneados. Son
-    opcionales, y los eliges y contratas tú o tu despacho; LiTT no tiene llave propia para ellos
-    ni los paga. Lo que estos Términos establecen para los Proveedores de IA y sus llaves en esta
+10. **Otros servicios con tu llave.** Además de los Proveedores de IA, puedes activar o usar en
+    LiTT otros Servicios con llave propia, como la búsqueda web, la lectura de escaneados o la
+    separación de expedientes. Son opcionales, y los eliges y contratas tú o tu despacho; LiTT no
+    tiene llave propia para ellos ni los paga. Lo que estos Términos establecen para los
+    Proveedores de IA y sus llaves en esta
     cláusula 6 y en las cláusulas 9.4, 13.3, 15.6, 16.2.3, 16.4 y 17 se aplica también a esos
     servicios y a sus llaves. En particular, cada servicio trata la información que recibe bajo
     sus propios términos; te corresponde revisarlos y cumplirlos, incluidos los que regulan quién
@@ -184,6 +186,22 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
     Si no la activas, LiTT no lee los PDF escaneados. Puedes subirlos ya pasados por OCR, con la
     función de PDF buscable de tu escáner o con un programa de PDF. La lectura automática puede
     tener errores: revisa el texto extraído contra el documento original.
+13. **Separar expediente.** La función «Separar expediente» usa LandingAI para proponer cómo
+    dividir en partes un PDF que reúne varios documentos. Solo se ejecuta cuando la pides para un
+    documento; no hay envíos automáticos. Cada vez que la pides:
+    1. LiTT envía a LandingAI, en Estados Unidos y con tu Llave propia, el texto completo del
+       documento, que LiTT ya extrajo, junto con la lista de tipos de documento. Esto incluye el
+       texto de los PDF digitales, que la lectura de escaneados no envía a LandingAI;
+    2. LandingAI te cobra el servicio directamente, conforme a sus tarifas;
+    3. a ese texto se aplica lo previsto en las cláusulas 6.12.3 y 6.12.4: lo que LandingAI haga
+       con él depende de tu plan con ella, y antes de pedir la separación te corresponde valorar
+       si necesitas la autorización de tu cliente y, en su caso, el consentimiento de los
+       titulares;
+    4. pedirla es tu instrucción para que LiTT haga ese envío. Si usas la llave del despacho, el
+       despacho responde de ese uso (cláusula 5.6); y
+    5. la propuesta de LandingAI puede tener errores. Revísala y corrígela antes de aceptarla, y
+       comprueba que cada parte tenga todas sus páginas, en el orden correcto, y que ninguna
+       página quede fuera. LiTT crea un PDF nuevo por cada parte y no modifica el original.
 
 ## 7. La IA no sustituye el criterio profesional
 

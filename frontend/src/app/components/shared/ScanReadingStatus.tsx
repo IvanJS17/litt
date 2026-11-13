@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, ScanText } from "lucide-react";
+import { CheckCircle2, Loader2, ScanText, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextButtonUI } from "@mike/ui";
 import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
@@ -26,10 +26,13 @@ function codeError(code: string | null): Error {
 export function ScanReadingStatus({
   documentId,
   onRead,
+  onSplit,
 }: {
   documentId: string;
   /** Called when a reading that was running has finished, so the page can refresh the document. */
   onRead?: (state: ScanReadingState) => void;
+  /** Offers "Separar expediente" where the same key and edit rights allow it. */
+  onSplit?: () => void;
 }) {
   const t = useTranslations();
   const [state, setState] = useState<ScanReadingState | null>(null);
@@ -105,6 +108,8 @@ export function ScanReadingStatus({
   if (!state?.applicable) return null;
   const canRead = state.needs_reading && state.key_available && state.can_edit;
   const cost = state.estimated_cost_usd ?? 0;
+  // Splitting needs the same key and edit rights as reading, and waits for a running reading.
+  const canSplit = !!onSplit && state.key_available && state.can_edit && state.status !== "processing";
 
   return (
     <div className="space-y-1.5">
@@ -127,6 +132,12 @@ export function ScanReadingStatus({
         <TextButtonUI size="sm" onClick={() => setConfirming(true)} aria-haspopup="dialog">
           <ScanText aria-hidden="true" className="h-3.5 w-3.5" />
           {t("shared.scanReading.readButton")}
+        </TextButtonUI>
+      ) : null}
+      {canSplit ? (
+        <TextButtonUI size="sm" onClick={onSplit} aria-haspopup="dialog">
+          <Scissors aria-hidden="true" className="h-3.5 w-3.5" />
+          {t("documents.split.action")}
         </TextButtonUI>
       ) : null}
       <ConfirmPopup

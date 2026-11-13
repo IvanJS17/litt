@@ -15,8 +15,8 @@ export { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError } from 
 export { ExtractionParseError } from "./failure";
 
 type Result<K extends ExtractionOp> = Awaited<ReturnType<ExtractionOps[K]>>;
-/** `ocr` is a read scan to merge into a PDF's text (documentText only). */
-export type ExtractOptions = { fileType?: string; ocr?: OcrFill };
+/** `ocr` is a read scan to merge into a PDF's text; `args` is the op's own plain-data input (pdfCopyPages: the groups). */
+export type ExtractOptions = { fileType?: string; ocr?: OcrFill; args?: unknown };
 export type ExtractInSlot = <K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options?: ExtractOptions) => Promise<Result<K>>;
 type Reply = { ok: true; result: unknown } | ({ ok: false; limited: boolean } & ExtractionFailureWire);
 
@@ -126,7 +126,7 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
   if (process.env.EXTRACTION_ISOLATION === "off") {
     const { EXTRACTION_OPS } = await import("./ops.js");
     try {
-      return await EXTRACTION_OPS[op](bytes, options.fileType ?? "", options.ocr) as Result<K>;
+      return await EXTRACTION_OPS[op](bytes, options.fileType ?? "", options.ocr, options.args as never) as Result<K>;
     } catch (error) {
       // Classified as the isolated path is, so callers treat both alike.
       throw error instanceof ExtractionLimitError ? error : asExtractionFailure(error);
@@ -178,7 +178,7 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
         } else reject(failure ?? new AppError("extraction.process_exited", "extraction process exited without a result"));
       }, reject);
     };
-    const send = () => child.send({ op, bytes, fileType: options.fileType ?? "", ocr: options.ocr }, (error) => {
+    const send = () => child.send({ op, bytes, fileType: options.fileType ?? "", ocr: options.ocr, args: options.args }, (error) => {
       if (error && !reply && !failure) onError(error);
     });
     child.stderr?.on("data", onDiagnostics);

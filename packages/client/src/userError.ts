@@ -234,6 +234,13 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     ocr_not_supported: "validation",
     ocr_too_large: "payload_too_large",
     ocr_unavailable: "unavailable",
+    // Splitting a case file (layer 7): not a PDF it can read, too many pages or
+    // too much text, scanned pages still unread, and groups the server refused.
+    // The person fixes each of these; retrying does not.
+    split_not_supported: "validation",
+    split_too_large: "payload_too_large",
+    split_needs_scan_reading: "validation",
+    split_invalid_groups: "validation",
     // A Markdown edit was made on a version that is no longer the current one.
     document_version_conflict: "conflict",
     access_inherited: "conflict",

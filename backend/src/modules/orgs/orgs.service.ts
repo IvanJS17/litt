@@ -43,6 +43,12 @@ export {
 } from "./orgs.apiKeys";
 
 export {
+    getOrgSplitClasses,
+    saveOrgSplitClassesList,
+    type OrgSplitClasses,
+} from "./orgs.splitClasses";
+
+export {
     getOrgLogo,
     saveOrgLogo,
     removeOrgLogo,

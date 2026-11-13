@@ -242,3 +242,29 @@ Also: the plural guard covers only «times», «veces» and «marked turns» (#1
   run here.
 - The automatic reading on upload still uses the whole page count against the
   50-page limit, though only the scanned pages are billed now.
+
+## Split a case file (layer 7)
+
+- The wording in `documents.split.*`, Terms 6.13 and the Privacy Notice (§6, §13) is
+  the **final** legal text (socium-legal, task t_a4651c51), not a draft. Its own
+  open points: confirming that LandingAI's zero data retention covers Split (its
+  page names only Parse and Extract), and updating the working versions of the texts
+  in `IvanJS17/legal-ai-mx`.
+- Who may use Split with the firm's key: Terms 6.13.4 puts that use on the firm
+  without naming roles, so Split follows the scan reading: whoever can edit the
+  document and resolves a usable key (the firm's, then the member's own where the
+  firm allows it). If the firm wants fewer people to spend its key, that is a new
+  rule for both features.
+- The firm audit records every send to LandingAI (`document.split_sent`: document,
+  version, characters, credits; never the text or the key). It has no screen of its
+  own yet.
+- A page that has no text layer and no reading blocks Split (`split_needs_scan_reading`);
+  an unreadable page that LandingAI failed on during the scan reading blocks it too.
+  A "read the scan and then split" shortcut would save one click.
+- The proposal is not stored: closing the dialog loses a paid proposal. Keeping it
+  for a few minutes (a table with the proposal, deleted after use) was left out to
+  keep the first version simple.
+- The preview moves pages with selects, not drag and drop.
+- The type of a created document is only used for its proposed name; no column keeps it.
+- Not run: the real LandingAI Split API from this code, the migration against a
+  database, a browser flow and a real case file.

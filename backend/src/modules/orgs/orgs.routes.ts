@@ -42,6 +42,8 @@ import {
     cancelInvitation,
     resendInvitation,
     getOrgApiKeySettings,
+    getOrgSplitClasses,
+    saveOrgSplitClassesList,
     saveOrgApiKey,
     setOrgApiKeyEnabled,
     setOrgMemberDataPolicy,
@@ -417,6 +419,36 @@ orgsRouter.get("/:orgId/api-keys", requireOrgAuth, asyncRoute(async (req, res) =
     if (!result.ok) return sendOrgFailure(res, result);
     res.json(result.settings);
 }));
+
+// GET /orgs/:orgId/split-classes — the firm's list of document types for
+// splitting a case file (any member); `custom` is false until an admin saves one.
+orgsRouter.get("/:orgId/split-classes", requireOrgAuth, asyncRoute(async (req, res) => {
+    const result = await getOrgSplitClasses(createServerSupabase(), {
+        userId: res.locals.userId as string,
+        orgId: req.params.orgId,
+    });
+    if (!result.ok) return sendOrgFailure(res, result);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(result.settings);
+}));
+
+// PUT /orgs/:orgId/split-classes — body { classes: [...] } saves the list,
+// { classes: null } restores the built-in one (owner or admin, like the firm's keys).
+orgsRouter.put(
+    "/:orgId/split-classes",
+    requireOrgAuth,
+    asyncRoute(async (req, res) => {
+        const result = await saveOrgSplitClassesList(createServerSupabase(), {
+            actorId: res.locals.userId as string,
+            actorEmail: res.locals.userEmail as string | undefined,
+            orgId: req.params.orgId,
+            body: req.body,
+        });
+        if (!result.ok) return sendOrgFailure(res, result);
+        res.setHeader("Cache-Control", "private, no-store");
+        res.json(result.settings);
+    }),
+);
 
 // PUT /orgs/:orgId/member-data-policy — whether members may export, and
 // bulk-delete, their own work in the organization (owners only).

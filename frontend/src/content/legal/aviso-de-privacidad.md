@@ -1,8 +1,8 @@
 # Aviso de Privacidad de LiTT
 
-**Última actualización:** 12 de noviembre de 2026
+**Última actualización:** 13 de noviembre de 2026
 
-**Entrada en vigor:** 12 de noviembre de 2026
+**Entrada en vigor:** 13 de noviembre de 2026
 
 ## 1. Quién es el responsable
 
@@ -53,9 +53,10 @@ Tratamos estos datos de las personas usuarias:
 - **Configuración:** idioma, preferencias, instrucciones personales, la memoria del asistente
   (notas que el asistente guarda para darte continuidad, y que puedes consultar y borrar) y las
   rutas de modelo que configuras.
-- **Llaves propias:** las llaves que das de alta para tu proveedor de IA y, si los activas, para
-  la búsqueda web o la lectura de escaneados. Las guardamos cifradas en el servidor, no las
-  mostramos de nuevo y solo las usamos para hacer las llamadas que tú pides.
+- **Llaves propias:** las llaves que das de alta para tu proveedor de IA y, si los activas o los
+  usas, para la búsqueda web o para LandingAI (lectura de escaneados y separación de
+  expedientes). Las guardamos cifradas en el servidor, no las mostramos de nuevo y solo las
+  usamos para hacer las llamadas que tú pides.
 - **Conexiones opcionales:** si conectas tu cuenta de Google (Drive, Gmail o Calendar) u otro
   conector, guardamos la autorización necesaria para usarla y los datos de la cuenta conectada que
   la conexión requiera.
@@ -75,9 +76,9 @@ solicitas y, por eso, no requieren tu consentimiento:
    permisos.
 3. Prestar las funciones de LiTT: chat sobre documentos, revisión tabular, flujos de trabajo,
    playbooks, complemento de Word y formación de pasantes y juniors.
-4. Enviar tus solicitudes y documentos a los servicios que tú elijas y actives con tu llave: tu
-   proveedor de IA y, si los activas, la búsqueda web y la lectura de escaneados (ver la
-   sección 6).
+4. Enviar tus solicitudes y documentos a los servicios que tú elijas y uses con tu llave: tu
+   proveedor de IA y, si los activas o los usas, la búsqueda web, la lectura de escaneados y la
+   separación de expedientes (ver la sección 6).
 5. Personalizar las respuestas del asistente con tu perfil, tus instrucciones y tu memoria.
 6. Enviarte los correos del sistema: confirmación de cuenta, recuperación de contraseña,
    invitaciones y cambio de correo.
@@ -116,7 +117,7 @@ transferencia y no requiere tu consentimiento.
 los comunicaríamos sin tu consentimiento en los casos que permite el artículo 36 de la Ley, por
 ejemplo, cuando lo exija una ley o una autoridad competente, o cuando sea necesario para
 reconocer, ejercer o defender un derecho en un proceso judicial. Los servicios que tú eliges y
-activas con tu llave no son encargados nuestros; la sección 6 explica qué reciben y en qué
+usas con tu llave no son encargados nuestros; la sección 6 explica qué reciben y en qué
 condiciones.
 
 **Sin telemetría de terceros.** LiTT no envía datos de uso a servicios externos de analítica,
@@ -125,8 +126,8 @@ publicidad o monitoreo de errores.
 ## 6. Servicios que tú eliges: proveedores de IA, búsqueda web, lectura de escaneados, Google y otros conectores
 
 LiTT no tiene un proveedor de inteligencia artificial propio, ni servicios propios de búsqueda
-web o de lectura de escaneados. Cada persona o despacho conecta la llave de su propio proveedor
-y decide qué activa.
+web, de lectura de escaneados o de separación de expedientes. Cada persona o despacho conecta la
+llave de su propio proveedor y decide qué activa o usa.
 
 Cuando usas el asistente, LiTT envía al proveedor y al modelo que **tú elegiste** lo necesario para
 responderte: tu mensaje, los documentos o fragmentos que seleccionas y el contexto de la
@@ -147,13 +148,20 @@ sus productos y entrenar sus modelos; con retención cero, lo borra al terminar 
 entrenar. Si la desactivas, dejamos de enviarle documentos nuevos, y el texto ya extraído se
 conserva en LiTT con su documento.
 
+**Separar expediente con LandingAI.** Solo cuando pides «Separar expediente» para un documento,
+LiTT envía a LandingAI, en Estados Unidos, con tu llave o con la de tu despacho, el texto completo
+de ese documento, que LiTT ya extrajo, y la lista de tipos de documento, para que proponga cómo
+dividirlo. Puede ser el texto de un PDF digital, no solo de un escaneado. Sobre la conservación de
+ese texto y su uso para entrenar, se aplica lo dicho en el párrafo anterior sobre la retención
+cero.
+
 Estos son los destinatarios, solo si tú los activas o los usas:
 
 | Destinatario | Cuándo | Qué recibe | Dónde |
 |---|---|---|---|
 | El proveedor de IA que elijas (por ejemplo, Anthropic, OpenAI, Google, Mistral, Amazon Bedrock, Azure o xAI) | Cuando usas el asistente | Tu mensaje, los documentos o fragmentos que seleccionas y el contexto de la conversación, incluido tu perfil | Donde opere ese proveedor, según su contrato y la región que elijas |
 | El servicio de búsqueda que elijas (por ejemplo, Brave Search, Tavily o DeepSeek) | Si activas la búsqueda web | Las consultas y las direcciones de las páginas que debe leer | Donde opere ese proveedor, según sus términos |
-| LandingAI, Inc. | Si activas la lectura de escaneados | El PDF escaneado completo | Estados Unidos |
+| LandingAI, Inc. | Si activas la lectura de escaneados, y cada vez que pides «Separar expediente» | Lectura de escaneados: el PDF escaneado completo. Separar expediente: el texto del documento y la lista de tipos de documento | Estados Unidos |
 | Google u otro conector | Si lo conectas | Lo necesario para la función que usas | Según sus términos |
 
 Cada uno recibe la información bajo **sus propios términos y aviso de privacidad**, en virtud de
@@ -163,15 +171,16 @@ incluye datos personales tuyos, ocurre a tu solicitud y es necesario para presta
 que pediste (artículo 36, fracción VII, de la Ley). Activarlos es tu decisión, y puedes
 revertirla en cualquier momento (sección 7).
 
-Antes de activar un proveedor o un conector, revisa sus condiciones, sobre todo las de retención
-y uso de datos para entrenamiento.
+Antes de activar o usar un proveedor o un conector, revisa sus condiciones, sobre todo las de
+retención y uso de datos para entrenamiento.
 
 ## 7. Cómo puedes limitar el uso o la divulgación de tus datos
 
 - Deja vacíos los campos opcionales del perfil; así no se usan ni se envían al proveedor de IA.
 - Consulta y borra la memoria del asistente y tus instrucciones personales en Ajustes.
 - Desactiva la búsqueda web o la lectura de escaneados, elimina tus llaves propias o desconecta
-  Google y los demás conectores cuando quieras.
+  Google y los demás conectores cuando quieras. «Separar expediente» solo envía información a
+  LandingAI cuando la pides.
 - Escríbenos a soporte@asteroitt.com para pedir que limitemos un uso concreto de tus datos.
   Te responderemos en los plazos de la sección 8.
 
@@ -268,9 +277,10 @@ Esta sección aplica a los datos personales de terceros (clientes, contrapartes,
 personas) que un despacho o una persona usuaria sube o escribe en LiTT.
 
 - **Quién decide.** El despacho, o la persona que sube el contenido, es el responsable de esos
-  datos. Decide qué sube, quién lo ve, a qué proveedores lo envía (de IA, de búsqueda web o de
-  lectura de escaneados) y cuándo lo borra. Le corresponde contar con su propio aviso de
-  privacidad y con el consentimiento o la base legal necesaria, sobre todo si el contenido
+  datos. Decide qué sube, quién lo ve, a qué proveedores lo envía (de IA, de búsqueda web, de
+  lectura de escaneados o de separación de expedientes) y cuándo lo borra. Le corresponde
+  contar con su propio aviso de privacidad y con el consentimiento o la base legal necesaria,
+  sobre todo si el contenido
   incluye datos sensibles o financieros. Si un proveedor que elige puede usar el contenido para
   sus propios fines, como LandingAI sin retención cero, le corresponde también valorar si ese
   envío es una transferencia y cumplir lo que la Ley exija para ella.
@@ -285,8 +295,8 @@ personas) que un despacho o una persona usuaria sube o escribe en LiTT.
 - **Proveedores.** El contenido se almacena con los encargados de la sección 5. Cuando una persona
   usa el asistente, el contenido que ella selecciona se envía al proveedor de IA que ella o su
   despacho eligió, con su llave y bajo los términos de ese proveedor. Si ella o su despacho
-  activan la búsqueda web o la lectura de escaneados, el contenido necesario se envía también a
-  esos servicios, en las mismas condiciones (sección 6).
+  activan la búsqueda web o la lectura de escaneados, o si ella pide separar un expediente, el
+  contenido necesario se envía también a esos servicios, en las mismas condiciones (sección 6).
 - **Derechos de los titulares.** Si recibimos una solicitud de un cliente o de un tercero sobre
   datos que un despacho subió, la remitiremos al despacho y le ayudaremos a atenderla.
 - **Fin del servicio.** Cuando el despacho borra contenido o su organización, LiTT lo suprime

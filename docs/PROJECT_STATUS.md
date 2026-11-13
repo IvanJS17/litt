@@ -9,6 +9,27 @@
 
 ## Executive status
 
+### Layer 7, «Separar expediente» (branch `feat/capa7-split-expediente`, not integrated)
+
+- Split a PDF that holds several documents into one PDF per document, proposed by
+  LandingAI Split and adjusted by the lawyer before anything is created. The
+  original does not change. Details and design decisions in
+  [`document-split.md`](document-split.md). Migration
+  `20261112_60_litt_split_expediente.sql` (adds `split` to
+  `document_versions_source_check` and a `split_classes` column to
+  `user_profiles` and `organizations`). New backend dependency: `pdf-lib` (MIT).
+- Branch on top of `main` `fc7bc082`, no pull request opened. Needs the independent
+  review of the exact snapshot ([`RELEASE_GATES.md`](RELEASE_GATES.md)) before
+  integration.
+- It carries the **final legal text** (socium-legal, task t_a4651c51): Terms 2, 6.10
+  and the new 6.13, Privacy Notice 3 to 7 and 13, the simplified notice, and
+  `LEGAL_VERSION` `2026-11-13` (frontend and backend). Every account accepts the new
+  text on first sign-in after the deploy, so deploy the text and the feature together.
+  Whether to launch the feature the same day or 15 days after publishing (Terms
+  19.2) is the owner's decision.
+- Not run here: the real LandingAI Split API from this code (only mocked `fetch`),
+  the migration against a database, a browser flow, a real case file.
+
 ### DOCX editing in LiTT (branch `feat/capa3-docx-editing`, not yet merged)
 
 - The Word editor (`@docx-editor.dev` 2.33.0 → 2.35.0, as upstream) is on for

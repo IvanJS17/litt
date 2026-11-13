@@ -7,7 +7,8 @@ import { compareDocx } from "../docxCompare";
 import { docxToMarkdown } from "../docxMarkdown";
 import { inspectDocx } from "../docxInventory";
 import { extractPresentationText } from "../officeText";
-import { extractLegacyOfficeText, extractPdfTextForModel, findTextlessPdfPages } from "../pdfText";
+import { extractLegacyOfficeText, extractPdfPageTexts, extractPdfTextForModel, findTextlessPdfPages } from "../pdfText";
+import { copyPdfPages } from "../pdfSplit";
 import { spreadsheetToLLMText } from "../spreadsheet";
 import { decodeMarkdownBytes } from "../documentTypes";
 import { extractDocumentMarkdown } from "./documentMarkdown";
@@ -34,6 +35,11 @@ export const EXTRACTION_OPS = {
   docxInventory: (bytes: ArrayBuffer) => inspectDocx(bytes),
   /** The pages of a PDF with no text layer: the only ones a scan reading sends. */
   pdfTextlessPages: (bytes: ArrayBuffer) => findTextlessPdfPages(bytes),
+  /** Text of each page (a scan reading merged in) and the pages still unread: what Split reads. */
+  pdfPageTexts: (bytes: ArrayBuffer, _fileType: string, ocr?: OcrFill) => extractPdfPageTexts(bytes, ocr),
+  /** One new PDF per group of 1-indexed pages (args.groups), copying the original pages. */
+  pdfCopyPages: (bytes: ArrayBuffer, _fileType: string, _ocr?: OcrFill, args?: { groups: number[][] }) =>
+    copyPdfPages(bytes, args?.groups ?? []),
   /** read_document views, one per file type. */
   pdfForModel: (bytes: ArrayBuffer) => extractPdfTextForModel(bytes),
   // The same accepted view the edit_document matcher anchors against, with
