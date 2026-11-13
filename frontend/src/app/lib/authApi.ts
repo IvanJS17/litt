@@ -5,7 +5,7 @@ import {
     reportNetworkFailure,
     type Operation,
 } from "@/app/lib/errorReporting";
-import { isAbortError, reportedUpstreamMessage } from "@mike/client";
+import { reportedUpstreamMessage } from "@mike/client";
 
 export interface AuthUser {
     id: string;

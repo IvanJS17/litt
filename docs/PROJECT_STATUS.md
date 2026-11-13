@@ -29,6 +29,17 @@
   bold/italic; the editor makes no request outside the local origin (packaged
   fonts, no CDN).
 
+### Upstream cycle 11 (2026-11-12, branch `chore/upstream-cycle-11`, not merged)
+
+- Pin `54c2cb59` (#861), 54 commits; topics 1 to 9 of the intake come in (more
+  precise model-failure messages and key ownership, unreadable documents not
+  retried, memory scopes, request id, queue listeners, storage endpoint
+  warning, outside-Word notice, Node 22.19 floor, dependencies); Sentry and the
+  desktop app are rejected. Receipt: ledger §31. Not in production: it needs a
+  review and a deploy of the backend image (Node floor).
+- **Upstream pin after this cycle:** `54c2cb59` (`ffe49226` and later wait for
+  the next intake).
+
 ### Production and integration 2026-11-12
 
 - **Main:** `09dacab6` (merge of pull request #164). **Production:** runs
