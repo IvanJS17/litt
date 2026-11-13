@@ -2022,6 +2022,28 @@ export interface SplitClass {
  * scope's own, the built-in list to restore, and the limit (19, Split's).
  * `can_manage` only on the firm's.
  */
+/**
+ * The firm's profile (docs/firm-profile.md): every field optional. `hq_state`
+ * and `other_states` are ISO 3166-2:MX codes; the label is the client's.
+ */
+export interface FirmProfile {
+    hq_state?: string;
+    hq_city?: string;
+    other_states?: string[];
+    size?: "1" | "2-5" | "6-20" | "21-50" | "51+";
+    practice_areas?: string[];
+    client_type?: "individuals" | "companies" | "public_sector" | "mixed";
+    industries?: string[];
+    brief_language?: "es-MX" | "en-US";
+    description?: string;
+}
+
+/** `GET/PUT /orgs/:orgId/profile`. `profile` is null until an owner or admin saves one. */
+export interface FirmProfileSettings {
+    profile: FirmProfile | null;
+    can_manage: boolean;
+}
+
 export interface SplitClassesSettings {
     classes: SplitClass[];
     custom: boolean;

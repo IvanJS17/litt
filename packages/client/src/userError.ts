@@ -245,6 +245,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     split_invalid_groups: "validation",
     // The person's or firm's list of types is longer than the database stores.
     split_classes_too_large: "validation",
+    // The firm's profile is longer than the database stores.
+    firm_profile_too_large: "validation",
     // A Markdown edit was made on a version that is no longer the current one.
     document_version_conflict: "conflict",
     access_inherited: "conflict",
