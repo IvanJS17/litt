@@ -609,7 +609,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 <div
                     ref={columnScroll.ref}
                     data-sidebar-column
-                    className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain"
                     style={scrollFadeMaskStyle(columnScroll.edges)}
                     data-scroll-end={columnScroll.edges.end || undefined}
                     onScroll={columnScroll.onScroll}
@@ -795,7 +795,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     role="region"
                                     aria-label={t("shared.appSidebar.history")}
                                     className={cn(
-                                        "min-h-0 flex-1 overflow-y-auto pb-1",
+                                        "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1",
                                         historyCollapsed && "hidden",
                                     )}
                                     style={scrollFadeMaskStyle(historyScroll.edges)}

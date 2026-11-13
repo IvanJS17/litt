@@ -177,11 +177,19 @@
     background: transparent;
 }
 
-.theme-dropdown-item:hover,
 .theme-dropdown-item:focus,
-.theme-dropdown-item[data-highlighted],
-.liquid-glass-hover:not(:disabled):hover {
+.theme-dropdown-item[data-highlighted] {
     background-color: var(--liquid-glass-hover-background);
+}
+
+/* Hover fills only for a mouse: after a tap a finger leaves the element
+   "hovered", and the row stays highlighted. A tap shows its response through
+   `.liquid-glass-pressed` (:active) instead. */
+@media (hover: hover) and (pointer: fine) {
+    .theme-dropdown-item:hover,
+    .liquid-glass-hover:not(:disabled):hover {
+        background-color: var(--liquid-glass-hover-background);
+    }
 }
 
 .theme-dropdown-item[data-selected="true"],
@@ -199,12 +207,14 @@
     background-color: var(--liquid-glass-selected-background);
 }
 
-.group:hover .liquid-glass-group-hover {
-    background-color: var(--liquid-glass-hover-background);
-}
+@media (hover: hover) and (pointer: fine) {
+    .group:hover .liquid-glass-group-hover {
+        background-color: var(--liquid-glass-hover-background);
+    }
 
-.liquid-glass-modal-row-hover:not(:disabled):hover {
-    background-color: var(--liquid-glass-modal-row-hover-background);
+    .liquid-glass-modal-row-hover:not(:disabled):hover {
+        background-color: var(--liquid-glass-modal-row-hover-background);
+    }
 }
 
 .liquid-glass-modal-row-selected {
