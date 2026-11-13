@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Translate } from "@/i18n/Translate";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -12,6 +11,7 @@ import { useMemberDataActions } from "@/app/hooks/useMemberDataActions";
 import { useKeyScope } from "@/app/components/settings/KeyScope";
 import {
     SettingsShell,
+    SettingsShellSkeleton,
     type SettingsShellTab,
 } from "@/app/components/settings/SettingsShell";
 import { SettingsSearch } from "@/app/components/settings/SettingsSearch";
@@ -133,11 +133,7 @@ export default function SettingsLayout({
     }, [isAuthenticated, authLoading, router]);
 
     if (authLoading) {
-        return (
-            <div className="h-dvh flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-interactive" />
-            </div>
-        );
+        return <SettingsShellSkeleton />;
     }
 
     if (!isAuthenticated) {
