@@ -16,6 +16,20 @@ vi.mock("@/app/components/settings/RouterSettingsSection", () => ({
     RouterSettingsSection: ({ provider }: { provider: string }) => <div data-testid="model-selections">{provider}</div>,
 }));
 
+const workspace = vi.hoisted(() => ({
+    firm: null as null | { name: string },
+    allowPersonal: true,
+}));
+vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
+    useWorkspace: () => ({
+        activeOrganization: workspace.firm,
+        orgApiKeys: workspace.firm
+            ? { allow_personal_api_keys: workspace.allowPersonal }
+            : null,
+    }),
+}));
+
 const notConfigured = { configured: false, source: null };
 
 vi.mock("@/app/contexts/UserProfileContext", () => ({
@@ -48,6 +62,8 @@ import ByokPage from "./page";
 describe("BYOK page cloud-platform keys", () => {
     beforeEach(() => {
         updateApiKey.mockClear();
+        workspace.firm = null;
+        workspace.allowPersonal = true;
         azureEnabled.value = true;
         updateApiKeyEnabled.mockReset().mockImplementation(async (_provider, enabled) => {
             azureEnabled.value = enabled;
@@ -310,4 +326,28 @@ describe("BYOK page cloud-platform keys", () => {
         expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
     });
 
+    it("names the section and says the keys apply to the personal workspace", () => {
+        render(<ByokPage />);
+        expect(screen.getByRole("heading", { name: "My personal keys" })).toBeVisible();
+        expect(screen.getByText("These keys are yours and apply to your personal workspace.")).toBeVisible();
+    });
+
+    it("says the keys also reach the firm in a firm's workspace that allows them", () => {
+        workspace.firm = { name: "Socium" };
+        render(<ByokPage />);
+        expect(screen.getByText(/They are also used in the firm Socium/)).toBeVisible();
+        expect(screen.getByRole("button", { name: "Add OpenAI" })).toBeVisible();
+    });
+
+    it("replaces the own-key providers with a notice in a firm that does not allow them", () => {
+        workspace.firm = { name: "Socium" };
+        workspace.allowPersonal = false;
+        render(<ByokPage />);
+        expect(screen.getByRole("heading", { name: "My personal keys" })).toBeVisible();
+        expect(
+            screen.getByText("Socium gives you the models; your firm does not allow your own keys."),
+        ).toBeVisible();
+        expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
+        expect(screen.queryByRole("region", { name: "Saved Providers" })).not.toBeInTheDocument();
+    });
 });

@@ -23,18 +23,48 @@ vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
   needsMfaVerification: async () => false,
 }));
 
+const workspace = vi.hoisted(() => ({
+  firm: null as null | { name: string },
+  allowPersonal: true,
+}));
+vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
+  useWorkspace: () => ({
+    activeOrganization: workspace.firm,
+    orgApiKeys: workspace.firm
+      ? { allow_personal_api_keys: workspace.allowPersonal }
+      : null,
+  }),
+}));
+
 const saved = (enabled: boolean) => ({
   apiKeys: { landingai: { configured: enabled, enabled, source: "user" } },
 });
 
 beforeEach(() => {
   ctx.profile = saved(true);
+  workspace.firm = null;
+  workspace.allowPersonal = true;
   ctx.updateApiKey.mockReset().mockResolvedValue(true);
   ctx.updateApiKeyEnabled.mockReset().mockResolvedValue(true);
   vi.mocked(notifyError).mockReset();
 });
 
 describe("ScanReadingSection", () => {
+  it("says which workspace the key applies to", () => {
+    render(<ScanReadingSection />);
+    expect(screen.getByText(/These keys are yours and apply to your personal workspace\./)).toBeVisible();
+  });
+
+  it("offers no key, and no switch, in a firm that does not allow members' own keys", () => {
+    workspace.firm = { name: "Socium" };
+    workspace.allowPersonal = false;
+    render(<ScanReadingSection />);
+    expect(screen.getByText("Socium gives you the models; your firm does not allow your own keys.")).toBeVisible();
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.queryByLabelText(/API key/i)).toBeNull();
+  });
+
   it("reflects the saved key and turns it off without deleting it", async () => {
     render(<ScanReadingSection />);
     const toggle = screen.getByRole("switch");

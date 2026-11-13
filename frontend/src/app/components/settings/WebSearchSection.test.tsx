@@ -19,6 +19,20 @@ vi.mock("@/app/lib/userFacingError", async (importOriginal) => ({
 }));
 
 const keys = vi.hoisted(() => ({ configured: ["claude"] as string[] }));
+const workspace = vi.hoisted(() => ({
+  firm: null as null | { name: string },
+  allowPersonal: true,
+}));
+
+vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
+  useWorkspace: () => ({
+    activeOrganization: workspace.firm,
+    orgApiKeys: workspace.firm
+      ? { allow_personal_api_keys: workspace.allowPersonal }
+      : null,
+  }),
+}));
 
 vi.mock("@/app/contexts/UserProfileContext", () => ({
   useUserProfile: () => ({
@@ -52,6 +66,8 @@ const trigger = (name: string) => screen.getByRole("button", { name });
 describe("WebSearchSection", () => {
   beforeEach(() => {
     keys.configured = ["claude"];
+    workspace.firm = null;
+    workspace.allowPersonal = true;
     vi.mocked(updateWebSearchSettings).mockReset();
     vi.mocked(notifyError).mockReset();
     vi.mocked(getWebSearchSettings).mockResolvedValue(OFF);
@@ -84,6 +100,29 @@ describe("WebSearchSection", () => {
     expect(screen.getByLabelText("Tavily API Key")).toBeInTheDocument();
     expect(screen.queryByLabelText("DeepSeek API Key")).toBeNull();
     expect(trigger("Other models")).toHaveTextContent("Tavily");
+  });
+
+  it("says the key applies to the personal workspace, or to the firm that takes members' keys", async () => {
+    vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true, claude: "brave" });
+    const { unmount } = render(<WebSearchSection />);
+    expect(await screen.findByText("These keys are yours and apply to your personal workspace.")).toBeVisible();
+    unmount();
+
+    workspace.firm = { name: "Socium" };
+    render(<WebSearchSection />);
+    expect(await screen.findByText(/They are also used in the firm Socium/)).toBeVisible();
+    expect(screen.getByLabelText("Brave Search API Key")).toBeInTheDocument();
+  });
+
+  it("offers no key in a firm that does not allow members' own keys, and says why", async () => {
+    workspace.firm = { name: "Socium" };
+    workspace.allowPersonal = false;
+    vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true, claude: "brave" });
+    render(<WebSearchSection />);
+    expect(
+      await screen.findByText("Socium gives you the models; your firm does not allow your own keys."),
+    ).toBeVisible();
+    expect(screen.queryByLabelText("Brave Search API Key")).toBeNull();
   });
 
   it("puts the switch back and raises a notice when the save fails", async () => {

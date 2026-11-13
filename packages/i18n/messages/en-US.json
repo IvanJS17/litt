@@ -1899,13 +1899,14 @@
       "allowMembersOwnKeys2": "Allow members' own keys",
       "availableProviders": "Available Providers",
       "everyProviderHasAKeySaved": "Every provider has a key saved.",
+      "firmScope": "These keys belong to the firm {name}. They are used when you work in its workspace, not in your personal workspace.",
       "loadError": "The organization's model providers could not be loaded.",
       "membersOwnKeys": "Members’ Own Keys",
       "nameProvider": "{name} provider",
       "noProvidersYetAddAnApi": "No providers yet. Add an API key to one of the providers below.",
       "off": "Off",
       "on": "On",
-      "organizationProviders": "Organization Providers",
+      "organizationProviders": "Firm keys ({name})",
       "policyError": "The setting could not be updated. Please try again.",
       "providerUpdateFailed": "Provider update failed",
       "thisOrganizationHasNotSetUp": "This organization has not set up a model provider yet.",
@@ -2864,6 +2865,12 @@
       "youCantChangeYourEmailThis": "You can’t change your email this often. Wait a few minutes before trying again.",
       "yourAccountWasCreatedWithGoogle": "Your account was created with Google. To change your email, first add a password in Settings > Security > Password."
     },
+    "keyScope": {
+      "personalHeading": "My personal keys",
+      "personal": "These keys are yours and apply to your personal workspace.",
+      "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
+      "blocked": "{name} gives you the models; your firm does not allow your own keys."
+    },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
       "settings": "Settings",
@@ -2965,8 +2972,7 @@
       "providerUpdateFailed": "Provider update failed",
       "savedProviders": "Saved Providers",
       "theProviderCouldNotBeUpdated": "The provider could not be updated. Please try again.",
-      "useName": "Use {name}",
-      "yourKeysRunYourWork": "Your keys run your work in your Personal workspace. In an organization its own keys come first, and yours cover any provider it has not set up, unless its owners turn members’ own keys off."
+      "useName": "Use {name}"
     },
     "personalisation": {
       "practiceAreas": "Practice areas",

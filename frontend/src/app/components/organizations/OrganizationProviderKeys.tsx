@@ -245,8 +245,11 @@ export function OrganizationProviderKeys({
           className="space-y-3"
         >
           <SettingsHeading id="org-providers-saved">
-            {t("organizations.organizationProviderKeys.organizationProviders")}
+            {t("organizations.organizationProviderKeys.organizationProviders", { name: orgName })}
           </SettingsHeading>
+          <SettingsDescription>
+            {t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
+          </SettingsDescription>
           {loading ? (
             <span className="block h-5 w-56 max-w-full animate-pulse rounded bg-gray-200" />
           ) : savedFields.length === 0 ? (
@@ -327,6 +330,7 @@ export function OrganizationProviderKeys({
 
         <ScanReadingCard
           loading={loading}
+          keyScope={t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
           canManage={canManage}
           hasSavedKey={hasOrgKey("landingai")}
           enabled={hasOrgKey("landingai") && isEnabled("landingai")}

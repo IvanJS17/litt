@@ -14,6 +14,7 @@ import { PillButtonUI } from "@mike/ui";
 import { ToggleSwitchUI } from "@mike/ui";
 import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { usePersonalKeysScope } from "@/app/components/settings/KeyScope";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
@@ -55,6 +56,7 @@ export function PersonalProviderKeys({
 }) {
     const t = useTranslations();
     const { profile, loading, updateApiKeyEnabled } = useUserProfile();
+    const scope = usePersonalKeysScope();
     const [busyProvider, setBusyProvider] = useState<ApiKeyProvider | null>(null);
     const [toggleError, setToggleError] = useState<string | null>(null);
     const [pendingToggle, setPendingToggle] = useState<{ provider: ApiKeyProvider; enabled: boolean } | null>(null);
@@ -134,7 +136,7 @@ export function PersonalProviderKeys({
     return (
         <div className="@container space-y-8">
             {intro === undefined ? (
-                <SettingsDescription>{t("settings.personalProviderKeys.yourKeysRunYourWork")}</SettingsDescription>
+                <SettingsDescription>{scope}</SettingsDescription>
             ) : intro}
             {PROVIDER_SECTIONS.map((section) => {
                 // While the profile loads, which providers are active is not

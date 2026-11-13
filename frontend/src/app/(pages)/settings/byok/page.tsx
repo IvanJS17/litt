@@ -1,7 +1,22 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import {
+    PersonalKeysBlockedNotice,
+    useKeyScope,
+} from "@/app/components/settings/KeyScope";
 import { PersonalProviderKeys } from "@/app/components/settings/PersonalProviderKeys";
+import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 
 export default function ByokPage() {
-    return <PersonalProviderKeys />;
+    const t = useTranslations();
+    const { personalBlocked } = useKeyScope();
+    // In a firm that does not allow members' own keys there is nothing to
+    // set here for that workspace; the notice says why instead.
+    return (
+        <div className="space-y-4">
+            <SettingsHeading>{t("settings.keyScope.personalHeading")}</SettingsHeading>
+            {personalBlocked ? <PersonalKeysBlockedNotice /> : <PersonalProviderKeys />}
+        </div>
+    );
 }

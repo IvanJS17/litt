@@ -1899,13 +1899,14 @@
       "allowMembersOwnKeys2": "Permitir llaves propias de los miembros",
       "availableProviders": "Proveedores disponibles",
       "everyProviderHasAKeySaved": "Todos los proveedores tienen una llave guardada.",
+      "firmScope": "Estas llaves son del despacho {name}. Se usan cuando trabajas en su espacio, no en tu espacio personal.",
       "loadError": "No se pudieron cargar los proveedores de modelos de la organización.",
       "membersOwnKeys": "Llaves propias de los miembros",
       "nameProvider": "Proveedor {name}",
       "noProvidersYetAddAnApi": "Aún no hay proveedores. Agrega una llave de API a uno de los proveedores de abajo.",
       "off": "Desactivado",
       "on": "Activado",
-      "organizationProviders": "Proveedores de la organización",
+      "organizationProviders": "Llaves del despacho ({name})",
       "policyError": "No se pudo actualizar el ajuste. Inténtalo de nuevo.",
       "providerUpdateFailed": "Falló la actualización del proveedor",
       "thisOrganizationHasNotSetUp": "Esta organización aún no configura un proveedor de modelos.",
@@ -2864,6 +2865,12 @@
       "youCantChangeYourEmailThis": "No puedes cambiar tu correo tan seguido. Espera unos minutos antes de intentarlo de nuevo.",
       "yourAccountWasCreatedWithGoogle": "Tu cuenta se creó con Google. Para cambiar tu correo, primero agrega una contraseña en Ajustes > Seguridad > Contraseña."
     },
+    "keyScope": {
+      "personalHeading": "Mis llaves personales",
+      "personal": "Estas llaves son tuyas y aplican a tu espacio personal.",
+      "inFirm": "Estas llaves son tuyas. También se usan en el despacho {name}, pero solo para los proveedores que el despacho no tiene configurados; el despacho siempre usa primero las suyas.",
+      "blocked": "{name} te da los modelos; tu despacho no permite llaves propias."
+    },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {invitación pendiente} other {invitaciones pendientes}}",
       "settings": "Ajustes",
@@ -2965,8 +2972,7 @@
       "providerUpdateFailed": "Falló la actualización del proveedor",
       "savedProviders": "Proveedores guardados",
       "theProviderCouldNotBeUpdated": "No se pudo actualizar el proveedor. Inténtalo de nuevo.",
-      "useName": "Usar {name}",
-      "yourKeysRunYourWork": "Tus llaves se usan en tu espacio Personal. En una organización, sus propias llaves van primero, y las tuyas cubren cualquier proveedor que no haya configurado, a menos que sus dueños desactiven las llaves propias de los miembros."
+      "useName": "Usar {name}"
     },
     "personalisation": {
       "practiceAreas": "Áreas de práctica",

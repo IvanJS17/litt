@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPopup";
 import { ScanReadingCard } from "@/app/components/settings/ScanReadingCard";
+import { useKeyScope, usePersonalKeysScope } from "@/app/components/settings/KeyScope";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { isMfaRequiredError } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
@@ -14,6 +15,8 @@ export function ScanReadingSection() {
   const { profile, updateApiKey, updateApiKeyEnabled } = useUserProfile();
   const [busy, setBusy] = useState(false);
   const [pendingMfa, setPendingMfa] = useState<boolean | null>(null);
+  const { firmName, personalBlocked } = useKeyScope();
+  const scope = usePersonalKeysScope();
   const key = profile?.apiKeys.landingai;
   const hasSavedKey = key?.source === "user";
 
@@ -41,8 +44,14 @@ export function ScanReadingSection() {
     <>
       <ScanReadingCard
         loading={!profile}
-        hasSavedKey={hasSavedKey}
-        enabled={hasSavedKey && key?.enabled !== false}
+        hasSavedKey={hasSavedKey && !personalBlocked}
+        enabled={hasSavedKey && !personalBlocked && key?.enabled !== false}
+        keyScope={scope}
+        keyNotice={
+          personalBlocked
+            ? t("settings.keyScope.blocked", { name: firmName ?? "" })
+            : undefined
+        }
         busy={busy}
         onToggle={(enabled) => void toggle(enabled)}
         onSaveKey={(value) => updateApiKey("landingai", value.trim() || null)}

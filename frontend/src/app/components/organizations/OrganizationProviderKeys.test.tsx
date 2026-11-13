@@ -131,7 +131,7 @@ function orgSettings(
 const renderTab = () =>
   render(<OrganizationProviderKeys orgId="org-1" orgName="Acme LLP" />);
 const savedSection = () =>
-  screen.getByRole("region", { name: "Organization Providers" });
+  screen.getByRole("region", { name: "Firm keys (Acme LLP)" });
 
 beforeEach(() => {
   vi.clearAllMocks();
