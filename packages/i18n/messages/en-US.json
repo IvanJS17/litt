@@ -2964,7 +2964,8 @@
       "personalHeading": "My personal keys",
       "personal": "These keys are yours and apply to your personal workspace.",
       "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
-      "blocked": "{name} gives you the models; your firm does not allow your own keys."
+      "blocked": "{name} gives you the models; your firm does not allow your own keys.",
+      "blockedNoName": "Your firm gives you the models and does not allow your own keys."
     },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",

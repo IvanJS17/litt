@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 const REPO = resolve(__dirname, "../../..");
 const compose = readFileSync(join(REPO, "deploy/prod/compose.yaml"), "utf8");
 const setting = (prefix: string) =>
-    [...compose.matchAll(new RegExp(`GOTRUE_MAILER_${prefix}_([A-Z_]+): (.+)`, "g"))].map((m) => [m[1], m[2].trim()]);
+    [...compose.matchAll(new RegExp(`GOTRUE_MAILER_${prefix}_([A-Z_]+): (.+)`, "g"))].map((m): [string, string] => [m[1], m[2].trim()]);
 
 const KINDS = ["INVITE", "CONFIRMATION", "RECOVERY", "EMAIL_CHANGE", "REAUTHENTICATION"];
 

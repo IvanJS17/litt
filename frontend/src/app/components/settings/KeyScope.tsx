@@ -59,7 +59,9 @@ export function PersonalKeysBlockedNotice() {
     const { firmName } = useKeyScope();
     return (
         <SettingsDescription>
-            {t("settings.keyScope.blocked", { name: firmName ?? "" })}
+            {/* Before the name loads there is no subject to start with: the
+                sentence without one, never " te da los modelos…". */}
+            {firmName ? t("settings.keyScope.blocked", { name: firmName }) : t("settings.keyScope.blockedNoName")}
         </SettingsDescription>
     );
 }

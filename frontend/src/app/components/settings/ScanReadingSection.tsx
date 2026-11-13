@@ -54,12 +54,12 @@ export function ScanReadingSection() {
         hasSavedKey={firmHasKey}
         enabled={firmKeyOn}
         keyNotice={
-          orgApiKeys
+          orgApiKeys && firmName !== null
             ? t(
                 firmHasKey
                   ? "settings.scanReading.firmConfigured"
                   : "settings.scanReading.firmNotConfigured",
-                { name: firmName ?? "" },
+                { name: firmName },
               )
             : undefined
         }

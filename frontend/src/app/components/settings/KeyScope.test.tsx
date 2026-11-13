@@ -57,4 +57,11 @@ describe("key scope", () => {
             screen.getByText("Socium gives you the models; your firm does not allow your own keys."),
         ).toBeVisible();
     });
+
+    it("has no subject-less notice while the firm's name has not loaded", () => {
+        profile.managed = true;
+        const { container } = render(<PersonalKeysBlockedNotice />);
+        expect(container.textContent?.startsWith(" ")).toBe(false);
+        expect(screen.getByText("Your firm gives you the models and does not allow your own keys.")).toBeVisible();
+    });
 });

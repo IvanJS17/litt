@@ -2964,7 +2964,8 @@
       "personalHeading": "Mis llaves personales",
       "personal": "Estas llaves son tuyas y aplican a tu espacio personal.",
       "inFirm": "Estas llaves son tuyas. También se usan en el despacho {name}, pero solo para los proveedores que el despacho no tiene configurados; el despacho siempre usa primero las suyas.",
-      "blocked": "{name} te da los modelos; tu despacho no permite llaves propias."
+      "blocked": "{name} te da los modelos; tu despacho no permite llaves propias.",
+      "blockedNoName": "Tu despacho te da los modelos y no permite llaves propias."
     },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {invitación pendiente} other {invitaciones pendientes}}",

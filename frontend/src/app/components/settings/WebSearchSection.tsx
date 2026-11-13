@@ -13,7 +13,7 @@ import {
   SettingsDescription,
   SettingsLabel,
 } from "@/app/components/settings/SettingsText";
-import { useKeyScope, usePersonalKeysScope } from "@/app/components/settings/KeyScope";
+import { PersonalKeysBlockedNotice, useKeyScope, usePersonalKeysScope } from "@/app/components/settings/KeyScope";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
 import { isProviderAvailable } from "@/app/lib/modelAvailability";
@@ -122,7 +122,7 @@ export function WebSearchSection() {
   const SEARCH_SERVICE_OPTIONS = searchServiceOptions(t);
   const OFF_OPTION = offOption(t);
   const { profile, updateApiKey } = useUserProfile();
-  const { firmName, personalBlocked } = useKeyScope();
+  const { personalBlocked } = useKeyScope();
   const scope = usePersonalKeysScope();
   const [settings, setSettings] = useState<WebSearchSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -272,9 +272,7 @@ export function WebSearchSection() {
               ))}
             {personalBlocked && chosenServices.length > 0 ? (
               <SettingsRow>
-                <SettingsDescription>
-                  {t("settings.keyScope.blocked", { name: firmName ?? "" })}
-                </SettingsDescription>
+                <PersonalKeysBlockedNotice />
               </SettingsRow>
             ) : null}
             {personalBlocked ? null : chosenServices.map((service) => (
