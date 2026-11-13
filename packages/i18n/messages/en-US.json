@@ -3004,6 +3004,13 @@
       "blockedNoName": "You work with your firm's keys. Your firm does not allow adding your own keys."
     },
     "layout": {
+      "group": {
+        "account": "Account",
+        "firm": "Firm",
+        "keys": "Keys",
+        "preferences": "Preferences",
+        "privacy": "Privacy"
+      },
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
       "settings": "Settings",
       "tab": {

@@ -14,8 +14,28 @@ import {
     SettingsShell,
     type SettingsShellTab,
 } from "@/app/components/settings/SettingsShell";
+import { SETTINGS_PHONE_HOME } from "@/app/lib/settingsRoutes";
 import { SettingsSearch } from "@/app/components/settings/SettingsSearch";
 import { SETTINGS_SEARCH_ENTRIES } from "@/app/lib/settingsSearch";
+
+/** The phone list's groups, by tab id. A tab named in none is listed last. */
+function phoneGroups(t: Translate) {
+    return [
+        { id: "account", label: t("settings.layout.group.account"), tabIds: ["account", "security"] },
+        {
+            id: "preferences",
+            label: t("settings.layout.group.preferences"),
+            tabIds: ["personalisation", "memory", "appearance", "features", "models"],
+        },
+        { id: "keys", label: t("settings.layout.group.keys"), tabIds: ["byok", "connectors"] },
+        {
+            id: "firm",
+            label: t("settings.layout.group.firm"),
+            tabIds: ["organizations", "training", "firm-criteria", "beta-invitations", "beta-stats"],
+        },
+        { id: "privacy", label: t("settings.layout.group.privacy"), tabIds: ["privacy-data", "my-activity"] },
+    ];
+}
 
 function settingsTabs(t: Translate): SettingsShellTab[] {
     return [
@@ -170,6 +190,11 @@ export default function SettingsLayout({
                     : tab,
             )}
             rootHref="/settings"
+            mobileHome={{
+                href: SETTINGS_PHONE_HOME,
+                backLabel: t("settings.layout.settings"),
+                groups: phoneGroups(t),
+            }}
         >
             {children}
         </SettingsShell>

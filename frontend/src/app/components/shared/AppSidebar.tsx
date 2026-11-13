@@ -81,6 +81,7 @@ import {
     LIQUID_GLASS_SELECTED_CLASS,
     LIQUID_GLASS_HOVER_CLASS,
 } from "@/app/components/ui/liquid-surface";
+import { SETTINGS_PHONE_HOME } from "@/app/lib/settingsRoutes";
 import { useTranslations } from "next-intl";
 
 /** Where a workspace opens: the page the logo leads to. */
@@ -1065,7 +1066,15 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                   </>
                               ) : null}
                               <DropdownItem
-                                  onSelect={() => router.push("/settings")}
+                                  // On a phone Settings opens on its grouped list; the
+                                  // Account page is one row down.
+                                  onSelect={() =>
+                                      router.push(
+                                          window.innerWidth < 768
+                                              ? SETTINGS_PHONE_HOME
+                                              : "/settings",
+                                      )
+                                  }
                                   className="h-8 gap-2 rounded-md px-2 py-2 text-sm font-medium text-gray-700 hover:text-gray-700 focus:text-gray-700 data-[selected=true]:text-gray-900 data-[selected=true]:hover:text-gray-900 data-[selected=true]:focus:text-gray-900"
                               >
                                   <SettingsSkeuoIcon className="h-4 w-4 text-black" />
