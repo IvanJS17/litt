@@ -180,7 +180,7 @@ test.describe("Settings search", () => {
 test.describe("Settings search on a phone", () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
-    test("shares the title row and keeps its results inside the screen", async ({
+    test("sits full width under the title and keeps its results inside the screen", async ({
         page,
     }) => {
         const search = await openSettings(page);
@@ -188,8 +188,9 @@ test.describe("Settings search on a phone", () => {
         const heading = page.getByRole("heading", { name: "Settings" });
         const headingBox = (await heading.boundingBox())!;
         const searchBox = (await search.boundingBox())!;
-        // Still beside the heading, not wrapped under it.
-        expect(searchBox.x).toBeGreaterThan(headingBox.x + headingBox.width);
+        // On a phone the search has its own row under the heading, full width.
+        expect(searchBox.y).toBeGreaterThanOrEqual(headingBox.y + headingBox.height);
+        expect(searchBox.width).toBeGreaterThan(300);
 
         await search.fill("2fa");
         const list = results(page);
