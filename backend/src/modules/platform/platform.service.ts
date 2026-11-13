@@ -14,6 +14,8 @@ import {
 } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 
+export { viewPlatformStats } from "./platform.stats";
+
 export const PLATFORM_ADMIN_REQUIRED = "platform_admin_required";
 export const PLATFORM_INVITATION_PENDING = "platform_invitation_pending";
 

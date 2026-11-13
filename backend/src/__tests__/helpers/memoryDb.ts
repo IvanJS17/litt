@@ -3,7 +3,7 @@ import type { Db } from "../../lib/supabase";
 
 /**
  * A tiny in-memory PostgREST stand-in: rows per table, with the filters and
- * writes the training module uses (eq, is, in, gt, order, limit, insert,
+ * writes the training module uses (eq, is, in, gt, gte, order, limit, insert,
  * update, delete, select-after-write, maybeSingle). `gt` and `order` let
  * keyset-paged reads (lib/batchedQuery.ts) run against it. Enough to assert what a service
  * leaves in its tables; it fills a missing `id` but enforces no constraints, so a suite
@@ -89,6 +89,10 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
             },
             gt: (column: string, value: unknown) => {
                 filters.push((row) => String(row[column] ?? "") > String(value));
+                return builder;
+            },
+            gte: (column: string, value: unknown) => {
+                filters.push((row) => String(row[column] ?? "") >= String(value));
                 return builder;
             },
             lte: (column: string, value: unknown) => {
