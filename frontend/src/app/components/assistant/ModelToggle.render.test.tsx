@@ -187,7 +187,7 @@ describe("ModelToggle responsive trigger", () => {
         expect(trigger).toHaveTextContent("Fable 5.2");
         expect(trigger).not.toHaveTextContent("Claude");
         // The full name is still the trigger's title.
-        expect(trigger).toHaveAttribute("title", "Choose model: Claude Fable 5.2");
+        expect(trigger).toHaveAttribute("title", "Choose model — Claude Fable 5.2");
     });
 
     it("shows a chosen model in dark grey, and keeps the light grey for the placeholder", () => {
