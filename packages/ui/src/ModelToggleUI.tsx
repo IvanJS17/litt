@@ -6,6 +6,7 @@ import {
   Check,
   ChevronDown,
   LoaderCircle,
+  Settings2,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { TabPillButtonUI } from "./TabPillButtonUI";
@@ -182,6 +183,12 @@ export interface ModelToggleUIProps {
   selectedAvailable?: boolean;
   loading?: boolean;
   compact?: boolean;
+  /**
+   * In a compact host, name the model (short, with a chevron) instead of
+   * showing a bare icon. For a host with the room, such as a phone's chat
+   * composer; a narrow task pane keeps the icon.
+   */
+  compactShowsName?: boolean;
   /** `default` matches the toolbar's other buttons; `muted` is the lighter chat-composer look. */
   tone?: "muted" | "default";
   /** A full-width form field: liquid glass, or "flat" grey like a flat select. */
@@ -222,6 +229,7 @@ export function ModelToggleUI({
   selectedAvailable = true,
   loading = false,
   compact = false,
+  compactShowsName = false,
   tone = "muted",
   modalInput = false,
   toolbar = false,
@@ -331,12 +339,20 @@ export function ModelToggleUI({
               : modalInput
               ? `keyboard-focus-ring flex h-10 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm text-gray-700 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${open ? LIQUID_GLASS_SELECTED_CLASS : ""}`
               : twMerge(
-                  `keyboard-focus-ring flex h-8 shrink-0 items-center rounded-lg text-sm ${tone === "default" || selected ? "text-gray-700 enabled:hover:text-gray-900 disabled:hover:text-gray-700" : "text-gray-400 enabled:hover:text-gray-700 disabled:hover:text-gray-400"} transition-colors enabled:cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${compact ? "gap-1 px-2" : "gap-1.5 px-2"} ${open ? "text-gray-700" : ""}`,
+                  `keyboard-focus-ring flex h-8 shrink-0 items-center rounded-lg text-sm ${tone === "default" || selected ? "text-gray-700 enabled:hover:text-gray-900 disabled:hover:text-gray-700" : "text-gray-400 enabled:hover:text-gray-700 disabled:hover:text-gray-400"} transition-colors enabled:cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${compact ? (compactShowsName ? "gap-1 px-2" : "w-8 justify-center px-0") : "gap-1.5 px-2"} ${open ? "text-gray-700" : ""}`,
                   triggerClassName,
                 )
           }
         >
-          {compact && loading ? (
+          {compact && !compactShowsName ? (
+            loading ? (
+              <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+            ) : selectedAvailable ? (
+              <Settings2 className="h-4 w-4 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+            )
+          ) : compact && loading ? (
             <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
           ) : (
             <>

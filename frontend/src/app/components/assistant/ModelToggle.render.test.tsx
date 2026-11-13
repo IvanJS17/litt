@@ -178,6 +178,7 @@ describe("ModelToggle responsive trigger", () => {
                 onChange={vi.fn()}
                 apiKeys={keys({ claude: true })}
                 compact
+                compactShowsName
             />,
         );
 
@@ -188,6 +189,14 @@ describe("ModelToggle responsive trigger", () => {
         expect(trigger).not.toHaveTextContent("Claude");
         // The full name is still the trigger's title.
         expect(trigger).toHaveAttribute("title", "Choose model — Claude Fable 5.2");
+    });
+
+    it("keeps the icon in a compact host that did not ask for the name (the Word pane)", () => {
+        render(<ModelToggle value="gemini-3.8-flash" onChange={vi.fn()} apiKeys={keys({ gemini: true })} compact />);
+        const trigger = screen.getByRole("button", { name: "Choose model" });
+        expect(trigger).toHaveClass("w-8");
+        expect(trigger).not.toHaveTextContent("Gemini");
+        expect(trigger.querySelector("svg")).toBeInTheDocument();
     });
 
     it("shows a chosen model in dark grey, and keeps the light grey for the placeholder", () => {

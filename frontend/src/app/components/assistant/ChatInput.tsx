@@ -1180,6 +1180,7 @@ function ChatInputForChatImpl(
                                     }
                                     routerSelections={savedRouterSelections}
                                     compact={compactControls}
+                                    compactShowsName
                                     triggerClassName={cn(
                                         TOUCH_TARGET_CLASS,
                                         "h-7.5 pointer-coarse:h-9",
