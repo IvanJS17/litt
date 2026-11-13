@@ -23,6 +23,7 @@ import {
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
 import { betaMode, canSignUp } from "../../lib/platformAccess";
+import { recordCreatingOrgOfSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
 import { isAuthUpstreamFailure } from "../../lib/authUpstream";
 import { AppError } from "../../lib/appError";
@@ -173,6 +174,10 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
       callbackUrl(req, req.body?.next, "/onboarding/profile"),
     );
     if (error || !data.user) return authError(res, error);
+    // Closed beta: an invited email registers on its own; that organization's
+    // invitation is what created the account (managed accounts).
+    if (betaMode())
+      await recordCreatingOrgOfSignup(createServerSupabase(), data.user, parsed.data.email);
     res.status(201).json({
       user: publicAuthUser(data.user),
       requiresEmailConfirmation: !data.session,

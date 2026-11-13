@@ -12,6 +12,7 @@ import {
     listMyOrgInvitations,
     type OrgInvitation,
 } from "@/app/lib/mikeApi";
+import { ManagedAccountNotice } from "@/app/components/organizations/ManagedAccountNotice";
 import { orgRoleLabel } from "@/app/components/organizations/orgRoleText";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, PillButtonUI } from "@mike/ui";
@@ -151,7 +152,12 @@ export function OnboardingInvitations({
                 const orgName = invitation.org_name || t("auth.onboarding.organizationFallback");
                 const result = answers[invitation.id];
                 return (
-                    <ConnectorCard key={invitation.id} kind="invitation"
+                    <div key={invitation.id} className="space-y-2">
+                    {/* Read before Accept: this invitation creates a firm-managed account. */}
+                    {invitation.managed_account && !result ? (
+                        <ManagedAccountNotice firm={orgName} />
+                    ) : null}
+                    <ConnectorCard kind="invitation"
                         name={t("auth.onboarding.invitedToJoin", { name: orgName, role: orgRoleLabel(t, invitation.role) })}
                         icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                         detail={invitation.invited_by_email ? (
@@ -172,6 +178,7 @@ export function OnboardingInvitations({
                             </div>
                         )}
                     />
+                    </div>
                 );
             })}
         </section>

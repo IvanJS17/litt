@@ -13,12 +13,18 @@ import {
 
 const mocks = vi.hoisted(() => ({
     userId: "u1" as string | null,
+    managed: false,
     listOrgs: vi.fn(),
     getOrgApiKeys: vi.fn(),
 }));
 
 vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({ user: mocks.userId ? { id: mocks.userId } : null }),
+}));
+vi.mock("@/app/contexts/UserProfileContext", () => ({
+    useOptionalUserProfile: () => ({
+        profile: { personalWorkspaceDisabled: mocks.managed },
+    }),
 }));
 vi.mock("@/app/lib/mikeApi", () => ({
     listOrgs: mocks.listOrgs,
@@ -71,6 +77,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
     mocks.userId = "u1";
+    mocks.managed = false;
     mocks.listOrgs.mockResolvedValue([ACME, BETA]);
     mocks.getOrgApiKeys.mockImplementation(async (orgId: string) =>
         keysFor(orgId),
@@ -386,5 +393,40 @@ describe("the workspace documents are offered from", () => {
     it("is not narrowed outside the app shell", () => {
         render(<DocumentProbe />);
         expect(screen.getByText("documents:unscoped")).toBeInTheDocument();
+    });
+});
+
+describe("a firm-managed account", () => {
+    it("has no Personal workspace: it enters the firm's, whatever was remembered", async () => {
+        mocks.managed = true;
+        window.localStorage.setItem(STORAGE_KEY, PERSONAL_WORKSPACE);
+        renderProvider();
+        await waitFor(() =>
+            expect(screen.getByText(/org-acme\|org-acme\|loaded\|Acme LLP/)).toBeInTheDocument(),
+        );
+        expect(latest.personalWorkspaceDisabled).toBe(true);
+    });
+
+    it("keeps the firm it was in", async () => {
+        mocks.managed = true;
+        window.localStorage.setItem(STORAGE_KEY, "org-beta");
+        renderProvider();
+        await waitFor(() =>
+            expect(screen.getByText(/org-beta\|org-beta\|loaded\|Beta Chambers/)).toBeInTheDocument(),
+        );
+    });
+
+    it("waits for the organizations rather than naming Personal as a fallback with none", async () => {
+        mocks.managed = true;
+        mocks.listOrgs.mockResolvedValue([]);
+        renderProvider();
+        await waitFor(() => expect(screen.getByText(/personal\|personal\|loaded\|none/)).toBeInTheDocument());
+    });
+
+    it("an account nobody manages still lands in Personal", async () => {
+        window.localStorage.setItem(STORAGE_KEY, PERSONAL_WORKSPACE);
+        renderProvider();
+        await waitFor(() => expect(screen.getByText(/personal\|personal\|loaded\|none/)).toBeInTheDocument());
+        expect(latest.personalWorkspaceDisabled).toBe(false);
     });
 });

@@ -59,6 +59,8 @@ import {
     deleteAllChats,
     deleteAllMemories,
     setOrgMemberDataPolicy,
+    setOrgManagedAccounts,
+    dismissManagedNotice,
     deleteAllProjects,
     deleteAllTabularReviews,
     deleteChat,
@@ -2807,6 +2809,19 @@ describe("thin endpoint wrappers", () => {
             url: "/orgs/org-1/member-data-policy",
             method: "PUT",
             body: { allow_member_exports: true, allow_member_deletes: false },
+        },
+        {
+            name: "setOrgManagedAccounts",
+            call: () => setOrgManagedAccounts("org-1", true),
+            url: "/orgs/org-1/managed-accounts",
+            method: "PUT",
+            body: { managed_accounts: true },
+        },
+        {
+            name: "dismissManagedNotice",
+            call: () => dismissManagedNotice(),
+            url: "/user/managed-notice/dismiss",
+            method: "POST",
         },
         {
             name: "getUserMemory",

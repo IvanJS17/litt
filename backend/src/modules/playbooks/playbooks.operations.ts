@@ -43,6 +43,7 @@ import {
   parseContentVisibility,
   type OrgRole,
 } from "../../lib/access";
+import { assertPersonalWorkspaceAllowed } from "../../lib/managedAccounts";
 import { PERSONAL_WORKSPACE, resolveWorkspaceFilter, workspaceMatches, type WorkspaceFilter } from "../../lib/workspace";
 import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import type { EditAnnotation } from "@mike/contracts";
@@ -750,9 +751,13 @@ export async function creationScope(db: Db, userId: string, raw: unknown) {
       "Workspace not found.",
       result.kind === "validation" ? 400 : 404,
     );
-  return result.workspace && result.workspace !== "personal"
-    ? result.workspace
-    : null;
+  const orgId =
+    result.workspace && result.workspace !== "personal"
+      ? result.workspace
+      : null;
+  // Personal (or unscoped): closed to an account its firm manages.
+  if (!orgId) assertPersonalWorkspaceAllowed(userId);
+  return orgId;
 }
 
 /** Who the caller is in each organization, and the workspace a list is narrowed to. */
@@ -944,7 +949,7 @@ async function playbookRole(
     if (role === "owner" || role === "editor" || role === "viewer")
       directShare = role;
   }
-  return resolvePlaybookRole({
+  const role = resolvePlaybookRole({
     isCreator,
     orgId,
     orgRole,
@@ -952,6 +957,9 @@ async function playbookRole(
     override,
     directShare,
   });
+  // A personal playbook: closed to an account its firm manages.
+  if (role && !orgId) assertPersonalWorkspaceAllowed(userId);
+  return role;
 }
 
 export async function getPlaybook(

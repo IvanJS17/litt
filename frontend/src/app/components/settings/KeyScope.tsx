@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 
@@ -8,19 +9,28 @@ import { SettingsDescription } from "@/app/components/settings/SettingsText";
  * Which workspace a person's own keys apply to, as the server decides it:
  * in a firm's workspace they only count when the firm lets members bring
  * their own (`allow_personal_api_keys`, on unless turned off); in Personal
- * they always do. Unknown (still loading, or the read failed) is not
+ * they always do. A firm-managed account never has personal keys, wherever
+ * it is. Unknown (still loading, or the read failed) is not
  * "blocked": the screen shows the keys and the server still decides.
  */
 export function useKeyScope(): {
     firmName: string | null;
     personalBlocked: boolean;
+    /** A firm-managed account: no personal keys in any workspace. */
+    managed: boolean;
 } {
     const { activeOrganization, orgApiKeys } = useWorkspace();
+    // Read from the profile (not the workspace) so it also holds on screens
+    // rendered outside the app shell, like the onboarding key step.
+    const managed =
+        useUserProfile().profile?.personalWorkspaceDisabled === true;
     const firmName = activeOrganization?.name ?? null;
     return {
         firmName,
+        managed,
         personalBlocked:
-            firmName !== null && orgApiKeys?.allow_personal_api_keys === false,
+            managed ||
+            (firmName !== null && orgApiKeys?.allow_personal_api_keys === false),
     };
 }
 

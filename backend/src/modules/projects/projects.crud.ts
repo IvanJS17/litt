@@ -8,6 +8,7 @@ import {
   attachLatestVersionNumbers,
 } from "../../lib/documentVersions";
 import { isPersonalOrg } from "../../lib/personalOrgs";
+import { assertPersonalWorkspaceAllowed } from "../../lib/managedAccounts";
 import { buildProjectExportManifest, projectManifestFilename } from "./projects.export";
 import {
   checkProjectAccess,
@@ -447,6 +448,8 @@ export async function createProject(
       };
     resolvedOrgId = org_id;
   }
+  // No organization: a personal project, closed to a managed account.
+  if (!resolvedOrgId) assertPersonalWorkspaceAllowed(userId);
   // An organization's project is private unless its creator opens it to the
   // whole organization here; a personal project never can be.
   const requestedVisibility = parseContentVisibility(

@@ -46,6 +46,7 @@ import {
     saveOrgSplitClassesList,
     saveOrgApiKey,
     setOrgApiKeyEnabled,
+    setOrgManagedAccounts,
     setOrgMemberDataPolicy,
     setOrgPersonalApiKeysAllowed,
     getOrgLogo,
@@ -342,7 +343,9 @@ orgsRouter.post("/:orgId/invitations", requireOrgAuth, asyncRoute(async (req, re
         role: req.body?.role,
     });
     if (!result.ok) return sendOrgFailure(res, result);
-    const email_sent = await sendSignupInvite(db, String(result.invitation.email));
+    const email_sent = await sendSignupInvite(db, String(result.invitation.email), {
+        createdByOrgId: req.params.orgId,
+    });
     res.status(201).json({ ...result.invitation, email_sent });
 }));
 
@@ -467,6 +470,25 @@ orgsRouter.put(
         });
         if (!result.ok) return sendOrgFailure(res, result);
         res.json(result.policy);
+    }),
+);
+
+// PUT /orgs/:orgId/managed-accounts — whether the accounts this firm invited
+// and created have no personal space (owner or admin, like the key policy).
+orgsRouter.put(
+    "/:orgId/managed-accounts",
+    requireOrgAuth,
+    requireMfaIfEnrolled,
+    asyncRoute(async (req, res) => {
+        const db = createServerSupabase();
+        const result = await setOrgManagedAccounts(db, {
+            actorId: res.locals.userId as string,
+            actorEmail: res.locals.userEmail as string | undefined,
+            orgId: req.params.orgId,
+            enabled: req.body?.managed_accounts,
+        });
+        if (!result.ok) return sendOrgFailure(res, result);
+        res.json(result.settings);
     }),
 );
 

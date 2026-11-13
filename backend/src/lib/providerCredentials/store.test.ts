@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// Managed accounts (lib/managedAccounts.ts) have their own tests; these ones
+// are about the key layers, with an account nobody manages.
+vi.mock("../managedAccounts", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../managedAccounts")>()),
+    isManagedAccount: async () => false,
+}));
+
 import {
     normalizeApiKeyProvider,
     hasEnvApiKey,

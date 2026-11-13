@@ -970,6 +970,7 @@
       "ocr_too_large": "Este documento es demasiado grande para leerlo.",
       "ocr_unavailable": "LandingAI no está disponible por ahora. Inténtalo de nuevo en un momento.",
       "org_creation_restricted": "Crear un despacho requiere una invitación.",
+      "personal_workspace_disabled": "Tu despacho administra esta cuenta: no tiene espacio personal. Trabaja en el espacio del despacho.",
       "platform_admin_required": "Solo los administradores de la plataforma pueden hacer esto.",
       "platform_invitation_pending": "Este correo ya tiene una invitación pendiente.",
       "playbook_change_decided": "Este cambio ya se decidió. Recarga los cambios propuestos.",
@@ -1121,6 +1122,8 @@
         "invitationSent": "Invitación enviada",
         "logoRemoved": "Logotipo quitado",
         "logoUpdated": "Logotipo actualizado",
+        "managedAccountsDisabled": "Cuentas administradas desactivadas",
+        "managedAccountsEnabled": "Cuentas administradas activadas",
         "memberDataDeletionAllowed": "Borrado de datos de miembros permitido",
         "memberDataDeletionTurnedOff": "Borrado de datos de miembros desactivado",
         "memberDeparted": "Salida del miembro",
@@ -1389,6 +1392,13 @@
     "searchTemplates": "Buscar plantillas…",
     "templates": "Plantillas"
   },
+  "managedAccount": {
+    "title": "Cuenta administrada por {firm}",
+    "body": "{firm} administra las cuentas que crea por invitación. Con esta cuenta solo podrás usar el espacio de {firm} y sus llaves; no tendrás espacio personal. Lo que hagas quedará en el espacio del despacho, también si sales. Si sales de {firm}, tu cuenta tendrá de nuevo espacio personal.",
+    "termsLink": "Consulta la cláusula 5.5 de los Términos",
+    "nowManaged": "{firm} ahora administra tu cuenta: solo puedes usar el espacio de {firm} y sus llaves. Lo que tenías en tu espacio personal no se borró. Volverás a verlo si sales de {firm}, y puedes descargarlo en Ajustes.",
+    "dismiss": "Cerrar"
+  },
   "markdownDocument": {
     "cancel": "Cancelar",
     "conflict": "Alguien guardó otra versión; recarga para ver los cambios.",
@@ -1557,6 +1567,12 @@
     "youCannotShareThisWithYourself": "No puedes compartir esto contigo mismo.",
     "zoom": "Zoom",
     "zoomOutToKeepTheWhole": "Aleja el zoom para ver la imagen completa, o acércalo a la parte que se lee mejor en tamaño pequeño."
+  },
+  "orgSettings": {
+    "managedAccounts": {
+      "label": "Cuentas administradas por el despacho",
+      "help": "Las cuentas que se crearon por invitación de {firm} no tendrán espacio personal: solo usarán el espacio y las llaves del despacho. No afecta a quien ya tenía cuenta antes de la invitación. Si alguna tenía contenido personal, no se borra, pero su titular no podrá abrirlo mientras esté en el despacho. Avisaremos a esas personas. El despacho responde de esta configuración."
+    }
   },
   "organizations": {
     "auditLog": "Registro de auditoría",

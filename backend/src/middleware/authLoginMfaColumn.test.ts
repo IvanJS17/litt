@@ -45,7 +45,7 @@ function adminClient() {
         select: (columns: string) => ({
           eq: () => ({
             maybeSingle: async () => {
-              if (columns === "account_deletion_requested_at") return { data: null, error: null };
+              if (columns.startsWith("account_deletion_requested_at")) return { data: null, error: null };
               if (columns === "email") return { data: { email: USER.email }, error: null };
               if (columns === "mfa_on_login") return mocks.mfaLookup();
               throw new Error(`unexpected select ${columns}`);

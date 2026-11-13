@@ -53,6 +53,9 @@ function ModelStep({ userId }: { userId: string }) {
         keys: ApiKeyState | undefined,
         joined: JoinedOrganization | null,
     ): string {
+        // Those sentences speak of a Personal workspace and of keys of one's
+        // own; a firm-managed account has neither.
+        if (profile?.personalWorkspaceDisabled) return "";
         if (joined?.hasModels) {
             return t("auth.onboarding.stepJoined", { name: joined.name });
         }

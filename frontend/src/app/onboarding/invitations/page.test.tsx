@@ -49,6 +49,19 @@ describe("OnboardingInvitationsPage", () => {
         expect(mocks.replace).not.toHaveBeenCalled();
     });
 
+    it("shows the managed-account notice before Accept, only for an invitation that creates one", async () => {
+        mocks.list.mockResolvedValue([
+            { ...invitation, managed_account: true },
+            { ...invitation, id: "plain", org_name: "Other LLP" },
+        ]);
+        render(<OnboardingInvitationsPage />);
+        const notice = await screen.findByRole("region", { name: "Account managed by Example LLP" });
+        expect(notice).toHaveTextContent("you won't have a personal workspace");
+        expect(screen.getAllByRole("region", { name: /managed by/ })).toHaveLength(1);
+        const accept = screen.getByRole("button", { name: "Accept Example LLP" });
+        expect(notice.compareDocumentPosition(accept) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it("moves on to the profile once the invitation is accepted, in that firm's workspace", async () => {
         const user = userEvent.setup();
         render(<OnboardingInvitationsPage />);

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     updateApiKeyEnabled: vi.fn(),
     listOrgs: vi.fn(),
     getOrgApiKeys: vi.fn(),
+    managed: false,
     apiKeys: {} as Record<string, { configured: boolean; enabled?: boolean; source: string | null }>,
 }));
 
@@ -21,7 +22,7 @@ vi.mock("@/app/contexts/AuthContext", () => ({
 }));
 vi.mock("@/app/contexts/UserProfileContext", () => ({
     useUserProfile: () => ({
-        profile: { onboardingComplete: false, apiKeys: mocks.apiKeys, apiKeySettings: {} },
+        profile: { personalWorkspaceDisabled: mocks.managed, onboardingComplete: false, apiKeys: mocks.apiKeys, apiKeySettings: {} },
         loading: false,
         completeOnboarding: mocks.completeOnboarding,
         updateApiKey: mocks.updateApiKey,
@@ -55,6 +56,7 @@ describe("OnboardingModelsPage", () => {
         vi.clearAllMocks();
         window.localStorage.clear();
         mocks.apiKeys = noKeys();
+        mocks.managed = false;
         mocks.completeOnboarding.mockResolvedValue(true);
         mocks.updateApiKey.mockResolvedValue(true);
         mocks.listOrgs.mockResolvedValue([]);
@@ -78,6 +80,14 @@ describe("OnboardingModelsPage", () => {
         expect(mocks.completeOnboarding).toHaveBeenCalledExactlyOnceWith();
         expect(mocks.replace).toHaveBeenCalledWith("/assistant");
         expect(mocks.listOrgs).not.toHaveBeenCalled();
+    });
+
+    it("tells a firm-managed account nothing about a Personal workspace or keys of its own", () => {
+        mocks.managed = true;
+        render(<OnboardingModelsPage />);
+        expect(screen.queryByText(DEFAULT_COPY)).toBeNull();
+        expect(screen.queryByRole("region", { name: "Available Providers" })).toBeNull();
+        expect(screen.getByRole("button", { name: "Finish" })).toBeEnabled();
     });
 
     it("saves a key through the same provider dialog as settings", async () => {

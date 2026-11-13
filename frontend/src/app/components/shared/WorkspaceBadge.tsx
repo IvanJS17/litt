@@ -28,8 +28,14 @@ export function workspaceChoiceLabel(
  */
 export function WorkspaceBadge({ className }: { className?: string }) {
     const t = useTranslations();
-    const { workspaceId, activeOrganization } = useWorkspace();
+    const { workspaceId, activeOrganization, personalWorkspaceDisabled } =
+        useWorkspace();
     if (workspaceId === null) return null;
+    // A firm-managed account has no personal workspace to name, not even
+    // for the moment before its firm has loaded.
+    if (personalWorkspaceDisabled && workspaceId === PERSONAL_WORKSPACE) {
+        return null;
+    }
     const firm = workspaceId !== PERSONAL_WORKSPACE;
     if (firm && !activeOrganization) return null;
     return (

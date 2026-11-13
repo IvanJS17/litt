@@ -2,7 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { updateApiKey, updateApiKeyEnabled, azureEnabled } = vi.hoisted(() => ({
+const { updateApiKey, updateApiKeyEnabled, azureEnabled, managed } = vi.hoisted(() => ({
+    managed: { value: false },
     updateApiKey: vi.fn(async () => true),
     updateApiKeyEnabled: vi.fn<(provider: string, enabled: boolean) => Promise<boolean>>(),
     azureEnabled: { value: true },
@@ -32,9 +33,10 @@ vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
 
 const notConfigured = { configured: false, source: null };
 
-vi.mock("@/app/contexts/UserProfileContext", () => ({
-    useUserProfile: () => ({
+vi.mock("@/app/contexts/UserProfileContext", () => {
+    const useUserProfile = () => ({
         profile: {
+            personalWorkspaceDisabled: managed.value,
             apiKeys: {
                 claude: notConfigured,
                 gemini: notConfigured,
@@ -54,8 +56,9 @@ vi.mock("@/app/contexts/UserProfileContext", () => ({
         },
         updateApiKey,
         updateApiKeyEnabled,
-    }),
-}));
+    });
+    return { useUserProfile };
+});
 
 import ByokPage from "./page";
 
@@ -64,6 +67,7 @@ describe("BYOK page cloud-platform keys", () => {
         updateApiKey.mockClear();
         workspace.firm = null;
         workspace.allowPersonal = true;
+        managed.value = false;
         azureEnabled.value = true;
         updateApiKeyEnabled.mockReset().mockImplementation(async (_provider, enabled) => {
             azureEnabled.value = enabled;
@@ -349,5 +353,13 @@ describe("BYOK page cloud-platform keys", () => {
         ).toBeVisible();
         expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
         expect(screen.queryByRole("region", { name: "Saved Providers" })).not.toBeInTheDocument();
+    });
+});
+
+describe("BYOK page for a firm-managed account", () => {
+    it("shows no personal keys: it runs on the firm's", () => {
+        managed.value = true;
+        const { container } = render(<ByokPage />);
+        expect(container).toBeEmptyDOMElement();
     });
 });

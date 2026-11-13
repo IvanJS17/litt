@@ -13,6 +13,7 @@ const BETA: Org = { id: "org-beta", name: "Beta Chambers", role: "owner" };
 
 const state = vi.hoisted(() => ({
   workspaceId: "personal" as string | null,
+  personalDisabled: false,
   organizations: [] as Org[] | null,
   setWorkspace: vi.fn(),
   push: vi.fn(),
@@ -75,6 +76,7 @@ vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
     organizations: state.organizations,
     activeOrganization:
       state.organizations?.find((org) => org.id === state.workspaceId) ?? null,
+    personalWorkspaceDisabled: state.personalDisabled,
     setWorkspace: state.setWorkspace,
     refreshOrganizations: vi.fn(),
   }),
@@ -105,6 +107,7 @@ const openAccountMenu = (user: ReturnType<typeof userEvent.setup>) =>
 beforeEach(() => {
   vi.clearAllMocks();
   state.workspaceId = "personal";
+  state.personalDisabled = false;
   state.organizations = [];
   state.pathname = "/assistant";
   state.chats = [];
@@ -275,6 +278,19 @@ describe("AppSidebar workspace switcher", () => {
     ).toHaveAttribute("aria-checked", "false");
     // The rest of the account menu is still there.
     expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
+  });
+
+  it("offers a firm-managed account only its firms: there is no Personal to switch to", async () => {
+    state.organizations = [ACME, BETA];
+    state.workspaceId = ACME.id;
+    state.personalDisabled = true;
+    const user = userEvent.setup();
+    render(<AppSidebar isOpen onToggle={vi.fn()} />);
+
+    await openAccountMenu(user);
+    expect(
+      screen.getAllByRole("menuitemradio").map((option) => option.textContent),
+    ).toEqual(["Firm: Acme LLP", "Firm: Beta Chambers"]);
   });
 
   it("sets the Workspace heading over the option text, bold and in normal case", async () => {

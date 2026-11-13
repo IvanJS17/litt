@@ -154,6 +154,7 @@ describe("who sees what", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Leave" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Firm-managed accounts" })).toBeEnabled();
   });
 
   it("lets an admin rename the organization but not delete it", () => {
@@ -161,6 +162,8 @@ describe("who sees what", () => {
     render(<OrganizationGeneralSettings />);
 
     expect(nameField()).toHaveValue("Elite Law LLP");
+    // Admins change this setting too, like the one for personal keys.
+    expect(screen.getByRole("switch", { name: "Firm-managed accounts" })).toBeEnabled();
     expect(
       screen.queryByRole("button", { name: "Delete" }),
     ).not.toBeInTheDocument();
@@ -184,6 +187,7 @@ describe("who sees what", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Leave" })).toBeEnabled();
+    expect(screen.queryByRole("switch", { name: "Firm-managed accounts" })).toBeNull();
   });
 
   it("offers nothing to press until the organization has loaded", () => {

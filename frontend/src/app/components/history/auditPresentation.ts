@@ -56,6 +56,8 @@ const ACTION_KEYS = {
   "org.api_key.disabled": "providerKeyDisabled",
   "org.personal_api_keys.allowed": "personalKeysAllowed",
   "org.personal_api_keys.blocked": "personalKeysBlocked",
+  "org.managed_accounts.enabled": "managedAccountsEnabled",
+  "org.managed_accounts.disabled": "managedAccountsDisabled",
   "org.member_exports.allowed": "memberExportsAllowed",
   "org.member_exports.blocked": "memberExportsTurnedOff",
   "org.member_deletes.allowed": "memberDataDeletionAllowed",

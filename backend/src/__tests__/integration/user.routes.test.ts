@@ -147,7 +147,9 @@ function makeQuery(table: string) {
     for (const m of chain) q[m] = vi.fn(() => q);
     let missing: string | null = null;
     q.select = vi.fn((columns?: unknown) => {
-        if (typeof columns === "string") {
+        // The managed-account lookup the profile now adds is not one of the
+        // profile reads these tests count.
+        if (typeof columns === "string" && !columns.startsWith("created_by_org_id")) {
             (supabaseState.selects[table] ??= []).push(columns);
             missing =
                 supabaseState.missingColumns.find((column) =>

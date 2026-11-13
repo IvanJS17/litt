@@ -220,6 +220,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         workspaceId,
         organizations,
         activeOrganization,
+        personalWorkspaceDisabled,
         setWorkspace,
     } = useWorkspace();
     const workspaceParam = workspaceId ?? undefined;
@@ -267,7 +268,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     // menu stays exactly as it was.
     const workspaceOptions =
         workspaceId && organizations && organizations.length > 0
-? workspaceChoices(organizations)
+? workspaceChoices(organizations, personalWorkspaceDisabled)
             : null;
     // The sidebar is headed by whose work it is showing: the organization's
     // name in its workspace, and plain "LiTT" for personal work. `null` while
