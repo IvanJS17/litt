@@ -2044,13 +2044,13 @@
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Volver a General",
-      "bringYourOwnKeys": "Mis llaves",
+      "bringYourOwnKeys": "Llaves del despacho",
       "onlyThisOrganizationsOwnersAndAdmins": "Solo los propietarios y administradores de este despacho pueden administrar sus llaves.",
       "organization": "Despacho"
     },
     "organizationSettingsShell": {
       "auditLog": "Registro de auditoría",
-      "bringYourOwnKeys": "Mis llaves",
+      "bringYourOwnKeys": "Llaves del despacho",
       "couldNotLoadThisOrganization": "No se pudo cargar este despacho.",
       "formacion": "Formación",
       "general": "General",

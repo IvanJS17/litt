@@ -27,4 +27,11 @@ describe("es-MX vocabulary", () => {
             .map(([path, text]) => `${path}: ${text}`);
         expect(offenders).toEqual([]);
     });
+
+    it("names the firm's keys «Llaves del despacho», keeping «Mis llaves» for the person's own", () => {
+        const org = (esMX as Tree).organizations as Tree;
+        for (const section of ["organizationSettingsShell", "organizationProvidersSettings"]) {
+            expect((org[section] as Tree).bringYourOwnKeys).toBe("Llaves del despacho");
+        }
+    });
 });

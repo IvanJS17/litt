@@ -217,7 +217,7 @@ export function OrganizationSettingsFrame({
             },
             {
               id: "providers",
-              // Named as the same setting is in a person's own settings.
+              // The firm's keys, not the person's «Mis llaves».
               label: t("organizations.organizationSettingsShell.bringYourOwnKeys"),
               href: organizationSettingsHref(orgId, "providers"),
             },
