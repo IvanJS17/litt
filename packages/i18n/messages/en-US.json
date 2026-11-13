@@ -5314,6 +5314,7 @@
       }
     },
     "formacion": "Training",
+    "generalTransactions": "General transactions",
     "guardarEtapa": "Save stage",
     "gym": {
       "codes": {
@@ -5536,6 +5537,7 @@
       "revoked": "Revoked on {date, date, medium} {date, time, short}",
       "unknownProject": "A matter you cannot see"
     },
+    "practiceHelp": "Choose «All practice areas» or one of your firm's areas (they come from the firm profile). If it is not listed, use «Other area».",
     "promotion": {
       "accept": "Accept proposal",
       "actions": {

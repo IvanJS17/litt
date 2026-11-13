@@ -20,7 +20,7 @@ import {
 } from "@/app/lib/mikeApi";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { FirmCriterionForm } from "./FirmCriterionForm";
-import { practiceOptionLabel } from "../trainingShared";
+import { usePracticeOptionLabel } from "../trainingShared";
 
 // Ajustes → Criterios del despacho (docs/training.md, "One mold of
 // criterion"). Every member reads the firm's criteria; a member with no
@@ -83,6 +83,7 @@ type Editing = { kind: "new" } | { kind: "edit"; id: string } | null;
 
 export function OrgCriteria({ orgId, orgName, showName }: { orgId: string; orgName: string; showName: boolean }) {
   const t = useTranslations("training.firmCriteria.settings");
+  const practiceLabel = usePracticeOptionLabel();
   const [data, setData] = useState<FirmCriteriaList | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [playbooks, setPlaybooks] = useState<Playbook[] | null>(null);
@@ -197,7 +198,7 @@ export function OrgCriteria({ orgId, orgName, showName }: { orgId: string; orgNa
                 <h3 className="break-words text-sm font-medium text-gray-900">{criterion.topic}</h3>
                 <p className="mt-0.5 break-words text-xs text-gray-600">
                   {criterion.kind === "criterio" ? t("kind.criterio") : t("kind.voto_particular")}
-                  {criterion.practice ? ` · ${practiceOptionLabel(criterion.practice)}` : ""}
+                  {criterion.practice ? ` · ${practiceLabel(criterion.practice)}` : ""}
                   {criterion.mine ? ` · ${t("mine")}` : ""}
                 </p>
                 {ruleLine(criterion) && <p className="mt-0.5 break-words text-xs text-gray-600">{ruleLine(criterion)}</p>}

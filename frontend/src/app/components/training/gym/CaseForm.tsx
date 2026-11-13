@@ -15,7 +15,7 @@ import {
     type TrainingGymErrorKind,
 } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
-import { practiceOptionLabel } from "../trainingShared";
+import { usePracticeOptionLabel } from "../trainingShared";
 import { GymNotice, useGymKindOptions } from "./gymShared";
 
 // The mentor's form for a fictitious gym case. Paragraphs are one textarea
@@ -43,6 +43,7 @@ export function CaseForm({
     onCancel: () => void;
 }) {
     const t = useTranslations("training.gym");
+    const practiceLabel = usePracticeOptionLabel();
     const id = useId();
     const kindOptions = useGymKindOptions();
     const [title, setTitle] = useState(existing?.title ?? "");
@@ -62,7 +63,7 @@ export function CaseForm({
     const duplicate = new Set(rows.map((row) => row.paragraph)).size !== rows.length;
     const practiceOptions = PRACTICE_OPTIONS.filter((option) => option !== "Other").map((option) => ({
         value: option.trim().toLowerCase(),
-        label: option,
+        label: practiceLabel(option.trim().toLowerCase()),
     }));
     const valid =
         title.trim() !== "" &&
@@ -132,7 +133,7 @@ export function CaseForm({
                         value={practice}
                         options={
                             practice && !practiceOptions.some((option) => option.value === practice)
-                                ? [...practiceOptions, { value: practice, label: practiceOptionLabel(practice) }]
+                                ? [...practiceOptions, { value: practice, label: practiceLabel(practice) }]
                                 : practiceOptions
                         }
                         onChange={setPractice}

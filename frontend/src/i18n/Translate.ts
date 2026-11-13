@@ -34,7 +34,8 @@ export type AppKey =
     | Leaves<Messages["assistant"], "assistant">
     | Leaves<Messages["documents"], "documents">
     | Leaves<Messages["ui"], "ui">
-    | Leaves<Messages["history"], "history">;
+    | Leaves<Messages["history"], "history">
+    | Leaves<Messages["training"], "training">;
 
 /** `Translate` for helpers outside Settings: same shape, more namespaces. */
 export type AppTranslate = (

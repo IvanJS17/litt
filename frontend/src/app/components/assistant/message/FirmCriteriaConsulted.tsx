@@ -14,6 +14,7 @@ type FirmCriteriaEvent = Extract<AssistantEvent, { type: "firm_criteria" }>;
 
 export function FirmCriteriaConsulted({ events }: { events: readonly AssistantEvent[] }) {
   const t = useTranslations("training.firmCriteria.consulted");
+  const tAll = useTranslations();
   const labels = useMemo<FirmCriteriaConsultedLabels>(
     () => ({
       summary: (count) => t("summary", { count }),
@@ -26,10 +27,10 @@ export function FirmCriteriaConsulted({ events }: { events: readonly AssistantEv
         criterion.author_name
           ? t("byline", { author: criterion.author_name, date: new Date(criterion.created_at) })
           : t("bylineDeleted", { date: new Date(criterion.created_at) }),
-      practice: (practice) => t("practice", { practice: practiceOptionLabel(practice) }),
+      practice: (practice) => t("practice", { practice: practiceOptionLabel(practice, tAll) }),
       rule: () => t("rule"),
     }),
-    [t],
+    [t, tAll],
   );
   const consulted = events.filter((event): event is FirmCriteriaEvent => event.type === "firm_criteria");
   if (consulted.length === 0) return null;

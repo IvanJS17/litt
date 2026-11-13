@@ -7,6 +7,7 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getMyTraining: vi.fn(),
     getMyPupils: vi.fn(),
     listOrgMembers: vi.fn(),
+    getOrgFirmProfile: vi.fn(async () => ({ profile: null, can_manage: false })),
     assignTrainingPupil: vi.fn(async () => undefined),
     releaseTrainingPupil: vi.fn(async () => undefined),
     setTrainingStage: vi.fn(async () => undefined),

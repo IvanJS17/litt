@@ -7,6 +7,7 @@ import { FieldLabel, FormTextInput, FORM_CONTROL_GLASS_CLASS } from "@/app/compo
 import { PRACTICE_OPTIONS } from "@/app/components/workflows/practices";
 import type { FirmCriterion, FirmCriterionInput, FirmCriterionKind, Playbook } from "@/app/lib/mikeApi";
 import { cn } from "@/app/lib/utils";
+import { usePracticeOptionLabel } from "../trainingShared";
 
 // Writing or changing one criterion (docs/training.md, "One mold of
 // criterion"). The server checks everything again; this form only keeps the
@@ -42,6 +43,7 @@ export function FirmCriterionForm({
   onCancel: () => void;
 }) {
   const t = useTranslations("training.firmCriteria.settings");
+  const practiceLabel = usePracticeOptionLabel();
   const id = useId();
   const [kind, setKind] = useState<FirmCriterionKind>(existing?.kind ?? "criterio");
   const [topic, setTopic] = useState(existing?.topic ?? "");
@@ -124,10 +126,10 @@ export function FirmCriterionForm({
         >
           <option value={ANY_PRACTICE}>{t("practiceAny")}</option>
           {practice !== ANY_PRACTICE && !(PRACTICE_OPTIONS as readonly string[]).includes(practice) && (
-            <option value={practice}>{practice}</option>
+            <option value={practice}>{practiceLabel(practice.trim().toLowerCase())}</option>
           )}
           {PRACTICE_OPTIONS.map((option) => (
-            <option key={option} value={option}>{option}</option>
+            <option key={option} value={option}>{practiceLabel(option.trim().toLowerCase())}</option>
           ))}
         </select>
       </div>

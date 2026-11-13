@@ -5314,6 +5314,7 @@
       }
     },
     "formacion": "Formación",
+    "generalTransactions": "Transacciones generales",
     "guardarEtapa": "Guardar etapa",
     "gym": {
       "codes": {
@@ -5536,6 +5537,7 @@
       "revoked": "Revocado el {date, date, medium} {date, time, short}",
       "unknownProject": "Un asunto que no ves"
     },
+    "practiceHelp": "Elige «Todas las materias» o una materia de tu despacho (salen del perfil del despacho). Si no está, usa «Otra materia».",
     "promotion": {
       "accept": "Aceptar propuesta",
       "actions": {
