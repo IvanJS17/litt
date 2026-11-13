@@ -785,11 +785,56 @@ Contact support comes first in the row, so it is black only when it is the
 sole action. Style a custom action with
 `noticeActionClassName(noticeActionEmphasis(index, count))`.
 
+A notice fades in rising 8 px over 200 ms and fades out over 150 ms
+(`.notice-card` in `LiquidGlassUI.css`, so the web app and the add-in draw it
+alike). On a touch screen it is dismissed by swiping it sideways
+(`NoticeCardUI`); a mouse is not affected. All of it is off with "Reduce
+motion". `ToastViewportUI` keeps a visually hidden polite live region mounted
+from the start and writes a success or info text into it as the toast is
+raised, because a card inserted with its text already inside is announced
+unreliably; an error card stays its own `role="alert"`.
+
 Use a **toast** only for a short confirmation ("Changes saved") or
 information.
 
 The Word add-in has no `WarningPopup`, so there `ToastViewportUI` draws
 errors as toasts, in its default column at the top centre of the task pane.
+
+## Phone and motion
+
+How the shell behaves under 768 px, and the timings it shares. The curve is
+always `cubic-bezier(0.32, 0.72, 0, 1)`, and everything moves only under
+`motion-safe` (the global "Reduce motion" rule in `globals.css` covers the
+rest).
+
+- **Dialogs are a bottom sheet** (`ModalUI` with `sheet`, which the web
+  `Modal` adapter turns on): full width, rounded top corners, a grabber, a
+  `dvh` height cap and the home-indicator inset under the footer; 250 ms in,
+  180 ms out. From 768 px up it is the centred dialog, and the Word add-in
+  never sets `sheet`.
+- **The sidebar** on a phone is a window: it slides in with `transform`
+  (250 ms in, 180 ms out) over a veil of ink at 25 %, is `role="dialog"`
+  `aria-modal` while open, makes the page `inert`, closes on Escape and gives
+  focus back to its button (`aria-expanded`, `aria-controls="app-sidebar"`).
+  Closed, it is `inert`. On desktop only the panel's width and radius animate
+  (200 ms); the column beside it is as wide as the final sidebar from the
+  first frame, so the page is laid out once.
+- **Settings on a phone** opens on a grouped list at `/settings/menu`; a row
+  opens its section with a "‹ Settings" button. `/settings` stays the Account
+  page, so existing links work. Desktop keeps the tab column.
+- **The chat box on an on-screen keyboard** (`useSoftKeyboard`: a coarse
+  pointer and no physical keyboard seen): Enter is a line break, the arrow
+  sends, and sending closes the keyboard. Otherwise Enter sends and
+  Shift+Enter breaks the line.
+- **Screen readers:** the pages layout starts with a "Skip to content" link
+  (`.skip-link`) to `main#main-content`, and the sidebar is a `<nav>` named
+  "Main navigation".
+- **Add to Home Screen:** `app/manifest.ts` (full-screen LiTT, starting at
+  `/assistant`, the icons already in `public/`), the Apple web-app meta tags,
+  and a `theme-color` that is papel or tinta by the person's theme
+  (`lib/theme.ts`). There is no service worker and no offline mode.
+- **Search engines:** off while the beta is closed; see
+  [search-indexing.md](search-indexing.md).
 
 ## Component catalog
 
