@@ -4,6 +4,21 @@ import { describe, expect, it, vi } from "vitest";
 import { NoticeCardUI, noticeActionClassName } from "./NoticeCardUI";
 
 describe("NoticeCardUI", () => {
+    // The close button is absolutely placed in the card's top-right corner;
+    // a long title ran underneath it.
+    it("keeps the text column clear of the close button", () => {
+        render(
+            <NoticeCardUI
+                role="alert"
+                title="A very long title that wraps onto a second line"
+                onDismiss={vi.fn()}
+            />,
+        );
+
+        const column = screen.getByText(/A very long title/).parentElement;
+        expect(column).toHaveClass("pr-5");
+    });
+
     it("draws the glass card with title, indented message and a named close button", () => {
         const onDismiss = vi.fn();
         render(

@@ -145,8 +145,10 @@ export function NoticeCardUI({
                         {toneIconNode}
                     </div>
                 ) : null}
-                {/* One text column keeps every line aligned for any icon width. */}
-                <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                {/* One text column keeps every line aligned for any icon width.
+                    `pr-5` keeps it clear of the absolutely placed close
+                    button (16 px wide, 8 px in from the card's edge). */}
+                <div className="min-w-0 flex-1 pr-5 [overflow-wrap:anywhere]">
                     {title ? (
                         <div className={clsx(
                             "text-sm font-medium",
