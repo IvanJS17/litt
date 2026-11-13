@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * The one card every notice in Mike is drawn with.
  *
