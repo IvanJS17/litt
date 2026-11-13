@@ -141,7 +141,7 @@ describe("ProjectMemoryModal", () => {
     ).toBeNull();
     expect(screen.getByRole("dialog", { name: "Project Memory" })).toHaveClass(
       "max-w-2xl",
-      "h-[min(600px,calc(100vh-2rem))]",
+      "h-[min(600px,calc(100dvh-2rem))]",
     );
     expect(
       screen.getByRole("dialog", { name: "Project Memory" }),
