@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslations } from "use-intl";
 
 /**
  * What taskpane.html shows when Office.js reports no host: the page was
@@ -10,11 +11,12 @@ import React from "react";
  * has no Home-tab ribbon.
  */
 export function OutsideOfficeNotice(): React.ReactElement {
+  const t = useTranslations();
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="text-sm font-medium text-foreground">Open Mike in Word</p>
+      <p className="text-sm font-medium text-foreground">{t("word.openLittInWord")}</p>
       <p className="text-xs text-muted-foreground">
-        This page is Mike's Word add-in. It works inside Microsoft Word.
+        {t("word.thisPageIsLittsWordAdd")}
       </p>
     </div>
   );

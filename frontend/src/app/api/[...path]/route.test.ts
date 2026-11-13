@@ -401,6 +401,7 @@ describe("same-origin API gateway", () => {
         const body = await response.json();
         expect(body).toEqual({
             detail: "The API is temporarily unavailable.",
+            reporting_owner: "backend",
             code: "upstream_unavailable",
             request_id: response.headers.get("x-request-id"),
         });

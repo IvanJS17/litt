@@ -324,7 +324,12 @@ async function uploadSessionFiles<T>(args: {
     transport: {
       apiRequest: <R>(path: string, init?: RequestInit) => apiRequest<R>("upload_session.control", path, init),
       fetchStorage: (...fetchArgs) => clientConfig.fetchImpl(...fetchArgs),
-      reportStorageFailure: reportError,
+      // Nothing leaves the browser: the fixed-vocabulary tags (status,
+      // storage_target) go to the console, where the operator can read them.
+      reportStorageFailure: (error, report) => {
+        console.warn("[upload] direct storage upload failed", report.tags);
+        reportError(error, report);
+      },
       shouldRetryControlRequest: createControlRequestRetryPolicy((error) =>
         error instanceof MikeApiError
           ? { status: error.status, code: error.code }
