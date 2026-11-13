@@ -88,6 +88,20 @@
     }
 }
 
+/* iOS Safari zooms the page into any text field under 16px and never
+   zooms back out. Keep every field at 16px or more on small screens;
+   pinch-zoom itself stays available (no maximum-scale in the viewport).
+   Unlayered on purpose: utilities such as text-sm sit in @layer utilities
+   and would otherwise win. */
+@media (max-width: 767px) {
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+    textarea,
+    select,
+    [contenteditable="true"] {
+        font-size: max(16px, 1em);
+    }
+}
+
 @layer utilities {
     .font-eb-garamond {
         font-family: var(--font-eb-garamond);
