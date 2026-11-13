@@ -6,6 +6,7 @@ import "./globals.css";
 import { Providers } from "@/app/components/providers";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
+import { TITLE_TEMPLATE } from "@/app/lib/documentTitle";
 
 // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream, is
 // credited in the README.
@@ -17,7 +18,9 @@ export async function generateMetadata(): Promise<Metadata> {
     const description = t("description");
     return {
         metadataBase: new URL(SITE_URL),
-        title,
+        // A screen names itself; the template adds the product ("Settings · LiTT").
+        // One with no name of its own keeps the full product title.
+        title: { default: title, template: TITLE_TEMPLATE },
         description,
         icons: {
             icon: [

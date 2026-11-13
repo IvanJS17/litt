@@ -725,7 +725,30 @@
     "switchedToName": "Switched to {name}",
     "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace.",
     "seeMore": "See more",
-    "seeLess": "See less"
+    "seeLess": "See less",
+    "pageTitle": {
+      "login": "Log in",
+      "signup": "Sign up",
+      "checkEmail": "Check your email",
+      "forgotPassword": "Recover your password",
+      "resetPassword": "New password",
+      "setPassword": "Create your password",
+      "verifyMfa": "Two-step verification",
+      "accountDeleted": "Account deleted",
+      "onboarding": "Set up your account",
+      "support": "Support",
+      "terms": "Terms and Conditions",
+      "privacy": "Privacy Notice",
+      "assistant": "Chat",
+      "history": "History",
+      "library": "Library",
+      "organizations": "Firms",
+      "playbooks": "Playbooks",
+      "projects": "Projects",
+      "settings": "Settings",
+      "tabularReviews": "Tabular reviews",
+      "workflows": "Workflows"
+    }
   },
   "documents": {
     "compare": {

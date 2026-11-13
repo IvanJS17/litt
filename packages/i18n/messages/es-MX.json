@@ -725,7 +725,30 @@
     "switchedToName": "Cambiaste a {name}",
     "whatYouOpenedBelongsToThisWorkspace": "Lo que abriste pertenece a este espacio de trabajo.",
     "seeMore": "Ver más",
-    "seeLess": "Ver menos"
+    "seeLess": "Ver menos",
+    "pageTitle": {
+      "login": "Entrar",
+      "signup": "Crear cuenta",
+      "checkEmail": "Revisa tu correo",
+      "forgotPassword": "Recuperar contraseña",
+      "resetPassword": "Nueva contraseña",
+      "setPassword": "Crea tu contraseña",
+      "verifyMfa": "Verificación en dos pasos",
+      "accountDeleted": "Cuenta eliminada",
+      "onboarding": "Configura tu cuenta",
+      "support": "Soporte",
+      "terms": "Términos y condiciones",
+      "privacy": "Aviso de privacidad",
+      "assistant": "Chat",
+      "history": "Historial",
+      "library": "Biblioteca",
+      "organizations": "Despachos",
+      "playbooks": "Playbooks",
+      "projects": "Proyectos",
+      "settings": "Ajustes",
+      "tabularReviews": "Revisiones tabulares",
+      "workflows": "Flujos de trabajo"
+    }
   },
   "documents": {
     "compare": {

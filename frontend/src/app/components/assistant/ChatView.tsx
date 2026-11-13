@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentTitle } from "@/app/hooks/useDocumentTitle";
 import { clientTranslator } from "@mike/client";
 import { findPendingAskInput } from "@/app/lib/pendingAskInput";
 import {
@@ -308,6 +309,8 @@ export function AssistantChatColumn({
         (chatId ? chats?.find((entry) => entry.id === chatId) : null) ??
         (chat?.id === chatId ? chat : null) ??
         null;
+    // The tab carries the chat's name once it is known ("Contract review · LiTT").
+    useDocumentTitle(activeChat?.title);
     // LiTT training: private notes beside the pasante's own messages.
     const trainingNotes = matchTrainingNotes(
         messages,

@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MikeApiError } from "@/app/lib/mikeApi";
 import { OrganizationsOverview } from "./OrganizationsOverview";
-import SettingsLayout from "@/app/(pages)/settings/layout";
+import SettingsLayout from "@/app/(pages)/settings/SettingsLayoutClient";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),

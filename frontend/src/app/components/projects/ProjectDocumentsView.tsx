@@ -34,6 +34,7 @@ import {
 import { TabPillButtonUI } from "@mike/ui";
 import { useConvertDocument } from "@/app/hooks/useConvertDocument";
 import { useCompareDocument } from "@/app/hooks/useCompareDocument";
+import { useDocumentTitle } from "@/app/hooks/useDocumentTitle";
 import { ProjectSectionToolbar, useProjectWorkspace } from "./ProjectWorkspace";
 import { useTranslations } from "next-intl";
 
@@ -62,6 +63,7 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
         accessRole,
         canDo,
     } = workspace;
+    useDocumentTitle(project?.name);
     // Null while the project row is in flight. The folder controls keep their
     // place in the toolbar during that window — removing them would reflow the
     // header on every navigation — but they are disabled, because until the
