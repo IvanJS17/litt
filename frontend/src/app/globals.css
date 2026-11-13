@@ -456,15 +456,11 @@
    bottom-right corner. A chat composer floats at the bottom of the page and
    reaches the right edge on most widths, so while one is on screen the
    column rises above it (the composer is about 106 px tall with its margin)
-   and a warning never covers Send. The composer is found by its send
-   button's accessible name ("Stop response" while a reply streams), which
-   its tests already pin. Unlayered on purpose, so it wins over the
+   and a warning never covers Send. The composer is found by its
+   `data-slot="chat-composer"` marker, never by the send button's accessible
+   name, which is translated. Unlayered on purpose, so it wins over the
    `bottom-*` utilities. */
-body:has(
-        button[aria-label="Send message"],
-        button[aria-label="Stop response"]
-    )
-    .notice-stack {
+body:has([data-slot="chat-composer"]) .notice-stack {
     bottom: calc(7.5rem + env(safe-area-inset-bottom));
 }
 
