@@ -57,7 +57,7 @@ const GROUP_CLASS: Record<NonNullable<ThemeSegmentedProps["variant"]>, string> =
 };
 
 const BUTTON_CLASS: Record<NonNullable<ThemeSegmentedProps["variant"]>, string> = {
-    menu: "inline-flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus pointer-coarse:h-11 pointer-coarse:text-sm",
+    menu: "inline-flex h-7 flex-auto items-center justify-center gap-1 whitespace-nowrap rounded-md px-1.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus pointer-coarse:h-11 pointer-coarse:text-sm",
     settings:
         "min-h-9 flex-1 rounded-md px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus sm:flex-none",
 };
@@ -138,7 +138,7 @@ export function ThemeSegmentedUI({
                         {variant === "menu" ? (
                             <Icon aria-hidden="true" className="size-3.5 shrink-0" />
                         ) : null}
-                        <span className="min-w-0 truncate">{text(theme)}</span>
+                        <span className="whitespace-nowrap">{text(theme)}</span>
                     </button>
                 );
             })}
