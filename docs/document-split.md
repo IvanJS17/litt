@@ -93,7 +93,10 @@ sent as the file `documento.md`: **the real file name is never sent**
   that is always read and written as a whole, like the router-model lists, and
   the server is the only writer: client roles are revoked from `user_profiles`, and
   on `organizations` `authenticated` keeps only `SELECT`, limited by RLS to the
-  firm's members (who may read the list anyway). **Resolution: one list per workspace. In a firm's workspace the firm's list,
+  firm's members (who may read the list anyway). (The comment in migration
+  `20261112_60_litt_split_expediente.sql` says every client role is already revoked
+  from both tables. That is true of `user_profiles` only; for `organizations` read
+  this paragraph. The migration was already shipped, so its comment is not edited.) **Resolution: one list per workspace. In a firm's workspace the firm's list,
   else the built-in one; in the personal workspace the person's list, else the
   built-in one.** A personal list never applies inside a firm's workspace (the
   list is the firm's to control, the "one home" rule), and the firm's never in the

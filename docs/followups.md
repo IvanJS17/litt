@@ -266,5 +266,5 @@ Also: the plural guard covers only «times», «veces» and «marked turns» (#1
   keep the first version simple.
 - The preview moves pages with selects, not drag and drop.
 - The type of a created document is only used for its proposed name; no column keeps it.
-- Not run: the real LandingAI Split API from this code, the migration against a
-  database, a browser flow and a real case file.
+- Real LandingAI Split smoke: done (3.7 s, 0.0948 credits, four groups; see
+  `PROJECT_STATUS.md`). Not run: a browser flow with a real case file.
