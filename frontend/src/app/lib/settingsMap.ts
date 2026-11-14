@@ -495,15 +495,23 @@ export function firmTab(id: string): SettingsTabDef {
     return tab;
 }
 
+/**
+ * The expression a tab path such as `/settings/training/reading/:id` stands
+ * for. Literal parts are escaped; only a `:param` segment is a pattern.
+ */
+export function pathPattern(pattern: string): RegExp {
+    const literal = (part: string) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(
+        `^${pattern.replace(/\/$/, "").split(/:\w+/).map(literal).join("[^/]+")}/?$`,
+    );
+}
+
 /** The tab whose page `pathname` is, or one of its detail pages (null if none). */
 export function tabForPath(
     home: SettingsHome,
     pathname: string,
 ): SettingsTabDef | null {
-    const matches = (pattern: string) =>
-        new RegExp(
-            `^${pattern.replace(/:\w+/g, "[^/]+").replace(/\/$/, "")}/?$`,
-        ).test(pathname);
+    const matches = (pattern: string) => pathPattern(pattern).test(pathname);
     for (const tab of settingsTabsFor(home))
         if (matches(tab.path) || tab.subpaths?.some(matches)) return tab;
     return null;

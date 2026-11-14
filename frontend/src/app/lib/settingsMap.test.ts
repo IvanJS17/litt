@@ -27,6 +27,7 @@ import {
     personalTab,
     settingsGroupsFor,
     settingsNonTabPaths,
+    pathPattern,
     tabForPath,
     visibleSettingsTabs,
     type SettingsHome,
@@ -202,6 +203,14 @@ describe("what reads the map", () => {
         expect(tabForPath("firm", "/organizations/o1/settings/providers")?.id).toBe("providers");
         expect(tabForPath("firm", "/organizations/o1/settings")?.id).toBe("general");
         expect(tabForPath("personal", "/settings/nope")).toBeNull();
+    });
+
+    it("reads a tab path literally: a dot or a bracket is not a pattern", () => {
+        expect(pathPattern("/settings/a.b").test("/settings/a.b")).toBe(true);
+        expect(pathPattern("/settings/a.b").test("/settings/aXb")).toBe(false);
+        expect(pathPattern("/x/(y)+/:id/").test("/x/(y)+/42/")).toBe(true);
+        expect(pathPattern("/x/(y)+/:id").test("/x/yy/42")).toBe(false);
+        expect(pathPattern("/x/:id").test("/x/a/b")).toBe(false);
     });
 
     it("offers each role what the decisions say", () => {
