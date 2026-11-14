@@ -473,7 +473,7 @@ export function DocDownloadBlock({
                     >
                         {basename}
                     </p>
-                    <VersionChip n={versionNumber} size="lg" />
+                    <VersionChip n={versionNumber} />
                 </div>
                 {trainingHeld && <TrainingHeldNoteUI />}
             </div>

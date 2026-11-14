@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { PIXEL_TEXT_CLASS } from "@mike/ui";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useOrganizationInvitationCount } from "@/app/hooks/useOrganizationInvitationCount";
 import { usePlatformMe } from "@/app/hooks/usePlatformMe";
@@ -101,7 +102,7 @@ export default function SettingsLayout({
                     ? {
                           ...tab,
                           badge: (
-                              <span className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-interactive px-1.5 text-xs font-semibold tabular-nums text-interactive-foreground">
+                              <span className={`ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-interactive px-1.5 font-semibold tabular-nums text-interactive-foreground ${PIXEL_TEXT_CLASS}`}>
                                   {invitationCount}{" "}
                                   <span className="sr-only">
                                       {t("settings.layout.pendingInvitations", { invitationCount })}
