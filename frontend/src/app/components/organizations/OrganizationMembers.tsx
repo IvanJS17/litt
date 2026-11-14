@@ -881,7 +881,7 @@ function PeopleTable({
                     {label}
                   </span>
                   {member.user_id === currentUserId ? (
-                    <span className="ml-1 text-[10px] text-gray-400">
+                    <span className="ml-1 text-3xs text-gray-400">
                       {t("organizations.organizationMembers.you")}
                     </span>
                   ) : null}
@@ -958,7 +958,7 @@ function OrganizationRoleTab({
       : role === "admin"
         ? "bg-interactive-soft-strong text-interactive"
         : "bg-gray-100 text-gray-600";
-  const className = `inline-flex h-6 min-w-20 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-medium ${tone}`;
+  const className = `inline-flex h-6 min-w-20 items-center justify-center gap-1 rounded-full px-2 text-2xs font-medium ${tone}`;
 
   if (!editable) {
     return <span className={className}>{orgRoleLabel(t, role)}</span>;

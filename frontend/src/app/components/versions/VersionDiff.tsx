@@ -62,7 +62,7 @@ function Text({ segments }: { segments: DiffSegment[] }) {
 
 const CODE = "whitespace-pre-wrap break-words font-mono text-xs leading-5 align-top";
 const NUMBER =
-    "w-10 select-none px-2 text-right align-top font-mono text-[11px] leading-5 text-gray-400";
+    "w-10 select-none px-2 text-right align-top font-mono text-2xs leading-5 text-gray-400";
 
 function Cell({
     line,
@@ -101,7 +101,7 @@ function ChangeHeader({
             <th
                 colSpan={columns}
                 scope="colgroup"
-                className="px-2 pb-0.5 pt-2 text-left text-[11px] font-normal text-gray-500"
+                className="px-2 pb-0.5 pt-2 text-left text-2xs font-normal text-gray-500"
             >
                 {t("changeOf", { current: position, total })}
                 {change.numeric && (
@@ -155,7 +155,7 @@ export function VersionDiff({
                                             focusKey.current = block.hidden[0].key;
                                             setOpen((prev) => new Set(prev).add(block.key));
                                         }}
-                                        className="w-full px-2 py-1 text-center text-[11px] text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                        className="w-full px-2 py-1 text-center text-2xs text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     >
                                         {t(block.withChanges ? "showHiddenLinesWithChanges" : "showHiddenLines", {
                                             count: block.count,

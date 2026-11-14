@@ -174,7 +174,7 @@ function CommentTime({ date }: { date?: string }) {
     const time = date ? new Date(date) : null;
     if (!time || Number.isNaN(time.getTime())) return null;
     return (
-        <time dateTime={date} className="block text-[11px] text-muted-foreground">
+        <time dateTime={date} className="block text-2xs text-muted-foreground">
             {formatShortDateTime(format, time)}
         </time>
     );

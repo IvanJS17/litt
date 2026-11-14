@@ -122,7 +122,7 @@ function AccessRolePill({
 }) {
     const t = useTranslations();
     const tone = accessRoleTone(role);
-    const className = `inline-flex h-6 items-center justify-self-start justify-center gap-1 rounded-full px-2 text-left text-[11px] font-medium ${tone}`;
+    const className = `inline-flex h-6 items-center justify-self-start justify-center gap-1 rounded-full px-2 text-left text-2xs font-medium ${tone}`;
 
     if (!editable) return <span className={className}>{accessRoleLabel(role, t)}</span>;
 

@@ -388,7 +388,7 @@ The Word add-in supplies the same two variables from
 
 De facto type scale in the app chrome, most to least common: `text-xs` (dense
 table and control text — the default for most chrome), `text-sm` (body copy,
-normal-size buttons), `text-[10px]` (badges, superscript citations),
+normal-size buttons), `text-3xs` (10 px: badges, superscript citations; `text-2xs` is 11 px; both in rem so they follow the text-size setting, never `text-[Npx]`),
 `text-2xl font-serif` (display headings and empty states), `text-xl font-serif`
 (page titles and breadcrumbs). There is no separate heading component; use
 `EmptyState` for empty-state headings and `PageHeader` for page titles so the

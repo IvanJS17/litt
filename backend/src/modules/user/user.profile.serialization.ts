@@ -4,6 +4,7 @@ import { type ApiKeyStatus } from "../../lib/providerCredentials/index";
 import { ROUTER_SLUGS, type RouterModelSelections } from "../../lib/routerModels";
 import { UserProfileRow, MONTHLY_CREDIT_LIMIT, LEGAL_VERSION } from "./user.profile.storage";
 import { isUiLocale } from "../../lib/uiLocale";
+import { isTextSize } from "../../lib/textSize";
 
 import { ROUTER_PROFILE_FIELDS } from "./user.profile.routerPreferences";
 
@@ -69,6 +70,7 @@ export function serializeProfile(
         quickActionsVisible: row.quick_actions_visible !== false,
         responseDetailsVisible: row.response_details_visible === true,
         darkMode: row.dark_mode === true,
+        textSize: isTextSize(row.text_size) ? row.text_size : "normal",
         projectMemoryDefault: row.project_memory_default !== false,
         // null = automatic. Older databases without the column read as null.
         uiLocale: isUiLocale(row.ui_locale) ? row.ui_locale : null,

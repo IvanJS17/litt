@@ -10,7 +10,8 @@ import { REASONING_LEVELS, resolveModel } from "../../lib/llm";
 import { ROUTER_SLUGS, type RouterSlug } from "../../lib/routerModels";
 import { ROUTER_PROFILE_FIELDS, normalizeRouterModels } from "./user.profile.routerPreferences";
 import { isUiLocale } from "../../lib/uiLocale";
-import type { UiLocale } from "@mike/contracts";
+import type { TextSize, UiLocale } from "@mike/contracts";
+import { isTextSize } from "../../lib/textSize";
 
 const PRACTICE_SETTINGS = new Set([
     "private_practice",
@@ -163,6 +164,7 @@ export function validateProfilePayload(body: unknown):
               quick_actions_visible?: boolean;
               response_details_visible?: boolean;
               ui_locale?: UiLocale | null;
+              text_size?: TextSize;
               updated_at: string;
           };
           routerModels?: Partial<Record<RouterSlug, string[]>>;
@@ -192,6 +194,7 @@ export function validateProfilePayload(body: unknown):
         "darkMode",
         "projectMemoryDefault",
         "uiLocale",
+        "textSize",
         ...ROUTER_SLUGS.map((slug) => ROUTER_PROFILE_FIELDS[slug]),
     ]);
     const invalidField = Object.keys(raw).find(
@@ -223,6 +226,7 @@ export function validateProfilePayload(body: unknown):
         dark_mode?: boolean;
         project_memory_default?: boolean;
         ui_locale?: UiLocale | null;
+        text_size?: TextSize;
         updated_at: string;
     } = { updated_at: new Date().toISOString() };
     const routerModels: Partial<Record<RouterSlug, string[]>> = {};
@@ -460,6 +464,16 @@ export function validateProfilePayload(body: unknown):
 
     // null (or "") clears the choice: the client goes back to negotiating
     // the language from the browser or Word.
+    if ("textSize" in raw) {
+        if (!isTextSize(raw.textSize)) {
+            return {
+                ok: false,
+                detail: "textSize must be normal, large or xlarge",
+            };
+        }
+        update.text_size = raw.textSize;
+    }
+
     if ("uiLocale" in raw) {
         if (raw.uiLocale === null || raw.uiLocale === "") {
             update.ui_locale = null;

@@ -49,7 +49,7 @@ export function ProjectWorkspaceTips() {
                 </button>
                 <span
                     aria-label={t("projects.tipNOfTotal", { n: tipIndex + 1, total: PROJECT_WORKSPACE_TIP_COUNT })}
-                    className="min-w-8 text-center text-[10px] tabular-nums text-gray-500"
+                    className="min-w-8 text-center text-3xs tabular-nums text-gray-500"
                 >
                     {tipIndex + 1}/{PROJECT_WORKSPACE_TIP_COUNT}
                 </span>

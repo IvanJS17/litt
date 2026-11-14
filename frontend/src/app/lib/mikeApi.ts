@@ -1,5 +1,6 @@
 import { BACKEND_REPORTING_OWNER } from "@mike/client";
 import type { Locale } from "@litt/i18n";
+import type { TextSize } from "@/app/lib/textSize";
 import type { Operation } from "@/app/lib/errorReporting";
 import { settleWithConcurrency } from "@mike/client";
 import type {
@@ -933,6 +934,8 @@ export interface UserProfile extends RouterProfileLists {
     /** Whether responses and subagents show the model, effort and tokens they used. */
     responseDetailsVisible?: boolean;
     darkMode: boolean;
+    /** The text size chosen in Settings > Appearance; absent reads as normal. */
+    textSize?: TextSize;
     projectMemoryDefault: boolean;
     /** Absent only when a forked server or a proxy/misroute answers; see `hasApiKeyStatus`. */
     apiKeyStatus?: ApiKeyStatus;
@@ -1065,6 +1068,7 @@ export async function updateUserProfile(payload: {
     quickActionsVisible?: boolean;
     responseDetailsVisible?: boolean;
     darkMode?: boolean;
+    textSize?: TextSize;
     projectMemoryDefault?: boolean;
     uiLocale?: Locale | null;
 } & Partial<RouterProfileLists>): Promise<UserProfile> {

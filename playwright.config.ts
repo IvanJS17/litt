@@ -13,6 +13,7 @@ const SYNTHETIC_SPECS = [
     /tabular-chat-lifecycle\.spec\.ts/,
     /settings-search-latency\.spec\.ts/,
     /lote2-mobile\.spec\.ts/,
+    /text-size\.spec\.ts/,
 ];
 
 export default defineConfig({

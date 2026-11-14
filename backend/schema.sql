@@ -63,6 +63,10 @@ create table if not exists public.user_profiles (
   -- token count it used (Settings > Features).
   response_details_visible boolean not null default false,
   dark_mode boolean not null default false,
+  -- LiTT: text size chosen in Settings > Appearance (100 %, 112.5 %, 125 %).
+  text_size text not null default 'normal'
+    constraint user_profiles_text_size_check
+    check (text_size in ('normal', 'large', 'xlarge')),
   -- LiTT: interface language the user chose. NULL means automatic (browser
   -- or Word language, then es-MX). Copied to auth.users user_metadata.locale
   -- for the GoTrue emails.
@@ -20736,5 +20740,6 @@ insert into public.schema_migrations (filename) values
   ('20261113_10_litt_managed_accounts.sql'),
   ('20261113_30_litt_firm_profile.sql'),
   ('20261113_40_litt_key_policy_by_capability.sql'),
-  ('20261113_50_litt_training_role_rules.sql')
+  ('20261113_50_litt_training_role_rules.sql'),
+  ('20261113_60_litt_text_size.sql')
 on conflict (filename) do nothing;

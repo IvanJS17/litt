@@ -140,7 +140,7 @@ export function CitationQuotesSection({
                                                 !isUnverified &&
                                                 onIndexChange?.(index)
                                             }
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-colors ${
+                                            className={`flex h-4 w-4 items-center justify-center rounded-full text-[0.5625rem] transition-colors ${
                                                 currentIndex === index &&
                                                 !isUnverified
                                                     ? "!bg-interactive-soft-strong !text-interactive font-medium dark:!bg-interactive-soft-strong dark:!text-white"

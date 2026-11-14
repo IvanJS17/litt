@@ -575,12 +575,12 @@ function RouterModelsSetting({
                         {model.label}
                       </span>
                       {model.label !== model.id && (
-                        <span className="block truncate text-[10px] text-gray-400">
+                        <span className="block truncate text-3xs text-gray-400">
                           {model.id}
                         </span>
                       )}
                       {costLabel && (
-                        <span className="block truncate text-[10px] text-gray-400">
+                        <span className="block truncate text-3xs text-gray-400">
                           {costLabel}
                         </span>
                       )}

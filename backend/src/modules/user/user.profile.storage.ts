@@ -34,6 +34,7 @@ export type UserProfileRow = {
     dark_mode: boolean | null;
     project_memory_default: boolean | null;
     ui_locale?: string | null;
+    text_size?: string | null;
     terms_accepted_version?: string | null;
 };
 
@@ -46,7 +47,10 @@ const PROFILE_SELECT_NO_TERMS = `${PROFILE_SELECT_NO_UI_LOCALE}, ui_locale`;
 
 // LiTT 20261109_30 adds terms_accepted_version; a database without it reads as
 // "no acceptance required" so the deploy-before-migrate window locks nobody out.
-const PROFILE_SELECT_NEWEST = `${PROFILE_SELECT_NO_TERMS}, terms_accepted_version`;
+const PROFILE_SELECT_NO_TEXT_SIZE = `${PROFILE_SELECT_NO_TERMS}, terms_accepted_version`;
+
+// LiTT 20261113_60 adds text_size; a database without it reads as "normal".
+const PROFILE_SELECT_NEWEST = `${PROFILE_SELECT_NO_TEXT_SIZE}, text_size`;
 
 const PROFILE_SELECT_NO_RESPONSE_DETAILS =
     "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode, project_memory_default";
@@ -142,6 +146,12 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
     const newest = await read(PROFILE_SELECT_NEWEST);
     if (!newest.error) return newest;
     let cascadeError: unknown = newest.error;
+
+    if (isMissingProfileColumn(cascadeError, "text_size")) {
+        const previous = await read(PROFILE_SELECT_NO_TEXT_SIZE);
+        if (!previous.error) return previous;
+        cascadeError = previous.error;
+    }
 
     if (isMissingProfileColumn(cascadeError, "terms_accepted_version")) {
         const previous = await read(PROFILE_SELECT_NO_TERMS);

@@ -9,6 +9,7 @@ import { ConnectorCard } from "@/app/components/settings/ConnectorCard";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import { OrganizationSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
+import { useAuth } from "@/app/contexts/AuthContext";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import { usePlatformMe } from "@/app/hooks/usePlatformMe";
 import { notifyOrganizationInvitationsChanged } from "@/app/hooks/useOrganizationInvitationCount";
@@ -43,7 +44,8 @@ const CARD_GRID_CLASS = "grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2";
 export function OrganizationsOverview() {
   const router = useRouter();
   const t = useTranslations();
-  const canCreateOrg = usePlatformMe()?.can_create_org !== false;
+  const { user } = useAuth();
+  const canCreateOrg = usePlatformMe(user?.id).me?.can_create_org !== false;
   const { workspaceId, setWorkspace, refreshOrganizations } = useWorkspace();
   // `null` is "no workspace to compare with" (outside a WorkspaceProvider),
   // where nothing is narrowed.

@@ -60,7 +60,7 @@ export function DocumentVersionPicker({
     const label = displayedNumber ? (
         <VersionChip n={displayedNumber} />
     ) : (
-        <span className="text-[10px]">{t("shared.documentVersionPicker.version")}</span>
+        <span className="text-3xs">{t("shared.documentVersionPicker.version")}</span>
     );
     if (error)
         return (
