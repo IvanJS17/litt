@@ -130,7 +130,7 @@ describe("WebSearchSection", () => {
 
     workspace.firm = { name: "Socium" };
     render(<WebSearchSection />);
-    expect(await screen.findByText(/They are also used in the firm Socium/)).toBeVisible();
+    expect(await screen.findByText(/In Socium they are used only for providers the firm hasn.t set up/)).toBeVisible();
     expect(screen.getByLabelText("Brave Search API Key")).toBeInTheDocument();
   });
 

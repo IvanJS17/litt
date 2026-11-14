@@ -339,7 +339,7 @@ describe("BYOK page cloud-platform keys", () => {
     it("says the keys also reach the firm in a firm's workspace that allows them", () => {
         workspace.firm = { name: "Socium" };
         render(<ByokPage />);
-        expect(screen.getByText(/They are also used in the firm Socium/)).toBeVisible();
+        expect(screen.getByText(/In Socium they are used only for providers the firm hasn.t set up/)).toBeVisible();
         expect(screen.getByRole("button", { name: "Add OpenAI" })).toBeVisible();
     });
 

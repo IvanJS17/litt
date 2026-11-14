@@ -291,7 +291,7 @@ describe("the firm keys section", () => {
 
     expect(
       await screen.findByText(
-        "Only this organization's owners and admins can manage its keys.",
+        "Only this firm’s owners and administrators manage its keys.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("provider-keys")).not.toBeInTheDocument();

@@ -1555,7 +1555,7 @@
   "memory": {
     "changedReloadFirst": "Memory changed while you were editing. Reload the page before saving again.",
     "checkForUpdates": "check for memory updates",
-    "chooseWhetherMemoryIsEnabledBy": "Choose whether memory is enabled by default for projects you create. Project owners can still change it for each project.",
+    "chooseWhetherMemoryIsEnabledBy": "Choose whether memory is on by default in the projects you create. Each project owner can change it.",
     "confirmTurnOff": "This will delete the existing memory.md file{hasScope, select, yes { for {scope}} other {}}{dirty, select, yes { and your unsaved draft} other {}}, cancel pending memory updates, and stop future memory updates here until you turn it on again.{others, select, yes { Your memory in other workspaces is not affected.} other {}}",
     "conflictTitle": "Memory changed while you were editing",
     "couldNotLoadMemorySettingsPlease": "Could not load memory settings. Please try again.",
@@ -1952,7 +1952,7 @@
       "organizationName": "Organization name",
       "organizationNotDeleted": "Organization not deleted",
       "organizationNotUpdated": "Organization not updated",
-      "removeAccessForAllMembersOwners": "Remove access for all members. Owners can restore the organization for 30 days before its content is permanently deleted.",
+      "removeAccessForAllMembersOwners": "Removes access for all members. Owners can restore the firm for 30 days, then its content is deleted for good.",
       "shownAtTheTopOfThe": "Shown at the top of the sidebar. PNG, JPEG or WebP.",
       "thatImageCannotBeUsed": "That image cannot be used.",
       "theLogoCouldNotBeRemoved": "The logo could not be removed.",
@@ -2101,7 +2101,7 @@
       "letMembersExport": "Let members export their data",
       "letMembersExportDescription": "Members can export their own chats, tabular reviews, projects and memory in {orgName} from Settings › Privacy & Data. Owners always can.",
       "membersData": "Members' data",
-      "onlyThisOrganizationsOwnersCanManage": "Only this organization's owners can manage its data.",
+      "onlyThisOrganizationsOwnersCanManage": "Only this firm’s owners manage its data.",
       "privacyData": "Privacy & Data",
       "review": "Review",
       "reviewDepartedMembers": "Review departed members",
@@ -2112,37 +2112,37 @@
       "workLeftByDepartedMembers": "Work left by departed members"
     },
     "organizationProviderKeys": {
-      "aMembersOwnKeyIsUsed": "A member's own key is used when the organization has none for that service.",
-      "aMembersOwnKeysAreNever": "A member's own keys are never used for this in the organization.",
+      "aMembersOwnKeyIsUsed": "Used when the firm has no key for that service.",
+      "aMembersOwnKeysAreNever": "Never used in this firm. Members work with the firm’s keys.",
       "add": "Add",
       "addName": "Add {name}",
-      "addTheModelsThisOrganizationsKey": "Add the models this organization's key may run. Members see them in model selectors.",
+      "addTheModelsThisOrganizationsKey": "Add the models this firm’s key can run. Members see them in the model pickers.",
       "availableProviders": "Available Providers",
       "everyProviderHasAKeySaved": "Every provider has a key saved.",
-      "firmScope": "These keys belong to the firm and are used when you work in its workspace, not in your personal workspace.",
+      "firmScope": "These keys belong to the firm. They are used when you work in its space, not in your personal space.",
       "loadError": "The organization's model providers could not be loaded.",
       "memberKeysAi": "Members can use their own AI keys",
-      "memberKeysScan": "Members can use their own scan reading keys (LandingAI)",
+      "memberKeysScan": "Members can use their own scan reading key (LandingAI)",
       "memberKeysWebSearch": "Members can use their own web search keys",
-      "membersOwnKeys": "Members’ Own Keys",
+      "membersOwnKeys": "Members’ own keys",
       "nameProvider": "{name} provider",
-      "noProvidersYetAddAnApi": "No providers yet. Add an API key to one of the providers below.",
+      "noProvidersYetAddAnApi": "No providers yet. Add an API key to one below.",
       "off": "Off",
       "on": "On",
-      "organizationProviders": "Firm keys ({name})",
+      "organizationProviders": "AI keys of {name}",
       "policyError": "The setting could not be updated. Please try again.",
       "providerUpdateFailed": "Provider update failed",
-      "thisOrganizationHasNotSetUp": "This organization has not set up a model provider yet.",
+      "thisOrganizationHasNotSetUp": "This firm hasn’t set up an AI provider yet.",
       "tryAgain": "Try again",
       "updateError": "The provider could not be updated. Please try again.",
       "useName": "Use {name}",
       "webSearchKeys": "Web search keys",
-      "webSearchKeysIntro": "When the firm saves a search key, web search in {name} uses it before a member's own."
+      "webSearchKeysIntro": "If the firm saves a search key, web search in {name} uses it before a member’s own."
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Back to General",
       "bringYourOwnKeys": "Firm keys",
-      "onlyThisOrganizationsOwnersAndAdmins": "Only this organization's owners and admins can manage its keys.",
+      "onlyThisOrganizationsOwnersAndAdmins": "Only this firm’s owners and administrators manage its keys.",
       "organization": "Organization"
     },
     "organizationSettingsShell": {
@@ -2166,11 +2166,11 @@
       "invitations": "Invitations",
       "invitedYouAs": "Invited you as {role}",
       "new": "New",
-      "newOrganization": "New organization",
-      "noOrganizationsYetCreateOneTo": "No organizations yet. Create one to share projects and workflows with your team.",
-      "organizations": "Organizations",
+      "newOrganization": "New firm",
+      "noOrganizationsYetCreateOneTo": "You aren’t in a firm yet. Create one to share projects and workflows with your team.",
+      "organizations": "Your firms",
       "roleAndMembers": "Your role: {role} · {count, plural, one {# person} other {# people}}",
-      "switch": "Switch",
+      "switch": "Switch to it",
       "switchToName": "Switch to {name}",
       "tryAgain": "Try again",
       "firmSettingsOfName": "Firm settings of {name}"
@@ -2932,11 +2932,11 @@
       "couldNotUpdateTheAppearanceSetting": "Could not update the appearance setting.",
       "darkMode": "Dark mode",
       "textSize": "Text size",
-      "textSizeHelp": "Changes the size of the text in LiTT. You can also use your browser's zoom.",
+      "textSizeHelp": "Choose how large text looks in LiTT. This only changes your screen.",
       "textSizeLarge": "Large",
       "textSizeNormal": "Normal",
       "textSizeXLarge": "Very large",
-      "useADarkerColorPaletteThroughout": "Use a darker color palette throughout LiTT."
+      "useADarkerColorPaletteThroughout": "Switch to darker colors across LiTT."
     },
     "byokProviderModal": {
       "awsRegion": "AWS region",
@@ -3087,7 +3087,7 @@
     "keyScope": {
       "personalHeading": "My AI keys",
       "personal": "These keys are yours and apply to your personal workspace.",
-      "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
+      "inFirm": "These keys are yours. In {name} they are used only for providers the firm hasn’t set up: the firm’s keys come first.",
       "blocked": "You work with the keys of {name}. Your firm does not allow using your own keys for this.",
       "blockedNoName": "You work with your firm's keys. Your firm does not allow using your own keys for this."
     },
@@ -3115,18 +3115,18 @@
     "models": {
       "automaticSameProviderAsChat": "Automatic — same provider as chat",
       "automaticUseChatModel": "Automatic — use chat model",
-      "byDefaultTitlesUseALow": "By default, titles use a low cost model from the chat provider. Choose a model here to override that.",
+      "byDefaultTitlesUseALow": "Titles use a low-cost model from the chat’s provider. Choose another one to change it.",
       "chatTitleGeneration": "Chat title generation",
       "chooseAModel": "Choose a model",
       "littPuedePasarPartesDeUna": "LiTT can hand parts of a task to subagents that work separately and report back. Set the model routes they may use; each result shows the route and the model it ran on.",
       "memoryCurationModel": "Memory curation model",
       "modelPreferences": "Model Preferences",
       "noDefaultModel": "No default model",
-      "preselectedWhenCreatingAReviewEach": "Preselected when creating a review. Each review stores its own model and can be changed separately.",
+      "preselectedWhenCreatingAReviewEach": "Suggested when you create a review. Each review keeps its own model, and you can change it later.",
       "selectAModel": "Select a model",
       "subagentes": "Subagents",
       "tabularReviewModel": "Tabular review model",
-      "usedAfterConversationsToIdentifyDurable": "Used after conversations to identify durable information worth keeping. By default, memory uses the model selected for the chat."
+      "usedAfterConversationsToIdentifyDurable": "Decides what to keep from your conversations. If you choose none, it uses the chat model."
     },
     "newCustomMcpModal": {
       "authenticationRequired": "Authentication required",
@@ -3182,7 +3182,7 @@
     },
     "personalisation": {
       "practiceAreas": "Practice areas",
-      "tellLittAboutYourRoleAnd": "Tell LiTT about your role and practice so responses can be tailored to your professional context.",
+      "tellLittAboutYourRoleAnd": "Tell LiTT your role and practice. It adapts its answers to your professional context.",
       "yourBackground": "Your background"
     },
     "personalisationFields": {
@@ -3292,7 +3292,7 @@
       "exportTabularReviews": "Export tabular reviews",
       "exporting": "Exporting...",
       "exportsDataInWorkspacenameOnlyTo": "Exports data in {workspaceName} only. To export another workspace, switch to it first.",
-      "managedByOwnersDescription": "Exporting and bulk-deleting your data in {name} is managed by its owners and is not available to members. Your other workspaces are not affected.",
+      "managedByOwnersDescription": "In {name}, only owners export or delete data in bulk. Your other workspaces are not affected.",
       "managedByYourOrganization": "Managed by your organization",
       "permanentlyDeleteAllProjectsYouCreated": "Permanently delete all projects you created here, including documents, chats, and tabular reviews.",
       "permanentlyDeleteAllProjectsYouOwn": "Permanently delete all projects you own, including documents, chats, and tabular reviews.",
@@ -3723,7 +3723,7 @@
       "couldNotLoadYourWebSearch": "Could not load your web search settings.",
       "deepseekSearchesAndReadsPages": "DeepSeek searches and reads pages. Works with any model.",
       "enableWebSearch": "Enable web search",
-      "letLittSearchTheWebAnd": "Let LiTT search the web and read pages when an answer needs current or public information.",
+      "letLittSearchTheWebAnd": "LiTT searches the internet and reads pages when an answer needs current or public information.",
       "littSearchesWithBraveSearch": "LiTT searches with Brave Search. Works with any model.",
       "modelsOfFamily": "{name} models",
       "off": "Off",
@@ -3742,8 +3742,8 @@
       "identifier": "Identifier (optional)",
       "name": "Name",
       "noClientData": "Don’t write client data here. Descriptions and identifiers are also sent to LandingAI along with the document text.",
-      "orgIntro": "The types “Split file” sorts pages into for everyone working in this firm’s workspace. If you leave it as is, the included list for Mexican case files is used.",
-      "personalIntro": "The types “Split file” sorts pages into when you split a case file in your personal workspace. Inside a firm’s workspace the firm’s list is used instead.",
+      "orgIntro": "The types «Split case file» sorts pages into in this firm’s space, for everyone who works there. If you change nothing, the included list for Mexican case files is used.",
+      "personalIntro": "The types «Split case file» sorts pages into in your personal space. In a firm’s space, the firm’s list is used.",
       "readOnly": "Only owners and admins can change this list.",
       "remove": "Remove type {name}",
       "removeShort": "Remove",
@@ -3888,10 +3888,10 @@
       "keysManagedByFirmMember": "Your firm decides these keys when you work in {name}. Ask an owner or administrator to change them."
     },
     "assistant": {
-      "assistant": "Assistant",
+      "assistant": "What you see in the assistant",
       "quickActions": "Quick actions",
       "responseDetails": "Response details",
-      "showTheModelReasoningEffortAnd": "Show the model, reasoning effort and token count under each response and subagent.",
+      "showTheModelReasoningEffortAnd": "Show the model, reasoning level and token count under each answer.",
       "showTheQuickActionsRowOn": "Show the quick actions row on the assistant start screen."
     }
   },
@@ -5570,7 +5570,7 @@
       },
       "allPupils": "All pupils",
       "back": "Back to Training",
-      "intro": "Supervise one pupil at a time. Nothing here compares or ranks your pupils, and only you and each pupil see their data.",
+      "intro": "Supervise one pupil at a time. Nothing here compares or ranks your pupils. Only you and each pupil see their data.",
       "lastWork": "Last work: {date, date, medium} {date, time, short}",
       "noPupils": "You have no pupils here yet. Add them in Training, under My pupils.",
       "noWork": "No work yet",
@@ -5760,7 +5760,7 @@
       "mentorLabel": "Their mentor:",
       "mentorOf": "Choose a mentor for {name}",
       "mentorsHeading": "Mentors and pupils",
-      "mentorsHelp": "A mentor guides their pupils and is the only one who sets their stage. Each pupil has one mentor, and someone without a mentor is not in training. Owners and admins can be mentors, but never pupils.",
+      "mentorsHelp": "A mentor guides trainees and is the only one who sets their stage. Each trainee has one mentor; someone without a mentor isn’t in training. Owners and administrators can be mentors, never trainees.",
       "noMentor": "No mentor",
       "noMentorsYet": "There are no mentors yet. Turn on «Mentor» for someone to be able to assign pupils to them."
     },
@@ -5770,7 +5770,7 @@
     },
     "personal": {
       "intro": "Here you see only what is yours: your mentor, your stages and your criterion. Who is a mentor, and whom they guide, is decided by the owner or an admin in the firm's settings → Training.",
-      "pupilsHelp": "Take members who have no mentor yet and set their stage by subject. Only you, as their mentor, set the stage; owners and admins see who your pupils are, never their stage."
+      "pupilsHelp": "Take members who have no mentor and set their stage by subject. Only you, as their mentor, set the stage. Owners and administrators see who your pupils are, never their stage."
     }
   },
   "ui": {

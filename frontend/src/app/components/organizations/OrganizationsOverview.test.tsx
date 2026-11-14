@@ -276,7 +276,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    const button = screen.getByRole("button", { name: "New organization" });
+    const button = screen.getByRole("button", { name: "New firm" });
     // The compact pill beside the section heading: short label, plus icon.
     expect(button).toHaveTextContent("New");
     expect(button).toHaveClass("h-7", "liquid-glass-subtle");
@@ -293,7 +293,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    await user.click(screen.getByRole("button", { name: "New organization" }));
+    await user.click(screen.getByRole("button", { name: "New firm" }));
     expect(
       await screen.findByText(/You can also add people later/),
     ).toBeInTheDocument();
@@ -330,7 +330,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
 
     expect(
-      await screen.findByText(/No organizations yet\. Create one/),
+      await screen.findByText(/You aren’t in a firm yet\. Create one/),
     ).toBeInTheDocument();
     // An empty inbox needs no section of its own.
     expect(
@@ -444,7 +444,7 @@ describe("OrganizationsOverview", () => {
       ),
     ).toBeInTheDocument();
     // Not "you have none": that would be a different thing to be told.
-    expect(screen.queryByText(/No organizations yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You aren’t in a firm yet/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Elite Law LLP")).toBeInTheDocument();
@@ -498,7 +498,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    await user.click(screen.getByRole("button", { name: "New organization" }));
+    await user.click(screen.getByRole("button", { name: "New firm" }));
     await settleModalFocus();
     await user.type(screen.getByLabelText("Organization name"), "New Chambers");
     await user.type(
@@ -526,7 +526,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    await user.click(screen.getByRole("button", { name: "New organization" }));
+    await user.click(screen.getByRole("button", { name: "New firm" }));
     await settleModalFocus();
     await user.type(screen.getByLabelText("Organization name"), "New Chambers");
     await user.click(screen.getByRole("button", { name: "Create" }));
@@ -549,7 +549,7 @@ describe("OrganizationsOverview", () => {
     ).not.toBeInTheDocument();
     // Starting a new one does not depend on the list.
     expect(
-      screen.getByRole("button", { name: "New organization" }),
+      screen.getByRole("button", { name: "New firm" }),
     ).toBeEnabled();
   });
 });

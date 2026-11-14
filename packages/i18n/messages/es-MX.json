@@ -1555,7 +1555,7 @@
   "memory": {
     "changedReloadFirst": "La memoria cambió mientras editabas. Recarga la página antes de volver a guardar.",
     "checkForUpdates": "buscar actualizaciones de la memoria",
-    "chooseWhetherMemoryIsEnabledBy": "Elige si la memoria está activada de forma predeterminada para los proyectos que crees. Los propietarios del proyecto todavía pueden cambiarlo para cada proyecto.",
+    "chooseWhetherMemoryIsEnabledBy": "Elige si la memoria viene activada en los proyectos que crees. Cada propietario de proyecto puede cambiarlo.",
     "confirmTurnOff": "Esto borrará el archivo memory.md existente{hasScope, select, yes { para {scope}} other {}}{dirty, select, yes { y tu borrador sin guardar} other {}}, cancelará las actualizaciones pendientes de la memoria y detendrá las actualizaciones futuras de la memoria aquí hasta que la vuelvas a activar.{others, select, yes { Tu memoria en otros espacios de trabajo no se ve afectada.} other {}}",
     "conflictTitle": "La memoria cambió mientras editabas",
     "couldNotLoadMemorySettingsPlease": "No se pudo cargar la configuración de la memoria. Inténtalo de nuevo.",
@@ -1952,7 +1952,7 @@
       "organizationName": "Nombre del despacho",
       "organizationNotDeleted": "No se eliminó el despacho",
       "organizationNotUpdated": "No se actualizó el despacho",
-      "removeAccessForAllMembersOwners": "Quita el acceso a todos los miembros. Los propietarios pueden restaurar el despacho durante 30 días antes de que su contenido se borre permanentemente.",
+      "removeAccessForAllMembersOwners": "Quita el acceso a todos los miembros. Los propietarios pueden restaurar el despacho durante 30 días; después se borra su contenido para siempre.",
       "shownAtTheTopOfThe": "Se muestra arriba de la barra lateral. PNG, JPEG o WebP.",
       "thatImageCannotBeUsed": "No se puede usar esa imagen.",
       "theLogoCouldNotBeRemoved": "No se pudo quitar el logo.",
@@ -2101,7 +2101,7 @@
       "letMembersExport": "Permitir que los miembros exporten sus datos",
       "letMembersExportDescription": "Los miembros pueden exportar sus propios chats, revisiones tabulares, proyectos y memoria en {orgName} desde Ajustes › Privacidad y datos. Los propietarios siempre pueden.",
       "membersData": "Datos de los miembros",
-      "onlyThisOrganizationsOwnersCanManage": "Solo los propietarios de este despacho pueden administrar sus datos.",
+      "onlyThisOrganizationsOwnersCanManage": "Solo los propietarios de este despacho administran sus datos.",
       "privacyData": "Privacidad y datos",
       "review": "Revisar",
       "reviewDepartedMembers": "Revisar exmiembros",
@@ -2112,27 +2112,27 @@
       "workLeftByDepartedMembers": "Trabajo que dejaron los miembros que salieron"
     },
     "organizationProviderKeys": {
-      "aMembersOwnKeyIsUsed": "Se usa la llave propia de un miembro cuando el despacho no tiene una para ese servicio.",
-      "aMembersOwnKeysAreNever": "Las llaves propias de los miembros nunca se usan para esto en el despacho.",
+      "aMembersOwnKeyIsUsed": "Se usa cuando el despacho no tiene llave para ese servicio.",
+      "aMembersOwnKeysAreNever": "No se usan en este despacho. Los miembros trabajan con las llaves del despacho.",
       "add": "Agregar",
       "addName": "Agregar {name}",
-      "addTheModelsThisOrganizationsKey": "Agrega los modelos que puede ejecutar la llave de este despacho. Los miembros los ven en los selectores de modelos.",
+      "addTheModelsThisOrganizationsKey": "Agrega los modelos que puede usar la llave de este despacho. Los miembros los ven al elegir modelo.",
       "availableProviders": "Proveedores disponibles",
       "everyProviderHasAKeySaved": "Todos los proveedores tienen una llave guardada.",
-      "firmScope": "Estas llaves son del despacho y se usan cuando trabajas en su espacio, no en tu espacio personal.",
+      "firmScope": "Estas llaves son del despacho. Se usan cuando trabajas en su espacio, no en tu espacio personal.",
       "loadError": "No se pudieron cargar los proveedores de modelos del despacho.",
       "memberKeysAi": "Los miembros pueden usar sus propias llaves de IA",
-      "memberKeysScan": "Los miembros pueden usar sus propias llaves de lectura de escaneados (LandingAI)",
+      "memberKeysScan": "Los miembros pueden usar su propia llave de lectura de escaneados (LandingAI)",
       "memberKeysWebSearch": "Los miembros pueden usar sus propias llaves de búsqueda web",
-      "membersOwnKeys": "Llaves de los miembros",
+      "membersOwnKeys": "Llaves propias de los miembros",
       "nameProvider": "Proveedor {name}",
-      "noProvidersYetAddAnApi": "Aún no hay proveedores. Agrega una llave de API a uno de los proveedores de abajo.",
+      "noProvidersYetAddAnApi": "Aún no hay proveedores. Agrega una llave de API a uno de abajo.",
       "off": "Desactivado",
       "on": "Activado",
-      "organizationProviders": "Llaves de {name}",
+      "organizationProviders": "Llaves de IA de {name}",
       "policyError": "No se pudo actualizar el ajuste. Inténtalo de nuevo.",
       "providerUpdateFailed": "Falló la actualización del proveedor",
-      "thisOrganizationHasNotSetUp": "Este despacho aún no configura un proveedor de modelos.",
+      "thisOrganizationHasNotSetUp": "Este despacho aún no configura un proveedor de IA.",
       "tryAgain": "Inténtalo de nuevo",
       "updateError": "No se pudo actualizar el proveedor. Inténtalo de nuevo.",
       "useName": "Usar {name}",
@@ -2142,7 +2142,7 @@
     "organizationProvidersSettings": {
       "backToGeneral": "Volver a General",
       "bringYourOwnKeys": "Llaves del despacho",
-      "onlyThisOrganizationsOwnersAndAdmins": "Solo los propietarios y administradores de este despacho pueden administrar sus llaves.",
+      "onlyThisOrganizationsOwnersAndAdmins": "Solo los propietarios y administradores de este despacho administran sus llaves.",
       "organization": "Despacho"
     },
     "organizationSettingsShell": {
@@ -2165,12 +2165,12 @@
       "invitationNotUpdated": "Invitación no actualizada",
       "invitations": "Invitaciones",
       "invitedYouAs": "Te invitó como {role}",
-      "new": "Nueva",
+      "new": "Nuevo",
       "newOrganization": "Nuevo despacho",
-      "noOrganizationsYetCreateOneTo": "Aún no hay despachos. Crea uno para compartir proyectos y flujos de trabajo con tu equipo.",
-      "organizations": "Despachos",
+      "noOrganizationsYetCreateOneTo": "Aún no estás en ningún despacho. Crea uno para compartir proyectos y flujos de trabajo con tu equipo.",
+      "organizations": "Tus despachos",
       "roleAndMembers": "Tu rol: {role} · {count, plural, one {# persona} other {# personas}}",
-      "switch": "Cambiar",
+      "switch": "Cambiar a este",
       "switchToName": "Cambiar a {name}",
       "tryAgain": "Inténtalo de nuevo",
       "firmSettingsOfName": "Ajustes del despacho de {name}"
@@ -2932,11 +2932,11 @@
       "couldNotUpdateTheAppearanceSetting": "No se pudo actualizar el ajuste de apariencia.",
       "darkMode": "Modo oscuro",
       "textSize": "Tamaño de letra",
-      "textSizeHelp": "Cambia el tamaño del texto en LiTT. También puedes usar el zoom del navegador.",
+      "textSizeHelp": "Elige qué tan grande se ve la letra en LiTT. Solo cambia tu pantalla.",
       "textSizeLarge": "Grande",
       "textSizeNormal": "Normal",
       "textSizeXLarge": "Muy grande",
-      "useADarkerColorPaletteThroughout": "Usa una paleta de colores más oscura en toda LiTT."
+      "useADarkerColorPaletteThroughout": "Cambia a colores oscuros en toda la app."
     },
     "byokProviderModal": {
       "awsRegion": "Región de AWS",
@@ -3087,7 +3087,7 @@
     "keyScope": {
       "personalHeading": "Mis llaves de IA",
       "personal": "Estas llaves son tuyas y aplican a tu espacio personal.",
-      "inFirm": "Estas llaves son tuyas. También se usan en el despacho {name}, pero solo para los proveedores que el despacho no tiene configurados; el despacho siempre usa primero las suyas.",
+      "inFirm": "Estas llaves son tuyas. En {name} solo se usan para los proveedores que el despacho no configuró: primero van las del despacho.",
       "blocked": "Trabajas con las llaves de {name}. Tu despacho no permite usar llaves propias para esto.",
       "blockedNoName": "Trabajas con las llaves de tu despacho. Tu despacho no permite usar llaves propias para esto."
     },
@@ -3115,18 +3115,18 @@
     "models": {
       "automaticSameProviderAsChat": "Automático — igual que el proveedor del chat",
       "automaticUseChatModel": "Automático — usar el modelo del chat",
-      "byDefaultTitlesUseALow": "De forma predeterminada, los títulos usan un modelo de bajo costo del proveedor del chat. Elige aquí un modelo para cambiarlo.",
+      "byDefaultTitlesUseALow": "Los títulos usan un modelo económico del proveedor del chat. Elige otro para cambiarlo.",
       "chatTitleGeneration": "Generación de títulos del chat",
       "chooseAModel": "Elige un modelo",
       "littPuedePasarPartesDeUna": "LiTT puede pasar partes de una tarea a subagentes que trabajan por separado y le reportan. Configura las rutas de modelo que pueden usar; cada resultado indica la ruta y el modelo con que corrió.",
       "memoryCurationModel": "Modelo de curación de memoria",
       "modelPreferences": "Preferencias de modelos",
       "noDefaultModel": "Sin modelo predeterminado",
-      "preselectedWhenCreatingAReviewEach": "Se preselecciona al crear una revisión. Cada revisión guarda su propio modelo y se puede cambiar por separado.",
+      "preselectedWhenCreatingAReviewEach": "Se propone al crear una revisión. Cada revisión guarda su propio modelo y lo puedes cambiar después.",
       "selectAModel": "Selecciona un modelo",
       "subagentes": "Subagentes",
       "tabularReviewModel": "Modelo de revisión tabular",
-      "usedAfterConversationsToIdentifyDurable": "Se usa después de las conversaciones para identificar información duradera que vale la pena conservar. De forma predeterminada, la memoria usa el modelo seleccionado para el chat."
+      "usedAfterConversationsToIdentifyDurable": "Decide qué conservar de tus conversaciones. Si no eliges uno, usa el modelo del chat."
     },
     "newCustomMcpModal": {
       "authenticationRequired": "Autenticación requerida",
@@ -3182,7 +3182,7 @@
     },
     "personalisation": {
       "practiceAreas": "Áreas de práctica",
-      "tellLittAboutYourRoleAnd": "Cuéntale a LiTT sobre tu rol y tu práctica para que las respuestas se adapten a tu contexto profesional.",
+      "tellLittAboutYourRoleAnd": "Cuéntale a LiTT tu rol y tu práctica. Adapta sus respuestas a tu contexto profesional.",
       "yourBackground": "Tu perfil profesional"
     },
     "personalisationFields": {
@@ -3292,7 +3292,7 @@
       "exportTabularReviews": "Exportar revisiones tabulares",
       "exporting": "Exportando…",
       "exportsDataInWorkspacenameOnlyTo": "Exporta datos solo en {workspaceName}. Para exportar otro espacio de trabajo, cámbiate a él primero.",
-      "managedByOwnersDescription": "Exportar y borrar en bloque tus datos en {name} lo administran sus dueños, y los miembros no pueden hacerlo. Tus otros espacios de trabajo no se ven afectados.",
+      "managedByOwnersDescription": "En {name}, solo los propietarios exportan o borran datos en bloque. Tus otros espacios de trabajo no se ven afectados.",
       "managedByYourOrganization": "Lo administra tu despacho",
       "permanentlyDeleteAllProjectsYouCreated": "Borra para siempre todos los proyectos que creaste aquí, incluidos documentos, chats y revisiones tabulares.",
       "permanentlyDeleteAllProjectsYouOwn": "Borra para siempre todos los proyectos de los que eres dueño, incluidos documentos, chats y revisiones tabulares.",
@@ -3723,7 +3723,7 @@
       "couldNotLoadYourWebSearch": "No se pudieron cargar tus ajustes de búsqueda web.",
       "deepseekSearchesAndReadsPages": "DeepSeek busca y lee páginas. Funciona con cualquier modelo.",
       "enableWebSearch": "Activar búsqueda web",
-      "letLittSearchTheWebAnd": "Deja que LiTT busque en la web y lea páginas cuando una respuesta necesite información actual o pública.",
+      "letLittSearchTheWebAnd": "LiTT busca en internet y lee páginas cuando una respuesta necesita datos actuales o públicos.",
       "littSearchesWithBraveSearch": "LiTT busca con Brave Search. Funciona con cualquier modelo.",
       "modelsOfFamily": "Modelos de {name}",
       "off": "Desactivada",
@@ -3742,7 +3742,7 @@
       "identifier": "Identificador (opcional)",
       "name": "Nombre",
       "noClientData": "No escribas datos de clientes aquí. Las descripciones y los identificadores también se envían a LandingAI junto con el texto del documento.",
-      "orgIntro": "Los tipos en que «Separar expediente» clasifica las páginas para todos los que trabajan en el espacio de este despacho. Si no la cambias, se usa la lista incluida para expedientes mexicanos.",
+      "orgIntro": "Los tipos en que «Separar expediente» clasifica las páginas en el espacio de este despacho, para todos los que trabajan ahí. Si no cambias nada, se usa la lista incluida para expedientes mexicanos.",
       "personalIntro": "Los tipos en que «Separar expediente» clasifica las páginas en tu espacio personal. En el espacio de un despacho se usa la lista del despacho.",
       "readOnly": "Solo los propietarios y administradores pueden cambiar esta lista.",
       "remove": "Quitar el tipo {name}",
@@ -3888,11 +3888,11 @@
       "keysManagedByFirmMember": "Tu despacho decide estas llaves cuando trabajas en {name}. Pide a un propietario o administrador que las cambie."
     },
     "assistant": {
-      "assistant": "Asistente",
+      "assistant": "Lo que ves en el asistente",
       "quickActions": "Acciones rápidas",
       "responseDetails": "Detalles de la respuesta",
-      "showTheModelReasoningEffortAnd": "Muestra el modelo, el esfuerzo de razonamiento y el conteo de tokens debajo de cada respuesta y de cada subagente.",
-      "showTheQuickActionsRowOn": "Muestra la fila de acciones rápidas en la pantalla de inicio del asistente."
+      "showTheModelReasoningEffortAnd": "Muestra debajo de cada respuesta el modelo, el nivel de razonamiento y el conteo de tokens.",
+      "showTheQuickActionsRowOn": "Muestra la fila de acciones rápidas en el inicio del asistente."
     }
   },
   "shared": {
@@ -5570,7 +5570,7 @@
       },
       "allPupils": "Todos los aprendices",
       "back": "Volver a Formación",
-      "intro": "Supervisa a un aprendiz a la vez. Aquí nada compara ni ordena a tus aprendices, y solo tú y cada aprendiz ven sus datos.",
+      "intro": "Supervisa a un aprendiz a la vez. Aquí nada compara ni ordena a tus aprendices. Solo tú y cada aprendiz ven sus datos.",
       "lastWork": "Último trabajo: {date, date, medium} {date, time, short}",
       "noPupils": "Todavía no tienes aprendices aquí. Agrégalos en Formación, en Mis aprendices.",
       "noWork": "Sin trabajos todavía",
@@ -5760,7 +5760,7 @@
       "mentorLabel": "Su mentor:",
       "mentorOf": "Elegir mentor para {name}",
       "mentorsHeading": "Mentores y aprendices",
-      "mentorsHelp": "Un mentor acompaña a sus aprendices y es el único que les pone la etapa. Cada aprendiz tiene un solo mentor; quien no tiene mentor no está en formación. El dueño y los administradores pueden ser mentores, pero no aprendices.",
+      "mentorsHelp": "Un mentor guía a sus aprendices y es el único que les pone la etapa. Cada aprendiz tiene un solo mentor; quien no tiene mentor no está en formación. El propietario y los administradores pueden ser mentores, nunca aprendices.",
       "noMentor": "Sin mentor",
       "noMentorsYet": "Todavía no hay mentores. Activa «Mentor» en alguien para poder asignarle aprendices."
     },
@@ -5770,7 +5770,7 @@
     },
     "personal": {
       "intro": "Aquí ves solo lo tuyo: tu mentor, tus etapas y tu criterio. Quién es mentor y a quién guía lo decide el dueño o un administrador en Ajustes del despacho → Formación.",
-      "pupilsHelp": "Toma a miembros que aún no tienen mentor y ponles la etapa por materia. Solo tú, como su mentor, pones la etapa; el dueño y los administradores ven quiénes son tus aprendices, nunca su etapa."
+      "pupilsHelp": "Toma a miembros que aún no tienen mentor y ponles la etapa por materia. Solo tú, como su mentor, pones la etapa. El propietario y los administradores ven quiénes son tus aprendices, nunca su etapa."
     }
   },
   "ui": {

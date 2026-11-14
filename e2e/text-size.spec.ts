@@ -118,7 +118,7 @@ test.describe("text size behaviour", () => {
         const patches: Record<string, unknown>[] = [];
         await signedIn(page, undefined, patches);
         await page.goto("/settings/appearance");
-        await expect(page.getByText("Changes the size of the text in LiTT. You can also use your browser's zoom.")).toBeVisible();
+        await expect(page.getByText("Choose how large text looks in LiTT. This only changes your screen.")).toBeVisible();
         await page.getByRole("radio", { name: "Large", exact: true }).click();
         await expect(page.locator("html")).toHaveAttribute("data-text-size", "large");
         expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("18px");

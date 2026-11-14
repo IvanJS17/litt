@@ -117,7 +117,7 @@ describe("who may use it", () => {
       render(<OrganizationPrivacyData />);
 
       expect(
-        screen.getByText("Only this organization's owners can manage its data."),
+        screen.getByText("Only this firm’s owners manage its data."),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Delete all projects" }),
@@ -213,7 +213,7 @@ describe("while the organization loads", () => {
         container.querySelector('[data-slot="org-privacy-skeleton"]'),
       ).toBeNull();
       expect(
-        screen.getByText("Only this organization's owners can manage its data."),
+        screen.getByText("Only this firm’s owners manage its data."),
       ).toBeInTheDocument();
     },
   );

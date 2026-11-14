@@ -79,7 +79,7 @@ describe("AppearancePage", () => {
         );
         expect(
             screen.getByText(
-                "Changes the size of the text in LiTT. You can also use your browser's zoom.",
+                "Choose how large text looks in LiTT. This only changes your screen.",
             ),
         ).toBeVisible();
     });

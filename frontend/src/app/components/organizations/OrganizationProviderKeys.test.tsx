@@ -132,7 +132,7 @@ function orgSettings(
 const renderTab = (props: { notice?: ReactNode } = {}) =>
   render(<OrganizationProviderKeys orgId="org-1" orgName="Acme LLP" {...props} />);
 const savedSection = () =>
-  screen.getByRole("region", { name: "Firm keys (Acme LLP)" });
+  screen.getByRole("region", { name: "AI keys of Acme LLP" });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -402,14 +402,14 @@ describe("an owner or admin", () => {
       screen.getByRole("switch", { name: "Members can use their own web search keys" }),
     ).toBeChecked();
     expect(
-      screen.getByRole("switch", { name: /Members can use their own scan reading keys/ }),
+      screen.getByRole("switch", { name: /Members can use their own scan reading key/ }),
     ).toBeChecked();
   });
 
   it.each([
     ["Members can use their own web search keys", "web_search"],
     [
-      "Members can use their own scan reading keys (LandingAI)",
+      "Members can use their own scan reading key (LandingAI)",
       "scan",
     ],
   ])("changes only the capability of the switch it presses: %s", async (name, capability) => {
@@ -543,7 +543,7 @@ describe("a member who cannot manage the organization", () => {
 
     expect(
       await screen.findByText(
-        "This organization has not set up a model provider yet.",
+        "This firm hasn’t set up an AI provider yet.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/A member's own key/)).not.toBeInTheDocument();
