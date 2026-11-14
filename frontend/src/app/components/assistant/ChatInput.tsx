@@ -18,7 +18,6 @@ import { PlaybookPickerModal } from "../playbooks/PlaybookPickerModal";
 import {
     ComposerChipsUI,
     COMPOSER_SEND_BUTTON_CLASS,
-    SendArrowUI,
     ExcerptModalUI,
     ExcerptPillUI,
 } from "@mike/ui";
@@ -1207,7 +1206,6 @@ function ChatInputForChatImpl(
                                 }
                                 className={cn(
                                     COMPOSER_SEND_BUTTON_CLASS,
-    SendArrowUI,
                                     // 40 px with the finger, in a 44 px zone.
                                     TOUCH_TARGET_CLASS,
                                     "h-7.5 w-7.5 rounded-[9px] pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:rounded-[12px]",

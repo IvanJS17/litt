@@ -181,7 +181,6 @@ export function ChatInput({
                         aria-label={isLoading ? t("word.stopResponse") : t("word.sendMessage")}
                         className={cn(
                             COMPOSER_SEND_BUTTON_CLASS,
-    SendArrowUI,
                             "h-8 w-8 shrink-0 rounded-[10px]",
                         )}
                     >

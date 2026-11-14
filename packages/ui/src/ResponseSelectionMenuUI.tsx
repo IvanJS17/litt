@@ -289,7 +289,7 @@ function AnnotationBubble({
                     type="submit"
                     aria-label={t("ui.responseSelectionMenu.addAnnotationToChat")}
                     disabled={!trimmed}
-                    className={`${COMPOSER_SEND_BUTTON_CLASS} h-7 w-7 shrink-0 rounded-lg`}
+                    className={`${COMPOSER_SEND_BUTTON_CLASS} h-7 w-7 shrink-0 rounded-[8px]`}
                 >
                     <SendArrowUI direction="up" />
                 </button>
