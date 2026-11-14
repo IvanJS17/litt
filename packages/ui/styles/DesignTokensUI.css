@@ -111,6 +111,17 @@
     /* Colors of the wordmark and monogram (LittBrandUI.tsx) in this theme. */
     --litt-mark-ink: var(--litt-tinta);
     --litt-mark-accent: var(--litt-ambar-tinta);
+    /* Send button "A" (approved exception to DESIGN.md rule 7, 2026-11-13).
+       Tinta fill; the arrow is ámbar fósforo only when there is something to
+       send. Disabled is gray, Stop is a papel square: neither has amber. */
+    --litt-send-bg: var(--litt-tinta);
+    --litt-send-bg-hover: #2e333d;
+    --litt-send-fg: var(--litt-ambar-fosforo);
+    --litt-send-stop: var(--litt-papel);
+    --litt-send-bg-disabled: #e2e2dd;
+    --litt-send-fg-disabled: #8d9093;
+    --litt-send-edge: transparent;
+    --litt-send-edge-hover: transparent;
     /* LittStatusMarkUI (approved motion exception, 2026-11-13). Done is the
        one green in the product's marks: emerald-700, 4.22–5.48:1 on white,
        papel, #f9f9f7 and #e2e2dd. The rule and the error outline are
@@ -191,6 +202,13 @@
     color-scheme: dark;
     --litt-mark-ink: var(--litt-papel);
     --litt-mark-accent: var(--litt-ambar-fosforo);
+    /* Send button, dark: tinta on the tinta composer needs an edge, papel
+       at 24 % (40 % on hover). Disabled is a papel wash with no edge. */
+    --litt-send-bg-hover: #0e121b;
+    --litt-send-bg-disabled: color-mix(in srgb, var(--litt-papel) 8%, transparent);
+    --litt-send-fg-disabled: color-mix(in srgb, var(--litt-papel) 38%, transparent);
+    --litt-send-edge: color-mix(in srgb, var(--litt-papel) 24%, transparent);
+    --litt-send-edge-hover: color-mix(in srgb, var(--litt-papel) 40%, transparent);
     /* Dark: emerald-400 (6.97–9.05:1 on tinta and its raised surfaces), the
        400 steps of the four hues, and the dark gray-500. */
     --litt-status-done: #34d399;
@@ -377,5 +395,48 @@
     .litt-status-mark[data-state="done"] .lsm-rule {
         opacity: 1;
         transform: none;
+    }
+}
+
+/* Send button glyph (SendArrowUI): a 7x7 pixel arrow, u = 2 px, that moves
+   one unit on hover, and the Stop square that replaces it. */
+.litt-send-glyph {
+    position: relative;
+    display: block;
+    width: 14px;
+    height: 14px;
+}
+.litt-send-glyph > svg {
+    position: absolute;
+    inset: 0;
+    shape-rendering: crispEdges;
+    transition:
+        transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.litt-send-glyph .lsg-arrow {
+    transform: rotate(var(--lsg-rot, 0deg));
+}
+button:enabled:hover .litt-send-glyph[data-stop="false"] .lsg-arrow {
+    transform: rotate(var(--lsg-rot, 0deg)) translateX(2px);
+}
+.litt-send-glyph .lsg-stop {
+    opacity: 0;
+    transform: scale(0.6);
+}
+.litt-send-glyph[data-stop="true"] .lsg-arrow {
+    opacity: 0;
+    transform: rotate(var(--lsg-rot, 0deg)) translateX(6px);
+}
+.litt-send-glyph[data-stop="true"] .lsg-stop {
+    opacity: 1;
+    transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    .litt-send-glyph > svg {
+        transition: none !important;
+    }
+    button:enabled:hover .litt-send-glyph[data-stop="false"] .lsg-arrow {
+        transform: rotate(var(--lsg-rot, 0deg));
     }
 }
