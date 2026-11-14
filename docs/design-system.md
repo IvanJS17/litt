@@ -313,6 +313,20 @@ owner approved it as an exception to DESIGN.md rule 7. Colors are the
 `--litt-send-*` tokens in `DesignTokensUI.css`; the arrow advances 2 px on
 hover (160 ms) and nothing moves under `prefers-reduced-motion`.
 
+#### Reasoning ladder (approved exception, 2026-11-13)
+
+`ReasoningLadderUI` replaces the reasoning slider in `ModelToggleUI`: one step
+per level the model offers, not counting "none" (`reasoningLevelsForModel`).
+Beside the model's name, `ReasoningMiniUI` draws it in tinta (papel in dark),
+steps of 4 to 10 px. Inside the menu the filled steps are amber, 6 to 12 px, an
+exception to DESIGN.md rule 7 that covers only them: ámbar tinta at 70 to
+100 % (light), ámbar fósforo at 55 to 100 % (dark), each mixed onto the menu
+surface and opaque; empty steps are an outline. Tokens: `--litt-ladder-*` in
+`DesignTokensUI.css`. It is a `slider` (arrows, Page Up/Down, Home, End). A
+step fills once when the level changes, 160 ms up and 110 ms down, and there is
+no motion for the keyboard, a drag, `prefers-reduced-motion`, a working LiTT or
+the menu opening.
+
 #### Status mark (approved exception, 2026-11-13)
 
 `LittStatusMarkUI` ("A · Cursor") replaces the MikeOSS `MikeIcon` as the

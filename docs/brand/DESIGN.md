@@ -89,6 +89,12 @@ Los SVG llevan contornos, sin dependencia de fuentes, e incluyen el área de pro
     - Cuándo: solo en el estado «listo para enviar». Deshabilitado (gris) y «Detener» (cuadro papel sobre tinta) no llevan ámbar.
     - Dibujo: la flecha va en la retícula de píxel (7 × 7, u = 2 px). Su único movimiento es avanzar 1u al pasar el mouse.
     - Qué no cubre: otros íconos, textos o botones, ni el wordmark ni el monograma.
+    Segunda excepción aprobada (2026-11-13, decisión del dueño), solo para la escalera de razonamiento dentro del menú del modelo:
+    - Qué cubre: los peldaños llenos de la escalera de razonamiento dentro del menú desplegable del selector de modelo (`ModelToggleUI`), en la web y en Word.
+    - Color: en claro, ámbar tinta `#965900` sobre el menú claro (`#FBFBF9`), con una opacidad que sube del 70 % en el primer peldaño al 100 % en el último. En oscuro, ámbar fósforo `#FFB21E` sobre el menú tinta (`#1F2430`), del 55 % al 100 %. Cada peldaño se pinta con su color ya mezclado sobre el menú, sin transparencia. Esos tonos intermedios no entran a la paleta ni se usan en otra parte. Los peldaños vacíos son un contorno de 1 px en tinta al 50 % (claro) o papel al 40 % (oscuro), nunca en ámbar.
+    - Cuándo: solo mientras el menú está abierto, y solo en los peldaños llenos. Con «Ninguno» no hay ámbar. El foco con teclado se queda como está.
+    - Dibujo: peldaños alineados abajo, con alturas que suben de 6 a 12 px, los mismos que la miniatura en tinta. Su único movimiento es el de la spec de movimiento de la escalera: se llenan o se vacían una sola vez al cambiar de nivel. No parpadean, no laten y no se repiten.
+    - Qué no cubre: la miniatura junto al nombre del modelo, que va en tinta o papel; el nombre del modelo, el nivel escrito, la fila elegida y su palomita; otros deslizadores, controles o etiquetas; el wordmark y el monograma.
 8. No aplicar tracking, kerning ni cambios a los espacios: 2.045u del espolón a la ı y 2u entre glifos pixel.
 9. No deformar, inclinar, rotar, contornear, sombrear, degradar ni aplicar brillo o glow. Excepción aprobada (2026-11-13, decisión del dueño): en el estado de error del indicador de estado (`LittStatusMarkUI`), el cuadrado se apaga y queda solo su contorno en `gray-500`. No aplica al wordmark ni al monograma.
 10. No animar el cuadrado (parpadeo de cursor, pulso) sin una spec de movimiento aprobada. Spec aprobada (2026-11-13, decisión del dueño), solo para el indicador de estado del asistente (`LittStatusMarkUI`, «A · Cursor») y nunca para el wordmark ni el monograma:
