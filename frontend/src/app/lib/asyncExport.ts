@@ -15,14 +15,37 @@ import { UserVisibleError } from "@mike/client";
 const POLL_MS = process.env.NODE_ENV === "test" ? 10 : 2000;
 const POLL_LIMIT = 150; // ~5 minutes
 
+/** Wait one poll interval, or reject as soon as the caller aborts. */
+function pause(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) return reject(signal.reason);
+        const onAbort = () => {
+            clearTimeout(timer);
+            reject(signal!.reason);
+        };
+        const timer = setTimeout(() => {
+            signal?.removeEventListener("abort", onAbort);
+            resolve();
+        }, ms);
+        signal?.addEventListener("abort", onAbort, { once: true });
+    });
+}
+
+/**
+ * `signal` belongs to the screen that asked: once it aborts (the person left
+ * the page) the loop stops polling and downloads nothing. The job keeps
+ * building on the server and is found finished when started again.
+ */
 export async function runUserExport(
     type: UserExportType,
     params?: Record<string, unknown>,
+    signal?: AbortSignal,
 ): Promise<{ blob: Blob; filename: string | null }> {
     const { export_id } = await startUserExport(type, params);
     for (let i = 0; i < POLL_LIMIT; i++) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+        await pause(POLL_MS, signal);
         const status = await getUserExportStatus(export_id);
+        if (signal?.aborted) throw signal.reason;
         if (status.status === "failed")
             throw new UserVisibleError(
                 "LiTT couldn't build the export. Try again, and contact support if it keeps happening.",
@@ -30,6 +53,7 @@ export async function runUserExport(
             );
         if (status.status === "done") {
             const { blob, filename } = await downloadUserExport(export_id);
+            if (signal?.aborted) throw signal.reason;
             return { blob, filename: filename ?? status.filename };
         }
     }
