@@ -154,7 +154,7 @@ export function CreateOrganizationModal({
           onClose();
         }}
         breadcrumbs={[
-          t("settings.layout.tab.organizations"),
+          t("settings.map.tab.organizations.title"),
           t("organizations.organizationModals.newOrganization"),
         ]}
         primaryAction={{
@@ -372,7 +372,7 @@ export function InviteOrganizationMemberModal({
         open={open}
         onClose={onClose}
         breadcrumbs={[
-          t("settings.layout.tab.organizations"),
+          t("settings.map.tab.organizations.title"),
           org.name,
           t("organizations.organizationModals.addMemberBreadcrumb"),
         ]}

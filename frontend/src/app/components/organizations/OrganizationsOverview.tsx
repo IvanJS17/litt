@@ -22,7 +22,6 @@ import {
   type OrgInvitation,
 } from "@/app/lib/mikeApi";
 import { orgRoleLabel } from "./orgRoleText";
-import { isOrgAdmin } from "@/app/lib/permissions";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LIQUID_GLASS_SUBTLE_CLASS, PillButtonUI } from "@mike/ui";
 import { DeletedOrganizations } from "./DeletedOrganizations";
@@ -49,8 +48,6 @@ export function OrganizationsOverview() {
   const { workspaceId, setWorkspace, refreshOrganizations } = useWorkspace();
   // `null` is "no workspace to compare with" (outside a WorkspaceProvider),
   // where nothing is narrowed.
-  // A member opens the same settings, but can only read them.
-  const canManage = (org: Org) => isOrgAdmin(org.role);
   const isCurrentWorkspace = (org: Org) =>
     workspaceId === null || workspaceId === org.id;
   const [orgs, setOrgs] = useState<Org[] | null>(null);
@@ -208,39 +205,30 @@ export function OrganizationsOverview() {
                   name={org.name}
                   detail={t("organizations.organizationsOverview.roleAndMembers", { role: orgRoleLabel(t, org.role), count: members })}
                   icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
-                  // Only the workspace the person is in opens its settings;
-                  // every other organization is switched to first.
+                  // Every firm opens its own «Ajustes del despacho»; opening
+                  // them from another workspace switches to that firm first
+                  // (with a notice). The other firms also offer a plain switch.
                   action={
-                    current ? (
+                    <span className="flex flex-wrap items-center justify-end gap-2">
+                      {current ? null : (
+                        <PillButtonUI
+                          tone="white"
+                          size="sm"
+                          aria-label={t("organizations.organizationsOverview.switchToName", { name: org.name })}
+                          onClick={() => setWorkspace(org.id)}
+                        >
+                          {t("organizations.organizationsOverview.switch")}
+                        </PillButtonUI>
+                      )}
                       <PillButtonUI
-                        tone={canManage(org) ? "blue" : "white"}
+                        tone={current ? "blue" : "black"}
                         size="sm"
-                        aria-label={t(
-                          canManage(org)
-                            ? "organizations.organizationsOverview.manageName"
-                            : "organizations.organizationsOverview.viewName",
-                          { name: org.name },
-                        )}
-                        onClick={() =>
-                          router.push(organizationSettingsHref(org.id))
-                        }
+                        aria-label={t("organizations.organizationsOverview.firmSettingsOfName", { name: org.name })}
+                        onClick={() => router.push(organizationSettingsHref(org.id))}
                       >
-                        {t(
-                          canManage(org)
-                            ? "organizations.organizationsOverview.manage"
-                            : "organizations.organizationsOverview.view",
-                        )}
+                        {t("settings.map.firmSettingsButton")}
                       </PillButtonUI>
-                    ) : (
-                      <PillButtonUI
-                        tone="black"
-                        size="sm"
-                        aria-label={t("organizations.organizationsOverview.switchToName", { name: org.name })}
-                        onClick={() => setWorkspace(org.id)}
-                      >
-                        {t("organizations.organizationsOverview.switch")}
-                      </PillButtonUI>
-                    )
+                    </span>
                   }
                 />
               );

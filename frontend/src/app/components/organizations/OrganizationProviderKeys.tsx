@@ -7,7 +7,6 @@ import { ApiKeyField } from "@/app/components/settings/ApiKeyField";
 import { ByokProviderModal } from "@/app/components/settings/ByokProviderModal";
 import { ConnectorCard } from "@/app/components/settings/ConnectorCard";
 import { ScanReadingCard } from "@/app/components/settings/ScanReadingCard";
-import { SplitClassesCard } from "@/app/components/settings/SplitClassesCard";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import {
   SettingsDescription,
@@ -25,8 +24,6 @@ import { routerSelectionsFromLists } from "@/app/hooks/useModelRouterSelections"
 import {
   MikeApiError,
   getOrgApiKeys,
-  getOrgSplitClasses,
-  saveOrgSplitClasses,
   isMfaRequiredError,
   saveOrgApiKey,
   saveOrgRouterModels,
@@ -398,8 +395,8 @@ export function OrganizationProviderKeys({
           </section>
         ) : null}
 
-        {/* The scan-reading explanation is on Features for everyone; here it
-            is only the firm key's field, for those who manage it. */}
+        {/* The firm's LandingAI key and switch, for those who manage them. The
+            firm's document types are in «Lectura de escaneados». */}
         {loading || canManage ? (
         <ScanReadingCard
           loading={loading}
@@ -413,13 +410,6 @@ export function OrganizationProviderKeys({
           onRemoveKey={() => saveKey("landingai", null)}
         />
         ) : null}
-
-        <SplitClassesCard
-          title={t("settings.splitClasses.title")}
-          intro={t("settings.splitClasses.orgIntro")}
-          load={() => getOrgSplitClasses(orgId)}
-          save={(classes) => saveOrgSplitClasses(orgId, classes)}
-        />
       </div>
 
       {canManage ? (

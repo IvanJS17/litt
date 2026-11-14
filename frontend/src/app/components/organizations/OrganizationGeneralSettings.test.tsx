@@ -393,7 +393,7 @@ describe("deleting", () => {
     expect(dialog).toHaveTextContent(
       "Its content and memberships are kept for 30 days.",
     );
-    expect(dialog).toHaveTextContent("An owner can restore it from Settings → Organizations");
+    expect(dialog).toHaveTextContent("An owner can restore it from Settings → My firms");
     // Nothing is deleted until it is confirmed.
     expect(mocks.deleteOrg).not.toHaveBeenCalled();
   });

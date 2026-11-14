@@ -4,6 +4,9 @@ import { useTranslations } from "next-intl";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
+import { SettingsCrossLink } from "@/app/components/settings/SettingsCrossLink";
+import { firmSettingsHref } from "@/app/lib/settingsMap";
+import { isOrgAdmin } from "@/app/lib/permissions";
 import type { KeyCapability, OrgApiKeySettings } from "@/app/lib/mikeApi";
 
 /**
@@ -64,5 +67,29 @@ export function PersonalKeysBlockedNotice() {
                 sentence without one, never " te da los modelos…". */}
             {firmName ? t("settings.keyScope.blocked", { name: firmName }) : t("settings.keyScope.blockedNoName")}
         </SettingsDescription>
+    );
+}
+
+/**
+ * Where the keys are decided when the firm's apply instead of the person's: a
+ * link to «Ajustes del despacho → Llaves del despacho» for those who manage
+ * it, and who to ask for everyone else. Never a copy of the firm's form.
+ */
+export function FirmKeysLink() {
+    const t = useTranslations();
+    const { activeOrganization } = useWorkspace();
+    if (!activeOrganization) return null;
+    if (!isOrgAdmin(activeOrganization.role))
+        return (
+            <SettingsDescription>
+                {t("settings.map.keysManagedByFirmMember", { name: activeOrganization.name })}
+            </SettingsDescription>
+        );
+    return (
+        <SettingsCrossLink
+            messageKey="settings.map.keysManagedByFirmAdmin"
+            href={firmSettingsHref(activeOrganization.id, "providers")}
+            values={{ name: activeOrganization.name }}
+        />
     );
 }

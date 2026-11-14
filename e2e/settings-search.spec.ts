@@ -66,11 +66,11 @@ test.describe("Settings search", () => {
         await expect(results(page)).toHaveCount(0);
 
         // "api key" is nowhere in the tab's name; the index knows it as a
-        // way of asking for Bring Your Own Keys.
+        // way of asking for My AI keys.
         // REGRESSION: fails if the related-match vocabulary stops working.
         await search.fill("api key");
         const byok = results(page).getByRole("button", {
-            name: /^Bring Your Own Keys\./,
+            name: /^My AI keys\./,
         });
         await expect(byok).toBeVisible();
 
@@ -141,7 +141,7 @@ test.describe("Settings search", () => {
         const search = await openSettings(page);
         await search.fill("delete");
         const first = results(page).getByRole("button", {
-            name: /^Delete data, Privacy & Data\./,
+            name: /^Delete data, Privacy and data\./,
         });
         const second = results(page).getByRole("button", {
             name: /^Delete account, Account\./,

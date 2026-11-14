@@ -189,35 +189,33 @@ describe("OrganizationsOverview", () => {
     ]);
   });
 
-  it("opens the settings of the workspace the person is in from its primary Manage button", async () => {
+  it("opens the settings of the workspace the person is in from its primary Firm settings button", async () => {
     const user = userEvent.setup();
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    const manage = within(card("Elite Law LLP")).getByRole("button", {
-      name: "Manage Elite Law LLP",
+    const open = within(card("Elite Law LLP")).getByRole("button", {
+      name: "Firm settings of Elite Law LLP",
     });
-    expect(manage).toHaveTextContent("Manage");
-    expect(manage.className).toMatch(/\bbg-interactive\b/);
+    expect(open).toHaveTextContent("Firm settings");
+    expect(open.className).toMatch(/\bbg-interactive\b/);
     // The card itself is not a second way in.
     expect(
-      screen.getAllByRole("button", { name: "Manage Elite Law LLP" }),
+      screen.getAllByRole("button", { name: "Firm settings of Elite Law LLP" }),
     ).toHaveLength(1);
 
-    await user.click(manage);
+    await user.click(open);
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org-1/settings");
   });
 
-  it("offers a member View, not Manage, on the workspace they are in", async () => {
+  it("offers a member the same button: the settings are read-only for them", async () => {
     const user = userEvent.setup();
     mocks.listOrgs.mockResolvedValue([{ ...JOINED_ORG, id: "org-1" }]);
     render(<OrganizationsOverview />);
     await screen.findByText("Community Legal");
 
-    expect(screen.queryByRole("button", { name: /^Manage/ })).not.toBeInTheDocument();
-    const view = screen.getByRole("button", { name: "View Community Legal" });
-    expect(view).toHaveTextContent("View");
-    await user.click(view);
+    const open = screen.getByRole("button", { name: "Firm settings of Community Legal" });
+    await user.click(open);
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org-1/settings");
   });
 
@@ -228,20 +226,18 @@ describe("OrganizationsOverview", () => {
       mocks.listOrgs.mockResolvedValue([ORG, SECOND]);
     });
 
-    it("does not open its settings from here", async () => {
+    it("opens its settings from here, which switches to its workspace first", async () => {
       const user = userEvent.setup();
       render(<OrganizationsOverview />);
       await screen.findByText("Beta Chambers");
 
-      // Only the current workspace's card opens anything.
-      expect(
-        screen.queryByRole("button", { name: "Manage Beta Chambers" }),
-      ).not.toBeInTheDocument();
-      await user.click(screen.getByText("Beta Chambers"));
-      expect(mocks.push).not.toHaveBeenCalled();
+      await user.click(
+        screen.getByRole("button", { name: "Firm settings of Beta Chambers" }),
+      );
+      expect(mocks.push).toHaveBeenCalledWith("/organizations/org-2/settings");
     });
 
-    it("offers a black Switch button to its workspace instead", async () => {
+    it("also offers a plain Switch to its workspace", async () => {
       const user = userEvent.setup();
       render(<OrganizationsOverview />);
       await screen.findByText("Beta Chambers");
@@ -249,7 +245,6 @@ describe("OrganizationsOverview", () => {
       const switchButton = screen.getByRole("button", {
         name: "Switch to Beta Chambers",
       });
-      expect(switchButton.className).toMatch(/bg-gray-950/);
       await user.click(switchButton);
 
       expect(mocks.setWorkspace).toHaveBeenCalledExactlyOnceWith("org-2");
@@ -261,20 +256,19 @@ describe("OrganizationsOverview", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("opens no organization's settings from the personal workspace", async () => {
+    it("offers every firm's settings from the personal workspace too", async () => {
       mocks.workspaceId = "personal";
       render(<OrganizationsOverview />);
       await screen.findByText("Beta Chambers");
 
-      expect(
-        screen.queryByRole("button", { name: /^Manage / }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Switch to Elite Law LLP" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Switch to Beta Chambers" }),
-      ).toBeInTheDocument();
+      for (const name of ["Elite Law LLP", "Beta Chambers"]) {
+        expect(
+          screen.getByRole("button", { name: `Firm settings of ${name}` }),
+        ).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: `Switch to ${name}` }),
+        ).toBeInTheDocument();
+      }
     });
   });
 
@@ -401,12 +395,12 @@ describe("OrganizationsOverview", () => {
     render(<SettingsLayout><OrganizationsOverview /></SettingsLayout>);
 
     expect(await screen.findByRole("button", {
-      name: "Organizations 1 pending invitation",
+      name: "My firms 1 pending invitation",
     })).toBeVisible();
     await user.click(await screen.findByRole("button", {
       name: `${action} Inviting Chambers`,
     }));
-    expect(await screen.findByRole("button", { name: "Organizations" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "My firms" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Invitations" })).not.toBeInTheDocument();
   });
 

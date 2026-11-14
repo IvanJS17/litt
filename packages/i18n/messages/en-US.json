@@ -609,7 +609,7 @@
       "organisation": "Organisation",
       "organizationFallback": "Organization",
       "organizationInvitations": "Organization invitations",
-      "ownKeysOptional": "Your own keys (optional)",
+      "ownKeysOptional": "Your own AI keys (optional)",
       "pleaseTryAgain": "Please try again.",
       "refreshInvitations": "Refresh invitations",
       "saveDetailsAction": "save your details",
@@ -1102,7 +1102,7 @@
       "training_retake_source_gone": "The notes this question came from no longer exist, so it can't be judged. This retake was closed; you can ask for a new one.",
       "training_review_audit_stale": "The review was regenerated after you began this audit. Draw a new sample.",
       "training_review_in_progress": "This is already being generated.",
-      "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews, questions and retakes.",
+      "training_review_key_required": "Add a key for your model in Settings → My AI keys to generate reviews, questions and retakes.",
       "untrusted_origin": "The request origin is not allowed.",
       "upload_incomplete": "The uploaded file isn't available yet.",
       "upload_session_control_rate_limit": "Too many upload requests. Try again later.",
@@ -1959,7 +1959,7 @@
       "theLogoCouldNotBeSaved": "The logo could not be saved.",
       "thisActionIsSensitiveEnterA": "This action is sensitive. Enter a code from your authenticator app to continue.",
       "thisOrganization": "this organization",
-      "thisRemovesAccessToTheOrganization": "This removes access to the organization for all members. Its content and memberships are kept for 30 days. An owner can restore it from Settings → Organizations during that period. After 30 days, it is permanently deleted.",
+      "thisRemovesAccessToTheOrganization": "This removes access to the organization for all members. Its content and memberships are kept for 30 days. An owner can restore it from Settings → My firms during that period. After 30 days, it is permanently deleted.",
       "twoFactorVerificationRequired": "Two-factor verification required",
       "upload": "Upload",
       "uploadLogo": "Upload logo",
@@ -2141,19 +2141,14 @@
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Back to General",
-      "bringYourOwnKeys": "Bring Your Own Keys",
+      "bringYourOwnKeys": "Firm keys",
       "onlyThisOrganizationsOwnersAndAdmins": "Only this organization's owners and admins can manage its keys.",
       "organization": "Organization"
     },
     "organizationSettingsShell": {
-      "auditLog": "Audit log",
-      "bringYourOwnKeys": "Bring Your Own Keys",
       "couldNotLoadThisOrganization": "Could not load this organization.",
-      "formacion": "Training",
-      "general": "General",
       "members": "Members",
       "organization": "Organization",
-      "privacyData": "Privacy & Data",
       "theseSettingsAreNotAvailable": "These settings are not available.",
       "tryAgain": "Try again",
       "yourOrganizations": "Your organizations"
@@ -2170,8 +2165,6 @@
       "invitationNotUpdated": "Invitation not updated",
       "invitations": "Invitations",
       "invitedYouAs": "Invited you as {role}",
-      "manage": "Manage",
-      "manageName": "Manage {name}",
       "new": "New",
       "newOrganization": "New organization",
       "noOrganizationsYetCreateOneTo": "No organizations yet. Create one to share projects and workflows with your team.",
@@ -2180,8 +2173,7 @@
       "switch": "Switch",
       "switchToName": "Switch to {name}",
       "tryAgain": "Try again",
-      "view": "View",
-      "viewName": "View {name}"
+      "firmSettingsOfName": "Firm settings of {name}"
     },
     "role": {
       "admin": {
@@ -2624,7 +2616,7 @@
     "loadingAuthenticator": "Loading authenticator...",
     "noModelsAvailable": "No models available",
     "noVerifiedAuthenticatorFactorIsAvailable": "No verified authenticator factor is available for this session.",
-    "openBringYourOwnKeys": "Open Bring Your Own Keys",
+    "openBringYourOwnKeys": "Open My AI keys",
     "openOrganization": "Open Organization",
     "sixDigitVerificationCode": "Six digit verification code",
     "theVerificationCodeIsInvalidOr": "The verification code is invalid or expired.",
@@ -3053,13 +3045,6 @@
       "typeYourEmailToConfirm": "Type your email to confirm",
       "yourPersonalDocumentsChatsMemoryPreferences": "Your personal documents, chats, memory, preferences, connections, AI keys and profile are deleted now. Work you created in your firm’s matters, audit history and AI evidence stay with the firm and will show “Deleted user”. Backups are deleted within 30 days."
     },
-    "features": {
-      "assistant": "Assistant",
-      "quickActions": "Quick actions",
-      "responseDetails": "Response details",
-      "showTheModelReasoningEffortAnd": "Show the model, reasoning effort and token count under each response and subagent.",
-      "showTheQuickActionsRowOn": "Show the quick actions row on the assistant start screen."
-    },
     "home": {
       "accountDeletionIsSensitiveEnterA": "Account deletion is sensitive. Enter a code from your authenticator app to continue.",
       "acercaDe": "About",
@@ -3100,38 +3085,15 @@
       "yourAccountWasCreatedWithGoogle": "Your account was created with Google. To change your email, first add a password in Settings > Security > Password."
     },
     "keyScope": {
-      "personalHeading": "My personal keys",
+      "personalHeading": "My AI keys",
       "personal": "These keys are yours and apply to your personal workspace.",
       "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
       "blocked": "You work with the keys of {name}. Your firm does not allow using your own keys for this.",
       "blockedNoName": "You work with your firm's keys. Your firm does not allow using your own keys for this."
     },
     "layout": {
-      "group": {
-        "account": "Account",
-        "firm": "Firm",
-        "keys": "Keys",
-        "preferences": "Preferences",
-        "privacy": "Privacy"
-      },
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
-      "settings": "Settings",
-      "tab": {
-        "account": "Account",
-        "appearance": "Appearance",
-        "byok": "Bring Your Own Keys",
-        "connectors": "Connectors",
-        "features": "Features",
-        "firmKeys": "Firm keys",
-        "memory": "Memory",
-        "models": "Model Preferences",
-        "myActivity": "My Activity",
-        "organizations": "Organizations",
-        "personalisation": "Personalisation",
-        "privacyData": "Privacy & Data",
-        "security": "Security",
-        "training": "Training"
-      }
+      "settings": "Settings"
     },
     "mcpConnectorForm": {
       "bearerToken": "Bearer token",
@@ -3501,9 +3463,9 @@
         "title": "Text size"
       },
       "byok": {
-        "description": "Add your own API keys for model providers such as Anthropic, OpenAI, Google and Azure.",
+        "description": "Save your own API keys for AI providers such as Anthropic, OpenAI, Google and Azure.",
         "keywords": "byok|api key|api keys|key|keys|token|secret|credentials|provider|providers|model provider|anthropic|claude|openai|chatgpt|gpt|gemini|google|mistral|xai|grok|bedrock|aws|azure|vertex|openrouter|vercel|ai gateway|custom endpoint|base url|own model|connect model|llm|llave|clave api|conectar modelo|add key|add provider|enable provider|disable provider|no models|missing key",
-        "title": "Bring Your Own Keys"
+        "title": "My AI keys"
       },
       "connectorsDiscover": {
         "description": "Connect Google Drive, Gmail, Calendar, or a custom MCP server.",
@@ -3561,12 +3523,12 @@
         "title": "My Activity"
       },
       "organizations": {
-        "description": "The organizations you belong to, and each one's settings.",
+        "description": "The firms you belong to. Each one opens its own firm settings.",
         "keywords": "organisation|organization|org|team|workspace|company|firm|members|admin|switch organization|leave organization|create organization",
-        "title": "My organizations"
+        "title": "My firms"
       },
       "organizationsInvitations": {
-        "description": "Organizations that have invited you to join.",
+        "description": "Firms that invited you to join.",
         "keywords": "invite|invitation|invited|join|join team|pending invitations|accept invitation|decline",
         "title": "Invitations"
       },
@@ -3614,6 +3576,21 @@
         "description": "The interns you supervise as a mentor and each one's stage.",
         "keywords": "pupilo|pupilos|pupils|mentor|pasantes|supervisar|supervise|aprobar|approve|etapa",
         "title": "My mentees"
+      },
+      "webSearch": {
+        "title": "Web search",
+        "description": "Turn on internet search, choose the service and save your search keys.",
+        "keywords": "search|internet|google|brave|tavily|deepseek|anthropic search|browse|online|search the web|search key|api key"
+      },
+      "scanReading": {
+        "title": "Scanned document reading",
+        "description": "Turn on scan reading with your LandingAI key.",
+        "keywords": "scan|scanned|ocr|landingai|landing ai|pdf|read scans|image pdf|api key"
+      },
+      "splitClasses": {
+        "title": "Document types for splitting case files",
+        "description": "Choose the document types used to split a case file in your personal space.",
+        "keywords": "split|separate|case file|expediente|document types|classes|pages|landingai"
       }
     },
     "security": {
@@ -3787,6 +3764,135 @@
         "reserved": "“uncategorized” is reserved. Choose another name.",
         "too_many": "A list can have at most {max} types."
       }
+    },
+    "map": {
+      "group": {
+        "account": "My account",
+        "work": "How I work",
+        "keys": "My keys and services",
+        "training": "My training",
+        "firms": "My firms",
+        "platform": "Platform administration",
+        "firmGeneral": "Firm",
+        "firmKeys": "Keys and services",
+        "firmControl": "Training and control"
+      },
+      "tab": {
+        "account": {
+          "title": "Account",
+          "help": "Check your profile, email and plan. Only you see this page."
+        },
+        "security": {
+          "title": "Security",
+          "help": "Change your password and turn on two-step verification. This protects your account only."
+        },
+        "privacyData": {
+          "title": "Privacy and data",
+          "help": "Download or delete your chats, projects and memory. This only affects your own data."
+        },
+        "myActivity": {
+          "title": "My activity",
+          "help": "See what you did in LiTT, with date and time. It only shows your own actions."
+        },
+        "personalisation": {
+          "title": "Personalization",
+          "help": "Tell the assistant who you are and how you want it to answer. It applies to all your chats."
+        },
+        "memory": {
+          "title": "Memory",
+          "help": "Choose what the assistant remembers about you and delete what you don’t want it to keep. This applies to your account."
+        },
+        "appearance": {
+          "title": "Appearance",
+          "help": "Choose the text size and dark mode. This only changes how you see LiTT."
+        },
+        "assistant": {
+          "title": "Assistant",
+          "help": "Choose what you see on the assistant’s start screen and under each answer. It only changes your screen."
+        },
+        "models": {
+          "title": "Model preferences",
+          "help": "Choose which model handles each assistant task. This applies to your account."
+        },
+        "byok": {
+          "title": "My AI keys",
+          "help": "Save your AI provider keys. LiTT uses them in your personal space and, if your firm allows it, in the firm’s."
+        },
+        "webSearch": {
+          "title": "Web search",
+          "help": "Turn on internet search and choose the service. Your search keys are used only if your firm allows it."
+        },
+        "scanReading": {
+          "title": "Scanned document reading",
+          "help": "Turn on scan reading with your LandingAI key and set your document types for splitting case files in your personal space."
+        },
+        "connectors": {
+          "title": "Connectors",
+          "help": "Connect outside accounts, like Google Drive, to bring in your files. Each connection is yours alone."
+        },
+        "training": {
+          "title": "My training",
+          "help": "See who your mentor is, which stage you are in and what your mentor sees of you. If you are a mentor, you also manage your pupils here."
+        },
+        "organizations": {
+          "title": "My firms",
+          "help": "Switch firms, answer invitations or create a new one. Each firm opens its own settings."
+        },
+        "betaInvitations": {
+          "title": "Beta invitations",
+          "help": "Invite people to the beta. Only platform administrators see this."
+        },
+        "betaStats": {
+          "title": "Beta statistics",
+          "help": "See how many people use the beta, and how. Only platform administrators see this."
+        }
+      },
+      "firmTab": {
+        "general": {
+          "title": "General",
+          "help": "Change the firm’s name and profile. All members see it; only administrators change it."
+        },
+        "members": {
+          "title": "Members",
+          "help": "See who is in the firm, invite people and change roles. Everyone sees the list; only administrators change it."
+        },
+        "providers": {
+          "title": "Firm keys",
+          "help": "Save the firm’s AI, web search and scan reading keys, and decide whether members use their own. Only owners and administrators."
+        },
+        "scanReading": {
+          "title": "Scanned document reading",
+          "help": "Set the document types used to split case files. They apply to the whole firm. Only owners and administrators."
+        },
+        "training": {
+          "title": "Training",
+          "help": "Name mentors and assign pupils if you are an owner or administrator. All members read the firm’s criteria."
+        },
+        "audit": {
+          "title": "Audit",
+          "help": "See what happened in the firm and who did it. Only owners and administrators."
+        },
+        "privacyData": {
+          "title": "Privacy and data",
+          "help": "Decide whether members can export or delete their data, and delete data for the whole firm. Only owners."
+        }
+      },
+      "personalBanner": "These settings are yours. Your firm’s are in <link>Firm settings →</link>",
+      "firmHeading": "Firm settings · {name}",
+      "firmHeadingLoading": "Firm settings",
+      "firmBanner": "These settings belong to {name}. Yours are in <link>Settings →</link>",
+      "firmSettingsButton": "Firm settings",
+      "managedByFirmAdmin": "Your firm manages this when you work in {name}. Open <link>Firm settings → Scanned document reading</link>.",
+      "managedByFirmMember": "Your firm manages this when you work in {name}. Ask an owner or administrator to change it.",
+      "keysManagedByFirmAdmin": "Your firm decides these keys when you work in {name}. Manage them in <link>Firm settings → Firm keys</link>.",
+      "keysManagedByFirmMember": "Your firm decides these keys when you work in {name}. Ask an owner or administrator to change them."
+    },
+    "assistant": {
+      "assistant": "Assistant",
+      "quickActions": "Quick actions",
+      "responseDetails": "Response details",
+      "showTheModelReasoningEffortAnd": "Show the model, reasoning effort and token count under each response and subagent.",
+      "showTheQuickActionsRowOn": "Show the quick actions row on the assistant start screen."
     }
   },
   "shared": {
@@ -3829,7 +3935,6 @@
       "noHistoryYet": "No history yet",
       "noProjectsYet": "No projects yet",
       "openSidebar": "Open sidebar",
-      "organization": "Organization",
       "personalWorkspace": "My personal workspace",
       "recentProjects": "Recent Projects",
       "settings": "Settings",
@@ -4302,7 +4407,7 @@
     "all": "All",
     "allProjects": "All Projects",
     "apiKeyRejected": "API key rejected",
-    "apiKeyWasRejectedByok": "The {provider} API key was rejected. If you added your own key, check it in Settings → Bring Your Own Keys; otherwise contact your administrator.",
+    "apiKeyWasRejectedByok": "The {provider} API key was rejected. If you added your own key, check it in Settings → My AI keys; otherwise contact your administrator.",
     "apply": "Apply",
     "applyTheWorkflow": "apply the workflow",
     "applyWorkflow": "Apply workflow",
@@ -5134,7 +5239,7 @@
           "findingsLabel": "What you found",
           "findingsMin": "Write at least {min} characters.",
           "noAssistant": "This page has no assistant on purpose. Read the document yourself and write what you found. LiTT cannot check that you read without help: it is your own statement.",
-          "noKey": "To compare you need a key for your model. Add it in Settings, under Bring Your Own Keys (BYOK).",
+          "noKey": "To compare you need a key for your model. Add it in Settings → My AI keys.",
           "retry": "Try again",
           "send": "Send what I found",
           "sendHint": "After sending, you cannot change it. Then you can compare it with what the machine found.",
@@ -5650,7 +5755,7 @@
     "org": {
       "cannotBePupil": "Owners and admins can't be pupils.",
       "loadFailed": "Could not load training.",
-      "memberIntro": "Here you read your firm's criteria. Your own training (your mentor and your stages) is in Settings → Training.",
+      "memberIntro": "Here you read your firm's criteria. Your own training (your mentor and your stages) is in Settings → My training.",
       "mentorHasPupils": "This person still has pupils. Release them or give them another mentor first.",
       "mentorLabel": "Their mentor:",
       "mentorOf": "Choose a mentor for {name}",
@@ -6072,7 +6177,7 @@
       "unavailable": "Google sign-in is temporarily unavailable. Try again.",
       "unexpected": "LiTT couldn't complete Google sign-in. Try again."
     },
-    "openBringYourOwnKeys": "Open Bring Your Own Keys",
+    "openBringYourOwnKeys": "Open My AI keys",
     "openChatFailed": "Failed to open this chat.",
     "openFileFailed": "LiTT couldn't open that file. Try again.",
     "openLittInWord": "Open LiTT in Word",

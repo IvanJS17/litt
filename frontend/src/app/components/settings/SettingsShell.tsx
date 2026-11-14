@@ -14,7 +14,16 @@ export interface SettingsShellTab {
     id: string;
     label: string;
     href: string;
+    /** What the section is for, what it changes and who it applies to. */
+    help?: string;
     badge?: ReactNode;
+}
+
+/** Tabs by id, in groups. A tab named in no group is listed last, ungrouped. */
+export interface SettingsShellGroup {
+    id: string;
+    label: string;
+    tabIds: string[];
 }
 
 /** On a phone, the settings home is a grouped list instead of a strip of tabs. */
@@ -23,8 +32,6 @@ export interface SettingsMobileHome {
     href: string;
     /** The label of the way back from a section ("Settings"). */
     backLabel: string;
-    /** Tabs by id, in groups. A tab named in no group is listed last, ungrouped. */
-    groups: { id: string; label: string; tabIds: string[] }[];
 }
 
 /**
@@ -41,7 +48,9 @@ export function SettingsShell({
     navLabel,
     tabs,
     rootHref,
+    groups,
     search,
+    banner,
     mobileHome,
     children,
 }: {
@@ -50,6 +59,12 @@ export function SettingsShell({
     navLabel: string;
     tabs: SettingsShellTab[];
     rootHref: string;
+    /**
+     * The sections in groups: headings down the side on a desktop, the
+     * sections of the phone's list. The groups come from the settings map
+     * (`lib/settingsMap.ts`).
+     */
+    groups?: SettingsShellGroup[];
     /** A search box drawn at the right end of the title row, when the area has one. */
     search?: ReactNode;
     /**
@@ -58,28 +73,29 @@ export function SettingsShell({
      * of tabs is not drawn. From 768 px up nothing changes.
      */
     mobileHome?: SettingsMobileHome;
+    /** One line above the sections, e.g. where the other home is. */
+    banner?: ReactNode;
     children: ReactNode;
 }) {
     const router = useRouter();
     const pathname = usePathname();
     const onPhoneHome = mobileHome ? pathname === mobileHome.href : false;
-    const listed = new Set(mobileHome?.groups.flatMap((group) => group.tabIds));
-    const phoneGroups = mobileHome
-        ? [
-              ...mobileHome.groups.map((group) => ({
-                  ...group,
-                  tabs: group.tabIds.flatMap(
-                      (id) => tabs.find((tab) => tab.id === id) ?? [],
-                  ),
-              })),
-              {
-                  id: "other",
-                  label: "",
-                  tabIds: [],
-                  tabs: tabs.filter((tab) => !listed.has(tab.id)),
-              },
-          ].filter((group) => group.tabs.length > 0)
-        : [];
+    const listed = new Set(groups?.flatMap((group) => group.tabIds));
+    // Every tab is in a group; one named in none is listed last, ungrouped.
+    const grouped = [
+        ...(groups ?? []).map((group) => ({
+            ...group,
+            tabs: group.tabIds.flatMap((id) => tabs.find((tab) => tab.id === id) ?? []),
+        })),
+        {
+            id: "other",
+            label: "",
+            tabIds: [] as string[],
+            tabs: tabs.filter((tab) => !listed.has(tab.id)),
+        },
+    ].filter((group) => group.tabs.length > 0);
+    // The help belongs to the section's own page, not to its detail pages.
+    const activeTab = tabs.find((tab) => pathname === tab.href);
 
     return (
         <div className="flex h-full flex-col overflow-y-auto">
@@ -105,7 +121,7 @@ export function SettingsShell({
                     mobileHome && !onPhoneHome && "max-md:hidden",
                 )}
             >
-                <h1 className="shrink-0 text-3xl font-medium font-eb-garamond">
+                <h1 className="min-w-0 text-3xl font-medium font-eb-garamond [overflow-wrap:anywhere]">
                     {title}
                 </h1>
                 {/* The search sits at the right end of the heading's row, so the
@@ -119,6 +135,18 @@ export function SettingsShell({
             </header>
 
             <main className="@container/settings mx-auto w-full max-w-5xl flex-1 px-6 pb-10 pt-4 md:pt-6">
+                {banner ? (
+                    <div
+                        data-slot="settings-banner"
+                        className={cn(
+                            "mb-4 text-sm text-gray-600",
+                            // A section on a phone leads with its back button.
+                            mobileHome && !onPhoneHome && "max-md:hidden",
+                        )}
+                    >
+                        {banner}
+                    </div>
+                ) : null}
                 <div className="grid grid-cols-1 gap-y-6 @min-[52rem]/settings:grid-cols-[224px_minmax(0,1fr)] @min-[52rem]/settings:gap-x-10">
                     {mobileHome && onPhoneHome ? (
                         <nav
@@ -126,7 +154,7 @@ export function SettingsShell({
                             data-slot="settings-phone-list"
                             className="flex flex-col gap-5 md:hidden"
                         >
-                            {phoneGroups.map((group) => (
+                            {grouped.map((group) => (
                                 <section key={group.id}>
                                     {group.label ? (
                                         <h2 className="px-3 pb-1.5 text-xs font-semibold text-gray-500">
@@ -172,34 +200,51 @@ export function SettingsShell({
                     >
                         <div className="-m-1 min-w-0 p-1">
                             <div className="-m-1 min-w-0 overflow-x-auto overflow-y-hidden p-1">
-                                <ul className="mb-0 flex gap-1 @min-[52rem]/settings:flex-col">
-                                    {tabs.map((tab) => {
-                                        const active =
-                                            pathname === tab.href ||
-                                            (tab.href !== rootHref &&
-                                                pathname.startsWith(tab.href));
-                                        return (
-                                            <li key={tab.id}>
-                                                <button
-                                                    type="button"
-                                                    aria-current={
-                                                        active
-                                                            ? "page"
-                                                            : undefined
-                                                    }
-                                                    onClick={() =>
-                                                        router.push(tab.href)
-                                                    }
-                                                    className={settingsTabButtonClassName(
-                                                        active,
-                                                    )}
+                                {/* Groups are headings down the side; in the strip
+                                    across the top of a narrow page they vanish and
+                                    the tabs run on. */}
+                                <ul className="mb-0 flex gap-1 @min-[52rem]/settings:flex-col @min-[52rem]/settings:gap-4">
+                                    {grouped.map((group) => (
+                                        <li
+                                            key={group.id}
+                                            className="contents @min-[52rem]/settings:block"
+                                        >
+                                            {group.label ? (
+                                                <h2
+                                                    id={`settings-group-${group.id}`}
+                                                    className="hidden px-3 pb-1 text-xs font-semibold text-gray-500 @min-[52rem]/settings:block"
                                                 >
-                                                    {tab.label}
-                                                    {tab.badge ? <> {tab.badge}</> : null}
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
+                                                    {group.label}
+                                                </h2>
+                                            ) : null}
+                                            <ul
+                                                aria-labelledby={
+                                                    group.label ? `settings-group-${group.id}` : undefined
+                                                }
+                                                className="flex gap-1 @min-[52rem]/settings:flex-col"
+                                            >
+                                                {group.tabs.map((tab) => {
+                                                    const active =
+                                                        pathname === tab.href ||
+                                                        (tab.href !== rootHref &&
+                                                            pathname.startsWith(tab.href));
+                                                    return (
+                                                        <li key={tab.id}>
+                                                            <button
+                                                                type="button"
+                                                                aria-current={active ? "page" : undefined}
+                                                                onClick={() => router.push(tab.href)}
+                                                                className={settingsTabButtonClassName(active)}
+                                                            >
+                                                                {tab.label}
+                                                                {tab.badge ? <> {tab.badge}</> : null}
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
                         </div>
@@ -211,6 +256,14 @@ export function SettingsShell({
                             mobileHome && onPhoneHome && "max-md:hidden",
                         )}
                     >
+                        {activeTab?.help ? (
+                            <p
+                                data-slot="settings-tab-help"
+                                className="mb-6 max-w-prose text-sm text-gray-600"
+                            >
+                                {activeTab.help}
+                            </p>
+                        ) : null}
                         {children}
                     </div>
                 </div>

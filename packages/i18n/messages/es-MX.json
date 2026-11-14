@@ -609,7 +609,7 @@
       "organisation": "Despacho",
       "organizationFallback": "Despacho",
       "organizationInvitations": "Invitaciones a despachos",
-      "ownKeysOptional": "Mis llaves (opcional)",
+      "ownKeysOptional": "Mis llaves de IA (opcional)",
       "pleaseTryAgain": "Inténtalo de nuevo.",
       "refreshInvitations": "Actualizar invitaciones",
       "saveDetailsAction": "guardar tus datos",
@@ -1102,7 +1102,7 @@
       "training_retake_source_gone": "Las notas de las que salió esta pregunta ya no existen, así que no se puede evaluar. La retoma se cerró; puedes pedir una nueva.",
       "training_review_audit_stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva.",
       "training_review_in_progress": "Esto ya se está generando.",
-      "training_review_key_required": "Agrega una llave para tu modelo en Ajustes → Mis llaves para generar revisiones, preguntas y retomas.",
+      "training_review_key_required": "Agrega una llave para tu modelo en Ajustes → Mis llaves de IA para generar revisiones, preguntas y retomas.",
       "untrusted_origin": "El origen de la solicitud no está permitido.",
       "upload_incomplete": "El archivo que subiste aún no está disponible.",
       "upload_session_control_rate_limit": "Demasiadas solicitudes de carga. Inténtalo de nuevo más tarde.",
@@ -1959,7 +1959,7 @@
       "theLogoCouldNotBeSaved": "No se pudo guardar el logo.",
       "thisActionIsSensitiveEnterA": "Esta acción es sensible. Escribe un código de tu app de autenticación para continuar.",
       "thisOrganization": "este despacho",
-      "thisRemovesAccessToTheOrganization": "Esto quita el acceso al despacho a todos los miembros. Su contenido y membresías se conservan 30 días. Un propietario puede restaurarlo desde Ajustes → Despachos durante ese periodo. Después de 30 días, se borra permanentemente.",
+      "thisRemovesAccessToTheOrganization": "Esto quita el acceso al despacho a todos los miembros. Su contenido y membresías se conservan 30 días. Un propietario puede restaurarlo desde Ajustes → Mis despachos durante ese periodo. Después de 30 días, se borra permanentemente.",
       "twoFactorVerificationRequired": "Se requiere verificación en dos pasos",
       "upload": "Subir",
       "uploadLogo": "Subir logo",
@@ -2146,14 +2146,9 @@
       "organization": "Despacho"
     },
     "organizationSettingsShell": {
-      "auditLog": "Registro de auditoría",
-      "bringYourOwnKeys": "Llaves del despacho",
       "couldNotLoadThisOrganization": "No se pudo cargar este despacho.",
-      "formacion": "Formación",
-      "general": "General",
       "members": "Miembros",
       "organization": "Despacho",
-      "privacyData": "Privacidad y datos",
       "theseSettingsAreNotAvailable": "Estos ajustes no están disponibles.",
       "tryAgain": "Inténtalo de nuevo",
       "yourOrganizations": "Tus despachos"
@@ -2170,8 +2165,6 @@
       "invitationNotUpdated": "Invitación no actualizada",
       "invitations": "Invitaciones",
       "invitedYouAs": "Te invitó como {role}",
-      "manage": "Administrar",
-      "manageName": "Administrar {name}",
       "new": "Nueva",
       "newOrganization": "Nuevo despacho",
       "noOrganizationsYetCreateOneTo": "Aún no hay despachos. Crea uno para compartir proyectos y flujos de trabajo con tu equipo.",
@@ -2180,8 +2173,7 @@
       "switch": "Cambiar",
       "switchToName": "Cambiar a {name}",
       "tryAgain": "Inténtalo de nuevo",
-      "view": "Ver",
-      "viewName": "Ver {name}"
+      "firmSettingsOfName": "Ajustes del despacho de {name}"
     },
     "role": {
       "admin": {
@@ -2624,7 +2616,7 @@
     "loadingAuthenticator": "Cargando autenticador…",
     "noModelsAvailable": "No hay modelos disponibles",
     "noVerifiedAuthenticatorFactorIsAvailable": "No hay un factor de autenticación verificado para esta sesión.",
-    "openBringYourOwnKeys": "Abrir Mis llaves",
+    "openBringYourOwnKeys": "Abrir Mis llaves de IA",
     "openOrganization": "Abrir despacho",
     "sixDigitVerificationCode": "Código de verificación de seis dígitos",
     "theVerificationCodeIsInvalidOr": "El código de verificación no es válido o expiró.",
@@ -3053,13 +3045,6 @@
       "typeYourEmailToConfirm": "Escribe tu correo para confirmar",
       "yourPersonalDocumentsChatsMemoryPreferences": "Tus documentos personales, chats, memoria, preferencias, conexiones, llaves de IA y perfil se eliminan ahora. El trabajo que creaste en los asuntos de tu despacho, el historial de auditoría y la evidencia de IA se quedan con el despacho y mostrarán “Usuario eliminado”. Los respaldos se eliminan en un plazo de 30 días."
     },
-    "features": {
-      "assistant": "Asistente",
-      "quickActions": "Acciones rápidas",
-      "responseDetails": "Detalles de la respuesta",
-      "showTheModelReasoningEffortAnd": "Muestra el modelo, el esfuerzo de razonamiento y el conteo de tokens debajo de cada respuesta y de cada subagente.",
-      "showTheQuickActionsRowOn": "Muestra la fila de acciones rápidas en la pantalla de inicio del asistente."
-    },
     "home": {
       "accountDeletionIsSensitiveEnterA": "Eliminar la cuenta requiere verificación. Escribe un código de tu app de autenticación para continuar.",
       "acercaDe": "Acerca de",
@@ -3100,38 +3085,15 @@
       "yourAccountWasCreatedWithGoogle": "Tu cuenta se creó con Google. Para cambiar tu correo, primero agrega una contraseña en Ajustes > Seguridad > Contraseña."
     },
     "keyScope": {
-      "personalHeading": "Mis llaves",
+      "personalHeading": "Mis llaves de IA",
       "personal": "Estas llaves son tuyas y aplican a tu espacio personal.",
       "inFirm": "Estas llaves son tuyas. También se usan en el despacho {name}, pero solo para los proveedores que el despacho no tiene configurados; el despacho siempre usa primero las suyas.",
       "blocked": "Trabajas con las llaves de {name}. Tu despacho no permite usar llaves propias para esto.",
       "blockedNoName": "Trabajas con las llaves de tu despacho. Tu despacho no permite usar llaves propias para esto."
     },
     "layout": {
-      "group": {
-        "account": "Cuenta",
-        "firm": "Despacho",
-        "keys": "Llaves",
-        "preferences": "Preferencias",
-        "privacy": "Privacidad"
-      },
       "pendingInvitations": "{invitationCount, plural, one {invitación pendiente} other {invitaciones pendientes}}",
-      "settings": "Ajustes",
-      "tab": {
-        "account": "Cuenta",
-        "appearance": "Apariencia",
-        "byok": "Mis llaves",
-        "connectors": "Conectores",
-        "features": "Funciones",
-        "firmKeys": "Llaves del despacho",
-        "memory": "Memoria",
-        "models": "Preferencias de modelos",
-        "myActivity": "Mi actividad",
-        "organizations": "Despachos",
-        "personalisation": "Personalización",
-        "privacyData": "Privacidad y datos",
-        "security": "Seguridad",
-        "training": "Formación"
-      }
+      "settings": "Ajustes"
     },
     "mcpConnectorForm": {
       "bearerToken": "Token Bearer",
@@ -3501,9 +3463,9 @@
         "title": "Tamaño de letra"
       },
       "byok": {
-        "description": "Agrega tus llaves de API de proveedores de modelos como Anthropic, OpenAI, Google y Azure.",
+        "description": "Guarda tus llaves de API de proveedores de IA, como Anthropic, OpenAI, Google y Azure.",
         "keywords": "byok|mis llaves|llave api|llaves api|llave|llaves|token|secreto|credenciales|proveedor|proveedores|proveedor de modelos|anthropic|claude|openai|chatgpt|gpt|gemini|google|mistral|xai|grok|bedrock|aws|azure|vertex|openrouter|vercel|ai gateway|endpoint personalizado|url base|modelo propio|conectar modelo|llm|clave api|agregar llave|agregar proveedor|activar proveedor|desactivar proveedor|sin modelos|falta llave",
-        "title": "Mis llaves"
+        "title": "Mis llaves de IA"
       },
       "connectorsDiscover": {
         "description": "Conecta Google Drive, Gmail, Calendar o un servidor MCP personalizado.",
@@ -3561,7 +3523,7 @@
         "title": "Mi actividad"
       },
       "organizations": {
-        "description": "Los despachos a los que perteneces y la configuración de cada una.",
+        "description": "Los despachos a los que perteneces. Cada uno abre sus propios ajustes del despacho.",
         "keywords": "despacho|despachos|organización|organizaciones|org|equipo|espacio de trabajo|empresa|miembros|admin|cambiar despacho|salir del despacho|crear despacho",
         "title": "Mis despachos"
       },
@@ -3614,6 +3576,21 @@
         "description": "Los pasantes que supervisas como mentor y la etapa de cada uno.",
         "keywords": "pupilo|pupilos|pupils|mentor|pasantes|supervisar|supervise|aprobar|approve|etapa",
         "title": "Mis aprendices"
+      },
+      "webSearch": {
+        "title": "Búsqueda web",
+        "description": "Activa la búsqueda en internet, elige el servicio y guarda tus llaves de búsqueda.",
+        "keywords": "búsqueda|buscar|internet|google|brave|tavily|deepseek|búsqueda de anthropic|navegar|en línea|buscar en la web|llave de búsqueda|llave api"
+      },
+      "scanReading": {
+        "title": "Lectura de escaneados",
+        "description": "Activa la lectura de escaneados con tu llave de LandingAI.",
+        "keywords": "escaneado|escaneados|escáner|ocr|landingai|landing ai|pdf|leer escaneos|pdf de imagen|llave api"
+      },
+      "splitClasses": {
+        "title": "Tipos de documento para separar expediente",
+        "description": "Elige los tipos de documento que se usan para separar un expediente en tu espacio personal.",
+        "keywords": "separar|separar expediente|expediente|tipos de documento|clases|páginas|landingai"
       }
     },
     "security": {
@@ -3787,6 +3764,135 @@
         "reserved": "«uncategorized» está reservado. Elige otro nombre.",
         "too_many": "Una lista puede tener como máximo {max} tipos."
       }
+    },
+    "map": {
+      "group": {
+        "account": "Mi cuenta",
+        "work": "Mi forma de trabajar",
+        "keys": "Mis llaves y servicios",
+        "training": "Mi formación",
+        "firms": "Mis despachos",
+        "platform": "Administración de la plataforma",
+        "firmGeneral": "Despacho",
+        "firmKeys": "Llaves y servicios",
+        "firmControl": "Formación y control"
+      },
+      "tab": {
+        "account": {
+          "title": "Cuenta",
+          "help": "Revisa tu perfil, tu correo y tu plan. Solo tú ves esta página."
+        },
+        "security": {
+          "title": "Seguridad",
+          "help": "Cambia tu contraseña y activa la verificación en dos pasos. Protege solo tu cuenta."
+        },
+        "privacyData": {
+          "title": "Privacidad y datos",
+          "help": "Descarga o borra tus chats, proyectos y memoria. Solo afecta tus datos."
+        },
+        "myActivity": {
+          "title": "Mi actividad",
+          "help": "Consulta lo que hiciste en LiTT, con fecha y hora. Solo muestra tus acciones."
+        },
+        "personalisation": {
+          "title": "Personalización",
+          "help": "Cuéntale al asistente quién eres y cómo quieres sus respuestas. Se aplica a todos tus chats."
+        },
+        "memory": {
+          "title": "Memoria",
+          "help": "Elige qué recuerda de ti el asistente y borra lo que no quieras que guarde. Aplica a tu cuenta."
+        },
+        "appearance": {
+          "title": "Apariencia",
+          "help": "Elige el tamaño de la letra y el modo oscuro. Solo cambia cómo ves LiTT tú."
+        },
+        "assistant": {
+          "title": "Asistente",
+          "help": "Decide qué ves en el inicio del asistente y debajo de cada respuesta. Solo cambia tu pantalla."
+        },
+        "models": {
+          "title": "Preferencias de modelos",
+          "help": "Elige qué modelo hace cada tarea del asistente. Aplica a tu cuenta."
+        },
+        "byok": {
+          "title": "Mis llaves de IA",
+          "help": "Guarda tus llaves de proveedores de IA. LiTT las usa en tu espacio personal y, si tu despacho lo permite, en el del despacho."
+        },
+        "webSearch": {
+          "title": "Búsqueda web",
+          "help": "Activa la búsqueda en internet y elige el servicio. Tus llaves de búsqueda se usan solo si tu despacho lo permite."
+        },
+        "scanReading": {
+          "title": "Lectura de escaneados",
+          "help": "Activa la lectura de escaneados con tu llave de LandingAI y define tus tipos de documento para separar expediente en tu espacio personal."
+        },
+        "connectors": {
+          "title": "Conectores",
+          "help": "Conecta cuentas externas, como Google Drive, para traer tus archivos. Cada conexión es solo tuya."
+        },
+        "training": {
+          "title": "Mi formación",
+          "help": "Mira quién es tu mentor, en qué etapa estás y qué ve tu mentor de ti. Si eres mentor, aquí también atiendes a tus aprendices."
+        },
+        "organizations": {
+          "title": "Mis despachos",
+          "help": "Cambia de despacho, responde invitaciones o crea uno nuevo. Cada despacho abre sus propios ajustes."
+        },
+        "betaInvitations": {
+          "title": "Invitaciones a la beta",
+          "help": "Invita a personas a la beta. Solo lo ven los administradores de la plataforma."
+        },
+        "betaStats": {
+          "title": "Estadísticas de la beta",
+          "help": "Revisa cuánta gente usa la beta y cómo. Solo lo ven los administradores de la plataforma."
+        }
+      },
+      "firmTab": {
+        "general": {
+          "title": "General",
+          "help": "Cambia el nombre y el perfil del despacho. Todos los miembros lo ven; solo los administradores lo cambian."
+        },
+        "members": {
+          "title": "Miembros",
+          "help": "Mira quién está en el despacho, invita personas y cambia roles. Todos ven la lista; solo los administradores la cambian."
+        },
+        "providers": {
+          "title": "Llaves del despacho",
+          "help": "Guarda las llaves de IA, de búsqueda web y de lectura de escaneados del despacho, y decide si los miembros usan las suyas. Solo propietarios y administradores."
+        },
+        "scanReading": {
+          "title": "Lectura de escaneados",
+          "help": "Define los tipos de documento para separar expediente. Aplican a todo el despacho. Solo propietarios y administradores."
+        },
+        "training": {
+          "title": "Formación",
+          "help": "Designa mentores y asigna aprendices si eres propietario o administrador. Todos los miembros leen los criterios del despacho."
+        },
+        "audit": {
+          "title": "Auditoría",
+          "help": "Consulta qué pasó en el despacho y quién lo hizo. Solo propietarios y administradores."
+        },
+        "privacyData": {
+          "title": "Privacidad y datos",
+          "help": "Decide si los miembros pueden exportar o borrar sus datos, y borra datos de todo el despacho. Solo propietarios."
+        }
+      },
+      "personalBanner": "Estos ajustes son tuyos. Lo de tu despacho está en <link>Ajustes del despacho →</link>",
+      "firmHeading": "Ajustes del despacho · {name}",
+      "firmHeadingLoading": "Ajustes del despacho",
+      "firmBanner": "Estos ajustes son de {name}. Los tuyos están en <link>Ajustes →</link>",
+      "firmSettingsButton": "Ajustes del despacho",
+      "managedByFirmAdmin": "Tu despacho administra esto cuando trabajas en {name}. Abre <link>Ajustes del despacho → Lectura de escaneados</link>.",
+      "managedByFirmMember": "Tu despacho administra esto cuando trabajas en {name}. Pide a un propietario o administrador que lo cambie.",
+      "keysManagedByFirmAdmin": "Tu despacho decide estas llaves cuando trabajas en {name}. Adminístralas en <link>Ajustes del despacho → Llaves del despacho</link>.",
+      "keysManagedByFirmMember": "Tu despacho decide estas llaves cuando trabajas en {name}. Pide a un propietario o administrador que las cambie."
+    },
+    "assistant": {
+      "assistant": "Asistente",
+      "quickActions": "Acciones rápidas",
+      "responseDetails": "Detalles de la respuesta",
+      "showTheModelReasoningEffortAnd": "Muestra el modelo, el esfuerzo de razonamiento y el conteo de tokens debajo de cada respuesta y de cada subagente.",
+      "showTheQuickActionsRowOn": "Muestra la fila de acciones rápidas en la pantalla de inicio del asistente."
     }
   },
   "shared": {
@@ -3829,7 +3935,6 @@
       "noHistoryYet": "Sin historial todavía",
       "noProjectsYet": "Aún no hay proyectos",
       "openSidebar": "Abrir barra lateral",
-      "organization": "Despacho",
       "personalWorkspace": "Mi espacio personal",
       "recentProjects": "Proyectos recientes",
       "settings": "Ajustes",
@@ -4302,7 +4407,7 @@
     "all": "Todos",
     "allProjects": "Todos los proyectos",
     "apiKeyRejected": "Llave de API rechazada",
-    "apiKeyWasRejectedByok": "La llave de API de {provider} fue rechazada. Si agregaste tu propia llave, revísala en Ajustes → Mis llaves; si no, contacta a tu administrador.",
+    "apiKeyWasRejectedByok": "La llave de API de {provider} fue rechazada. Si agregaste tu propia llave, revísala en Ajustes → Mis llaves de IA; si no, contacta a tu administrador.",
     "apply": "Aplicar",
     "applyTheWorkflow": "aplicar el flujo de trabajo",
     "applyWorkflow": "Aplicar flujo de trabajo",
@@ -5134,7 +5239,7 @@
           "findingsLabel": "Lo que encontraste",
           "findingsMin": "Escribe al menos {min} caracteres.",
           "noAssistant": "Esta página no tiene asistente a propósito. Lee tú el documento y escribe lo que encontraste. LiTT no puede comprobar que leíste sin ayuda: es una declaración tuya.",
-          "noKey": "Para comparar necesitas una llave para tu modelo. Agrégala en Ajustes, en Mis llaves.",
+          "noKey": "Para comparar necesitas una llave para tu modelo. Agrégala en Ajustes → Mis llaves de IA.",
           "retry": "Intentar de nuevo",
           "send": "Enviar lo que encontré",
           "sendHint": "Después de enviarlo no podrás cambiarlo. Luego podrás compararlo con lo que encontró la máquina.",
@@ -5650,7 +5755,7 @@
     "org": {
       "cannotBePupil": "El dueño y los administradores no pueden ser aprendices.",
       "loadFailed": "No se pudo cargar la formación.",
-      "memberIntro": "Aquí lees los criterios de tu despacho. Tu formación personal (tu mentor y tus etapas) está en Ajustes → Formación.",
+      "memberIntro": "Aquí lees los criterios de tu despacho. Tu formación personal (tu mentor y tus etapas) está en Ajustes → Mi formación.",
       "mentorHasPupils": "Esta persona todavía tiene aprendices. Libéralos o asígnales otro mentor primero.",
       "mentorLabel": "Su mentor:",
       "mentorOf": "Elegir mentor para {name}",
@@ -6072,7 +6177,7 @@
       "unavailable": "El inicio de sesión con Google no está disponible por el momento. Inténtalo de nuevo.",
       "unexpected": "LiTT no pudo completar el inicio de sesión con Google. Inténtalo de nuevo."
     },
-    "openBringYourOwnKeys": "Abrir Mis llaves",
+    "openBringYourOwnKeys": "Abrir Mis llaves de IA",
     "openChatFailed": "No se pudo abrir este chat.",
     "openFileFailed": "LiTT no pudo abrir ese archivo. Inténtalo de nuevo.",
     "openLittInWord": "Abre LiTT en Word",

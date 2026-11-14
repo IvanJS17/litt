@@ -397,7 +397,7 @@ export default function SettingsPage() {
       <Modal
         open={googleEmailModalOpen}
         onClose={() => setGoogleEmailModalOpen(false)}
-        breadcrumbs={[t("settings.layout.tab.account"), t("settings.home.changeEmail")]}
+        breadcrumbs={[t("settings.map.tab.account.title"), t("settings.home.changeEmail")]}
         size="sm"
         className="h-auto"
         primaryAction={{

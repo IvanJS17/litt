@@ -25,7 +25,7 @@ describe("searchSettings", () => {
     });
 
     it("matches a section by its exact name, ignoring case and punctuation", () => {
-        const results = searchSettings("Bring your own keys!");
+        const results = searchSettings("My AI keys!");
         expect(ids(results)[0]).toBe("byok");
         expect(results[0].kind).toBe("exact");
     });
@@ -38,7 +38,7 @@ describe("searchSettings", () => {
         expect(kinds(searchSettings("ark"))["appearance-dark-mode"]).toBeUndefined();
     });
 
-    it("finds Bring Your Own Keys from the words people use for it", () => {
+    it("finds My AI keys from the words people use for it", () => {
         for (const query of ["api key", "anthropic", "openai key", "where do I add my claude key", "BYOK"]) {
             expect(ids(searchSettings(query)), query).toContain("byok");
         }
@@ -81,7 +81,7 @@ describe("searchSettings", () => {
     });
 
     it("orders exact keyword hits by how much of the keyword the query fills", () => {
-        // "google" is all of a Bring Your Own Keys keyword and part of
+        // "google" is all of a My AI keys keyword and part of
         // Security's "google authenticator".
         const results = ids(searchSettings("google"));
         expect(results.indexOf("byok")).toBeLessThan(results.indexOf("security-mfa"));

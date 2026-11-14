@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { SettingsShell } from "./SettingsShell";
 
@@ -35,14 +35,14 @@ describe("SettingsShell", () => {
         const mobileHome = {
             href: "/settings/menu",
             backLabel: "Settings",
-            groups: [
-                { id: "a", label: "Account group", tabIds: ["account", "memory"] },
-                { id: "k", label: "Keys group", tabIds: ["byok"] },
-            ],
         };
+        const groups = [
+            { id: "a", label: "Account group", tabIds: ["account", "memory"] },
+            { id: "k", label: "Keys group", tabIds: ["byok"] },
+        ];
         const renderShell = () =>
             render(
-                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs} mobileHome={mobileHome} search={<input aria-label="Search settings" />}>
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs} groups={groups} mobileHome={mobileHome} search={<input aria-label="Search settings" />}>
                     <p>page</p>
                 </SettingsShell>,
             );
@@ -74,6 +74,51 @@ describe("SettingsShell", () => {
             mockPathname = "/settings";
             renderShell();
             expect(screen.getAllByRole("navigation", { hidden: true }).at(-1)!.className).toContain("max-md:hidden");
+        });
+    });
+    describe("groups on a desktop", () => {
+        const tabs = [
+            { id: "account", label: "Account", href: "/settings", help: "Check your profile." },
+            { id: "memory", label: "Memory", href: "/settings/memory" },
+            { id: "byok", label: "Keys", href: "/settings/byok" },
+        ];
+        const groups = [
+            { id: "a", label: "Account group", tabIds: ["account", "memory"] },
+            { id: "k", label: "Keys group", tabIds: ["byok"] },
+        ];
+
+        it("heads each group down the side and keeps every tab in its group", () => {
+            mockPathname = "/settings";
+            render(
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs} groups={groups}>
+                    <p>page</p>
+                </SettingsShell>,
+            );
+            const side = screen.getByRole("navigation", { name: "Settings sections" });
+            const lists = within(side).getAllByRole("list", { name: /group$/ });
+            expect(lists.map((list) => list.textContent)).toEqual(["AccountMemory", "Keys"]);
+            expect(within(side).getByRole("heading", { name: "Keys group" })).toBeInTheDocument();
+        });
+
+        it("says what the open section is for, above the page, and a banner above all", () => {
+            mockPathname = "/settings";
+            render(
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs} groups={groups} banner={<span>Other home</span>}>
+                    <p>page</p>
+                </SettingsShell>,
+            );
+            expect(screen.getByText("Check your profile.")).toBeInTheDocument();
+            expect(screen.getByText("Other home")).toBeInTheDocument();
+        });
+
+        it("keeps the help to the section's own page, not its detail pages", () => {
+            mockPathname = "/settings/memory/detail";
+            render(
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs} groups={groups}>
+                    <p>page</p>
+                </SettingsShell>,
+            );
+            expect(screen.queryByText("Check your profile.")).toBeNull();
         });
     });
 });

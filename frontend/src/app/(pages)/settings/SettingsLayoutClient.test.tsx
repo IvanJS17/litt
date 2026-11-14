@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPlatformMe, listMyOrgInvitations, type OrgInvitation } from "@/app/lib/mikeApi";
@@ -35,10 +35,13 @@ vi.mock("@/app/hooks/useMemberDataActions", () => ({
     useMemberDataActions: () => dataActions,
 }));
 
-// Where the person's own keys do not apply, the keys tab is the firm's.
-const keyScope = vi.hoisted(() => ({ personalBlocked: false, firmName: null as string | null }));
-vi.mock("@/app/components/settings/KeyScope", () => ({
-    useKeyScope: () => keyScope,
+// The firm whose settings the line above Settings points to.
+const workspace = vi.hoisted(() => ({
+    activeOrganization: null as null | { id: string; name: string },
+    organizations: null as null | { id: string; name: string }[],
+}));
+vi.mock("@/app/contexts/WorkspaceContext", () => ({
+    useWorkspace: () => workspace,
 }));
 
 describe("SettingsLayout", () => {
@@ -52,8 +55,8 @@ describe("SettingsLayout", () => {
         vi.mocked(getPlatformMe).mockResolvedValue({ admin: false, can_create_org: false });
         dataActions.canExport = true;
         dataActions.canDelete = true;
-        keyScope.personalBlocked = false;
-        keyScope.firmName = null;
+        workspace.activeOrganization = null;
+        workspace.organizations = [];
     });
 
     it("while the session loads draws the settings frame in grey lines, not a full-screen spinner", () => {
@@ -70,25 +73,69 @@ describe("SettingsLayout", () => {
         expect(screen.queryByText("page")).not.toBeInTheDocument();
     });
 
-    it("names the keys tab after the firm's keys where the person's own do not apply", async () => {
-        keyScope.personalBlocked = true;
-        keyScope.firmName = "Despacho Demo";
+    it("lists the tabs in the map's groups, each under its heading", async () => {
         render(
             <SettingsLayout>
                 <div />
             </SettingsLayout>,
         );
-        expect(await screen.findByRole("button", { name: "Firm keys" })).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Bring Your Own Keys" })).toBeNull();
+        const side = (await screen.findAllByRole("navigation", { name: "Settings", hidden: true })).at(-1)!;
+        const lists = within(side).getAllByRole("list", { hidden: true }).slice(1);
+        expect(lists.map((list) => list.getAttribute("aria-labelledby"))).toEqual([
+            "settings-group-account",
+            "settings-group-work",
+            "settings-group-keys",
+            "settings-group-training",
+            "settings-group-firms",
+        ]);
+        expect(
+            within(side).getAllByRole("heading", { hidden: true }).map((heading) => heading.textContent),
+        ).toEqual(["My account", "How I work", "My keys and services", "My training", "My firms"]);
+        expect(within(side).getByRole("button", { name: "My AI keys" })).toBeInTheDocument();
+        expect(within(side).getByRole("button", { name: "Web search" })).toBeInTheDocument();
+        expect(within(side).getByRole("button", { name: "Scanned document reading" })).toBeInTheDocument();
     });
 
-    it("keeps the personal keys tab otherwise", async () => {
+    it("says what the open tab is for, from the map", async () => {
+        pathname = "/settings/memory";
         render(
             <SettingsLayout>
                 <div />
             </SettingsLayout>,
         );
-        expect(await screen.findByRole("button", { name: "Bring Your Own Keys" })).toBeInTheDocument();
+        expect(
+            await screen.findByText(/Choose what the assistant remembers about you/),
+        ).toBeInTheDocument();
+    });
+
+    it("points to the firm's settings from a line above Settings, only for a person in a firm", async () => {
+        const { unmount } = render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        await screen.findByRole("button", { name: "Memory" });
+        expect(screen.queryByRole("link", { name: /Firm settings/ })).toBeNull();
+        unmount();
+
+        workspace.activeOrganization = { id: "firm-1", name: "Socium" };
+        render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        const link = await screen.findByRole("link", { name: "Firm settings →" });
+        expect(link).toHaveAttribute("href", "/organizations/firm-1/settings");
+        expect(link.closest("p")).toHaveTextContent("These settings are yours.");
+    });
+
+    it("lists the personal keys tab as «My AI keys» in every workspace", async () => {
+        render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        expect(await screen.findByRole("button", { name: "My AI keys" })).toBeInTheDocument();
     });
 
     it("lists Privacy & Data while it has an export or a delete to offer", async () => {
@@ -99,7 +146,7 @@ describe("SettingsLayout", () => {
             </SettingsLayout>,
         );
         expect(
-            await screen.findByRole("button", { name: "Privacy & Data" }),
+            await screen.findByRole("button", { name: "Privacy and data" }),
         ).toBeInTheDocument();
     });
 
@@ -113,7 +160,7 @@ describe("SettingsLayout", () => {
         );
         expect(await screen.findByRole("button", { name: "Memory" })).toBeInTheDocument();
         expect(
-            screen.queryByRole("button", { name: "Privacy & Data" }),
+            screen.queryByRole("button", { name: "Privacy and data" }),
         ).toBeNull();
     });
 
@@ -129,8 +176,8 @@ describe("SettingsLayout", () => {
         expect(memoryTab).toHaveAttribute("aria-current", "page");
         expect(screen.getByText("Memory content")).toBeVisible();
 
-        await user.click(screen.getByRole("button", { name: "Features" }));
-        expect(push).toHaveBeenCalledWith("/settings/features");
+        await user.click(screen.getByRole("button", { name: "Assistant" }));
+        expect(push).toHaveBeenCalledWith("/settings/assistant");
     });
 
     it("links to My Activity from Settings", async () => {
@@ -141,7 +188,7 @@ describe("SettingsLayout", () => {
             </SettingsLayout>,
         );
 
-        const activityTab = await screen.findByRole("button", { name: "My Activity" });
+        const activityTab = await screen.findByRole("button", { name: "My activity" });
         await user.click(activityTab);
         expect(push).toHaveBeenCalledWith("/settings/my-activity");
     });
@@ -161,7 +208,7 @@ describe("SettingsLayout", () => {
         expect(screen.queryByRole("heading", { name: "Settings" })).toBeNull();
     });
 
-    it("shows the pending invitation count beside Organizations and opens the page", async () => {
+    it("shows the pending invitation count beside My firms and opens the page", async () => {
         vi.mocked(listMyOrgInvitations).mockResolvedValue([
             { id: "invite-1" },
             { id: "invite-2" },
@@ -174,11 +221,11 @@ describe("SettingsLayout", () => {
         );
 
         const organizations = await screen.findByRole("button", {
-            name: /Organizations/,
+            name: /My firms/,
         });
         await waitFor(() =>
             expect(organizations).toHaveAccessibleName(
-                "Organizations 2 pending invitations",
+                "My firms 2 pending invitations",
             ),
         );
         await user.click(organizations);

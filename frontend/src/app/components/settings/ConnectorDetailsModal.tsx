@@ -96,7 +96,7 @@ export function ConnectorDetailsModal({
         <Modal
             open={!!connector}
             onClose={onClose}
-            breadcrumbs={[t("settings.layout.tab.connectors"), connector?.name ?? t("settings.connectorDetailsModal.connector")]}
+            breadcrumbs={[t("settings.map.tab.connectors.title"), connector?.name ?? t("settings.connectorDetailsModal.connector")]}
             size="lg"
             secondaryAction={
                 connector

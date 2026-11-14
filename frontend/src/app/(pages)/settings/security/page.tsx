@@ -571,7 +571,7 @@ export default function SecurityPage() {
       <Modal
         open={setupModalOpen}
         onClose={() => void closeSetupModal()}
-        breadcrumbs={[t("settings.layout.tab.security"), t("settings.security.setUpAuthenticatorApp")]}
+        breadcrumbs={[t("settings.map.tab.security.title"), t("settings.security.setUpAuthenticatorApp")]}
         cancelAction={{
           label: enrollment ? t("common.back") : t("common.cancel"),
           onClick: enrollment
