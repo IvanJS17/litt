@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -105,8 +105,21 @@ export function SettingsShell({
     // The help belongs to the section's own page, not to its detail pages.
     const activeTab = tabs.find((tab) => pathname === tab.href);
 
+    // The open section is in view on arriving and on changing section: the
+    // bar scrolls to it (and the page, if the bar itself is below the fold).
+    // Not on every render, so a person who scrolled the bar is left alone.
+    const barRef = useRef<HTMLElement>(null);
+    useEffect(() => {
+        barRef.current
+            ?.querySelector('[aria-current="page"]')
+            ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }, [pathname]);
+
     return (
-        <div className="flex h-full flex-col overflow-y-auto">
+        // `[container-type:size]` makes this the box the bar's `cqh` height is
+        // measured against: the scroll area, not the window (the app frame
+        // takes some of the window).
+        <div className="flex h-full flex-col overflow-y-auto [container-type:size]">
             {mobileHome && !onPhoneHome ? (
                 <div className="mx-auto w-full max-w-5xl shrink-0 px-3 pt-2 md:hidden">
                     <Link
@@ -199,10 +212,19 @@ export function SettingsShell({
                             ))}
                         </nav>
                     ) : null}
+                    {/* From 820 px the bar stays in view while the open section
+                        scrolls: sticky at the top of the scroll area, no taller
+                        than it, scrolling by itself when the list does not fit
+                        (125 % text, a low laptop). The title row, the search
+                        and the line above the bar go up with the content: only
+                        the bar needs to be at hand. */}
                     <nav
+                        ref={barRef}
                         aria-label={navLabel}
+                        data-slot="settings-bar"
                         className={cn(
-                            "z-10 -ml-3 min-w-0 self-start @min-[820px]/settings:sticky @min-[820px]/settings:top-4",
+                            "z-10 -ml-3 min-w-0 self-start",
+                            "@min-[820px]/settings:sticky @min-[820px]/settings:top-3 @min-[820px]/settings:-mr-1 @min-[820px]/settings:-ml-4 @min-[820px]/settings:-mt-1 @min-[820px]/settings:max-h-[calc(100cqh-1.5rem)] @min-[820px]/settings:overflow-y-auto @min-[820px]/settings:overscroll-contain @min-[820px]/settings:p-1",
                             mobileHome && "max-md:hidden",
                         )}
                     >

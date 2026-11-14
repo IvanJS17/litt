@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { settingsTabButtonClassName } from "@/app/(pages)/settings/settingsStyles";
 import { SettingsShell } from "./SettingsShell";
 
 let mockPathname = "/settings";
@@ -168,6 +169,84 @@ describe("SettingsShell", () => {
                 </SettingsShell>,
             );
             expect(screen.queryByText("Check your profile.")).toBeNull();
+        });
+    });
+    describe("the bar stays in view while the open section scrolls", () => {
+        const tabs = [
+            { id: "account", label: "Account", href: "/settings" },
+            { id: "memory", label: "Memory", href: "/settings/memory" },
+        ];
+
+        it("is sticky from 820 px, no taller than the scroll area, and scrolls by itself", () => {
+            mockPathname = "/settings";
+            render(
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs}>
+                    <p>page</p>
+                </SettingsShell>,
+            );
+            const bar = screen.getByRole("navigation", { name: "Settings sections" });
+            expect(bar).toHaveAttribute("data-slot", "settings-bar");
+            for (const name of [
+                "sticky",
+                "top-3",
+                "max-h-[calc(100cqh-1.5rem)]",
+                "overflow-y-auto",
+                "overscroll-contain",
+            ]) {
+                expect(bar.className).toContain(`@min-[820px]/settings:${name}`);
+            }
+            // The height is measured against the scroll area, not the window.
+            expect(bar.className).not.toContain("dvh");
+            expect(bar.closest(".\\[container-type\\:size\\]")).not.toBeNull();
+            // Nothing changes on a phone: the bar is still hidden by `mobileHome`.
+        });
+
+        it("brings the open section into view on arriving and on changing section, only", () => {
+            const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+            mockPathname = "/settings/memory";
+            const { rerender } = render(
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs}>
+                    <p>page</p>
+                </SettingsShell>,
+            );
+            expect(scrollIntoView).toHaveBeenCalledTimes(1);
+            expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+            expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByRole("button", { name: "Memory" }));
+            // Re-rendering on the same route leaves a scrolled bar alone.
+            rerender(
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs}>
+                    <p>other page</p>
+                </SettingsShell>,
+            );
+            expect(scrollIntoView).toHaveBeenCalledTimes(1);
+            mockPathname = "/settings";
+            rerender(
+                <SettingsShell title="Settings" navLabel="Settings sections" rootHref="/settings" tabs={tabs}>
+                    <p>page</p>
+                </SettingsShell>,
+            );
+            expect(scrollIntoView).toHaveBeenCalledTimes(2);
+            expect(scrollIntoView.mock.contexts[1]).toBe(screen.getByRole("button", { name: "Account" }));
+            scrollIntoView.mockRestore();
+        });
+    });
+
+    describe("the amber ring is for the keyboard", () => {
+        it("draws it on focus-visible only, never on focus, for the open section and the others", () => {
+            for (const active of [true, false]) {
+                const classes = settingsTabButtonClassName(active).split(/\s+/);
+                expect(classes).toContain("focus-visible:ring-2");
+                expect(classes).toContain("focus-visible:ring-focus");
+                // The pointer guard of globals.css clears the ring after a click.
+                expect(classes).toContain("keyboard-focus-ring");
+                expect(classes.filter((name) => /^focus:(ring|outline-(?!none))/.test(name))).toEqual([]);
+            }
+        });
+
+        it("marks the open section as selected, with no ring or outline of its own", () => {
+            const open = settingsTabButtonClassName(true);
+            expect(open).toContain("bg-gray-100");
+            expect(open.split(/\s+/).filter((name) => /^(ring|outline)-/.test(name))).toEqual([]);
         });
     });
 });
