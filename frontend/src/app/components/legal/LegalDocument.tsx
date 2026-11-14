@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import { useLocale, useTranslations } from "next-intl";
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { LegalBackLink } from "@/app/components/legal/LegalBackLink";
+import { LegalFragmentScroll } from "@/app/components/legal/LegalFragmentScroll";
 import { legalToc, rehypeLegalAnchors } from "@/app/components/legal/legalAnchors";
 
 // No typography plugin is installed: style the Markdown elements from here.
@@ -66,6 +67,7 @@ export function LegalDocument({ markdown }: { markdown: string }) {
                             {markdown}
                         </ReactMarkdown>
                     </article>
+                    <LegalFragmentScroll />
                 </main>
             </div>
         </AuthPageShell>
