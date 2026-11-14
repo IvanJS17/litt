@@ -150,7 +150,7 @@ export function ChatHistoryDropdownUI({
                 // header and in the Word pane (it fits the narrowest pane).
                 className="flex w-64 max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden p-0"
             >
-                <div className="flex shrink-0 items-center gap-1.5 border-b border-white/40 px-3 py-2">
+                <div className="flex shrink-0 items-center gap-1.5 border-b border-gray-100 px-3 py-2">
                     <Search
                         aria-hidden="true"
                         className="h-3 w-3 shrink-0 text-gray-400"

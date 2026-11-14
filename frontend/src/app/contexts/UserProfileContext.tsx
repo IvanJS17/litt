@@ -39,7 +39,7 @@ import {
 } from "@/app/lib/mikeApi";
 import { apiKeyStateFromStatus, hasApiKeyStatus } from "@/app/lib/apiKeyState";
 import type { Message } from "@/app/components/shared/types";
-import { applyDarkMode } from "@/app/lib/theme";
+import { applyTheme, type Theme } from "@/app/lib/theme";
 import { prefetchPlatformMe } from "@/app/hooks/usePlatformMe";
 import { applyTextSize, DEFAULT_TEXT_SIZE, type TextSize } from "@/app/lib/textSize";
 import { syncUiLocale } from "@/app/lib/uiLocaleSync";
@@ -90,7 +90,8 @@ interface UserProfile extends RouterProfileLists {
     quickActionsVisible: boolean;
     /** Whether responses and subagents show the model, effort and tokens they used. */
     responseDetailsVisible: boolean;
-    darkMode: boolean;
+    /** Claro, Oscuro or Automático (follows the device). */
+    theme: Theme;
     textSize?: TextSize;
     projectMemoryDefault: boolean;
     apiKeys: ApiKeyState;
@@ -152,7 +153,7 @@ interface UserProfileContextType {
         router: RouterSlug,
         models: string[],
     ) => Promise<boolean>;
-    updateDarkMode: (enabled: boolean) => Promise<void>;
+    updateTheme: (theme: Theme) => Promise<void>;
     updateTextSize: (size: TextSize) => Promise<void>;
     updateProjectMemoryDefault: (enabled: boolean) => Promise<void>;
     updateApiKey: (
@@ -346,7 +347,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 quickActionsVisible: true,
                 responseDetailsVisible: false,
                 ...routerProfileLists({}),
-                darkMode: false,
+                theme: "light",
                 projectMemoryDefault: true,
                 apiKeys: emptyApiKeys(),
                 apiKeySettings: {},
@@ -388,10 +389,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     // Until the session and profile answer, keep the theme the boot script
     // painted from the last visit; signed out, the app is light.
     const signedOut = !authLoading && !isAuthenticated;
-    const darkMode = profile ? profile.darkMode === true : signedOut ? false : null;
+    const theme: Theme | null = profile ? profile.theme : signedOut ? "light" : null;
     useEffect(() => {
-        if (darkMode !== null) applyDarkMode(darkMode);
-    }, [darkMode]);
+        if (theme !== null) applyTheme(theme);
+    }, [theme]);
 
     // The saved size is the source of truth once the profile answers; until
     // then the boot script keeps the size this browser last showed. Signed
@@ -700,20 +701,22 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         [reportFailure, user, applyProfile],
     );
 
-    const updateDarkMode = useCallback(
-        async (enabled: boolean): Promise<void> => {
-            if (!user) throw new Error("Sign in to update Dark Mode.");
-            const previous = profile?.darkMode === true;
-            applyDarkMode(enabled);
+    // The page changes at once; if the save fails it goes back to the
+    // previous preference (Automático included) and the caller reports it.
+    const updateTheme = useCallback(
+        async (next: Theme): Promise<void> => {
+            if (!user) throw new Error("Sign in to update the theme.");
+            const previous: Theme = profile?.theme ?? "light";
+            applyTheme(next);
             try {
-                const updated = await updateUserProfile({ darkMode: enabled });
-                applyProfile({ ...updated, darkMode: enabled }, true);
+                const updated = await updateUserProfile({ theme: next });
+                applyProfile({ ...updated, theme: next }, true);
             } catch (error) {
-                applyDarkMode(previous);
+                applyTheme(previous);
                 throw error;
             }
         },
-        [user, profile?.darkMode, applyProfile],
+        [user, profile?.theme, applyProfile],
     );
 
     const updateTextSize = useCallback(
@@ -858,7 +861,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             updateQuickActionsVisible,
             updateResponseDetailsVisible,
             updateRouterModels,
-            updateDarkMode,
+            updateTheme,
             updateTextSize,
             updateProjectMemoryDefault,
             updateApiKey,
@@ -883,7 +886,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             updateQuickActionsVisible,
             updateResponseDetailsVisible,
             updateRouterModels,
-            updateDarkMode,
+            updateTheme,
             updateTextSize,
             updateProjectMemoryDefault,
             updateApiKey,

@@ -26,20 +26,29 @@ type Reply = { ok: true; result: unknown } | ({ ok: false; limited: boolean } & 
  */
 export function extractionCommand(entry: string): { command: string; args: string[] } {
   const memoryMb = extractionMemoryMb();
+  const typescript = entry.endsWith(".ts");
   const nodeArgs = [
     "--disable-wasm-trap-handler",
     `--max-old-space-size=${memoryMb}`,
-    ...(entry.endsWith(".ts") ? ["--require", require.resolve("tsx/cjs")] : []),
+    // A WebAssembly memory with no small maximum (the comparison engine's)
+    // otherwise reserves the largest step of 4, 3, 2 or 1 GiB that still fits
+    // under --as, leaving tens of MB for everything else; the process then dies
+    // at the address-space cap wherever that runs out (an abort, or a SIGSEGV
+    // when the stack cannot grow), not at the memory budget. A memory cannot
+    // commit more than --data anyway, so reserve at most the budget (64 KiB pages).
+    `--wasm-max-mem-pages=${memoryMb * 16}`,
+    ...(typescript ? ["--require", require.resolve("tsx/cjs")] : []),
     entry,
   ];
   if (process.platform === "linux") {
     const bytes = memoryMb * 1024 * 1024;
     // Writable heap/native allocations share the data limit. V8 also reserves
-    // address space for code (and the TS loader in dev); bound that separately.
-    // It is address space, not RAM: a comparison's WebAssembly reservations
-    // reach ~1.83 GB, so 1 GB of slack left 3-9% and aborted some runs. The real
-    // cap stays --data and the container's cgroup.
-    const addressBytes = bytes + 2 * 1024 ** 3;
+    // address space (~1 GiB of its own, plus each WebAssembly memory up to the
+    // budget); bound that separately. It is address space, not RAM: the real cap
+    // stays --data and the container's cgroup. The TS loader used in dev and
+    // tests brings one more WebAssembly memory (its lexer), so it gets one more
+    // budget of address space; the compiled server does not load it.
+    const addressBytes = bytes + 2 * 1024 ** 3 + (typescript ? bytes : 0);
     return { command: "prlimit", args: [`--data=${bytes}:${bytes}`, `--as=${addressBytes}:${addressBytes}`, "--core=0:0", "--", process.execPath, ...nodeArgs] };
   }
   return { command: process.execPath, args: nodeArgs };

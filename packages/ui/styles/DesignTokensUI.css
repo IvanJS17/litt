@@ -7,9 +7,10 @@
  * `@import` it, so a token changes in one place and both targets pick it up.
  * Import it AFTER `@import "tailwindcss";` so the `@theme` mappings apply.
  *
- * Fonts: `--font-inter` / `--font-eb-garamond` are provided by each host (the
- * web via next/font; the add-in via a Google Fonts <link> plus a :root
- * fallback in its styles.css), so they are intentionally not defined here.
+ * Fonts: `--font-inter`, `--font-newsreader` and `--font-departure-mono` are
+ * defined by frontend/src/app/fonts/fonts.css, which the web app and the Word
+ * add-in both import (one set of files, no Google Fonts), so they are
+ * intentionally not defined here.
  */
 
 @custom-variant dark (&:is(.dark *));
@@ -43,13 +44,26 @@
     --color-app-surface-hover: var(--app-surface-hover);
     --color-app-surface-active: var(--app-surface-active);
     --color-app-floating: var(--app-floating);
+    /* The scale of surfaces (docs/design-system.md, "Superficies de LiTT"):
+       mesa, hoja, flotante, campo and documento, with their elevations. */
+    --color-surface-desk: var(--surface-desk);
+    --color-surface-sheet: var(--surface-sheet);
+    --color-surface-float: var(--surface-float);
+    --color-surface-field: var(--surface-field);
+    --color-surface-document: var(--surface-document);
+    --shadow-elev-sheet: var(--elevation-sheet);
+    --shadow-elev-float: var(--elevation-float);
+    --shadow-elev-document: var(--elevation-document);
     /* Small text sizes in rem, so they follow the text-size setting
        (Settings > Appearance). 2xs was text-[11px] and 3xs text-[10px]; at
        the browser's 16 px base they are the same size. */
     --text-2xs: 0.6875rem;
     --text-3xs: 0.625rem;
     --font-sans: var(--font-inter);
-    --font-serif: var(--font-eb-garamond);
+    --font-serif: var(--font-newsreader);
+    /* Departure Mono: 11 px only, 1 to 12 characters (docs/design-system.md,
+       Typography). Fixed px on purpose; see `.font-pixel` below. */
+    --font-pixel: var(--font-departure-mono);
     /* Interactive roles (Marca LiTT v1.0, "Sin azul"): primary fills,
        active toggles, selection and action links. Tinta on the light theme,
        papel on the dark one; never blue. */
@@ -106,6 +120,24 @@
 }
 
 :root {
+    /* Surfaces. Four, and the document. Mesa (desk) is the papel the whole app
+       sits on. Hoja (sheet) is papel mixed with white, the color of the
+       composer: cards, the sidebar, menus and tables. Campo (field) is where
+       you write. The pure white is only for the user's own documents (PDF,
+       DOCX pages, page thumbnails, the Word preview): nothing else in the
+       interface is white. Elevation is a 1 px edge plus a shadow of tinta, never
+       a white rim or a white glow. Hoja on mesa: 1.05:1 in tone, so the edge
+       does the separating (1.45:1). */
+    --surface-desk: var(--litt-papel); /* #ecece6 */
+    --surface-sheet: #fbfbf9; /* papel 22 % over white; the composer's */
+    --surface-float: var(--surface-sheet); /* light: the sheet, with --elevation-float */
+    --surface-field: #f4f4f0; /* gray-100 */
+    --surface-document: #ffffff; /* only for pages of documents */
+    --elevation-sheet: 0 0 0 1px rgb(21 26 38 / 8%), 0 1px 2px rgb(21 26 38 / 5%);
+    --elevation-float:
+        0 0 0 1px rgb(21 26 38 / 12%), 0 12px 32px -12px rgb(21 26 38 / 28%);
+    --elevation-document:
+        0 0 0 1px rgb(21 26 38 / 10%), 0 2px 8px -2px rgb(21 26 38 / 14%);
     /* LiTT brand palette, v1.0 (docs/brand/DESIGN.md). The two ambers are
        never interchangeable: ámbar fósforo goes only on tinta, ámbar tinta
        only on papel or white. */
@@ -134,14 +166,13 @@
        papel. The menu surface is the model picker's; the chip tokens are for
        the labels of what travels with a message (soft sheet for attachments,
        firm outline for what is switched on: 3.87:1). */
-    --litt-composer-surface: #fbfbf9;
+    --litt-composer-surface: var(--surface-sheet);
     --litt-composer-ring: rgb(21 26 38 / 18%);
     --litt-composer-ring-focus: rgb(21 26 38 / 40%);
     --litt-composer-shadow:
         0 1px 2px rgb(21 26 38 / 6%), 0 8px 20px -10px rgb(21 26 38 / 18%);
-    --litt-composer-menu-surface: #fbfbf9;
-    --litt-composer-menu-shadow:
-        0 0 0 1px rgb(21 26 38 / 12%), 0 12px 32px -12px rgb(21 26 38 / 28%);
+    --litt-composer-menu-surface: var(--surface-float);
+    --litt-composer-menu-shadow: var(--elevation-float);
     --litt-composer-chip: rgb(21 26 38 / 6%);
     --litt-composer-chip-ring: rgb(21 26 38 / 12%);
     --litt-composer-active-ring: rgb(21 26 38 / 55%);
@@ -198,25 +229,25 @@
     --radius: 0.625rem;
     /* Light theme: papel canvas, tinta text. Panels sit between papel and
        white, so a mark on one keeps ámbar tinta at 4.75:1 or more. */
-    --app-background: var(--litt-papel);
-    --app-surface: #f9f9f7;
-    --app-surface-hover: var(--litt-papel);
-    --app-surface-active: #e2e2dd;
-    --app-floating: #fcfcfb;
+    --app-background: var(--surface-desk);
+    --app-surface: var(--surface-sheet);
+    --app-surface-hover: var(--litt-interactive-soft);
+    --app-surface-active: var(--litt-interactive-soft-strong);
+    --app-floating: var(--surface-sheet);
     --table-grid-border: #cfd0cc;
-    --background: var(--litt-papel);
+    --background: var(--surface-desk);
     --foreground: var(--litt-tinta);
-    --card: #fcfcfb;
+    --card: var(--surface-sheet);
     --card-foreground: var(--litt-tinta);
-    --popover: #ffffff;
+    --popover: var(--surface-float);
     --popover-foreground: var(--litt-tinta);
     --primary: var(--litt-tinta);
     --primary-foreground: var(--litt-papel);
-    --secondary: #f4f4f0;
+    --secondary: var(--surface-field);
     --secondary-foreground: var(--litt-tinta);
-    --muted: #f4f4f0;
+    --muted: var(--surface-field);
     --muted-foreground: #5d6169;
-    --accent: #f4f4f0;
+    --accent: var(--surface-field);
     --accent-foreground: var(--litt-tinta);
     --destructive: oklch(0.577 0.245 27.325);
     --border: #cfd0cc;
@@ -229,11 +260,11 @@
     --chart-3: oklch(0.586 0.253 17.585); /* rose-600 */
     --chart-4: oklch(0.648 0.2 131.684); /* lime-600 */
     --chart-5: oklch(0.553 0.013 58.071); /* stone-500 */
-    --sidebar: var(--litt-papel);
+    --sidebar: var(--surface-desk);
     --sidebar-foreground: var(--litt-tinta);
     --sidebar-primary: var(--litt-tinta);
     --sidebar-primary-foreground: var(--litt-papel);
-    --sidebar-accent: #f4f4f0;
+    --sidebar-accent: var(--surface-field);
     --sidebar-accent-foreground: var(--litt-tinta);
     --sidebar-border: #cfd0cc;
     --sidebar-ring: var(--litt-accent);
@@ -241,6 +272,16 @@
 
 .dark {
     color-scheme: dark;
+    --surface-desk: var(--litt-tinta); /* #151a26 */
+    --surface-sheet: #1b202c;
+    --surface-float: #1f2430;
+    --surface-field: #2a2f3a;
+    --surface-document: #ffffff; /* a page stays white on the dark theme */
+    --elevation-sheet: 0 0 0 1px rgb(236 236 230 / 9%);
+    --elevation-float:
+        0 0 0 1px rgb(236 236 230 / 13%), 0 16px 40px -12px rgb(0 0 0 / 60%);
+    --elevation-document:
+        0 0 0 1px rgb(0 0 0 / 40%), 0 8px 24px -8px rgb(0 0 0 / 60%);
     --litt-mark-ink: var(--litt-papel);
     --litt-mark-accent: var(--litt-ambar-fosforo);
     /* Send button, dark: tinta on the tinta composer needs an edge, papel
@@ -252,13 +293,12 @@
     --litt-send-edge-hover: color-mix(in srgb, var(--litt-papel) 40%, transparent);
     /* Chat composer, dark: see the light block. Ring 1.46:1, focus 2.63:1;
        the outline of what is switched on is 4.46:1. */
-    --litt-composer-surface: #1b202c;
+    --litt-composer-surface: var(--surface-sheet);
     --litt-composer-ring: rgb(236 236 230 / 14%);
     --litt-composer-ring-focus: rgb(236 236 230 / 32%);
     --litt-composer-shadow: 0 8px 24px -12px rgb(0 0 0 / 55%);
-    --litt-composer-menu-surface: #1f2430;
-    --litt-composer-menu-shadow:
-        0 0 0 1px rgb(236 236 230 / 13%), 0 16px 40px -12px rgb(0 0 0 / 60%);
+    --litt-composer-menu-surface: var(--surface-float);
+    --litt-composer-menu-shadow: var(--elevation-float);
     --litt-composer-chip: rgb(236 236 230 / 8%);
     --litt-composer-chip-ring: rgb(236 236 230 / 14%);
     --litt-composer-active-ring: rgb(236 236 230 / 50%);
@@ -302,25 +342,25 @@
     --litt-warning-fill-foreground: var(--litt-tinta);
     /* Dark theme: tinta canvas, papel text. Surfaces are tinta lifted toward
        papel by 3.5-12 % (OKLab), so they stay in the tinta family. */
-    --app-background: var(--litt-tinta);
-    --app-surface: #1b202c;
+    --app-background: var(--surface-desk);
+    --app-surface: var(--surface-sheet);
     --app-surface-hover: #222732;
-    --app-surface-active: #2a2f3a;
-    --app-floating: #1f2430;
+    --app-surface-active: var(--surface-field);
+    --app-floating: var(--surface-float);
     --table-grid-border: #323641;
-    --background: var(--litt-tinta);
+    --background: var(--surface-desk);
     --foreground: var(--litt-papel);
-    --card: #1b202c;
+    --card: var(--surface-sheet);
     --card-foreground: var(--litt-papel);
-    --popover: #1f2430;
+    --popover: var(--surface-float);
     --popover-foreground: var(--litt-papel);
     --primary: var(--litt-papel);
     --primary-foreground: var(--litt-tinta);
-    --secondary: #2a2f3a;
+    --secondary: var(--surface-field);
     --secondary-foreground: var(--litt-papel);
-    --muted: #2a2f3a;
+    --muted: var(--surface-field);
     --muted-foreground: #9b9d9f;
-    --accent: #2a2f3a;
+    --accent: var(--surface-field);
     --accent-foreground: var(--litt-papel);
     --destructive: oklch(0.704 0.191 22.216);
     --border: rgb(236 236 230 / 10%);
@@ -331,11 +371,11 @@
     --chart-3: oklch(0.712 0.194 13.428); /* rose-400 */
     --chart-4: oklch(0.841 0.238 128.85); /* lime-400 */
     --chart-5: oklch(0.709 0.01 56.259); /* stone-400 */
-    --sidebar: var(--litt-tinta);
+    --sidebar: var(--surface-desk);
     --sidebar-foreground: var(--litt-papel);
     --sidebar-primary: var(--litt-papel);
     --sidebar-primary-foreground: var(--litt-tinta);
-    --sidebar-accent: #2a2f3a;
+    --sidebar-accent: var(--surface-field);
     --sidebar-accent-foreground: var(--litt-papel);
     --sidebar-border: rgb(236 236 230 / 10%);
     --sidebar-ring: var(--litt-accent);

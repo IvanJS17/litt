@@ -1,61 +1,100 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppearancePage from "./page";
 
-const { updateDarkMode, updateTextSize, profile } = vi.hoisted(() => ({
-    updateDarkMode: vi.fn(),
+const { updateTheme, updateTextSize, profile } = vi.hoisted(() => ({
+    updateTheme: vi.fn(),
     updateTextSize: vi.fn(),
-    profile: { darkMode: false, textSize: "normal" as string | undefined },
+    profile: {
+        theme: "light" as "light" | "dark" | "system",
+        textSize: "normal" as string | undefined,
+    },
 }));
 
 vi.mock("@/app/contexts/UserProfileContext", () => ({
     useUserProfile: () => ({
         profile,
-        updateDarkMode,
+        updateTheme,
         updateTextSize,
     }),
 }));
 
 describe("AppearancePage", () => {
     beforeEach(() => {
-        updateDarkMode.mockReset();
-        updateDarkMode.mockResolvedValue(undefined);
-        profile.darkMode = false;
+        updateTheme.mockReset();
+        updateTheme.mockResolvedValue(undefined);
+        profile.theme = "light";
         profile.textSize = "normal";
         updateTextSize.mockReset();
         updateTextSize.mockResolvedValue(undefined);
     });
 
-    it("saves dark mode without rendering a decorative card icon", async () => {
-        const user = userEvent.setup();
+    it("offers Light, Dark and Automatic without icons, and says what Automatic does", () => {
+        profile.theme = "dark";
         const { container } = render(<AppearancePage />);
 
         expect(
             screen.getByRole("heading", { name: "Appearance" }),
         ).toBeVisible();
-        expect(screen.getByText("Dark mode")).toBeVisible();
+        const group = screen.getByRole("radiogroup", { name: "Theme" });
+        expect(
+            within(group).getAllByRole("radio").map((r) => r.textContent),
+        ).toEqual(["Light", "Dark", "Automatic"]);
+        expect(within(group).getByRole("radio", { name: "Dark" })).toHaveAttribute(
+            "aria-checked",
+            "true",
+        );
+        expect(
+            screen.getByText(
+                "Automatic follows your device's theme and changes when it does.",
+            ),
+        ).toBeVisible();
+        expect(screen.queryByRole("switch")).not.toBeInTheDocument();
         expect(container.querySelector("svg")).toBeNull();
+    });
 
-        const toggle = screen.getByRole("switch", { name: "Dark mode" });
-        expect(toggle).toHaveAttribute("aria-checked", "false");
+    it("saves the chosen theme, and does nothing when the saved one is clicked", async () => {
+        const user = userEvent.setup();
+        render(<AppearancePage />);
+        const group = screen.getByRole("radiogroup", { name: "Theme" });
 
-        await user.click(toggle);
-        expect(updateDarkMode).toHaveBeenCalledWith(true);
+        await user.click(within(group).getByRole("radio", { name: "Light" }));
+        expect(updateTheme).not.toHaveBeenCalled();
+
+        await user.click(within(group).getByRole("radio", { name: "Automatic" }));
+        expect(updateTheme).toHaveBeenCalledWith("system");
+    });
+
+    it("moves with the arrow keys and saves each choice", async () => {
+        const user = userEvent.setup();
+        render(<AppearancePage />);
+        const group = screen.getByRole("radiogroup", { name: "Theme" });
+
+        within(group).getByRole("radio", { name: "Light" }).focus();
+        await user.keyboard("{ArrowRight}");
+        expect(updateTheme).toHaveBeenLastCalledWith("dark");
+        await user.keyboard("{End}");
+        expect(updateTheme).toHaveBeenLastCalledWith("system");
     });
 
     it("reports a failed change without leaking the raw error", async () => {
         const user = userEvent.setup();
-        updateDarkMode.mockRejectedValue(new Error("pg: connection refused"));
+        updateTheme.mockRejectedValue(new Error("pg: connection refused"));
         render(<AppearancePage />);
 
-        await user.click(screen.getByRole("switch", { name: "Dark mode" }));
+        await user.click(screen.getByRole("radio", { name: "Dark" }));
         await waitFor(() =>
             expect(screen.getByRole("alert")).toHaveTextContent(
                 "Could not update the appearance setting.",
             ),
         );
         expect(screen.queryByText(/connection refused/i)).not.toBeInTheDocument();
+        // The control goes back to the saved theme.
+        expect(screen.getByRole("radio", { name: "Light" })).toHaveAttribute(
+            "aria-checked",
+            "true",
+        );
     });
 
     it("offers three text sizes, marks the saved one and says what it does", () => {
@@ -64,7 +103,7 @@ describe("AppearancePage", () => {
 
         const group = screen.getByRole("radiogroup", { name: "Text size" });
         expect(group).toBeVisible();
-        expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual([
+        expect(within(group).getAllByRole("radio").map((r) => r.textContent)).toEqual([
             "Normal",
             "Large",
             "Very large",

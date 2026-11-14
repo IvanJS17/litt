@@ -2937,13 +2937,16 @@
     "appearance": {
       "appearance": "Apariencia",
       "couldNotUpdateTheAppearanceSetting": "No se pudo actualizar el ajuste de apariencia.",
-      "darkMode": "Modo oscuro",
       "textSize": "Tamaño de letra",
       "textSizeHelp": "Elige qué tan grande se ve la letra en LiTT. Solo cambia tu pantalla.",
       "textSizeLarge": "Grande",
       "textSizeNormal": "Normal",
       "textSizeXLarge": "Muy grande",
-      "useADarkerColorPaletteThroughout": "Cambia a colores oscuros en toda la app."
+      "theme": "Tema",
+      "themeDark": "Oscuro",
+      "themeHelp": "Automático sigue el tema de tu dispositivo y cambia solo cuando él cambia.",
+      "themeLight": "Claro",
+      "themeSystem": "Automático"
     },
     "byokProviderModal": {
       "awsRegion": "Región de AWS",
@@ -3459,10 +3462,10 @@
         "keywords": "acerca de|about|source code|source|codigo|agpl|license|licencia|open source|software libre|github|version|commit",
         "title": "Código fuente"
       },
-      "appearanceDarkMode": {
-        "description": "Usa una paleta de colores más oscura en todo LiTT.",
-        "keywords": "tema|oscuro|claro|modo oscuro|modo nocturno|color|colores|paleta|pantalla|aspecto|contraste|fondo negro",
-        "title": "Modo oscuro"
+      "appearanceTheme": {
+        "description": "Elige claro, oscuro o automático, según tu dispositivo.",
+        "keywords": "tema|oscuro|claro|automático|automatico|sistema|dispositivo|modo oscuro|modo nocturno|color|colores|paleta|pantalla|aspecto|contraste|fondo negro",
+        "title": "Tema"
       },
       "appearanceTextSize": {
         "description": "Cambia el tamaño del texto en LiTT.",
@@ -3816,7 +3819,7 @@
         },
         "appearance": {
           "title": "Apariencia",
-          "help": "Elige el tamaño de la letra y el modo oscuro."
+          "help": "Elige el tema y el tamaño de la letra."
         },
         "assistant": {
           "title": "Asistente",
@@ -3976,6 +3979,13 @@
       "signOutAction": "cerrar sesión",
       "someHistoryCouldNotBeLoaded": "No se pudo cargar parte del historial. Inténtalo de nuevo",
       "tabularReviewStatus": "Revisión tabular: {title}{status, select, loading { (en curso)} complete { (completada)} other {}}",
+      "theme": "Tema",
+      "themeAuto": "Auto",
+      "themeAutoLabel": "Automático (según tu dispositivo)",
+      "themeDark": "Oscuro",
+      "themeLight": "Claro",
+      "themeNowDark": "ahora: oscuro",
+      "themeNowLight": "ahora: claro",
       "titleReviewRunning": "Revisión de {title} en curso",
       "untitledReview": "Revisión sin título",
       "workspace": "Espacio de trabajo"

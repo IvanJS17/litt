@@ -9,6 +9,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { PIXEL_TEXT_CLASS, pixelTextClass } from "./pixelTextUI.styles";
 import { TabPillButtonUI } from "./TabPillButtonUI";
 import { textButtonUIClassName } from "./TextButtonUI.styles";
 import {
@@ -472,7 +473,7 @@ export function ModelToggleUI({
                   </span>
                   <span
                     aria-hidden="true"
-                    className="text-2xs font-normal leading-none tabular-nums text-gray-500"
+                    className={`${PIXEL_TEXT_CLASS} font-normal tabular-nums text-gray-500`}
                   >
                     {items.length}
                   </span>
@@ -502,7 +503,9 @@ export function ModelToggleUI({
                           (routeCounts.get(
                             `${model.group}\u0000${model.label.toLocaleLowerCase()}`,
                           ) ?? 0) > 1) && (
-                          <span className="shrink-0 text-right text-2xs font-normal text-gray-500">
+                          <span
+                            className={`shrink-0 text-right font-normal text-gray-500 ${pixelTextClass(routeLabel(t, model.source), "text-2xs")}`}
+                          >
                             {routeLabel(t, model.source)}
                           </span>
                         )}

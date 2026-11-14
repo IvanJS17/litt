@@ -1,4 +1,4 @@
-import { LIQUID_GLASS_FLOAT_CLASS } from "@mike/ui";
+import { LIQUID_GLASS_FLAT_CLASS } from "@mike/ui";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
 import { PAGE_HEADER_ROW_CLASS } from "@/app/components/shared/pageHeaderStyles";
 import { cn } from "@/app/lib/utils";
@@ -36,7 +36,7 @@ export function AppShellSkeleton() {
                     data-slot="app-shell-skeleton-sidebar"
                     className={cn(
                         "hidden w-62 h-[calc(100dvh-1.5rem)] my-3 ml-3 shrink-0 flex-col rounded-2xl md:flex",
-                        LIQUID_GLASS_FLOAT_CLASS,
+                        LIQUID_GLASS_FLAT_CLASS,
                     )}
                 >
                     <div className="flex h-11 shrink-0 items-center px-3">

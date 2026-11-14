@@ -69,7 +69,7 @@ function Message({ children, role }: { children: React.ReactNode; role?: "alert"
     return (
         <div
             role={role}
-            className="rounded-md bg-gray-50 px-3 py-3 text-sm text-gray-700"
+            className="rounded-md bg-surface-sheet px-3 py-3 text-sm text-gray-700"
         >
             {children}
         </div>

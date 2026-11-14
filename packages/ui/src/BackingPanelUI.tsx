@@ -185,7 +185,7 @@ function Conclusion({
                   setDraft(event.target.value);
                 }}
                 className={clsx(
-                  "w-full min-w-0 resize-y rounded-md border border-gray-200 bg-white/70 px-3 py-2 text-sm text-gray-900 outline-none transition-[color,box-shadow]",
+                  "w-full min-w-0 resize-y rounded-md border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none transition-[color,box-shadow]",
                   "focus-visible:border-focus focus-visible:ring-[3px] focus-visible:ring-focus/30",
                 )}
               />
@@ -202,7 +202,7 @@ function Conclusion({
                     void mark({ person_note: reason.trim() || null }, true);
                   }}
                   className={clsx(
-                    "inline-flex min-h-8 items-center rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-900 hover:bg-gray-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+                    "inline-flex min-h-8 items-center rounded-md border border-gray-300 bg-surface-sheet px-3 py-1 text-xs font-medium text-gray-900 hover:bg-interactive-soft aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
                     FOCUS_RING,
                   )}
                 >
@@ -245,7 +245,7 @@ export function BackingPanelUI({
 }) {
   const titleId = useId();
   const box = twMerge(
-    clsx("flex min-w-0 flex-col gap-3 rounded-lg border border-gray-200 bg-white/70 px-4 py-3 text-left", className),
+    clsx("flex min-w-0 flex-col gap-3 rounded-lg border border-gray-200 bg-surface-sheet px-4 py-3 text-left", className),
   );
   if (check.status === "pending") {
     return (

@@ -147,7 +147,7 @@ export function VersionDiff({
                     return (
                         <tbody key={block.key}>
                             <tr>
-                                <td colSpan={columns} className="bg-gray-50 dark:bg-gray-100">
+                                <td colSpan={columns} className="bg-surface-sheet">
                                     <button
                                         type="button"
                                         aria-expanded={false}

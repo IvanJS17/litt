@@ -79,7 +79,7 @@ export function ConnectorCard({
       <GlassCardUI>
         {onOpen ? (
           <div
-            className="cursor-pointer rounded-xl px-4 py-3 transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            className="cursor-pointer rounded-xl px-4 py-3 transition-colors hover:bg-interactive-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             role="button"
             tabIndex={0}
             aria-label={t("settings.connectorCard.manageName", { name })}

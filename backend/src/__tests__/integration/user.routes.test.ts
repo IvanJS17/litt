@@ -345,7 +345,7 @@ function profileRow(overrides: Record<string, unknown> = {}) {
         mfa_on_login: false,
         quick_actions_visible: true,
         response_details_visible: false,
-        dark_mode: false,
+        theme: "system",
         ...overrides,
     };
 }
@@ -435,7 +435,7 @@ describe("user.routes", () => {
             "response_details_visible",
             "subagent_model", "memory_curator_model", "project_memory_default",
             "last_selected_reasoning_level", "last_selected_chat_model",
-            "dark_mode", "password_set_at", "onboarding_version",
+            "theme", "password_set_at", "onboarding_version",
             "quick_actions_visible", "mfa_on_login", "title_model",
         ])("keeps the saved photo on profile reload when %s is absent", async (column) => {
             supabaseState.missingColumns = [column];
@@ -632,7 +632,7 @@ describe("user.routes", () => {
             expect(selects[1]).not.toContain("memory_curator_model");
             // The tier keeps every other preference the database does have.
             expect(selects[1]).toContain("last_selected_reasoning_level");
-            expect(selects[1]).toContain("dark_mode");
+            expect(selects[1]).toContain("theme");
             expect(res.body.titleModel).toBe("gpt-6-luna");
             expect(res.body.memoryCuratorModel).toBeNull();
         });
@@ -832,14 +832,14 @@ describe("user.routes", () => {
 
         it("does not touch the auth metadata when the language is not in the update", async () => {
             supabaseState.tables.user_profiles = {
-                data: profileRow({ dark_mode: true }),
+                data: profileRow({ theme: "dark" }),
                 error: null,
             };
 
             await request(app)
                 .patch("/user/profile")
                 .set(...AUTH)
-                .send({ darkMode: true });
+                .send({ theme: "dark" });
 
             expect(adminUpdateUserById).not.toHaveBeenCalled();
         });
@@ -855,7 +855,7 @@ describe("user.routes", () => {
 
             expect(res.status).toBe(200);
             expect(res.body.uiLocale).toBeNull();
-            expect(res.body.darkMode).toBe(false);
+            expect(res.body.theme).toBe("system");
             expect(supabaseState.selects.user_profiles[1]).not.toContain(
                 "ui_locale",
             );
@@ -864,19 +864,54 @@ describe("user.routes", () => {
 
     // ── PATCH /user/profile (appearance preference) ───────────────────────
     describe("PATCH /user/profile appearance", () => {
-        it("persists and returns the dark mode preference", async () => {
+        it.each(["light", "dark", "system"] as const)(
+            "persists and returns the %s theme",
+            async (theme) => {
+                supabaseState.tables.user_profiles = {
+                    data: profileRow({ theme }),
+                    error: null,
+                };
+
+                const res = await request(app)
+                    .patch("/user/profile")
+                    .set(...AUTH)
+                    .send({ theme });
+
+                expect(res.status).toBe(200);
+                expect(res.body.theme).toBe(theme);
+                expect(res.body).not.toHaveProperty("darkMode");
+                expect(supabaseState.updates.user_profiles).toContainEqual(
+                    expect.objectContaining({ theme }),
+                );
+            },
+        );
+
+        it("reads a new account as system", async () => {
             supabaseState.tables.user_profiles = {
-                data: profileRow({ dark_mode: true }),
+                data: profileRow(),
                 error: null,
             };
 
-            const res = await request(app)
-                .patch("/user/profile")
-                .set(...AUTH)
-                .send({ darkMode: true });
+            const res = await request(app).get("/user/profile").set(...AUTH);
 
             expect(res.status).toBe(200);
-            expect(res.body.darkMode).toBe(true);
+            expect(res.body.theme).toBe("system");
+        });
+
+        it("reads light on a database that has not applied the theme migration", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow(),
+                error: null,
+            };
+            supabaseState.missingColumns = ["theme"];
+
+            const res = await request(app).get("/user/profile").set(...AUTH);
+
+            expect(res.status).toBe(200);
+            expect(res.body.theme).toBe("light");
+            expect(supabaseState.selects.user_profiles.at(-1)).not.toContain(
+                "theme",
+            );
         });
 
         it("saves and returns the text size", async () => {
@@ -923,14 +958,27 @@ describe("user.routes", () => {
             );
         });
 
-        it("rejects a non-boolean darkMode", async () => {
+        it.each(["sepia", true, "", null])(
+            "rejects the theme %j, which is not light, dark or system",
+            async (theme) => {
+                const res = await request(app)
+                    .patch("/user/profile")
+                    .set(...AUTH)
+                    .send({ theme });
+
+                expect(res.status).toBe(400);
+                expect(res.body.detail).toMatch(/theme must be light, dark or system/);
+            },
+        );
+
+        it("no longer accepts darkMode", async () => {
             const res = await request(app)
                 .patch("/user/profile")
                 .set(...AUTH)
-                .send({ darkMode: "yes" });
+                .send({ darkMode: true });
 
             expect(res.status).toBe(400);
-            expect(res.body.detail).toMatch(/darkMode must be a boolean/);
+            expect(res.body.detail).toMatch(/Unsupported profile field: darkMode/);
         });
 
         it("persists and returns the response details preference", async () => {

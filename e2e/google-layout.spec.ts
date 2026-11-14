@@ -93,7 +93,7 @@ for (const addressKind of ["normal", "long"] as const) {
           return route.fulfill({
             json: {
               onboardingComplete: true,
-              darkMode,
+              theme: darkMode ? "dark" : "light",
               displayName: "Layout test",
               apiKeyStatus: {},
               creditsRemaining: 100,

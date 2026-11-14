@@ -29,7 +29,7 @@ async function signedIn(
             return route.fulfill({ json: { user: { id: "ts", email: "ts@example.test" } } });
         }
         if (p === "/api/user/profile") {
-            const body = { onboardingComplete: true, displayName: "Texto Tamaño", apiKeyStatus: {}, creditsRemaining: 100, lastSelectedChatModel: "test-model", darkMode: false, textSize };
+            const body = { onboardingComplete: true, displayName: "Texto Tamaño", apiKeyStatus: {}, creditsRemaining: 100, lastSelectedChatModel: "test-model", theme: "light", textSize };
             if (request.method() === "PATCH") {
                 const sent = request.postDataJSON() as Record<string, unknown>;
                 patches.push(sent);

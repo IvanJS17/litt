@@ -16,16 +16,14 @@ import {
     GlassIconButtonUI,
     PillButtonUI,
     LIQUID_GLASS_FLOAT_CLASS,
-    LIQUID_GLASS_SUBTLE_CLASS,
 } from "@mike/ui";
 import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { useTranslations } from "next-intl";
 
-// Liquid-glass field styling shared by the menu's inputs/controls, matching the
-// modal's glass treatment (translucent white over the light-gray panel).
-const GLASS_FIELD =
-    LIQUID_GLASS_SUBTLE_CLASS;
+// Field styling shared by the menu's inputs and controls: the campo surface
+// with a hairline ring, on the menu's hoja.
+const GLASS_FIELD = "bg-surface-field ring-1 ring-inset ring-gray-900/10";
 
 export interface TREditColumnMenuProps {
     column: ColumnConfig;
@@ -271,7 +269,7 @@ export function TREditColumnMenu({
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className={`w-full rounded-lg px-2 py-1 text-xs font-normal text-gray-800 transition-colors focus:bg-white/70 focus:outline-none ${GLASS_FIELD}`}
+                        className={`w-full rounded-lg px-2 py-1 text-xs font-normal text-gray-800 transition-colors focus:outline-none ${GLASS_FIELD}`}
                     />
 
                     {/* Format */}
@@ -283,7 +281,7 @@ export function TREditColumnMenu({
                             <DropdownTrigger asChild>
                                 <button
                                     id={`${menuId}-format`}
-                                    className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-white/75 focus:outline-none ${GLASS_FIELD}`}
+                                    className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-interactive-soft focus:outline-none ${GLASS_FIELD}`}
                                 >
                                     <span className="flex items-center gap-1.5">
                                         {(() => {
@@ -330,7 +328,7 @@ export function TREditColumnMenu({
                     {format === "tag" && (
                         <div className="mt-2">
                             <div
-                                className={`flex min-h-[28px] flex-wrap gap-1 rounded-lg px-2 py-1 transition-colors focus-within:bg-white/70 ${GLASS_FIELD}`}
+                                className={`flex min-h-[28px] flex-wrap gap-1 rounded-lg px-2 py-1 transition-colors ${GLASS_FIELD}`}
                             >
                                 {tags.map((tag, tagIdx) => (
                                     <span
@@ -395,7 +393,7 @@ export function TREditColumnMenu({
                             rows={6}
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
-                            className={`w-full resize-none rounded-lg px-3 py-2 text-xs font-normal leading-relaxed text-gray-800 placeholder-gray-300 transition-colors focus:bg-white/70 focus:outline-none ${GLASS_FIELD}`}
+                            className={`w-full resize-none rounded-lg px-3 py-2 text-xs font-normal leading-relaxed text-gray-800 placeholder-gray-300 transition-colors focus:outline-none ${GLASS_FIELD}`}
                         />
                     </div>
 

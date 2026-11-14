@@ -755,7 +755,7 @@ export function DocumentSidePanel({
                                         type="button"
                                         onClick={() => void handleSaveName()}
                                         disabled={savingName}
-                                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/65 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+                                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-interactive-soft hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
                                         title={t("shared.documentSidePanel.saveName")}
                                     >
                                         {savingName ? (
@@ -784,7 +784,7 @@ export function DocumentSidePanel({
                                             setEditingName(true);
                                             setNameError(null);
                                         }}
-                                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/65 hover:text-gray-900"
+                                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-interactive-soft hover:text-gray-900"
                                         title={t("shared.documentSidePanel.editName")}
                                     >
                                         <Pencil className="h-3.5 w-3.5" />
@@ -1124,7 +1124,7 @@ export function DocumentSidePanel({
                     <div
                         className={cn(
                             "flex shrink-0 items-center justify-between py-3",
-                            "bg-white/25",
+                            "bg-interactive-soft",
                             // No versions list fills the column, so the
                             // actions are pinned to the bottom themselves.
                             readOnly && "mt-auto",

@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
-// Self-hosted Inter and EB Garamond; sets --font-inter and --font-eb-garamond.
+// Self-hosted Inter, Newsreader and Departure Mono; sets --font-inter,
+// --font-newsreader and --font-departure-mono.
 import "./fonts/fonts.css";
 import "./globals.css";
 import { preload } from "react-dom";
 import interLatin from "./fonts/inter-latin.woff2";
-import ebGaramondLatin from "./fonts/eb-garamond-latin.woff2";
+import newsreaderLatin from "./fonts/newsreader-latin-opsz16-wght400-600.woff2";
 import { Providers } from "@/app/components/providers";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
@@ -84,10 +85,11 @@ export default async function RootLayout({
     // The locale request.ts resolved (cookie, browser, es-MX) and its catalog.
     const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
     // The two files a Spanish or English page really draws (the latin subset of
-    // each family), fetched with the HTML so the text does not jump when the
-    // letters arrive. The other subsets stay lazy: fonts.css loads them only
-    // for a page that has such a character.
-    for (const href of [interLatin, ebGaramondLatin])
+    // Inter and of Newsreader's roman), fetched with the HTML so the text does
+    // not jump when the letters arrive. The rest stay lazy: fonts.css loads
+    // them only for a page that has such a character (the italic only where
+    // italic text is shown; Departure Mono only where an 11 px detail is).
+    for (const href of [interLatin, newsreaderLatin])
         preload(href, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
     return (
         // The boot script may add `dark` and color-scheme to <html> before

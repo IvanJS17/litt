@@ -104,7 +104,7 @@ const STATUS_DOT_STYLES: Record<string, string> = {
 };
 
 const GLASS_DOT =
-  "h-2.5 w-2.5 shrink-0 rounded-full border border-white/80 shadow-[0_1px_2px_rgba(21,26,38,0.08),inset_0_1px_1px_rgba(255,255,255,0.55)]";
+  "h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_1px_2px_rgba(21,26,38,0.08)]";
 
 type AuditSortKey = "created_at" | "title";
 
@@ -325,6 +325,11 @@ export function AuditHistory({
     return () => controllerRef.current?.abort();
   }, [load]);
 
+  // Leaving the page stops the export's polling (the job keeps building on
+  // the server); otherwise the loop would poll on and download elsewhere.
+  const exportControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => exportControllerRef.current?.abort(), []);
+
   // The CSV is built by a background job rather than in the request: a wide
   // filter can sweep thousands of events, and the artifact outlives the tab.
   const handleExport = async (range: HistoryDateRange, eventIds?: string[]) => {
@@ -337,6 +342,8 @@ export function AuditHistory({
     setExporting(true);
     setExportError(false);
     setActionError(null);
+    const controller = new AbortController();
+    exportControllerRef.current = controller;
     try {
       const { blob, filename } = await runUserExport("audit-csv", {
         ...(orgId ? { org_id: orgId } : {}),
@@ -353,7 +360,7 @@ export function AuditHistory({
             }),
         sort_by: sort?.key,
         sort_dir: sort?.direction,
-      });
+      }, controller.signal);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -363,10 +370,12 @@ export function AuditHistory({
       URL.revokeObjectURL(url);
       if (!eventIds) setExportOpen(false);
     } catch {
+      if (controller.signal.aborted) return;
       if (eventIds)
         setActionError(t("history.exportNotCreated"));
       else setExportError(true);
     } finally {
+      if (exportControllerRef.current === controller) exportControllerRef.current = null;
       exportingRef.current = false;
       setExporting(false);
     }

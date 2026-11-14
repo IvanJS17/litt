@@ -327,7 +327,7 @@ Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
 | --- | --- |
 | Parser time | `EXTRACTION_TIMEOUT_MS=180000`, capped at 300000 |
 | Writable data, including native buffers | `EXTRACTION_MAX_MEMORY_MB=1024` MiB |
-| Virtual address space | Data budget + 2048 MiB for runtime reservations (address space, not RAM; `--data` and the cgroup stay the real cap) |
+| Virtual address space | Data budget + 2048 MiB for runtime reservations (address space, not RAM; `--data` and the cgroup stay the real cap). Each WebAssembly memory reserves at most the data budget (`--wasm-max-mem-pages`) |
 | Source / returned text | 150 MiB / 16 MiB |
 
 The JS heap keeps the configured memory budget (1024 MiB by default); glibc uses two malloc arenas to
@@ -833,8 +833,8 @@ from the root of a clean checkout (the build fails without a full `GIT_SHA`).
 
 Each image reads only what its Dockerfile copies: the frontend image contains
 `frontend/`, `packages/contracts`, `packages/ui` and `packages/client`; the
-add-in image holds `word-addin/`, the same three packages and
-`frontend/public/icons`, which its bundle includes. In the frontend image
+add-in image holds `word-addin/`, the same three packages,
+`frontend/public/icons` and `frontend/src/app/fonts`, which its bundle includes. In the frontend image
 `next build` type-checks `frontend/tsconfig.build.json`, which excludes test
 files, so test fixtures and sibling applications never become build inputs. LiTT
 CI builds no images (to limit Actions usage): build every image you deploy

@@ -117,7 +117,7 @@ function AppToolbarButton({
       aria-label={title}
       aria-pressed={active}
       className={cn(
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-interactive-soft hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         active && "bg-gray-300 text-gray-950 hover:bg-gray-300",
       )}
       onMouseDown={(e) => {
@@ -594,7 +594,7 @@ export function MarkdownEditor({
                     aria-label={t("ui.insertTable")}
                     aria-pressed={tablePickerOpen}
                     className={cn(
-                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-interactive-soft hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
                       tablePickerOpen &&
                         "bg-gray-300 text-gray-950 hover:bg-gray-300",
                     )}
@@ -652,7 +652,7 @@ export function MarkdownEditor({
                                   className={`h-4 w-4 min-w-0 rounded-[3px] border p-0 transition-colors ${
                                     selected
                                       ? "border-interactive bg-interactive focus:bg-interactive"
-                                      : "border-gray-200 bg-white hover:border-gray-400 focus:bg-white"
+                                      : "border-gray-200 bg-surface-field hover:border-gray-400 focus:bg-surface-field"
                                   }`}
                                 />
                               );

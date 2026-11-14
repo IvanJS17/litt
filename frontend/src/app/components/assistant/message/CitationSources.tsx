@@ -158,7 +158,7 @@ export function CitationsBlock({
     return (
         <div className="mt-2 mb-3">
             <div className={`overflow-hidden ${RESPONSE_GLASS_SURFACE}`}>
-                <div className="flex items-center justify-between gap-3 bg-white/25 px-3 py-2">
+                <div className="flex items-center justify-between gap-3 bg-interactive-soft px-3 py-2">
                     <h3 className="text-base font-serif text-gray-900">
                         {t("assistant.citationSources.citations")}
                     </h3>

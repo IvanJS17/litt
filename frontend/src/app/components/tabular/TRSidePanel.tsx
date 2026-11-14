@@ -338,7 +338,7 @@ export function TRSidePanel({
             {/* Resizable document panel — left */}
             {documentPaneOpen && doc && (
                 <div
-                    className="relative flex shrink-0 flex-col border-r border-white/30"
+                    className="relative flex shrink-0 flex-col border-r border-gray-100"
                     style={{ width: documentPaneWidth }}
                 >
                     <div
@@ -431,8 +431,8 @@ export function TRSidePanel({
                             type="button"
                             onClick={() => setDocumentPaneOpen((open) => !open)}
                             className={cn(
-                                "mr-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/75 hover:text-gray-700",
-                                documentPaneOpen && "bg-white/55 text-gray-700",
+                                "mr-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-interactive-soft hover:text-gray-700",
+                                documentPaneOpen && "bg-interactive-soft-strong text-gray-700",
                             )}
                             aria-label={
                                 documentPaneOpen
@@ -686,7 +686,7 @@ export function TRSidePanel({
                     </div>
                 </div>
                 {!documentOnly && (
-                    <div className="flex shrink-0 justify-center bg-white/25 pb-7 pt-1">
+                    <div className="flex shrink-0 justify-center bg-interactive-soft pb-7 pt-1">
                         <div className="grid grid-cols-3 grid-rows-3 gap-0.5">
                             <CellNavigatorButton
                                 className="col-start-2 row-start-1"
@@ -712,7 +712,7 @@ export function TRSidePanel({
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </CellNavigatorButton>
-                            <div className="col-start-2 row-start-2 h-7 w-7 rounded-md bg-white/35" />
+                            <div className="col-start-2 row-start-2 h-7 w-7 rounded-md bg-interactive-soft" />
                             <CellNavigatorButton
                                 className="col-start-3 row-start-2"
                                 label={t("tabular.nextColumn")}

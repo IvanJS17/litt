@@ -54,9 +54,9 @@ export function EventBlock({
 }) {
     const dotColorClass =
         dotColor === "green"
-            ? "bg-green-400 shadow-[0_1px_3px_rgba(21,26,38,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
+            ? "bg-green-400 shadow-[0_1px_3px_rgba(21,26,38,0.15)]"
             : dotColor === "red"
-              ? "bg-red-400 shadow-[0_1px_3px_rgba(21,26,38,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
+              ? "bg-red-400 shadow-[0_1px_3px_rgba(21,26,38,0.15)]"
               : "bg-gray-500 shadow-[0_1px_3px_rgba(21,26,38,0.15)]";
     return (
         <div className="flex items-start text-sm font-serif text-gray-500 relative">
@@ -473,7 +473,7 @@ export function DocDownloadBlock({
                     >
                         {basename}
                     </p>
-                    <VersionChip n={versionNumber} size="lg" />
+                    <VersionChip n={versionNumber} />
                 </div>
                 {trainingHeld && <TrainingHeldNoteUI />}
             </div>
@@ -483,7 +483,7 @@ export function DocDownloadBlock({
     const downloadIcon = trainingHeld ? null : spinning ? (
         <div
             aria-disabled
-            className="shrink-0 flex items-center bg-white/25 px-4 text-gray-400 cursor-not-allowed @md:px-6"
+            className="shrink-0 flex items-center bg-interactive-soft px-4 text-gray-400 cursor-not-allowed @md:px-6"
         >
             <Loader2 className="size-3 animate-spin @md:size-[13px]" />
         </div>
@@ -492,7 +492,7 @@ export function DocDownloadBlock({
             type="button"
             onClick={handleDownload}
             aria-label={t("assistant.eventBlocks.downloadFilename", { filename })}
-            className="shrink-0 flex items-center bg-white/25 px-4 text-gray-500 transition-colors hover:bg-white/55 hover:text-gray-700 cursor-pointer @md:px-6"
+            className="shrink-0 flex items-center bg-interactive-soft px-4 text-gray-500 transition-colors hover:bg-interactive-soft-strong hover:text-gray-700 cursor-pointer @md:px-6"
         >
             <Download className="size-3 @md:size-[13px]" />
         </button>
@@ -506,7 +506,7 @@ export function DocDownloadBlock({
                 <button
                     type="button"
                     onClick={onOpen}
-                    className="flex items-stretch flex-1 min-w-0 text-left transition-colors hover:bg-white/45 cursor-pointer"
+                    className="flex items-stretch flex-1 min-w-0 text-left transition-colors hover:bg-interactive-soft cursor-pointer"
                 >
                     {body}
                 </button>
@@ -533,7 +533,7 @@ export function DocDownloadBlock({
             <button
                 type="button"
                 onClick={handleDownload}
-                className="flex items-stretch flex-1 min-w-0 text-left transition-colors hover:bg-white/45 cursor-pointer"
+                className="flex items-stretch flex-1 min-w-0 text-left transition-colors hover:bg-interactive-soft cursor-pointer"
             >
                 {body}
             </button>

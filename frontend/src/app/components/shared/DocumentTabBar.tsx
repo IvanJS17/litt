@@ -334,10 +334,7 @@ export function DocumentTabBar({
                                                 </span>
                                             )}
                                             {showVersion && (
-                                                <VersionChip
-                                                    n={versionNumber}
-                                                    size="sm"
-                                                />
+                                                <VersionChip n={versionNumber} />
                                             )}
                                         </div>
                                         <button

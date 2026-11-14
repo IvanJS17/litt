@@ -185,7 +185,7 @@ export function FirmCriterionForm({
           disabled={busy}
           aria-describedby={`${id}-position-help ${id}-position-count`}
           onChange={(event) => setPosition(event.target.value)}
-          className="min-h-40 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-60"
+          className="min-h-40 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-60"
         />
         <p id={`${id}-position-help`} className="mt-1 text-xs text-gray-500">{t("positionHelp")}</p>
         <p id={`${id}-position-count`} className="text-xs text-gray-500">

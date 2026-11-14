@@ -26,3 +26,9 @@ vi.mock("@testing-library/react", async (importOriginal) => {
 // A test that renders in es-MX also points @mike/client's failure messages
 // there (IntlClientProvider); put them back so the next test starts in en-US.
 afterEach(() => configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES));
+
+// jsdom has no layout, so it has no `scrollIntoView`; components that bring an
+// element into view on mount (the settings bar) call it. Tests that care spy on it.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = () => {};
+}

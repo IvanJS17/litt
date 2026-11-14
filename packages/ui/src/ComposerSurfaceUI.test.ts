@@ -21,7 +21,7 @@ const cssText = readFileSync(
 function tokens(selector: string): Record<string, string> {
     const out: Record<string, string> = {};
     postcss.parse(cssText).walkRules(selector, (rule) => {
-        rule.walkDecls(/^--litt-composer-/, (d) => {
+        rule.walkDecls(/^--(litt-composer-|surface-)/, (d) => {
             out[d.prop] = d.value;
         });
     });
@@ -30,9 +30,15 @@ function tokens(selector: string): Record<string, string> {
 
 describe("the composer sheet", () => {
     it("is opaque, with the approved colors in both themes", () => {
-        expect(tokens(":root")["--litt-composer-surface"]).toBe("#fbfbf9");
-        expect(tokens(".dark")["--litt-composer-surface"]).toBe("#1b202c");
-        expect(tokens(".dark")["--litt-composer-menu-surface"]).toBe("#1f2430");
+        // The composer is the hoja and its menu the flotante, by name: the
+        // colors are the scale's (DesignTokensUI.test.ts pins their values).
+        for (const theme of [":root", ".dark"]) {
+            expect(tokens(theme)["--litt-composer-surface"]).toBe("var(--surface-sheet)");
+            expect(tokens(theme)["--litt-composer-menu-surface"]).toBe("var(--surface-float)");
+        }
+        expect(tokens(":root")["--surface-sheet"]).toBe("#fbfbf9");
+        expect(tokens(".dark")["--surface-sheet"]).toBe("#1b202c");
+        expect(tokens(".dark")["--surface-float"]).toBe("#1f2430");
     });
 
     it("has one soft shadow and a neutral focus ring, never amber", () => {

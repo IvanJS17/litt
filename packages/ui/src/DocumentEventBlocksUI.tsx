@@ -27,9 +27,9 @@ function DocumentEventBlockUI({
 }) {
     const dotColorClass =
         dotColor === "green"
-            ? "bg-green-400 shadow-[0_1px_3px_rgba(21,26,38,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
+            ? "bg-green-400 shadow-[0_1px_3px_rgba(21,26,38,0.15)]"
             : dotColor === "red"
-              ? "bg-red-400 shadow-[0_1px_3px_rgba(21,26,38,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
+              ? "bg-red-400 shadow-[0_1px_3px_rgba(21,26,38,0.15)]"
               : "bg-gray-500 shadow-[0_1px_3px_rgba(21,26,38,0.15)]";
 
     return (

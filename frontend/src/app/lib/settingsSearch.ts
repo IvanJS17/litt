@@ -138,13 +138,13 @@ function buildEntries(t: Translate): SettingsSearchEntry[] {
             href: "/settings/memory#app-memory-file-heading",
         },
         {
-            id: "appearance-dark-mode",
+            id: "appearance-theme",
             tabId: "appearance",
             tab: t("settings.map.tab.appearance.title"),
-            title: t("settings.searchIndex.appearanceDarkMode.title"),
-            description: t("settings.searchIndex.appearanceDarkMode.description"),
-            keywords: keywordList(t("settings.searchIndex.appearanceDarkMode.keywords")),
-            href: "/settings/appearance#appearance",
+            title: t("settings.searchIndex.appearanceTheme.title"),
+            description: t("settings.searchIndex.appearanceTheme.description"),
+            keywords: keywordList(t("settings.searchIndex.appearanceTheme.keywords")),
+            href: "/settings/appearance#theme",
         },
         {
             id: "appearance-text-size",

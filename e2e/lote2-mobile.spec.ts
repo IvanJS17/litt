@@ -280,14 +280,14 @@ test.describe("web app manifest and closed beta", () => {
 
     test("theme-color is papel on light and tinta on dark, following the person's theme", async ({ page }) => {
         // The theme is the profile's: papel on the light one, tinta on the dark one.
-        await signedIn(page, [], { darkMode: false });
+        await signedIn(page, [], { theme: "light" });
         await page.goto("/assistant");
         await expect(page.locator("main")).toBeVisible();
         await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1);
         await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#ECECE6");
 
         await page.unroute("**/api/**");
-        await signedIn(page, [], { darkMode: true });
+        await signedIn(page, [], { theme: "dark" });
         await page.reload();
         await expect(page.locator("html")).toHaveClass(/dark/);
         await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1);

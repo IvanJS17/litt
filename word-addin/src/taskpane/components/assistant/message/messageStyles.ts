@@ -3,6 +3,6 @@
 // WebView.
 export const RESPONSE_GLASS_SURFACE = "rounded-xl liquid-glass-flat";
 
-export const EDIT_CARD_SURFACE = "rounded-xl bg-white shadow-sm";
+export const EDIT_CARD_SURFACE = "rounded-xl bg-surface-sheet shadow-elev-sheet";
 
 export const EDIT_SECTION_SURFACE = RESPONSE_GLASS_SURFACE;

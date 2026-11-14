@@ -63,7 +63,7 @@ test.beforeEach(async ({ addin, page }) => {
 
 test.describe("profile theme", () => {
   test("follows the profile's dark theme", async ({ addin, page }) => {
-    await mockProfile(page, { darkMode: true });
+    await mockProfile(page, { theme: "dark" });
     await addin.gotoTaskpane();
     await addin.expectAuthedShell();
 
@@ -81,11 +81,35 @@ test.describe("profile theme", () => {
     addin,
     page,
   }) => {
-    await mockProfile(page, { darkMode: false });
+    await mockProfile(page, { theme: "light" });
     await addin.gotoTaskpane();
     await addin.expectAuthedShell();
     await expect(page.getByRole("heading", { name: /^Hi,/ })).toBeVisible();
 
+    await expect(page.locator("html")).not.toHaveClass(/(^|\s)dark(\s|$)/);
+  });
+
+  test("Automático follows the device, and changes with it", async ({
+    addin,
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await mockProfile(page, { theme: "system" });
+    await addin.gotoTaskpane();
+    await addin.expectAuthedShell();
+
+    const root = page.locator("html");
+    await expect(root).toHaveClass(/(^|\s)dark(\s|$)/);
+
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(root).not.toHaveClass(/(^|\s)dark(\s|$)/);
+  });
+
+  test("a chosen light theme ignores a dark device", async ({ addin, page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await mockProfile(page, { theme: "light" });
+    await addin.gotoTaskpane();
+    await addin.expectAuthedShell();
     await expect(page.locator("html")).not.toHaveClass(/(^|\s)dark(\s|$)/);
   });
 });

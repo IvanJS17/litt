@@ -243,9 +243,9 @@ describe("MyActivitySettingsPage", () => {
     expect(screen.getByText("Completed")).not.toHaveClass("rounded-full");
     expect(screen.getByTestId("status-dot-event-1")).toHaveClass(
       "rounded-full",
-      "border-white/80",
       "bg-green-400/80",
     );
+    expect(screen.getByTestId("status-dot-event-1")).not.toHaveClass("border-white/80");
     expect(screen.queryByText("gpt-5")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Sort by email" }),
@@ -690,6 +690,27 @@ describe("MyActivitySettingsPage", () => {
     await waitFor(() =>
       expect(mockedDownloadUserExport).toHaveBeenCalledWith("export-1"),
     );
+  });
+
+  it("stops polling the export job when the person leaves the page", async () => {
+    const user = userEvent.setup();
+    mockedGetUserExportStatus.mockResolvedValue({ status: "pending" });
+
+    const { unmount } = render(<MyActivitySettingsPage />);
+    await screen.findByText(EVENT.title!);
+    await user.click(
+      screen.getByRole("button", { name: "My Activity actions" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(mockedGetUserExportStatus).toHaveBeenCalled());
+
+    unmount();
+    const calls = mockedGetUserExportStatus.mock.calls.length;
+    // Five poll intervals (POLL_MS is 10 ms under test) with nobody asking.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(calls);
+    expect(mockedDownloadUserExport).not.toHaveBeenCalled();
   });
 
   it("keeps the export modal open with a retryable error when the job fails", async () => {

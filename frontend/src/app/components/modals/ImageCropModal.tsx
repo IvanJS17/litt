@@ -337,7 +337,7 @@ export function ImageCropModal({
                     style={{ width: previewSide, height: previewSide }}
                   />
                 )}
-                <span className={isPhoto ? "min-w-0 text-sm [overflow-wrap:anywhere]" : "min-w-0 truncate font-serif text-xl font-light"}>
+                <span className={isPhoto ? "min-w-0 text-sm [overflow-wrap:anywhere]" : "min-w-0 truncate font-serif text-xl font-normal"}>
                   {name}
                 </span>
               </div>

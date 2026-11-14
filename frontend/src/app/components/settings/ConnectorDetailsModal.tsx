@@ -249,7 +249,7 @@ export function ConnectorDetailsModal({
 function ToolListSkeleton({ count }: { count: number }) {
     const rowCount = Math.min(Math.max(count || 3, 3), 8);
     return (
-        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-gray-100 bg-white/60">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-gray-100 bg-surface-field">
             <div>
                 {Array.from({ length: rowCount }).map((_, index) => (
                     <div key={index} className="px-3 py-3">
@@ -290,7 +290,7 @@ function ToolList({
     }
 
     return (
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-gray-100 bg-white/60">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-gray-100 bg-surface-field">
             <div>
                 {tools.map((tool) => {
                     const busy = busyKey === `tool:${tool.id}`;

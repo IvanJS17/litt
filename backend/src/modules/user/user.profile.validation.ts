@@ -10,8 +10,9 @@ import { REASONING_LEVELS, resolveModel } from "../../lib/llm";
 import { ROUTER_SLUGS, type RouterSlug } from "../../lib/routerModels";
 import { ROUTER_PROFILE_FIELDS, normalizeRouterModels } from "./user.profile.routerPreferences";
 import { isUiLocale } from "../../lib/uiLocale";
-import type { TextSize, UiLocale } from "@mike/contracts";
+import type { TextSize, Theme, UiLocale } from "@mike/contracts";
 import { isTextSize } from "../../lib/textSize";
+import { isTheme } from "../../lib/theme";
 
 const PRACTICE_SETTINGS = new Set([
     "private_practice",
@@ -191,7 +192,7 @@ export function validateProfilePayload(body: unknown):
         "lastSelectedReasoningLevel",
         "quickActionsVisible",
         "responseDetailsVisible",
-        "darkMode",
+        "theme",
         "projectMemoryDefault",
         "uiLocale",
         "textSize",
@@ -223,7 +224,7 @@ export function validateProfilePayload(body: unknown):
         last_selected_reasoning_level?: string | null;
         quick_actions_visible?: boolean;
         response_details_visible?: boolean;
-        dark_mode?: boolean;
+        theme?: Theme;
         project_memory_default?: boolean;
         ui_locale?: UiLocale | null;
         text_size?: TextSize;
@@ -442,14 +443,14 @@ export function validateProfilePayload(body: unknown):
         update.response_details_visible = raw.responseDetailsVisible;
     }
 
-    if ("darkMode" in raw) {
-        if (typeof raw.darkMode !== "boolean") {
+    if ("theme" in raw) {
+        if (!isTheme(raw.theme)) {
             return {
                 ok: false,
-                detail: "darkMode must be a boolean",
+                detail: "theme must be light, dark or system",
             };
         }
-        update.dark_mode = raw.darkMode;
+        update.theme = raw.theme;
     }
 
     if ("projectMemoryDefault" in raw) {

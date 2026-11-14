@@ -16,7 +16,10 @@ import { InitialView } from "./InitialView";
 import { UserMessage } from "./UserMessage";
 import { BackingSlot } from "./BackingPanel";
 import type { WordTrainingBacking } from "../../hooks/useWordTrainingBacking";
-import { ResponseSelectionMenuUI } from "@mike/ui";
+import {
+  LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS,
+  ResponseSelectionMenuUI,
+} from "@mike/ui";
 import type {
     EditDecision,
     ReasoningLevel,
@@ -948,7 +951,7 @@ export function ChatView({
                         type="button"
                         aria-label={t("word.scrollToBottom")}
                         onClick={scrollToBottom}
-                        className="cursor-pointer rounded-full bg-white/30 p-2 shadow-[0_5px_16px_rgba(21,26,38,0.13),inset_0_1px_0_rgba(255,255,255,0.75),inset_0_-8px_18px_rgba(255,255,255,0.26)] backdrop-blur-xl transition-[background-color,box-shadow] hover:bg-white/45 hover:shadow-[0_7px_20px_rgba(21,26,38,0.16),inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-8px_18px_rgba(255,255,255,0.32)]"
+                        className={`cursor-pointer rounded-full p-2 transition-[background-color,box-shadow] ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
                     >
                         <ArrowDown className="h-5 w-5 text-gray-500" />
                     </button>

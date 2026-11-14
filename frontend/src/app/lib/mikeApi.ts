@@ -1,6 +1,7 @@
 import { BACKEND_REPORTING_OWNER } from "@mike/client";
 import type { Locale } from "@litt/i18n";
 import type { TextSize } from "@/app/lib/textSize";
+import type { Theme } from "@/app/lib/theme";
 import type { Operation } from "@/app/lib/errorReporting";
 import { settleWithConcurrency } from "@mike/client";
 import type {
@@ -933,7 +934,8 @@ export interface UserProfile extends RouterProfileLists {
     quickActionsVisible: boolean;
     /** Whether responses and subagents show the model, effort and tokens they used. */
     responseDetailsVisible?: boolean;
-    darkMode: boolean;
+    /** Claro, Oscuro or Automático (follows the device). */
+    theme: Theme;
     /** The text size chosen in Settings > Appearance; absent reads as normal. */
     textSize?: TextSize;
     projectMemoryDefault: boolean;
@@ -1067,7 +1069,7 @@ export async function updateUserProfile(payload: {
     lastSelectedReasoningLevel?: NonNullable<Message["reasoning"]>;
     quickActionsVisible?: boolean;
     responseDetailsVisible?: boolean;
-    darkMode?: boolean;
+    theme?: Theme;
     textSize?: TextSize;
     projectMemoryDefault?: boolean;
     uiLocale?: Locale | null;

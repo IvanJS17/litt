@@ -39,6 +39,7 @@ import {
     DropdownSeparator,
     DropdownTrigger,
 } from "@mike/ui";
+import { AccountMenuTheme } from "@/app/components/shared/AccountMenuTheme";
 import { SidebarHeading } from "@/app/components/shared/SidebarHeading";
 import { SidebarLogo } from "@/app/components/shared/SidebarLogo";
 import { LittWordmark } from "@mike/ui";
@@ -78,7 +79,7 @@ import {
     workspaceChoiceLabel,
 } from "@/app/components/shared/WorkspaceBadge";
 import {
-    LIQUID_GLASS_FLOAT_CLASS,
+    LIQUID_GLASS_FLAT_CLASS,
     LIQUID_GLASS_SELECTED_CLASS,
     LIQUID_GLASS_HOVER_CLASS,
 } from "@/app/components/ui/liquid-surface";
@@ -572,7 +573,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     // the width.
                     isOpen ? "md:w-62 md:rounded-2xl" : "md:w-[46px] md:rounded-[23px]",
                     "ease-[cubic-bezier(0.32,0.72,0,1)] overflow-visible",
-                    LIQUID_GLASS_FLOAT_CLASS,
+                    // The sidebar is a hoja on the mesa: the flat tier.
+                    LIQUID_GLASS_FLAT_CLASS,
                     "z-[99] flex shrink-0 flex-col motion-reduce:transition-none",
                 )}
             >
@@ -1131,6 +1133,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                       <DropdownSeparator className="my-1" />
                                   </>
                               ) : null}
+                              <AccountMenuTheme />
                               <DropdownItem
                                   // On a phone Settings opens on its grouped list; the
                                   // Account page is one row down.

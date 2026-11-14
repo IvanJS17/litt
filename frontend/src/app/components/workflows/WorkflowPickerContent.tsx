@@ -361,7 +361,7 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
                     </div>
                 ),
                 thead: ({ children }) => (
-                    <thead className="bg-gray-50">{children}</thead>
+                    <thead className="bg-surface-sheet">{children}</thead>
                 ),
                 tbody: ({ children }) => (
                     <tbody className="divide-y divide-gray-100">
@@ -437,7 +437,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                 />
                             </button>
                             {isExpanded ? (
-                                <div className="mt-1 min-w-0 space-y-3 break-words rounded-md bg-white/60 px-4 py-3 text-xs leading-relaxed text-gray-600">
+                                <div className="mt-1 min-w-0 space-y-3 break-words rounded-md bg-surface-field px-4 py-3 text-xs leading-relaxed text-gray-600">
                                     {column.tags && column.tags.length > 0 ? (
                                         <div>
                                             <p className="mb-1.5 text-2xs font-medium text-gray-600">

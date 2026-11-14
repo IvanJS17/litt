@@ -122,7 +122,7 @@ function CompareDocumentDialog({
                             {candidates.map((candidate) => (
                                 <label
                                     key={candidate.id}
-                                    className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs hover:bg-gray-50"
+                                    className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs hover:bg-interactive-soft"
                                 >
                                     <input
                                         type="radio"

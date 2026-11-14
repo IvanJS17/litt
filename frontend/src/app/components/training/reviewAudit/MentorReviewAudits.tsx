@@ -151,7 +151,7 @@ function AuditCard({
                                                 return next;
                                             });
                                         }}
-                                        className="rounded-xl border border-gray-200 bg-white px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                        className="rounded-xl border border-gray-200 bg-surface-field px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     >
                                         <option value="">{t("mentor.keepMark")}</option>
                                         {cell.mentor_mark && <option value={CLEAR}>{t("mentor.clearMark")}</option>}
@@ -191,7 +191,7 @@ function AuditCard({
                             value={note}
                             maxLength={AUDIT_NOTE_MAX_CHARS}
                             onChange={(event) => setNote(event.target.value)}
-                            className="min-h-20 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
+                            className="min-h-20 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
                         />
                         <div className="flex min-w-0 flex-wrap items-center gap-3">
                             <PillButtonUI type="button" tone="black" size="sm" loading={busy} disabled={!outcome} onClick={() => void save()}>

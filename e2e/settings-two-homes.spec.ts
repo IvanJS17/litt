@@ -81,7 +81,7 @@ async function signedIn(page: Page, s: Scenario) {
                 messageCreditsUsed: 12, creditsResetDate: "2026-12-01T00:00:00Z", creditsRemaining: 88, tier: "Free",
                 titleModel: null, tabularModel: null, memoryCuratorModel: null, subagentModel: null, subagentReasoning: null,
                 lastSelectedChatModel: "test-model", lastSelectedReasoningLevel: "medium", mfaOnLogin: false,
-                quickActionsVisible: true, responseDetailsVisible: false, darkMode: s.dark === true, projectMemoryDefault: true,
+                quickActionsVisible: true, responseDetailsVisible: false, theme: s.dark === true ? "dark" : "light", projectMemoryDefault: true,
                 textSize: s.textSize, apiKeyStatus: keyStatus({ claude: false }), uiLocale: "es-MX",
             });
         }
@@ -604,7 +604,7 @@ test.describe("títulos de grupo: claro, oscuro y teléfono", () => {
             const css = getComputedStyle(el);
             return { family: css.fontFamily, size: parseFloat(css.fontSize), color: css.color };
         });
-        expect(style.family).toMatch(/EB Garamond|garamond|serif/i);
+        expect(style.family).toMatch(/Newsreader|serif/i);
         expect(style.size).toBeGreaterThan(14);
         await shot(page, "01-ajustes-menu-completo-oscuro-propietario-escritorio-1280");
     });
@@ -645,4 +645,147 @@ test.describe("menú lateral a 390 px", () => {
         await expectNoHorizontalOverflow(page);
         await shot(page, "07-menu-lateral-ajustes-del-despacho-propietario-telefono-390");
     });
+});
+
+// The bar of sections stays put while the open section scrolls (desktop only;
+// a phone has the list at /settings/menu). BAR_SHOTS names a directory for
+// the before/after screenshots, taken after scrolling.
+const BAR_SHOTS = process.env.BAR_SHOTS;
+const BAR_HOMES = [
+    { home: "ajustes", path: "/settings/privacy-data", ready: "Exportar datos" },
+    { home: "despacho", path: `/organizations/${FIRM}/settings/privacy-data`, ready: "Privacidad y datos" },
+] as const;
+const BAR = '[data-slot="settings-bar"]';
+
+/**
+ * Scroll whichever ancestor of the bar scrolls (the bar itself aside), to
+ * `to` pixels or, without it, to the end.
+ */
+async function scrollContent(page: Page, to?: number) {
+    return page.evaluate(
+        ([selector, target]) => {
+            const nav = document.querySelector(selector as string) as HTMLElement;
+            let scroller: HTMLElement = document.scrollingElement as HTMLElement;
+            for (let el: HTMLElement | null = nav.parentElement; el; el = el.parentElement) {
+                const overflowY = getComputedStyle(el).overflowY;
+                if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+                    scroller = el;
+                    break;
+                }
+            }
+            const max = scroller.scrollHeight - scroller.clientHeight;
+            scroller.scrollTop = target === null ? max : (target as number);
+            return { scrolled: scroller.scrollTop, max };
+        },
+        [BAR, to ?? null] as const,
+    );
+}
+
+for (const size of ["normal", "xlarge"] as const) {
+    const pct = size === "normal" ? "100" : "125";
+    test.describe(`barra fija al desplazar en escritorio 1280×800 (${pct} %)`, () => {
+        test.use({ viewport: { width: 1280, height: 800 } });
+
+        for (const home of BAR_HOMES) {
+            test(`${home.home}: la barra no se mueve y la pestaña abierta se ve`, async ({ page }) => {
+                await signedIn(page, { role: "owner", textSize: size });
+                await page.goto(home.path);
+                const nav = page.locator(BAR);
+                await expect(nav).toBeVisible();
+                await expect(page.getByText(home.ready).first()).toBeVisible();
+                const active = nav.locator('[aria-current="page"]');
+                await expect(active).toBeVisible();
+                await page.waitForTimeout(300);
+                const atRest = (await nav.boundingBox())!;
+                // First past the point where the bar reaches the top of the
+                // scroll area, then to the end: it must not move between them.
+                const first = await scrollContent(page, 250);
+                expect(first.max, "the content must be long enough to scroll").toBeGreaterThan(300);
+                await page.waitForTimeout(300);
+                const before = (await nav.boundingBox())!;
+                expect(before.y, "the bar sits at the top of the scroll area").toBeLessThan(atRest.y);
+                expect(before.y).toBeLessThanOrEqual(20);
+                // (Not to the very end: a sticky bar is held inside its own
+                // grid, so it rises with the last of the content.)
+                const result = await scrollContent(page, first.scrolled + Math.floor((first.max - first.scrolled) / 2));
+                expect(result.scrolled).toBeGreaterThan(first.scrolled);
+                await page.waitForTimeout(300);
+                if (BAR_SHOTS) {
+                    fs.mkdirSync(BAR_SHOTS, { recursive: true });
+                    await page.screenshot({ path: path.join(BAR_SHOTS, `${home.home}-${pct}-desplazado.png`) });
+                }
+                const after = (await nav.boundingBox())!;
+                expect(Math.abs(after.y - before.y), "the bar moved with the content").toBeLessThanOrEqual(1);
+                expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1);
+                // The open section is on screen, whatever the text size.
+                const box = (await active.boundingBox())!;
+                const viewport = page.viewportSize()!;
+                expect(box.y).toBeGreaterThanOrEqual(0);
+                expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+                // The bar never grows past the screen: a long list scrolls by itself.
+                expect(after.y + after.height).toBeLessThanOrEqual(viewport.height + 1);
+                if (size === "xlarge") {
+                    const own = await nav.evaluate((el) => ({
+                        overflowY: getComputedStyle(el).overflowY,
+                        scrolls: el.scrollHeight > el.clientHeight,
+                    }));
+                    expect(own.overflowY).toBe("auto");
+                    // The personal list is long enough not to fit at 125 %.
+                    if (home.home === "ajustes") expect(own.scrolls, "the list does not fit, so the bar scrolls itself").toBe(true);
+                    // The bar scrolls by itself to its last section, without moving.
+                    const last = nav.getByRole("button").last();
+                    await last.scrollIntoViewIfNeeded();
+                    const lastBox = (await last.boundingBox())!;
+                    expect(lastBox.y + lastBox.height).toBeLessThanOrEqual(viewport.height);
+                    expect(Math.abs((await nav.boundingBox())!.y - before.y)).toBeLessThanOrEqual(1);
+                }
+            });
+        }
+    });
+}
+
+test.describe("el ámbar es solo del teclado", () => {
+    test.use({ viewport: { width: 1280, height: 800 } });
+
+    for (const home of BAR_HOMES) {
+        test(`${home.home}: sin contorno tras el clic, con contorno al tabular`, async ({ page }) => {
+            await signedIn(page, { role: "owner" });
+            await page.goto(home.path);
+            const nav = page.locator(BAR);
+            await expect(nav).toBeVisible();
+            // Members is a full table page outside the frame: click the first section.
+            await nav.getByRole("button").first().click();
+            await page.waitForLoadState();
+            await page.waitForTimeout(500);
+            const clicked = nav.getByRole("button").first();
+            const shown = await clicked.evaluate((el) => {
+                const s = getComputedStyle(el);
+                return { outline: s.outlineStyle !== "none" && parseFloat(s.outlineWidth) > 0, shadow: s.boxShadow, focused: document.activeElement === el };
+            });
+            expect(shown.outline, "no outline after a click").toBe(false);
+            expect(shown.shadow, "no ring after a click").toBe("none");
+            // Even where the browser matches :focus-visible after a click, the
+            // pointer guard keeps the ring off.
+            await clicked.evaluate((el) => (el as HTMLElement).focus({ focusVisible: true } as FocusOptions));
+            const forced = await clicked.evaluate((el) => {
+                const s = getComputedStyle(el);
+                return { visible: el.matches(":focus-visible"), shadow: s.boxShadow, outline: s.outlineStyle !== "none" && parseFloat(s.outlineWidth) > 0 };
+            });
+            expect(forced.outline).toBe(false);
+            expect(forced.shadow, "no amber ring while the last input was a pointer").toBe("none");
+            if (BAR_SHOTS) {
+                fs.mkdirSync(BAR_SHOTS, { recursive: true });
+                await page.screenshot({ path: path.join(BAR_SHOTS, `${home.home}-tras-clic.png`), clip: { x: 0, y: 0, width: 640, height: 800 } });
+            }
+            // With the keyboard the ring is there.
+            await page.keyboard.press("Tab");
+            const ring = await page.evaluate(() => {
+                const el = document.activeElement as HTMLElement;
+                const s = getComputedStyle(el);
+                return { match: el.matches(":focus-visible"), shadow: s.boxShadow, outline: s.outlineStyle };
+            });
+            expect(ring.match).toBe(true);
+            expect(ring.shadow !== "none" || ring.outline !== "none").toBe(true);
+        });
+    }
 });

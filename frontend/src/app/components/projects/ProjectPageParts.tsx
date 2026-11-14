@@ -87,7 +87,7 @@ export function DocIcon({
             {icon}
             <span
                 aria-hidden="true"
-                className="absolute -bottom-1 -right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-orange-500 text-[0.4375rem] font-bold leading-none text-white ring-1 ring-white"
+                className="absolute -bottom-1 -right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-orange-500 text-[0.4375rem] font-bold leading-none text-white ring-1 ring-surface-sheet"
             >
                 !
             </span>
@@ -208,9 +208,9 @@ export function DocVersionHistory({
 
     if (versions.length === 0) {
         return (
-            <div className="flex items-center h-9 border-b border-gray-50 text-xs text-gray-400 bg-gray-50/80">
+            <div className="flex items-center h-9 border-b border-gray-50 text-xs text-gray-400 bg-surface-sheet/80">
                 <div
-                    className={`sticky left-0 z-[60] ${DOC_NAME_COL_W} bg-gray-50/80 py-2 pl-3 pr-2`}
+                    className={`sticky left-0 z-[60] ${DOC_NAME_COL_W} bg-surface-sheet/80 py-2 pl-3 pr-2`}
                     style={treeNameCellStyle(depth)}
                 >
                     <div>{t("projects.projectPageParts.noVersionHistory")}</div>
@@ -248,8 +248,8 @@ export function DocVersionHistory({
                           minute: "2-digit",
                       });
                 const isEditing = editingVersionId === v.id;
-                const rowBg = isDeleted ? "bg-gray-50" : "bg-gray-100";
-                const hoverBg = isDeleted ? "hover:bg-gray-50" : "hover:bg-gray-200";
+                const rowBg = isDeleted ? "bg-surface-sheet" : "bg-gray-100";
+                const hoverBg = isDeleted ? "hover:bg-interactive-soft" : "hover:bg-gray-200";
                 return (
                     <div
                         key={`ver-${docId}-${v.id}`}
@@ -265,7 +265,7 @@ export function DocVersionHistory({
                     >
                         <div
                             className={`sticky left-0 z-[60] ${DOC_NAME_COL_W} ${rowBg} py-2 pl-3 pr-2 transition-colors ${
-                                isDeleted ? "group-hover:bg-gray-50" : "group-hover:bg-gray-200"
+                                isDeleted ? "group-hover:bg-interactive-soft" : "group-hover:bg-gray-200"
                             }`}
                             style={treeNameCellStyle(depth)}
                         >

@@ -79,12 +79,17 @@ connection (checked in the prototype with `--network none`).
   is enough; it was **not** raised. Measured peaks of a comparison: 357-389 MB
   resident in the review's runs through the real parser process (prlimit as in
   production), 247-257 MB for a real 6,200-word contract in a container capped
-  at 300 MB. The parser's address-space bound is the budget plus 2 GB (it was
-  1 GB, which left a 3-9 % margin over the ~1.83 GB VmPeak of a comparison and
-  aborted some runs); this is address space, not RAM, and the data limit
-  (`--data`) and the container's cgroup still set the real cap. A comparison
-  reaches about 1.8 GB of address space (WebAssembly reservations),
-  so budgets well below the default fail (`compare_source_too_large`). The
+  at 300 MB. The parser's address-space bound is the budget plus 2 GB; this is
+  address space, not RAM, and the data limit (`--data`) and the container's
+  cgroup still set the real cap. The engine's WebAssembly memory declares no
+  small maximum, so V8 reserved for it the largest of 4, 3, 2 or 1 GB that still
+  fit under the bound: a comparison's VmPeak sat at 2.98-3.04 GB against a
+  3.07 GB cap, and whatever reservation came next (a heap page, the stack)
+  failed at random, so a normal comparison sometimes failed as too large. The
+  parser now caps each WebAssembly memory at the budget
+  (`--wasm-max-mem-pages`), and a comparison peaks at about 1.96-1.99 GB of
+  address space (compiled server, Node 22). Budgets well below the default
+  fail (`compare_source_too_large`). The
   parser runs inside the backend container, whose limit is 1024 MB in
   production (`deploy/prod/compose.yaml`) to leave room next to the API
   (~330 MB).

@@ -118,7 +118,7 @@ export default function SupportPage() {
     if (isSubmitted) {
         return (
             <div className="h-full flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white rounded-xl text-center">
+                <div className="max-w-md w-full bg-surface-sheet rounded-xl text-center">
                     <div className="flex justify-center mb-4">
                         <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center">
                             <CheckCircle className="h-8 w-8 text-green-600" />
@@ -147,7 +147,7 @@ export default function SupportPage() {
                 {/* Fixed Header Section */}
                 <div className="flex-shrink-0 pt-6 md:pt-10 pb-0">
                     <div className="mb-5">
-                        <h1 className="text-4xl font-medium font-eb-garamond text-gray-900 mb-3">
+                        <h1 className="text-4xl font-serif font-medium text-gray-900 mb-3">
                             {t("support.support")}
                         </h1>
                     </div>
@@ -155,7 +155,7 @@ export default function SupportPage() {
 
                 {/* Form Container */}
                 <div className="flex-1 overflow-y-auto pb-6">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="bg-surface-sheet rounded-xl shadow-sm border border-gray-200 p-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* Feedback Type Selection */}
                             <div>

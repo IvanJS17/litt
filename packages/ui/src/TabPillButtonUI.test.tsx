@@ -18,11 +18,9 @@ describe("TabPillButtonUI", () => {
             "aria-pressed",
             "true",
         );
-        expect(button).toHaveClass(
-            "border-white/80",
-            "bg-white",
-            "text-gray-900",
-        );
+        // Active: a tinta tint with tinta text, no white fill.
+        expect(button).toHaveClass("bg-interactive-soft-strong", "text-gray-900");
+        expect(button).not.toHaveClass("bg-white", "border-white/80", "ring-1");
         expect(button).not.toHaveClass("liquid-glass-selected");
     });
 
@@ -40,7 +38,7 @@ describe("TabPillButtonUI", () => {
         const active = screen.getByRole("button", { name: "Overview" });
         expect(active).toHaveClass("liquid-glass-flat", "text-gray-900");
         expect(active).not.toHaveClass(
-            "liquid-glass-subtle",
+            "ring-gray-900/15",
             "liquid-glass-selected",
             "bg-white",
         );
@@ -57,10 +55,17 @@ describe("TabPillButtonUI", () => {
         expect(button).toHaveClass("liquid-glass-hover");
     });
 
+    it("rests as an outline on the page: transparent, with a hairline ring", () => {
+        render(<TabPillButtonUI>Filter</TabPillButtonUI>);
+        const button = screen.getByRole("button", { name: "Filter" });
+        expect(button).toHaveClass("bg-transparent", "ring-1", "ring-gray-900/15");
+        expect(button).not.toHaveClass("liquid-glass-subtle", "bg-white");
+    });
+
     it("has a visible keyboard focus ring", () => {
         render(<TabPillButtonUI active>Mine</TabPillButtonUI>);
         expect(screen.getByRole("button", { name: "Mine" })).toHaveClass(
-            "liquid-glass-subtle",
+            "bg-interactive-soft-strong",
             "focus-visible:ring-2",
         );
     });

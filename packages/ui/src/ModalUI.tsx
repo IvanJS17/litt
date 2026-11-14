@@ -211,7 +211,7 @@ export function ModalUI({
     return createPortal(
         <div
             data-state={open ? "open" : "closed"}
-            className={`fixed inset-0 z-[200] flex items-center justify-center bg-white/10 px-4 py-4 backdrop-blur-[2px] ${sheet ? "modal-sheet-backdrop max-md:items-end max-md:p-0" : ""} ${visible ? "" : "hidden"} ${closing ? "pointer-events-none" : ""}`}
+            className={`fixed inset-0 z-[200] flex items-center justify-center bg-surface-desk/10 px-4 py-4 backdrop-blur-[2px] ${sheet ? "modal-sheet-backdrop max-md:items-end max-md:p-0" : ""} ${visible ? "" : "hidden"} ${closing ? "pointer-events-none" : ""}`}
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget) onClose();
             }}
@@ -265,7 +265,7 @@ export function ModalUI({
 
                 {hasFooter && (
                     <footer
-                        className={`flex items-center gap-3 border-t border-white/60 p-3 ${secondaryAction ? "justify-between" : "justify-end"}`}
+                        className={`flex items-center gap-3 border-t border-gray-100 p-3 ${secondaryAction ? "justify-between" : "justify-end"}`}
                     >
                         {secondaryAction && (
                             <div className="flex min-w-0 items-center gap-2">

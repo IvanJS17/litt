@@ -17,7 +17,8 @@ describe("HeaderButtonsUI", () => {
 
         expect(screen.getByTestId("actions")).toHaveClass(
             "rounded-full",
-            "liquid-glass-subtle",
+            "bg-surface-sheet",
+            "shadow-elev-sheet",
         );
         expect(screen.getByRole("button", { name: "New chat" })).toHaveClass(
             "h-7",

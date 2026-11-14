@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { PIXEL_TEXT_CLASS } from "@mike/ui";
 
 const PROJECT_WORKSPACE_TIP_COUNT = 5;
 
@@ -49,7 +50,7 @@ export function ProjectWorkspaceTips() {
                 </button>
                 <span
                     aria-label={t("projects.tipNOfTotal", { n: tipIndex + 1, total: PROJECT_WORKSPACE_TIP_COUNT })}
-                    className="min-w-8 text-center text-3xs tabular-nums text-gray-500"
+                    className={`min-w-8 text-center tabular-nums text-gray-500 ${PIXEL_TEXT_CLASS}`}
                 >
                     {tipIndex + 1}/{PROJECT_WORKSPACE_TIP_COUNT}
                 </span>
