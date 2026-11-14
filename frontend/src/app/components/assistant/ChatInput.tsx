@@ -14,8 +14,6 @@ import {
     type ForwardedRef,
 } from "react";
 import {
-    ArrowRight,
-    Square,
     Waypoints,
     X,
 } from "lucide-react";
@@ -24,6 +22,7 @@ import { PlaybookPickerModal } from "../playbooks/PlaybookPickerModal";
 import {
     PlaybookPillUI,
     COMPOSER_SEND_BUTTON_CLASS,
+    SendArrowUI,
     ExcerptModalUI,
     ExcerptPillUI,
 } from "@mike/ui";
@@ -1215,9 +1214,10 @@ function ChatInputForChatImpl(
                                 }
                                 className={cn(
                                     COMPOSER_SEND_BUTTON_CLASS,
+    SendArrowUI,
                                     // 40 px with the finger, in a 44 px zone.
                                     TOUCH_TARGET_CLASS,
-                                    "h-7.5 w-7.5 rounded-full pointer-coarse:h-10 pointer-coarse:w-10",
+                                    "h-7.5 w-7.5 rounded-[9px] pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:rounded-xl",
                                 )}
                                 onClick={handleActionClick}
                                 disabled={
@@ -1228,15 +1228,7 @@ function ChatInputForChatImpl(
                                         slashCommandsLoading)
                                 }
                             >
-                                {isLoading ? (
-                                    <Square
-                                        className="h-4 w-4"
-                                        fill="currentColor"
-                                        strokeWidth={0}
-                                    />
-                                ) : (
-                                    <ArrowRight className="h-4 w-4" />
-                                )}
+                                <SendArrowUI stop={isLoading} />
                             </button>
                         </div>
                     </div>
