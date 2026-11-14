@@ -156,12 +156,12 @@ export function SettingsShell({
                         <nav
                             aria-label={navLabel}
                             data-slot="settings-phone-list"
-                            className="flex flex-col gap-5 md:hidden"
+                            className="flex flex-col gap-6 md:hidden"
                         >
                             {grouped.map((group) => (
                                 <section key={group.id}>
                                     {group.label ? (
-                                        <h2 className="px-3 pb-1.5 text-xs font-semibold text-gray-500">
+                                        <h2 className="px-1 pb-2 font-serif text-[1.1875rem] font-medium leading-tight text-gray-900">
                                             {group.label}
                                         </h2>
                                     ) : null}
@@ -207,7 +207,7 @@ export function SettingsShell({
                                 {/* Groups are headings down the side; in the strip
                                     across the top of a narrow page they vanish and
                                     the tabs run on. */}
-                                <ul className="mb-0 flex gap-1 @min-[820px]/settings:flex-col @min-[820px]/settings:gap-4">
+                                <ul className="mb-0 flex gap-1 @min-[820px]/settings:flex-col @min-[820px]/settings:gap-5">
                                     {grouped.map((group) => (
                                         <li
                                             key={group.id}
@@ -216,7 +216,7 @@ export function SettingsShell({
                                             {group.label ? (
                                                 <h2
                                                     id={`settings-group-${group.id}`}
-                                                    className="hidden px-3 pb-1 text-xs font-semibold text-gray-500 @min-[820px]/settings:block"
+                                                    className="hidden px-3 pb-1.5 font-serif text-[1.0625rem] font-medium leading-tight text-gray-900 @min-[820px]/settings:block"
                                                 >
                                                     {group.label}
                                                 </h2>
@@ -311,7 +311,7 @@ export function SettingsShellSkeleton({
                 <div className="grid grid-cols-1 gap-y-6 @min-[820px]/settings:grid-cols-[224px_minmax(0,1fr)] @min-[820px]/settings:gap-x-10">
                     {/* On a phone the real page is a grouped list (SettingsShell
                         `mobileHome`), not a strip of tabs: draw that. */}
-                    <div className="flex flex-col gap-5 md:hidden">
+                    <div className="flex flex-col gap-6 md:hidden">
                         {[4, 3, 2].map((rows, group) => (
                             <ul key={group} className="overflow-hidden rounded-2xl bg-gray-50">
                                 {Array.from({ length: rows }, (_, index) => (
