@@ -1590,7 +1590,7 @@ test("composer controls fit a narrow Word task pane", async ({
     page.getByRole("button", { name: "Choose model" }),
   ).toBeVisible();
   const sendButton = page.getByRole("button", { name: "Send" });
-  await expect(sendButton).toHaveClass(/rounded-\[11px\]/);
+  await expect(sendButton).toHaveClass(/rounded-\[10px\]/);
   await expect(sendButton).toHaveClass(/border-0/);
 
   const placeholderBounds = await page
