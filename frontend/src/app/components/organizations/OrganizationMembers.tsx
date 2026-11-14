@@ -146,10 +146,13 @@ function formatDate(format: DateFormatter, value?: string | null) {
  */
 export function OrganizationMembers({
   orgId,
+  orgName,
   onViewerRoleChanged,
   initialTab = "all",
 }: {
   orgId: string;
+  /** Names the firm in the heading; the page leads back to its settings. */
+  orgName?: string;
   onViewerRoleChanged?: () => void;
   /** Opens on the Departed view, for a link that leads straight to it. */
   initialTab?: "all" | "departed";
@@ -473,9 +476,12 @@ export function OrganizationMembers({
         loading={loading}
         breadcrumbs={[
           {
-            label: t("organizations.organizationMembers.organization"),
+            label: orgName
+              ? t("settings.map.firmHeading", { name: orgName })
+              : t("settings.map.firmHeadingLoading"),
             onClick: () => router.push(`/organizations/${orgId}/settings`),
             title: t("organizations.organizationMembers.backToOrganization"),
+            wide: true,
           },
           { label: t("organizations.organizationMembers.members"), cursor: "text" },
         ]}

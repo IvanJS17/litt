@@ -60,7 +60,7 @@ describe("ScanReadingPage document types to split a case file", () => {
         render(<ScanReadingPage />);
         expect(card()).not.toBeInTheDocument();
         expect(screen.queryByRole("link")).not.toBeInTheDocument();
-        expect(screen.getByText(/Your firm manages this when you work in Socium/)).toBeInTheDocument();
+        expect(screen.getByText(/Your firm manages the document types when you work in Socium/)).toBeInTheDocument();
     });
 
     it("has no personal list for a firm-managed account, which has no personal workspace", () => {

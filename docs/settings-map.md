@@ -111,8 +111,11 @@ A moved route only redirects; there is no second copy of the page
 
 ## Layout
 
-- Desktop: the sidebar shows the groups as headings, then their tabs. Under 52 rem
-  of content width the tabs run in one strip and the headings disappear.
+- Desktop: the sidebar shows the groups as headings, then their tabs, from 820 px of
+  content width up (also at 125 % text). Below that the tabs run in one strip and the
+  headings disappear.
+- «Miembros» and «Auditoría» of a firm are full table pages, drawn without the sidebar;
+  their heading reads «Ajustes del despacho · \<nombre\>» and leads back to General.
 - Phone: `/settings/menu` is the grouped list (the same groups; each row at least
   44 px tall) with the line to the firm's settings above it. A personal section opens
   with a back button. The firm's settings have no list: the heading

@@ -205,6 +205,8 @@ export function OrganizationsOverview() {
                   name={org.name}
                   detail={t("organizations.organizationsOverview.roleAndMembers", { role: orgRoleLabel(t, org.role), count: members })}
                   icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
+                  // The buttons go under the name: its role and size need the room.
+                  stacked
                   // Every firm opens its own «Ajustes del despacho»; opening
                   // them from another workspace switches to that firm first
                   // (with a notice). The other firms also offer a plain switch.

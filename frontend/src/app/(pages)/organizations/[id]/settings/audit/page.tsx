@@ -26,6 +26,7 @@ export default function OrganizationAuditPage() {
     <AuditHistory
       key={orgId}
       orgId={orgId}
+      orgName={org.name}
       onBack={() => router.push(organizationSettingsHref(orgId))}
     />
   );

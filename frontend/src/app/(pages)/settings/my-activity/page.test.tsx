@@ -125,7 +125,7 @@ describe("MyActivitySettingsPage", () => {
     expect(within(cell).getByRole("img", { name: "Jamie Morgan" })).toHaveTextContent("JM");
   });
   it("scopes the reused organization history page to its organization", async () => {
-    render(<AuditHistory orgId="org-a" onBack={() => {}} />);
+    render(<AuditHistory orgId="org-a" orgName="Socium" onBack={() => {}} />);
     await waitFor(() =>
       expect(mockedGetAuditHistory).toHaveBeenCalledWith(
         expect.objectContaining({ orgId: "org-a", page: 1 }),
@@ -135,7 +135,7 @@ describe("MyActivitySettingsPage", () => {
     expect(
       screen.getByRole("button", { name: "Audit log actions" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Organization").length).toBeGreaterThan(
+    expect(screen.getAllByText("Firm settings · Socium").length).toBeGreaterThan(
       0,
     );
   });

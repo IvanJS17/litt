@@ -40,6 +40,10 @@ export interface SettingsMobileHome {
  * them. A person's settings and an organization's use the same one, so the
  * two read as the same kind of place.
  *
+ * The sections sit down the side when the page is at least 820 px wide (a
+ * pixel width on purpose: at 125 % text a rem width would turn a laptop into
+ * a strip of twenty tabs), and across the top below that.
+ *
  * `rootHref` is the area's first section, whose path is a prefix of every
  * other's: it is the open one only on an exact match.
  */
@@ -147,7 +151,7 @@ export function SettingsShell({
                         {banner}
                     </div>
                 ) : null}
-                <div className="grid grid-cols-1 gap-y-6 @min-[52rem]/settings:grid-cols-[224px_minmax(0,1fr)] @min-[52rem]/settings:gap-x-10">
+                <div className="grid grid-cols-1 gap-y-6 @min-[820px]/settings:grid-cols-[224px_minmax(0,1fr)] @min-[820px]/settings:gap-x-10">
                     {mobileHome && onPhoneHome ? (
                         <nav
                             aria-label={navLabel}
@@ -194,7 +198,7 @@ export function SettingsShell({
                     <nav
                         aria-label={navLabel}
                         className={cn(
-                            "z-10 -ml-3 min-w-0 self-start @min-[52rem]/settings:sticky @min-[52rem]/settings:top-4",
+                            "z-10 -ml-3 min-w-0 self-start @min-[820px]/settings:sticky @min-[820px]/settings:top-4",
                             mobileHome && "max-md:hidden",
                         )}
                     >
@@ -203,16 +207,16 @@ export function SettingsShell({
                                 {/* Groups are headings down the side; in the strip
                                     across the top of a narrow page they vanish and
                                     the tabs run on. */}
-                                <ul className="mb-0 flex gap-1 @min-[52rem]/settings:flex-col @min-[52rem]/settings:gap-4">
+                                <ul className="mb-0 flex gap-1 @min-[820px]/settings:flex-col @min-[820px]/settings:gap-4">
                                     {grouped.map((group) => (
                                         <li
                                             key={group.id}
-                                            className="contents @min-[52rem]/settings:block"
+                                            className="contents @min-[820px]/settings:block"
                                         >
                                             {group.label ? (
                                                 <h2
                                                     id={`settings-group-${group.id}`}
-                                                    className="hidden px-3 pb-1 text-xs font-semibold text-gray-500 @min-[52rem]/settings:block"
+                                                    className="hidden px-3 pb-1 text-xs font-semibold text-gray-500 @min-[820px]/settings:block"
                                                 >
                                                     {group.label}
                                                 </h2>
@@ -221,7 +225,7 @@ export function SettingsShell({
                                                 aria-labelledby={
                                                     group.label ? `settings-group-${group.id}` : undefined
                                                 }
-                                                className="flex gap-1 @min-[52rem]/settings:flex-col"
+                                                className="flex gap-1 @min-[820px]/settings:flex-col"
                                             >
                                                 {group.tabs.map((tab) => {
                                                     const active =
@@ -304,7 +308,7 @@ export function SettingsShellSkeleton({
                 <SkeletonLine className="h-8 w-40" />
             </header>
             <div className="@container/settings mx-auto w-full max-w-5xl flex-1 px-6 pb-10 pt-4 md:pt-6">
-                <div className="grid grid-cols-1 gap-y-6 @min-[52rem]/settings:grid-cols-[224px_minmax(0,1fr)] @min-[52rem]/settings:gap-x-10">
+                <div className="grid grid-cols-1 gap-y-6 @min-[820px]/settings:grid-cols-[224px_minmax(0,1fr)] @min-[820px]/settings:gap-x-10">
                     {/* On a phone the real page is a grouped list (SettingsShell
                         `mobileHome`), not a strip of tabs: draw that. */}
                     <div className="flex flex-col gap-5 md:hidden">
@@ -324,7 +328,7 @@ export function SettingsShellSkeleton({
                             </ul>
                         ))}
                     </div>
-                    <ul className="flex gap-3 overflow-hidden max-md:hidden @min-[52rem]/settings:flex-col @min-[52rem]/settings:gap-0">
+                    <ul className="flex gap-3 overflow-hidden max-md:hidden @min-[820px]/settings:flex-col @min-[820px]/settings:gap-0">
                         {SKELETON_TAB_WIDTHS.map((width, index) => (
                             <li key={index} className="flex h-9 shrink-0 items-center px-3">
                                 <SkeletonLine className={width} />
