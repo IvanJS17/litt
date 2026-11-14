@@ -1196,6 +1196,7 @@ function ChatInputForChatImpl(
                                     onNoModelsClick={setNoModelsWarning}
                                     reasoningLevel={reasoningLevel}
                                     onReasoningChange={handleReasoningChange}
+                                    working={isLoading}
                                     locked={routeFixed}
                                 />
                             )}

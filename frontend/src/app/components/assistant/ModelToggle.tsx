@@ -66,6 +66,8 @@ interface Props {
   onNoModelsClick?: (reason: NoModelsReason) => void;
   reasoningLevel?: ReasoningLevel;
   onReasoningChange?: (level: ReasoningLevel) => void;
+  /** LiTT is answering: the level's thumbnail then changes without motion. */
+  working?: boolean;
   /**
    * LiTT governed BYOK: the conversation is fixed to `value`, so no other
    * model is offered. The reasoning level can still change.
@@ -88,6 +90,7 @@ export function ModelToggle({
   onNoModelsClick,
   reasoningLevel,
   onReasoningChange,
+  working = false,
   locked = false,
 }: Props) {
   const t = useTranslations();
@@ -162,6 +165,7 @@ export function ModelToggle({
       reasoningLevel={normalizedReasoningLevel}
       onReasoningChange={onReasoningChange}
       reasoningLevels={supportedReasoningLevels}
+      working={working}
     />
   );
 }

@@ -23,6 +23,8 @@ export function ModelToggle({
   keyStatusLoading = false,
   routerSelections,
   compact = false,
+  compactShowsName = false,
+  working = false,
   onNoModelsClick,
   reasoningLevel,
   onReasoningChange,
@@ -39,6 +41,10 @@ export function ModelToggle({
   /** Each router's saved Model Selections; null before the profile loads. */
   routerSelections: RouterSelections | null;
   compact?: boolean;
+  /** The panel has room for the short name and the level's thumbnail. */
+  compactShowsName?: boolean;
+  /** LiTT is answering: the thumbnail changes without motion. */
+  working?: boolean;
   onNoModelsClick?: () => void;
   reasoningLevel?: ReasoningLevel;
   onReasoningChange?: (level: ReasoningLevel) => void;
@@ -117,6 +123,8 @@ export function ModelToggle({
       selectedAvailable={selected !== undefined}
       loading={keyStatusLoading}
       compact={compact}
+      compactShowsName={compactShowsName}
+      working={working}
       controlSize="word"
       emptyLabel={t("word.noModels")}
       onEmptyClick={onNoModelsClick}

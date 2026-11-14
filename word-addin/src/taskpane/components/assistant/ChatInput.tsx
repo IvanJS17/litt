@@ -328,6 +328,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     const localFileInputRef = useRef<HTMLInputElement>(null);
     const composerRef = useRef<HTMLDivElement>(null);
     const [compactControls, setCompactControls] = useState(false);
+    // From 300 px of panel the model button names the model (short) and
+    // draws the level's thumbnail, in place of the controls icon.
+    const [roomForModelName, setRoomForModelName] = useState(false);
     const mountedRef = useRef(true);
     const uploadGenerationRef = useRef(0);
     const modelSelectionSaveRef = useRef<Promise<void>>(Promise.resolve());
@@ -415,7 +418,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     useEffect(() => {
       const composer = composerRef.current;
       if (!composer || typeof ResizeObserver === "undefined") return;
-      const update = (): void => setCompactControls(composer.offsetWidth < 430);
+      const update = (): void => {
+        setCompactControls(composer.offsetWidth < 430);
+        setRoomForModelName(window.innerWidth >= 300);
+      };
       update();
       const observer = new ResizeObserver(update);
       observer.observe(composer);
@@ -996,6 +1002,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                     keyStatusLoading={keyStatusLoading}
                     routerSelections={routerSelections}
                     compact={compactControls}
+                    compactShowsName={roomForModelName}
+                    working={isResponseLoading}
                     reasoningLevel={resolvedReasoningLevel}
                     onReasoningChange={(next) => {
                       reasoningManuallySelectedRef.current = true;

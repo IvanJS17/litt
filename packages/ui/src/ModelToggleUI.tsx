@@ -13,13 +13,13 @@ import { TabPillButtonUI } from "./TabPillButtonUI";
 import { textButtonUIClassName } from "./TextButtonUI.styles";
 import {
   COMPOSER_GHOST_BUTTON_CLASS,
+  COMPOSER_MENU_CLASS,
   COMPOSER_GHOST_WEB_ICON_CLASS,
   COMPOSER_GHOST_WEB_SIZE_CLASS,
   COMPOSER_GHOST_WORD_ICON_CLASS,
   COMPOSER_GHOST_WORD_SIZE_CLASS,
 } from "./ComposerSurfaceUI.styles";
 import {
-  DROPDOWN_ROWS_CLASS,
   Dropdown,
   DropdownContent,
   DropdownItem,
@@ -27,7 +27,11 @@ import {
   DropdownTrigger,
 } from "./dropdown";
 import {
-  LIQUID_GLASS_FLOAT_CLASS,
+  ReasoningLadderUI,
+  ReasoningMiniUI,
+  ladderStepCount,
+} from "./ReasoningLadderUI";
+import {
   LIQUID_GLASS_HOVER_CLASS,
   LIQUID_GLASS_SELECTED_CLASS,
   LIQUID_GLASS_SUBTLE_CLASS,
@@ -222,6 +226,12 @@ export interface ModelToggleUIProps {
   reasoningLevel?: ReasoningLevel;
   onReasoningChange?: (level: ReasoningLevel) => void;
   reasoningLevels?: readonly ReasoningLevel[];
+  /**
+   * LiTT is working on a reply. The thumbnail beside the name then changes
+   * with no transition, so the only thing that moves on screen is the
+   * status indicator.
+   */
+  working?: boolean;
   /** Open state, for a host that opens the picker itself; uncontrolled when omitted. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -234,8 +244,11 @@ const FLAT_INPUT_CLASS = textButtonUIClassName({
     "flex h-10 w-full items-center justify-between gap-2 rounded-xl bg-app-surface-active px-3 text-sm text-gray-700",
 });
 
+// Rows are 32 px (44 px with a finger), 2 px apart, with 8 px corners.
+const MODEL_ROWS_CLASS = "flex flex-col gap-0.5";
+
 const itemClassName =
-  "theme-dropdown-item flex cursor-pointer select-none items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-gray-700 outline-none transition-colors focus:text-gray-900 data-[highlighted]:text-gray-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>*]:pointer-events-none";
+  "theme-dropdown-item flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-1 text-[13px] text-gray-700 outline-none transition-colors focus:text-gray-900 data-[highlighted]:text-gray-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 pointer-coarse:min-h-11 [&>*]:pointer-events-none";
 
 /**
  * Platform-neutral model-picker presentation. Hosts own model discovery and
@@ -260,6 +273,7 @@ export function ModelToggleUI({
   reasoningLevel,
   onReasoningChange,
   reasoningLevels = REASONING_LEVELS,
+  working = false,
   open: openProp,
   onOpenChange,
 }: ModelToggleUIProps) {
@@ -267,7 +281,7 @@ export function ModelToggleUI({
   const TriggerButton = toolbar ? TabPillButtonUI : "button";
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const open = openProp ?? uncontrolledOpen;
-  const reasoningInputRef = React.useRef<HTMLInputElement>(null);
+  const ladderRef = React.useRef<HTMLDivElement>(null);
   const selected = models.find((model) => model.id === value);
   const [expandedGroup, setExpandedGroup] =
     React.useState<ModelToggleGroup | null>(null);
@@ -286,11 +300,25 @@ export function ModelToggleUI({
     (models.length > 0
       ? t("ui.modelToggle.selectModel")
       : (emptyLabel ?? t("ui.modelToggle.noModels")));
-  const reasoningIndex = reasoningLevel
-    ? Math.max(0, reasoningLevels.indexOf(reasoningLevel))
-    : 0;
-  const reasoningProgress =
-    (reasoningIndex / Math.max(1, reasoningLevels.length - 1)) * 100;
+  const hasReasoning = reasoningLevel !== undefined && !!onReasoningChange;
+  // The thumbnail of the level, beside the name, in the chat composer only.
+  const showMini =
+    hasReasoning &&
+    !modalInput &&
+    !toolbar &&
+    selected !== undefined &&
+    selectedAvailable &&
+    ladderStepCount(reasoningLevels) > 0;
+  const reasoningName = (level: ReasoningLevel): string =>
+    t(REASONING_LEVEL_LABEL_KEYS[level]);
+  // What the last change of level was, for the thumbnail: only a click or a
+  // tap on the ladder, or another model, animates it. The keyboard and a drag
+  // do not.
+  const [levelChangeInstant, setLevelChangeInstant] = React.useState(false);
+  // The level the pointer would choose, shown in grey beside the real one.
+  const [previewLevel, setPreviewLevel] = React.useState<ReasoningLevel | null>(
+    null,
+  );
 
   // Every opening, by the trigger or by the host, starts on the selected
   // model's group. Set while rendering, so the menu never paints collapsed.
@@ -341,7 +369,14 @@ export function ModelToggleUI({
       <DropdownTrigger asChild>
         <TriggerButton
           type="button"
-          aria-label={t("ui.modelToggle.chooseModel")}
+          aria-label={
+            hasReasoning && selected && selectedAvailable && !loading
+              ? t("ui.modelToggle.chooseModelWithReasoning", {
+                  label,
+                  level: reasoningName(reasoningLevel),
+                })
+              : t("ui.modelToggle.chooseModel")
+          }
           title={
             loading
               ? t("ui.modelToggle.checkingApiKeys")
@@ -392,13 +427,21 @@ export function ModelToggleUI({
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
               )}
               <span
-                className={`${modalInput ? "min-w-0 flex-1 text-left" : compact ? "min-w-0 max-w-[7.5rem]" : "min-w-0 max-w-[200px]"} truncate`}
+                className={`${modalInput ? "min-w-0 flex-1 text-left" : compact ? "min-w-0 max-w-[7.5rem]" : "min-w-0 max-w-[200px]"} truncate ${showMini ? "@max-[18rem]:hidden" : ""}`}
               >
                 {compact ? shortModelLabel(label) : label}
               </span>
-              <ChevronDown
-                className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-              />
+              {showMini && reasoningLevel !== undefined ? (
+                <ReasoningMiniUI
+                  levels={reasoningLevels}
+                  level={reasoningLevel}
+                  instant={working || levelChangeInstant}
+                />
+              ) : (
+                <ChevronDown
+                  className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                />
+              )}
             </>
           )}
         </TriggerButton>
@@ -407,10 +450,10 @@ export function ModelToggleUI({
         side={modalInput || toolbar ? "bottom" : "top"}
         align={modalInput || toolbar ? "start" : "end"}
         sideOffset={modalInput ? 4 : 8}
-        className={`flex max-h-[min(320px,60vh)] flex-col overflow-hidden rounded-2xl text-gray-700 ${modalInput ? "w-[var(--radix-dropdown-menu-trigger-width)]" : "w-56"}`}
+        className={`${COMPOSER_MENU_CLASS} flex max-h-[min(360px,60vh)] flex-col overflow-hidden rounded-[14px] p-1.5 text-gray-700 ${modalInput ? "w-[var(--radix-dropdown-menu-trigger-width)]" : "w-66 max-w-[calc(100vw-24px)]"}`}
       >
         <div
-          className={`-mr-1.5 min-h-0 flex-1 overflow-y-auto pr-1.5 ${DROPDOWN_ROWS_CLASS}`}
+          className={`-mr-1.5 min-h-0 flex-1 overflow-y-auto pr-1.5 ${MODEL_ROWS_CLASS}`}
         >
           {availableGroups.map(({ group, items }) => {
             const expanded = expandedGroup === group;
@@ -418,15 +461,24 @@ export function ModelToggleUI({
               <React.Fragment key={group}>
                 <DropdownItem
                   aria-expanded={expanded}
-                  className={`${itemClassName} py-2 font-medium`}
+                  className={`${itemClassName} font-semibold text-gray-900`}
                   onSelect={(event) => {
                     event.preventDefault();
                     setExpandedGroup(expanded ? null : group);
                   }}
                 >
-                  <span className="flex-1">{routeLabel(t, group)}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs">
+                    {routeLabel(t, group)}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="text-[11px] font-normal leading-none tabular-nums text-gray-500"
+                  >
+                    {items.length}
+                  </span>
                   <ChevronDown
-                    className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                    className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
                   />
                 </DropdownItem>
                 {expanded &&
@@ -434,119 +486,87 @@ export function ModelToggleUI({
                     <DropdownItem
                       key={model.id}
                       selected={model.id === value}
-                      className={`${itemClassName} ${model.id === value ? "text-gray-900" : ""}`}
-                      onSelect={() => onChange(model.id)}
+                      className={`${itemClassName} litt-model-row pl-[18px] ${model.id === value ? "font-medium text-gray-900" : ""}`}
+                      onSelect={() => {
+                        // Another model may move the level to the nearest
+                        // one it offers; that change animates.
+                        setLevelChangeInstant(false);
+                        onChange(model.id);
+                      }}
                     >
-                      <span
-                        aria-hidden="true"
-                        className="h-1 w-1 shrink-0 rounded-full bg-gray-400/80"
-                      />
                       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                         {model.label}
                       </span>
-                      {model.id === value && (
-                        <Check
-                          aria-hidden="true"
-                          className="ml-1 h-3.5 w-3.5 shrink-0 text-gray-600"
-                        />
-                      )}
                       {model.source &&
                         (!["Direct", "Local", "Configured"].includes(model.source) ||
                           (routeCounts.get(
                             `${model.group}\u0000${model.label.toLocaleLowerCase()}`,
                           ) ?? 0) > 1) && (
-                          <span className="shrink-0 text-right text-[10px] font-medium text-gray-400">
+                          <span className="shrink-0 text-right text-[11px] font-normal text-gray-500">
                             {routeLabel(t, model.source)}
                           </span>
                         )}
+                      {model.id === value && (
+                        <Check
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5 shrink-0 text-gray-900"
+                        />
+                      )}
                     </DropdownItem>
                   ))}
               </React.Fragment>
             );
           })}
         </div>
-        {reasoningLevel !== undefined && onReasoningChange && (
+        {reasoningLevel !== undefined &&
+          onReasoningChange &&
+          ladderStepCount(reasoningLevels) > 0 && (
           <div className="shrink-0">
-            <DropdownSeparator />
+            <DropdownSeparator className="mx-1 my-1.5 bg-[var(--litt-composer-ring)]" />
             <DropdownItem
-              aria-label={t("ui.modelToggle.reasoningLevelValue", { level: t(REASONING_LEVEL_LABEL_KEYS[reasoningLevel]) })}
+              aria-label={t("ui.modelToggle.reasoningLevelValue", {
+                level: reasoningName(reasoningLevel),
+              })}
               onSelect={(event) => event.preventDefault()}
               onFocus={(event) => {
                 if (event.target === event.currentTarget) {
-                  reasoningInputRef.current?.focus();
+                  ladderRef.current?.focus();
                 }
               }}
-              className="block cursor-default rounded-md px-2.5 py-2 [&>*]:pointer-events-auto"
+              className="block cursor-default rounded-lg px-2.5 pb-2.5 pt-2 [&>*]:pointer-events-auto"
             >
               <div>
-                <div className="mb-1.5 flex items-center gap-2 text-xs text-gray-700">
-                  <span className="font-medium">{t("ui.modelToggle.reasoning")}</span>
-                  <span className="ml-auto text-[10px] text-gray-500">
-                    {t(REASONING_LEVEL_LABEL_KEYS[reasoningLevel])}
+                <div className="mb-2 flex items-baseline gap-2 text-xs">
+                  <span className="font-semibold text-gray-900">
+                    {t("ui.modelToggle.reasoning")}
+                  </span>
+                  <span
+                    className={`ml-auto font-medium ${previewLevel ? "text-gray-500" : "text-gray-900"}`}
+                  >
+                    {reasoningName(previewLevel ?? reasoningLevel)}
                   </span>
                 </div>
-                <div className="relative h-4 w-full rounded-full bg-gray-200/80 transition-shadow duration-150 has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-focus has-[input:focus-visible]:ring-offset-2">
-                  <span aria-hidden="true" className="absolute inset-0">
-                    <span
-                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-interactive/60 via-interactive to-interactive transition-[width] duration-150 ease-out"
-                      style={{
-                        width: `calc(${reasoningProgress}% + ${1 - reasoningProgress / 100}rem)`,
-                      }}
-                    />
-                    <span
-                      className={`absolute top-1/2 h-3 w-3 rounded-full bg-white transition-[left,transform] duration-150 ease-out ${LIQUID_GLASS_FLOAT_CLASS}`}
-                      style={{
-                        left: `calc(${reasoningProgress}% + ${0.125 - reasoningProgress / 100}rem)`,
-                        transform: "translateY(-50%)",
-                      }}
-                    />
+                <ReasoningLadderUI
+                  ref={ladderRef}
+                  levels={reasoningLevels}
+                  level={reasoningLevel}
+                  label={t("ui.modelToggle.reasoningLevel")}
+                  valueText={reasoningName(reasoningLevel)}
+                  onPreview={setPreviewLevel}
+                  onChange={(next, source) => {
+                    setLevelChangeInstant(source !== "pointer");
+                    setPreviewLevel(null);
+                    onReasoningChange(next);
+                  }}
+                />
+                <div
+                  aria-hidden="true"
+                  className="mt-1 flex justify-between text-[11px] text-gray-500"
+                >
+                  <span>{reasoningName(reasoningLevels[0] ?? "none")}</span>
+                  <span>
+                    {reasoningName(reasoningLevels.at(-1) ?? reasoningLevel)}
                   </span>
-                  <input
-                    ref={reasoningInputRef}
-                    type="range"
-                    aria-label={t("ui.modelToggle.reasoningLevel")}
-                    aria-valuetext={t(REASONING_LEVEL_LABEL_KEYS[reasoningLevel])}
-                    min={0}
-                    max={reasoningLevels.length - 1}
-                    step={1}
-                    value={reasoningIndex}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => {
-                      const offsets: Partial<Record<string, number>> = {
-                        ArrowLeft: -1,
-                        ArrowDown: -1,
-                        ArrowRight: 1,
-                        ArrowUp: 1,
-                        PageDown: -1,
-                        PageUp: 1,
-                      };
-                      const offset = offsets[event.key];
-                      const nextIndex =
-                        event.key === "Home"
-                          ? 0
-                          : event.key === "End"
-                            ? reasoningLevels.length - 1
-                            : offset
-                              ? Math.min(
-                                  reasoningLevels.length - 1,
-                                  Math.max(0, reasoningIndex + offset),
-                                )
-                              : null;
-                      if (nextIndex === null) return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onReasoningChange(
-                        reasoningLevels[nextIndex] ?? reasoningLevel,
-                      );
-                    }}
-                    onChange={(event) =>
-                      onReasoningChange(
-                        reasoningLevels[Number(event.currentTarget.value)] ??
-                          "high",
-                      )
-                    }
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  />
                 </div>
               </div>
             </DropdownItem>

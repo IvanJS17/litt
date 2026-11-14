@@ -5708,6 +5708,7 @@
       "checkingApiKeys": "Checking API keys",
       "chooseModel": "Choose model",
       "chooseModelLabel": "Choose model — {label}",
+      "chooseModelWithReasoning": "Choose model: {label}, reasoning {level}",
       "configureModels": "Configure models",
       "levelHigh": "High",
       "levelLow": "Low",

@@ -67,7 +67,7 @@ function keys(configured: Partial<Record<keyof ApiKeyState, boolean>>) {
 }
 
 describe("ModelToggle responsive trigger", () => {
-    it("offers every supported reasoning level through a discrete slider", async () => {
+    it("offers every supported reasoning level as a step of the ladder", async () => {
         const user = userEvent.setup();
         const onReasoningChange = vi.fn();
         render(
@@ -80,16 +80,16 @@ describe("ModelToggle responsive trigger", () => {
             />,
         );
 
-        await user.click(screen.getByRole("button", { name: "Choose model" }));
+        await user.click(screen.getByRole("button", { name: /^Choose model/ }));
         const reasoning = screen.getByRole("slider", {
             name: "Reasoning level",
         });
-        expect(reasoning).toHaveAttribute("min", "0");
-        expect(reasoning).toHaveAttribute("max", "4");
-        expect(reasoning).toHaveValue("3");
+        expect(reasoning).toHaveAttribute("aria-valuemin", "0");
+        expect(reasoning).toHaveAttribute("aria-valuemax", "4");
+        expect(reasoning).toHaveAttribute("aria-valuenow", "3");
         expect(reasoning).toHaveAttribute("aria-valuetext", "High");
 
-        fireEvent.change(reasoning, { target: { value: "4" } });
+        fireEvent.keyDown(reasoning, { key: "ArrowRight" });
 
         expect(onReasoningChange).toHaveBeenLastCalledWith("xhigh");
         expect(
@@ -110,16 +110,16 @@ describe("ModelToggle responsive trigger", () => {
         );
 
         await userEvent.click(
-            screen.getByRole("button", { name: "Choose model" }),
+            screen.getByRole("button", { name: /^Choose model/ }),
         );
         const reasoning = screen.getByRole("slider", {
             name: "Reasoning level",
         });
-        expect(reasoning).toHaveAttribute("max", "5");
-        expect(reasoning).toHaveValue("1");
+        expect(reasoning).toHaveAttribute("aria-valuemax", "5");
+        expect(reasoning).toHaveAttribute("aria-valuenow", "1");
         expect(screen.queryByText("Minimal")).not.toBeInTheDocument();
 
-        fireEvent.change(reasoning, { target: { value: "5" } });
+        fireEvent.keyDown(reasoning, { key: "End" });
         expect(onReasoningChange).toHaveBeenLastCalledWith("max");
     });
 
@@ -136,13 +136,13 @@ describe("ModelToggle responsive trigger", () => {
         );
 
         await userEvent.click(
-            screen.getByRole("button", { name: "Choose model" }),
+            screen.getByRole("button", { name: /^Choose model/ }),
         );
         const reasoning = screen.getByRole("slider", {
             name: "Reasoning level",
         });
-        expect(reasoning).toHaveAttribute("max", "4");
-        expect(reasoning).toHaveValue("1");
+        expect(reasoning).toHaveAttribute("aria-valuemax", "4");
+        expect(reasoning).toHaveAttribute("aria-valuenow", "1");
         expect(screen.queryByText("Minimal")).not.toBeInTheDocument();
     });
 
@@ -159,7 +159,7 @@ describe("ModelToggle responsive trigger", () => {
             />,
         );
 
-        await user.click(screen.getByRole("button", { name: "Choose model" }));
+        await user.click(screen.getByRole("button", { name: /^Choose model/ }));
         await user.keyboard("{End}");
 
         const reasoning = screen.getByRole("slider", {
@@ -241,14 +241,14 @@ describe("ModelToggle responsive trigger", () => {
             .getAllByText("Gemini 3.8 Flash")
             .find((element) => element.closest('[role="menuitem"]'))
             ?.closest('[role="menuitem"]');
-        expect(selectedRow).toHaveClass("theme-dropdown-item", "text-gray-900");
-        expect(selectedRow).toHaveClass("rounded-md");
+        expect(selectedRow).toHaveClass("theme-dropdown-item", "litt-model-row", "text-gray-900");
+        expect(selectedRow).toHaveClass("rounded-lg");
         expect(selectedRow).not.toHaveClass("rounded-xl");
         expect(selectedRow).toHaveAttribute("data-selected", "true");
         expect(selectedRow?.className).not.toContain("shadow-[inset_");
     });
 
-    it("shows a dot on model rows but not provider rows", async () => {
+    it("has no dot on model rows, and a check on the chosen one", async () => {
         render(
             <ModelToggle
                 value="gemini-3.8-flash"
@@ -269,10 +269,10 @@ describe("ModelToggle responsive trigger", () => {
             .getByText("Google")
             .closest('[role="menuitem"]');
 
-        expect(modelRow?.querySelector("span.rounded-full")).toBeInTheDocument();
-        expect(
-            providerRow?.querySelector("span.rounded-full"),
-        ).not.toBeInTheDocument();
+        expect(modelRow?.querySelector("span.rounded-full")).not.toBeInTheDocument();
+        expect(providerRow?.querySelector("span.rounded-full")).not.toBeInTheDocument();
+        expect(modelRow?.querySelector("svg")).toBeInTheDocument();
+        expect(providerRow).not.toHaveAttribute("data-selected");
     });
 });
 
