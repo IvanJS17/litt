@@ -465,9 +465,7 @@ test("uses a workflow by attaching it to the Assistant chat input", async ({
   await expect(page.getByPlaceholder("How can I help?")).toBeVisible();
   const chatInput = page.getByTestId("chat-input");
   await expect(
-    chatInput.getByRole("button", {
-      name: "Open the active workflow Summarize document",
-    }),
+    chatInput.getByRole("img", { name: "Workflow: Summarize document" }),
   ).toBeVisible();
   await expect(
     chatInput.getByRole("button", {

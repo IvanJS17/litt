@@ -1512,7 +1512,7 @@ test("selects a workflow from the plus menu and attaches it to chat", async ({
     page
       .getByTestId("chat-input")
       .getByRole("list", { name: "Active" })
-      .getByRole("button", { name: "Open the active workflow Contract review" }),
+      .getByRole("img", { name: "Workflow: Contract review" }),
   ).toBeVisible();
 
   await page.getByPlaceholder("How can I help?").fill("Run this workflow");
