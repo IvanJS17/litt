@@ -187,7 +187,7 @@
       "noKey": "No key",
       "noKeyIsAvailableForThis": "No key is available for this model. Add one in Settings or choose another model.",
       "operatorEndpoint": "Operator endpoint",
-      "organizationKey": "Organization key",
+      "organizationKey": "Firm key",
       "theConversationKeepsThisKeyAnd": "The conversation keeps this key, and its model, once it starts.",
       "yourKey": "Your key"
     },
@@ -4676,7 +4676,7 @@
     "credentialSource": {
       "deployment": "Deployment key",
       "operator": "Operator endpoint",
-      "organization": "Organization key",
+      "organization": "Firm key",
       "personal": "Your key"
     },
     "criterion": {
