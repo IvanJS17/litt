@@ -3925,7 +3925,8 @@
       "cost": "Con costo",
       "deadline30": "Plazo de 30 días",
       "notVerified": "Sin verificar",
-      "cannotUndo": "No se puede deshacer."
+      "cannotUndo": "No se puede deshacer.",
+      "affectsInvitedAccounts": "Afecta a las cuentas invitadas"
     }
   },
   "shared": {

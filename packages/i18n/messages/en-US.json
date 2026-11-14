@@ -3925,7 +3925,8 @@
       "cost": "Has a cost",
       "deadline30": "30-day deadline",
       "notVerified": "Not verified",
-      "cannotUndo": "This cannot be undone."
+      "cannotUndo": "This cannot be undone.",
+      "affectsInvitedAccounts": "Affects invited accounts"
     }
   },
   "shared": {

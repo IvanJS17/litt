@@ -163,6 +163,7 @@ export function SettingsNotice({
                 className,
             )}
         >
+            {entries.length > 0 ? (
             <p
                 className={cn(
                     "flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem] font-semibold",
@@ -179,6 +180,7 @@ export function SettingsNotice({
                     );
                 })}
             </p>
+            ) : null}
             {children ? (
                 <div id={bodyId} className="text-sm text-gray-700">
                     {children}

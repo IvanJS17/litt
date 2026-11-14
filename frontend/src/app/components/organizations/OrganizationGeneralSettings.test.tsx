@@ -282,7 +282,7 @@ describe("leaving", () => {
     mocks.org = orgAs("member");
     render(<OrganizationGeneralSettings />);
     const leave = screen.getByRole("button", { name: "Leave" });
-    expect(leave).toHaveClass("text-red-600");
+    expect(leave).toHaveClass("text-[var(--litt-danger-text)]");
     expect(leave.className).not.toMatch(/bg-(black|gray-9\d\d|red-600|interactive)/);
   });
 
