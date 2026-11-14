@@ -108,6 +108,25 @@ describe("audit event presentation", () => {
       { label: "Invited role", value: "Member" },
     ]);
   });
+  it("labels a personal-keys permission change with its capability and verdict", () => {
+    const change = (capability: string, allowed: boolean) => ({
+      ...event,
+      action: "org.personal_api_keys.policy_changed",
+      detail: { capability, allowed },
+    });
+    expect(auditAction(change("web_search", false))).toBe("Personal keys permission changed");
+    expect(auditDetailFields(change("web_search", false))).toEqual([
+      { label: "Kind of key", value: "Web search" },
+      { label: "Allowed", value: "No" },
+    ]);
+    expect(auditDetailFields(change("scan", true))).toEqual([
+      { label: "Kind of key", value: "Scan reading (LandingAI)" },
+      { label: "Allowed", value: "Yes" },
+    ]);
+    expect(auditDetailFields(change("ai", true))[0].value).toBe("AI models");
+    // Rows written before the split keep their words.
+    expect(auditAction({ ...event, action: "org.personal_api_keys.blocked" })).toBe("Personal keys blocked");
+  });
   it("uses recorded context without loading private project names", () => {
     expect(
       auditSubject({

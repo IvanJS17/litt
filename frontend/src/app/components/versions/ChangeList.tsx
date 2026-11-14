@@ -61,7 +61,7 @@ export function ChangeList({
                                         )}
                                         <span className="break-words">{summary}</span>
                                         {change.numeric && (
-                                            <span className="text-[11px] text-gray-500">
+                                            <span className="text-2xs text-gray-500">
                                                 {t("hasNumbers")}
                                             </span>
                                         )}

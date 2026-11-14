@@ -424,7 +424,7 @@ export function OrganizationDepartedMembers({
           }}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {onSelection ? t("organizations.organizationDepartedMembers.deleteSelected") : t("common.delete")}
+          {onSelection ? t("organizations.organizationDepartedMembers.deleteSelected") : t("settings.privacyData.deleteButton")}
         </DropdownItem>
       </>
     );
@@ -440,7 +440,7 @@ export function OrganizationDepartedMembers({
           onSelect: () => openReassign(target),
         },
         {
-          label: t("common.delete"),
+          label: t("settings.privacyData.deleteButton"),
           icon: Trash2,
           variant: "danger",
           onSelect: () => openDelete(target),
@@ -858,7 +858,7 @@ export function OrganizationDepartedMembers({
         open={deleting !== null}
         title={t("organizations.organizationDepartedMembers.deleteArchivedWork")}
         message={t("organizations.organizationDepartedMembers.confirmDelete", { label: deleting?.label ?? t("organizations.organizationDepartedMembers.thisWork") })}
-        confirmLabel={t("common.delete")}
+        confirmLabel={t("settings.privacyData.deleteButton")}
         confirmVariant="danger"
         confirmStatus={working ? "loading" : "idle"}
         onCancel={() => {

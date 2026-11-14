@@ -609,7 +609,7 @@
       "organisation": "Organisation",
       "organizationFallback": "Organization",
       "organizationInvitations": "Organization invitations",
-      "ownKeysOptional": "Your own keys (optional)",
+      "ownKeysOptional": "Your own AI keys (optional)",
       "pleaseTryAgain": "Please try again.",
       "refreshInvitations": "Refresh invitations",
       "saveDetailsAction": "save your details",
@@ -1102,7 +1102,7 @@
       "training_retake_source_gone": "The notes this question came from no longer exist, so it can't be judged. This retake was closed; you can ask for a new one.",
       "training_review_audit_stale": "The review was regenerated after you began this audit. Draw a new sample.",
       "training_review_in_progress": "This is already being generated.",
-      "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews, questions and retakes.",
+      "training_review_key_required": "Add a key for your model in Settings → My AI keys to generate reviews, questions and retakes.",
       "untrusted_origin": "The request origin is not allowed.",
       "upload_incomplete": "The uploaded file isn't available yet.",
       "upload_session_control_rate_limit": "Too many upload requests. Try again later.",
@@ -1185,6 +1185,7 @@
       "loadTheComparison": "load the comparison",
       "checkYourSession": "check your session",
       "loadYourProfile": "load your profile",
+      "loadYourSettingsTabs": "load all your settings tabs",
       "loadThisPage": "load this page",
       "saveYourPlaybook": "save your playbook",
       "deleteThoseReviews": "delete those reviews",
@@ -1257,6 +1258,7 @@
         "organizationRestored": "Organization restored",
         "personalKeysAllowed": "Personal keys allowed",
         "personalKeysBlocked": "Personal keys blocked",
+        "personalKeysPolicyChanged": "Personal keys permission changed",
         "playbookCreated": "Playbook created",
         "playbookDeleted": "Playbook deleted",
         "playbookImported": "Playbook imported",
@@ -1281,6 +1283,7 @@
       "deletedUser": "Deleted user",
       "field": {
         "access": "Access",
+        "allowed": "Allowed",
         "chatsExported": "Chats exported",
         "documentsExported": "Documents exported",
         "enabled": "Enabled",
@@ -1288,6 +1291,7 @@
         "invitedRole": "Invited role",
         "itemsArchived": "Items archived",
         "itemsTransferred": "Items transferred",
+        "keyKind": "Kind of key",
         "modelsAvailable": "Models available",
         "previousRole": "Previous role",
         "requestedRoleChange": "Requested role change",
@@ -1371,7 +1375,12 @@
         "workflows": "Workflows"
       },
       "unknownUser": "Unknown user",
-      "yes": "Yes"
+      "yes": "Yes",
+      "keyKind": {
+        "ai": "AI models",
+        "scan": "Scan reading (LandingAI)",
+        "webSearch": "Web search"
+      }
     },
     "auditLog": "Audit log",
     "back": "Back",
@@ -1431,7 +1440,6 @@
     "openDocument": "Open document",
     "openWorkflow": "Open workflow",
     "opening": "Opening…",
-    "organization": "Organization",
     "performedBy": "Performed by",
     "pleaseTryAgain": "Please try again.",
     "readOnlyLogged": "Read-only · access is logged",
@@ -1546,7 +1554,7 @@
   "memory": {
     "changedReloadFirst": "Memory changed while you were editing. Reload the page before saving again.",
     "checkForUpdates": "check for memory updates",
-    "chooseWhetherMemoryIsEnabledBy": "Choose whether memory is enabled by default for projects you create. Project owners can still change it for each project.",
+    "chooseWhetherMemoryIsEnabledBy": "Choose whether memory is on by default in the projects you create. Each project owner can change it.",
     "confirmTurnOff": "This will delete the existing memory.md file{hasScope, select, yes { for {scope}} other {}}{dirty, select, yes { and your unsaved draft} other {}}, cancel pending memory updates, and stop future memory updates here until you turn it on again.{others, select, yes { Your memory in other workspaces is not affected.} other {}}",
     "conflictTitle": "Memory changed while you were editing",
     "couldNotLoadMemorySettingsPlease": "Could not load memory settings. Please try again.",
@@ -1943,14 +1951,14 @@
       "organizationName": "Organization name",
       "organizationNotDeleted": "Organization not deleted",
       "organizationNotUpdated": "Organization not updated",
-      "removeAccessForAllMembersOwners": "Remove access for all members. Owners can restore the organization for 30 days before its content is permanently deleted.",
+      "removeAccessForAllMembersOwners": "Removes access for all members. Owners can restore the firm for 30 days, then its content is deleted for good.",
       "shownAtTheTopOfThe": "Shown at the top of the sidebar. PNG, JPEG or WebP.",
       "thatImageCannotBeUsed": "That image cannot be used.",
       "theLogoCouldNotBeRemoved": "The logo could not be removed.",
       "theLogoCouldNotBeSaved": "The logo could not be saved.",
       "thisActionIsSensitiveEnterA": "This action is sensitive. Enter a code from your authenticator app to continue.",
       "thisOrganization": "this organization",
-      "thisRemovesAccessToTheOrganization": "This removes access to the organization for all members. Its content and memberships are kept for 30 days. An owner can restore it from Settings → Organizations during that period. After 30 days, it is permanently deleted.",
+      "thisRemovesAccessToTheOrganization": "This removes access to the organization for all members. Its content and memberships are kept for 30 days. An owner can restore it from Settings → My firms during that period. After 30 days, it is permanently deleted.",
       "twoFactorVerificationRequired": "Two-factor verification required",
       "upload": "Upload",
       "uploadLogo": "Upload logo",
@@ -1963,7 +1971,7 @@
       "actionsForLabel": "Actions for {label}",
       "addMember": "Add member",
       "added": "Added",
-      "backToOrganization": "Back to Organization",
+      "backToOrganization": "Back to firm settings",
       "changeRoleForLabel": "Change role for {label}",
       "couldNotChangeThatRole": "Could not change that role.",
       "couldNotLoadThisOrganization": "Could not load this organization.",
@@ -2092,7 +2100,7 @@
       "letMembersExport": "Let members export their data",
       "letMembersExportDescription": "Members can export their own chats, tabular reviews, projects and memory in {orgName} from Settings › Privacy & Data. Owners always can.",
       "membersData": "Members' data",
-      "onlyThisOrganizationsOwnersCanManage": "Only this organization's owners can manage its data.",
+      "onlyThisOrganizationsOwnersCanManage": "Only this firm’s owners manage its data.",
       "privacyData": "Privacy & Data",
       "review": "Review",
       "reviewDepartedMembers": "Review departed members",
@@ -2100,48 +2108,54 @@
       "thisOrganization": "this organization",
       "thisSettingIsSensitiveEnterA": "This setting is sensitive. Enter a code from your authenticator app to continue.",
       "twoFactorVerificationRequired": "Two-factor verification required",
-      "workLeftByDepartedMembers": "Work left by departed members"
+      "workLeftByDepartedMembers": "Work left by departed members",
+      "deleteNotice": {
+        "body": "This deletes the data of every member of the firm. Export anything you need to keep first."
+      }
     },
     "organizationProviderKeys": {
-      "aMembersOwnKeyIsUsed": "A member's own key is used for a provider the organization has not set up.",
-      "aMembersOwnKeysAreNever": "A member's own keys are never used for work in this organization.",
       "add": "Add",
       "addName": "Add {name}",
-      "addTheModelsThisOrganizationsKey": "Add the models this organization's key may run. Members see them in model selectors.",
-      "allowMembersOwnKeys": "Allow members’ own keys",
-      "allowMembersOwnKeys2": "Allow members' own keys",
+      "addTheModelsThisOrganizationsKey": "Add the models this firm’s key can run. Members see them in the model pickers.",
       "availableProviders": "Available Providers",
       "everyProviderHasAKeySaved": "Every provider has a key saved.",
-      "firmScope": "These keys belong to the firm and are used when you work in its workspace, not in your personal workspace.",
+      "firmScope": "These keys belong to the firm. They are used when you work in its space, not in your personal space.",
       "loadError": "The organization's model providers could not be loaded.",
-      "membersOwnKeys": "Members’ Own Keys",
+      "memberKeysAi": "Members can use their own AI keys",
+      "memberKeysScan": "Members can use their own scan reading key (LandingAI)",
+      "memberKeysWebSearch": "Members can use their own web search keys",
+      "membersOwnKeys": "Members’ own keys",
       "nameProvider": "{name} provider",
-      "noProvidersYetAddAnApi": "No providers yet. Add an API key to one of the providers below.",
+      "noProvidersYetAddAnApi": "No providers yet. Add an API key to one below.",
       "off": "Off",
       "on": "On",
-      "organizationProviders": "Firm keys ({name})",
+      "organizationProviders": "AI keys of {name}",
       "policyError": "The setting could not be updated. Please try again.",
       "providerUpdateFailed": "Provider update failed",
-      "thisOrganizationHasNotSetUp": "This organization has not set up a model provider yet.",
+      "thisOrganizationHasNotSetUp": "This firm hasn’t set up an AI provider yet.",
       "tryAgain": "Try again",
       "updateError": "The provider could not be updated. Please try again.",
-      "useName": "Use {name}"
+      "useName": "Use {name}",
+      "webSearchKeys": "Web search keys",
+      "webSearchKeysIntro": "If the firm saves a search key, web search in {name} uses it before a member’s own.",
+      "membersOwnKeysIntro": "If you allow them, a member’s key is used only when the firm has none for that service.",
+      "memberKeysLead": "Members can use their own keys for…",
+      "memberKeysAiShort": "AI",
+      "memberKeysWebSearchShort": "Web search",
+      "memberKeysScanShort": "Scan reading (LandingAI)",
+      "addProvider": "Add provider",
+      "availableCount": "{count, plural, one {# available} other {# available}}"
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Back to General",
-      "bringYourOwnKeys": "Bring Your Own Keys",
-      "onlyThisOrganizationsOwnersAndAdmins": "Only this organization's owners and admins can manage its keys.",
+      "bringYourOwnKeys": "Firm keys",
+      "onlyThisOrganizationsOwnersAndAdmins": "Only this firm’s owners and administrators manage its keys.",
       "organization": "Organization"
     },
     "organizationSettingsShell": {
-      "auditLog": "Audit log",
-      "bringYourOwnKeys": "Bring Your Own Keys",
       "couldNotLoadThisOrganization": "Could not load this organization.",
-      "formacion": "Training",
-      "general": "General",
       "members": "Members",
       "organization": "Organization",
-      "privacyData": "Privacy & Data",
       "theseSettingsAreNotAvailable": "These settings are not available.",
       "tryAgain": "Try again",
       "yourOrganizations": "Your organizations"
@@ -2158,18 +2172,15 @@
       "invitationNotUpdated": "Invitation not updated",
       "invitations": "Invitations",
       "invitedYouAs": "Invited you as {role}",
-      "manage": "Manage",
-      "manageName": "Manage {name}",
       "new": "New",
-      "newOrganization": "New organization",
-      "noOrganizationsYetCreateOneTo": "No organizations yet. Create one to share projects and workflows with your team.",
-      "organizations": "Organizations",
+      "newOrganization": "New firm",
+      "noOrganizationsYetCreateOneTo": "You aren’t in a firm yet. Create one to share projects and workflows with your team.",
+      "organizations": "Your firms",
       "roleAndMembers": "Your role: {role} · {count, plural, one {# person} other {# people}}",
-      "switch": "Switch",
+      "switch": "Switch to it",
       "switchToName": "Switch to {name}",
       "tryAgain": "Try again",
-      "view": "View",
-      "viewName": "View {name}"
+      "firmSettingsOfName": "Firm settings of {name}"
     },
     "role": {
       "admin": {
@@ -2612,7 +2623,7 @@
     "loadingAuthenticator": "Loading authenticator...",
     "noModelsAvailable": "No models available",
     "noVerifiedAuthenticatorFactorIsAvailable": "No verified authenticator factor is available for this session.",
-    "openBringYourOwnKeys": "Open Bring Your Own Keys",
+    "openBringYourOwnKeys": "Open My AI keys",
     "openOrganization": "Open Organization",
     "sixDigitVerificationCode": "Six digit verification code",
     "theVerificationCodeIsInvalidOr": "The verification code is invalid or expired.",
@@ -2927,7 +2938,12 @@
       "appearance": "Appearance",
       "couldNotUpdateTheAppearanceSetting": "Could not update the appearance setting.",
       "darkMode": "Dark mode",
-      "useADarkerColorPaletteThroughout": "Use a darker color palette throughout LiTT."
+      "textSize": "Text size",
+      "textSizeHelp": "Choose how large text looks in LiTT. This only changes your screen.",
+      "textSizeLarge": "Large",
+      "textSizeNormal": "Normal",
+      "textSizeXLarge": "Very large",
+      "useADarkerColorPaletteThroughout": "Switch to darker colors across LiTT."
     },
     "byokProviderModal": {
       "awsRegion": "AWS region",
@@ -3036,13 +3052,6 @@
       "typeYourEmailToConfirm": "Type your email to confirm",
       "yourPersonalDocumentsChatsMemoryPreferences": "Your personal documents, chats, memory, preferences, connections, AI keys and profile are deleted now. Work you created in your firm’s matters, audit history and AI evidence stay with the firm and will show “Deleted user”. Backups are deleted within 30 days."
     },
-    "features": {
-      "assistant": "Assistant",
-      "quickActions": "Quick actions",
-      "responseDetails": "Response details",
-      "showTheModelReasoningEffortAnd": "Show the model, reasoning effort and token count under each response and subagent.",
-      "showTheQuickActionsRowOn": "Show the quick actions row on the assistant start screen."
-    },
     "home": {
       "accountDeletionIsSensitiveEnterA": "Account deletion is sensitive. Enter a code from your authenticator app to continue.",
       "acercaDe": "About",
@@ -3083,38 +3092,14 @@
       "yourAccountWasCreatedWithGoogle": "Your account was created with Google. To change your email, first add a password in Settings > Security > Password."
     },
     "keyScope": {
-      "personalHeading": "My personal keys",
+      "personalHeading": "My AI keys",
       "personal": "These keys are yours and apply to your personal workspace.",
-      "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
-      "blocked": "You work with the keys of {name}. Your firm does not allow adding your own keys.",
-      "blockedNoName": "You work with your firm's keys. Your firm does not allow adding your own keys."
+      "inFirm": "These keys are yours. In {name} they are used only for providers the firm hasn’t set up: the firm’s keys come first.",
+      "managedNoName": "<b>Your firm manages this.</b> You work with your firm’s keys."
     },
     "layout": {
-      "group": {
-        "account": "Account",
-        "firm": "Firm",
-        "keys": "Keys",
-        "preferences": "Preferences",
-        "privacy": "Privacy"
-      },
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
-      "settings": "Settings",
-      "tab": {
-        "account": "Account",
-        "appearance": "Appearance",
-        "byok": "Bring Your Own Keys",
-        "connectors": "Connectors",
-        "features": "Features",
-        "firmKeys": "Firm keys",
-        "memory": "Memory",
-        "models": "Model Preferences",
-        "myActivity": "My Activity",
-        "organizations": "Organizations",
-        "personalisation": "Personalisation",
-        "privacyData": "Privacy & Data",
-        "security": "Security",
-        "training": "Training"
-      }
+      "settings": "Settings"
     },
     "mcpConnectorForm": {
       "bearerToken": "Bearer token",
@@ -3136,18 +3121,18 @@
     "models": {
       "automaticSameProviderAsChat": "Automatic — same provider as chat",
       "automaticUseChatModel": "Automatic — use chat model",
-      "byDefaultTitlesUseALow": "By default, titles use a low cost model from the chat provider. Choose a model here to override that.",
+      "byDefaultTitlesUseALow": "Titles use a low-cost model from the chat’s provider. Choose another one to change it.",
       "chatTitleGeneration": "Chat title generation",
       "chooseAModel": "Choose a model",
       "littPuedePasarPartesDeUna": "LiTT can hand parts of a task to subagents that work separately and report back. Set the model routes they may use; each result shows the route and the model it ran on.",
       "memoryCurationModel": "Memory curation model",
       "modelPreferences": "Model Preferences",
       "noDefaultModel": "No default model",
-      "preselectedWhenCreatingAReviewEach": "Preselected when creating a review. Each review stores its own model and can be changed separately.",
+      "preselectedWhenCreatingAReviewEach": "Suggested when you create a review. Each review keeps its own model, and you can change it later.",
       "selectAModel": "Select a model",
       "subagentes": "Subagents",
       "tabularReviewModel": "Tabular review model",
-      "usedAfterConversationsToIdentifyDurable": "Used after conversations to identify durable information worth keeping. By default, memory uses the model selected for the chat."
+      "usedAfterConversationsToIdentifyDurable": "Decides what to keep from your conversations. If you choose none, it uses the chat model."
     },
     "newCustomMcpModal": {
       "authenticationRequired": "Authentication required",
@@ -3203,7 +3188,7 @@
     },
     "personalisation": {
       "practiceAreas": "Practice areas",
-      "tellLittAboutYourRoleAnd": "Tell LiTT about your role and practice so responses can be tailored to your professional context.",
+      "tellLittAboutYourRoleAnd": "Tell LiTT your role and practice. It adapts its answers to your professional context.",
       "yourBackground": "Your background"
     },
     "personalisationFields": {
@@ -3313,7 +3298,7 @@
       "exportTabularReviews": "Export tabular reviews",
       "exporting": "Exporting...",
       "exportsDataInWorkspacenameOnlyTo": "Exports data in {workspaceName} only. To export another workspace, switch to it first.",
-      "managedByOwnersDescription": "Exporting and bulk-deleting your data in {name} is managed by its owners and is not available to members. Your other workspaces are not affected.",
+      "managedByOwnersDescription": "In {name}, only owners export or delete data in bulk. Your other workspaces are not affected.",
       "managedByYourOrganization": "Managed by your organization",
       "permanentlyDeleteAllProjectsYouCreated": "Permanently delete all projects you created here, including documents, chats, and tabular reviews.",
       "permanentlyDeleteAllProjectsYouOwn": "Permanently delete all projects you own, including documents, chats, and tabular reviews.",
@@ -3325,7 +3310,8 @@
       "thisActionIsSensitiveEnterA": "This action is sensitive. Enter a code from your authenticator app to continue.",
       "thisOrganization": "this organization",
       "thisWorkspace": "this workspace",
-      "twoFactorVerificationRequired": "Two-factor verification required"
+      "twoFactorVerificationRequired": "Two-factor verification required",
+      "deleteButton": "Delete"
     },
     "profilePhotoSettings": {
       "chooseAnotherImage": "Choose another image.",
@@ -3478,10 +3464,15 @@
         "keywords": "theme|dark|light mode|night mode|colour|color|palette|display|look|contrast|black background",
         "title": "Dark mode"
       },
+      "appearanceTextSize": {
+        "description": "Change the size of the text in LiTT.",
+        "keywords": "text size|font size|letter size|bigger text|larger text|smaller text|zoom|scale|read|readable|accessibility|letra|tamano",
+        "title": "Text size"
+      },
       "byok": {
-        "description": "Add your own API keys for model providers such as Anthropic, OpenAI, Google and Azure.",
+        "description": "Save your own API keys for AI providers such as Anthropic, OpenAI, Google and Azure.",
         "keywords": "byok|api key|api keys|key|keys|token|secret|credentials|provider|providers|model provider|anthropic|claude|openai|chatgpt|gpt|gemini|google|mistral|xai|grok|bedrock|aws|azure|vertex|openrouter|vercel|ai gateway|custom endpoint|base url|own model|connect model|llm|llave|clave api|conectar modelo|add key|add provider|enable provider|disable provider|no models|missing key",
-        "title": "Bring Your Own Keys"
+        "title": "My AI keys"
       },
       "connectorsDiscover": {
         "description": "Connect Google Drive, Gmail, Calendar, or a custom MCP server.",
@@ -3502,11 +3493,6 @@
         "description": "Show the model, reasoning effort and token count under each response and subagent.",
         "keywords": "token count|tokens|usage|model name|reasoning effort|metadata|debug|stats|show model|cost",
         "title": "Response details"
-      },
-      "firmCriteria": {
-        "description": "Positions and dissenting opinions written by the people in your firm, under their name, which the assistant can consult for whoever is in training.",
-        "keywords": "criterios|criterio|firm criteria|criteria|voto particular|dissenting opinion|postura|posturas|despacho|firm|socio|partner|formacion|training",
-        "title": "Firm criteria"
       },
       "memory": {
         "description": "Whether LiTT remembers durable information from your conversations.",
@@ -3544,12 +3530,12 @@
         "title": "My Activity"
       },
       "organizations": {
-        "description": "The organizations you belong to, and each one's settings.",
+        "description": "The firms you belong to. Each one opens its own firm settings.",
         "keywords": "organisation|organization|org|team|workspace|company|firm|members|admin|switch organization|leave organization|create organization",
-        "title": "My organizations"
+        "title": "My firms"
       },
       "organizationsInvitations": {
-        "description": "Organizations that have invited you to join.",
+        "description": "Firms that invited you to join.",
         "keywords": "invite|invitation|invited|join|join team|pending invitations|accept invitation|decline",
         "title": "Invitations"
       },
@@ -3583,7 +3569,6 @@
         "keywords": "change password|reset password|forgot password|new password|passcode|credentials|login|sign in",
         "title": "Password"
       },
-      "tabFirmCriteria": "Firm criteria",
       "training": {
         "description": "Your mentor and your stages as an intern: your turn first, notes and approval of your drafts.",
         "keywords": "formacion|training|mentor|mentora|pasante|intern|trainee|etapa|etapas|stage|tu turno primero|notas|sello|aprobacion|approval|supervisor",
@@ -3598,6 +3583,21 @@
         "description": "The interns you supervise as a mentor and each one's stage.",
         "keywords": "pupilo|pupilos|pupils|mentor|pasantes|supervisar|supervise|aprobar|approve|etapa",
         "title": "My mentees"
+      },
+      "webSearch": {
+        "title": "Web search",
+        "description": "Turn on internet search, choose the service and save your search keys.",
+        "keywords": "search|internet|google|brave|tavily|deepseek|anthropic search|browse|online|search the web|search key|api key"
+      },
+      "scanReading": {
+        "title": "Scanned document reading",
+        "description": "Turn on scan reading with your LandingAI key.",
+        "keywords": "scan|scanned|ocr|landingai|landing ai|pdf|read scans|image pdf|api key"
+      },
+      "splitClasses": {
+        "title": "Document types for splitting case files",
+        "description": "Choose the document types used to split a case file in your personal space.",
+        "keywords": "split|separate|case file|expediente|document types|classes|pages|landingai"
       }
     },
     "security": {
@@ -3726,19 +3726,24 @@
         "turnOnWebSearch": "turn on web search"
       },
       "allModels": "All models",
-      "anthropicRunsTheSearch": "Anthropic runs the search. Billed to your Claude API key.",
+      "anthropicRunsTheSearch": "Anthropic runs the search.",
       "couldNotLoadYourWebSearch": "Could not load your web search settings.",
       "deepseekSearchesAndReadsPages": "DeepSeek searches and reads pages. Works with any model.",
       "enableWebSearch": "Enable web search",
-      "letLittSearchTheWebAnd": "Let LiTT search the web and read pages when an answer needs current or public information.",
+      "letLittSearchTheWebAnd": "LiTT searches the internet and reads pages when an answer needs current or public information.",
       "littSearchesWithBraveSearch": "LiTT searches with Brave Search. Works with any model.",
       "modelsOfFamily": "{name} models",
       "off": "Off",
-      "openaiRunsTheSearch": "OpenAI runs the search. Billed to your OpenAI API key.",
+      "openaiRunsTheSearch": "OpenAI runs the search.",
       "otherModels": "Other models",
       "tavilySearchesAndReadsPages": "Tavily searches and reads pages. Works with any model.",
       "theseModelsWontSearchTheWeb": "These models won't search the web.",
-      "webSearch": "Web Search"
+      "webSearch": "Web Search",
+      "charge": {
+        "personal": "Billed to your {provider} API key.",
+        "firm": "Billed to the firm’s {provider} API key.",
+        "firmThenYours": "Billed to the firm’s key; if it has none, to yours."
+      }
     },
     "splitClasses": {
       "add": "Add a type",
@@ -3749,8 +3754,8 @@
       "identifier": "Identifier (optional)",
       "name": "Name",
       "noClientData": "Don’t write client data here. Descriptions and identifiers are also sent to LandingAI along with the document text.",
-      "orgIntro": "The types “Split file” sorts pages into for everyone in this firm who has no list of their own. If you leave it as is, the included list for Mexican case files is used.",
-      "personalIntro": "The types “Split file” sorts pages into when you split a case file. Your list is used first; if you have none, your firm’s; if neither, the included list for Mexican case files.",
+      "orgIntro": "The types «Split case file» sorts pages into in this firm’s space, for everyone who works there. If you change nothing, the included list for Mexican case files is used.",
+      "personalIntro": "The types «Split case file» sorts pages into in your personal space. In a firm’s space, the firm’s list is used.",
       "readOnly": "Only owners and admins can change this list.",
       "remove": "Remove type {name}",
       "removeShort": "Remove",
@@ -3771,6 +3776,157 @@
         "reserved": "“uncategorized” is reserved. Choose another name.",
         "too_many": "A list can have at most {max} types."
       }
+    },
+    "map": {
+      "group": {
+        "account": "My account",
+        "work": "How I work",
+        "keys": "My keys and services",
+        "training": "My training",
+        "firms": "My firms",
+        "platform": "Platform administration",
+        "firmGeneral": "Firm",
+        "firmKeys": "Keys and services",
+        "firmControl": "Training and control"
+      },
+      "tab": {
+        "account": {
+          "title": "Account",
+          "help": "Check your profile, email and plan."
+        },
+        "security": {
+          "title": "Security",
+          "help": "Change your password and turn on two-step verification."
+        },
+        "privacyData": {
+          "title": "Privacy and data",
+          "help": "Download or delete your chats, projects and memory."
+        },
+        "myActivity": {
+          "title": "My activity",
+          "help": "See what you did in LiTT, with date and time."
+        },
+        "personalisation": {
+          "title": "Personalization",
+          "help": "Tell the assistant who you are and how you want it to answer."
+        },
+        "memory": {
+          "title": "Memory",
+          "help": "Choose what the assistant remembers about you and delete what you don’t want it to keep."
+        },
+        "appearance": {
+          "title": "Appearance",
+          "help": "Choose the text size and dark mode."
+        },
+        "assistant": {
+          "title": "Assistant",
+          "help": "Choose what you see on the assistant’s start screen and under each answer."
+        },
+        "models": {
+          "title": "Model preferences",
+          "help": "Choose which model handles each assistant task."
+        },
+        "byok": {
+          "title": "My AI keys",
+          "help": "Save your AI provider keys. LiTT uses them in your personal space and, if your firm allows it, in the firm’s."
+        },
+        "webSearch": {
+          "title": "Web search",
+          "help": "Turn on internet search and choose the service."
+        },
+        "scanReading": {
+          "title": "Scanned document reading",
+          "help": "Turn on scan reading with your LandingAI key and set your document types for splitting case files."
+        },
+        "connectors": {
+          "title": "Connectors",
+          "help": "Connect outside accounts, like Google Drive, to bring in your files."
+        },
+        "training": {
+          "title": "My training",
+          "help": "See who your mentor is, which stage you are in and what your mentor sees of you. If you are a mentor, you also manage your pupils here."
+        },
+        "organizations": {
+          "title": "My firms",
+          "help": "Switch firms, answer invitations or create a new one. Each firm opens its own settings."
+        },
+        "betaInvitations": {
+          "title": "Beta invitations",
+          "help": "Invite people to the beta."
+        },
+        "betaStats": {
+          "title": "Beta statistics",
+          "help": "See how many people use the beta, and how."
+        }
+      },
+      "firmTab": {
+        "general": {
+          "title": "General",
+          "help": "Change the firm’s name and profile."
+        },
+        "members": {
+          "title": "Members",
+          "help": "See who is in the firm, invite people and change roles."
+        },
+        "providers": {
+          "title": "Firm keys",
+          "help": "Save the firm’s AI, web search and scan reading keys, and decide whether members use their own."
+        },
+        "scanReading": {
+          "title": "Scanned document reading",
+          "help": "Set the document types used to split case files."
+        },
+        "training": {
+          "title": "Training",
+          "help": "Name mentors and assign pupils."
+        },
+        "audit": {
+          "title": "Audit",
+          "help": "See what happened in the firm and who did it."
+        },
+        "privacyData": {
+          "title": "Privacy and data",
+          "help": "Decide whether members can export or delete their data, and delete data for the whole firm."
+        }
+      },
+      "personalBanner": "These settings are yours. Your firm’s are in <link>Firm settings →</link>",
+      "firmHeading": "Firm settings · {name}",
+      "firmHeadingLoading": "Firm settings",
+      "firmBanner": "These settings belong to {name}. Yours are in <link>Settings →</link>",
+      "firmSettingsButton": "Firm settings",
+      "managedByFirmAdmin": "<b>Your firm manages this</b> when you work in {name}. Open it in <link>Firm settings → Scanned document reading</link>.",
+      "managedByFirmMember": "<b>Your firm manages this</b> when you work in {name}. Ask an owner or administrator to change it.",
+      "keysManagedByFirmAdmin": "<b>Your firm manages this.</b> You work with the keys of {name}. Manage them in <link>Firm settings → Firm keys</link>.",
+      "keysManagedByFirmMember": "<b>Your firm manages this.</b> You work with the keys of {name}. Ask an owner or administrator to change them."
+    },
+    "assistant": {
+      "assistant": "What you see in the assistant",
+      "quickActions": "Quick actions",
+      "responseDetails": "Response details",
+      "showTheModelReasoningEffortAnd": "Show the model, reasoning level and token count under each answer.",
+      "showTheQuickActionsRowOn": "Show the quick actions row on the assistant start screen."
+    },
+    "signals": {
+      "optional": "Optional",
+      "recommended": "Recommended",
+      "moreInfo": "More information",
+      "onlyYou": "Only for you",
+      "yourSpace": "Your personal space",
+      "firmWide": "Applies to the whole firm",
+      "allMembersSee": "All members see it",
+      "adminsChange": "Owners and administrators change it",
+      "onlyOwnersAdmins": "Only owners and administrators",
+      "onlyOwners": "Only owners",
+      "platformAdmins": "Only platform administrators",
+      "needsTwoFactor": "Asks for two-step verification",
+      "mentorsOwnersAdmins": "Mentors: owners and administrators",
+      "criteriaAllRead": "Criteria: the whole firm reads them",
+      "thirdParty": "Data to a third party",
+      "cost": "Has a cost",
+      "deadline30": "30-day deadline",
+      "notVerified": "Not verified",
+      "cannotUndo": "This cannot be undone.",
+      "affectsInvitedAccounts": "Affects invited accounts"
     }
   },
   "shared": {
@@ -3813,7 +3969,6 @@
       "noHistoryYet": "No history yet",
       "noProjectsYet": "No projects yet",
       "openSidebar": "Open sidebar",
-      "organization": "Organization",
       "personalWorkspace": "My personal workspace",
       "recentProjects": "Recent Projects",
       "settings": "Settings",
@@ -4286,7 +4441,7 @@
     "all": "All",
     "allProjects": "All Projects",
     "apiKeyRejected": "API key rejected",
-    "apiKeyWasRejectedByok": "The {provider} API key was rejected. If you added your own key, check it in Settings → Bring Your Own Keys; otherwise contact your administrator.",
+    "apiKeyWasRejectedByok": "The {provider} API key was rejected. If you added your own key, check it in Settings → My AI keys; otherwise contact your administrator.",
     "apply": "Apply",
     "applyTheWorkflow": "apply the workflow",
     "applyWorkflow": "Apply workflow",
@@ -5118,7 +5273,7 @@
           "findingsLabel": "What you found",
           "findingsMin": "Write at least {min} characters.",
           "noAssistant": "This page has no assistant on purpose. Read the document yourself and write what you found. LiTT cannot check that you read without help: it is your own statement.",
-          "noKey": "To compare you need a key for your model. Add it in Settings, under Bring Your Own Keys (BYOK).",
+          "noKey": "To compare you need a key for your model. Add it in Settings → My AI keys.",
           "retry": "Try again",
           "send": "Send what I found",
           "sendHint": "After sending, you cannot change it. Then you can compare it with what the machine found.",
@@ -5243,7 +5398,6 @@
       "scheduled": "Scheduled; no outcome yet.",
       "work": "Work"
     },
-    "designaALosMentoresDelDespacho": "Appoint the firm's mentors. Each mentor takes on their pupils and sets their stage by subject in Settings → Training.",
     "eligeAUnMiembroSinMentor": "Choose a member without a mentor",
     "escribeLaMateria": "Enter the subject",
     "etapa": "Stage",
@@ -5275,7 +5429,6 @@
         "edit": "Edit",
         "editName": "Edit the criterion “{topic}”",
         "empty": "Your firm has not written any criteria yet.",
-        "intro": "Positions that people of your firm wrote under their name. When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one. They are not law, and LiTT does not check them.",
         "kind": {
           "criterio": "Criterion",
           "voto_particular": "Dissenting opinion"
@@ -5283,9 +5436,7 @@
         "kindLabel": "Type",
         "limit": "Your firm holds as many criteria as it can. Remove one to write another.",
         "loadFailed": "The firm's criteria could not be loaded.",
-        "loadingLabel": "Loading the firm's criteria",
         "mine": "Yours",
-        "noOrganizations": "You do not belong to any firm yet.",
         "noPlaybooks": "There are no playbooks to disagree with yet.",
         "playbookLabel": "Playbook",
         "playbookPlaceholder": "Choose a playbook",
@@ -5305,15 +5456,19 @@
         "save": "Save",
         "saved": "The criterion was saved.",
         "saving": "Saving…",
-        "tab": "Firm criteria",
         "title": "Firm criteria",
         "topicHelp": "A few words, for example “Limitation of bills of exchange”.",
         "topicLabel": "Topic",
         "voteHelp": "A dissenting opinion names the playbook rule you disagree with. It does not change the rule.",
-        "write": "Write a criterion"
+        "who": "Everyone in the firm reads them. Anyone who is not in training writes them; owners and admins can remove any.",
+        "write": "Write a criterion",
+        "introShort": "Positions that people of your firm wrote under their name.",
+        "introNotVerified": "They are not law, and LiTT does not check them.",
+        "introMore": "When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one."
       }
     },
     "formacion": "Training",
+    "generalTransactions": "General transactions",
     "guardarEtapa": "Save stage",
     "gym": {
       "codes": {
@@ -5451,7 +5606,7 @@
       },
       "allPupils": "All pupils",
       "back": "Back to Training",
-      "intro": "Supervise one pupil at a time. Nothing here compares or ranks your pupils, and only you and each pupil see their data.",
+      "intro": "Supervise one pupil at a time. Nothing here compares or ranks your pupils. Only you and each pupil see their data.",
       "lastWork": "Last work: {date, date, medium} {date, time, short}",
       "noPupils": "You have no pupils here yet. Add them in Training, under My pupils.",
       "noWork": "No work yet",
@@ -5536,6 +5691,7 @@
       "revoked": "Revoked on {date, date, medium} {date, time, short}",
       "unknownProject": "A matter you cannot see"
     },
+    "practiceHelp": "Choose «All practice areas» or one of your firm's areas (they come from the firm profile). If it is not listed, use «Other area».",
     "promotion": {
       "accept": "Accept proposal",
       "actions": {
@@ -5571,7 +5727,6 @@
       "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}.",
       "works": "Reviewed works: {count} of {required}"
     },
-    "pupiloDe": "Pupil of",
     "quitar": "Remove",
     "review": {
       "aiCorrected": "What the AI corrected",
@@ -5590,7 +5745,6 @@
       "unverified": "What was left unverified"
     },
     "sinEtapaAsignada": "No stage assigned.",
-    "soloElDuenoOUnAdministrador": "Only the owner or an administrator of the organization appoints mentors.",
     "stage": {
       "abogado": "Lawyer",
       "junior": "Junior",
@@ -5633,6 +5787,26 @@
       "regenerate": "Regenerate",
       "untitled": "Untitled work",
       "withoutAccess": "{count, plural, one {# work is in a matter you cannot open.} other {# works are in matters you cannot open.}} The owner of the matter can give you access."
+    },
+    "org": {
+      "loadFailed": "Could not load training.",
+      "memberIntro": "Here you read your firm's criteria. Your own training (your mentor and your stages) is in Settings → My training.",
+      "mentorHasPupils": "This person still has pupils. Release them or give them another mentor first.",
+      "mentorLabel": "Their mentor:",
+      "mentorOf": "Choose a mentor for {name}",
+      "mentorsHeading": "Mentors and pupils",
+      "noMentor": "No mentor",
+      "noMentorsYet": "There are no mentors yet. Turn on «Mentor» for someone to be able to assign pupils to them.",
+      "mentorsHelpShort": "A mentor guides trainees and is the only one who sets their stage.",
+      "mentorsHelpMore": "Each trainee has one mentor; someone without a mentor isn’t in training. Owners and administrators can be mentors, never trainees."
+    },
+    "stageHelp": {
+      "junior": "The AI answers with its methodology and in accountability mode.",
+      "pasante": "Tries first: writes their own approach before the AI answers."
+    },
+    "personal": {
+      "intro": "Here you see only what is yours: your mentor, your stages and your criterion. Who is a mentor, and whom they guide, is decided by the owner or an admin in the firm's settings → Training.",
+      "pupilsHelp": "Take members who have no mentor and set their stage by subject. Only you, as their mentor, set the stage. Owners and administrators see who your pupils are, never their stage."
     }
   },
   "ui": {
@@ -6039,7 +6213,7 @@
       "unavailable": "Google sign-in is temporarily unavailable. Try again.",
       "unexpected": "LiTT couldn't complete Google sign-in. Try again."
     },
-    "openBringYourOwnKeys": "Open Bring Your Own Keys",
+    "openBringYourOwnKeys": "Open My AI keys",
     "openChatFailed": "Failed to open this chat.",
     "openFileFailed": "LiTT couldn't open that file. Try again.",
     "openLittInWord": "Open LiTT in Word",

@@ -23,6 +23,7 @@ import {
 } from "@/app/lib/permissions";
 import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
+import { invalidatePlatformMe } from "@/app/hooks/usePlatformMe";
 import { orgRoleDescription, orgRoleLabel } from "./orgRoleText";
 import {
   invitationIssueReason,
@@ -96,6 +97,8 @@ export function CreateOrganizationModal({
     setError(null);
     try {
       const org = await createOrg(trimmedName);
+      // Whether this person may create another organization just changed.
+      invalidatePlatformMe();
       if (memberEmails.length === 0) {
         onCreated(org);
         return;
@@ -151,7 +154,7 @@ export function CreateOrganizationModal({
           onClose();
         }}
         breadcrumbs={[
-          t("settings.layout.tab.organizations"),
+          t("settings.map.tab.organizations.title"),
           t("organizations.organizationModals.newOrganization"),
         ]}
         primaryAction={{
@@ -369,7 +372,7 @@ export function InviteOrganizationMemberModal({
         open={open}
         onClose={onClose}
         breadcrumbs={[
-          t("settings.layout.tab.organizations"),
+          t("settings.map.tab.organizations.title"),
           org.name,
           t("organizations.organizationModals.addMemberBreadcrumb"),
         ]}
@@ -445,7 +448,7 @@ export function InviteOrganizationMemberModal({
                         <p className="truncate text-xs text-gray-700">
                           {invitation.email}
                         </p>
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-3xs text-gray-400">
                           {orgRoleLabel(t, invitation.role)} ·{" "}
                           {invitation.status === "expired"
                             ? t("organizations.organizationModals.expired")

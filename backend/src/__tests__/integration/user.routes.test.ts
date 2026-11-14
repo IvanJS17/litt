@@ -879,6 +879,50 @@ describe("user.routes", () => {
             expect(res.body.darkMode).toBe(true);
         });
 
+        it("saves and returns the text size", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow({ text_size: "xlarge" }),
+                error: null,
+            };
+
+            const res = await request(app)
+                .patch("/user/profile")
+                .set(...AUTH)
+                .send({ textSize: "xlarge" });
+
+            expect(res.status).toBe(200);
+            expect(res.body.textSize).toBe("xlarge");
+            expect(supabaseState.updates.user_profiles).toContainEqual(
+                expect.objectContaining({ text_size: "xlarge" }),
+            );
+        });
+
+        it("rejects a text size that is not normal, large or xlarge", async () => {
+            const res = await request(app)
+                .patch("/user/profile")
+                .set(...AUTH)
+                .send({ textSize: "huge" });
+
+            expect(res.status).toBe(400);
+            expect(res.body.detail).toMatch(/textSize must be/);
+        });
+
+        it("reads normal on a database that has not applied the text size migration", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow(),
+                error: null,
+            };
+            supabaseState.missingColumns = ["text_size"];
+
+            const res = await request(app).get("/user/profile").set(...AUTH);
+
+            expect(res.status).toBe(200);
+            expect(res.body.textSize).toBe("normal");
+            expect(supabaseState.selects.user_profiles[1]).not.toContain(
+                "text_size",
+            );
+        });
+
         it("rejects a non-boolean darkMode", async () => {
             const res = await request(app)
                 .patch("/user/profile")

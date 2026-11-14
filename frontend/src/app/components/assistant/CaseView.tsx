@@ -188,7 +188,7 @@ export function CaseView({
                                         onClearQuote?.();
                                     }}
                                     data-active={isActive ? "true" : "false"}
-                                    className={`document-tab group relative flex h-8 max-w-[180px] shrink-0 items-center rounded-t-lg px-3 font-serif text-[13px] transition-colors ${isActive ? "z-20" : "z-10"}`}
+                                    className={`document-tab group relative flex h-8 max-w-[180px] shrink-0 items-center rounded-t-lg px-3 font-serif text-[0.8125rem] transition-colors ${isActive ? "z-20" : "z-10"}`}
                                 >
                                     <span className="truncate">
                                         {subdocument.title}

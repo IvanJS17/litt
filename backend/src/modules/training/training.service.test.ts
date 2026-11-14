@@ -217,6 +217,34 @@ describe("pupils", () => {
         });
     });
 
+    it("an owner or admin assigns a member who has no mentor to a mentor they choose", async () => {
+        for (const actor of [OWNER, ADMIN]) {
+            rows("training_pupils").length = 0;
+            expect(
+                await assignPupil(state.db, { ...as(actor), userId: PUPIL, mentorUserId: MENTOR2 }),
+            ).toEqual({ ok: true, data: { trainee_user_id: PUPIL, mentor_user_id: MENTOR2 } });
+            expect(rows("training_pupils")).toEqual([
+                expect.objectContaining({ trainee_user_id: PUPIL, mentor_user_id: MENTOR2, assigned_by: actor }),
+            ]);
+        }
+        expect(audits.map((a) => a.action)).toEqual(["training.pupil_assigned", "training.pupil_assigned"]);
+    });
+
+    it("an owner or admin can be a mentor but never a pupil, and a mentor stays out of the choice", async () => {
+        expect((await designateMentor(state.db, { ...as(OWNER), userId: ADMIN })).ok).toBe(true);
+        expect(
+            await assignPupil(state.db, { ...as(OWNER), userId: PUPIL, mentorUserId: ADMIN }),
+        ).toMatchObject({ ok: true });
+        for (const target of [OWNER, ADMIN])
+            expect(
+                await assignPupil(state.db, { ...as(OWNER), userId: target, mentorUserId: MENTOR }),
+            ).toMatchObject({ ok: false, kind: "validation" });
+        // The mentor's own list of members to take never offers them either.
+        const mine = await getMyPupils(state.db, as(MENTOR));
+        expect(mine.ok && mine.data.candidates).not.toContain(OWNER);
+        expect(mine.ok && mine.data.candidates).not.toContain(ADMIN);
+    });
+
     it("their mentor or an owner or admin releases a pupil; nobody else", async () => {
         withPupil();
         expect(await releasePupil(state.db, { ...as(MENTOR2), userId: PUPIL })).toMatchObject({

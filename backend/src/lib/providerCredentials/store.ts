@@ -28,6 +28,11 @@ import {
 } from "../llm/cloudProviders";
 import { WEB_SEARCH_BACKENDS } from "../webSearch";
 import { OCR_PROVIDERS } from "../ocr/provider";
+import {
+    POLICY_COLUMN,
+    personalKeyAllowed,
+    type PersonalKeyPolicy,
+} from "./capability";
 
 export const OWNER_TABLE = {
     user: { table: "user_api_keys", column: "user_id" },
@@ -270,7 +275,9 @@ export async function getApiKeyStatusFor(
  * What a member can run inside an organization, without any secret: the
  * status counterpart of getEffectiveApiKeys, built from the same layers in
  * the same order, so the model picker and the request agree. `sources` says
- * whose key a provider would run on.
+ * whose key a provider would run on. A personal key counts only for a
+ * capability (AI, web search, scan reading) the organization lets members
+ * bring their own for.
  */
 export async function getEffectiveApiKeyStatus(
     userId: string,
@@ -280,11 +287,12 @@ export async function getEffectiveApiKeyStatus(
     const scope = await loadOrgKeyScope(userId, orgId, db);
     if (!scope) return getUserApiKeyStatus(userId, db);
     const status = envApiKeyStatus();
-    if (scope.allowPersonal && !(await isManagedAccount(db, userId)))
+    if (!(await isManagedAccount(db, userId)))
         overlayStatusRows(
             status,
             await loadStatusRows(userKeyOwner(userId), db),
             "user",
+            (provider) => personalKeyAllowed(scope.allowPersonal, provider),
         );
     overlayStatusRows(
         status,
@@ -368,10 +376,11 @@ function overlayStatusRows(
     status: ApiKeyStatus,
     rows: StatusRow[],
     kind: ApiKeyOwner["kind"],
+    allowed: (provider: ApiKeyProvider) => boolean = () => true,
 ): void {
     for (const row of rows) {
         const provider = normalizeApiKeyProvider(String(row.provider));
-        if (!provider) continue;
+        if (!provider || !allowed(provider)) continue;
         status.enabled[provider] = row.enabled !== false;
         // This owner's row is the newer answer: an earlier layer's setting
         // for the provider does not describe the key that will run.
@@ -475,13 +484,14 @@ function isMissingOrgKeySchema(error: unknown): boolean {
 /**
  * How an organization's keys apply to one person: null when they do not —
  * the person is not a member, or the organization is gone — and otherwise
- * whether their own keys may sit beneath the organization's.
+ * which of their own keys (AI, web search, scan reading) may sit beneath the
+ * organization's.
  */
 export async function loadOrgKeyScope(
     userId: string,
     orgId: string,
     db: Db,
-): Promise<{ allowPersonal: boolean } | null> {
+): Promise<{ allowPersonal: PersonalKeyPolicy } | null> {
     const [membership, organization] = await Promise.all([
         db
             .from("org_members")
@@ -492,7 +502,7 @@ export async function loadOrgKeyScope(
             .maybeSingle(),
         db
             .from("organizations")
-            .select("allow_personal_api_keys")
+            .select(Object.values(POLICY_COLUMN).join(", "))
             .eq("id", orgId)
             .maybeSingle(),
     ]);
@@ -502,10 +512,16 @@ export async function loadOrgKeyScope(
         throw organization.error;
     }
     if (!membership.data || !organization.data) return null;
+    return { allowPersonal: policyFromRow(organization.data) };
+}
+
+/** The three switches of an organizations row; each is on unless false. */
+export function policyFromRow(row: unknown): PersonalKeyPolicy {
+    const values = (row ?? {}) as Record<string, unknown>;
     return {
-        allowPersonal:
-            (organization.data as { allow_personal_api_keys?: boolean })
-                .allow_personal_api_keys !== false,
+        ai: values[POLICY_COLUMN.ai] !== false,
+        web_search: values[POLICY_COLUMN.web_search] !== false,
+        scan: values[POLICY_COLUMN.scan] !== false,
     };
 }
 
@@ -534,13 +550,14 @@ function overlayKeyRows(
     apiKeys: UserApiKeys,
     rows: EncryptedKeyRow[],
     kind: ApiKeyOwner["kind"],
+    allowed: (provider: ApiKeyProvider) => boolean = () => true,
 ): void {
     const providerSettings: ProviderSettings = (apiKeys.providerSettings ??=
         {});
     const keySources = (apiKeys.keySources ??= {});
     for (const row of rows) {
         const provider = normalizeApiKeyProvider(row.provider);
-        if (!provider) continue;
+        if (!provider || !allowed(provider)) continue;
         if (row.enabled === false) {
             apiKeys[provider] = null;
             delete keySources[provider];
@@ -587,12 +604,18 @@ function overlayKeyRows(
 export async function getUserApiKeys(
     userId: string,
     db: Db = createServerSupabase(),
+    allowed?: (provider: ApiKeyProvider) => boolean,
 ): Promise<UserApiKeys> {
     const apiKeys = envApiKeys();
     // An account its firm manages runs on the firm's keys, never its own,
     // even where the firm lets members bring theirs (managedAccounts.ts).
     if (await isManagedAccount(db, userId)) return apiKeys;
-    overlayKeyRows(apiKeys, await loadKeyRows(userKeyOwner(userId), db), "user");
+    overlayKeyRows(
+        apiKeys,
+        await loadKeyRows(userKeyOwner(userId), db),
+        "user",
+        allowed,
+    );
     return apiKeys;
 }
 
@@ -604,11 +627,15 @@ export async function getUserApiKeys(
  * when it has one — the firm pays for it, under the firm's terms with the
  * provider. For a provider it has none for, the organization decides:
  *
- *   allow_personal_api_keys = true   the member's own key, then the
- *                                    deployment's
- *   allow_personal_api_keys = false  the deployment's only; a member's
- *                                    personal key never touches the
- *                                    organization's work
+ *   allow_personal_<capability>_keys = true   the member's own key, then
+ *                                             the deployment's
+ *   allow_personal_<capability>_keys = false  the deployment's only; a
+ *                                             member's personal key never
+ *                                             touches the organization's work
+ *
+ * The capability is the one the provider belongs to (capability.ts): AI
+ * models, web search or scan reading, each with its own switch, so blocking
+ * one leaves the other two on the member's keys.
  *
  * `orgId` comes from the content being worked on, which the caller has
  * already been authorised for. Membership is checked again here anyway: an
@@ -625,9 +652,9 @@ export async function getEffectiveApiKeys(
     const scope = await loadOrgKeyScope(userId, orgId, db);
     if (!scope) return getUserApiKeys(userId, db);
 
-    const apiKeys = scope.allowPersonal
-        ? await getUserApiKeys(userId, db)
-        : envApiKeys();
+    const apiKeys = await getUserApiKeys(userId, db, (provider) =>
+        personalKeyAllowed(scope.allowPersonal, provider),
+    );
     overlayKeyRows(apiKeys, await loadKeyRows(orgKeyOwner(orgId), db), "org");
     return apiKeys;
 }

@@ -20,7 +20,7 @@ export function VersionChip({
     size?: "sm" | "md" | "lg";
 }) {
     if (typeof n !== "number" || !Number.isFinite(n) || n < 1) return null;
-    const scale = { sm: "text-[9px]", md: "text-[10px]", lg: "text-xs" }[size];
+    const scale = { sm: "text-[0.5625rem]", md: "text-3xs", lg: "text-xs" }[size];
     return (
         <span
             className={`shrink-0 inline-flex items-center font-sans font-medium text-gray-500 ${scale}`}

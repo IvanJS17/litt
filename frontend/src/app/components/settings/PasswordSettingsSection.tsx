@@ -172,7 +172,7 @@ export function PasswordSettingsSection() {
       <Modal
         open={setPasswordOpen}
         onClose={closeSetPassword}
-        breadcrumbs={[t("settings.layout.tab.security"), t("settings.passwordSettingsSection.setPassword")]}
+        breadcrumbs={[t("settings.map.tab.security.title"), t("settings.passwordSettingsSection.setPassword")]}
         size="sm"
         className="h-auto"
         cancelAction={{

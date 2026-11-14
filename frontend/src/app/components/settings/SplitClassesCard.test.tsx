@@ -47,6 +47,12 @@ describe("SplitClassesCard", () => {
         for (const field of screen.getAllByLabelText("Description")) expect(field).toHaveAttribute("aria-describedby", note.id);
         expect(screen.getByRole("button", { name: "Save types" })).toBeDisabled();
         expect(screen.getByRole("button", { name: "Restore the included types" })).toBeDisabled();
+        // Framed as a notice that names the third party, and before the fields (not at the foot).
+        const notice = note.closest("[data-slot=settings-notice]") as HTMLElement;
+        expect(notice).toHaveTextContent("Data to a third party");
+        expect(
+            notice.compareDocumentPosition(screen.getByDisplayValue("Poder")) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
     });
 
     it("edits a type and saves the list, then shows it as the person's own", async () => {

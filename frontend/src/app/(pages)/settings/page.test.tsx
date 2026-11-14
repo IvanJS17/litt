@@ -2,7 +2,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MikeApiError } from "@/app/lib/mikeApi";
+import type { ReactElement } from "react";
 import SettingsPage from "./page";
+import esMX from "../../../../../packages/i18n/messages/es-MX.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { deleteAccount } from "@/app/lib/mikeApi";
 import { ToastViewportUI, clearToasts } from "@mike/ui";
 import { ACCOUNT_DELETION_TOKEN_KEY } from "@/app/lib/accountDeletion";
@@ -109,6 +112,26 @@ describe("SettingsPage Google email changes", () => {
         const photo = screen.getByText("Profile photo");
         expect(name.compareDocumentPosition(photo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(state.updateOrganisation).not.toHaveBeenCalled();
+    });
+
+    it("says the plan in Spanish, not the server's «Free»", () => {
+        const wrapEs = (ui: ReactElement) => (
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                {ui}
+            </IntlClientProvider>
+        );
+        render(wrapEs(<SettingsPage />));
+        const plan = screen.getByRole("heading", { name: "Plan de uso" }).closest("section")!;
+        expect(plan).toHaveTextContent("Gratis");
+        expect(plan).not.toHaveTextContent("Free");
+    });
+
+    it("keeps the danger zone's title in ink and says once that deleting the account cannot be undone", () => {
+        render(<SettingsPage />);
+        const title = screen.getByRole("heading", { name: /danger zone/i });
+        expect(title.className).not.toMatch(/red/);
+        const notice = title.closest("section")!.querySelector("[data-tone=irreversible]");
+        expect(notice).toHaveTextContent("This cannot be undone.");
     });
 
     it("links the source of the running commit under About", () => {

@@ -88,7 +88,7 @@ export function DeleteAccountModal({
       <Modal
         open={open}
         onClose={close}
-        breadcrumbs={[t("settings.layout.tab.account"), t("settings.deleteAccountModal.deleteAccount")]}
+        breadcrumbs={[t("settings.map.tab.account.title"), t("settings.deleteAccountModal.deleteAccount")]}
         size="sm"
         className="h-auto"
         cancelAction={{ label: t("common.cancel"), onClick: close, disabled: deleting }}

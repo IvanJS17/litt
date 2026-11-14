@@ -335,7 +335,7 @@ export function TREditColumnMenu({
                                 {tags.map((tag, tagIdx) => (
                                     <span
                                         key={tag}
-                                        className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
+                                        className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-3xs ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
                                     >
                                         {tag}
                                         <button

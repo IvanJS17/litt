@@ -209,7 +209,7 @@ export function DropdownLabel({
         <DropdownPrimitive.Label
             data-slot="dropdown-label"
             className={mergeClasses(
-                "shrink-0 px-3 py-1 text-[10px] uppercase tracking-wider text-gray-400",
+                "shrink-0 px-3 py-1 text-3xs uppercase tracking-wider text-gray-400",
                 className,
             )}
             {...props}

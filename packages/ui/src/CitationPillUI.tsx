@@ -14,7 +14,7 @@ export type CitationPillUIProps = Omit<
 };
 
 const BASE_CLASS_NAME =
-    "inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-200/80 text-[12px] font-serif font-medium text-gray-800 transition-colors hover:bg-gray-200 hover:text-gray-950";
+    "inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-200/80 text-[0.75rem] font-serif font-medium text-gray-800 transition-colors hover:bg-gray-200 hover:text-gray-950";
 
 /** Canonical numbered citation control shared by web and Word surfaces. */
 export function CitationPillUI({

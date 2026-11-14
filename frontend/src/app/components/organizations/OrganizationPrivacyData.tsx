@@ -14,6 +14,9 @@ import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsNotice,
+  SettingsTag,
+  SettingsTagRow,
 } from "@/app/components/settings/SettingsText";
 import { OrganizationSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -146,7 +149,12 @@ function MemberDataPolicySection() {
 
   return (
     <section aria-labelledby="org-privacy-members" className="space-y-3">
-      <SettingsHeading id="org-privacy-members">{t("organizations.organizationPrivacyData.membersData")}</SettingsHeading>
+      <SettingsTagRow>
+        <SettingsHeading id="org-privacy-members">{t("organizations.organizationPrivacyData.membersData")}</SettingsHeading>
+        <SettingsTag kind="audience" icon="firm">
+          {t("settings.signals.firmWide")}
+        </SettingsTag>
+      </SettingsTagRow>
       <GlassCardUI>
         {POLICY_ROWS.map((row) => (
           <SettingsRow key={row.key}>
@@ -276,7 +284,7 @@ function OwnerSectionsSkeleton({
               </SettingsLabel>
               <SettingsDescription>
                 <SkeletonText>
-                  {t("organizations.organizationPrivacyData.departedDescription")}
+                  {`${t("settings.signals.deadline30")} ${t("organizations.organizationPrivacyData.departedDescription")}`}
                 </SkeletonText>
               </SettingsDescription>
             </div>
@@ -375,9 +383,12 @@ export function OrganizationPrivacyData() {
           </SettingsHeading>
           <GlassCardUI>
             <SettingsRow>
-              <div className="space-y-1">
+              <div className="min-w-0 space-y-2">
                 <SettingsLabel>{t("organizations.organizationPrivacyData.workLeftByDepartedMembers")}</SettingsLabel>
-                <SettingsDescription>{t("organizations.organizationPrivacyData.departedDescription")}</SettingsDescription>
+                {/* A deadline is a notice: it is never folded. */}
+                <SettingsNotice entries={[{ icon: "clock", label: t("settings.signals.deadline30") }]}>
+                  {t("organizations.organizationPrivacyData.departedDescription")}
+                </SettingsNotice>
               </div>
               <PillButtonUI
                 tone="white"
@@ -398,6 +409,13 @@ export function OrganizationPrivacyData() {
       ) : null}
       <section aria-labelledby="org-privacy-delete" className="space-y-3">
         <SettingsHeading id="org-privacy-delete">{t("organizations.organizationPrivacyData.deleteData")}</SettingsHeading>
+        {/* Once, above the group of actions that delete; the only red. */}
+        <SettingsNotice
+          tone="irreversible"
+          entries={[{ icon: "alert", label: t("settings.signals.cannotUndo") }]}
+        >
+          {t("organizations.organizationPrivacyData.deleteNotice.body")}
+        </SettingsNotice>
         <GlassCardUI>
           {DELETE_ROWS.map((row) => (
             <SettingsRow key={row.kind}>
@@ -416,7 +434,7 @@ export function OrganizationPrivacyData() {
                 className="w-full shrink-0 sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
-                {t("common.delete")}
+                {t("settings.privacyData.deleteButton")}
               </PillButtonUI>
             </SettingsRow>
           ))}
@@ -426,7 +444,7 @@ export function OrganizationPrivacyData() {
         open={pendingKind !== null}
         title={pendingRow ? t(pendingRow.title) : undefined}
         message={pendingRow ? t(pendingRow.message) : undefined}
-        confirmLabel={t("common.delete")}
+        confirmLabel={t("settings.privacyData.deleteButton")}
         confirmVariant="danger"
         confirmStatus={deletingKind ? "loading" : "idle"}
         cancelLabel={t("common.cancel")}

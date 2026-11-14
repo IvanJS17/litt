@@ -92,7 +92,11 @@ describe("a managed account", () => {
     });
 
     it("is refused saving a personal key, even where the firm lets members bring their own", async () => {
-        h.state!.tables.organizations[0].allow_personal_api_keys = true;
+        Object.assign(h.state!.tables.organizations[0], {
+            allow_personal_ai_keys: true,
+            allow_personal_web_search_keys: true,
+            allow_personal_scan_keys: true,
+        });
         const res = await request(app)
             .put("/user/api-keys/openai")
             .set(...AUTH)

@@ -86,7 +86,7 @@ test.describe("on a phone (iPhone 14, touch)", () => {
         const listBox = (await list.boundingBox())!;
         expect(searchBox.y + searchBox.height).toBeLessThanOrEqual(listBox.y);
         // The groups, and no strip of tabs.
-        for (const group of ["Account", "Preferences", "Keys", "Firm", "Privacy"]) {
+        for (const group of ["My account", "How I work", "My keys and services", "My training", "My firms"]) {
             await expect(list.getByRole("heading", { name: group, exact: true })).toBeVisible();
         }
         await expect(page.locator("nav ul.flex").first()).toBeHidden();

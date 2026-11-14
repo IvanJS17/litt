@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MikeApiError } from "@/app/lib/mikeApi";
+import { invalidatePlatformMe } from "@/app/hooks/usePlatformMe";
 import { OrganizationsOverview } from "./OrganizationsOverview";
 import SettingsLayout from "@/app/(pages)/settings/SettingsLayoutClient";
 
@@ -92,6 +93,7 @@ const INVITATION = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  invalidatePlatformMe();
   mocks.workspaceId = "org-1";
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: true,
@@ -187,35 +189,33 @@ describe("OrganizationsOverview", () => {
     ]);
   });
 
-  it("opens the settings of the workspace the person is in from its primary Manage button", async () => {
+  it("opens the settings of the workspace the person is in from its primary Firm settings button", async () => {
     const user = userEvent.setup();
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    const manage = within(card("Elite Law LLP")).getByRole("button", {
-      name: "Manage Elite Law LLP",
+    const open = within(card("Elite Law LLP")).getByRole("button", {
+      name: "Firm settings of Elite Law LLP",
     });
-    expect(manage).toHaveTextContent("Manage");
-    expect(manage.className).toMatch(/\bbg-interactive\b/);
+    expect(open).toHaveTextContent("Firm settings");
+    expect(open.className).toMatch(/\bbg-interactive\b/);
     // The card itself is not a second way in.
     expect(
-      screen.getAllByRole("button", { name: "Manage Elite Law LLP" }),
+      screen.getAllByRole("button", { name: "Firm settings of Elite Law LLP" }),
     ).toHaveLength(1);
 
-    await user.click(manage);
+    await user.click(open);
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org-1/settings");
   });
 
-  it("offers a member View, not Manage, on the workspace they are in", async () => {
+  it("offers a member the same button: the settings are read-only for them", async () => {
     const user = userEvent.setup();
     mocks.listOrgs.mockResolvedValue([{ ...JOINED_ORG, id: "org-1" }]);
     render(<OrganizationsOverview />);
     await screen.findByText("Community Legal");
 
-    expect(screen.queryByRole("button", { name: /^Manage/ })).not.toBeInTheDocument();
-    const view = screen.getByRole("button", { name: "View Community Legal" });
-    expect(view).toHaveTextContent("View");
-    await user.click(view);
+    const open = screen.getByRole("button", { name: "Firm settings of Community Legal" });
+    await user.click(open);
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org-1/settings");
   });
 
@@ -226,20 +226,18 @@ describe("OrganizationsOverview", () => {
       mocks.listOrgs.mockResolvedValue([ORG, SECOND]);
     });
 
-    it("does not open its settings from here", async () => {
+    it("opens its settings from here, which switches to its workspace first", async () => {
       const user = userEvent.setup();
       render(<OrganizationsOverview />);
       await screen.findByText("Beta Chambers");
 
-      // Only the current workspace's card opens anything.
-      expect(
-        screen.queryByRole("button", { name: "Manage Beta Chambers" }),
-      ).not.toBeInTheDocument();
-      await user.click(screen.getByText("Beta Chambers"));
-      expect(mocks.push).not.toHaveBeenCalled();
+      await user.click(
+        screen.getByRole("button", { name: "Firm settings of Beta Chambers" }),
+      );
+      expect(mocks.push).toHaveBeenCalledWith("/organizations/org-2/settings");
     });
 
-    it("offers a black Switch button to its workspace instead", async () => {
+    it("also offers a plain Switch to its workspace", async () => {
       const user = userEvent.setup();
       render(<OrganizationsOverview />);
       await screen.findByText("Beta Chambers");
@@ -247,7 +245,6 @@ describe("OrganizationsOverview", () => {
       const switchButton = screen.getByRole("button", {
         name: "Switch to Beta Chambers",
       });
-      expect(switchButton.className).toMatch(/bg-gray-950/);
       await user.click(switchButton);
 
       expect(mocks.setWorkspace).toHaveBeenCalledExactlyOnceWith("org-2");
@@ -259,20 +256,19 @@ describe("OrganizationsOverview", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("opens no organization's settings from the personal workspace", async () => {
+    it("offers every firm's settings from the personal workspace too", async () => {
       mocks.workspaceId = "personal";
       render(<OrganizationsOverview />);
       await screen.findByText("Beta Chambers");
 
-      expect(
-        screen.queryByRole("button", { name: /^Manage / }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Switch to Elite Law LLP" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Switch to Beta Chambers" }),
-      ).toBeInTheDocument();
+      for (const name of ["Elite Law LLP", "Beta Chambers"]) {
+        expect(
+          screen.getByRole("button", { name: `Firm settings of ${name}` }),
+        ).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: `Switch to ${name}` }),
+        ).toBeInTheDocument();
+      }
     });
   });
 
@@ -280,7 +276,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    const button = screen.getByRole("button", { name: "New organization" });
+    const button = screen.getByRole("button", { name: "New firm" });
     // The compact pill beside the section heading: short label, plus icon.
     expect(button).toHaveTextContent("New");
     expect(button).toHaveClass("h-7", "liquid-glass-subtle");
@@ -297,7 +293,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    await user.click(screen.getByRole("button", { name: "New organization" }));
+    await user.click(screen.getByRole("button", { name: "New firm" }));
     expect(
       await screen.findByText(/You can also add people later/),
     ).toBeInTheDocument();
@@ -334,7 +330,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
 
     expect(
-      await screen.findByText(/No organizations yet\. Create one/),
+      await screen.findByText(/You aren’t in a firm yet\. Create one/),
     ).toBeInTheDocument();
     // An empty inbox needs no section of its own.
     expect(
@@ -399,12 +395,12 @@ describe("OrganizationsOverview", () => {
     render(<SettingsLayout><OrganizationsOverview /></SettingsLayout>);
 
     expect(await screen.findByRole("button", {
-      name: "Organizations 1 pending invitation",
+      name: "My firms 1 pending invitation",
     })).toBeVisible();
     await user.click(await screen.findByRole("button", {
       name: `${action} Inviting Chambers`,
     }));
-    expect(await screen.findByRole("button", { name: "Organizations" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "My firms" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Invitations" })).not.toBeInTheDocument();
   });
 
@@ -448,7 +444,7 @@ describe("OrganizationsOverview", () => {
       ),
     ).toBeInTheDocument();
     // Not "you have none": that would be a different thing to be told.
-    expect(screen.queryByText(/No organizations yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You aren’t in a firm yet/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Elite Law LLP")).toBeInTheDocument();
@@ -502,7 +498,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    await user.click(screen.getByRole("button", { name: "New organization" }));
+    await user.click(screen.getByRole("button", { name: "New firm" }));
     await settleModalFocus();
     await user.type(screen.getByLabelText("Organization name"), "New Chambers");
     await user.type(
@@ -530,7 +526,7 @@ describe("OrganizationsOverview", () => {
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
 
-    await user.click(screen.getByRole("button", { name: "New organization" }));
+    await user.click(screen.getByRole("button", { name: "New firm" }));
     await settleModalFocus();
     await user.type(screen.getByLabelText("Organization name"), "New Chambers");
     await user.click(screen.getByRole("button", { name: "Create" }));
@@ -553,7 +549,7 @@ describe("OrganizationsOverview", () => {
     ).not.toBeInTheDocument();
     // Starting a new one does not depend on the list.
     expect(
-      screen.getByRole("button", { name: "New organization" }),
+      screen.getByRole("button", { name: "New firm" }),
     ).toBeEnabled();
   });
 });

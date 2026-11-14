@@ -36,7 +36,7 @@ Consequences, by construction:
 - **Turning it on deletes nothing.** Personal content stays where it is and
   cannot be opened while the account is managed. Nothing moves to the firm.
 - The setting is changed by the firm's **owners and admins** (the rule of
-  `allow_personal_api_keys`), with the second factor if enrolled
+  `allow_personal_{ai,web_search,scan}_keys`), with the second factor if enrolled
   (`PUT /orgs/:orgId/managed-accounts {managed_accounts: boolean}`). It is
   audited, insert-only: `org.managed_accounts.enabled` / `.disabled`.
 - Neither column can be written from a client: `user_profiles` and

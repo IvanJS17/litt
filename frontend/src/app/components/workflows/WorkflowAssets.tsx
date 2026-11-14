@@ -459,7 +459,7 @@ export const WorkflowAssets = forwardRef<
                       {file.filename}
                     </span>
                     {isTrainingHeld(file) && (
-                      <TrainingHeldNoteUI className="text-[11px]" />
+                      <TrainingHeldNoteUI className="text-2xs" />
                     )}
                   </span>
                 </TableStickyCell>

@@ -69,8 +69,9 @@ Training has three layers, all integrated into `main`:
   would. Making any stage in the organization count inside workflows would
   be a product decision; it would harden sealing too, since both use the
   same effective stage.
-- **Mentor.** Designated by an owner or admin of the organization. Each pupil
-  has exactly one current mentor per organization.
+- **Mentor.** Designated by an owner or admin of the organization, who may be a
+  mentor themselves. Each pupil has exactly one current mentor per organization,
+  and is never an owner or admin.
 
 ## Who sees what
 
@@ -183,27 +184,37 @@ Enforced in `training.service.ts` and covered by
 | Action | Who |
 |---|---|
 | Designate or retire a mentor | an owner or admin; a mentor with pupils is not retired (`409 training_mentor_has_pupils`) |
-| Take a member as pupil | a mentor, for themselves, when the member has no mentor |
-| Move a pupil to another mentor | an owner or admin only (`409 training_pupil_has_mentor` for anybody else) |
+| Take a member as pupil | a mentor, for themselves, when the member has no mentor; an owner or admin, for any mentor of the firm (`mentor_user_id`) |
+| Move a pupil to another mentor | an owner or admin only (`409 training_pupil_has_mentor` for anybody else); never to themselves |
 | Set, change or remove a stage | the pupil's current mentor only |
 | Release a pupil (mentor and stages) | their mentor, or an owner or admin |
 | Read | the pupil: their mentor and stages; a mentor: their pupils' stages; an owner or admin: who mentors whom, never the stages |
 
-Nobody is their own pupil.
+Nobody is their own pupil. **An owner or admin can be a mentor but never a
+pupil.** Taking or moving one is refused (`400`), and a pupil who is promoted to
+admin or owner stops being one in the same statement: the trigger
+`org_members_training_role_change` (`20261113_50_litt_training_role_rules.sql`)
+deletes their `training_pupils` row, and their stages go with it. It acts on
+every path that changes the role, not only `PATCH …/members/:userId`. A mentor
+who is promoted stays a mentor. The rest of their learning data (notes,
+readings) stays, as it does when a pupil is released. One insert-only audit
+event, `training.pupil_ended_by_role`, is filed under the promoted person with
+ids and roles only.
 
-**Accepted: a mentor can tell that a member already has a mentor.** The list of
+**A mentor can still tell that a member already has a mentor.** The list of
 members a mentor may take (`candidates` in `GET …/pupils`) leaves out those who
-have one, and taking one of them answers `409 training_pupil_has_mentor`. This
-is kept on purpose. The approved specification limits the owner's and admin's
-role to naming mentors, so pupils cannot be assigned only by them, and a mentor
-cannot take a pupil without a list of members who are free. What can be
-inferred is only that somebody has a mentor: never who, never a stage, never a
-note. Only designated mentors see it (`candidates` and the `POST` require being
-one); owners and admins already see who mentors whom.
+have one, and taking one of them answers `409 training_pupil_has_mentor`. Owners
+and admins now assign pupils to any mentor from Settings of the firm →
+Formación, but a mentor still takes free members from their own «Mis
+aprendices», so the list stays. What can be inferred is only that somebody has a
+mentor: never who, never a stage, never a note. Only designated mentors see it
+(`candidates` and the `POST` require being one); owners and admins already see
+who mentors whom. **Stages stay the current mentor's alone**; an owner or admin
+assigns and moves, never grades.
 
 Each change writes one insert-only audit event, with
 ids and labels only: `training.mentor_designated`, `training.mentor_removed`,
-`training.pupil_assigned`, `training.pupil_released`, `training.stage_set`,
+`training.pupil_assigned`, `training.pupil_released`, `training.pupil_ended_by_role`, `training.stage_set`,
 `training.stage_removed`.
 
 ## Criterion: verdict, thermometer and basis (layer 3)
@@ -616,13 +627,28 @@ against a clock, the paragraphs they think hold an error.
 
 ## Settings
 
-- **Organization → Formación** (owners and admins): members with a «Mentor»
-  switch and whose mentor each one is.
-- **Settings → Formación**: «Mi formación» shows a pupil their mentor and
-  stages and, per organization, «Lo que mi mentor ve de mí» (layer 2, below);
-  «Mis pupilos» lets a mentor take members without a mentor, set their
-  stage per practice area («Todas las materias», the practice options, or
-  another), and release them, and links to the mentor panel.
+- **The firm's settings → Formación** (`/organizations/:id/settings/training`,
+  the one place of the firm for training). An owner or admin, on one screen:
+  names or retires mentors (the «Mentor» switch, any member, themselves
+  included), **assigns each member to a mentor, moves them or frees them** (a
+  «Su mentor» choice per member; an owner or admin row offers none, since they
+  are never pupils), sees who is a mentor of whom, and below it the firm's
+  criteria. Stages are not shown or changed here. A member who is not an owner or
+  admin sees only the criteria (the tab is offered to every member): they read
+  them, and write them when the server allows it (no stage), unchanged.
+- **Settings → Formación** holds only what is the person's own: «Mi formación»
+  shows a pupil their mentor and stages and, per organization, «Lo que mi
+  mentor ve de mí» (layer 2, below); «Mis aprendices» lets a mentor take members
+  who have no mentor, set their stage per practice area, and release them, and
+  links to the mentor panel. Each stage line says what it changes: a pasante
+  tries first, before the AI answers; a junior gets the AI's answer with its
+  methodology and in accountability mode.
+- **Stage subjects.** The stage editor offers «Todas las materias», the practice
+  areas of the firm's profile (`organizations.firm_profile.practice_areas`,
+  [`firm-profile.md`](firm-profile.md); the whole list when the profile names
+  none, or cannot be read) and «Otra materia». Every area, and every saved
+  practice, is shown with its translated label (`practiceAreaLabel`); what is
+  stored stays the normalized English name.
 - **Settings → Formación → Panel del mentor** (`/settings/training/mentor`,
   layer 2, below).
 - **Settings → Formación**, layer 3, per organization: «Mi criterio» (the map,
@@ -630,8 +656,9 @@ against a clock, the paragraphs they think hold an error.
   reading (`/settings/training/reading/[readingId]`), and the criteria contrast
   (`/settings/training/contrast`). A tabular review's menu offers «Auditar
   preguntas» (`/tabular-reviews/[id]/audit`) to a junior.
-- **Settings → Criterios del despacho** (`/settings/firm-criteria`): the firm's
-  criteria, read by everybody in the firm and written by those without a stage.
+- **Firm's settings → Formación → Criterios del despacho**: the firm's criteria, read by everybody in
+  the firm and written by those without a stage. `/settings/firm-criteria` no longer
+  exists as a tab; it redirects to the active firm's page.
 
 ## The pasante seal and its approval (layer 1b)
 
@@ -1575,8 +1602,8 @@ Migration `backend/migrations/20261108_76_litt_firm_criteria.sql` (also in
 in `backend/src/lib/firmCriteria.ts`, the tool in
 `backend/src/modules/chat/engine/tools/firmCriteriaTool.ts`, the turn behavior
 in `backend/src/lib/trainingTurn/criteria.ts`, the screen in
-`frontend/src/app/components/training/firmCriteria/` (Settings → «Criterios del
-despacho», `/settings/firm-criteria`) and the panel in
+`frontend/src/app/components/training/firmCriteria/` (the firm's settings → Formación → «Criterios del
+despacho», `/organizations/:id/settings/training`) and the panel in
 `packages/ui/src/FirmCriteriaConsultedUI.tsx`. Strings are in the
 `training.firmCriteria` namespace of the catalog.
 
@@ -1751,7 +1778,7 @@ person's chat. `training.criteria_contrast_started` is audited with
 and `criteria_explain` (instead) while a contrast waits for the explanation of
 that `chat_id`.
 
-**Screen.** Settings → Training → Criteria contrast
+**Screen.** Settings → My training → Criteria contrast
 (`/settings/training/contrast`): the assignment and the two routes (or the note
 about the two approaches), then each contrast with its two analyses in two
 columns (stacked on a phone), the explanation field first, then the comparison

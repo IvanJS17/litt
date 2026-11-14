@@ -24,6 +24,8 @@ import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsTag,
+  SettingsTagRow,
 } from "@/app/components/settings/SettingsText";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { isMfaRequiredError } from "@/app/lib/mikeApi";
@@ -482,7 +484,11 @@ export default function SecurityPage() {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <SettingsHeading id="multi-factor-authentication">{t("settings.security.multiFactorAuthentication")}</SettingsHeading>
+        <SettingsTagRow>
+          <SettingsHeading id="multi-factor-authentication">{t("settings.security.multiFactorAuthentication")}</SettingsHeading>
+          {/* One «Recomendado» a screen, and only while there is something to do. */}
+          {!loading && !hasVerifiedFactor ? <SettingsTag kind="recommended" /> : null}
+        </SettingsTagRow>
         <GlassCardUI>
           {loading ? (
             <MfaSettingsSkeleton />
@@ -571,7 +577,7 @@ export default function SecurityPage() {
       <Modal
         open={setupModalOpen}
         onClose={() => void closeSetupModal()}
-        breadcrumbs={[t("settings.layout.tab.security"), t("settings.security.setUpAuthenticatorApp")]}
+        breadcrumbs={[t("settings.map.tab.security.title"), t("settings.security.setUpAuthenticatorApp")]}
         cancelAction={{
           label: enrollment ? t("common.back") : t("common.cancel"),
           onClick: enrollment

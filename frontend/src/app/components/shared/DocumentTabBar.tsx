@@ -327,7 +327,7 @@ export function DocumentTabBar({
                                                         {tab.title}
                                                     </span>
                                                     {tab.note && (
-                                                        <span className="min-w-0 break-words text-[10px] leading-tight text-muted-foreground">
+                                                        <span className="min-w-0 break-words text-3xs leading-tight text-muted-foreground">
                                                             {tab.note}
                                                         </span>
                                                     )}

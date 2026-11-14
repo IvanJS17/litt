@@ -249,7 +249,7 @@ export async function listChatCredentialOptions(
     const options: ChatCredentialOption[] = [];
     let personal: string | null = null;
     if (
-        (!args.orgId || !scope || scope.allowPersonal) &&
+        (!args.orgId || !scope || scope.allowPersonal.ai) &&
         !(await isManagedAccount(db, args.userId))
     ) {
         const own = usableRow(
@@ -370,7 +370,7 @@ export async function pinChatRoute(
         ? await loadOrgKeyScope(args.userId, args.orgId, db)
         : null;
     const personalAllowed =
-        (!args.orgId || !scope || scope.allowPersonal) &&
+        (!args.orgId || !scope || scope.allowPersonal.ai) &&
         !(await isManagedAccount(db, args.userId));
     if (personalAllowed) {
         const own = usableRow(
@@ -459,7 +459,7 @@ export async function loadPinnedChatRoute(
         if (await isManagedAccount(db, args.userId)) return unavailable();
         if (args.orgId) {
             const scope = await loadOrgKeyScope(args.userId, args.orgId, db);
-            if (scope && !scope.allowPersonal) return unavailable();
+            if (scope && !scope.allowPersonal.ai) return unavailable();
         }
         owner = { kind: "user", id: ownerId };
     } else if (kind === "org") {

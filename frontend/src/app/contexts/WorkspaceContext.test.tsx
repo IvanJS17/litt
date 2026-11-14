@@ -64,7 +64,7 @@ function OrgIdProbe() {
 const keysFor = (orgId: string) => ({
     keys: {},
     effective: { marker: orgId },
-    allow_personal_api_keys: true,
+    allow_personal_keys: { ai: true, web_search: true, scan: true },
     can_manage: false,
 });
 const shownKeys = () =>

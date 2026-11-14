@@ -161,7 +161,7 @@ test.describe("Select a model warning", () => {
     await expect(page.getByRole("menu")).toBeVisible();
   });
 
-  test("links to Bring Your Own Keys when there are no models", async ({
+  test("links to My AI keys when there are no models", async ({
     addin,
     page,
   }) => {
@@ -182,7 +182,7 @@ test.describe("Select a model warning", () => {
       "Select a model before sending your message.",
     );
     await warning
-      .getByRole("button", { name: "Open Bring Your Own Keys" })
+      .getByRole("button", { name: "Open My AI keys" })
       .click();
     await expect
       .poll(() =>

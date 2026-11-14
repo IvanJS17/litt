@@ -61,7 +61,7 @@ describe("OnboardingProfilePage", () => {
         listMyOrgInvitations.mockReset().mockResolvedValue([]);
         acceptOrgInvitation.mockReset();
         listOrgs.mockReset().mockResolvedValue([{ id: "org-1", name: "Socium", role: "member" }]);
-        getOrgApiKeys.mockReset().mockResolvedValue({ effective: {}, allow_personal_api_keys: true });
+        getOrgApiKeys.mockReset().mockResolvedValue({ effective: {}, allow_personal_keys: { ai: true, web_search: true, scan: true } });
         window.localStorage.clear();
         window.history.replaceState(null, "", "/onboarding/profile");
     });
@@ -129,7 +129,7 @@ describe("OnboardingProfilePage", () => {
 
     it("counts two steps when the firm does not take members' own keys", async () => {
         window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
-        getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_api_keys: false });
+        getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_keys: { ai: false, web_search: false, scan: false } });
         render(<OnboardingProfilePage />);
         expect(await screen.findByText("Step 1 of 2")).toBeVisible();
     });

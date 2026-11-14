@@ -45,6 +45,10 @@ describe("ManagedAccountsSetting", () => {
     expect(screen.getByRole("switch", { name: "Firm-managed accounts" })).not.toBeChecked();
     expect(screen.getByText(/Accounts created by invitation from Despacho Aurora won't have a personal workspace/)).toBeInTheDocument();
     expect(screen.getByText(/is not deleted, but its owner can't open it while in the firm/)).toBeInTheDocument();
+    // The firm's text stays whole and in view, in a notice.
+    const text = screen.getByText(/The firm is responsible for this setting\.$/);
+    expect(text.closest("[data-slot=settings-notice]")).toHaveTextContent("Affects invited accounts");
+    expect(text.closest("details")).toBeNull();
   });
 
   it("turns it on and refreshes the organizations", async () => {

@@ -49,7 +49,7 @@ describe("NoModelsWarningPopup", () => {
         render(<NoModelsWarningPopup reason="api-keys" onClose={onClose} />);
 
         await user.click(
-            screen.getByRole("button", { name: "Open Bring Your Own Keys" }),
+            screen.getByRole("button", { name: "Open My AI keys" }),
         );
 
         expect(onClose).toHaveBeenCalledTimes(1);
@@ -89,7 +89,7 @@ describe("NoModelsWarningPopup", () => {
                 // Not a trip to personal settings, where a member cannot fix it.
                 expect(
                     screen.queryByRole("button", {
-                        name: "Open Bring Your Own Keys",
+                        name: "Open My AI keys",
                     }),
                 ).not.toBeInTheDocument();
 
@@ -129,7 +129,7 @@ describe("NoModelsWarningPopup", () => {
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByRole("button", {
-                    name: "Open Bring Your Own Keys",
+                    name: "Open My AI keys",
                 }),
             ).not.toBeInTheDocument();
         });
@@ -166,7 +166,7 @@ describe("NoModelsWarningPopup", () => {
             ).toBeInTheDocument();
             // The step the member can take themselves.
             await user.click(
-                screen.getByRole("button", { name: "Open Bring Your Own Keys" }),
+                screen.getByRole("button", { name: "Open My AI keys" }),
             );
             expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/settings/byok");
         });
@@ -176,7 +176,7 @@ describe("NoModelsWarningPopup", () => {
                 <NoModelsWarningPopup reason="router-models" onClose={vi.fn()} />,
             );
             expect(
-                screen.getByRole("button", { name: "Open Bring Your Own Keys" }),
+                screen.getByRole("button", { name: "Open My AI keys" }),
             ).toBeInTheDocument();
         });
     });

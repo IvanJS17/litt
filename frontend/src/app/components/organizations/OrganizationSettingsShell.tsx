@@ -12,28 +12,23 @@ import {
 import { useRouter } from "next/navigation";
 import { OrganizationSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { TableEmptyState } from "@/app/components/shared/TablePrimitive";
-import {
-  SettingsShell,
-  type SettingsShellTab,
-} from "@/app/components/settings/SettingsShell";
+import { SettingsShell } from "@/app/components/settings/SettingsShell";
+import { SettingsCrossLink } from "@/app/components/settings/SettingsCrossLink";
+import { firmSettingsHref } from "@/app/lib/settingsMap";
+import { settingsShellModel } from "@/app/lib/settingsShellModel";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
 import { getOrg, type Org } from "@/app/lib/mikeApi";
-import { isOrgAdmin, isOrgOwner } from "@/app/lib/permissions";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { PillButtonUI } from "@mike/ui";
 import { useTranslations } from "next-intl";
 
-// An organization's settings area: the same frame as a person's settings,
-// with its sections down the side.
-//
-//   General          everyone in the organization
-//   Members          everyone in the organization; a full table page of its
-//                    own rather than a section inside the frame
-//   Bring Your Own Keys  its owners and admins: the organization's model
-//                        provider keys, as in a person's own settings
-//   Formación        its owners and admins: who is a mentor, and of whom
+// A firm's settings area, «Ajustes del despacho · <name>»: the same frame as a
+// person's settings, with its sections down the side. Which sections there
+// are, how they are grouped and who is offered each one is declared in the
+// settings map (lib/settingsMap.ts, docs/settings-map.md); this file only
+// draws them.
 //
 // An organization's settings are part of its workspace: they open only while
 // that organization is the caller's active workspace, never from another
@@ -74,12 +69,17 @@ export function organizationSettingsHref(
   orgId: string,
   section: OrganizationSettingsSection = "general",
 ): string {
-  const root = `/organizations/${orgId}/settings`;
-  return section === "general" ? root : `${root}/${section}`;
+  return firmSettingsHref(orgId, section);
 }
 
 type OrganizationSettingsSection =
-  "general" | "members" | "audit" | "providers" | "privacy-data" | "training";
+  | "general"
+  | "members"
+  | "audit"
+  | "providers"
+  | "scan-reading"
+  | "privacy-data"
+  | "training";
 
 export function OrganizationSettingsProvider({
   orgId,
@@ -192,63 +192,36 @@ export function OrganizationSettingsFrame({
 }) {
   const t = useTranslations();
   const { orgId, org } = useOrganizationSettings();
-  const canManage = org !== null && isOrgAdmin(org.role);
-  const isOwner = org !== null && isOrgOwner(org.role);
-  const tabs = useMemo<SettingsShellTab[]>(
-    () => [
-      {
-        id: "general",
-        label: t("organizations.organizationSettingsShell.general"),
-        href: organizationSettingsHref(orgId),
-      },
-      // A table page of its own; its header leads back here.
-      {
-        id: "members",
-        label: t("organizations.organizationSettingsShell.members"),
-        href: organizationSettingsHref(orgId, "members"),
-      },
-      // Not offered to a member, nor before the caller's role is known.
-      ...(canManage
-        ? [
-            {
-              id: "audit",
-              label: t("organizations.organizationSettingsShell.auditLog"),
-              href: organizationSettingsHref(orgId, "audit"),
-            },
-            {
-              id: "providers",
-              // The firm's keys, not the person's «Mis llaves».
-              label: t("organizations.organizationSettingsShell.bringYourOwnKeys"),
-              href: organizationSettingsHref(orgId, "providers"),
-            },
-            // LiTT training: who mentors whom (never the stages).
-            {
-              id: "training",
-              label: t("organizations.organizationSettingsShell.formacion"),
-              href: organizationSettingsHref(orgId, "training"),
-            },
-          ]
-        : []),
-      // Its actions reach every member's work, so it is its owners' alone.
-      ...(isOwner
-        ? [
-            {
-              id: "privacy-data",
-              // Named as the same page is in a person's own settings.
-              label: t("organizations.organizationSettingsShell.privacyData"),
-              href: organizationSettingsHref(orgId, "privacy-data"),
-            },
-          ]
-        : []),
-    ],
-    [canManage, isOwner, orgId, t],
+  // The owners' sections are not offered to a member, nor before the caller's
+  // role is known: until then the frame holds what every member is offered, so
+  // it does not jump.
+  const firmRole = org === null ? "member" : org.role;
+  const { tabs, groups } = useMemo(
+    () =>
+      settingsShellModel(t, "firm", { platformAdmin: false, memberDataActions: false, firmRole }, orgId),
+    [firmRole, orgId, t],
   );
 
   return (
     <SettingsShell
-      title={t("organizations.organizationSettingsShell.organization")}
-      navLabel={t("organizations.organizationSettingsShell.organization")}
+      // Always says which firm these settings are about.
+      title={
+        org
+          ? t("settings.map.firmHeading", { name: org.name })
+          : t("settings.map.firmHeadingLoading")
+      }
+      navLabel={t("settings.map.firmHeadingLoading")}
       tabs={tabs}
+      groups={groups}
+      banner={
+        org ? (
+          <SettingsCrossLink
+            messageKey="settings.map.firmBanner"
+            href="/settings"
+            values={{ name: org.name }}
+          />
+        ) : null
+      }
       rootHref={organizationSettingsHref(orgId)}
     >
       {children}

@@ -335,7 +335,7 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
                     </h2>
                 ),
                 h3: ({ children }) => (
-                    <h3 className="mb-0.5 mt-2 text-[11px] font-semibold text-gray-900 first:mt-0">
+                    <h3 className="mb-0.5 mt-2 text-2xs font-semibold text-gray-900 first:mt-0">
                         {children}
                     </h3>
                 ),
@@ -355,7 +355,7 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
                 li: ({ children }) => <li>{children}</li>,
                 table: ({ children }) => (
                     <div className="my-3 overflow-x-auto rounded-md border border-gray-200 first:mt-0 last:mb-0">
-                        <table className="min-w-full border-collapse text-left text-[11px]">
+                        <table className="min-w-full border-collapse text-left text-2xs">
                             {children}
                         </table>
                     </div>
@@ -440,7 +440,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                 <div className="mt-1 min-w-0 space-y-3 break-words rounded-md bg-white/60 px-4 py-3 text-xs leading-relaxed text-gray-600">
                                     {column.tags && column.tags.length > 0 ? (
                                         <div>
-                                            <p className="mb-1.5 text-[11px] font-medium text-gray-600">
+                                            <p className="mb-1.5 text-2xs font-medium text-gray-600">
                                                 {t("workflows.tags")}
                                             </p>
                                             <div className="flex flex-wrap gap-1.5">
@@ -448,7 +448,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                                     (tag, tagIdx) => (
                                                         <span
                                                             key={tag}
-                                                            className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
+                                                            className={`inline-block rounded-full px-1.5 py-0.5 text-3xs ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
                                                         >
                                                             {tag}
                                                         </span>
@@ -458,7 +458,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                         </div>
                                     ) : null}
                                     <div>
-                                        <p className="mb-1 text-[11px] font-medium text-gray-600">
+                                        <p className="mb-1 text-2xs font-medium text-gray-600">
                                             {t("workflows.prompt")}
                                         </p>
                                         <WorkflowPromptMarkdown

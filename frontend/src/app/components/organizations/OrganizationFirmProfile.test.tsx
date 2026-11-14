@@ -53,6 +53,10 @@ describe("OrganizationFirmProfile", () => {
     expect(field).toHaveAttribute("aria-describedby", warning.id);
     expect(warning.closest("[role=tooltip]")).toBeNull();
     expect(field).toHaveAttribute("maxlength", "1000");
+    // In a notice that comes before the field, not at the foot beside «Save».
+    expect(warning.closest("[data-slot=settings-notice]")).toHaveTextContent("Data to a third party");
+    expect(warning.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(HELP).closest("[data-slot=settings-notice]")).not.toBeNull();
   });
 
   it("lets an admin fill some fields and sends only those", async () => {

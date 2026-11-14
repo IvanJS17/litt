@@ -1,5 +1,6 @@
 import { BACKEND_REPORTING_OWNER } from "@mike/client";
 import type { Locale } from "@litt/i18n";
+import type { TextSize } from "@/app/lib/textSize";
 import type { Operation } from "@/app/lib/errorReporting";
 import { settleWithConcurrency } from "@mike/client";
 import type {
@@ -933,6 +934,8 @@ export interface UserProfile extends RouterProfileLists {
     /** Whether responses and subagents show the model, effort and tokens they used. */
     responseDetailsVisible?: boolean;
     darkMode: boolean;
+    /** The text size chosen in Settings > Appearance; absent reads as normal. */
+    textSize?: TextSize;
     projectMemoryDefault: boolean;
     /** Absent only when a forked server or a proxy/misroute answers; see `hasApiKeyStatus`. */
     apiKeyStatus?: ApiKeyStatus;
@@ -1065,6 +1068,7 @@ export async function updateUserProfile(payload: {
     quickActionsVisible?: boolean;
     responseDetailsVisible?: boolean;
     darkMode?: boolean;
+    textSize?: TextSize;
     projectMemoryDefault?: boolean;
     uiLocale?: Locale | null;
 } & Partial<RouterProfileLists>): Promise<UserProfile> {
@@ -2161,6 +2165,11 @@ export async function deleteOrgLogo(orgId: string): Promise<void> {
     await apiRequest("organizations.manage", `/orgs/${orgId}/logo`, { method: "DELETE" });
 }
 
+/** What a saved key is for; an organization decides each separately. */
+export type KeyCapability = "ai" | "web_search" | "scan";
+
+export type PersonalKeyPolicy = Record<KeyCapability, boolean>;
+
 /**
  * An organization's model provider keys, as its members see them. Never a
  * key itself: only which providers are set up.
@@ -2183,8 +2192,11 @@ export interface OrgApiKeySettings {
      * each provider whose key it holds, their own for the rest.
      */
     effective_router_models: Record<string, string[]>;
-    /** Whether a member's own key is used where the organization has none. */
-    allow_personal_api_keys: boolean;
+    /**
+     * Per kind of key, whether a member's own key is used where the
+     * organization has none: AI models, web search, scan reading.
+     */
+    allow_personal_keys: PersonalKeyPolicy;
     /** Whether the caller may change any of this (owners and admins). */
     can_manage: boolean;
 }
@@ -2300,12 +2312,13 @@ export async function dismissManagedNotice(): Promise<void> {
 
 export async function setOrgPersonalApiKeysAllowed(
     orgId: string,
+    capability: KeyCapability,
     allowed: boolean,
 ): Promise<OrgApiKeySettings> {
     return apiRequest<OrgApiKeySettings>("organizations.manage", `/orgs/${orgId}/api-keys/policy`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allow_personal_api_keys: allowed }),
+        body: JSON.stringify({ capability, allowed }),
     });
 }
 
@@ -2467,11 +2480,21 @@ export async function getMyPupils(orgId: string) {
     );
 }
 
-export async function assignTrainingPupil(orgId: string, userId: string): Promise<void> {
+/**
+ * A mentor takes a member for themselves (no `mentorUserId`). An owner or admin
+ * names the mentor, to assign a member who has none or to move one who has.
+ */
+export async function assignTrainingPupil(
+    orgId: string,
+    userId: string,
+    mentorUserId?: string,
+): Promise<void> {
     await apiRequest("training.manage", `/orgs/${orgId}/training/pupils`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId }),
+        body: JSON.stringify(
+            mentorUserId ? { user_id: userId, mentor_user_id: mentorUserId } : { user_id: userId },
+        ),
     });
 }
 

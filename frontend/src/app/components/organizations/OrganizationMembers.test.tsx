@@ -166,14 +166,16 @@ describe("the Departed view", () => {
 describe("OrganizationMembers", () => {
   it("is a table page: the roster with its identity columns, under a header that leads back to settings", async () => {
     const user = userEvent.setup();
-    render(<OrganizationMembers orgId="org-1" />);
+    render(<OrganizationMembers orgId="org-1" orgName="Elite Law LLP" />);
 
     expect(await screen.findByText("William Chen")).toBeInTheDocument();
     expect(screen.getAllByText("Members")).not.toHaveLength(0);
+    // The heading says which firm these settings are about.
+    expect(screen.getByText("Firm settings · Elite Law LLP")).toBeInTheDocument();
     // The count sits beside the column's name.
     expect(screen.getByText("(2)")).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "Back to Organization" }),
+      screen.getByRole("button", { name: "Back to firm settings" }),
     );
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org-1/settings");
     expect(screen.getByText("me@firm.example")).toBeInTheDocument();

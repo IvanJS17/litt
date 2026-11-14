@@ -35,8 +35,8 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | tabular review | revisión tabular | |
 | playbook | playbook | Se queda en inglés; plural: playbooks. |
 | workflow | flujo de trabajo | |
-| BYOK (bring your own key) | Mis llaves | La interfaz nunca dice «BYOK» ni «llaves propias (BYOK)»; son «Mis llaves» (las de cada persona) y «Llaves del despacho». |
-| organization | despacho | Un solo nombre en la interfaz: «despacho», no «organización» (Ajustes → Despachos, «Salir del despacho»). Solo cambian las etiquetas, nunca las claves ni los identificadores. Los Términos y el Aviso de privacidad son textos legales y no se tocan. |
+| BYOK (bring your own key) | Mis llaves de IA | La interfaz nunca dice «BYOK» ni «llaves propias (BYOK)»; son «Mis llaves de IA» (las de cada persona, en Ajustes) y «Llaves del despacho» (en Ajustes del despacho). |
+| organization | despacho | Un solo nombre en la interfaz: «despacho», no «organización» (Ajustes → Mis despachos, «Salir del despacho»). Solo cambian las etiquetas, nunca las claves ni los identificadores. Los Términos y el Aviso de privacidad son textos legales y no se tocan. |
 | firm | despacho | Igual que *organization*. |
 | add-in (Word) | complemento | «el complemento de Word». |
 | add-ons (flujos de trabajo) | extensiones | Femenino: «las extensiones». No confundir con el complemento de Word. |
@@ -45,7 +45,7 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | tracked change (cada cambio) | cambio marcado | Plural: cambios marcados. Nunca «cambio de control de cambios». |
 | Personal (workspace) | Personal | Es el nombre del espacio de trabajo y se queda así. |
 | deployment key | Llave de la plataforma | Nombre aprobado por el dueño (12-nov). La llave que ofrece la plataforma, no la de la persona ni la del despacho. |
-| organization key | Llave del despacho | En los textos de llaves (chip del chat, selector, Ajustes) se dice «despacho», igual que en Ajustes → Llaves del despacho. |
+| organization key | Llave del despacho | En los textos de llaves (chip del chat, selector, Ajustes) se dice «despacho», igual que en Ajustes del despacho → Llaves del despacho. |
 | your own key | Mi llave | En el chip del chat y el selector: «Mi llave», «Llave del despacho», «Llave de la plataforma». |
 | operator endpoint | modelo propio de la plataforma | El modelo que la plataforma sirve por su cuenta. |
 | OpenAI-compatible endpoint | Endpoint compatible con OpenAI | En la lista de proveedores de llaves; «OpenAI» es la marca y se queda. |

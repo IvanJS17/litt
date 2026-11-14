@@ -24,6 +24,8 @@ const NOTICES = [
     "frontend/src/app/components/shared/DocumentSidePanel.tsx",
     "frontend/src/app/components/organizations/ManagedAccountBanner.tsx",
     "frontend/src/app/components/organizations/ManagedAccountNotice.tsx",
+    // The Settings notices are a rule and an icon, never amber or orange.
+    "frontend/src/app/components/settings/SettingsText.tsx",
 ];
 
 // Notice surfaces only: status dots and categorical palettes (tags, avatars,

@@ -146,10 +146,13 @@ function formatDate(format: DateFormatter, value?: string | null) {
  */
 export function OrganizationMembers({
   orgId,
+  orgName,
   onViewerRoleChanged,
   initialTab = "all",
 }: {
   orgId: string;
+  /** Names the firm in the heading; the page leads back to its settings. */
+  orgName?: string;
   onViewerRoleChanged?: () => void;
   /** Opens on the Departed view, for a link that leads straight to it. */
   initialTab?: "all" | "departed";
@@ -473,9 +476,12 @@ export function OrganizationMembers({
         loading={loading}
         breadcrumbs={[
           {
-            label: t("organizations.organizationMembers.organization"),
+            label: orgName
+              ? t("settings.map.firmHeading", { name: orgName })
+              : t("settings.map.firmHeadingLoading"),
             onClick: () => router.push(`/organizations/${orgId}/settings`),
             title: t("organizations.organizationMembers.backToOrganization"),
+            wide: true,
           },
           { label: t("organizations.organizationMembers.members"), cursor: "text" },
         ]}
@@ -881,7 +887,7 @@ function PeopleTable({
                     {label}
                   </span>
                   {member.user_id === currentUserId ? (
-                    <span className="ml-1 text-[10px] text-gray-400">
+                    <span className="ml-1 text-3xs text-gray-400">
                       {t("organizations.organizationMembers.you")}
                     </span>
                   ) : null}
@@ -958,7 +964,7 @@ function OrganizationRoleTab({
       : role === "admin"
         ? "bg-interactive-soft-strong text-interactive"
         : "bg-gray-100 text-gray-600";
-  const className = `inline-flex h-6 min-w-20 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-medium ${tone}`;
+  const className = `inline-flex h-6 min-w-20 items-center justify-center gap-1 rounded-full px-2 text-2xs font-medium ${tone}`;
 
   if (!editable) {
     return <span className={className}>{orgRoleLabel(t, role)}</span>;

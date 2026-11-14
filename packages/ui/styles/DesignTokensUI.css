@@ -43,6 +43,11 @@
     --color-app-surface-hover: var(--app-surface-hover);
     --color-app-surface-active: var(--app-surface-active);
     --color-app-floating: var(--app-floating);
+    /* Small text sizes in rem, so they follow the text-size setting
+       (Settings > Appearance). 2xs was text-[11px] and 3xs text-[10px]; at
+       the browser's 16 px base they are the same size. */
+    --text-2xs: 0.6875rem;
+    --text-3xs: 0.625rem;
     --font-sans: var(--font-inter);
     --font-serif: var(--font-eb-garamond);
     /* Interactive roles (Marca LiTT v1.0, "Sin azul"): primary fills,
@@ -146,6 +151,12 @@
     --litt-interactive-soft: rgb(21 26 38 / 6%); /* tinta 6%, transparent */
     --litt-interactive-soft-strong: rgb(21 26 38 / 11%); /* tinta 11%, transparent */
     --litt-interactive-border: rgb(21 26 38 / 50%); /* tinta 50%, transparent */
+    /* Rules of the Settings notices (SettingsNotice). No amber and no blue:
+       a note is a tinta rule (6.29:1 on the sheet) and only what cannot be
+       undone is red (rule 4.60:1, text 6.20:1). */
+    --litt-note-rule: rgb(21 26 38 / 70%);
+    --litt-danger-rule: #e7000b; /* red-600 */
+    --litt-danger-text: #c10007; /* red-700 */
     /* Warning, light theme: orange-700 text 4.88:1 on its surface
        (orange-50); white on the orange-700 fill is 5.18:1. */
     --litt-warning: #c2410c;
@@ -229,6 +240,9 @@
     --litt-interactive-soft: rgb(236 236 230 / 8%); /* papel 8%, transparent */
     --litt-interactive-soft-strong: rgb(236 236 230 / 14%); /* papel 14%, transparent */
     --litt-interactive-border: rgb(236 236 230 / 42%); /* papel 42%, transparent */
+    --litt-note-rule: rgb(236 236 230 / 60%); /* 5.77:1 on #1b202c */
+    --litt-danger-rule: #ff6467; /* red-400, 5.64:1 */
+    --litt-danger-text: #ffa2a2; /* red-300, 8.48:1 */
     /* Warning, dark theme: a soft orange, not the saturated light-theme
        one. Orange-300 text is 8.9:1 on its surface; tinta on the
        orange-300 fill is 10.3:1. */

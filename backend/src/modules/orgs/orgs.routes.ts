@@ -525,8 +525,9 @@ orgsRouter.put(
     }),
 );
 
-// PUT /orgs/:orgId/api-keys/policy — whether members' own keys may be used
-// for a provider the organization has no key for (owner or admin).
+// PUT /orgs/:orgId/api-keys/policy — { capability: ai | web_search | scan,
+// allowed } whether members' own keys of that kind may be used for a provider
+// the organization has no key for (owner or admin).
 // Declared before /:provider so "policy" is never read as a provider name.
 orgsRouter.put(
     "/:orgId/api-keys/policy",
@@ -538,7 +539,8 @@ orgsRouter.put(
             actorId: res.locals.userId as string,
             actorEmail: res.locals.userEmail as string | undefined,
             orgId: req.params.orgId,
-            allowed: req.body?.allow_personal_api_keys,
+            capability: req.body?.capability,
+            allowed: req.body?.allowed,
         });
         if (!result.ok) return sendOrgFailure(res, result);
         res.json(result.settings);

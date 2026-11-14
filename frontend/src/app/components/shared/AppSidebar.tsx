@@ -60,6 +60,7 @@ import { listProjectsPage } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
 import type { Project } from "@/app/components/shared/types";
+import { firmSettingsHref } from "@/app/lib/settingsMap";
 import { cn } from "@/app/lib/utils";
 import { useAssistantHistoryStatuses } from "@/app/hooks/useAssistantHistoryStatuses";
 import { useSidebarHistory } from "@/app/hooks/useSidebarHistory";
@@ -1064,7 +1065,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 )}
                                 title={!expanded ? user.email : undefined}
                             >
-                                <UserAvatar photo={profile?.profilePhoto} name={profile?.displayName} email={user.email} className="h-5.5 w-5.5 text-[10px]" />
+                                <UserAvatar photo={profile?.profilePhoto} name={profile?.displayName} email={user.email} className="h-5.5 w-5.5 text-3xs" />
                                 {expanded && (
                                     <div
                                         className={`text-left flex-1 min-w-0 pl-2 flex items-center justify-between gap-2 ${
@@ -1145,21 +1146,21 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                   <SettingsSkeuoIcon className="h-4 w-4 text-black" />
                                   {t("shared.appSidebar.settings")}
                               </DropdownItem>
-                              {/* The active organization's own settings.
-                                  In the personal workspace there is none:
-                                  the organizations a person belongs to are
-                                  listed under Settings. */}
+                              {/* «Ajustes del despacho»: the active firm's
+                                  settings. In the personal workspace there is
+                                  none: the firms a person belongs to are
+                                  listed under Settings → Mis despachos. */}
                               {activeOrganization ? (
                                   <DropdownItem
                                       onSelect={() =>
                                           router.push(
-                                              `/organizations/${activeOrganization.id}/settings`,
+                                              firmSettingsHref(activeOrganization.id),
                                           )
                                       }
                                       className="h-8 gap-2 rounded-md px-2 py-2 text-sm font-medium text-gray-700 hover:text-gray-700 focus:text-gray-700 data-[selected=true]:text-gray-900 data-[selected=true]:hover:text-gray-900 data-[selected=true]:focus:text-gray-900"
                                   >
                                       <OrganizationSkeuoIcon className="h-4 w-4 text-black" />
-                                      {t("shared.appSidebar.organization")}
+                                      {t("settings.map.firmSettingsButton")}
                                   </DropdownItem>
                               ) : null}
                               <DropdownItem

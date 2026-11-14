@@ -9,6 +9,10 @@ import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsMoreInfo,
+  SettingsNotice,
+  SettingsTag,
+  SettingsTagRow,
 } from "@/app/components/settings/SettingsText";
 
 const LINK_CLASS =
@@ -52,7 +56,7 @@ export function ScanReadingCard({
   onToggle: (enabled: boolean) => void;
   onSaveKey: (value: string) => Promise<boolean>;
   onRemoveKey: () => Promise<boolean>;
-  /** Says which workspace the key applies to. */
+  /** Says which workspace the key applies to; folded under «Más información». */
   keyScope?: string;
   /** Replaces the key field: why there is no key to set here. */
   keyNotice?: string;
@@ -66,63 +70,67 @@ export function ScanReadingCard({
   const canActivate = canManage && !keyNotice;
   return (
     <section className="space-y-3" aria-labelledby={headingId}>
-      <SettingsHeading id={headingId}>{t("settings.scanReading.title")}</SettingsHeading>
+      <SettingsTagRow>
+        <SettingsHeading id={headingId}>{t("settings.scanReading.title")}</SettingsHeading>
+        <SettingsTag kind="optional" />
+      </SettingsTagRow>
       <GlassCardUI>
         <SettingsRow>
           <div className="min-w-0 space-y-2">
             <SettingsLabel>{label}</SettingsLabel>
             {/* The disclaimer is the legal text that must be read before
-                anything is turned on, so it stays whole and visible wherever
-                this card can turn scan reading on (a key saved or a switch).
-                Where the person cannot (a member, or a firm-managed account)
-                there is nothing to accept here: one line says what it is and
-                the disclaimer opens under "More information". The rest of the
-                explanation is always folded. */}
+                anything is turned on, so it stays whole and visible, in a
+                notice, wherever this card can turn scan reading on (a key
+                saved or a switch). Where the person cannot (a member, or a
+                firm-managed account) there is nothing to accept here: one
+                line says what it is and the disclaimer opens under «Más
+                información». The rest of the explanation is always folded. */}
             {canActivate ? (
-              <div id={disclaimerId}>
-                <SettingsDescription>{t("settings.scanReading.disclaimer")}</SettingsDescription>
-              </div>
+              <SettingsNotice
+                bodyId={disclaimerId}
+                entries={[
+                  { icon: "send", label: t("settings.signals.thirdParty") },
+                  { icon: "receipt", label: t("settings.signals.cost") },
+                ]}
+              >
+                {t("settings.scanReading.disclaimer")}
+              </SettingsNotice>
             ) : (
               <SettingsDescription>{t("settings.scanReading.summary")}</SettingsDescription>
             )}
-            <details className="group">
-              <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-gray-700 underline transition-colors hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus pointer-fine:min-h-8">
-                {t("settings.scanReading.moreInfo")}
-              </summary>
-              <div className="space-y-2 pb-1 pt-1">
-                {canActivate ? null : (
-                  <SettingsDescription>{t("settings.scanReading.disclaimer")}</SettingsDescription>
-                )}
-                <SettingsDescription>{t("settings.scanReading.turnedOff")}</SettingsDescription>
+            <SettingsMoreInfo>
+              {canActivate ? null : (
+                <SettingsDescription>{t("settings.scanReading.disclaimer")}</SettingsDescription>
+              )}
+              <SettingsDescription>{t("settings.scanReading.turnedOff")}</SettingsDescription>
+              <SettingsDescription>
+                {t("settings.scanReading.legalLink")}{" "}
+                <a href="/terminos#6-12" target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                  {t("settings.scanReading.termsLink")}
+                </a>
+                {" · "}
+                <a href="/privacidad#6" target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                  {t("settings.scanReading.privacyLink")}
+                </a>
+              </SettingsDescription>
+              <SettingsDescription>{t("settings.scanReading.why")}</SettingsDescription>
+              {showKeyHelp ? (
                 <SettingsDescription>
-                  {t("settings.scanReading.legalLink")}{" "}
-                  <a href="/terminos#6-12" target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                    {t("settings.scanReading.termsLink")}
+                  {t("settings.scanReading.getKey")}{" "}
+                  <a href={LANDINGAI_SITE} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                    {t("settings.scanReading.siteLink")}
                   </a>
                   {" · "}
-                  <a href="/privacidad#6" target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                    {t("settings.scanReading.privacyLink")}
+                  <a href={LANDINGAI_KEY_DOCS} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                    {t("settings.scanReading.keyDocsLink")}
+                  </a>
+                  {" · "}
+                  <a href={LANDINGAI_PRICING} target="_blank" rel="noreferrer" className={LINK_CLASS}>
+                    {t("settings.scanReading.pricingLink")}
                   </a>
                 </SettingsDescription>
-                <SettingsDescription>{t("settings.scanReading.why")}</SettingsDescription>
-                {showKeyHelp ? (
-                  <SettingsDescription>
-                    {t("settings.scanReading.getKey")}{" "}
-                    <a href={LANDINGAI_SITE} target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                      {t("settings.scanReading.siteLink")}
-                    </a>
-                    {" · "}
-                    <a href={LANDINGAI_KEY_DOCS} target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                      {t("settings.scanReading.keyDocsLink")}
-                    </a>
-                    {" · "}
-                    <a href={LANDINGAI_PRICING} target="_blank" rel="noreferrer" className={LINK_CLASS}>
-                      {t("settings.scanReading.pricingLink")}
-                    </a>
-                  </SettingsDescription>
-                ) : null}
-              </div>
-            </details>
+              ) : null}
+            </SettingsMoreInfo>
           </div>
           {loading ? (
             <div className="h-5 w-9 shrink-0 animate-pulse rounded-full bg-app-surface" aria-hidden="true" />
@@ -148,11 +156,8 @@ export function ScanReadingCard({
         ) : canManage && !loading ? (
           <ApiKeyField
             label={t("settings.scanReading.keyLabel")}
-            description={
-              keyScope
-                ? `${t("settings.scanReading.saveToTurnOn")} ${keyScope}`
-                : t("settings.scanReading.saveToTurnOn")
-            }
+            description={t("settings.scanReading.saveToTurnOn")}
+            moreInfo={keyScope ? <SettingsDescription>{keyScope}</SettingsDescription> : undefined}
             hasSavedKey={hasSavedKey}
             onSave={onSaveKey}
             onRemove={onRemoveKey}
