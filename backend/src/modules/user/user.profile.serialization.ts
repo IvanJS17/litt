@@ -5,6 +5,7 @@ import { ROUTER_SLUGS, type RouterModelSelections } from "../../lib/routerModels
 import { UserProfileRow, MONTHLY_CREDIT_LIMIT, LEGAL_VERSION } from "./user.profile.storage";
 import { isUiLocale } from "../../lib/uiLocale";
 import { isTextSize } from "../../lib/textSize";
+import { isTheme } from "../../lib/theme";
 
 import { ROUTER_PROFILE_FIELDS } from "./user.profile.routerPreferences";
 
@@ -69,7 +70,8 @@ export function serializeProfile(
         mfaOnLogin: row.mfa_on_login === true,
         quickActionsVisible: row.quick_actions_visible !== false,
         responseDetailsVisible: row.response_details_visible === true,
-        darkMode: row.dark_mode === true,
+        // An unreadable value reads as the default for a new account.
+        theme: isTheme(row.theme) ? row.theme : "system",
         textSize: isTextSize(row.text_size) ? row.text_size : "normal",
         projectMemoryDefault: row.project_memory_default !== false,
         // null = automatic. Older databases without the column read as null.

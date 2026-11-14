@@ -59,7 +59,7 @@ const accept = (version: string) =>
 beforeEach(() => {
     h.profiles.length = 0;
     h.audits.length = 0;
-    h.profiles.push({ user_id: "u1", display_name: null, organisation: null, message_credits_used: 0, credits_reset_date: "2999-01-01", tier: "Free", mfa_on_login: false, quick_actions_visible: true, dark_mode: false, project_memory_default: true, terms_accepted_version: null });
+    h.profiles.push({ user_id: "u1", display_name: null, organisation: null, message_credits_used: 0, credits_reset_date: "2999-01-01", tier: "Free", mfa_on_login: false, quick_actions_visible: true, theme: "system", project_memory_default: true, terms_accepted_version: null });
 });
 
 describe("POST /user/terms-acceptance", () => {

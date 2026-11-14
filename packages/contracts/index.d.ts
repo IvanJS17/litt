@@ -2128,6 +2128,9 @@ export type UiLocale = "en-US" | "es-MX";
  */
 export type TextSize = "normal" | "large" | "xlarge";
 
+/** The theme a person chose: Claro, Oscuro, or Automático (follows the device). */
+export type Theme = "light" | "dark" | "system";
+
 /** `GET /platform/me`: what the invite-only beta lets the caller do. */
 export interface PlatformMe {
     admin: boolean;

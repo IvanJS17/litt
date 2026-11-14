@@ -31,7 +31,7 @@ export type UserProfileRow = {
     mfa_on_login: boolean | null;
     quick_actions_visible: boolean | null;
     response_details_visible?: boolean | null;
-    dark_mode: boolean | null;
+    theme: string | null;
     project_memory_default: boolean | null;
     ui_locale?: string | null;
     text_size?: string | null;
@@ -41,7 +41,7 @@ export type UserProfileRow = {
 // LiTT 20261107_80 adds ui_locale; a database that has not applied it yet
 // retries with PROFILE_SELECT_NO_UI_LOCALE and reads the language as automatic.
 const PROFILE_SELECT_NO_UI_LOCALE =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, response_details_visible, dark_mode, project_memory_default";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, response_details_visible, theme, project_memory_default";
 
 const PROFILE_SELECT_NO_TERMS = `${PROFILE_SELECT_NO_UI_LOCALE}, ui_locale`;
 
@@ -53,27 +53,27 @@ const PROFILE_SELECT_NO_TEXT_SIZE = `${PROFILE_SELECT_NO_TERMS}, terms_accepted_
 const PROFILE_SELECT_NEWEST = `${PROFILE_SELECT_NO_TEXT_SIZE}, text_size`;
 
 const PROFILE_SELECT_NO_RESPONSE_DETAILS =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode, project_memory_default";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, theme, project_memory_default";
 
 const PROFILE_SELECT_NO_SUBAGENT_DEFAULTS =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode, project_memory_default";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, theme, project_memory_default";
 
 // memory_curator_model and project_memory_default arrive in the same
 // migration, so the deploy-before-migrate retry must drop both.
 const PROFILE_SELECT_NO_MEMORY_CURATOR_MODEL =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, theme";
 
 const PROFILE_SELECT_WITH_LAST_SELECTED_CHAT_MODEL =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, mfa_on_login, quick_actions_visible, dark_mode";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, mfa_on_login, quick_actions_visible, theme";
 
 const PROFILE_SELECT =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, quick_actions_visible, dark_mode";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, quick_actions_visible, theme";
 
 // Deploy-before-migrate tolerance is per column: a database that already has
-// the 20260821 onboarding/password columns but not yet dark_mode must keep
+// the 20260821 onboarding/password columns but not yet theme (20261114_10) must keep
 // them rather than fall all the way back to a lower tier. This is exactly
-// PROFILE_SELECT minus dark_mode.
-const PROFILE_SELECT_NO_DARK_MODE =
+// PROFILE_SELECT minus theme.
+const PROFILE_SELECT_NO_THEME =
     "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, quick_actions_visible";
 
 // PROFILE_SELECT minus the 20260821 onboarding / password-capability columns,
@@ -239,23 +239,23 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
         cascadeError = full.error;
     }
 
-    // dark_mode's retry tier sits above the 20260821 tiers: a database
-    // missing only dark_mode keeps its live
+    // theme's retry tier sits above the 20260821 tiers: a database
+    // missing only theme keeps its live
     // onboarding, password and quick-action columns and defaults the theme
     // to light. A database old enough to lack the 20260821 columns too
     // fails the full select on one of those instead (they sort earlier in
     // the select list), so this tier is skipped and the tiers below handle it.
-    if (isMissingProfileColumn(cascadeError, "dark_mode")) {
-        const noDark = await read(PROFILE_SELECT_NO_DARK_MODE);
-        if (!noDark.error) {
-            if (noDark.data && typeof noDark.data === "object") {
-                Object.assign(noDark.data as Record<string, unknown>, {
-                    dark_mode: false,
+    if (isMissingProfileColumn(cascadeError, "theme")) {
+        const noTheme = await read(PROFILE_SELECT_NO_THEME);
+        if (!noTheme.error) {
+            if (noTheme.data && typeof noTheme.data === "object") {
+                Object.assign(noTheme.data as Record<string, unknown>, {
+                    theme: "light",
                 });
             }
-            return noDark;
+            return noTheme;
         }
-        cascadeError = noDark.error;
+        cascadeError = noTheme.error;
     }
 
     // A database that predates the 20260821 migrations rejects the full
@@ -288,7 +288,7 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
             if (previous.data && typeof previous.data === "object") {
                 Object.assign(previous.data, {
                     quick_actions_visible: true,
-                    dark_mode: false,
+                    theme: "light",
                 });
             }
             return previous;
@@ -299,8 +299,8 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
     if (legacy.data && typeof legacy.data === "object") {
         const row = legacy.data as Record<string, unknown>;
         Object.assign(row, { quick_actions_visible: true });
-        if (!("dark_mode" in row)) {
-            Object.assign(row, { dark_mode: false });
+        if (!("theme" in row)) {
+            Object.assign(row, { theme: "light" });
         }
     }
     return legacy;

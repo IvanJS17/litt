@@ -62,7 +62,11 @@ create table if not exists public.user_profiles (
   -- Whether each response and subagent shows the model, reasoning effort and
   -- token count it used (Settings > Features).
   response_details_visible boolean not null default false,
-  dark_mode boolean not null default false,
+  -- LiTT: Claro, Oscuro or Automático (follow the device). Replaces dark_mode;
+  -- new accounts start on 'system'.
+  theme text not null default 'system'
+    constraint user_profiles_theme_check
+    check (theme in ('light', 'dark', 'system')),
   -- LiTT: text size chosen in Settings > Appearance (100 %, 112.5 %, 125 %).
   text_size text not null default 'normal'
     constraint user_profiles_text_size_check
@@ -20741,5 +20745,6 @@ insert into public.schema_migrations (filename) values
   ('20261113_30_litt_firm_profile.sql'),
   ('20261113_40_litt_key_policy_by_capability.sql'),
   ('20261113_50_litt_training_role_rules.sql'),
-  ('20261113_60_litt_text_size.sql')
+  ('20261113_60_litt_text_size.sql'),
+  ('20261114_10_litt_theme.sql')
 on conflict (filename) do nothing;
