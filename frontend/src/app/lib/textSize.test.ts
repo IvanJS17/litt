@@ -31,6 +31,11 @@ describe("applyTextSize", () => {
         expect(window.localStorage.getItem(TEXT_SIZE_STORAGE_KEY)).toBe("normal");
     });
 
+    it("does nothing without a document", () => {
+        vi.stubGlobal("document", undefined);
+        expect(() => applyTextSize("large")).not.toThrow();
+    });
+
     it("still applies when storage is blocked", () => {
         vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
             throw new Error("blocked");
