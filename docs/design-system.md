@@ -303,6 +303,16 @@ done. Tags, currencies, avatars and column formats keep their own lists in
 their components, under the same rule: no blue, indigo, violet, purple, sky,
 cyan or amber. The mark's own amber is never a hue.
 
+#### Send button (approved exception, 2026-11-13)
+
+`COMPOSER_SEND_BUTTON_CLASS` + `SendArrowUI` ("A · flecha ámbar sobre tinta")
+is the one place amber is not the square: the 7×7 pixel arrow (u = 2 px) is
+ámbar fósforo on tinta, in both themes, **only when there is something to
+send**. Disabled is gray and Stop is a papel square; neither has amber. The
+owner approved it as an exception to DESIGN.md rule 7. Colors are the
+`--litt-send-*` tokens in `DesignTokensUI.css`; the arrow advances 2 px on
+hover (160 ms) and nothing moves under `prefers-reduced-motion`.
+
 #### Status mark (approved exception, 2026-11-13)
 
 `LittStatusMarkUI` ("A · Cursor") replaces the MikeOSS `MikeIcon` as the

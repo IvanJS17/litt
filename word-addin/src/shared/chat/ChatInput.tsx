@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, Square } from "lucide-react";
 
 import {
     COMPOSER_SEND_BUTTON_CLASS,
+    SendArrowUI,
     LIQUID_GLASS_TRANSLUCENT_CLASS,
 } from "@mike/ui";
 
@@ -184,18 +184,11 @@ export function ChatInput({
                         aria-label={isLoading ? t("word.stopResponse") : t("word.sendMessage")}
                         className={cn(
                             COMPOSER_SEND_BUTTON_CLASS,
-                            "h-8 w-8 shrink-0 rounded-[11px]",
+    SendArrowUI,
+                            "h-8 w-8 shrink-0 rounded-[10px]",
                         )}
                     >
-                        {isLoading ? (
-                            <Square
-                                className="h-4 w-4"
-                                fill="currentColor"
-                                strokeWidth={0}
-                            />
-                        ) : (
-                            <ArrowRight className="h-4 w-4" />
-                        )}
+                        <SendArrowUI stop={isLoading} />
                     </button>
                 </div>
             </div>
