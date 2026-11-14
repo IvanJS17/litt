@@ -2108,7 +2108,10 @@
       "thisOrganization": "this organization",
       "thisSettingIsSensitiveEnterA": "This setting is sensitive. Enter a code from your authenticator app to continue.",
       "twoFactorVerificationRequired": "Two-factor verification required",
-      "workLeftByDepartedMembers": "Work left by departed members"
+      "workLeftByDepartedMembers": "Work left by departed members",
+      "deleteNotice": {
+        "body": "This deletes the data of every member of the firm. Export anything you need to keep first."
+      }
     },
     "organizationProviderKeys": {
       "add": "Add",
@@ -3307,7 +3310,8 @@
       "thisActionIsSensitiveEnterA": "This action is sensitive. Enter a code from your authenticator app to continue.",
       "thisOrganization": "this organization",
       "thisWorkspace": "this workspace",
-      "twoFactorVerificationRequired": "Two-factor verification required"
+      "twoFactorVerificationRequired": "Two-factor verification required",
+      "deleteButton": "Delete"
     },
     "profilePhotoSettings": {
       "chooseAnotherImage": "Choose another image.",

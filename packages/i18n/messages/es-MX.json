@@ -2108,7 +2108,10 @@
       "thisOrganization": "este despacho",
       "thisSettingIsSensitiveEnterA": "Este ajuste es sensible. Escribe un código de tu app de autenticación para continuar.",
       "twoFactorVerificationRequired": "Se requiere verificación en dos pasos",
-      "workLeftByDepartedMembers": "Trabajo que dejaron los miembros que salieron"
+      "workLeftByDepartedMembers": "Trabajo que dejaron los miembros que salieron",
+      "deleteNotice": {
+        "body": "Borra los datos de todos los miembros del despacho. Exporta antes lo que necesites conservar."
+      }
     },
     "organizationProviderKeys": {
       "add": "Agregar",
@@ -3307,7 +3310,8 @@
       "thisActionIsSensitiveEnterA": "Esta acción es sensible. Escribe un código de tu app de autenticación para continuar.",
       "thisOrganization": "este despacho",
       "thisWorkspace": "este espacio de trabajo",
-      "twoFactorVerificationRequired": "Se requiere verificación en dos pasos"
+      "twoFactorVerificationRequired": "Se requiere verificación en dos pasos",
+      "deleteButton": "Borrar"
     },
     "profilePhotoSettings": {
       "chooseAnotherImage": "Elige otra imagen.",

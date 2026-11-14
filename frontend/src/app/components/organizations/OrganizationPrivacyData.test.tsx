@@ -128,6 +128,21 @@ describe("who may use it", () => {
     },
   );
 
+  it("frames the deadline and what cannot be undone as notices, in view, with «Delete» on the buttons", () => {
+    render(<OrganizationPrivacyData />);
+    const notes = Array.from(document.querySelectorAll("[data-slot=settings-notice]")) as HTMLElement[];
+    const deadline = notes.find((n) => n.dataset.tone === "note")!;
+    expect(deadline).toHaveTextContent("30-day deadline");
+    expect(deadline).toHaveTextContent(/kept for 30 days/);
+    const danger = notes.filter((n) => n.dataset.tone === "irreversible");
+    expect(danger).toHaveLength(1);
+    expect(danger[0]).toHaveTextContent("This cannot be undone.");
+    expect(danger[0]).toHaveTextContent(/every member of the firm/);
+    // The same word as the rows, never «Eliminar» under «Borrar».
+    expect(screen.getAllByRole("button", { name: /^Delete all / })[0]).toHaveTextContent("Delete");
+    expect(screen.getByText("Applies to the whole firm")).toBeVisible();
+  });
+
   it("leads an owner to the departed members' work on the Members page", async () => {
     const user = userEvent.setup();
     render(<OrganizationPrivacyData />);

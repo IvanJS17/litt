@@ -6,6 +6,8 @@ import { PillButtonUI, GlassCardUI } from "@mike/ui";
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsManagedRow,
+  SettingsNotice,
 } from "@/app/components/settings/SettingsText";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
@@ -142,6 +144,29 @@ export default function PrivacyDataPage() {
       canExport={canExport}
       canDelete={canDelete}
     />
+  );
+}
+
+/**
+ * What the firm's owners keep to themselves is still said: a section with its
+ * own title and «Lo administra tu despacho», never a section that vanishes
+ * without a word.
+ */
+function ManagedDataSection({ id, title }: { id: string; title: string }) {
+  const t = useTranslations();
+  const { activeOrganization } = useWorkspace();
+  return (
+    <section className="space-y-3" aria-labelledby={id}>
+      <SettingsHeading id={id}>{title}</SettingsHeading>
+      <GlassCardUI>
+        <SettingsManagedRow>
+          <b>{t("settings.privacyData.managedByYourOrganization")}.</b>{" "}
+          {t("settings.privacyData.managedByOwnersDescription", {
+            name: activeOrganization?.name ?? t("settings.privacyData.thisOrganization"),
+          })}
+        </SettingsManagedRow>
+      </GlassCardUI>
+    </section>
   );
 }
 
@@ -359,6 +384,7 @@ function PrivacyData({
 
   return (
     <div className="space-y-8">
+      {!canExport && <ManagedDataSection id="export-data" title={t("settings.privacyData.exportData")} />}
       {canExport && (
         <section className="space-y-3">
           <SettingsHeading id="export-data">{t("settings.privacyData.exportData")}</SettingsHeading>
@@ -451,14 +477,19 @@ function PrivacyData({
         </section>
       )}
 
+      {!canDelete && <ManagedDataSection id="delete-data" title={t("settings.privacyData.deleteData")} />}
       {canDelete && (
         <section className="space-y-3">
           <SettingsHeading id="delete-data">{t("settings.privacyData.deleteData")}</SettingsHeading>
-          {workspaceName && (
-            <SettingsDescription>
-              {t("settings.privacyData.deletesDataInWorkspacenameOnlyTo", { workspaceName })}
-            </SettingsDescription>
-          )}
+          {/* Once, above the group of actions that delete; the only red. */}
+          <SettingsNotice
+            tone="irreversible"
+            entries={[{ icon: "alert", label: t("settings.signals.cannotUndo") }]}
+          >
+            {workspaceName
+              ? t("settings.privacyData.deletesDataInWorkspacenameOnlyTo", { workspaceName })
+              : null}
+          </SettingsNotice>
           <GlassCardUI>
             <SettingsRow>
               <div className="space-y-1">
@@ -476,7 +507,7 @@ function PrivacyData({
                 className="w-full shrink-0 sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
-                {t("common.delete")}
+                {t("settings.privacyData.deleteButton")}
               </PillButtonUI>
             </SettingsRow>
             <SettingsRow>
@@ -495,7 +526,7 @@ function PrivacyData({
                 className="w-full shrink-0 sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
-                {t("common.delete")}
+                {t("settings.privacyData.deleteButton")}
               </PillButtonUI>
             </SettingsRow>
             <SettingsRow>
@@ -516,7 +547,7 @@ function PrivacyData({
                 className="w-full shrink-0 sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
-                {t("common.delete")}
+                {t("settings.privacyData.deleteButton")}
               </PillButtonUI>
             </SettingsRow>
             <SettingsRow>
@@ -540,7 +571,7 @@ function PrivacyData({
                 className="w-full shrink-0 sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
-                {t("common.delete")}
+                {t("settings.privacyData.deleteButton")}
               </PillButtonUI>
             </SettingsRow>
           </GlassCardUI>
@@ -550,7 +581,7 @@ function PrivacyData({
         open={!!pendingDeleteAction}
         title={pendingDeleteCopy?.title}
         message={pendingDeleteCopy?.message}
-        confirmLabel={t("common.delete")}
+        confirmLabel={t("settings.privacyData.deleteButton")}
         confirmVariant="danger"
         confirmStatus={deletingAction ? "loading" : "idle"}
         cancelLabel={t("common.cancel")}
