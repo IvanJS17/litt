@@ -23,7 +23,7 @@ import type {
   TrainingTurnNotes,
   UiLocale,
 } from "@mike/contracts";
-import type { RouterProfileLists } from "@mike/client";
+import type { RouterProfileLists, Theme } from "@mike/client";
 import { networkFailure } from "../lib/networkError";
 import { sessionHandledError } from "../lib/sessionRefresh";
 import {
@@ -366,8 +366,8 @@ interface UserProfile extends Partial<RouterProfileLists> {
   lastSelectedChatModel: string | null;
   lastSelectedReasoningLevel: ReasoningLevel;
   mfaOnLogin: boolean;
-  /** The profile's dark theme, which the web app also follows. */
-  darkMode?: boolean;
+  /** The profile's theme (Claro, Oscuro or Automático), which the web app also follows. */
+  theme?: Theme;
   /** The interface language the user chose; null until they choose one. */
   uiLocale?: UiLocale | null;
   apiKeyStatus: ApiKeyStatus;

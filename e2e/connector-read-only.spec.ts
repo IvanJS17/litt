@@ -28,7 +28,7 @@ for (const width of [390, 1280]) {
       await page.route("**/api/**", async route => {
         const path = new URL(route.request().url()).pathname;
         if (path === "/api/auth/session") return route.fulfill({ json: { user: { id: "mode-test", email: "mode@example.com" } } });
-        if (path === "/api/user/profile") return route.fulfill({ json: { onboardingComplete: true, displayName: "Mode test", darkMode, apiKeyStatus: {}, creditsRemaining: 100 } });
+        if (path === "/api/user/profile") return route.fulfill({ json: { onboardingComplete: true, displayName: "Mode test", theme: darkMode ? "dark" : "light", apiKeyStatus: {}, creditsRemaining: 100 } });
         if (path === "/api/user/mcp-connectors") return route.fulfill({ json: connectors() });
         if (path.includes("/user/mcp-connectors/") || path.includes("/user/integrations/")) {
           const id = path.split("/").at(-1)!;

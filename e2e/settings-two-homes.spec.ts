@@ -81,7 +81,7 @@ async function signedIn(page: Page, s: Scenario) {
                 messageCreditsUsed: 12, creditsResetDate: "2026-12-01T00:00:00Z", creditsRemaining: 88, tier: "Free",
                 titleModel: null, tabularModel: null, memoryCuratorModel: null, subagentModel: null, subagentReasoning: null,
                 lastSelectedChatModel: "test-model", lastSelectedReasoningLevel: "medium", mfaOnLogin: false,
-                quickActionsVisible: true, responseDetailsVisible: false, darkMode: s.dark === true, projectMemoryDefault: true,
+                quickActionsVisible: true, responseDetailsVisible: false, theme: s.dark === true ? "dark" : "light", projectMemoryDefault: true,
                 textSize: s.textSize, apiKeyStatus: keyStatus({ claude: false }), uiLocale: "es-MX",
             });
         }
