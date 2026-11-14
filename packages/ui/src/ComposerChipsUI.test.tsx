@@ -179,6 +179,29 @@ describe("the labels row", () => {
         );
     });
 
+    it("keeps the very same live region from empty to the first label and back", () => {
+        // A region that mounts already holding its text is not announced
+        // reliably, so the node must survive the first label and the last.
+        const { rerender } = render(
+            row({ workflow: null, playbook: null, attached: [] }),
+        );
+        const region = live();
+        rerender(
+            row({
+                workflow: { title: "Revisar NDA", onDeactivate: () => {} },
+                playbook: null,
+                attached: [],
+            }),
+        );
+        expect(live()).toBe(region);
+        rerender(row({ workflow: null, playbook: null, attached: [] }));
+        expect(live()).toBe(region);
+        expect(document.querySelectorAll("[aria-live]")).toHaveLength(1);
+        // An attached document alone (no label) keeps it too.
+        rerender(row({ workflow: null, playbook: null }));
+        expect(live()).toBe(region);
+    });
+
     it("draws the rule between the lists out of the flow, so it cannot change where they wrap", () => {
         render(row());
         const attached = screen.getByRole("list", { name: "Attached documents" });

@@ -171,7 +171,7 @@ describe("ChatInput model selection vs. a degraded profile", () => {
         });
         fireEvent.click(screen.getByRole("button", { name: "Select test model" }));
         expect(
-            await screen.findByRole("button", { name: "Key for this conversation: Organization key" }),
+            await screen.findByRole("button", { name: "Key for this conversation: Firm key" }),
         ).toBeInTheDocument();
     });
 
@@ -348,10 +348,10 @@ describe("ChatInput key choice for a new conversation (LiTT governed BYOK)", () 
 
         fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
         fireEvent.click(
-            await screen.findByRole("menuitemradio", { name: "Organization key" }),
+            await screen.findByRole("menuitemradio", { name: "Firm key" }),
         );
         await screen.findByRole("button", {
-            name: "Key for this conversation: Organization key",
+            name: "Key for this conversation: Firm key",
         });
 
         fireEvent.change(screen.getByRole("combobox"), {

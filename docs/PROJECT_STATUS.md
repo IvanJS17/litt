@@ -26,6 +26,11 @@
   `20261112_60_litt_split_expediente.sql` (adds `split` to
   `document_versions_source_check` and a `split_classes` column to
   `user_profiles` and `organizations`). New backend dependency: `pdf-lib` (MIT).
+  The migration's header comment says every client role is already revoked from both
+  tables. That holds for `user_profiles`; on `organizations`, `authenticated` keeps
+  `SELECT`, limited by RLS to the firm's members (the writer is still only the server).
+  The shipped migration is not edited; the correct statement is in
+  [`document-split.md`](document-split.md).
 - **Legal text:** the final text (socium-legal, task t_a4651c51: Terms 2, 6.10 and
   6.13, Privacy Notice 3 to 7 and 13, the simplified notice) went out with it, with
   `LEGAL_VERSION` `2026-11-13`; every account accepts it on its next sign-in.

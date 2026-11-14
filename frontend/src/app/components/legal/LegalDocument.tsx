@@ -50,7 +50,7 @@ export function LegalDocument({ markdown }: { markdown: string }) {
                                     <li key={entry.id}>
                                         <a
                                             href={`#${entry.id}`}
-                                            className="inline-block py-1 underline-offset-2 hover:underline"
+                                            className="inline-block rounded-sm py-1 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                         >
                                             {entry.title}
                                         </a>

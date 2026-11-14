@@ -3382,7 +3382,20 @@ export function DocTable({
         [selectedDocIds, selectedFolderDocumentIdSet],
     );
 
+    // Leaving the page stops an export's polling (the job keeps building on
+    // the server); otherwise the loop would poll on and download elsewhere.
+    const exportControllersRef = useRef(new Set<AbortController>());
+    useEffect(() => {
+        const controllers = exportControllersRef.current;
+        return () => {
+            for (const controller of controllers) controller.abort();
+            controllers.clear();
+        };
+    }, []);
+
     const handleDownloadSelectedDocs = useCallback(async () => {
+        const controller = new AbortController();
+        exportControllersRef.current.add(controller);
         try {
             if (
                 selectedStandaloneDocIds.length === 1 &&
@@ -3398,9 +3411,11 @@ export function DocTable({
             const { blob, filename } =
                 selectedFolderRootIds.length === 0 &&
                 selectedStandaloneDocIds.length > ASYNC_ZIP_THRESHOLD
-                    ? await runUserExport("documents-zip", {
-                          document_ids: selectedStandaloneDocIds,
-                      })
+                    ? await runUserExport(
+                          "documents-zip",
+                          { document_ids: selectedStandaloneDocIds },
+                          controller.signal,
+                      )
                     : {
                           blob: await downloadDocumentsZip(
                               selectedStandaloneDocIds,
@@ -3409,11 +3424,13 @@ export function DocTable({
                           filename: null,
                       };
             const a = document.createElement("a");
+            if (controller.signal.aborted) return;
             a.href = URL.createObjectURL(blob);
             a.download = filename ?? "documents.zip";
             a.click();
             URL.revokeObjectURL(a.href);
         } catch (error) {
+            if (controller.signal.aborted) return;
             notifyError(error, {
                 action: t("documents.table.actions.downloadSelectedFiles"),
                 fallback:
@@ -3422,6 +3439,8 @@ export function DocTable({
                     void handleDownloadSelectedDocs();
                 },
             });
+        } finally {
+            exportControllersRef.current.delete(controller);
         }
     }, [startDocDownload, selectedFolderRootIds, selectedStandaloneDocIds, t]);
 

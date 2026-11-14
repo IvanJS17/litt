@@ -165,7 +165,10 @@ services:
     logging: *logging
     image: postgrest/postgrest:v14.12
     restart: unless-stopped
-    mem_limit: 128m
+    # PostgREST 14 grows slowly until its cgroup is full (upstream #5149); at
+    # 128m + swap the kernel killed it about every 4 days. No swap: fail fast
+    # instead of crawling, with twice the room.
+    mem_limit: 256m
     memswap_limit: 256m
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:?required}@db:5432/postgres
