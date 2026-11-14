@@ -26,6 +26,7 @@ type Reply = { ok: true; result: unknown } | ({ ok: false; limited: boolean } & 
  */
 export function extractionCommand(entry: string): { command: string; args: string[] } {
   const memoryMb = extractionMemoryMb();
+  const typescript = entry.endsWith(".ts");
   const nodeArgs = [
     "--disable-wasm-trap-handler",
     `--max-old-space-size=${memoryMb}`,
@@ -36,7 +37,7 @@ export function extractionCommand(entry: string): { command: string; args: strin
     // when the stack cannot grow), not at the memory budget. A memory cannot
     // commit more than --data anyway, so reserve at most the budget (64 KiB pages).
     `--wasm-max-mem-pages=${memoryMb * 16}`,
-    ...(entry.endsWith(".ts") ? ["--require", require.resolve("tsx/cjs")] : []),
+    ...(typescript ? ["--require", require.resolve("tsx/cjs")] : []),
     entry,
   ];
   if (process.platform === "linux") {
@@ -44,8 +45,10 @@ export function extractionCommand(entry: string): { command: string; args: strin
     // Writable heap/native allocations share the data limit. V8 also reserves
     // address space (~1 GiB of its own, plus each WebAssembly memory up to the
     // budget); bound that separately. It is address space, not RAM: the real cap
-    // stays --data and the container's cgroup.
-    const addressBytes = bytes + 2 * 1024 ** 3;
+    // stays --data and the container's cgroup. The TS loader used in dev and
+    // tests brings one more WebAssembly memory (its lexer), so it gets one more
+    // budget of address space; the compiled server does not load it.
+    const addressBytes = bytes + 2 * 1024 ** 3 + (typescript ? bytes : 0);
     return { command: "prlimit", args: [`--data=${bytes}:${bytes}`, `--as=${addressBytes}:${addressBytes}`, "--core=0:0", "--", process.execPath, ...nodeArgs] };
   }
   return { command: process.execPath, args: nodeArgs };
