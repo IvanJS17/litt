@@ -23,6 +23,8 @@ import {
     SETTINGS_PHONE_HOME_PATH,
     SETTINGS_REDIRECTS,
     SETTINGS_TABS,
+    firmTab,
+    personalTab,
     settingsGroupsFor,
     settingsNonTabPaths,
     tabForPath,
@@ -222,5 +224,19 @@ describe("what reads the map", () => {
             expect.arrayContaining(["beta-invitations", "beta-stats"]),
         );
         expect(ids("personal", null, { memberDataActions: false })).not.toContain("privacy-data");
+    });
+});
+
+describe("looking a tab up by id", () => {
+    it("returns the tab of the home asked for", () => {
+        expect(personalTab("account").home).toBe("personal");
+        expect(firmTab("general").home).toBe("firm");
+    });
+
+    it("throws for an id that the home does not have, even if the other home does", () => {
+        expect(() => personalTab("no-such-tab")).toThrow("Unknown personal settings tab: no-such-tab");
+        expect(() => firmTab("no-such-tab")).toThrow("Unknown firm settings tab: no-such-tab");
+        expect(() => firmTab("account")).toThrow("Unknown firm settings tab: account");
+        expect(() => personalTab("general")).toThrow("Unknown personal settings tab: general");
     });
 });

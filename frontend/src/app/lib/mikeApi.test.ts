@@ -1431,6 +1431,7 @@ describe("training API", () => {
         ["designate", () => designateTrainingMentor("o1", "u1"), "POST", "/api/orgs/o1/training/mentors", { user_id: "u1" }],
         ["remove mentor", () => removeTrainingMentor("o1", "u1"), "DELETE", "/api/orgs/o1/training/mentors/u1", undefined],
         ["assign", () => assignTrainingPupil("o1", "u1"), "POST", "/api/orgs/o1/training/pupils", { user_id: "u1" }],
+        ["assign to a named mentor", () => assignTrainingPupil("o1", "u1", "u2"), "POST", "/api/orgs/o1/training/pupils", { user_id: "u1", mentor_user_id: "u2" }],
         ["release", () => releaseTrainingPupil("o1", "u1"), "DELETE", "/api/orgs/o1/training/pupils/u1", undefined],
         ["set stage", () => setTrainingStage("o1", "u1", null, "junior"), "PUT", "/api/orgs/o1/training/pupils/u1/stages", { practice: null, stage: "junior" }],
         ["remove stage", () => removeTrainingStage("o1", "u1", null), "DELETE", "/api/orgs/o1/training/pupils/u1/stages", undefined],
