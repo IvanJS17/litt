@@ -41,10 +41,10 @@ describe.each(SOURCES)("LegalDocument · $file", ({ markdown }) => {
             const heading = document.getElementById(entry.id);
             expect(heading?.tagName).toBe("H2");
             expect(heading).toHaveTextContent(entry.title);
-            expect(screen.getByRole("link", { name: entry.title })).toHaveAttribute(
-                "href",
-                `#${entry.id}`,
-            );
+            const link = screen.getByRole("link", { name: entry.title });
+            expect(link).toHaveAttribute("href", `#${entry.id}`);
+            // Every interactive element has a visible focus indicator.
+            expect(link.className).toContain("focus-visible:ring-focus");
         }
         const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
         expect(new Set(ids).size).toBe(ids.length);
