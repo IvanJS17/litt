@@ -169,7 +169,8 @@ async function expectNoHorizontalOverflow(page: Page) {
     expect(scroll, "page is wider than the screen").toBeLessThanOrEqual(inner);
 }
 
-const PERSONAL_TABS = [
+interface PersonalTab { id: string; path: string; ready: string; framed?: boolean }
+const PERSONAL_TABS: PersonalTab[] = [
     { id: "cuenta", path: "/settings", ready: "Perfil" },
     { id: "seguridad", path: "/settings/security", ready: "Verificación en dos pasos" },
     { id: "privacidad-y-datos", path: "/settings/privacy-data", ready: "Exportar datos" },
@@ -187,7 +188,7 @@ const PERSONAL_TABS = [
     { id: "mi-formacion", path: "/settings/training", ready: "Mi formación" },
     { id: "mis-despachos", path: "/settings/organizations", ready: "Tus despachos" },
 ];
-const PLATFORM_TABS = [
+const PLATFORM_TABS: PersonalTab[] = [
     { id: "invitaciones-beta", path: "/settings/beta-invitations", ready: "Invitaciones a la beta" },
     { id: "estadisticas-beta", path: "/settings/beta-stats", ready: "Estadísticas de la beta" },
 ];
