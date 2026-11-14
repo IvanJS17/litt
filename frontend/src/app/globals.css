@@ -90,6 +90,12 @@
     }
 }
 
+/* No synthesized bold or italic: Newsreader ships its roman (400-600) and a
+   real italic (400); anything else is the nearest real face. */
+:root {
+    font-synthesis: none;
+}
+
 /* Text size (Settings > Appearance, lib/textSize.ts). A percentage keeps the
    browser's own default size as the base; everything in rem follows. */
 html[data-text-size="large"] {
@@ -115,10 +121,6 @@ html[data-text-size="xlarge"] {
 }
 
 @layer utilities {
-    .font-eb-garamond {
-        font-family: var(--font-eb-garamond);
-    }
-
     /* The sidebar opens in 200 ms (AppSidebar). Its contents fade in as it
        does, with no wait longer than 50 ms. */
     .sidebar-fade-in {

@@ -398,17 +398,47 @@ rendered to a 256px PNG before upload; the API limits stored images to 512 KB.
 
 ## Typography
 
-Both faces are loaded with `next/font/google` in `frontend/src/app/layout.tsx`
-and exposed as CSS variables on `<body>`:
+Three faces, all SIL OFL 1.1, all served from this repository (no Google Fonts
+request, in the web app or in the Word add-in). `frontend/src/app/fonts/fonts.css`
+declares them and sets the CSS variables; `DesignTokensUI.css` maps them to
+Tailwind. Licenses sit next to the files (`Inter-OFL.txt`, `Newsreader-OFL.txt`,
+`DepartureMono-OFL.txt`) and in `CREDITS.md`.
 
 | Face | Variable | Utility | Used for |
 | --- | --- | --- | --- |
-| Inter | `--font-inter` → `--font-sans` | `font-sans` (body default) | All UI text. |
-| EB Garamond | `--font-eb-garamond` → `--font-serif` | `font-serif` | Display headings, legal document body copy, tracked-change cards. |
+| Inter | `--font-inter` → `--font-sans` | `font-sans` (body default) | All UI text: buttons, menus, tables, forms, the user's own messages. |
+| Newsreader | `--font-newsreader` → `--font-serif` | `font-serif` | The serif of the interface: greeting, page and settings titles (`PAGE_HEADER_TITLE_CLASS`), markdown headings, the text of the assistant's answers (`MarkdownContent`, Word's `ProseBlock`), legal documents, document titles and the initials of avatars. |
+| Departure Mono | `--font-departure-mono` → `--font-pixel` | `font-pixel` | Short details only, at a fixed 11 px (see below). |
 
-The Word add-in supplies the same two variables from
-`word-addin/src/taskpane/styles.css` (fonts loaded via `<link>` in
-`index.html`), so `shared/ui` components render identically in both targets.
+- Newsreader is served as one roman file with optical size pinned at 16 and
+  weights 400 to 600, plus an italic pinned at 400, each split into latin and
+  latin-ext (`unicode-range`; the family has no Greek or Cyrillic, which fall
+  back to the system serif). The italic downloads only when a page really sets
+  italic text. Its fallback face (`Newsreader Fallback`, on Times New Roman)
+  carries the metrics next/font computes, so text does not jump while the font
+  loads. Asking for a weight above 600 or below 400 gets the nearest real
+  weight: `font-light` and `font-bold` do not belong with `font-serif`.
+- `:root { font-synthesis: none }` (`globals.css`): the browser never invents a
+  bold or an italic.
+- **Departure Mono is the one exception to "type sizes are in rem".** It is
+  used only at `text-[11px]` (`PIXEL_TEXT_CLASS` in `@mike/ui`), on purpose and
+  fixed: a pixel font is crisp only on its own grid. Measured in Chromium at 1×,
+  11 px draws with two colors, 12.4 px with 60 and 13.75 px with 54. It
+  therefore does not follow the text-size setting (the browser zoom does
+  enlarge it). Because of that, use it only for pieces of 1 to 12 characters
+  that are also written in normal text or in the accessible label: shortcuts,
+  counters, model routes ("OpenRouter") and versions or commits ("V3").
+  `pixelTextClass(text, fallback)` applies the rule to text that is translated.
+  Never in sentences, buttons, model names or headings.
+- The interface never combines an "L" in Newsreader with letters in Departure
+  Mono, nor writes "LiTT" in Departure Mono: that imitates the wordmark (rules 1
+  and 2 of `docs/brand/DESIGN.md`).
+- The document metadata line ("Fecha: …") is Inter `text-sm`, not serif.
+
+The Word add-in imports the same `fonts.css` (the `@litt/fonts` webpack alias;
+`word-addin/Dockerfile` copies the directory), so `shared/ui` components render
+identically in both targets. Only the pane changes letters: the documents in
+Word keep their own fonts.
 
 De facto type scale in the app chrome, most to least common: `text-xs` (dense
 table and control text — the default for most chrome), `text-sm` (body copy,

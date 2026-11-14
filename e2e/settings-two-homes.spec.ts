@@ -604,7 +604,7 @@ test.describe("títulos de grupo: claro, oscuro y teléfono", () => {
             const css = getComputedStyle(el);
             return { family: css.fontFamily, size: parseFloat(css.fontSize), color: css.color };
         });
-        expect(style.family).toMatch(/EB Garamond|garamond|serif/i);
+        expect(style.family).toMatch(/Newsreader|serif/i);
         expect(style.size).toBeGreaterThan(14);
         await shot(page, "01-ajustes-menu-completo-oscuro-propietario-escritorio-1280");
     });

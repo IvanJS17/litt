@@ -14,14 +14,15 @@
  *
  * 2. The font variables are supplied by `next/font` on <body> in the real app
  *    (layout.tsx). There is no Next.js here, so `font-sans` and `font-serif`
- *    would resolve to nothing. Point them at the same two families, falling
+ *    would resolve to nothing. Point them at the same families, falling
  *    back to a system stack when they are not installed locally.
  */
 @import "../src/app/globals.css";
 
 :root {
     --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
-    --font-eb-garamond: "EB Garamond", ui-serif, Georgia, serif;
+    --font-newsreader: "Newsreader", ui-serif, Georgia, serif;
+    --font-departure-mono: "Departure Mono", ui-monospace, monospace;
 }
 
 .ladle-canvas {

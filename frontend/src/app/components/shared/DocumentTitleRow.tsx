@@ -212,7 +212,7 @@ export function DocumentTitleRow({
                 />
             )}
             {document.metadata.length > 0 && (
-                <div className="mt-1 flex w-full flex-wrap items-center gap-x-3 gap-y-1 font-serif text-sm text-gray-600">
+                <div className="mt-1 flex w-full flex-wrap items-center gap-x-3 gap-y-1 font-sans text-sm text-gray-600">
                     {document.metadata.map((item, index) => (
                         <span key={`${item.label}:${item.value}:${index}`}>
                             {item.label}: {formatMetadataValue(format, item)}

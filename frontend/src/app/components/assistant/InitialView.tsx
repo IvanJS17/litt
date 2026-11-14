@@ -77,7 +77,7 @@ export function InitialView({
                 >
                     <LittMonogramPixel size={ICON_SIZE} decorative />
                     <h1
-                        className="min-w-0 text-balance break-words text-3xl font-serif font-light text-gray-900 transition-opacity duration-250 ease-out motion-reduce:transition-none sm:text-4xl"
+                        className="min-w-0 text-balance break-words text-3xl font-serif font-normal text-gray-900 transition-opacity duration-250 ease-out motion-reduce:transition-none sm:text-4xl"
                         style={{ opacity: loaded ? 1 : 0 }}
                     >
                         {t("assistant.initialView.hiUsername", { username })}

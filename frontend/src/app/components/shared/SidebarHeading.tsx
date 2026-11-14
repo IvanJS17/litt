@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/utils";
 
-const HEADING_FONT_CLASS = "font-light font-serif";
+const HEADING_FONT_CLASS = "font-normal font-serif";
 
 /**
  * The name at the top of the sidebar: "LiTT" for personal work, or the

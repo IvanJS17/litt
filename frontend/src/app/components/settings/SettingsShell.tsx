@@ -129,7 +129,7 @@ export function SettingsShell({
                     mobileHome && !onPhoneHome && "max-md:hidden",
                 )}
             >
-                <h1 className="min-w-0 text-3xl font-medium font-eb-garamond [overflow-wrap:anywhere]">
+                <h1 className="min-w-0 text-3xl font-serif font-medium [overflow-wrap:anywhere]">
                     {title}
                 </h1>
                 {/* The search sits at the right end of the heading's row, so the

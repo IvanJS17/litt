@@ -7,9 +7,10 @@
  * `@import` it, so a token changes in one place and both targets pick it up.
  * Import it AFTER `@import "tailwindcss";` so the `@theme` mappings apply.
  *
- * Fonts: `--font-inter` / `--font-eb-garamond` are provided by each host (the
- * web via next/font; the add-in via a Google Fonts <link> plus a :root
- * fallback in its styles.css), so they are intentionally not defined here.
+ * Fonts: `--font-inter`, `--font-newsreader` and `--font-departure-mono` are
+ * defined by frontend/src/app/fonts/fonts.css, which the web app and the Word
+ * add-in both import (one set of files, no Google Fonts), so they are
+ * intentionally not defined here.
  */
 
 @custom-variant dark (&:is(.dark *));
@@ -49,7 +50,10 @@
     --text-2xs: 0.6875rem;
     --text-3xs: 0.625rem;
     --font-sans: var(--font-inter);
-    --font-serif: var(--font-eb-garamond);
+    --font-serif: var(--font-newsreader);
+    /* Departure Mono: 11 px only, 1 to 12 characters (docs/design-system.md,
+       Typography). Fixed px on purpose; see `.font-pixel` below. */
+    --font-pixel: var(--font-departure-mono);
     /* Interactive roles (Marca LiTT v1.0, "Sin azul"): primary fills,
        active toggles, selection and action links. Tinta on the light theme,
        papel on the dark one; never blue. */
