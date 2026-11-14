@@ -1778,7 +1778,7 @@ person's chat. `training.criteria_contrast_started` is audited with
 and `criteria_explain` (instead) while a contrast waits for the explanation of
 that `chat_id`.
 
-**Screen.** Settings → Training → Criteria contrast
+**Screen.** Settings → My training → Criteria contrast
 (`/settings/training/contrast`): the assignment and the two routes (or the note
 about the two approaches), then each contrast with its two analyses in two
 columns (stacked on a phone), the explanation field first, then the comparison

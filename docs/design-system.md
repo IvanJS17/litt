@@ -639,6 +639,16 @@ keep their own spacing and should not receive this attribute.
 For a real standalone checkbox use `<input type="checkbox">` with
 `TABLE_CHECKBOX_CLASS` (see `TablePrimitive.tsx`), not `check-square`.
 
+## Settings
+
+Settings has two homes («Ajustes» for what is mine, «Ajustes del despacho» for
+what the firm decides) with tabs in groups, written once in
+`frontend/src/app/lib/settingsMap.ts` and described in
+[settings-map.md](settings-map.md). The frame is `SettingsShell`; do not draw
+another sidebar, and every tab or section a screen adds goes in the map (the test
+`settingsMap.test.ts` fails otherwise). Its names and help texts follow
+[the writing rules in i18n.md](i18n.md#writing-the-text-of-settings).
+
 ## Reporting failures
 
 Every failure that stops something the user asked for must be shown to them,
@@ -896,4 +906,5 @@ Two things about the catalog environment are worth knowing before you edit it:
 
 ## Related
 
+- The map of Settings: [settings-map.md](settings-map.md)
 - Frontend test conventions: [frontend-testing.md](frontend-testing.md)

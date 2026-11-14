@@ -138,7 +138,7 @@ whose model left the catalog stays listed as unavailable until the user edits
 or deletes it.
 
 Each delegation shows the route and model it ran on; turn on **Response
-details** in **Settings > Features** to also see its effort and tokens. The
+details** in **Settings → Assistant** to also see its effort and tokens. The
 delegation's result records its route, provider, model, effort and reasoning.
 
 ## Troubleshooting

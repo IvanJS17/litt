@@ -2,7 +2,7 @@
 
 The assistant can search the web and read web pages in chats and project
 chats. It is off for each user until they turn it on under
-**Settings > Features > Web Search**. Tabular review and the Word add-in do not
+**Settings → Web search**. Tabular review and the Word add-in do not
 search the web.
 
 ## How searches run
@@ -64,7 +64,7 @@ again. At most, one answer makes 158 searches and opens 262 pages.
 
 Keys come from the same places as model API keys, chosen the same way:
 
-1. The user's own, saved under **Settings > Features > Web Search** while web
+1. The user's own, saved under **Settings → Web search** while web
    search is on.
 2. Their organization's, saved through the organization API keys endpoint
    with provider `brave`, `tavily` or `deepseek`.

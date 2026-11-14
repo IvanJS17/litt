@@ -114,9 +114,9 @@ Público de Comercio, poder o documento de personalidad, comprobante de domicili
 acta del Registro Civil, aviso o trámite notarial, and hoja en blanco o sello. It is
 product data, not interface text: it is kept in Spanish and is not translated.
 Editing it (up to 19 types, name, description and optional identifier; add, remove,
-restore the included ones) is in Settings > Features for a person (the card shows
+restore the included ones) is in Settings → Scanned document reading for a person (the card shows
 only in the personal workspace, and not for a firm-managed account) and in the
-firm's keys page ("Llaves del despacho") for a firm. The editor warns not to write client data in the
+Firm settings → Scanned document reading ("Ajustes del despacho → Lectura de escaneados") for a firm. The editor warns not to write client data in the
 descriptions, because they are also sent to LandingAI.
 
 ## API

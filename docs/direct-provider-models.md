@@ -18,7 +18,7 @@ use 3.8 Flash. A saved title-model override continues to take precedence.
 ## Onboarding
 
 The last onboarding step, Connect a model, shows the same Saved and
-Available provider grids as Settings → Bring Your Own Keys and saves through
+Available provider grids as Settings → My AI keys and saves through
 the same dialog, so a key added there is validated and stored exactly as one
 added later. The step can be finished without a key: when the deployment
 provides models, or the person has just joined an organization that has them,
@@ -40,7 +40,7 @@ enabled; fresh installs include the column in `backend/schema.sql`.
 ## Mistral setup
 
 Create an API key in [Mistral Studio](https://console.mistral.ai/), then save it
-under Settings → Bring Your Own Keys → Mistral AI API Key. Self-hosted deployments
+under Settings → My AI keys → Mistral AI API Key. Self-hosted deployments
 can instead set `MISTRAL_API_KEY` in `backend/.env`. Personal keys override the
 deployment key; removing a personal key restores the environment fallback.
 
@@ -59,7 +59,7 @@ None and High. The API IDs are `mistral-large-4`, `mistral-medium-3-5`, and
 ## Amazon Bedrock and Azure OpenAI setup
 
 Bedrock and Azure OpenAI keys only work together with a second, non-secret
-value, so each is saved with it under Settings → Bring Your Own Keys:
+value, so each is saved with it under Settings → My AI keys:
 
 | Provider | Key | Saved with |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ unchanged.
 
 ## Google Vertex AI, Azure AI Foundry, xAI and custom endpoints
 
-Four more providers are saved under Settings → Bring Your Own Keys. Three of
+Four more providers are saved under Settings → My AI keys. Three of
 them pair the key with a non-secret value, like Bedrock and Azure OpenAI:
 
 | Provider | Key | Saved with |
