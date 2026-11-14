@@ -111,6 +111,63 @@ describe("runUserExport", () => {
         expect(downloadUserExportMock).not.toHaveBeenCalled();
     });
 
+    it("stops polling and downloads nothing once its caller aborts", async () => {
+        getUserExportStatusMock.mockResolvedValue({ status: "pending" });
+        vi.useFakeTimers();
+        const controller = new AbortController();
+
+        const pending = runUserExport("audit-csv", undefined, controller.signal);
+        const settled = pending.catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(getUserExportStatusMock).toHaveBeenCalledTimes(1);
+
+        controller.abort();
+        expect(await settled).toMatchObject({ name: "AbortError" });
+        // A hundred more poll intervals pass and nothing else is asked for.
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(getUserExportStatusMock).toHaveBeenCalledTimes(1);
+        expect(downloadUserExportMock).not.toHaveBeenCalled();
+    });
+
+    it("does not download a finished export its caller abandoned meanwhile", async () => {
+        const controller = new AbortController();
+        getUserExportStatusMock.mockImplementation(async () => {
+            controller.abort();
+            return { status: "done", filename: "late.csv" };
+        });
+
+        await expect(
+            runUserExport("audit-csv", undefined, controller.signal),
+        ).rejects.toMatchObject({ name: "AbortError" });
+        expect(downloadUserExportMock).not.toHaveBeenCalled();
+    });
+
+    it("asks for no status when its caller aborts while the job is scheduled", async () => {
+        const controller = new AbortController();
+        startUserExportMock.mockImplementation(async () => {
+            controller.abort();
+            return { export_id: "exp-1" };
+        });
+
+        await expect(
+            runUserExport("audit-csv", undefined, controller.signal),
+        ).rejects.toMatchObject({ name: "AbortError" });
+        expect(getUserExportStatusMock).not.toHaveBeenCalled();
+    });
+
+    it("hands back no file when its caller aborts during the download", async () => {
+        const controller = new AbortController();
+        getUserExportStatusMock.mockResolvedValue({ status: "done", filename: "late.csv" });
+        downloadUserExportMock.mockImplementation(async () => {
+            controller.abort();
+            return { blob: new Blob(["z"]), filename: "late.csv" };
+        });
+
+        await expect(
+            runUserExport("audit-csv", undefined, controller.signal),
+        ).rejects.toMatchObject({ name: "AbortError" });
+    });
+
     it("polls at the interactive 2s rate outside the test environment", async () => {
         getUserExportStatusMock.mockResolvedValue({
             status: "done",

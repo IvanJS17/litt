@@ -692,6 +692,27 @@ describe("MyActivitySettingsPage", () => {
     );
   });
 
+  it("stops polling the export job when the person leaves the page", async () => {
+    const user = userEvent.setup();
+    mockedGetUserExportStatus.mockResolvedValue({ status: "pending" });
+
+    const { unmount } = render(<MyActivitySettingsPage />);
+    await screen.findByText(EVENT.title!);
+    await user.click(
+      screen.getByRole("button", { name: "My Activity actions" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(mockedGetUserExportStatus).toHaveBeenCalled());
+
+    unmount();
+    const calls = mockedGetUserExportStatus.mock.calls.length;
+    // Five poll intervals (POLL_MS is 10 ms under test) with nobody asking.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(calls);
+    expect(mockedDownloadUserExport).not.toHaveBeenCalled();
+  });
+
   it("keeps the export modal open with a retryable error when the job fails", async () => {
     const user = userEvent.setup();
     mockedGetUserExportStatus.mockResolvedValue({ status: "failed" });
