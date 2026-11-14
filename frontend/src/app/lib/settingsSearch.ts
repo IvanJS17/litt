@@ -300,15 +300,6 @@ function buildEntries(t: Translate): SettingsSearchEntry[] {
             href: "/settings/training/mentor#panel-del-mentor",
         },
         {
-            id: "firm-criteria",
-            tabId: "firm-criteria",
-            tab: t("settings.searchIndex.tabFirmCriteria"),
-            title: t("settings.searchIndex.firmCriteria.title"),
-            description: t("settings.searchIndex.firmCriteria.description"),
-            keywords: keywordList(t("settings.searchIndex.firmCriteria.keywords")),
-            href: "/settings/firm-criteria#criterios-del-despacho",
-        },
-        {
             id: "organizations",
             tabId: "organizations",
             tab: t("settings.layout.tab.organizations"),

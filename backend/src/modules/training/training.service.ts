@@ -449,8 +449,8 @@ function mentorHasPupils() {
 
 /**
  * Take a member as pupil. A mentor takes a member who has none, for
- * themselves. An owner or admin may name any mentor, and may move a pupil
- * who already has one.
+ * themselves. An owner or admin may assign a member to any mentor, and move a
+ * pupil who already has one. Never an owner or an admin as the pupil.
  */
 export async function assignPupil(
     db: Db,
@@ -538,8 +538,9 @@ export async function releasePupil(
     if (!current.ok) return current;
     if (!current.data) return failure("not_found", "Pupil not found");
     const mine = current.data.mentor_user_id === actor.actorId;
-    // An owner or admin never releases themselves (a pupil promoted after
-    // being taken keeps no way out of their own training).
+    // An owner or admin never releases themselves. A promoted pupil's row ends
+    // with the promotion (org_members_training_role_change), so this only
+    // guards a row that somehow outlived it.
     const admin = isOrgAdmin(role.data) && actor.userId !== actor.actorId;
     // Anybody else gets the same 404 as for a member who is not a pupil:
     // who is in training is not theirs to learn.

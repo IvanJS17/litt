@@ -3514,11 +3514,6 @@
         "keywords": "token count|tokens|usage|model name|reasoning effort|metadata|debug|stats|show model|cost",
         "title": "Response details"
       },
-      "firmCriteria": {
-        "description": "Positions and dissenting opinions written by the people in your firm, under their name, which the assistant can consult for whoever is in training.",
-        "keywords": "criterios|criterio|firm criteria|criteria|voto particular|dissenting opinion|postura|posturas|despacho|firm|socio|partner|formacion|training",
-        "title": "Firm criteria"
-      },
       "memory": {
         "description": "Whether LiTT remembers durable information from your conversations.",
         "keywords": "remember|forget|memories|recall|context|history|learn|retain|memorise|memorize",
@@ -3594,7 +3589,6 @@
         "keywords": "change password|reset password|forgot password|new password|passcode|credentials|login|sign in",
         "title": "Password"
       },
-      "tabFirmCriteria": "Firm criteria",
       "training": {
         "description": "Your mentor and your stages as an intern: your turn first, notes and approval of your drafts.",
         "keywords": "formacion|training|mentor|mentora|pasante|intern|trainee|etapa|etapas|stage|tu turno primero|notas|sello|aprobacion|approval|supervisor",
@@ -5254,7 +5248,6 @@
       "scheduled": "Scheduled; no outcome yet.",
       "work": "Work"
     },
-    "designaALosMentoresDelDespacho": "Appoint the firm's mentors. Each mentor takes on their pupils and sets their stage by subject in Settings → Training.",
     "eligeAUnMiembroSinMentor": "Choose a member without a mentor",
     "escribeLaMateria": "Enter the subject",
     "etapa": "Stage",
@@ -5294,9 +5287,7 @@
         "kindLabel": "Type",
         "limit": "Your firm holds as many criteria as it can. Remove one to write another.",
         "loadFailed": "The firm's criteria could not be loaded.",
-        "loadingLabel": "Loading the firm's criteria",
         "mine": "Yours",
-        "noOrganizations": "You do not belong to any firm yet.",
         "noPlaybooks": "There are no playbooks to disagree with yet.",
         "playbookLabel": "Playbook",
         "playbookPlaceholder": "Choose a playbook",
@@ -5316,15 +5307,16 @@
         "save": "Save",
         "saved": "The criterion was saved.",
         "saving": "Saving…",
-        "tab": "Firm criteria",
         "title": "Firm criteria",
         "topicHelp": "A few words, for example “Limitation of bills of exchange”.",
         "topicLabel": "Topic",
         "voteHelp": "A dissenting opinion names the playbook rule you disagree with. It does not change the rule.",
+        "who": "Everyone in the firm reads them. Anyone who is not in training writes them; owners and admins can remove any.",
         "write": "Write a criterion"
       }
     },
     "formacion": "Training",
+    "generalTransactions": "General transactions",
     "guardarEtapa": "Save stage",
     "gym": {
       "codes": {
@@ -5547,6 +5539,7 @@
       "revoked": "Revoked on {date, date, medium} {date, time, short}",
       "unknownProject": "A matter you cannot see"
     },
+    "practiceHelp": "Choose «All practice areas» or one of your firm's areas (they come from the firm profile). If it is not listed, use «Other area».",
     "promotion": {
       "accept": "Accept proposal",
       "actions": {
@@ -5582,7 +5575,6 @@
       "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}.",
       "works": "Reviewed works: {count} of {required}"
     },
-    "pupiloDe": "Pupil of",
     "quitar": "Remove",
     "review": {
       "aiCorrected": "What the AI corrected",
@@ -5601,7 +5593,6 @@
       "unverified": "What was left unverified"
     },
     "sinEtapaAsignada": "No stage assigned.",
-    "soloElDuenoOUnAdministrador": "Only the owner or an administrator of the organization appoints mentors.",
     "stage": {
       "abogado": "Lawyer",
       "junior": "Junior",
@@ -5644,6 +5635,26 @@
       "regenerate": "Regenerate",
       "untitled": "Untitled work",
       "withoutAccess": "{count, plural, one {# work is in a matter you cannot open.} other {# works are in matters you cannot open.}} The owner of the matter can give you access."
+    },
+    "org": {
+      "cannotBePupil": "Owners and admins can't be pupils.",
+      "loadFailed": "Could not load training.",
+      "memberIntro": "Here you read your firm's criteria. Your own training (your mentor and your stages) is in Settings → Training.",
+      "mentorHasPupils": "This person still has pupils. Release them or give them another mentor first.",
+      "mentorLabel": "Their mentor:",
+      "mentorOf": "Choose a mentor for {name}",
+      "mentorsHeading": "Mentors and pupils",
+      "mentorsHelp": "A mentor guides their pupils and is the only one who sets their stage. Each pupil has one mentor, and someone without a mentor is not in training. Owners and admins can be mentors, but never pupils.",
+      "noMentor": "No mentor",
+      "noMentorsYet": "There are no mentors yet. Turn on «Mentor» for someone to be able to assign pupils to them."
+    },
+    "stageHelp": {
+      "junior": "The AI answers with its methodology and in accountability mode.",
+      "pasante": "Tries first: writes their own approach before the AI answers."
+    },
+    "personal": {
+      "intro": "Here you see only what is yours: your mentor, your stages and your criterion. Who is a mentor, and whom they guide, is decided by the owner or an admin in the firm's settings → Training.",
+      "pupilsHelp": "Take members who have no mentor yet and set their stage by subject. Only you, as their mentor, set the stage; owners and admins see who your pupils are, never their stage."
     }
   },
   "ui": {

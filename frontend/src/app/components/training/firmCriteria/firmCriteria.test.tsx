@@ -4,13 +4,11 @@ import esMX from "../../../../../../packages/i18n/messages/es-MX.json";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import * as api from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
-import { FirmCriteriaSettings } from "./FirmCriteriaSettings";
+import { FirmCriteriaSection } from "./FirmCriteriaSettings";
 
 // Ajustes → Criterios del despacho, in es-MX: what each person is offered,
 // the form, the two-step removal, and loading that has the page's layout.
 
-const workspace = vi.hoisted(() => ({ organizations: [{ id: "org-1", name: "Despacho Ruiz" }] as { id: string; name: string }[] | null }));
-vi.mock("@/app/contexts/WorkspaceContext", () => ({ useWorkspace: () => workspace }));
 vi.mock("@/app/lib/mikeApi", () => ({
     listFirmCriteria: vi.fn(),
     createFirmCriterion: vi.fn(async () => ({})),
@@ -26,7 +24,7 @@ vi.mock("@/app/lib/userFacingError", () => ({
 const renderEs = () =>
     render(
         <IntlClientProvider locale="es-MX" messages={esMX}>
-            <FirmCriteriaSettings />
+            <FirmCriteriaSection orgId="org-1" orgName="Despacho Ruiz" />
         </IntlClientProvider>,
     );
 
@@ -61,25 +59,18 @@ const playbook = {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    workspace.organizations = [{ id: "org-1", name: "Despacho Ruiz" }];
     vi.mocked(api.listPlaybooks).mockResolvedValue([playbook, { ...playbook, id: "p-other", orgId: "org-2", name: "Ajeno" }]);
 });
 
-describe("Ajustes → Criterios del despacho", () => {
-    it("loads with the page's own layout, then lists criteria with author, date and kind", async () => {
+describe("Ajustes del despacho → Formación → Criterios del despacho", () => {
+    it("loads with its own skeleton, then lists criteria with author, date and kind", async () => {
         vi.mocked(api.listFirmCriteria).mockResolvedValue(list());
-        workspace.organizations = null;
-        const { rerender } = renderEs();
-        expect(screen.getByRole("status", { name: "Cargando los criterios del despacho" })).toHaveAttribute("aria-busy", "true");
-        workspace.organizations = [{ id: "org-1", name: "Despacho Ruiz" }];
-        rerender(
-            <IntlClientProvider locale="es-MX" messages={esMX}>
-                <FirmCriteriaSettings />
-            </IntlClientProvider>,
-        );
+        const { container } = renderEs();
+        expect(container.querySelector(".animate-pulse")).not.toBeNull();
         expect(await screen.findByText("Prescripción cambiaria")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Criterios del despacho" })).toBeInTheDocument();
         expect(screen.getByText(/No son derecho vigente y LiTT no las verifica/)).toBeInTheDocument();
+        expect(screen.getByText(/Las escribe quien no esté en formación/)).toBeInTheDocument();
         expect(screen.getByText("1 criterio")).toBeInTheDocument();
         expect(screen.getByText(/^Criterio · /)).toHaveTextContent("Criterio · mercantil · Tuyo");
         expect(screen.getByText(/Segunda línea de la postura\./)).toBeInTheDocument();
@@ -87,12 +78,7 @@ describe("Ajustes → Criterios del despacho", () => {
         expect(api.listFirmCriteria).toHaveBeenCalledWith("org-1");
     });
 
-    it("tells a person with no firm, and an empty firm, what is going on", async () => {
-        workspace.organizations = [];
-        const { unmount } = renderEs();
-        expect(screen.getByText("Todavía no perteneces a ningún despacho.")).toBeInTheDocument();
-        unmount();
-        workspace.organizations = [{ id: "org-1", name: "Despacho Ruiz" }];
+    it("says an empty firm has no criteria yet", async () => {
         vi.mocked(api.listFirmCriteria).mockResolvedValue(list({ criteria: [] }));
         renderEs();
         expect(await screen.findByText("Tu despacho todavía no ha escrito criterios.")).toBeInTheDocument();
@@ -260,14 +246,5 @@ describe("Ajustes → Criterios del despacho", () => {
         expect(screen.getByText(/· cambiado el /)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Escribir un criterio" })).toBeDisabled();
         expect(screen.getByText(/Quita uno para escribir otro/)).toBeInTheDocument();
-    });
-
-    it("names each firm when the person belongs to several", async () => {
-        workspace.organizations = [{ id: "org-1", name: "Despacho Ruiz" }, { id: "org-2", name: "Despacho Soto" }];
-        vi.mocked(api.listFirmCriteria).mockResolvedValue(list({ criteria: [] }));
-        renderEs();
-        expect(await screen.findAllByText("Tu despacho todavía no ha escrito criterios.")).toHaveLength(2);
-        expect(screen.getByText("Despacho Ruiz")).toBeInTheDocument();
-        expect(screen.getByText("Despacho Soto")).toBeInTheDocument();
     });
 });

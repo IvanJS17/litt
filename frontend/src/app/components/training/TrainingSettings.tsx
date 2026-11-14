@@ -11,7 +11,7 @@ import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { SettingsDescription, SettingsLabel } from "@/app/components/settings/SettingsText";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
 import { FormTextInput } from "@/app/components/ui/form-field";
-import { PRACTICE_OPTIONS } from "@/app/components/workflows/practices";
+import { practiceAreaLabel } from "@/app/onboarding/options";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import {
     assignTrainingPupil,
@@ -28,6 +28,7 @@ import {
     type TrainingStageEntry,
 } from "@/app/lib/mikeApi";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
+import { useFirmPracticeAreas } from "./firmPracticeAreas";
 import { MemberIdentity, membersById } from "./trainingShared";
 import { usePracticeLabel, useStageLabel } from "./supervision/supervisionShared";
 import { MentorSeesMe } from "./supervision/MentorSeesMe";
@@ -87,6 +88,7 @@ export function TrainingSettings() {
         <div className="space-y-8">
             <section className="space-y-3">
                 <SettingsHeading id="mi-formacion">{tr("training.miFormacion")}</SettingsHeading>
+                <SettingsDescription>{tr("training.personal.intro")}</SettingsDescription>
                 {asPupil.length === 0 ? (
                     <SettingsDescription>
                         {tr("training.noTienesMentor")}
@@ -104,6 +106,7 @@ export function TrainingSettings() {
             {asMentor.length > 0 && (
                 <section className="space-y-3">
                     <SettingsHeading id="mis-pupilos">{tr("training.misPupilos")}</SettingsHeading>
+                    <SettingsDescription>{tr("training.personal.pupilsHelp")}</SettingsDescription>
                     <Link
                         href="/settings/training/mentor"
                         className="inline-flex rounded text-sm font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
@@ -163,6 +166,9 @@ function StageList({
                 >
                     <span className="break-words">
                         {practiceLabel(entry.practice)}: {stageLabel(entry.stage)}
+                    </span>
+                    <span className="basis-full break-words text-gray-500">
+                        {t(`training.stageHelp.${entry.stage}`)}
                     </span>
                     {onRemove && (
                         <button
@@ -231,6 +237,7 @@ function MyTraining({ membership, orgName }: { membership: TrainingMembership; o
 function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
     const t = useTranslations();
     const members = useOrgMembers(orgId);
+    const practices = useFirmPracticeAreas(orgId);
     const [data, setData] = useState<TrainingMyPupils | null>(null);
     const [candidate, setCandidate] = useState("");
     const [busy, setBusy] = useState(false);
@@ -339,6 +346,7 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
                     />
                     <StageEditor
                         id={`training-stage-${orgId}-${pupil.user_id}`}
+                        practices={practices}
                         disabled={busy}
                         onSave={(practice, stage) =>
                             void run("set the stage", () =>
@@ -355,10 +363,13 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
 /** Choose a practice area (or all of them) and a stage for it. */
 export function StageEditor({
     id,
+    practices,
     disabled,
     onSave,
 }: {
     id: string;
+    /** The areas to offer: the firm's profile, or every area when it names none. */
+    practices: readonly string[];
     disabled: boolean;
     onSave: (practice: string | null, stage: TrainingStage) => void;
 }) {
@@ -371,56 +382,60 @@ export function StageEditor({
         practice === ALL_PRACTICES ? null : practice === OTHER_PRACTICE ? custom.trim() : practice;
     const ready = chosen === null || chosen !== "";
     return (
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <ModalSelect
-                id={`${id}-practice`}
-                aria-label={t("training.materia")}
-                value={practice}
-                options={[
-                    { value: ALL_PRACTICES, label: t("training.allPractices") },
-                    ...PRACTICE_OPTIONS.filter((option) => option !== "Other").map((option) => ({
-                        value: option,
-                        label: option,
-                    })),
-                    { value: OTHER_PRACTICE, label: t("training.otraMateria") },
-                ]}
-                onChange={setPractice}
-                disabled={disabled}
-                wrapLabels
-                className="min-w-0 flex-1"
-            />
-            {practice === OTHER_PRACTICE && (
-                <FormTextInput
-                    aria-label={t("training.nombreDeLaMateria")}
-                    placeholder={t("training.escribeLaMateria")}
-                    value={custom}
-                    maxLength={200}
-                    onChange={(event) => setCustom(event.target.value)}
+        <div className="space-y-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <ModalSelect
+                    id={`${id}-practice`}
+                    aria-label={t("training.materia")}
+                    value={practice}
+                    options={[
+                        { value: ALL_PRACTICES, label: t("training.allPractices") },
+                        ...practices.map((area) => ({
+                            value: area,
+                            label: practiceAreaLabel(area, t),
+                        })),
+                        { value: OTHER_PRACTICE, label: t("training.otraMateria") },
+                    ]}
+                    onChange={setPractice}
                     disabled={disabled}
+                    wrapLabels
                     className="min-w-0 flex-1"
                 />
-            )}
-            <ModalSelect
-                id={`${id}-stage`}
-                aria-label={t("training.etapa")}
-                value={stage}
-                options={[
-                    { value: "pasante", label: stageLabel("pasante") },
-                    { value: "junior", label: stageLabel("junior") },
-                ]}
-                onChange={(value) => setStage(value as TrainingStage)}
-                disabled={disabled}
-                className="w-36"
-            />
-            <PillButtonUI
-                type="button"
-                tone="black"
-                size="sm"
-                disabled={disabled || !ready}
-                onClick={() => onSave(chosen, stage)}
-            >
-                {t("training.guardarEtapa")}
-            </PillButtonUI>
+                {practice === OTHER_PRACTICE && (
+                    <FormTextInput
+                        aria-label={t("training.nombreDeLaMateria")}
+                        placeholder={t("training.escribeLaMateria")}
+                        value={custom}
+                        maxLength={200}
+                        onChange={(event) => setCustom(event.target.value)}
+                        disabled={disabled}
+                        className="min-w-0 flex-1"
+                    />
+                )}
+                <ModalSelect
+                    id={`${id}-stage`}
+                    aria-label={t("training.etapa")}
+                    value={stage}
+                    options={[
+                        { value: "pasante", label: stageLabel("pasante") },
+                        { value: "junior", label: stageLabel("junior") },
+                    ]}
+                    onChange={(value) => setStage(value as TrainingStage)}
+                    disabled={disabled}
+                    className="w-36"
+                />
+                <PillButtonUI
+                    type="button"
+                    tone="black"
+                    size="sm"
+                    disabled={disabled || !ready}
+                    onClick={() => onSave(chosen, stage)}
+                >
+                    {t("training.guardarEtapa")}
+                </PillButtonUI>
+            </div>
+            <p className="text-sm text-gray-500">{t(`training.stageHelp.${stage}`)}</p>
+            <p className="text-sm text-gray-500">{t("training.practiceHelp")}</p>
         </div>
     );
 }
