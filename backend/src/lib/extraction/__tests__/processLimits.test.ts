@@ -40,6 +40,27 @@ describe("parser process limits", () => {
     expect(result.stdout).toMatch(/allocation failed/i);
   });
 
+  it.skipIf(process.platform !== "linux")("reserves no more address space for a WebAssembly memory than the budget", async () => {
+    // Without a bound V8 reserves 4, 3, 2 or 1 GiB for it, whichever still fits
+    // under --as, and the parser then fails at the address-space cap instead of
+    // at its memory budget (a legitimate comparison failing as too large).
+    const file = path.join(await scratch(), "wasm.cjs");
+    await writeFile(file, `
+      const { readFileSync } = require("node:fs");
+      const size = () => Number(readFileSync("/proc/self/status", "utf8").match(/VmSize:\\s+(\\d+)/)[1]);
+      const before = size();
+      const memory = new WebAssembly.Memory({ initial: 1 });
+      console.log(JSON.stringify({ reservedKb: size() - before, pages: memory.buffer.byteLength / 65536 }));
+    `);
+    vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", "256");
+    const { command, args } = extractionCommand(file);
+    const result = spawnSync(command, args, { encoding: "utf8", timeout: 10_000, env: { PATH: process.env.PATH } });
+    expect(result.status, result.stderr).toBe(0);
+    const { reservedKb, pages } = JSON.parse(result.stdout);
+    expect(pages).toBe(1);
+    expect(reservedKb).toBeLessThanOrEqual(256 * 1024);
+  });
+
   it.skipIf(process.platform === "win32")("kills a timed-out LibreOffice process and its descendant", async () => {
     const dir = await scratch();
     const pidFile = path.join(dir, "pids.json");
