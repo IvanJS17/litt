@@ -2937,13 +2937,16 @@
     "appearance": {
       "appearance": "Appearance",
       "couldNotUpdateTheAppearanceSetting": "Could not update the appearance setting.",
-      "darkMode": "Dark mode",
       "textSize": "Text size",
       "textSizeHelp": "Choose how large text looks in LiTT. This only changes your screen.",
       "textSizeLarge": "Large",
       "textSizeNormal": "Normal",
       "textSizeXLarge": "Very large",
-      "useADarkerColorPaletteThroughout": "Switch to darker colors across LiTT."
+      "theme": "Theme",
+      "themeDark": "Dark",
+      "themeHelp": "Automatic follows your device's theme and changes when it does.",
+      "themeLight": "Light",
+      "themeSystem": "Automatic"
     },
     "byokProviderModal": {
       "awsRegion": "AWS region",
@@ -3459,10 +3462,10 @@
         "keywords": "acerca de|about|source code|source|codigo|agpl|license|licencia|open source|software libre|github|version|commit",
         "title": "Source code"
       },
-      "appearanceDarkMode": {
-        "description": "Use a darker color palette throughout LiTT.",
-        "keywords": "theme|dark|light mode|night mode|colour|color|palette|display|look|contrast|black background",
-        "title": "Dark mode"
+      "appearanceTheme": {
+        "description": "Choose light, dark or automatic, following your device.",
+        "keywords": "theme|dark|light|automatic|auto|system|device|dark mode|light mode|night mode|colour|color|palette|display|look|contrast|black background",
+        "title": "Theme"
       },
       "appearanceTextSize": {
         "description": "Change the size of the text in LiTT.",
@@ -3816,7 +3819,7 @@
         },
         "appearance": {
           "title": "Appearance",
-          "help": "Choose the text size and dark mode."
+          "help": "Choose the theme and text size."
         },
         "assistant": {
           "title": "Assistant",
@@ -3976,6 +3979,13 @@
       "signOutAction": "sign out",
       "someHistoryCouldNotBeLoaded": "Some history could not be loaded. Try again",
       "tabularReviewStatus": "Tabular review: {title}{status, select, loading { (Running)} complete { (Complete)} other {}}",
+      "theme": "Theme",
+      "themeAuto": "Auto",
+      "themeAutoLabel": "Automatic (follows your device)",
+      "themeDark": "Dark",
+      "themeLight": "Light",
+      "themeNowDark": "now: dark",
+      "themeNowLight": "now: light",
       "titleReviewRunning": "{title} review running",
       "untitledReview": "Untitled review",
       "workspace": "Workspace"

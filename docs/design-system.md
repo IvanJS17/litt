@@ -349,14 +349,34 @@ monogram stay still. Its colors, as tokens in `DesignTokensUI.css`:
 - With `prefers-reduced-motion: reduce` nothing animates: a static rule while
   working, three fixed dots while waiting, the full rule when done.
 
-### Dark mode
+### Theme: Claro, Oscuro, Automático
 
-`@custom-variant dark (&:is(.dark *))` — class-based, not
-`prefers-color-scheme`. The shadcn tokens, `--app-*` surface tokens, and shared
-liquid-glass material tokens all have `.dark` values. The user preference adds
-`.dark` to the document root, so semantic surface and material classes switch
-without component-level `dark:` shadow recipes. The preference lives in
-Settings > Appearance.
+`@custom-variant dark (&:is(.dark *))` — class-based. The shadcn tokens,
+`--app-*` surface tokens, and shared liquid-glass material tokens all have
+`.dark` values, so semantic surface and material classes switch without
+component-level `dark:` shadow recipes.
+
+The theme is one preference with three values, `light`, `dark` and `system`
+(`user_profiles.theme`; new accounts start on `system`). **Automático**
+(`system`) follows `prefers-color-scheme` and changes live when the device
+does (`applyTheme` in `app/lib/theme.ts`, with `resolveTheme` and
+`watchSystemTheme` from `@mike/client`). The class on the document root is the
+*resolved* theme; the preference itself is what is stored, in the profile and in
+`localStorage["litt:theme"]`. `THEME_BOOT_SCRIPT` (a constant, run in `<head>`
+before the first paint, like the text-size one) reads that key and resolves
+`system` with `matchMedia`, so a returning visitor never sees the wrong page
+first. `meta[name=theme-color]` follows the resolved theme. In the Word add-in
+`system` follows Office's theme (`officeTheme.isDarkTheme`) when the host
+reports it and the device otherwise; the pane has no control for it.
+
+Two accesses, one control: `ThemeSegmentedUI` (`@mike/ui`), a `radiogroup`
+with arrow-key movement and the same look as the text-size control, in the
+**account menu** (`AccountMenuTheme` in `AppSidebar`: after the workspace,
+before Settings, icons, 28 px buttons and 44 px on a phone, choosing does not
+close the menu, and Automático says "now: dark" or "now: light") and in
+**Settings > Appearance** (words only). Both use `useThemeChoice`, so a change
+in one moves the other, shows at once and rolls back if the save fails. There
+is no keyboard shortcut and no loose button in the sidebar.
 
 The LiTT marks (`LittBrandUI.tsx`) and the status mark
 (`LittStatusMarkUI.tsx`) need no theme subscription: their fills are

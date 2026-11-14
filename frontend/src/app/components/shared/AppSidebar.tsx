@@ -39,6 +39,7 @@ import {
     DropdownSeparator,
     DropdownTrigger,
 } from "@mike/ui";
+import { AccountMenuTheme } from "@/app/components/shared/AccountMenuTheme";
 import { SidebarHeading } from "@/app/components/shared/SidebarHeading";
 import { SidebarLogo } from "@/app/components/shared/SidebarLogo";
 import { LittWordmark } from "@mike/ui";
@@ -1131,6 +1132,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                       <DropdownSeparator className="my-1" />
                                   </>
                               ) : null}
+                              <AccountMenuTheme />
                               <DropdownItem
                                   // On a phone Settings opens on its grouped list; the
                                   // Account page is one row down.

@@ -31,11 +31,11 @@ describe("searchSettings", () => {
     });
 
     it("counts a whole phrase inside a name as exact, not a fragment of a word", () => {
-        expect(kinds(searchSettings("dark"))["appearance-dark-mode"]).toBe(
+        expect(kinds(searchSettings("dark"))["appearance-theme"]).toBe(
             "exact",
         );
         // "ark" is inside "dark" but is not a word of it.
-        expect(kinds(searchSettings("ark"))["appearance-dark-mode"]).toBeUndefined();
+        expect(kinds(searchSettings("ark"))["appearance-theme"]).toBeUndefined();
     });
 
     it("finds My AI keys from the words people use for it", () => {
@@ -72,12 +72,12 @@ describe("searchSettings", () => {
 
     it("survives a typo", () => {
         expect(ids(searchSettings("pasword"))).toContain("security-password");
-        expect(ids(searchSettings("apearance"))).toContain("appearance-dark-mode");
+        expect(ids(searchSettings("apearance"))).toContain("appearance-theme");
         expect(ids(searchSettings("conectors"))).toContain("connectors-installed");
     });
 
     it("does not treat a known word as a typo of another", () => {
-        expect(ids(searchSettings("model"))).not.toContain("appearance-dark-mode");
+        expect(ids(searchSettings("model"))).not.toContain("appearance-theme");
     });
 
     it("orders exact keyword hits by how much of the keyword the query fills", () => {

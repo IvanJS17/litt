@@ -1,4 +1,5 @@
 import {
+    act,
     fireEvent,
     render,
     screen,
@@ -71,7 +72,7 @@ import { ModelToggle } from "@/app/components/assistant/ModelToggle";
 import { MikeApiError } from "@/app/lib/mikeApi";
 import { subscribeToTabularChatSettingsUpdates } from "@/app/lib/tabularChatSettingsEvents";
 
-function apiProfile(darkMode: boolean) {
+function apiProfile(theme: "light" | "dark" | "system") {
     return {
         displayName: "Ada",
         organisation: null,
@@ -88,7 +89,7 @@ function apiProfile(darkMode: boolean) {
         lastSelectedReasoningLevel: "high",
         mfaOnLogin: false,
         emailIntegrationEnabled: false,
-        darkMode,
+        theme,
         featureFlags: {},
         deploymentModules: {},
         apiKeyStatus: {
@@ -103,14 +104,13 @@ function apiProfile(darkMode: boolean) {
 }
 
 function ThemeControls() {
-    const { profile, updateDarkMode } = useUserProfile();
+    const { profile, updateTheme } = useUserProfile();
     return (
         <>
-            <span data-testid="mode">
-                {profile?.darkMode ? "dark" : "light"}
-            </span>
-            <button onClick={() => void updateDarkMode(false)}>Light</button>
-            <button onClick={() => void updateDarkMode(true)}>Dark</button>
+            <span data-testid="mode">{profile?.theme ?? "none"}</span>
+            <button onClick={() => void updateTheme("light")}>Light</button>
+            <button onClick={() => void updateTheme("dark")}>Dark</button>
+            <button onClick={() => void updateTheme("system")}>Auto</button>
         </>
     );
 }
@@ -196,12 +196,12 @@ function TabularChatSettings() {
 
 beforeEach(() => {
     clearToasts();
-    getUserProfile.mockResolvedValue(apiProfile(true));
+    getUserProfile.mockResolvedValue(apiProfile("dark"));
     updateUserProfile.mockImplementation(
-        ({ darkMode = true }: { darkMode?: boolean }) =>
-            Promise.resolve(apiProfile(darkMode)),
+        ({ theme = "dark" }: { theme?: "light" | "dark" | "system" }) =>
+            Promise.resolve(apiProfile(theme)),
     );
-    updateLastSelectedChatSettings.mockResolvedValue(apiProfile(true));
+    updateLastSelectedChatSettings.mockResolvedValue(apiProfile("dark"));
     updateTabularChatModel.mockResolvedValue({});
     updateTabularChatReasoningLevel.mockResolvedValue({});
 });
@@ -217,7 +217,7 @@ afterEach(() => {
 });
 
 it("restores a disabled provider's saved-key state when loading the profile", async () => {
-    const profile = apiProfile(false);
+    const profile = apiProfile("light");
     getUserProfile.mockResolvedValue({
         ...profile,
         apiKeyStatus: {
@@ -289,7 +289,7 @@ it("saves one router's Model Selections under that router's profile field", asyn
         );
     }
     updateUserProfile.mockResolvedValue({
-        ...apiProfile(false),
+        ...apiProfile("light"),
         azureFoundryModels: ["claude-opus-5-5"],
     });
     render(<UserProfileProvider><SaveSelections /></UserProfileProvider>);
@@ -305,7 +305,7 @@ it("saves one router's Model Selections under that router's profile field", asyn
     });
 });
 
-describe("UserProfileProvider dark mode", () => {
+describe("UserProfileProvider theme", () => {
     it("switches from dark to light and back to dark", async () => {
         render(
             <UserProfileProvider>
@@ -331,11 +331,66 @@ describe("UserProfileProvider dark mode", () => {
         });
 
         expect(updateUserProfile).toHaveBeenNthCalledWith(1, {
-            darkMode: false,
+            theme: "light",
         });
         expect(updateUserProfile).toHaveBeenNthCalledWith(2, {
-            darkMode: true,
+            theme: "dark",
         });
+    });
+
+    it("follows the device live while the theme is Automático", async () => {
+        const listeners = new Set<(event: { matches: boolean }) => void>();
+        let deviceDark = false;
+        vi.stubGlobal(
+            "matchMedia",
+            vi.fn((query: string) => ({
+                media: query,
+                get matches() {
+                    return deviceDark;
+                },
+                addEventListener: (_: string, fn: (event: { matches: boolean }) => void) =>
+                    listeners.add(fn),
+                removeEventListener: (_: string, fn: (event: { matches: boolean }) => void) =>
+                    listeners.delete(fn),
+            })),
+        );
+        getUserProfile.mockResolvedValue(apiProfile("system"));
+        render(
+            <UserProfileProvider>
+                <ThemeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() => {
+            expect(screen.getByTestId("mode")).toHaveTextContent("system");
+            expect(localStorage.getItem("litt:theme")).toBe("system");
+        });
+        expect(document.documentElement).not.toHaveClass("dark");
+
+        deviceDark = true;
+        act(() => listeners.forEach((fn) => fn({ matches: true })));
+        expect(document.documentElement).toHaveClass("dark");
+        deviceDark = false;
+        act(() => listeners.forEach((fn) => fn({ matches: false })));
+        expect(document.documentElement).not.toHaveClass("dark");
+
+        // Choosing Claro ends the following.
+        fireEvent.click(screen.getByRole("button", { name: "Light" }));
+        await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("light"));
+        expect(listeners.size).toBe(0);
+        vi.unstubAllGlobals();
+    });
+
+    it("switches to Automático and saves it", async () => {
+        render(
+            <UserProfileProvider>
+                <ThemeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("dark"));
+        fireEvent.click(screen.getByRole("button", { name: "Auto" }));
+        await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("system"));
+        expect(updateUserProfile).toHaveBeenCalledWith({ theme: "system" });
+        expect(localStorage.getItem("litt:theme")).toBe("system");
     });
 
     it("keeps the theme painted at boot until the profile answers, then follows it", async () => {
@@ -355,7 +410,7 @@ describe("UserProfileProvider dark mode", () => {
         await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
         expect(document.documentElement).toHaveClass("dark");
 
-        answer(apiProfile(false));
+        answer(apiProfile("light"));
         await waitFor(() =>
             expect(document.documentElement).not.toHaveClass("dark"),
         );
@@ -391,11 +446,11 @@ describe("UserProfileProvider dark mode", () => {
     it("rolls the document theme back when persistence fails", async () => {
         updateUserProfile.mockRejectedValueOnce(new Error("save failed"));
         function FailingControl() {
-            const { updateDarkMode } = useUserProfile();
+            const { updateTheme } = useUserProfile();
             return (
                 <button
                     onClick={() => {
-                        void updateDarkMode(false).catch(() => {});
+                        void updateTheme("light").catch(() => {});
                     }}
                 >
                     Light
@@ -418,7 +473,7 @@ describe("UserProfileProvider dark mode", () => {
     });
 
     it("applies the saved text size to <html> and remembers it for the next first paint", async () => {
-        getUserProfile.mockResolvedValue({ ...apiProfile(false), textSize: "xlarge" });
+        getUserProfile.mockResolvedValue({ ...apiProfile("light"), textSize: "xlarge" });
         render(
             <UserProfileProvider>
                 <TextSizeControls />
@@ -446,14 +501,14 @@ describe("UserProfileProvider dark mode", () => {
         await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
         expect(document.documentElement).toHaveAttribute("data-text-size", "large");
 
-        answer(apiProfile(false));
+        answer(apiProfile("light"));
         await waitFor(() =>
             expect(document.documentElement).not.toHaveAttribute("data-text-size"),
         );
     });
 
     it("saves a new text size and applies it", async () => {
-        getUserProfile.mockResolvedValue(apiProfile(false));
+        getUserProfile.mockResolvedValue(apiProfile("light"));
         render(
             <UserProfileProvider>
                 <TextSizeControls />
@@ -467,7 +522,7 @@ describe("UserProfileProvider dark mode", () => {
     });
 
     it("rolls the text size back when persistence fails", async () => {
-        getUserProfile.mockResolvedValue({ ...apiProfile(false), textSize: "xlarge" });
+        getUserProfile.mockResolvedValue({ ...apiProfile("light"), textSize: "xlarge" });
         updateUserProfile.mockRejectedValueOnce(new Error("save failed"));
         const onError = vi.fn();
         render(
@@ -564,7 +619,7 @@ describe("UserProfileProvider dark mode", () => {
 
 it("updates every profile consumer immediately after saving or removing a photo", async () => {
     const photo = "data:image/png;base64,iVBORw0KGgo=";
-    getUserProfile.mockResolvedValue(apiProfile(false));
+    getUserProfile.mockResolvedValue(apiProfile("light"));
     setUserProfilePhoto.mockImplementation(async (value: string | null) => ({ profilePhoto: value }));
     function PhotoControls() {
         const { profile, updateProfilePhoto } = useUserProfile();
@@ -708,7 +763,7 @@ describe("UserProfileProvider when the server omits apiKeyStatus", () => {
     // and the user got the placeholder profile. Every Mike backend sends the
     // field, so the sender was a forked server or a proxy/misroute.
     const withoutKeyStatus = () => {
-        const body: Partial<ReturnType<typeof apiProfile>> = apiProfile(false);
+        const body: Partial<ReturnType<typeof apiProfile>> = apiProfile("light");
         delete body.apiKeyStatus;
         return body;
     };
@@ -729,8 +784,8 @@ describe("UserProfileProvider when the server omits apiKeyStatus", () => {
 
     it.each([
         ["missing", withoutKeyStatus],
-        ["malformed", () => ({ ...apiProfile(false), apiKeyStatus: "enabled" })],
-        ["empty", () => ({ ...apiProfile(false), apiKeyStatus: {} })],
+        ["malformed", () => ({ ...apiProfile("light"), apiKeyStatus: "enabled" })],
+        ["empty", () => ({ ...apiProfile("light"), apiKeyStatus: {} })],
     ])("shows the real profile when the key status is %s, fails open and reports once", async (_case, body) => {
         getUserProfile.mockResolvedValue(body());
         renderProfile();
@@ -764,9 +819,9 @@ describe("UserProfileProvider when the server omits apiKeyStatus", () => {
     });
 
     it.each([true, false])("updates key availability when a save changes it (initially known: %s)", async (known) => {
-        getUserProfile.mockResolvedValue(known ? apiProfile(false) : withoutKeyStatus());
+        getUserProfile.mockResolvedValue(known ? apiProfile("light") : withoutKeyStatus());
         updateUserProfile.mockResolvedValue({
-            ...(known ? withoutKeyStatus() : apiProfile(false)), displayName: "Grace",
+            ...(known ? withoutKeyStatus() : apiProfile("light")), displayName: "Grace",
         });
         renderProfile();
         await screen.findByTestId("loaded");

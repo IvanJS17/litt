@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useThemeChoice } from "@/app/hooks/useThemeChoice";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import {
   SettingsDescription,
   SettingsLabel,
 } from "@/app/components/settings/SettingsText";
-import { GlassCardUI, ToggleSwitchUI } from "@mike/ui";
+import { GlassCardUI, ThemeSegmentedUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { useTranslations } from "next-intl";
@@ -18,9 +19,8 @@ import { DEFAULT_TEXT_SIZE, TEXT_SIZES, type TextSize } from "@/app/lib/textSize
 
 export default function AppearancePage() {
   const t = useTranslations();
-  const { profile, updateDarkMode, updateTextSize } = useUserProfile();
-  const [savingDarkMode, setSavingDarkMode] = useState(false);
-  const [darkModeError, setDarkModeError] = useState<string | null>(null);
+  const { profile, updateTextSize } = useUserProfile();
+  const themeChoice = useThemeChoice();
 
   const [savingTextSize, setSavingTextSize] = useState(false);
   const [textSizeError, setTextSizeError] = useState<string | null>(null);
@@ -51,46 +51,33 @@ export default function AppearancePage() {
   };
   const currentTextSize = profile.textSize ?? DEFAULT_TEXT_SIZE;
 
-  const handleDarkModeToggle = async (enabled: boolean) => {
-    if (savingDarkMode) return;
-    setSavingDarkMode(true);
-    setDarkModeError(null);
-    try {
-      await updateDarkMode(enabled);
-    } catch (toggleError) {
-      setDarkModeError(
-        userFacingApiError(
-          toggleError,
-          t("settings.appearance.couldNotUpdateTheAppearanceSetting"),
-        ),
-      );
-    } finally {
-      setSavingDarkMode(false);
-    }
-  };
-
   return (
     <section className="space-y-3">
       <SettingsHeading id="appearance">{t("settings.appearance.appearance")}</SettingsHeading>
       <GlassCardUI>
         <SettingsRow>
-          <div className="min-w-0 space-y-1">
-            <SettingsLabel>{t("settings.appearance.darkMode")}</SettingsLabel>
+          <div id="theme" className="min-w-0 space-y-1">
+            <SettingsLabel>{t("settings.appearance.theme")}</SettingsLabel>
             <SettingsDescription>
-              {t("settings.appearance.useADarkerColorPaletteThroughout")}
+              {t("settings.appearance.themeHelp")}
             </SettingsDescription>
-            {darkModeError && (
+            {themeChoice.error && (
               <p role="alert" className="text-xs text-red-600">
-                {darkModeError}
+                {themeChoice.error}
               </p>
             )}
           </div>
-          <ToggleSwitchUI
-            checked={profile.darkMode === true}
-            disabled={savingDarkMode}
-            aria-busy={savingDarkMode}
-            aria-label={t("settings.appearance.darkMode")}
-            onCheckedChange={(checked) => void handleDarkModeToggle(checked)}
+          <ThemeSegmentedUI
+            variant="settings"
+            label={t("settings.appearance.theme")}
+            value={themeChoice.theme ?? profile.theme}
+            busy={themeChoice.saving}
+            labels={{
+              light: t("settings.appearance.themeLight"),
+              dark: t("settings.appearance.themeDark"),
+              system: t("settings.appearance.themeSystem"),
+            }}
+            onChange={(next) => void themeChoice.choose(next)}
           />
         </SettingsRow>
         <SettingsRow>
