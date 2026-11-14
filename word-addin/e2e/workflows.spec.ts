@@ -464,7 +464,11 @@ test("uses a workflow by attaching it to the Assistant chat input", async ({
 
   await expect(page.getByPlaceholder("How can I help?")).toBeVisible();
   const chatInput = page.getByTestId("chat-input");
-  await expect(chatInput.getByText("Summarize document")).toBeVisible();
+  await expect(
+    chatInput.getByRole("button", {
+      name: "Open the active workflow Summarize document",
+    }),
+  ).toBeVisible();
   await expect(
     chatInput.getByRole("button", {
       name: "Deactivate the workflow Summarize document",
@@ -487,7 +491,7 @@ test("uses a workflow by attaching it to the Assistant chat input", async ({
   expect(body.document_context).toBe(
     "This Agreement is between Acme and Beta.",
   );
-  await expect(chatInput.getByText("Summarize document")).toHaveCount(0);
+  await expect(chatInput.getByRole("list", { name: "Active" })).toHaveCount(0);
 });
 
 test("can go back from one workflow and open another", async ({

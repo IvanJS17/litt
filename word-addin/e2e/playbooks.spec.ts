@@ -101,7 +101,7 @@ test("attaches a playbook from the plus menu, sends it, and shows it on the mess
   });
 
   // The attachment belongs to the message now, not the composer.
-  await expect(composer.getByText("NDA review")).toHaveCount(0);
+  await expect(composer.getByRole("list", { name: "Active" })).toHaveCount(0);
   await expect(page.getByText("One clause needs attention.")).toBeVisible();
   await expect(page.getByText("NDA review", { exact: true })).toBeVisible();
 });

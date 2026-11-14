@@ -277,6 +277,12 @@ function useActivationAnnouncement(
         setSeen({ workflow, playbook });
         setMessage(parts.join(". "));
     }
+    // A stale announcement is not left in the page for a later reader.
+    React.useEffect(() => {
+        if (!message) return;
+        const timer = setTimeout(() => setMessage(""), 4000);
+        return () => clearTimeout(timer);
+    }, [message]);
     return message;
 }
 
