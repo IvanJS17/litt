@@ -3087,8 +3087,7 @@
       "personalHeading": "My AI keys",
       "personal": "These keys are yours and apply to your personal workspace.",
       "inFirm": "These keys are yours. In {name} they are used only for providers the firm hasn’t set up: the firm’s keys come first.",
-      "blocked": "You work with the keys of {name}. Your firm does not allow using your own keys for this.",
-      "blockedNoName": "You work with your firm's keys. Your firm does not allow using your own keys for this."
+      "managedNoName": "<b>Your firm manages this.</b> You work with your firm’s keys."
     },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",
@@ -3718,7 +3717,7 @@
         "turnOnWebSearch": "turn on web search"
       },
       "allModels": "All models",
-      "anthropicRunsTheSearch": "Anthropic runs the search. Billed to your Claude API key.",
+      "anthropicRunsTheSearch": "Anthropic runs the search.",
       "couldNotLoadYourWebSearch": "Could not load your web search settings.",
       "deepseekSearchesAndReadsPages": "DeepSeek searches and reads pages. Works with any model.",
       "enableWebSearch": "Enable web search",
@@ -3726,11 +3725,16 @@
       "littSearchesWithBraveSearch": "LiTT searches with Brave Search. Works with any model.",
       "modelsOfFamily": "{name} models",
       "off": "Off",
-      "openaiRunsTheSearch": "OpenAI runs the search. Billed to your OpenAI API key.",
+      "openaiRunsTheSearch": "OpenAI runs the search.",
       "otherModels": "Other models",
       "tavilySearchesAndReadsPages": "Tavily searches and reads pages. Works with any model.",
       "theseModelsWontSearchTheWeb": "These models won't search the web.",
-      "webSearch": "Web Search"
+      "webSearch": "Web Search",
+      "charge": {
+        "personal": "Billed to your {provider} API key.",
+        "firm": "Billed to the firm’s {provider} API key.",
+        "firmThenYours": "Billed to the firm’s key; if it has none, to yours."
+      }
     },
     "splitClasses": {
       "add": "Add a type",
@@ -3881,10 +3885,10 @@
       "firmHeadingLoading": "Firm settings",
       "firmBanner": "These settings belong to {name}. Yours are in <link>Settings →</link>",
       "firmSettingsButton": "Firm settings",
-      "managedByFirmAdmin": "Your firm manages the document types when you work in {name}. Open <link>Firm settings → Scanned document reading</link>.",
-      "managedByFirmMember": "Your firm manages the document types when you work in {name}. Ask an owner or administrator to change them.",
-      "keysManagedByFirmAdmin": "Your firm decides these keys when you work in {name}. Manage them in <link>Firm settings → Firm keys</link>.",
-      "keysManagedByFirmMember": "Your firm decides these keys when you work in {name}. Ask an owner or administrator to change them."
+      "managedByFirmAdmin": "<b>Your firm manages this</b> when you work in {name}. Open it in <link>Firm settings → Scanned document reading</link>.",
+      "managedByFirmMember": "<b>Your firm manages this</b> when you work in {name}. Ask an owner or administrator to change it.",
+      "keysManagedByFirmAdmin": "<b>Your firm manages this.</b> You work with the keys of {name}. Manage them in <link>Firm settings → Firm keys</link>.",
+      "keysManagedByFirmMember": "<b>Your firm manages this.</b> You work with the keys of {name}. Ask an owner or administrator to change them."
     },
     "assistant": {
       "assistant": "What you see in the assistant",

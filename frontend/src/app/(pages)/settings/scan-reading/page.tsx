@@ -1,7 +1,8 @@
 "use client";
 
-import { SettingsCrossLink } from "@/app/components/settings/SettingsCrossLink";
-import { SettingsDescription } from "@/app/components/settings/SettingsText";
+import { SettingsManagedByFirm } from "@/app/components/settings/SettingsCrossLink";
+import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
+import { GlassCardUI } from "@mike/ui";
 import { ScanReadingSection } from "@/app/components/settings/ScanReadingSection";
 import { SplitClassesCard } from "@/app/components/settings/SplitClassesCard";
 import { useKeyScope } from "@/app/components/settings/KeyScope";
@@ -31,17 +32,25 @@ export default function ScanReadingPage() {
           save={saveUserSplitClasses}
         />
       ) : activeOrganization ? (
-        isOrgAdmin(activeOrganization.role) ? (
-          <SettingsCrossLink
-            messageKey="settings.map.managedByFirmAdmin"
-            href={firmSettingsHref(activeOrganization.id, "scan-reading")}
-            values={{ name: activeOrganization.name }}
-          />
-        ) : (
-          <SettingsDescription>
-            {t("settings.map.managedByFirmMember", { name: activeOrganization.name })}
-          </SettingsDescription>
-        )
+        // The firm's list governs here: said in a card of its own, with the
+        // same title as the list, not as a loose line.
+        <div className="space-y-3">
+          <SettingsHeading>{t("settings.splitClasses.title")}</SettingsHeading>
+          <GlassCardUI>
+            {isOrgAdmin(activeOrganization.role) ? (
+              <SettingsManagedByFirm
+                messageKey="settings.map.managedByFirmAdmin"
+                href={firmSettingsHref(activeOrganization.id, "scan-reading")}
+                values={{ name: activeOrganization.name }}
+              />
+            ) : (
+              <SettingsManagedByFirm
+                messageKey="settings.map.managedByFirmMember"
+                values={{ name: activeOrganization.name }}
+              />
+            )}
+          </GlassCardUI>
+        </div>
       ) : null}
     </div>
   );

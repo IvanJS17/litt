@@ -3087,8 +3087,7 @@
       "personalHeading": "Mis llaves de IA",
       "personal": "Estas llaves son tuyas y aplican a tu espacio personal.",
       "inFirm": "Estas llaves son tuyas. En {name} solo se usan para los proveedores que el despacho no configuró: primero van las del despacho.",
-      "blocked": "Trabajas con las llaves de {name}. Tu despacho no permite usar llaves propias para esto.",
-      "blockedNoName": "Trabajas con las llaves de tu despacho. Tu despacho no permite usar llaves propias para esto."
+      "managedNoName": "<b>Lo administra tu despacho.</b> Trabajas con las llaves de tu despacho."
     },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {invitación pendiente} other {invitaciones pendientes}}",
@@ -3718,7 +3717,7 @@
         "turnOnWebSearch": "activar la búsqueda web"
       },
       "allModels": "Todos los modelos",
-      "anthropicRunsTheSearch": "Anthropic hace la búsqueda. Se cobra a tu llave de API de Claude.",
+      "anthropicRunsTheSearch": "Anthropic hace la búsqueda.",
       "couldNotLoadYourWebSearch": "No se pudieron cargar tus ajustes de búsqueda web.",
       "deepseekSearchesAndReadsPages": "DeepSeek busca y lee páginas. Funciona con cualquier modelo.",
       "enableWebSearch": "Activar búsqueda web",
@@ -3726,11 +3725,16 @@
       "littSearchesWithBraveSearch": "LiTT busca con Brave Search. Funciona con cualquier modelo.",
       "modelsOfFamily": "Modelos de {name}",
       "off": "Desactivada",
-      "openaiRunsTheSearch": "OpenAI hace la búsqueda. Se cobra a tu llave de API de OpenAI.",
+      "openaiRunsTheSearch": "OpenAI hace la búsqueda.",
       "otherModels": "Otros modelos",
       "tavilySearchesAndReadsPages": "Tavily busca y lee páginas. Funciona con cualquier modelo.",
       "theseModelsWontSearchTheWeb": "Estos modelos no buscarán en la web.",
-      "webSearch": "Búsqueda web"
+      "webSearch": "Búsqueda web",
+      "charge": {
+        "personal": "Se cobra a tu llave de API de {provider}.",
+        "firm": "Se cobra a la llave de API de {provider} del despacho.",
+        "firmThenYours": "Se cobra a la llave del despacho; si no tiene, a la tuya."
+      }
     },
     "splitClasses": {
       "add": "Agregar un tipo",
@@ -3881,10 +3885,10 @@
       "firmHeadingLoading": "Ajustes del despacho",
       "firmBanner": "Estos ajustes son de {name}. Los tuyos están en <link>Ajustes →</link>",
       "firmSettingsButton": "Ajustes del despacho",
-      "managedByFirmAdmin": "Tu despacho administra los tipos de documento cuando trabajas en {name}. Abre <link>Ajustes del despacho → Lectura de escaneados</link>.",
-      "managedByFirmMember": "Tu despacho administra los tipos de documento cuando trabajas en {name}. Pide a un propietario o administrador que los cambie.",
-      "keysManagedByFirmAdmin": "Tu despacho decide estas llaves cuando trabajas en {name}. Adminístralas en <link>Ajustes del despacho → Llaves del despacho</link>.",
-      "keysManagedByFirmMember": "Tu despacho decide estas llaves cuando trabajas en {name}. Pide a un propietario o administrador que las cambie."
+      "managedByFirmAdmin": "<b>Lo administra tu despacho</b> cuando trabajas en {name}. Ábrelo en <link>Ajustes del despacho → Lectura de escaneados</link>.",
+      "managedByFirmMember": "<b>Lo administra tu despacho</b> cuando trabajas en {name}. Pide a un propietario o administrador que lo cambie.",
+      "keysManagedByFirmAdmin": "<b>Lo administra tu despacho.</b> Trabajas con las llaves de {name}. Adminístralas en <link>Ajustes del despacho → Llaves del despacho</link>.",
+      "keysManagedByFirmMember": "<b>Lo administra tu despacho.</b> Trabajas con las llaves de {name}. Pide a un propietario o administrador que las cambie."
     },
     "assistant": {
       "assistant": "Lo que ves en el asistente",

@@ -88,7 +88,7 @@ describe("privacy-data async exports", () => {
         }
         for (const button of screen.getAllByRole("button", { name: /^Delete|^Delete all/ })) {
             expect(button.className).not.toMatch(/bg-red-600/);
-            expect(button).toHaveClass("text-red-600");
+            expect(button).toHaveClass("text-[var(--litt-danger-text)]");
         }
     });
 

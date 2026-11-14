@@ -1,13 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-    FirmKeysLink,
-    PersonalKeysBlockedNotice,
-    useKeyScope,
-} from "@/app/components/settings/KeyScope";
+import { FirmKeysManaged, useKeyScope } from "@/app/components/settings/KeyScope";
 import { PersonalProviderKeys } from "@/app/components/settings/PersonalProviderKeys";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
+import { GlassCardUI } from "@mike/ui";
 
 export default function ByokPage() {
     const t = useTranslations();
@@ -20,8 +17,9 @@ export default function ByokPage() {
         return (
             <div className="space-y-3">
                 <SettingsHeading>{t("settings.keyScope.personalHeading")}</SettingsHeading>
-                <PersonalKeysBlockedNotice />
-                <FirmKeysLink />
+                <GlassCardUI>
+                    <FirmKeysManaged />
+                </GlassCardUI>
             </div>
         );
     return (

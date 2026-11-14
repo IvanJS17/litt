@@ -3,8 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
-import { SettingsDescription } from "@/app/components/settings/SettingsText";
-import { SettingsCrossLink } from "@/app/components/settings/SettingsCrossLink";
+import { SettingsManagedByFirm } from "@/app/components/settings/SettingsCrossLink";
 import { firmSettingsHref } from "@/app/lib/settingsMap";
 import { isOrgAdmin } from "@/app/lib/permissions";
 import type { KeyCapability, OrgApiKeySettings } from "@/app/lib/mikeApi";
@@ -57,39 +56,24 @@ export function usePersonalKeysScope(): string {
         : t("settings.keyScope.personal");
 }
 
-/** Shown in place of own-key controls in a firm that does not allow them. */
-export function PersonalKeysBlockedNotice() {
-    const t = useTranslations();
-    const { firmName } = useKeyScope();
-    return (
-        <SettingsDescription>
-            {/* Before the name loads there is no subject to start with: the
-                sentence without one, never " te da los modelos…". */}
-            {firmName ? t("settings.keyScope.blocked", { name: firmName }) : t("settings.keyScope.blockedNoName")}
-        </SettingsDescription>
-    );
-}
-
 /**
- * Where the keys are decided when the firm's apply instead of the person's: a
- * link to «Ajustes del despacho → Llaves del despacho» for those who manage
- * it, and who to ask for everyone else. Never a copy of the firm's form.
+ * «Lo administra tu despacho», for the keys: the first row of the card whose
+ * keys the firm decides. Those who manage the firm get a link to «Ajustes del
+ * despacho → Llaves del despacho»; everyone else, whom to ask. Never a copy of
+ * the firm's form.
  */
-export function FirmKeysLink() {
-    const t = useTranslations();
+export function FirmKeysManaged() {
     const { activeOrganization } = useWorkspace();
-    if (!activeOrganization) return null;
+    // Before the firm is known: the same message without its name.
+    if (!activeOrganization) return <SettingsManagedByFirm messageKey="settings.keyScope.managedNoName" />;
+    const values = { name: activeOrganization.name };
     if (!isOrgAdmin(activeOrganization.role))
-        return (
-            <SettingsDescription>
-                {t("settings.map.keysManagedByFirmMember", { name: activeOrganization.name })}
-            </SettingsDescription>
-        );
+        return <SettingsManagedByFirm messageKey="settings.map.keysManagedByFirmMember" values={values} />;
     return (
-        <SettingsCrossLink
+        <SettingsManagedByFirm
             messageKey="settings.map.keysManagedByFirmAdmin"
             href={firmSettingsHref(activeOrganization.id, "providers")}
-            values={{ name: activeOrganization.name }}
+            values={values}
         />
     );
 }

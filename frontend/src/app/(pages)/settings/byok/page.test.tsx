@@ -347,16 +347,15 @@ describe("BYOK page cloud-platform keys", () => {
         workspace.firm = { name: "Socium" };
         workspace.allowPersonal = false;
         render(<ByokPage />);
-        expect(
-            screen.getByText("You work with the keys of Socium. Your firm does not allow using your own keys for this."),
-        ).toBeVisible();
+        expect(screen.getByText("Your firm manages this.")).toBeVisible();
+        expect(screen.getByText(/You work with the keys of Socium\./)).toBeVisible();
         // Never a copy of the firm's form: a link to it, in the firm's settings.
         expect(screen.getByRole("link", { name: "Firm settings → Firm keys" })).toHaveAttribute(
             "href",
             "/organizations/firm-1/settings/providers",
         );
         // The restriction is said once, under the title, not repeated as a setting.
-        expect(screen.getAllByText(/does not allow using your own keys for this/)).toHaveLength(1);
+        expect(screen.getAllByText("Your firm manages this.")).toHaveLength(1);
         expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
         expect(screen.queryByRole("region", { name: "Saved Providers" })).not.toBeInTheDocument();
     });
@@ -390,6 +389,6 @@ describe("BYOK page for a firm-managed account", () => {
     it("says why even before the firm is known", () => {
         const { container } = render(<ByokPage />);
         expect(container).not.toBeEmptyDOMElement();
-        expect(screen.getByText(/Your firm does not allow using your own keys for this/)).toBeVisible();
+        expect(screen.getByText("Your firm manages this.")).toBeVisible();
     });
 });

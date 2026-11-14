@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import {
   authInputUIClassName,
@@ -21,6 +22,8 @@ export type SettingsSelectOption = {
   value: string;
   label: string;
   description: string;
+  /** A notice shown under the description while this option is chosen. */
+  notice?: ReactNode;
 };
 
 /**
@@ -49,7 +52,10 @@ export function SettingsSelectRow({
       <div className="min-w-0 space-y-1">
         <SettingsLabel>{label}</SettingsLabel>
         {selected ? (
-          <SettingsDescription>{selected.description}</SettingsDescription>
+          <>
+            <SettingsDescription>{selected.description}</SettingsDescription>
+            {selected.notice}
+          </>
         ) : (
           <div
             className="h-5 w-56 max-w-full animate-pulse rounded bg-app-surface"
