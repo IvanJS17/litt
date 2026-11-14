@@ -10,6 +10,7 @@
 export * from "./LiquidGlassUI";
 export * from "./AuthStylesUI";
 export * from "./ComposerSendButtonUI.styles";
+export * from "./ComposerSurfaceUI.styles";
 export * from "./SendArrowUI";
 
 // Buttons and pills

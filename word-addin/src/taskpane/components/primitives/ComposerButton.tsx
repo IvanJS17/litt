@@ -1,4 +1,8 @@
 import React from "react";
+import {
+  COMPOSER_GHOST_BUTTON_CLASS,
+  COMPOSER_GHOST_WORD_SIZE_CLASS,
+} from "@mike/ui";
 import { cn } from "../../../shared/lib/utils";
 
 type ComposerButtonProps = React.ComponentProps<"button"> & {
@@ -7,7 +11,8 @@ type ComposerButtonProps = React.ComponentProps<"button"> & {
 
 /**
  * Compact composer action adapted from the frontend's document and workflow
- * controls. It stays label-free in the narrow Word pane while retaining a
+ * controls: the ghost button of the send button's family (32 px, 10 px
+ * corners). It stays label-free in the narrow Word pane while retaining a
  * descriptive tooltip and accessible name.
  */
 export function ComposerButton({
@@ -20,10 +25,9 @@ export function ComposerButton({
     <button
       type={type}
       className={cn(
-        "flex h-8 items-center gap-1.5 rounded-lg px-2 text-sm transition-colors",
-        active
-          ? "text-gray-700 hover:text-gray-900"
-          : "text-gray-400 hover:text-gray-700",
+        COMPOSER_GHOST_BUTTON_CLASS,
+        COMPOSER_GHOST_WORD_SIZE_CLASS,
+        active && "text-gray-700",
         className
       )}
       {...props}

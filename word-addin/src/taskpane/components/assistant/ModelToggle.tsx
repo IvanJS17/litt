@@ -117,6 +117,7 @@ export function ModelToggle({
       selectedAvailable={selected !== undefined}
       loading={keyStatusLoading}
       compact={compact}
+      controlSize="word"
       emptyLabel={t("word.noModels")}
       onEmptyClick={onNoModelsClick}
       reasoningLevel={normalizedReasoningLevel}

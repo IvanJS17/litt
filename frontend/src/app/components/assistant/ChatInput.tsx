@@ -73,8 +73,11 @@ import {
 import type { Document, Message, Workflow } from "../shared/types";
 import type { DirectoryTab } from "../shared/useDirectoryData";
 import { cn } from "@/app/lib/utils";
-import { TOUCH_TARGET_CLASS } from "@mike/ui";
-import { LIQUID_GLASS_TRANSLUCENT_CLASS } from "@/app/components/ui/liquid-surface";
+import {
+    COMPOSER_SURFACE_CLASS,
+    COMPOSER_SURFACE_WEB_RADIUS_CLASS,
+    TOUCH_TARGET_CLASS,
+} from "@mike/ui";
 import {
     UploadBatchError,
     failedUploadMessage,
@@ -958,8 +961,8 @@ function ChatInputForChatImpl(
                 )}
                 <div
                     className={cn(
-                        "rounded-[21px]",
-                        LIQUID_GLASS_TRANSLUCENT_CLASS,
+                        COMPOSER_SURFACE_WEB_RADIUS_CLASS,
+                        COMPOSER_SURFACE_CLASS,
                     )}
                 >
                     {/* Attached chips */}
@@ -1107,7 +1110,7 @@ function ChatInputForChatImpl(
                     ) : null}
 
                     {/* Input */}
-                    <div className="px-4 pt-4">
+                    <div className="px-3.5 pt-3.5">
                         <textarea
                             ref={textareaRef}
                             rows={1}
@@ -1143,7 +1146,7 @@ function ChatInputForChatImpl(
                     {/* Controls */}
                     <div
                         ref={controlsRef}
-                        className="flex items-center justify-between py-2 pr-2 pl-1.5"
+                        className="flex items-center justify-between p-2"
                     >
                         <div className="flex items-center gap-1">
                             {!hideAddDocButton && composerOpen && (
@@ -1189,10 +1192,7 @@ function ChatInputForChatImpl(
                                     routerSelections={savedRouterSelections}
                                     compact={compactControls}
                                     compactShowsName
-                                    triggerClassName={cn(
-                                        TOUCH_TARGET_CLASS,
-                                        "h-7.5 pointer-coarse:h-9",
-                                    )}
+                                    triggerClassName={TOUCH_TARGET_CLASS}
                                     onNoModelsClick={setNoModelsWarning}
                                     reasoningLevel={reasoningLevel}
                                     onReasoningChange={handleReasoningChange}

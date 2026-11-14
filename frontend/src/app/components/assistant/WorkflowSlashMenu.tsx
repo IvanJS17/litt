@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { Workflow } from "../shared/types";
 import { workflowSlashCommand } from "./workflowSlashCommands";
-import { LIQUID_GLASS_TRANSLUCENT_CLASS } from "@/app/components/ui/liquid-surface";
+import { COMPOSER_MENU_CLASS } from "@mike/ui";
 import { useTranslations } from "next-intl";
 
 export const WORKFLOW_SLASH_MENU_ID = "workflow-slash-menu";
@@ -29,7 +29,7 @@ export function WorkflowSlashMenu({ workflows, activeIndex, onSelect }: Props) {
             id={WORKFLOW_SLASH_MENU_ID}
             role="listbox"
             aria-label={t("assistant.workflowSlashMenu.workflowCommands")}
-            className={`absolute bottom-full left-0 mb-1.5 grid max-h-64 w-full gap-1 overflow-y-auto rounded-[18px] p-1 overscroll-contain md:rounded-[22px] ${LIQUID_GLASS_TRANSLUCENT_CLASS}`}
+            className={`absolute bottom-full left-0 mb-1.5 grid max-h-64 w-full gap-1 overflow-y-auto rounded-[14px] p-1.5 overscroll-contain ${COMPOSER_MENU_CLASS}`}
         >
             {workflows.map((workflow, index) => {
                 const trigger = workflowSlashCommand(workflow);
@@ -45,7 +45,7 @@ export function WorkflowSlashMenu({ workflows, activeIndex, onSelect }: Props) {
                         aria-label={`${trigger} ${workflow.metadata.title}`}
                         aria-selected={active}
                         onClick={() => onSelect(workflow)}
-                        className={`theme-dropdown-item flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                        className={`theme-dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                             active
                                 ? "theme-dropdown-selected text-gray-900"
                                 : "text-gray-700"

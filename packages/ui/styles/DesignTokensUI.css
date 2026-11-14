@@ -122,6 +122,36 @@
     --litt-send-fg-disabled: #8d9093;
     --litt-send-edge: transparent;
     --litt-send-edge-hover: transparent;
+    /* Chat composer, "hoja" (owner decision, 2026-11-13): an opaque sheet with
+       a 1 px ring and one soft shadow, no glass. The focus ring is neutral,
+       tinta or papel, never amber: a text field always counts as focused, so
+       amber would stay lit while typing. Ring 1.45:1 and focus 2.44:1 on
+       papel. The menu surface is the model picker's; the chip tokens are for
+       the labels of what travels with a message (soft sheet for attachments,
+       firm outline for what is switched on: 3.87:1). */
+    --litt-composer-surface: #fbfbf9;
+    --litt-composer-ring: rgb(21 26 38 / 18%);
+    --litt-composer-ring-focus: rgb(21 26 38 / 40%);
+    --litt-composer-shadow:
+        0 1px 2px rgb(21 26 38 / 6%), 0 8px 20px -10px rgb(21 26 38 / 18%);
+    --litt-composer-menu-surface: #fbfbf9;
+    --litt-composer-menu-shadow:
+        0 0 0 1px rgb(21 26 38 / 12%), 0 12px 32px -12px rgb(21 26 38 / 28%);
+    --litt-composer-chip: rgb(21 26 38 / 6%);
+    --litt-composer-chip-ring: rgb(21 26 38 / 12%);
+    --litt-composer-active-ring: rgb(21 26 38 / 55%);
+    --litt-composer-active-key: rgb(21 26 38 / 7%);
+    /* Reasoning ladder: empty steps are an outline (tinta 50 % / papel 40 %),
+       and the thumbnail beside the model name is tinta at 18 % / papel at
+       22 % when empty. */
+    --litt-ladder-outline: rgb(21 26 38 / 50%);
+    --litt-ladder-mini-off: rgb(21 26 38 / 18%);
+    /* The filled menu steps are amber (approved exception to rule 7,
+       2026-11-13): ámbar tinta at 70, 80, 90 and 100 %, each mixed onto the
+       menu surface so none is transparent. */
+    --litt-ladder-amber: var(--litt-ambar-tinta);
+    --litt-ladder-amber-min: 70%;
+    --litt-ladder-amber-max: 100%;
     /* LittStatusMarkUI (approved motion exception, 2026-11-13). Done is the
        one green in the product's marks: emerald-700, 4.22–5.48:1 on white,
        papel, #f9f9f7 and #e2e2dd. The rule and the error outline are
@@ -209,6 +239,24 @@
     --litt-send-fg-disabled: color-mix(in srgb, var(--litt-papel) 38%, transparent);
     --litt-send-edge: color-mix(in srgb, var(--litt-papel) 24%, transparent);
     --litt-send-edge-hover: color-mix(in srgb, var(--litt-papel) 40%, transparent);
+    /* Chat composer, dark: see the light block. Ring 1.46:1, focus 2.63:1;
+       the outline of what is switched on is 4.46:1. */
+    --litt-composer-surface: #1b202c;
+    --litt-composer-ring: rgb(236 236 230 / 14%);
+    --litt-composer-ring-focus: rgb(236 236 230 / 32%);
+    --litt-composer-shadow: 0 8px 24px -12px rgb(0 0 0 / 55%);
+    --litt-composer-menu-surface: #1f2430;
+    --litt-composer-menu-shadow:
+        0 0 0 1px rgb(236 236 230 / 13%), 0 16px 40px -12px rgb(0 0 0 / 60%);
+    --litt-composer-chip: rgb(236 236 230 / 8%);
+    --litt-composer-chip-ring: rgb(236 236 230 / 14%);
+    --litt-composer-active-ring: rgb(236 236 230 / 50%);
+    --litt-composer-active-key: rgb(236 236 230 / 10%);
+    --litt-ladder-outline: rgb(236 236 230 / 40%);
+    --litt-ladder-mini-off: rgb(236 236 230 / 22%);
+    /* Dark: ámbar fósforo at 55 to 100 % on the menu surface. */
+    --litt-ladder-amber: var(--litt-ambar-fosforo);
+    --litt-ladder-amber-min: 55%;
     /* Dark: emerald-400 (6.97–9.05:1 on tinta and its raised surfaces), the
        400 steps of the four hues, and the dark gray-500. */
     --litt-status-done: #34d399;
@@ -439,4 +487,39 @@ button:enabled:hover .litt-send-glyph[data-stop="false"] .lsg-arrow {
     button:enabled:hover .litt-send-glyph[data-stop="false"] .lsg-arrow {
         transform: rotate(var(--lsg-rot, 0deg));
     }
+}
+
+/* ---------------------------------------------------------------------------
+   Chat composer sheet (web and Word). Opaque, no backdrop-filter. The ring is
+   a 1 px box-shadow and the focus ring 1.5 px, both neutral. Only the shadow
+   animates (150 ms) and not under reduced motion. The caret is the text
+   color: tinta or papel, never amber. Radii come from the classes in
+   ComposerSurfaceUI.styles.ts (the send button's radius plus the 8 px margin).
+   --------------------------------------------------------------------------- */
+.litt-composer {
+    background-color: var(--litt-composer-surface);
+    box-shadow:
+        0 0 0 1px var(--litt-composer-ring), var(--litt-composer-shadow);
+    transition: box-shadow 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.litt-composer:focus-within {
+    box-shadow:
+        0 0 0 1.5px var(--litt-composer-ring-focus),
+        var(--litt-composer-shadow);
+}
+.litt-composer textarea {
+    caret-color: currentColor;
+}
+@media (prefers-reduced-motion: reduce) {
+    .litt-composer {
+        transition: none;
+    }
+}
+
+/* The composer's menus. The doubled class outranks .liquid-glass-float's
+   shadow when a Dropdown, which carries that class, wears this surface. */
+.litt-composer-menu.litt-composer-menu {
+    border: 0;
+    background-color: var(--litt-composer-menu-surface);
+    box-shadow: var(--litt-composer-menu-shadow);
 }

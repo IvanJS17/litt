@@ -12,6 +12,13 @@ import { twMerge } from "tailwind-merge";
 import { TabPillButtonUI } from "./TabPillButtonUI";
 import { textButtonUIClassName } from "./TextButtonUI.styles";
 import {
+  COMPOSER_GHOST_BUTTON_CLASS,
+  COMPOSER_GHOST_WEB_ICON_CLASS,
+  COMPOSER_GHOST_WEB_SIZE_CLASS,
+  COMPOSER_GHOST_WORD_ICON_CLASS,
+  COMPOSER_GHOST_WORD_SIZE_CLASS,
+} from "./ComposerSurfaceUI.styles";
+import {
   DROPDOWN_ROWS_CLASS,
   Dropdown,
   DropdownContent,
@@ -208,6 +215,8 @@ export interface ModelToggleUIProps {
   toolbar?: boolean;
   /** Extra classes for the compact trigger button, for a host row's sizing. */
   triggerClassName?: string;
+  /** The ghost button's size: the web's 30 px (40 with a finger) or Word's 32 px. */
+  controlSize?: "web" | "word";
   emptyLabel?: string;
   onEmptyClick?: () => void;
   reasoningLevel?: ReasoningLevel;
@@ -245,6 +254,7 @@ export function ModelToggleUI({
   modalInput = false,
   toolbar = false,
   triggerClassName,
+  controlSize = "web",
   emptyLabel,
   onEmptyClick,
   reasoningLevel,
@@ -350,7 +360,18 @@ export function ModelToggleUI({
               : modalInput
               ? `keyboard-focus-ring flex h-10 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm text-gray-700 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${open ? LIQUID_GLASS_SELECTED_CLASS : ""}`
               : twMerge(
-                  `keyboard-focus-ring flex h-8 shrink-0 items-center rounded-lg text-sm ${tone === "default" || selected ? "text-gray-700 enabled:hover:text-gray-900 disabled:hover:text-gray-700" : "text-gray-400 enabled:hover:text-gray-700 disabled:hover:text-gray-400"} transition-colors enabled:cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${compact ? (compactShowsName ? "gap-1 px-2" : "w-8 justify-center px-0") : "gap-1.5 px-2"} ${open ? "text-gray-700" : ""}`,
+                  COMPOSER_GHOST_BUTTON_CLASS,
+                  controlSize === "word"
+                    ? COMPOSER_GHOST_WORD_SIZE_CLASS
+                    : COMPOSER_GHOST_WEB_SIZE_CLASS,
+                  compact && !compactShowsName
+                    ? controlSize === "word"
+                      ? COMPOSER_GHOST_WORD_ICON_CLASS
+                      : COMPOSER_GHOST_WEB_ICON_CLASS
+                    : "",
+                  tone === "default" || selected
+                    ? "text-gray-700"
+                    : "text-gray-500",
                   triggerClassName,
                 )
           }

@@ -183,8 +183,8 @@ describe("ModelToggle responsive trigger", () => {
         );
 
         const trigger = screen.getByRole("button", { name: "Choose model" });
-        expect(trigger).toHaveClass("rounded-lg");
-        expect(trigger).not.toHaveClass("w-8");
+        expect(trigger).toHaveClass("rounded-[9px]");
+        expect(trigger).not.toHaveClass("w-7.5");
         expect(trigger).toHaveTextContent("Fable 5.2");
         expect(trigger).not.toHaveTextContent("Claude");
         // The full name is still the trigger's title.
@@ -194,7 +194,7 @@ describe("ModelToggle responsive trigger", () => {
     it("keeps the icon in a compact host that did not ask for the name (the Word pane)", () => {
         render(<ModelToggle value="gemini-3.8-flash" onChange={vi.fn()} apiKeys={keys({ gemini: true })} compact />);
         const trigger = screen.getByRole("button", { name: "Choose model" });
-        expect(trigger).toHaveClass("w-8");
+        expect(trigger).toHaveClass("w-7.5");
         expect(trigger).not.toHaveTextContent("Gemini");
         expect(trigger.querySelector("svg")).toBeInTheDocument();
     });
@@ -205,7 +205,7 @@ describe("ModelToggle responsive trigger", () => {
         );
         expect(screen.getByRole("button", { name: "Choose model" })).toHaveClass("text-gray-700");
         rerender(<ModelToggle value="" onChange={vi.fn()} apiKeys={keys({ gemini: true })} />);
-        expect(screen.getByRole("button", { name: "Choose model" })).toHaveClass("text-gray-400");
+        expect(screen.getByRole("button", { name: "Choose model" })).toHaveClass("text-gray-500");
     });
 
     it("rings the trigger for the keyboard only, not after a tap", () => {

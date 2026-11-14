@@ -540,7 +540,8 @@ Use the lowest tier that communicates the required depth:
 | Subtle | `liquid-glass-subtle` | Modal inputs, dropdown triggers, tab pills, PageHeader actions, and search/select controls. |
 | Float | `liquid-glass-float` | Solid-fill open dropdowns/submenus, `AppSidebar`, and persistent app/assistant/document/tabular side panels. Uses the original AppSidebar shadow depth. |
 | Modal | `liquid-glass-modal` | The modal frame only; modal contents use the appropriate general tier. |
-| Translucent | `liquid-glass-translucent` | Chat composer, ask-input surfaces, slash menus, and other translucent content overlays. |
+| Translucent | `liquid-glass-translucent` | Ask-input surfaces and other translucent content overlays that float over messages. The chat composer is not glass (see Composer). |
+| Composer | `COMPOSER_SURFACE_CLASS` (`litt-composer`) | The chat composer on the web and in Word, and its menus (model picker, slash menu): an opaque sheet with a 1 px ring and one soft shadow, `--litt-composer-*` tokens in `DesignTokensUI.css`, and a neutral (tinta or papel, never amber) focus ring and caret. Radii: 17 px, 20 px with a finger, 18 px in Word. |
 | Translucent action modifier | `liquid-glass-translucent-action` | Compact over-message actions such as scroll-to-bottom; use with `liquid-glass-translucent`. |
 
 Interactive color is separate from elevation so every tier can share one

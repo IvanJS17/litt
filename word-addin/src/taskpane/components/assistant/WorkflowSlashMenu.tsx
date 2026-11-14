@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import type { Workflow } from "../../types";
-import { workflowSlashCommandFromTitle } from "@mike/ui";
+import { COMPOSER_MENU_CLASS, workflowSlashCommandFromTitle } from "@mike/ui";
 import { useTranslations } from "use-intl";
 
 export const WORD_WORKFLOW_SLASH_MENU_ID = "word-workflow-slash-menu";
@@ -28,7 +28,7 @@ export function WorkflowSlashMenu({
       id={WORD_WORKFLOW_SLASH_MENU_ID}
       role="listbox"
       aria-label={t("word.workflowCommands")}
-      className="liquid-glass-translucent absolute bottom-full left-0 z-10 mb-1.5 grid max-h-56 w-full gap-1 overflow-y-auto rounded-[18px] p-1 overscroll-contain"
+      className={`${COMPOSER_MENU_CLASS} absolute bottom-full left-0 z-10 mb-1.5 grid max-h-56 w-full gap-1 overflow-y-auto rounded-[14px] p-1.5 overscroll-contain`}
     >
       {workflows.map((workflow, index) => {
         const command = workflowSlashCommandFromTitle(workflow.metadata.title);
@@ -44,7 +44,7 @@ export function WorkflowSlashMenu({
             aria-label={`${command} ${workflow.metadata.title}`}
             aria-selected={active}
             onClick={() => onSelect(workflow)}
-            className={`theme-dropdown-item flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+            className={`theme-dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
               active
                 ? "theme-dropdown-selected text-gray-900"
                 : "text-gray-700"
