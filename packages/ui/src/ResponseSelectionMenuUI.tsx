@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, Copy, MessageSquare, TextQuote } from "lucide-react";
+import { Copy, MessageSquare, TextQuote } from "lucide-react";
 import { DropdownAtPoint, DropdownItem, DropdownSurface } from "./dropdown";
 import { COMPOSER_SEND_BUTTON_CLASS } from "./ComposerSendButtonUI.styles";
+import { SendArrowUI } from "./SendArrowUI";
 import {
     normalizeExcerptContext,
     normalizeExcerptNote,
@@ -288,9 +289,9 @@ function AnnotationBubble({
                     type="submit"
                     aria-label={t("ui.responseSelectionMenu.addAnnotationToChat")}
                     disabled={!trimmed}
-                    className={`${COMPOSER_SEND_BUTTON_CLASS} h-7 w-7 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus`}
+                    className={`${COMPOSER_SEND_BUTTON_CLASS} h-7 w-7 shrink-0 rounded-lg`}
                 >
-                    <ArrowUp aria-hidden="true" className="h-3.5 w-3.5" />
+                    <SendArrowUI direction="up" />
                 </button>
             </form>
         </DropdownSurface>,

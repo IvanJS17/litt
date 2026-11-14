@@ -1,7 +1,16 @@
 /**
- * The black gradient surface of the composer's send button, without its size
- * or corner radius. Shared so every control that sends something into the
- * chat, on the web and in the Word add-in, is the same button.
+ * The surface of the composer's send button, without its size or corner
+ * radius. Shared so every control that sends something into the chat, on the
+ * web and in the Word add-in, is the same button.
+ *
+ * Option "A" (owner decision, 2026-11-13): tinta fill, ámbar fósforo arrow,
+ * soft corners. It is an approved exception to DESIGN.md rule 7 (amber never
+ * outside the square): the amber arrow appears ONLY in the ready state. The
+ * disabled button is gray and "Stop" is a papel square on tinta; neither has
+ * amber. Every color is a `--litt-send-*` token in `DesignTokensUI.css`, so
+ * both themes and the Word add-in share them. The dark theme's papel edge is
+ * the inset ring. Draw the glyph with `SendArrowUI`. Keyboard focus is the
+ * global outline; the disabled state is a real `disabled`.
  */
 export const COMPOSER_SEND_BUTTON_CLASS =
-    "relative flex cursor-pointer items-center justify-center border-0 bg-gradient-to-b from-neutral-700 to-black text-white transition-[transform,opacity,box-shadow] duration-150 active:enabled:scale-95 disabled:cursor-default disabled:from-neutral-600 disabled:to-black shadow-[0_3px_9px_rgba(21,26,38,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.10),inset_-4px_-4px_9px_rgba(21,26,38,0.2)]";
+    "relative flex cursor-pointer items-center justify-center border-0 bg-[var(--litt-send-bg)] text-[var(--litt-send-fg)] shadow-[inset_0_0_0_1px_var(--litt-send-edge)] transition-[transform,background-color,box-shadow] duration-150 motion-reduce:transition-none enabled:hover:bg-[var(--litt-send-bg-hover)] enabled:hover:shadow-[inset_0_0_0_1px_var(--litt-send-edge-hover)] active:enabled:scale-95 disabled:cursor-default disabled:bg-[var(--litt-send-bg-disabled)] disabled:text-[var(--litt-send-fg-disabled)] disabled:shadow-none";
