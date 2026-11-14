@@ -28,6 +28,14 @@ describe("es-MX vocabulary", () => {
         expect(offenders).toEqual([]);
     });
 
+    it("says «propietario» for a firm's owner (and for the owner of a project), never «dueño»", () => {
+        const offenders = leaves(esMX as Tree)
+            .filter(([path]) => !SEARCH_KEYWORDS.test(path))
+            .filter(([, text]) => /\bdue[ñn]o|\bdue[ñn]a/i.test(text))
+            .map(([path, text]) => `${path}: ${text}`);
+        expect(offenders).toEqual([]);
+    });
+
     it("names the firm's keys «Llaves del despacho», keeping «Mis llaves de IA» for the person’s own", () => {
         const org = (esMX as Tree).organizations as Tree;
         expect((org.organizationProvidersSettings as Tree).bringYourOwnKeys).toBe("Llaves del despacho");

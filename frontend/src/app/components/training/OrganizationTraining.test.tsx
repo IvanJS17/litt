@@ -120,7 +120,11 @@ describe("Ajustes del despacho → Formación, for an owner or admin", () => {
         renderEs(<OrganizationTraining />);
         await screen.findByRole("switch", { name: "Mentor: Dora Dueña" });
         expect(screen.queryByRole("combobox", { name: "Elegir mentor para Dora Dueña" })).toBeNull();
-        expect(screen.getByText("El dueño y los administradores no pueden ser aprendices.")).toBeInTheDocument();
+        // The role is a tag on the row, not a sentence under it; the rule is under «Más información».
+        expect(screen.getByText("Propietario")).toBeVisible();
+        // «Not verified» is a notice: in view, never folded.
+        expect(screen.getByText("No son derecho vigente y LiTT no las verifica.").closest("details")).toBeNull();
+        expect(screen.getByText(/nunca aprendices/).closest("details")).not.toBeNull();
         // They can be mentors.
         expect(screen.getByRole("switch", { name: "Mentor: Dora Dueña" })).not.toBeChecked();
     });

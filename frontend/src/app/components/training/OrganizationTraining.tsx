@@ -5,7 +5,7 @@ import { GlassCardUI, ToggleSwitchUI } from "@mike/ui";
 import { useTranslations } from "next-intl";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
-import { SettingsDescription } from "@/app/components/settings/SettingsText";
+import { SettingsDescription, SettingsMoreInfo, SettingsTag } from "@/app/components/settings/SettingsText";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
 import { useOrganizationSettings } from "@/app/components/organizations/OrganizationSettingsShell";
 import {
@@ -132,7 +132,10 @@ function MentorsAndPupils({ orgId }: { orgId: string }) {
     return (
         <section className="space-y-3">
             <SettingsHeading id="mentores-y-aprendices">{t("training.org.mentorsHeading")}</SettingsHeading>
-            <SettingsDescription>{t("training.org.mentorsHelp")}</SettingsDescription>
+            <SettingsDescription>{t("training.org.mentorsHelpShort")}</SettingsDescription>
+            <SettingsMoreInfo>
+                <SettingsDescription>{t("training.org.mentorsHelpMore")}</SettingsDescription>
+            </SettingsMoreInfo>
             {loadError && <p className="text-sm text-red-600">{loadError}</p>}
             {overview !== null && overview.mentors.length === 0 && (
                 <SettingsDescription>{t("training.org.noMentorsYet")}</SettingsDescription>
@@ -155,7 +158,16 @@ function MentorsAndPupils({ orgId }: { orgId: string }) {
                         return (
                             <SettingsRow key={member.user_id} layout="stacked">
                                 <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                                    <MemberIdentity member={member} userId={member.user_id} />
+                                    <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1.5">
+                                        <MemberIdentity member={member} userId={member.user_id} />
+                                        {/* An owner or administrator is never a pupil: the tag says
+                                            the role instead of a sentence under every row. */}
+                                        {!canBePupil ? (
+                                            <SettingsTag kind="audience">
+                                                {t(member.role === "owner" ? "organizations.role.owner.label" : "organizations.role.admin.label")}
+                                            </SettingsTag>
+                                        ) : null}
+                                    </div>
                                     <label className="flex shrink-0 items-center gap-2 text-sm text-gray-700">
                                         {t("training.mentor")}
                                         <ToggleSwitchUI
@@ -189,9 +201,7 @@ function MentorsAndPupils({ orgId }: { orgId: string }) {
                                             className="min-w-0 flex-1 basis-56"
                                         />
                                     </div>
-                                ) : (
-                                    <p className="text-sm text-gray-500">{t("training.org.cannotBePupil")}</p>
-                                )}
+                                ) : null}
                             </SettingsRow>
                         );
                     })

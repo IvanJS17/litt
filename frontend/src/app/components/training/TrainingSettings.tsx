@@ -265,7 +265,7 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
                 operation: "training.manage",
                 codeMessages: {
                     training_pupil_has_mentor:
-                        "Esta persona ya tiene mentor. Solo el dueño o un administrador puede cambiarlo.",
+                        "Esta persona ya tiene mentor. Solo el propietario o un administrador puede cambiarlo.",
                 },
             });
         } finally {

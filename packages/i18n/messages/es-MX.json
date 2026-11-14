@@ -8,7 +8,7 @@
       "emailLabel": "Correo de la persona invitada",
       "empty": "Todavía no hay invitaciones.",
       "heading": "Invitaciones a la beta",
-      "hint": "La persona invitada podrá crear un despacho y ser su dueña.",
+      "hint": "La persona invitada podrá crear un despacho y ser su propietaria.",
       "invite": "Invitar",
       "inviting": "Invitando…",
       "keep": "Conservar",
@@ -3270,9 +3270,9 @@
         "chats": "{scoped, select, yes {Esto borra para siempre el historial de chats de tu asistente y de las revisiones tabulares en {workspace}. Tus otros espacios de trabajo no se ven afectados.} other {Esto borra para siempre el historial de chats de tu asistente y de las revisiones tabulares.}}",
         "memoryPersonal": "{scoped, select, yes {Esto borra para siempre tu memoria de {workspace} y las memorias de los proyectos privados que creaste. Quienes colaboran en esos proyectos también perderán esas memorias. Tus otros espacios de trabajo no se ven afectados. La memoria sigue activada y se puede reconstruir a partir de conversaciones futuras.} other {Esto borra para siempre tu memoria de la app y las memorias de los proyectos privados que creaste. Quienes colaboran en esos proyectos también perderán esas memorias. La memoria sigue activada y se puede reconstruir a partir de conversaciones futuras.}}",
         "memoryShared": "{scoped, select, yes {Esto borra para siempre tu memoria en {workspace}. Las memorias de los proyectos de ahí no se ven afectadas, ni tus otros espacios de trabajo. La memoria sigue activada y se puede reconstruir a partir de conversaciones futuras.} other {Esto borra para siempre tu memoria. Las memorias de los proyectos de ahí no se ven afectadas, ni tus otros espacios de trabajo. La memoria sigue activada y se puede reconstruir a partir de conversaciones futuras.}}",
-        "projectsPersonal": "{scoped, select, yes {Esto borra para siempre todos los proyectos que eres dueño en {workspace}, incluidos sus documentos, chats y revisiones tabulares. Tus otros espacios de trabajo no se ven afectados.} other {Esto borra para siempre todos los proyectos que eres dueño, incluidos sus documentos, chats y revisiones tabulares.}}",
+        "projectsPersonal": "{scoped, select, yes {Esto borra para siempre todos los proyectos de los que eres propietario en {workspace}, incluidos sus documentos, chats y revisiones tabulares. Tus otros espacios de trabajo no se ven afectados.} other {Esto borra para siempre todos los proyectos de los que eres propietario, incluidos sus documentos, chats y revisiones tabulares.}}",
         "projectsShared": "{scoped, select, yes {Esto borra para siempre todos los proyectos que creaste en {workspace}, incluidos sus documentos, chats y revisiones tabulares. Tus colegas también los pierden. Tus otros espacios de trabajo no se ven afectados.} other {Esto borra para siempre todos los proyectos que creaste, incluidos sus documentos, chats y revisiones tabulares. Tus colegas también los pierden.}}",
-        "tabularReviews": "{scoped, select, yes {Esto borra para siempre todas las revisiones tabulares que eres dueño en {workspace}, incluidas sus celdas y chats de revisión. Tus otros espacios de trabajo no se ven afectados.} other {Esto borra para siempre todas las revisiones tabulares que eres dueño, incluidas sus celdas y chats de revisión.}}"
+        "tabularReviews": "{scoped, select, yes {Esto borra para siempre todas las revisiones tabulares de las que eres propietario en {workspace}, incluidas sus celdas y chats de revisión. Tus otros espacios de trabajo no se ven afectados.} other {Esto borra para siempre todas las revisiones tabulares de las que eres propietario, incluidas sus celdas y chats de revisión.}}"
       },
       "deleteData": "Borrar datos",
       "deleteTitle": {
@@ -3283,7 +3283,7 @@
       },
       "deletesDataInWorkspacenameOnlyTo": "Borra datos solo en {workspaceName}. Para borrar datos de otro espacio de trabajo, cámbiate a él primero.",
       "downloadAccountMetadataProjectsDocumentMetadata": "Descarga como JSON los metadatos de la cuenta, los proyectos, los metadatos de documentos, los flujos de trabajo, los playbooks y los datos de revisión.",
-      "downloadAllOwnedTabularReviewsCells": "Descarga como JSON todas las revisiones tabulares de las que eres dueño, sus celdas y los registros de sus chats de revisión.",
+      "downloadAllOwnedTabularReviewsCells": "Descarga como JSON todas las revisiones tabulares de las que eres propietario, sus celdas y los registros de sus chats de revisión.",
       "downloadAssistantAndTabularReviewChat": "Descarga como JSON el historial de chats del asistente y de las revisiones tabulares.",
       "downloadYourAppMemoryAndEvery": "Descarga tu memoria de la app y la memoria de cada proyecto al que tengas acceso como archivos Markdown en un archivo ZIP.",
       "downloadYourProjectsDocumentMetadataWorkflows": "Descarga aquí, como JSON, tus proyectos, los metadatos de documentos, los flujos de trabajo, los playbooks y los datos de revisión.",
@@ -3298,8 +3298,8 @@
       "managedByOwnersDescription": "En {name}, solo los propietarios exportan o borran datos en bloque. Tus otros espacios de trabajo no se ven afectados.",
       "managedByYourOrganization": "Lo administra tu despacho",
       "permanentlyDeleteAllProjectsYouCreated": "Borra para siempre todos los proyectos que creaste aquí, incluidos documentos, chats y revisiones tabulares.",
-      "permanentlyDeleteAllProjectsYouOwn": "Borra para siempre todos los proyectos de los que eres dueño, incluidos documentos, chats y revisiones tabulares.",
-      "permanentlyDeleteAllTabularReviewsYou": "Borra para siempre todas las revisiones tabulares de las que eres dueño, incluidas sus celdas y chats de revisión.",
+      "permanentlyDeleteAllProjectsYouOwn": "Borra para siempre todos los proyectos de los que eres propietario, incluidos documentos, chats y revisiones tabulares.",
+      "permanentlyDeleteAllTabularReviewsYou": "Borra para siempre todas las revisiones tabulares de las que eres propietario, incluidas sus celdas y chats de revisión.",
       "permanentlyDeleteYourAppMemoryAnd": "Borra para siempre tu memoria de la app y las memorias de los proyectos privados que creaste.",
       "permanentlyDeleteYourAssistantAndTabular": "Borra para siempre el historial de chats de tu asistente y de las revisiones tabulares.",
       "permanentlyDeleteYourMemoryInWorkspace": "Borra para siempre tu memoria en {workspace}.",
@@ -4733,7 +4733,7 @@
           "untitled": "Revisión sin título",
           "waiting": "Podrás evaluarla cuando el aprendiz termine la auditoría.",
           "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra.",
-          "withoutAccess": "{count, plural, one {# auditoría es de una revisión en un asunto que no puedes abrir.} other {# auditorías son de revisiones en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso.",
+          "withoutAccess": "{count, plural, one {# auditoría es de una revisión en un asunto que no puedes abrir.} other {# auditorías son de revisiones en asuntos que no puedes abrir.}} El propietario del asunto puede darte acceso.",
           "yourMark": "Tu marca"
         },
         "menu": "Auditar preguntas",
@@ -5424,7 +5424,6 @@
         "edit": "Editar",
         "editName": "Editar el criterio «{topic}»",
         "empty": "Tu despacho todavía no ha escrito criterios.",
-        "intro": "Posturas que personas de tu despacho escribieron con su nombre. Cuando alguien en formación le hace una pregunta a LiTT, el asistente puede consultarlas y decir quién escribió cada una. No son derecho vigente y LiTT no las verifica.",
         "kind": {
           "criterio": "Criterio",
           "voto_particular": "Voto particular"
@@ -5456,8 +5455,11 @@
         "topicHelp": "Unas palabras, por ejemplo «Prescripción cambiaria».",
         "topicLabel": "Tema",
         "voteHelp": "Un voto particular nombra la regla del playbook de la que discrepas. No cambia la regla.",
-        "who": "Las lee todo el despacho. Las escribe quien no esté en formación; el dueño y los administradores pueden quitar cualquiera.",
-        "write": "Escribir un criterio"
+        "who": "Las lee todo el despacho. Las escribe quien no esté en formación; el propietario y los administradores pueden quitar cualquiera.",
+        "write": "Escribir un criterio",
+        "introShort": "Posturas que personas de tu despacho escribieron con su nombre.",
+        "introNotVerified": "No son derecho vigente y LiTT no las verifica.",
+        "introMore": "Cuando alguien en formación le hace una pregunta a LiTT, el asistente puede consultarlas y decir quién escribió cada una."
       }
     },
     "formacion": "Formación",
@@ -5603,7 +5605,7 @@
       "lastWork": "Último trabajo: {date, date, medium} {date, time, short}",
       "noPupils": "Todavía no tienes aprendices aquí. Agrégalos en Formación, en Mis aprendices.",
       "noWork": "Sin trabajos todavía",
-      "notMentor": "No eres mentor en ningún despacho. El dueño o un administrador del despacho designa a los mentores.",
+      "notMentor": "No eres mentor en ningún despacho. El propietario o un administrador del despacho designa a los mentores.",
       "open": "Abrir el panel del mentor",
       "passInForce": "Pase de urgencia vigente hasta el {end, date, medium} {end, time, short}",
       "pendingReview": "{count, plural, =0 {Ningún trabajo pendiente de revisión} one {# trabajo pendiente de revisión} other {# trabajos pendientes de revisión}}",
@@ -5779,26 +5781,26 @@
       "noReview": "Todavía no hay resumen.",
       "regenerate": "Regenerar",
       "untitled": "Trabajo sin título",
-      "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso."
+      "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El propietario del asunto puede darte acceso."
     },
     "org": {
-      "cannotBePupil": "El dueño y los administradores no pueden ser aprendices.",
       "loadFailed": "No se pudo cargar la formación.",
       "memberIntro": "Aquí lees los criterios de tu despacho. Tu formación personal (tu mentor y tus etapas) está en Ajustes → Mi formación.",
       "mentorHasPupils": "Esta persona todavía tiene aprendices. Libéralos o asígnales otro mentor primero.",
       "mentorLabel": "Su mentor:",
       "mentorOf": "Elegir mentor para {name}",
       "mentorsHeading": "Mentores y aprendices",
-      "mentorsHelp": "Un mentor guía a sus aprendices y es el único que les pone la etapa. Cada aprendiz tiene un solo mentor; quien no tiene mentor no está en formación. El propietario y los administradores pueden ser mentores, nunca aprendices.",
       "noMentor": "Sin mentor",
-      "noMentorsYet": "Todavía no hay mentores. Activa «Mentor» en alguien para poder asignarle aprendices."
+      "noMentorsYet": "Todavía no hay mentores. Activa «Mentor» en alguien para poder asignarle aprendices.",
+      "mentorsHelpShort": "Un mentor guía a sus aprendices y es el único que les pone la etapa.",
+      "mentorsHelpMore": "Cada aprendiz tiene un solo mentor; quien no tiene mentor no está en formación. El propietario y los administradores pueden ser mentores, nunca aprendices."
     },
     "stageHelp": {
       "junior": "La IA responde con su metodología y en modo de responsabilidad.",
       "pasante": "Intenta primero: escribe su planteamiento antes de que la IA responda."
     },
     "personal": {
-      "intro": "Aquí ves solo lo tuyo: tu mentor, tus etapas y tu criterio. Quién es mentor y a quién guía lo decide el dueño o un administrador en Ajustes del despacho → Formación.",
+      "intro": "Aquí ves solo lo tuyo: tu mentor, tus etapas y tu criterio. Quién es mentor y a quién guía lo decide el propietario o un administrador en Ajustes del despacho → Formación.",
       "pupilsHelp": "Toma a miembros que aún no tienen mentor y ponles la etapa por materia. Solo tú, como su mentor, pones la etapa. El propietario y los administradores ven quiénes son tus aprendices, nunca su etapa."
     }
   },

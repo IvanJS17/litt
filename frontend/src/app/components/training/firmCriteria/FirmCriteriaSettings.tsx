@@ -5,7 +5,12 @@ import { useTranslations } from "next-intl";
 import { GlassCardUI, PillButtonUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
-import { SettingsDescription, SettingsLabel } from "@/app/components/settings/SettingsText";
+import {
+  SettingsDescription,
+  SettingsLabel,
+  SettingsMoreInfo,
+  SettingsNoticeLine,
+} from "@/app/components/settings/SettingsText";
 import {
   createFirmCriterion,
   deleteFirmCriterion,
@@ -35,8 +40,13 @@ export function FirmCriteriaSection({ orgId, orgName }: { orgId: string; orgName
     <div className="space-y-6">
       <section className="min-w-0 space-y-3">
         <SettingsHeading id="criterios-del-despacho">{t("title")}</SettingsHeading>
-        <SettingsDescription>{t("intro")}</SettingsDescription>
-        <SettingsDescription>{t("who")}</SettingsDescription>
+        <SettingsDescription>{t("introShort")}</SettingsDescription>
+        {/* Never folded: these are positions, not law. */}
+        <SettingsNoticeLine icon="info">{t("introNotVerified")}</SettingsNoticeLine>
+        <SettingsMoreInfo>
+          <SettingsDescription>{t("introMore")}</SettingsDescription>
+          <SettingsDescription>{t("who")}</SettingsDescription>
+        </SettingsMoreInfo>
       </section>
       <OrgCriteria orgId={orgId} orgName={orgName} showName={false} />
     </div>

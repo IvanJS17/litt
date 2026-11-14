@@ -5424,7 +5424,6 @@
         "edit": "Edit",
         "editName": "Edit the criterion “{topic}”",
         "empty": "Your firm has not written any criteria yet.",
-        "intro": "Positions that people of your firm wrote under their name. When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one. They are not law, and LiTT does not check them.",
         "kind": {
           "criterio": "Criterion",
           "voto_particular": "Dissenting opinion"
@@ -5457,7 +5456,10 @@
         "topicLabel": "Topic",
         "voteHelp": "A dissenting opinion names the playbook rule you disagree with. It does not change the rule.",
         "who": "Everyone in the firm reads them. Anyone who is not in training writes them; owners and admins can remove any.",
-        "write": "Write a criterion"
+        "write": "Write a criterion",
+        "introShort": "Positions that people of your firm wrote under their name.",
+        "introNotVerified": "They are not law, and LiTT does not check them.",
+        "introMore": "When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one."
       }
     },
     "formacion": "Training",
@@ -5782,16 +5784,16 @@
       "withoutAccess": "{count, plural, one {# work is in a matter you cannot open.} other {# works are in matters you cannot open.}} The owner of the matter can give you access."
     },
     "org": {
-      "cannotBePupil": "Owners and admins can't be pupils.",
       "loadFailed": "Could not load training.",
       "memberIntro": "Here you read your firm's criteria. Your own training (your mentor and your stages) is in Settings → My training.",
       "mentorHasPupils": "This person still has pupils. Release them or give them another mentor first.",
       "mentorLabel": "Their mentor:",
       "mentorOf": "Choose a mentor for {name}",
       "mentorsHeading": "Mentors and pupils",
-      "mentorsHelp": "A mentor guides trainees and is the only one who sets their stage. Each trainee has one mentor; someone without a mentor isn’t in training. Owners and administrators can be mentors, never trainees.",
       "noMentor": "No mentor",
-      "noMentorsYet": "There are no mentors yet. Turn on «Mentor» for someone to be able to assign pupils to them."
+      "noMentorsYet": "There are no mentors yet. Turn on «Mentor» for someone to be able to assign pupils to them.",
+      "mentorsHelpShort": "A mentor guides trainees and is the only one who sets their stage.",
+      "mentorsHelpMore": "Each trainee has one mentor; someone without a mentor isn’t in training. Owners and administrators can be mentors, never trainees."
     },
     "stageHelp": {
       "junior": "The AI answers with its methodology and in accountability mode.",
