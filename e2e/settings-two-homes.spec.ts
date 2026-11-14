@@ -23,6 +23,8 @@ interface Scenario {
     /** Work in the firm's space (default) or in the personal one. */
     workspace?: "firm" | "personal";
     textSize?: "normal" | "large" | "xlarge";
+    /** The dark theme, as the profile says it. */
+    dark?: boolean;
     /** The firm turns off members' own keys for these capabilities. */
     blocked?: { ai?: boolean; web_search?: boolean; scan?: boolean };
 }
@@ -79,7 +81,7 @@ async function signedIn(page: Page, s: Scenario) {
                 messageCreditsUsed: 12, creditsResetDate: "2026-12-01T00:00:00Z", creditsRemaining: 88, tier: "Free",
                 titleModel: null, tabularModel: null, memoryCuratorModel: null, subagentModel: null, subagentReasoning: null,
                 lastSelectedChatModel: "test-model", lastSelectedReasoningLevel: "medium", mfaOnLogin: false,
-                quickActionsVisible: true, responseDetailsVisible: false, darkMode: false, projectMemoryDefault: true,
+                quickActionsVisible: true, responseDetailsVisible: false, darkMode: s.dark === true, projectMemoryDefault: true,
                 textSize: s.textSize, apiKeyStatus: keyStatus({ claude: false }), uiLocale: "es-MX",
             });
         }
@@ -308,16 +310,31 @@ for (const device of DEVICES) {
 test.describe("el despacho decide, lo personal enlaza", () => {
     test.use({ viewport: { width: 1280, height: 1000 } });
 
-    test("Llaves del despacho: los tres interruptores de llaves propias", async ({ page }) => {
+    test("Llaves del despacho: los tres interruptores van primero y los proveedores se abren", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 1750 });
         await signedIn(page, { role: "owner" });
         await page.goto(`/organizations/${FIRM}/settings/providers`);
-        for (const name of [
+        const names = [
             "Los miembros pueden usar sus propias llaves de IA",
             "Los miembros pueden usar sus propias llaves de búsqueda web",
             "Los miembros pueden usar su propia llave de lectura de escaneados (LandingAI)",
-        ]) {
-            await expect(page.getByRole("switch", { name })).toBeVisible();
-        }
+        ];
+        for (const name of names) await expect(page.getByRole("switch", { name })).toBeVisible();
+        // They lead the page: the first heading is theirs, and the switches sit above the saved keys.
+        await expect(page.locator("main h2:not([id^='settings-group-'])").first()).toHaveText("Llaves propias de los miembros");
+        const switchBox = await page.getByRole("switch", { name: names[0] }).boundingBox();
+        const savedBox = await page.getByRole("heading", { name: "Llaves de IA de Socium Abogados" }).boundingBox();
+        expect(switchBox!.y).toBeLessThan(savedBox!.y);
+        await expect(page.getByText("Los miembros pueden usar sus propias llaves de…")).toBeVisible();
+        // The saved keys are in view; the providers to add open with «Agregar proveedor».
+        await expect(page.getByRole("switch", { name: "Proveedor Anthropic (Claude)" })).toBeVisible();
+        const opener = page.getByRole("button", { name: "Agregar proveedor" });
+        await expect(opener).toHaveAttribute("aria-expanded", "false");
+        await expect(page.getByRole("button", { name: "Agregar OpenAI" })).toHaveCount(0);
+        await shot(page, "04-llaves-del-despacho-cerrado-propietario-escritorio-1280");
+        await opener.click();
+        await expect(opener).toHaveAttribute("aria-expanded", "true");
+        await expect(page.getByRole("button", { name: "Agregar OpenAI" })).toBeVisible();
         // The scan reading key is with the firm's keys; the document types are not.
         await expect(page.getByText("Tipos de documento para separar un expediente")).toHaveCount(0);
         await shot(page, "04-llaves-del-despacho-tres-interruptores-propietario-escritorio-1280");
@@ -349,7 +366,9 @@ test.describe("el despacho decide, lo personal enlaza", () => {
     test("si el despacho no deja llaves propias, Mis llaves de IA lo dice y enlaza", async ({ page }) => {
         await signedIn(page, { role: "owner", blocked: { ai: true } });
         await page.goto("/settings/byok");
-        await expect(page.getByText(/Tu despacho no permite usar llaves propias para esto/)).toBeVisible();
+        const row = page.locator('[data-slot="settings-managed-row"]');
+        await expect(row.getByText("Lo administra tu despacho.")).toBeVisible();
+        await expect(row).toContainText("Trabajas con las llaves de Socium Abogados");
         await expect(page.getByRole("link", { name: "Ajustes del despacho → Llaves del despacho" })).toHaveAttribute(
             "href",
             `/organizations/${FIRM}/settings/providers`,
@@ -426,5 +445,203 @@ test.describe("Apariencia a 125 % en el teléfono", () => {
         await expect(page.getByRole("radiogroup", { name: "Tamaño de letra" })).toBeVisible();
         await expectNoHorizontalOverflow(page);
         await shot(page, "08-apariencia-125-propietario-telefono-390");
+    });
+});
+
+// The hierarchy of the texts: six signals, less text in view, «Más información»,
+// and the fixes the designer found. The legal texts stay whole and in view.
+test.describe("jerarquía de textos: señales, menos texto y avisos que no se esconden", () => {
+    test.use({ viewport: { width: 1280, height: 1500 } });
+
+    test("Lectura de escaneados personal: opcional, aviso con dos señales y el texto legal completo", async ({ page }) => {
+        await signedIn(page, { role: "owner", workspace: "personal" });
+        await page.goto("/settings/scan-reading");
+        await expect(page.getByRole("heading", { name: "Lectura de escaneados" })).toBeVisible();
+        await expect(page.getByText("Opcional", { exact: true })).toBeVisible();
+        const notices = page.locator('[data-slot="settings-notice"]');
+        // The disclaimer (LandingAI) and the note of the document types, each in its notice.
+        await expect(notices.first()).toContainText("Datos a un tercero");
+        await expect(notices.first()).toContainText("Con costo");
+        await expect(notices.first()).toContainText("LandingAI, en Estados Unidos");
+        await expect(notices.first()).toContainText("puedes subir el PDF ya pasado por OCR");
+        const types = page.getByRole("region", { name: "Tipos de documento para separar un expediente" });
+        await expect(types.locator('[data-slot="settings-notice"]')).toContainText("No escribas datos de clientes aquí");
+        // «Más información» is closed and says so.
+        const more = page.getByRole("group").filter({ hasText: "Más información" }).first();
+        await expect(page.locator("summary", { hasText: "Más información" }).first()).toHaveAttribute("aria-expanded", "false");
+        expect(await more.count()).toBeGreaterThan(0);
+        await shot(page, "09-lectura-de-escaneados-personal-propietario-escritorio-1280");
+    });
+
+    test("Lectura de escaneados del despacho: el aviso de datos a un tercero va antes de los tipos", async ({ page }) => {
+        await signedIn(page, { role: "owner" });
+        await page.goto(`/organizations/${FIRM}/settings/scan-reading`);
+        const types = page.getByRole("region", { name: "Tipos de documento para separar un expediente" });
+        const notice = types.locator('[data-slot="settings-notice"]');
+        await expect(notice).toContainText("Datos a un tercero");
+        await expect(notice).toContainText("No escribas datos de clientes aquí. Las descripciones y los identificadores también se envían a LandingAI junto con el texto del documento.");
+        const noticeBox = await notice.boundingBox();
+        const firstField = await types.getByLabel("Nombre").first().boundingBox();
+        expect(noticeBox!.y).toBeLessThan(firstField!.y);
+        await shot(page, "09-lectura-de-escaneados-despacho-propietario-escritorio-1280");
+    });
+
+    test("Lectura de escaneados personal, en el espacio de un despacho: lo administra el despacho (miembro)", async ({ page }) => {
+        await signedIn(page, { role: "member" });
+        await page.goto("/settings/scan-reading");
+        const row = page.locator('[data-slot="settings-managed-row"]');
+        await expect(row).toContainText("Lo administra tu despacho");
+        await expect(row).toContainText("Pide a un propietario o administrador que lo cambie.");
+        await expect(row.getByRole("link")).toHaveCount(0);
+        await shot(page, "09-lectura-de-escaneados-personal-miembro-escritorio-1280");
+    });
+
+    test("Búsqueda web como miembro: lo administra el despacho y el costo nombra la llave del despacho", async ({ page }) => {
+        await signedIn(page, { role: "member" });
+        await page.goto("/settings/web-search");
+        const row = page.locator('[data-slot="settings-managed-row"]');
+        await expect(row).toContainText("Lo administra tu despacho.");
+        await expect(row).toContainText("Trabajas con las llaves de Socium Abogados. Pide a un propietario o administrador que las cambie.");
+        // The cost is the firm's key, not «tu llave» (the member's own is not the one that pays).
+        const cost = page.locator('[data-slot="settings-notice-line"]');
+        await expect(cost).toContainText("Se cobra a la llave de API de Claude del despacho.");
+        await expect(page.getByText("Se cobra a tu llave de API de Claude")).toHaveCount(0);
+        // The sentence under the card is gone.
+        await expect(page.getByText("Tu despacho decide estas llaves")).toHaveCount(0);
+        await shot(page, "10-busqueda-web-miembro-escritorio-1280");
+    });
+
+    test("Búsqueda web en el espacio personal: nada lo administra el despacho (el costo por llave lo cubren las pruebas unitarias)", async ({ page }) => {
+        await signedIn(page, { role: "owner", workspace: "personal" });
+        await page.goto("/settings/web-search");
+        await expect(page.getByText("Activar búsqueda web")).toBeVisible();
+        await expect(page.locator('[data-slot="settings-managed-row"]')).toHaveCount(0);
+    });
+
+    test("Formación del despacho: etiquetas de quién, menos texto y «no son derecho vigente» a la vista", async ({ page }) => {
+        await signedIn(page, { role: "owner" });
+        await page.goto(`/organizations/${FIRM}/settings/training`);
+        await expect(page.getByRole("heading", { name: "Mentores y aprendices" })).toBeVisible();
+        const tags = page.locator('[data-slot="settings-tags"]').first();
+        await expect(tags).toContainText("Mentores: propietarios y administradores");
+        await expect(tags).toContainText("Criterios: los lee todo el despacho");
+        await expect(page.getByText("No son derecho vigente y LiTT no las verifica.")).toBeVisible();
+        // Owner and administrator rows say their role as a tag, not a sentence under each.
+        await expect(page.getByText("no pueden ser aprendices")).toBeHidden();
+        await expect(page.locator('[data-slot="settings-tag"]').getByText("Propietario", { exact: true })).toBeVisible();
+        await expect(page.getByText("dueño")).toHaveCount(0);
+        await shot(page, "11-formacion-del-despacho-propietario-escritorio-1280");
+    });
+
+    test("Formación del despacho como miembro", async ({ page }) => {
+        await signedIn(page, { role: "member" });
+        await page.goto(`/organizations/${FIRM}/settings/training`);
+        await expect(page.getByRole("heading", { name: "Criterios del despacho" })).toBeVisible();
+        await expect(page.getByText("dueño")).toHaveCount(0);
+        await shot(page, "11-formacion-del-despacho-miembro-escritorio-1280");
+    });
+
+    test("Privacidad y datos como miembro: «Borrar datos» no desaparece, dice quién lo administra", async ({ page }) => {
+        await signedIn(page, { role: "member" });
+        await page.goto("/settings/privacy-data");
+        await expect(page.getByRole("heading", { name: "Exportar datos" })).toBeVisible();
+        const del = page.getByRole("heading", { name: "Borrar datos" });
+        await expect(del).toBeVisible();
+        const row = page.locator('[data-slot="settings-managed-row"]');
+        await expect(row).toContainText("Lo administra tu despacho.");
+        await expect(row).toContainText("En Socium Abogados, solo los propietarios exportan o borran datos en bloque.");
+        await expect(page.getByRole("button", { name: /^Borrar$/ })).toHaveCount(0);
+        await shot(page, "12-privacidad-y-datos-miembro-escritorio-1280");
+    });
+
+    test("Privacidad y datos en el espacio personal: un aviso fuerte, una vez, y los botones dicen «Borrar»", async ({ page }) => {
+        await signedIn(page, { role: "owner", workspace: "personal" });
+        await page.goto("/settings/privacy-data");
+        const strong = page.locator('[data-tone="irreversible"]');
+        await expect(strong).toHaveCount(1);
+        await expect(strong).toContainText("No se puede deshacer.");
+        await expect(page.getByRole("button", { name: "Eliminar" })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Borrar" }).first()).toBeVisible();
+        await shot(page, "12-privacidad-y-datos-propietario-escritorio-1280");
+    });
+
+    test("Privacidad y datos del despacho: aviso de 30 días y aviso fuerte, una vez", async ({ page }) => {
+        await signedIn(page, { role: "owner" });
+        await page.goto(`/organizations/${FIRM}/settings/privacy-data`);
+        await expect(page.getByRole("heading", { name: "Borrar datos" })).toBeVisible();
+        await expect(page.locator('[data-tone="irreversible"]')).toHaveCount(1);
+        await expect(page.locator('[data-tone="note"]')).toContainText("Plazo de 30 días");
+        await expect(page.getByText("Solo propietarios", { exact: true })).toBeVisible();
+        await shot(page, "12-privacidad-y-datos-despacho-propietario-escritorio-1280");
+    });
+
+    test("Cuenta: el plan dice «Gratis» y la zona de peligro no va en rojo", async ({ page }) => {
+        await signedIn(page, { role: "owner" });
+        await page.goto("/settings");
+        const plan = page.getByRole("heading", { name: "Plan de uso" }).locator("xpath=ancestor::section[1]");
+        await expect(plan).toContainText("Gratis");
+        await expect(plan).not.toContainText("Free");
+        await expect(page.getByRole("heading", { name: "Zona de peligro" })).toBeVisible();
+        await expect(page.locator('[data-tone="irreversible"]')).toHaveCount(1);
+    });
+
+    test("Seguridad recomienda la verificación en dos pasos", async ({ page }) => {
+        await signedIn(page, { role: "owner" });
+        await page.goto("/settings/security");
+        await expect(page.locator('[data-slot="settings-tag"][data-kind="recommended"]')).toHaveText("Recomendado");
+    });
+});
+
+test.describe("títulos de grupo: claro, oscuro y teléfono", () => {
+    test("escritorio en oscuro: títulos en tinta y con serif", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 1200 });
+        await signedIn(page, { role: "owner", platformAdmin: true, dark: true });
+        await page.goto("/settings");
+        const title = page.getByRole("navigation", { name: "Ajustes" }).getByRole("heading", { name: "Mi cuenta" });
+        await expect(title).toBeVisible();
+        const style = await title.evaluate((el) => {
+            const css = getComputedStyle(el);
+            return { family: css.fontFamily, size: parseFloat(css.fontSize), color: css.color };
+        });
+        expect(style.family).toMatch(/EB Garamond|garamond|serif/i);
+        expect(style.size).toBeGreaterThan(14);
+        await shot(page, "01-ajustes-menu-completo-oscuro-propietario-escritorio-1280");
+    });
+
+    test.describe("teléfono en oscuro", () => {
+        test.use({ ...iPhone14, deviceScaleFactor: 2, viewport: { width: 390, height: 1300 } });
+
+        test("la lista agrupada conserva sus filas de 44 px y sus flechas", async ({ page }) => {
+            await signedIn(page, { role: "owner", platformAdmin: true, dark: true });
+            await page.goto("/settings/menu");
+            const list = page.locator('[data-slot="settings-phone-list"]');
+            await expect(list).toBeVisible();
+            const links = await list.getByRole("link").all();
+            expect(links.length).toBeGreaterThan(10);
+            for (const link of links) {
+                expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+                // The chevron of each row is still there.
+                await expect(link.locator("svg")).toHaveCount(1);
+            }
+            await expectNoHorizontalOverflow(page);
+            await shot(page, "01-ajustes-menu-completo-oscuro-propietario-telefono-390");
+        });
+    });
+});
+
+test.describe("menú lateral a 390 px", () => {
+    test.use({ ...iPhone14, deviceScaleFactor: 2, viewport: { width: 390, height: 844 } });
+
+    test("la barra lateral abre el menú de la cuenta con «Ajustes del despacho»", async ({ page }) => {
+        await signedIn(page, { role: "owner" });
+        await page.goto("/assistant");
+        await page.getByRole("button", { name: "Abrir barra lateral" }).first().click();
+        const dialog = page.getByRole("dialog", { name: "Navegación principal" });
+        await expect(dialog).toBeVisible();
+        await page.waitForTimeout(400);
+        await dialog.getByRole("button", { name: /Lucía Herrera|Cuenta|Menú de la cuenta/i }).first().click();
+        await expect(page.getByRole("menuitem", { name: "Ajustes del despacho" })).toBeVisible();
+        await expectNoHorizontalOverflow(page);
+        await shot(page, "07-menu-lateral-ajustes-del-despacho-propietario-telefono-390");
     });
 });
