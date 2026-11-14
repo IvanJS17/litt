@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Plus } from "lucide-react";
 import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { ApiKeyField } from "@/app/components/settings/ApiKeyField";
@@ -11,6 +12,8 @@ import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsTag,
+  SettingsTagRow,
 } from "@/app/components/settings/SettingsText";
 import {
   MODEL_API_KEY_FIELDS,
@@ -74,6 +77,9 @@ export function OrganizationProviderKeys({
   const [pendingMfa, setPendingMfa] = useState<PendingMfa | null>(null);
   const [selectedProvider, setSelectedProvider] =
     useState<ApiKeyProvider | null>(null);
+  // The providers to add are a list of twelve: they open on request.
+  const [providersOpen, setProvidersOpen] = useState(false);
+  const providersId = useId();
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -251,15 +257,83 @@ export function OrganizationProviderKeys({
     { backend: "tavily", name: "Tavily" },
     { backend: "deepseek", name: "DeepSeek Search" },
   ];
-  const personalKeyRows: Array<{ capability: KeyCapability; label: string }> = [
-    { capability: "ai", label: t("organizations.organizationProviderKeys.memberKeysAi") },
-    { capability: "web_search", label: t("organizations.organizationProviderKeys.memberKeysWebSearch") },
-    { capability: "scan", label: t("organizations.organizationProviderKeys.memberKeysScan") },
+  // The visible name is short under «Los miembros pueden usar sus propias
+  // llaves de…»; the switch keeps the whole sentence as its name, which holds
+  // the visible words.
+  const personalKeyRows: Array<{ capability: KeyCapability; label: string; short: string }> = [
+    {
+      capability: "ai",
+      label: t("organizations.organizationProviderKeys.memberKeysAi"),
+      short: t("organizations.organizationProviderKeys.memberKeysAiShort"),
+    },
+    {
+      capability: "web_search",
+      label: t("organizations.organizationProviderKeys.memberKeysWebSearch"),
+      short: t("organizations.organizationProviderKeys.memberKeysWebSearchShort"),
+    },
+    {
+      capability: "scan",
+      label: t("organizations.organizationProviderKeys.memberKeysScan"),
+      short: t("organizations.organizationProviderKeys.memberKeysScanShort"),
+    },
   ];
 
   return (
     <>
       <div className="@container space-y-8">
+        {/* The policy leads: it decides what the keys below mean for the
+            members. It is the managers' to change; a member already reads it
+            in «Mis llaves». */}
+        {loading || canManage ? (
+          <section aria-labelledby="org-providers-personal" className="space-y-3">
+            <SettingsTagRow>
+              <SettingsHeading id="org-providers-personal">
+                {t("organizations.organizationProviderKeys.membersOwnKeys")}
+              </SettingsHeading>
+              <SettingsTag kind="audience" icon="firm">
+                {t("settings.signals.firmWide")}
+              </SettingsTag>
+            </SettingsTagRow>
+            <SettingsDescription>
+              {t("organizations.organizationProviderKeys.membersOwnKeysIntro")}
+            </SettingsDescription>
+            <GlassCardUI>
+              <p className="px-4 pb-1 pt-3 text-sm font-semibold text-gray-900">
+                {t("organizations.organizationProviderKeys.memberKeysLead")}
+              </p>
+              {personalKeyRows.map(({ capability, label, short }) => (
+                <div
+                  key={capability}
+                  className="flex items-center justify-between gap-x-6 gap-y-3 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <SettingsLabel>{short}</SettingsLabel>
+                  </div>
+                  <div className="flex shrink-0 items-center">
+                    {loading ? (
+                      <span className="block h-5 w-9 animate-pulse rounded-full bg-gray-200" />
+                    ) : canManage ? (
+                      <ToggleSwitchUI
+                        checked={allowPersonal(capability)}
+                        disabled={busy !== null || pendingMfa !== null}
+                        aria-busy={busy === "policy"}
+                        aria-label={label}
+                        onCheckedChange={(allowed) =>
+                          void setPersonalKeysAllowed(capability, allowed)
+                        }
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-500">
+                        {allowPersonal(capability) ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </GlassCardUI>
+          </section>
+        ) : null}
+
         <section
           aria-labelledby="org-providers-saved"
           className="space-y-3"
@@ -296,8 +370,9 @@ export function OrganizationProviderKeys({
         </section>
 
         {/* Members cannot add a provider, so the list of ones to add is the
-            managers' alone. It stays up while loading so the page does not
-            jump once the role is known. */}
+            managers' alone. The saved keys above are always in view; the
+            twelve to add open with «Agregar proveedor». It stays up while
+            loading so the page does not jump once the role is known. */}
         {loading || canManage ? (
           <section
             aria-labelledby="org-providers-available"
@@ -311,12 +386,33 @@ export function OrganizationProviderKeys({
                 {t("organizations.organizationProviderKeys.everyProviderHasAKeySaved")}
               </SettingsDescription>
             ) : (
-              <div
-                className="grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2"
-                aria-busy={loading}
-              >
-                {availableFields.map(renderCard)}
-              </div>
+              <>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <PillButtonUI
+                    tone="white"
+                    size="sm"
+                    disabled={loading}
+                    aria-expanded={providersOpen}
+                    aria-controls={providersId}
+                    onClick={() => setProvidersOpen((open) => !open)}
+                  >
+                    <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+                    {t("organizations.organizationProviderKeys.addProvider")}
+                  </PillButtonUI>
+                  <span className="text-xs text-gray-500">
+                    {t("organizations.organizationProviderKeys.availableCount", { count: availableFields.length })}
+                  </span>
+                </div>
+                {providersOpen ? (
+                  <div
+                    id={providersId}
+                    className="grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2"
+                    aria-busy={loading}
+                  >
+                    {availableFields.map(renderCard)}
+                  </div>
+                ) : null}
+              </>
             )}
           </section>
         ) : null}
@@ -326,9 +422,12 @@ export function OrganizationProviderKeys({
             them to exist, so the managers alone get the fields. */}
         {loading || canManage ? (
           <section aria-labelledby="org-search-keys" className="space-y-3">
-            <SettingsHeading id="org-search-keys">
-              {t("organizations.organizationProviderKeys.webSearchKeys")}
-            </SettingsHeading>
+            <SettingsTagRow>
+              <SettingsHeading id="org-search-keys">
+                {t("organizations.organizationProviderKeys.webSearchKeys")}
+              </SettingsHeading>
+              <SettingsTag kind="optional" />
+            </SettingsTagRow>
             <SettingsDescription>
               {t("organizations.organizationProviderKeys.webSearchKeysIntro", { name: orgName })}
             </SettingsDescription>
@@ -338,7 +437,6 @@ export function OrganizationProviderKeys({
                   <ApiKeyField
                     key={backend}
                     label={t("settings.modelProviders.apiKey", { name })}
-                    description={t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
                     hasSavedKey={hasOrgKey(backend)}
                     onSave={(value) => saveKey(backend, value)}
                     onRemove={() => saveKey(backend, null)}
@@ -346,52 +444,6 @@ export function OrganizationProviderKeys({
                 ))}
               </GlassCardUI>
             ) : null}
-          </section>
-        ) : null}
-
-        {/* The policy is the managers' to change; a member already reads
-            it in the notice above. */}
-        {loading || canManage ? (
-          <section aria-labelledby="org-providers-personal" className="space-y-3">
-            <SettingsHeading id="org-providers-personal">
-              {t("organizations.organizationProviderKeys.membersOwnKeys")}
-            </SettingsHeading>
-            <GlassCardUI>
-              {personalKeyRows.map(({ capability, label }) => (
-                <div
-                  key={capability}
-                  className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4"
-                >
-                  <div className="min-w-0 flex-[1_1_16rem] space-y-1">
-                    <SettingsLabel>{label}</SettingsLabel>
-                    <SettingsDescription>
-                      {allowPersonal(capability)
-                        ? t("organizations.organizationProviderKeys.aMembersOwnKeyIsUsed")
-                        : t("organizations.organizationProviderKeys.aMembersOwnKeysAreNever")}
-                    </SettingsDescription>
-                  </div>
-                  <div className="ml-auto flex shrink-0 items-center">
-                    {loading ? (
-                      <span className="block h-5 w-9 animate-pulse rounded-full bg-gray-200" />
-                    ) : canManage ? (
-                      <ToggleSwitchUI
-                        checked={allowPersonal(capability)}
-                        disabled={busy !== null || pendingMfa !== null}
-                        aria-busy={busy === "policy"}
-                        aria-label={label}
-                        onCheckedChange={(allowed) =>
-                          void setPersonalKeysAllowed(capability, allowed)
-                        }
-                      />
-                    ) : (
-                      <span className="text-sm text-gray-500">
-                        {allowPersonal(capability) ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </GlassCardUI>
           </section>
         ) : null}
 

@@ -2111,8 +2111,6 @@
       "workLeftByDepartedMembers": "Work left by departed members"
     },
     "organizationProviderKeys": {
-      "aMembersOwnKeyIsUsed": "Used when the firm has no key for that service.",
-      "aMembersOwnKeysAreNever": "Never used in this firm. Members work with the firm’s keys.",
       "add": "Add",
       "addName": "Add {name}",
       "addTheModelsThisOrganizationsKey": "Add the models this firm’s key can run. Members see them in the model pickers.",
@@ -2136,7 +2134,14 @@
       "updateError": "The provider could not be updated. Please try again.",
       "useName": "Use {name}",
       "webSearchKeys": "Web search keys",
-      "webSearchKeysIntro": "If the firm saves a search key, web search in {name} uses it before a member’s own."
+      "webSearchKeysIntro": "If the firm saves a search key, web search in {name} uses it before a member’s own.",
+      "membersOwnKeysIntro": "If you allow them, a member’s key is used only when the firm has none for that service.",
+      "memberKeysLead": "Members can use their own keys for…",
+      "memberKeysAiShort": "AI",
+      "memberKeysWebSearchShort": "Web search",
+      "memberKeysScanShort": "Scan reading (LandingAI)",
+      "addProvider": "Add provider",
+      "availableCount": "{count, plural, one {# available} other {# available}}"
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Back to General",

@@ -2111,8 +2111,6 @@
       "workLeftByDepartedMembers": "Trabajo que dejaron los miembros que salieron"
     },
     "organizationProviderKeys": {
-      "aMembersOwnKeyIsUsed": "Se usa cuando el despacho no tiene llave para ese servicio.",
-      "aMembersOwnKeysAreNever": "No se usan en este despacho. Los miembros trabajan con las llaves del despacho.",
       "add": "Agregar",
       "addName": "Agregar {name}",
       "addTheModelsThisOrganizationsKey": "Agrega los modelos que puede usar la llave de este despacho. Los miembros los ven al elegir modelo.",
@@ -2136,7 +2134,14 @@
       "updateError": "No se pudo actualizar el proveedor. Inténtalo de nuevo.",
       "useName": "Usar {name}",
       "webSearchKeys": "Llaves de búsqueda web",
-      "webSearchKeysIntro": "Si el despacho guarda una llave de búsqueda, la búsqueda web en {name} la usa antes que la de un miembro."
+      "webSearchKeysIntro": "Si el despacho guarda una llave de búsqueda, la búsqueda web en {name} la usa antes que la de un miembro.",
+      "membersOwnKeysIntro": "Si las permites, la llave de un miembro se usa solo cuando el despacho no tiene una para ese servicio.",
+      "memberKeysLead": "Los miembros pueden usar sus propias llaves de…",
+      "memberKeysAiShort": "IA",
+      "memberKeysWebSearchShort": "Búsqueda web",
+      "memberKeysScanShort": "Lectura de escaneados (LandingAI)",
+      "addProvider": "Agregar proveedor",
+      "availableCount": "{count, plural, one {# disponible} other {# disponibles}}"
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Volver a General",
