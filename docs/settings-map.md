@@ -20,6 +20,11 @@ draws or searches Settings reads from it:
 | `settingsSearch` | each search entry names a tab id from the map |
 | `settingsMap.test.ts` | fails when a page is not in the map (see below) |
 
+Each tab may also carry `audienceKeys`: labels of who it applies to («Solo para
+ti», «Lo ven todos los miembros», «Solo propietarios»), drawn by `SettingsShell`
+under the help text. The help text says what the tab is for and what it
+changes; the labels say who.
+
 ## The map
 
 ```

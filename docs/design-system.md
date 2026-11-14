@@ -659,6 +659,21 @@ another sidebar, and every tab or section a screen adds goes in the map (the tes
 `settingsMap.test.ts` fails otherwise). Its names and help texts follow
 [the writing rules in i18n.md](i18n.md#writing-the-text-of-settings).
 
+**Group titles** («Mi cuenta», «Mis llaves y servicios»…) are in ink and in the
+page-title serif (`font-serif`, `text-[1.0625rem]` on the desktop bar and
+`text-[1.1875rem]` on the phone list, in `rem` so they follow the text size),
+with air above; the options under them stay `text-sm text-gray-500`. The phone
+rows are 44 px or more.
+
+**Signals.** Six small components in `components/settings/SettingsText.tsx` say
+what a text is: `SettingsTag` (optional, recommended, who it applies to),
+`SettingsNotice` and `SettingsNoticeLine` (a notice, or the one red notice of
+what cannot be undone), `SettingsManagedRow` («Lo administra tu despacho») and
+`SettingsMoreInfo` («Más información»). Each keeps its icon from lucide
+(`aria-hidden`) next to a text that is always visible. Their rules and the
+tokens `--litt-note-rule`, `--litt-danger-rule` and `--litt-danger-text` are in
+`DesignTokensUI.css`; `warningPalette.test.ts` keeps amber and orange out.
+
 ## Reporting failures
 
 Every failure that stops something the user asked for must be shown to them,
