@@ -10,11 +10,20 @@ import {
 } from "./DocTable";
 import { ToastViewportUI, clearToasts } from "@mike/ui";
 import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
-import { deleteDocument, downloadDocumentsZip } from "@/app/lib/mikeApi";
+import {
+  deleteDocument,
+  downloadDocumentsZip,
+  downloadUserExport,
+  getUserExportStatus,
+  startUserExport,
+} from "@/app/lib/mikeApi";
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/app/lib/mikeApi")>(),
   downloadDocumentsZip: vi.fn().mockRejectedValue(new Error("download failed")),
   deleteDocument: vi.fn(),
+  startUserExport: vi.fn(),
+  getUserExportStatus: vi.fn(),
+  downloadUserExport: vi.fn(),
 }));
 
 import type { Document } from "@/app/components/shared/types";
@@ -363,6 +372,36 @@ describe("DocTable failure reporting", () => {
         expect(
             screen.getByRole("button", { name: "Retry" }),
         ).toBeInTheDocument();
+    });
+
+    it("stops polling a large download when the person leaves the page", async () => {
+        const user = userEvent.setup();
+        vi.mocked(startUserExport).mockResolvedValue({ export_id: "export-1" } as never);
+        vi.mocked(getUserExportStatus).mockResolvedValue({ status: "pending" } as never);
+        const docs = Array.from({ length: 11 }, (_, i) => makeDoc(`doc-${i}`, `File ${i}.pdf`));
+        let actions: DocTableSelectionActions | null = null;
+
+        const { unmount } = render(
+            <Harness
+                documents={docs}
+                operations={makeOperations()}
+                onActions={(next) => {
+                    actions = next;
+                }}
+            />,
+        );
+        for (const doc of docs) await user.click(screen.getByLabelText(`Select ${doc.filename}`));
+        await waitFor(() => expect(actions).not.toBeNull());
+        await user.click(screen.getByRole("button", { name: "Actions" }));
+        await user.click(screen.getByRole("menuitem", { name: /^Download/ }));
+        await waitFor(() => expect(getUserExportStatus).toHaveBeenCalled());
+
+        unmount();
+        const calls = vi.mocked(getUserExportStatus).mock.calls.length;
+        // Five poll intervals (POLL_MS is 10 ms under test) with nobody asking.
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(getUserExportStatus).toHaveBeenCalledTimes(calls);
+        expect(downloadUserExport).not.toHaveBeenCalled();
     });
 });
 
