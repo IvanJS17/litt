@@ -313,6 +313,20 @@ owner approved it as an exception to DESIGN.md rule 7. Colors are the
 `--litt-send-*` tokens in `DesignTokensUI.css`; the arrow advances 2 px on
 hover (160 ms) and nothing moves under `prefers-reduced-motion`.
 
+#### Reasoning ladder (approved exception, 2026-11-13)
+
+`ReasoningLadderUI` replaces the reasoning slider in `ModelToggleUI`: one step
+per level the model offers, not counting "none" (`reasoningLevelsForModel`).
+Beside the model's name, `ReasoningMiniUI` draws it in tinta (papel in dark),
+steps of 4 to 10 px. Inside the menu the filled steps are amber, 6 to 12 px, an
+exception to DESIGN.md rule 7 that covers only them: ámbar tinta at 70 to
+100 % (light), ámbar fósforo at 55 to 100 % (dark), each mixed onto the menu
+surface and opaque; empty steps are an outline. Tokens: `--litt-ladder-*` in
+`DesignTokensUI.css`. It is a `slider` (arrows, Page Up/Down, Home, End). A
+step fills once when the level changes, 160 ms up and 110 ms down, and there is
+no motion for the keyboard, a drag, `prefers-reduced-motion`, a working LiTT or
+the menu opening.
+
 #### Status mark (approved exception, 2026-11-13)
 
 `LittStatusMarkUI` ("A · Cursor") replaces the MikeOSS `MikeIcon` as the
@@ -540,7 +554,8 @@ Use the lowest tier that communicates the required depth:
 | Subtle | `liquid-glass-subtle` | Modal inputs, dropdown triggers, tab pills, PageHeader actions, and search/select controls. |
 | Float | `liquid-glass-float` | Solid-fill open dropdowns/submenus, `AppSidebar`, and persistent app/assistant/document/tabular side panels. Uses the original AppSidebar shadow depth. |
 | Modal | `liquid-glass-modal` | The modal frame only; modal contents use the appropriate general tier. |
-| Translucent | `liquid-glass-translucent` | Chat composer, ask-input surfaces, slash menus, and other translucent content overlays. |
+| Translucent | `liquid-glass-translucent` | Ask-input surfaces and other translucent content overlays that float over messages. The chat composer is not glass (see Composer). |
+| Composer | `COMPOSER_SURFACE_CLASS` (`litt-composer`) | The chat composer on the web and in Word, and its menus (model picker, slash menu): an opaque sheet with a 1 px ring and one soft shadow, `--litt-composer-*` tokens in `DesignTokensUI.css`, and a neutral (tinta or papel, never amber) focus ring and caret. Radii: 17 px, 20 px with a finger, 18 px in Word. |
 | Translucent action modifier | `liquid-glass-translucent-action` | Compact over-message actions such as scroll-to-bottom; use with `liquid-glass-translucent`. |
 
 Interactive color is separate from elevation so every tier can share one

@@ -92,7 +92,7 @@ describe("UserMessage", () => {
 
         await user.click(
             screen.getByRole("button", {
-                name: "Open workflow Diligence review",
+                name: "Open the active workflow Diligence review",
             }),
         );
 

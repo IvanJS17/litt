@@ -1,9 +1,10 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, FileText, Waypoints } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText } from "lucide-react";
 import {
+  AttachmentChipUI,
+  ComposerChipsUI,
   ExcerptModalUI,
   ExcerptPillUI,
-  PlaybookPillUI,
   TrainingNoteUI,
   type TrainingNoteView,
 } from "@mike/ui";
@@ -122,33 +123,32 @@ function UserMessageImpl({
           playbook ||
           (files && files.length > 0) ||
           excerpts.length > 0) && (
-          <div
-            className={`flex flex-wrap justify-end gap-1.5 ${body ? "mt-3" : ""}`}
-          >
-            {excerpts.map((excerpt, index) => (
-              <ExcerptPillUI
-                key={`excerpt-${index}`}
-                excerpt={excerpt}
-                onOpen={() => setOpenExcerpt(excerpt)}
-              />
-            ))}
-            {workflow && (
-              <div className="inline-flex items-center gap-1 rounded-full border border-interactive bg-interactive py-0.5 pl-2 pr-2.5 text-xs text-interactive-foreground shadow">
-                <Waypoints className="h-2.5 w-2.5 shrink-0" />
-                <span className="max-w-[140px] truncate">{workflow.title}</span>
-              </div>
-            )}
-            {playbook && <PlaybookPillUI title={playbook.title} />}
-            {files?.map((file) => (
-              <div
-                key={`${file.document_id ?? file.filename}-${file.filename}`}
-                className="inline-flex items-center gap-1 rounded-[10px] border border-white/70 bg-white py-0.5 pl-2 pr-2.5 text-xs text-gray-800 shadow-sm"
-              >
-                <FileText className="h-2.5 w-2.5 shrink-0 text-gray-400" />
-                <span className="max-w-[140px] truncate">{file.filename}</span>
-              </div>
-            ))}
-          </div>
+          <ComposerChipsUI
+            justify="end"
+            className={body ? "mt-3" : ""}
+            workflow={workflow ? { title: workflow.title } : null}
+            playbook={playbook ? { title: playbook.title } : null}
+            attached={[
+              ...excerpts.map((excerpt, index) => ({
+                key: `excerpt-${index}`,
+                node: (
+                  <ExcerptPillUI
+                    excerpt={excerpt}
+                    onOpen={() => setOpenExcerpt(excerpt)}
+                  />
+                ),
+              })),
+              ...(files ?? []).map((file) => ({
+                key: `${file.document_id ?? file.filename}-${file.filename}`,
+                node: (
+                  <AttachmentChipUI
+                    name={file.filename}
+                    icon={<FileText />}
+                  />
+                ),
+              })),
+            ]}
+          />
         )}
       </div>
       {trainingNote && (

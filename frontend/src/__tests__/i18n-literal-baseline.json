@@ -282,7 +282,7 @@
     "packages/ui/src/NoticeCardUI.tsx",
     "packages/ui/src/PillButtonUI.styles.ts",
     "packages/ui/src/PillButtonUI.tsx",
-    "packages/ui/src/PlaybookPillUI.tsx",
+    "packages/ui/src/ComposerChipsUI.tsx",
     "packages/ui/src/PreResponseWrapperUI.tsx",
     "packages/ui/src/ResponseSelectionMenuUI.tsx",
     "packages/ui/src/SourceCodeLinkUI.tsx",

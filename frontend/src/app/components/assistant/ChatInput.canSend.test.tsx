@@ -529,8 +529,10 @@ describe("ChatInput canSend gating", () => {
         const first = await screen.findByTitle("first.pdf · Uploading");
         const second = screen.getByTitle("second.pdf · Uploading");
         // One row with the attachments, not a stack of rows.
-        expect(first.parentElement).toBe(second.parentElement);
-        expect(first.parentElement).toHaveClass("flex-wrap");
+        const list = first.closest("ul");
+        expect(list).toBe(second.closest("ul"));
+        expect(list).toHaveClass("flex-wrap");
+        expect(list).toHaveAccessibleName("Attached documents");
         // The + keeps its icon and stays usable, and the picker stays enabled.
         const add = screen.getByRole("button", { name: "Add to message" });
         expect(add).toBeEnabled();

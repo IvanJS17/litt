@@ -4,8 +4,9 @@ import * as React from "react";
 
 import {
     COMPOSER_SEND_BUTTON_CLASS,
+    COMPOSER_SURFACE_CLASS,
+    COMPOSER_SURFACE_WORD_RADIUS_CLASS,
     SendArrowUI,
-    LIQUID_GLASS_TRANSLUCENT_CLASS,
 } from "@mike/ui";
 
 import { cn } from "../lib/utils";
@@ -26,7 +27,7 @@ interface ChatInputProps {
     leftSlot?: React.ReactNode;
     /** Accessory controls rendered immediately before the send/stop button. */
     rightSlot?: React.ReactNode;
-    /** Workflow and document pills rendered inside the glass composer. */
+    /** The labels row (`ComposerChipsUI`) rendered inside the composer sheet. */
     attachments?: React.ReactNode;
     /**
      * Lets the composer send with no typed text, when what is attached
@@ -45,7 +46,7 @@ interface ChatInputProps {
 /**
  * Presentational chat composer shell shared across surfaces, duplicated from
  * the web app's composer (frontend/src/app/components/assistant/ChatInput.tsx):
- * the same liquid-glass container and gradient-black square action button,
+ * the same opaque sheet and send button,
  * laid out to fit a narrow task-pane column. Enter submits; Shift+Enter
  * inserts a newline. The action button flips between send (arrow) and stop
  * (square) exactly like the web's single action button.
@@ -140,18 +141,14 @@ export function ChatInput({
         <div
             data-testid="chat-input"
             className={cn(
-                // The web composer's glass, so the pane follows the dark theme.
-                "rounded-[21px]",
-                LIQUID_GLASS_TRANSLUCENT_CLASS,
+                // The web composer's sheet, so the pane follows the dark theme.
+                COMPOSER_SURFACE_WORD_RADIUS_CLASS,
+                COMPOSER_SURFACE_CLASS,
                 className,
             )}
         >
-            {attachments && (
-                <div className="flex flex-wrap gap-1.5 px-2 pt-2">
-                    {attachments}
-                </div>
-            )}
-            <div ref={inputAreaRef} className="px-4 pt-4">
+            {attachments}
+            <div ref={inputAreaRef} className="px-3 pt-3">
                 <textarea
                     ref={textareaRef}
                     rows={1}

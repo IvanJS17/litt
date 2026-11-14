@@ -81,12 +81,12 @@ test("attaches a playbook from the plus menu, sends it, and shows it on the mess
 
   const composer = page.getByTestId("chat-input");
   const remove = composer.getByRole("button", {
-    name: "Remove playbook NDA review",
+    name: "Deactivate the playbook NDA review",
   });
   await expect(remove).toBeVisible();
   await expect(remove).toHaveAttribute("type", "button");
   await expect(
-    composer.getByRole("button", { name: "Open playbook NDA review" }),
+    composer.getByRole("button", { name: "Open the active playbook NDA review" }),
   ).toBeVisible();
 
   await page.getByPlaceholder("How can I help?").fill("Review this NDA");
@@ -101,7 +101,7 @@ test("attaches a playbook from the plus menu, sends it, and shows it on the mess
   });
 
   // The attachment belongs to the message now, not the composer.
-  await expect(composer.getByText("NDA review")).toHaveCount(0);
+  await expect(composer.getByRole("list", { name: "Active" })).toHaveCount(0);
   await expect(page.getByText("One clause needs attention.")).toBeVisible();
   await expect(page.getByText("NDA review", { exact: true })).toBeVisible();
 });
@@ -123,7 +123,7 @@ test("removing the pill sends the message without a playbook", async ({
   await modal.getByRole("button", { name: "Use" }).click();
   await page
     .getByTestId("chat-input")
-    .getByRole("button", { name: "Remove playbook NDA review" })
+    .getByRole("button", { name: "Deactivate the playbook NDA review" })
     .click();
 
   await page.getByPlaceholder("How can I help?").fill("Just summarise it");

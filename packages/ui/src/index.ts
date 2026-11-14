@@ -10,6 +10,7 @@
 export * from "./LiquidGlassUI";
 export * from "./AuthStylesUI";
 export * from "./ComposerSendButtonUI.styles";
+export * from "./ComposerSurfaceUI.styles";
 export * from "./SendArrowUI";
 
 // Buttons and pills
@@ -49,7 +50,7 @@ export * from "./CitationPillUI";
 export * from "./ExcerptPillUI";
 export * from "./ExcerptModalUI";
 export * from "./ResponseSelectionMenuUI";
-export * from "./PlaybookPillUI";
+export * from "./ComposerChipsUI";
 export * from "./useReasoningDisclosure";
 
 // LiTT training (formación): attempt field, coach notes, the "pending

@@ -13,14 +13,10 @@ import {
     useMemo,
     type ForwardedRef,
 } from "react";
-import {
-    Waypoints,
-    X,
-} from "lucide-react";
 import { AddDocButton } from "./AddDocButton";
 import { PlaybookPickerModal } from "../playbooks/PlaybookPickerModal";
 import {
-    PlaybookPillUI,
+    ComposerChipsUI,
     COMPOSER_SEND_BUTTON_CLASS,
     SendArrowUI,
     ExcerptModalUI,
@@ -73,8 +69,11 @@ import {
 import type { Document, Message, Workflow } from "../shared/types";
 import type { DirectoryTab } from "../shared/useDirectoryData";
 import { cn } from "@/app/lib/utils";
-import { TOUCH_TARGET_CLASS } from "@mike/ui";
-import { LIQUID_GLASS_TRANSLUCENT_CLASS } from "@/app/components/ui/liquid-surface";
+import {
+    COMPOSER_SURFACE_CLASS,
+    COMPOSER_SURFACE_WEB_RADIUS_CLASS,
+    TOUCH_TARGET_CLASS,
+} from "@mike/ui";
 import {
     UploadBatchError,
     failedUploadMessage,
@@ -958,103 +957,99 @@ function ChatInputForChatImpl(
                 )}
                 <div
                     className={cn(
-                        "rounded-[21px]",
-                        LIQUID_GLASS_TRANSLUCENT_CLASS,
+                        COMPOSER_SURFACE_WEB_RADIUS_CLASS,
+                        COMPOSER_SURFACE_CLASS,
                     )}
                 >
-                    {/* Attached chips */}
-                    {(selectedWorkflow ||
-                        selectedPlaybook ||
-                        attachedDocs.length > 0 ||
-                        uploadingFiles.length > 0 ||
-                        excerpts.length > 0) && (
-                        <div className="flex flex-wrap gap-1.5 px-2 pt-2">
-                            {selectedWorkflow && (
-                                <div className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full text-xs bg-interactive text-interactive-foreground border border-white/20 shadow">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setWorkflowModalInitialId(
-                                                selectedWorkflow.id,
-                                            );
-                                            setWorkflowModalOpen(true);
-                                        }}
-                                        aria-label={t("assistant.chatInput.openWorkflowTitle", { title: selectedWorkflow.title })}
-                                        className="inline-flex min-w-0 items-center gap-1 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                                    >
-                                        <Waypoints className="h-2.5 w-2.5 shrink-0" />
-                                        <span className="max-w-[140px] truncate">
-                                            {selectedWorkflow.title}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setSelectedWorkflow(null)
+                    {/* What is switched on (workflow, playbook), then what is
+                        attached (documents, uploads, quoted passages). */}
+                    <ComposerChipsUI
+                        announce
+                        className="px-2.5 pt-2.5"
+                        workflow={
+                            selectedWorkflow
+                                ? {
+                                      title: selectedWorkflow.title,
+                                      onOpen: () => {
+                                          setWorkflowModalInitialId(
+                                              selectedWorkflow.id,
+                                          );
+                                          setWorkflowModalOpen(true);
+                                      },
+                                      onDeactivate: () =>
+                                          setSelectedWorkflow(null),
+                                  }
+                                : null
+                        }
+                        playbook={
+                            selectedPlaybook
+                                ? {
+                                      title: selectedPlaybook.title,
+                                      onOpen: () => {
+                                          setPlaybookModalInitialId(
+                                              selectedPlaybook.id,
+                                          );
+                                          setPlaybookModalOpen(true);
+                                      },
+                                      onDeactivate: () =>
+                                          setSelectedPlaybook(null),
+                                  }
+                                : null
+                        }
+                        attached={[
+                            ...attachedDocs.map((doc) => ({
+                                key: `doc-${doc.id}`,
+                                node: (
+                                    <DocumentPill
+                                        filename={doc.filename}
+                                        fileType={doc.file_type}
+                                        onOpen={
+                                            onDocumentClick
+                                                ? () => onDocumentClick(doc)
+                                                : undefined
                                         }
-                                        aria-label={t("assistant.chatInput.removeWorkflowTitle", { title: selectedWorkflow.title })}
-                                        className={cn(
-                                            TOUCH_TARGET_CLASS,
-                                            "rounded-full p-0.5 ml-0.5 text-white/60 hover:text-white hover:bg-white/20 transition-colors",
+                                        onRemove={() =>
+                                            setAttachedDocs((prev) =>
+                                                prev.filter(
+                                                    (d) => d.id !== doc.id,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                ),
+                            })),
+                            // Still uploading: in the same list as the
+                            // attached documents, side by side.
+                            ...uploadingFiles.map((upload) => ({
+                                key: `upload-${upload.clientId}`,
+                                node: (
+                                    <DocumentPill
+                                        filename={upload.filename}
+                                        status={t(
+                                            "assistant.chatInput.uploading",
                                         )}
-                                    >
-                                        <X className="h-2.5 w-2.5" />
-                                    </button>
-                                </div>
-                            )}
-                            {selectedPlaybook && (
-                                <PlaybookPillUI
-                                    title={selectedPlaybook.title}
-                                    onOpen={() => {
-                                        setPlaybookModalInitialId(
-                                            selectedPlaybook.id,
-                                        );
-                                        setPlaybookModalOpen(true);
-                                    }}
-                                    onRemove={() => setSelectedPlaybook(null)}
-                                />
-                            )}
-                            {attachedDocs.map((doc) => (
-                                <DocumentPill
-                                    key={doc.id}
-                                    filename={doc.filename}
-                                    fileType={doc.file_type}
-                                    onOpen={
-                                        onDocumentClick
-                                            ? () => onDocumentClick(doc)
-                                            : undefined
-                                    }
-                                    onRemove={() =>
-                                        setAttachedDocs((prev) =>
-                                            prev.filter((d) => d.id !== doc.id),
-                                        )
-                                    }
-                                />
-                            ))}
-                            {/* Still uploading: in the same row as the
-                                attached documents, side by side. */}
-                            {uploadingFiles.map((upload) => (
-                                <DocumentPill
-                                    key={upload.clientId}
-                                    filename={upload.filename}
-                                    status={t("assistant.chatInput.uploading")}
-                                    loading
-                                />
-                            ))}
-                            {excerpts.map((excerpt, index) => (
-                                <ExcerptPillUI
-                                    key={`${index}-${excerpt.text}`}
-                                    excerpt={excerpt}
-                                    onOpen={() => setOpenExcerpt(excerpt)}
-                                    onRemove={() =>
-                                        setExcerpts((prev) =>
-                                            prev.filter((_, i) => i !== index),
-                                        )
-                                    }
-                                />
-                            ))}
-                        </div>
-                    )}
+                                        loading
+                                    />
+                                ),
+                            })),
+                            ...excerpts.map((excerpt, index) => ({
+                                key: `excerpt-${index}-${excerpt.text}`,
+                                node: (
+                                    <ExcerptPillUI
+                                        excerpt={excerpt}
+                                        onOpen={() => setOpenExcerpt(excerpt)}
+                                        onRemove={() =>
+                                            setExcerpts((prev) =>
+                                                prev.filter(
+                                                    (_, i) => i !== index,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                ),
+                            })),
+                        ]}
+                    />
 
                     {needsAttempt ? (
                         <>
@@ -1107,7 +1102,7 @@ function ChatInputForChatImpl(
                     ) : null}
 
                     {/* Input */}
-                    <div className="px-4 pt-4">
+                    <div className="px-3.5 pt-3.5">
                         <textarea
                             ref={textareaRef}
                             rows={1}
@@ -1143,7 +1138,7 @@ function ChatInputForChatImpl(
                     {/* Controls */}
                     <div
                         ref={controlsRef}
-                        className="flex items-center justify-between py-2 pr-2 pl-1.5"
+                        className="flex items-center justify-between p-2"
                     >
                         <div className="flex items-center gap-1">
                             {!hideAddDocButton && composerOpen && (
@@ -1189,13 +1184,11 @@ function ChatInputForChatImpl(
                                     routerSelections={savedRouterSelections}
                                     compact={compactControls}
                                     compactShowsName
-                                    triggerClassName={cn(
-                                        TOUCH_TARGET_CLASS,
-                                        "h-7.5 pointer-coarse:h-9",
-                                    )}
+                                    triggerClassName={TOUCH_TARGET_CLASS}
                                     onNoModelsClick={setNoModelsWarning}
                                     reasoningLevel={reasoningLevel}
                                     onReasoningChange={handleReasoningChange}
+                                    working={isLoading}
                                     locked={routeFixed}
                                 />
                             )}

@@ -79,7 +79,7 @@ test("shows frontend-style quick actions before any message is sent", async ({
 
   await page.getByRole("button", { name: "Extract key terms" }).click();
   await expect(
-    page.getByRole("button", { name: "Remove workflow Extract Key Terms" }),
+    page.getByRole("button", { name: "Deactivate the workflow Extract Key Terms" }),
   ).toBeVisible();
   await expect(page.getByPlaceholder("How can I help?")).toHaveValue(
     "Extract the key legal, commercial, and operational terms from the current document. Present them in a concise table with the term, value, location, and notes, and flag material omissions or ambiguities without inventing missing information.",
@@ -1509,7 +1509,10 @@ test("selects a workflow from the plus menu and attaches it to chat", async ({
   await modal.getByRole("button", { name: "Use" }).click();
 
   await expect(
-    page.getByTestId("chat-input").getByText("Contract review"),
+    page
+      .getByTestId("chat-input")
+      .getByRole("list", { name: "Active" })
+      .getByRole("img", { name: "Workflow: Contract review" }),
   ).toBeVisible();
 
   await page.getByPlaceholder("How can I help?").fill("Run this workflow");
@@ -1614,7 +1617,9 @@ test("composer controls fit a narrow Word task pane", async ({
   expect(addDocumentBounds).not.toBeNull();
   expect(applyModeBounds).not.toBeNull();
   expect(modelBounds).not.toBeNull();
-  expect(Math.abs(plusBounds!.x - placeholderBounds!.x)).toBeLessThanOrEqual(3);
+  // The sheet's text starts at 12 px and the ghost "+" (32 px, centered icon)
+  // after 8 px of padding: the icon sits 4 px inside the text's edge.
+  expect(Math.abs(plusBounds!.x - placeholderBounds!.x)).toBeLessThanOrEqual(4);
   // The whole action row shares one line: mode pill after the documents
   // button, icon-only model button flush inside the pane.
   expect(
@@ -2489,4 +2494,34 @@ test("plain prose answers offer no document mutation controls", async ({
   await expect(page.getByRole("button", { name: "Accept all" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Reject all" })).toHaveCount(0);
   expect((await addin.wordCalls()).trackedChanges).toEqual([]);
+});
+
+test("the model button names the reasoning level and the menu has a keyboard ladder", async ({
+  addin,
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 760 });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+
+  const trigger = page.getByRole("button", {
+    name: /^Choose model: .+, reasoning .+/,
+  });
+  await expect(trigger).toBeVisible();
+  // The thumbnail is decoration: the level is in the name.
+  await expect(trigger.locator("[data-litt-ladder-mini]")).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
+  await trigger.click();
+  const ladder = page.getByRole("slider", { name: "Reasoning level" });
+  await expect(ladder).toBeVisible();
+  const steps = await ladder.locator(".litt-ladder-step").count();
+  await expect(ladder).toHaveAttribute("aria-valuemax", String(steps));
+  await ladder.focus();
+  await page.keyboard.press("End");
+  await expect(ladder).toHaveAttribute("aria-valuenow", String(steps));
+  await page.keyboard.press("Home");
+  const lowest = (await ladder.getAttribute("aria-valuemin")) ?? "0";
+  await expect(ladder).toHaveAttribute("aria-valuenow", lowest);
 });

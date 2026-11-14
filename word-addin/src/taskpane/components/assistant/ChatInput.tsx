@@ -6,11 +6,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Library, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
+  AttachmentChipUI,
+  ComposerChipsUI,
   ExcerptModalUI,
   ExcerptPillUI,
-  PlaybookPillUI,
   slashCommandQueryFromValue,
   withoutSlashCommand,
   workflowSlashCommandFromTitle,
@@ -328,6 +329,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     const localFileInputRef = useRef<HTMLInputElement>(null);
     const composerRef = useRef<HTMLDivElement>(null);
     const [compactControls, setCompactControls] = useState(false);
+    // From 300 px of panel the model button names the model (short) and
+    // draws the level's thumbnail, in place of the controls icon.
+    const [roomForModelName, setRoomForModelName] = useState(false);
     const mountedRef = useRef(true);
     const uploadGenerationRef = useRef(0);
     const modelSelectionSaveRef = useRef<Promise<void>>(Promise.resolve());
@@ -415,7 +419,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     useEffect(() => {
       const composer = composerRef.current;
       if (!composer || typeof ResizeObserver === "undefined") return;
-      const update = (): void => setCompactControls(composer.offsetWidth < 430);
+      const update = (): void => {
+        setCompactControls(composer.offsetWidth < 430);
+        setRoomForModelName(window.innerWidth >= 300);
+      };
       update();
       const observer = new ResizeObserver(update);
       observer.observe(composer);
@@ -885,77 +892,67 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               placeholder={t("word.howCanIHelp")}
               canSubmitEmpty={hasAnnotatedExcerpt}
               attachments={
-                selectedWorkflow ||
-                selectedPlaybook ||
-                attachedDocuments.length > 0 ||
-                excerpts.length > 0 ? (
-                  <>
-                    {selectedWorkflow && (
-                      <div className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-interactive py-0.5 pl-2.5 pr-1 text-xs text-interactive-foreground shadow">
-                        <Library className="h-2.5 w-2.5 shrink-0" />
-                        <span className="max-w-[140px] truncate">
-                          {selectedWorkflow.title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => onSelectedWorkflowChange(null)}
-                          aria-label={t("word.removeWorkflowTitle", { title: selectedWorkflow.title })}
-                          className="ml-0.5 rounded-full p-0.5 text-white/60 transition-colors hover:bg-white/20 hover:text-white"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    )}
-                    {selectedPlaybook && (
-                      <PlaybookPillUI
-                        title={selectedPlaybook.title}
-                        onOpen={() => {
-                          setPlaybookModalInitialId(selectedPlaybook.id);
-                          setPlaybookModalOpen(true);
-                        }}
-                        onRemove={() => setSelectedPlaybook(null)}
-                      />
-                    )}
-                    {attachedDocuments.map((document) => (
-                      <div
-                        key={document.id}
-                        className="inline-flex items-center gap-1 rounded-[10px] border border-white/70 bg-white py-0.5 pl-2 pr-1 text-xs text-gray-800 shadow-sm"
-                      >
-                        <FileTypeIcon
-                          fileType={document.file_type ?? document.filename}
-                          className="h-2.5 w-2.5"
-                        />
-                        <span className="max-w-[140px] truncate">
-                          {document.filename}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
+                <ComposerChipsUI
+                  announce
+                  className="px-2 pt-2"
+                  workflow={
+                    selectedWorkflow
+                      ? {
+                          title: selectedWorkflow.title,
+                          onDeactivate: () => onSelectedWorkflowChange(null),
+                        }
+                      : null
+                  }
+                  playbook={
+                    selectedPlaybook
+                      ? {
+                          title: selectedPlaybook.title,
+                          onOpen: () => {
+                            setPlaybookModalInitialId(selectedPlaybook.id);
+                            setPlaybookModalOpen(true);
+                          },
+                          onDeactivate: () => setSelectedPlaybook(null),
+                        }
+                      : null
+                  }
+                  attached={[
+                    ...attachedDocuments.map((document) => ({
+                      key: `doc-${document.id}`,
+                      node: (
+                        <AttachmentChipUI
+                          name={document.filename}
+                          icon={
+                            <FileTypeIcon
+                              fileType={document.file_type ?? document.filename}
+                            />
+                          }
+                          onRemove={() =>
                             setAttachedDocuments((current) =>
                               current.filter((item) => item.id !== document.id),
                             )
                           }
-                          aria-label={t("word.removeDocumentFilename", { filename: document.filename })}
-                          className="ml-0.5 rounded-full p-0.5 text-gray-400 transition-colors hover:bg-gray-900/5 hover:text-gray-700"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    ))}
-                    {excerpts.map((excerpt, index) => (
-                      <ExcerptPillUI
-                        key={`${index}-${excerpt.text}`}
-                        excerpt={excerpt}
-                        onOpen={() => setOpenExcerpt(excerpt)}
-                        onRemove={() =>
-                          setExcerpts((current) =>
-                            current.filter((_, i) => i !== index),
-                          )
-                        }
-                      />
-                    ))}
-                  </>
-                ) : undefined
+                          removeLabel={t("word.removeDocumentFilename", {
+                            filename: document.filename,
+                          })}
+                        />
+                      ),
+                    })),
+                    ...excerpts.map((excerpt, index) => ({
+                      key: `excerpt-${index}-${excerpt.text}`,
+                      node: (
+                        <ExcerptPillUI
+                          excerpt={excerpt}
+                          onOpen={() => setOpenExcerpt(excerpt)}
+                          onRemove={() =>
+                            setExcerpts((current) =>
+                              current.filter((_, i) => i !== index),
+                            )
+                          }
+                        />
+                      ),
+                    })),
+                  ]}
+                />
               }
               leftSlot={
                 <div className="flex min-w-0 items-center gap-1">
@@ -996,6 +993,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                     keyStatusLoading={keyStatusLoading}
                     routerSelections={routerSelections}
                     compact={compactControls}
+                    compactShowsName={roomForModelName}
+                    working={isResponseLoading}
                     reasoningLevel={resolvedReasoningLevel}
                     onReasoningChange={(next) => {
                       reasoningManuallySelectedRef.current = true;

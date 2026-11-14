@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import { Check, Eye, Pen } from "lucide-react";
 import type { WordEditApplyMode } from "../../lib/wordChatSettings";
 import {
+  COMPOSER_GHOST_BUTTON_CLASS,
+  COMPOSER_GHOST_WORD_SIZE_CLASS,
   Dropdown,
   DropdownContent,
   DropdownItem,
   DropdownTrigger,
 } from "@mike/ui";
 import { useTranslations } from "use-intl";
+import { cn } from "../../../shared/lib/utils";
 
 interface ApplyModeOption {
   mode: WordEditApplyMode;
@@ -62,9 +65,11 @@ export function EditApplyModeMenu({
           aria-label={t("word.chooseHowEditsAreApplied")}
           title={t("word.chooseHowEditsAreApplied")}
           data-testid="edit-apply-toggle"
-          className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-1.5 text-sm text-gray-400 transition-colors hover:text-gray-700 ${
-            open ? "text-gray-700" : ""
-          }`}
+          className={cn(
+            COMPOSER_GHOST_BUTTON_CLASS,
+            COMPOSER_GHOST_WORD_SIZE_CLASS,
+            "gap-1",
+          )}
         >
           <active.Icon className="h-3.5 w-3.5 shrink-0" />
           <span>{active.label}</span>

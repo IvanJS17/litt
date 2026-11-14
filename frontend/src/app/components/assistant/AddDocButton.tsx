@@ -14,8 +14,12 @@ import {
     DropdownItem,
     DropdownSeparator,
     DropdownTrigger,
+    COMPOSER_GHOST_BUTTON_CLASS,
+    COMPOSER_GHOST_WEB_ICON_CLASS,
+    COMPOSER_GHOST_WEB_SIZE_CLASS,
     TOUCH_TARGET_CLASS,
 } from "@mike/ui";
+import { cn } from "@/app/lib/utils";
 import { useTranslations } from "next-intl";
 
 interface Props {
@@ -40,7 +44,12 @@ export function AddDocButton({
             <DropdownTrigger asChild>
                 <button
                     type="button"
-                    className={`${TOUCH_TARGET_CLASS} flex h-7.5 items-center gap-1 rounded-lg px-2 text-sm text-gray-400 transition-colors hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus pointer-coarse:h-9`}
+                    className={cn(
+                        TOUCH_TARGET_CLASS,
+                        COMPOSER_GHOST_BUTTON_CLASS,
+                        COMPOSER_GHOST_WEB_SIZE_CLASS,
+                        COMPOSER_GHOST_WEB_ICON_CLASS,
+                    )}
                     title={t("assistant.addDocButton.addToMessage")}
                     aria-label={t("assistant.addDocButton.addToMessage")}
                 >
