@@ -30,7 +30,7 @@ describe("DocumentPill", () => {
         expect(screen.getByTitle("lease.pdf · Uploading")).toHaveTextContent("lease.pdf, Uploading");
         expect(screen.queryByRole("button", { name: "Remove lease.pdf" })).toBeNull();
         const spinner = container.querySelector(".animate-spin");
-        expect(spinner?.parentElement).toHaveClass("mx-1", "p-0.5");
+        expect(spinner?.parentElement).toHaveClass("mr-1", "size-4");
         expect(spinner?.parentElement).toHaveAttribute("aria-hidden", "true");
     });
 });

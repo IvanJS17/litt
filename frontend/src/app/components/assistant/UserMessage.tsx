@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ClipboardCheck, Waypoints } from "lucide-react";
 import { playbookPath } from "../playbooks/PlaybookTable";
 import { FileTypeIcon } from "../shared/FileTypeIcon";
 import type { MessageFile } from "../shared/types";
-import { LIQUID_GLASS_FLAT_CLASS, ExcerptModalUI, ExcerptPillUI } from "@mike/ui";
+import {
+    AttachmentChipUI,
+    ComposerChipsUI,
+    ExcerptModalUI,
+    ExcerptPillUI,
+} from "@mike/ui";
 import {
     parseExcerpts,
     type MessageExcerpt,
@@ -56,84 +60,71 @@ export function UserMessage({
                     </p>
                 )}
                 {(workflow || playbook || hasFiles || excerpts.length > 0) && (
-                    <div
-                        className={`flex flex-wrap justify-end gap-1.5 ${body ? "mt-3" : ""}`}
-                    >
-                        {excerpts.map((excerpt, i) => (
-                            <ExcerptPillUI
-                                key={`excerpt-${i}`}
-                                excerpt={excerpt}
-                                onOpen={() => setOpenExcerpt(excerpt)}
-                            />
-                        ))}
-                        {workflow && (
-                            <div className="inline-flex items-center gap-1 pl-2 pr-2.5 py-0.5 rounded-full text-xs bg-interactive text-interactive-foreground shadow border border-interactive">
-                                {onWorkflowClick ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => onWorkflowClick(workflow)}
-                                        aria-label={t("assistant.userMessage.openWorkflowTitle", { title: workflow.title })}
-                                        className="inline-flex min-w-0 items-center gap-1 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                                    >
-                                        <Waypoints className="h-2.5 w-2.5 shrink-0" />
-                                        <span className="max-w-[140px] truncate">
-                                            {workflow.title}
-                                        </span>
-                                    </button>
-                                ) : (
-                                    <>
-                                        <Waypoints className="h-2.5 w-2.5 shrink-0" />
-                                        <span className="max-w-[140px] truncate">
-                                            {workflow.title}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                        {playbook && (
-                            <Link
-                                href={playbookPath(playbook.id)}
-                                aria-label={t("assistant.userMessage.openPlaybookTitle", { title: playbook.title })}
-                                className="inline-flex min-w-0 items-center gap-1 rounded-full border border-gray-700 bg-gray-700 py-0.5 pl-2 pr-2.5 text-xs text-white shadow transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                            >
-                                <ClipboardCheck className="h-2.5 w-2.5 shrink-0" />
-                                <span className="max-w-[140px] truncate">
-                                    {playbook.title}
-                                </span>
-                            </Link>
-                        )}
-                        {hasFiles &&
-                            files.map((f, i) => {
-                                const className =
-                                    `inline-flex items-center gap-1 rounded-[10px] py-0.5 pl-2 pr-2.5 text-xs text-gray-800 ${LIQUID_GLASS_FLAT_CLASS}`;
-                                const fileContent = (
-                                    <>
-                                        <FileTypeIcon
-                                            fileType={f.filename}
-                                            className="h-2.5 w-2.5"
-                                        />
-                                        <span className="max-w-[140px] truncate">
-                                            {f.filename}
-                                        </span>
-                                    </>
-                                );
-                                return f.document_id && onFileClick ? (
-                                    <button
-                                        key={i}
-                                        type="button"
-                                        onClick={() => onFileClick(f)}
-                                        aria-label={t("assistant.userMessage.openFilename", { filename: f.filename })}
-                                        className={`${className} cursor-pointer transition-colors hover:bg-white/80`}
-                                    >
-                                        {fileContent}
-                                    </button>
-                                ) : (
-                                    <div key={i} className={className}>
-                                        {fileContent}
-                                    </div>
-                                );
-                            })}
-                    </div>
+                    <ComposerChipsUI
+                        justify="end"
+                        className={body ? "mt-3" : ""}
+                        workflow={
+                            workflow
+                                ? {
+                                      title: workflow.title,
+                                      onOpen: onWorkflowClick
+                                          ? () => onWorkflowClick(workflow)
+                                          : undefined,
+                                  }
+                                : null
+                        }
+                        playbook={
+                            playbook
+                                ? {
+                                      title: playbook.title,
+                                      renderOpen: ({
+                                          children,
+                                          className,
+                                          ariaLabel,
+                                      }) => (
+                                          <Link
+                                              href={playbookPath(playbook.id)}
+                                              aria-label={ariaLabel}
+                                              className={className}
+                                          >
+                                              {children}
+                                          </Link>
+                                      ),
+                                  }
+                                : null
+                        }
+                        attached={[
+                            ...excerpts.map((excerpt, i) => ({
+                                key: `excerpt-${i}`,
+                                node: (
+                                    <ExcerptPillUI
+                                        excerpt={excerpt}
+                                        onOpen={() => setOpenExcerpt(excerpt)}
+                                    />
+                                ),
+                            })),
+                            ...(files ?? []).map((f, i) => ({
+                                key: `file-${i}`,
+                                node: (
+                                    <AttachmentChipUI
+                                        name={f.filename}
+                                        icon={
+                                            <FileTypeIcon fileType={f.filename} />
+                                        }
+                                        onOpen={
+                                            f.document_id && onFileClick
+                                                ? () => onFileClick(f)
+                                                : undefined
+                                        }
+                                        openLabel={t(
+                                            "assistant.userMessage.openFilename",
+                                            { filename: f.filename },
+                                        )}
+                                    />
+                                ),
+                            })),
+                        ]}
+                    />
                 )}
             </div>
             {trainingNote && (

@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listWorkflows } from "@/app/lib/mikeApi";
@@ -98,10 +98,10 @@ describe("ChatInput workflow slash commands", () => {
             const openButton = screen.getByRole("button", {
                 name: `Open agreement.${extension}`,
             });
-            expect(openButton.parentElement).toHaveClass("liquid-glass-flat");
-            expect(openButton.parentElement).not.toHaveClass(
-                "liquid-glass-subtle",
-            );
+            // The soft sheet of an attachment, not glass.
+            const chip = openButton.closest("[data-chip='attachment']");
+            expect(chip).toHaveClass("rounded-[7px]");
+            expect(chip).not.toHaveClass("liquid-glass-flat");
             await user.click(openButton);
 
             expect(onDocumentClick).toHaveBeenCalledWith(document);
@@ -190,6 +190,49 @@ describe("ChatInput workflow slash commands", () => {
                 }),
             ),
         );
+    });
+
+    it("shows the chosen workflow as an active label that is deactivated, not removed", async () => {
+        const user = userEvent.setup();
+        const { container } = render(
+            <ChatInput
+                onSubmit={vi.fn()}
+                onCancel={vi.fn()}
+                isLoading={false}
+            />,
+        );
+
+        await user.type(screen.getByRole("combobox"), "/cont");
+        await screen.findByRole("option", {
+            name: "/contract-intake Contract Intake",
+        });
+        await user.keyboard("{Enter}");
+
+        const active = await screen.findByRole("list", { name: "Active" });
+        // Its type is written, in a segment of its own.
+        expect(within(active).getByText("Workflow")).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", {
+                name: "Open the active workflow Contract Intake",
+            }),
+        ).toBeInTheDocument();
+        expect(
+            container.querySelector("[aria-live='polite']"),
+        ).toHaveTextContent("Workflow activated: Contract Intake");
+        // A workflow is deactivated; only a document is removed.
+        expect(
+            screen.queryByRole("button", { name: /^Remove/ }),
+        ).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole("button", {
+                name: "Deactivate the workflow Contract Intake",
+            }),
+        );
+        expect(screen.queryByRole("list", { name: "Active" })).toBeNull();
+        expect(
+            container.querySelector("[aria-live='polite']"),
+        ).toHaveTextContent("Workflow deactivated: Contract Intake");
     });
 
     it("offers a command typed mid-message and keeps the rest of the draft", async () => {

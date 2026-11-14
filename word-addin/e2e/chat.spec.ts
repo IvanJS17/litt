@@ -79,7 +79,7 @@ test("shows frontend-style quick actions before any message is sent", async ({
 
   await page.getByRole("button", { name: "Extract key terms" }).click();
   await expect(
-    page.getByRole("button", { name: "Remove workflow Extract Key Terms" }),
+    page.getByRole("button", { name: "Deactivate the workflow Extract Key Terms" }),
   ).toBeVisible();
   await expect(page.getByPlaceholder("How can I help?")).toHaveValue(
     "Extract the key legal, commercial, and operational terms from the current document. Present them in a concise table with the term, value, location, and notes, and flag material omissions or ambiguities without inventing missing information.",

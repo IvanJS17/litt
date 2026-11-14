@@ -27,7 +27,7 @@ interface ChatInputProps {
     leftSlot?: React.ReactNode;
     /** Accessory controls rendered immediately before the send/stop button. */
     rightSlot?: React.ReactNode;
-    /** Workflow and document pills rendered inside the composer sheet. */
+    /** The labels row (`ComposerChipsUI`) rendered inside the composer sheet. */
     attachments?: React.ReactNode;
     /**
      * Lets the composer send with no typed text, when what is attached
@@ -147,11 +147,7 @@ export function ChatInput({
                 className,
             )}
         >
-            {attachments && (
-                <div className="flex flex-wrap gap-1.5 px-2 pt-2">
-                    {attachments}
-                </div>
-            )}
+            {attachments}
             <div ref={inputAreaRef} className="px-3 pt-3">
                 <textarea
                     ref={textareaRef}

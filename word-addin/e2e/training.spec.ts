@@ -298,7 +298,7 @@ test("a refused turn puts back the attached document (once) and the playbook", a
 
   const composer = page.getByTestId("chat-input");
   const document = composer.getByRole("button", { name: "Remove document NDA template.docx" });
-  const playbook = composer.getByRole("button", { name: "Remove playbook NDA review" });
+  const playbook = composer.getByRole("button", { name: "Deactivate the playbook NDA review" });
   await expect(document).toHaveCount(1);
   await expect(playbook).toHaveCount(1);
 

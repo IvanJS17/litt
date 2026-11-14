@@ -5652,6 +5652,24 @@
     "closeButton": {
       "close": "Close"
     },
+    "composerChips": {
+      "activeList": "Active",
+      "attachedList": "Attached documents",
+      "deactivatePlaybook": "Deactivate the playbook {title}",
+      "deactivateWorkflow": "Deactivate the workflow {title}",
+      "openPlaybook": "Open the active playbook {title}",
+      "openWorkflow": "Open the active workflow {title}",
+      "playbookActivated": "Playbook activated: {title}",
+      "playbookDeactivated": "Playbook deactivated: {title}",
+      "playbookType": "Playbook",
+      "summaryActive": "Active: {items}",
+      "summaryAttached": "Attached: {count, plural, one {# document} other {# documents}}",
+      "summaryPlaybooks": "{count, plural, one {# playbook} other {# playbooks}}",
+      "summaryWorkflows": "{count, plural, one {# workflow} other {# workflows}}",
+      "workflowActivated": "Workflow activated: {title}",
+      "workflowDeactivated": "Workflow deactivated: {title}",
+      "workflowType": "Workflow"
+    },
     "documentEventBlocks": {
       "finding": "Finding",
       "found": "Found",

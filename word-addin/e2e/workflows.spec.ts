@@ -467,7 +467,7 @@ test("uses a workflow by attaching it to the Assistant chat input", async ({
   await expect(chatInput.getByText("Summarize document")).toBeVisible();
   await expect(
     chatInput.getByRole("button", {
-      name: "Remove workflow Summarize document",
+      name: "Deactivate the workflow Summarize document",
     }),
   ).toBeVisible();
   await expect(page.getByTestId("workflow-skill-content")).toHaveCount(0);
