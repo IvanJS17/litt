@@ -400,7 +400,6 @@ export function OrganizationProviderKeys({
         {loading || canManage ? (
         <ScanReadingCard
           loading={loading}
-          keyScope={t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
           canManage={canManage}
           hasSavedKey={hasOrgKey("landingai")}
           enabled={hasOrgKey("landingai") && isEnabled("landingai")}
