@@ -18,7 +18,7 @@ const toneClasses: Record<PillButtonUITone, string> = {
     // A destructive action that is not the confirmation: white like the other
     // secondary actions, with red text. The filled red `danger` is for the
     // confirmation inside a dialog.
-    whiteDanger: `${LIQUID_GLASS_FLAT_CLASS} ${LIQUID_GLASS_HOVER_CLASS} text-red-600 hover:text-red-700`,
+    whiteDanger: `${LIQUID_GLASS_FLAT_CLASS} ${LIQUID_GLASS_HOVER_CLASS} text-[var(--litt-danger-text)] hover:text-[var(--litt-danger-text)]`,
     blue: "bg-interactive text-interactive-foreground shadow-[0_3px_9px_rgba(21,26,38,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.10),inset_-4px_-4px_9px_rgba(21,26,38,0.2)] hover:bg-interactive-hover disabled:hover:bg-interactive",
     danger: "bg-red-600/90 text-white shadow-[0_3px_9px_rgba(127,29,29,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.12),inset_-4px_-4px_9px_rgba(127,29,29,0.18)] hover:bg-red-600 disabled:hover:bg-red-600/90",
 };

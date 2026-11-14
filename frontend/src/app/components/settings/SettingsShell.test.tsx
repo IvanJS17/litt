@@ -25,6 +25,55 @@ describe("SettingsShell", () => {
         expect(box.className).toContain("md:max-w-[18rem]");
     });
 
+    it("draws the group titles in ink and the page-title serif, on the desktop bar and the phone list", () => {
+        mockPathname = "/settings/menu";
+        render(
+            <SettingsShell
+                title="Settings"
+                navLabel="Settings sections"
+                rootHref="/settings"
+                tabs={[{ id: "account", label: "Account", href: "/settings" }]}
+                groups={[{ id: "a", label: "My account", tabIds: ["account"] }]}
+                mobileHome={{ href: "/settings/menu", backLabel: "Settings" }}
+            >
+                <p>page</p>
+            </SettingsShell>,
+        );
+        const titles = screen.getAllByRole("heading", { name: "My account" });
+        expect(titles).toHaveLength(2);
+        for (const title of titles) {
+            expect(title).toHaveClass("font-serif", "text-gray-900");
+            expect(title.className).not.toContain("text-xs");
+            expect(title.className).not.toContain("text-gray-500");
+        }
+    });
+
+    it("draws who the section applies to as labels under its help text", () => {
+        mockPathname = "/settings";
+        render(
+            <SettingsShell
+                title="Settings"
+                navLabel="Settings sections"
+                rootHref="/settings"
+                tabs={[
+                    {
+                        id: "account",
+                        label: "Account",
+                        href: "/settings",
+                        help: "Check your profile.",
+                        audience: [{ icon: "user", label: "Only for you" }],
+                    },
+                ]}
+            >
+                <p>page</p>
+            </SettingsShell>,
+        );
+        const help = document.querySelector('[data-slot="settings-tab-help"]')!;
+        expect(help).toHaveTextContent("Check your profile.");
+        expect(help.textContent).not.toContain("Only for you");
+        expect(screen.getByText("Only for you")).toBeVisible();
+    });
+
     describe("mobileHome", () => {
         const tabs = [
             { id: "account", label: "Account", href: "/settings" },

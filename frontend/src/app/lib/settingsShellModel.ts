@@ -28,6 +28,7 @@ export function settingsShellModel(
             id: def.id,
             label: t(def.titleKey),
             help: t(def.helpKey),
+            audience: def.audienceKeys?.map((tag) => ({ icon: tag.icon, label: t(tag.key) })),
             href: settingsTabHref(def, orgId),
         })),
         groups: settingsGroupsFor(home)

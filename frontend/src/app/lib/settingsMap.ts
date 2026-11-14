@@ -35,6 +35,24 @@ export type SettingsAudience =
     /** The firm's owners. */
     | "firmOwner";
 
+/** The icons of the Settings signals (see `SettingsText.tsx`). */
+export type SettingsSignalIconName =
+    | "lock"
+    | "firm"
+    | "user"
+    | "shield"
+    | "alert"
+    | "receipt"
+    | "info"
+    | "send"
+    | "clock";
+
+/** A label of who a tab applies to, drawn under the tab's help text. */
+export interface SettingsAudienceKey {
+    icon: SettingsSignalIconName;
+    key: SettingsKey;
+}
+
 export type SettingsGroupId =
     | "account"
     | "work"
@@ -65,6 +83,11 @@ export interface SettingsTabDef {
     titleKey: SettingsKey;
     /** One or two short lines: what it is for, what it changes, who it applies to. */
     helpKey: SettingsKey;
+    /**
+     * Who the tab applies to, as labels. The help text says what the tab is
+     * for and what it changes; who sees it and who changes it is here.
+     */
+    audienceKeys?: readonly SettingsAudienceKey[];
 }
 
 /** Groups in the order they are listed, personal home first. */
@@ -93,6 +116,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.account.title",
         helpKey: "settings.map.tab.account.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "security",
@@ -102,6 +128,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.security.title",
         helpKey: "settings.map.tab.security.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "privacy-data",
@@ -111,6 +140,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "memberDataActions",
         titleKey: "settings.map.tab.privacyData.title",
         helpKey: "settings.map.tab.privacyData.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "my-activity",
@@ -120,6 +152,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.myActivity.title",
         helpKey: "settings.map.tab.myActivity.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     // ---- Ajustes · Mi forma de trabajar
     {
@@ -130,6 +165,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.personalisation.title",
         helpKey: "settings.map.tab.personalisation.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "memory",
@@ -139,6 +177,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.memory.title",
         helpKey: "settings.map.tab.memory.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "appearance",
@@ -148,6 +189,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.appearance.title",
         helpKey: "settings.map.tab.appearance.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "assistant",
@@ -157,6 +201,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.assistant.title",
         helpKey: "settings.map.tab.assistant.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "models",
@@ -166,6 +213,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.models.title",
         helpKey: "settings.map.tab.models.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     // ---- Ajustes · Mis llaves y servicios
     {
@@ -185,6 +235,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.webSearch.title",
         helpKey: "settings.map.tab.webSearch.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     {
         id: "scan-reading",
@@ -194,6 +247,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.scanReading.title",
         helpKey: "settings.map.tab.scanReading.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.yourSpace" },
+        ],
     },
     {
         id: "connectors",
@@ -203,6 +259,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "everyone",
         titleKey: "settings.map.tab.connectors.title",
         helpKey: "settings.map.tab.connectors.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
     },
     // ---- Ajustes · Mi formación (a mentor's pupils and panel sit inside it)
     {
@@ -238,6 +297,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "platformAdmin",
         titleKey: "settings.map.tab.betaInvitations.title",
         helpKey: "settings.map.tab.betaInvitations.help",
+        audienceKeys: [
+            { icon: "lock", key: "settings.signals.platformAdmins" },
+        ],
     },
     {
         id: "beta-stats",
@@ -247,6 +309,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "platformAdmin",
         titleKey: "settings.map.tab.betaStats.title",
         helpKey: "settings.map.tab.betaStats.help",
+        audienceKeys: [
+            { icon: "lock", key: "settings.signals.platformAdmins" },
+        ],
     },
     // ---- Ajustes del despacho · <nombre>
     {
@@ -257,6 +322,10 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "firmMember",
         titleKey: "settings.map.firmTab.general.title",
         helpKey: "settings.map.firmTab.general.help",
+        audienceKeys: [
+            { icon: "firm", key: "settings.signals.allMembersSee" },
+            { icon: "lock", key: "settings.signals.adminsChange" },
+        ],
     },
     {
         id: "members",
@@ -266,6 +335,10 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "firmMember",
         titleKey: "settings.map.firmTab.members.title",
         helpKey: "settings.map.firmTab.members.help",
+        audienceKeys: [
+            { icon: "firm", key: "settings.signals.allMembersSee" },
+            { icon: "lock", key: "settings.signals.adminsChange" },
+        ],
     },
     {
         id: "providers",
@@ -275,6 +348,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "firmAdmin",
         titleKey: "settings.map.firmTab.providers.title",
         helpKey: "settings.map.firmTab.providers.help",
+        audienceKeys: [
+            { icon: "lock", key: "settings.signals.onlyOwnersAdmins" },
+        ],
     },
     {
         id: "scan-reading",
@@ -284,6 +360,10 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "firmAdmin",
         titleKey: "settings.map.firmTab.scanReading.title",
         helpKey: "settings.map.firmTab.scanReading.help",
+        audienceKeys: [
+            { icon: "firm", key: "settings.signals.firmWide" },
+            { icon: "lock", key: "settings.signals.onlyOwnersAdmins" },
+        ],
     },
     {
         id: "training",
@@ -293,6 +373,10 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "firmMember",
         titleKey: "settings.map.firmTab.training.title",
         helpKey: "settings.map.firmTab.training.help",
+        audienceKeys: [
+            { icon: "lock", key: "settings.signals.mentorsOwnersAdmins" },
+            { icon: "firm", key: "settings.signals.criteriaAllRead" },
+        ],
     },
     {
         id: "audit",
@@ -302,6 +386,9 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "firmAdmin",
         titleKey: "settings.map.firmTab.audit.title",
         helpKey: "settings.map.firmTab.audit.help",
+        audienceKeys: [
+            { icon: "lock", key: "settings.signals.onlyOwnersAdmins" },
+        ],
     },
     {
         id: "privacy-data",
@@ -311,6 +398,10 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audience: "firmOwner",
         titleKey: "settings.map.firmTab.privacyData.title",
         helpKey: "settings.map.firmTab.privacyData.help",
+        audienceKeys: [
+            { icon: "lock", key: "settings.signals.onlyOwners" },
+            { icon: "shield", key: "settings.signals.needsTwoFactor" },
+        ],
     },
 ];
 

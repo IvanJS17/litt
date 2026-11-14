@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { settingsTabButtonClassName } from "@/app/(pages)/settings/settingsStyles";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
+import { SettingsTag, SettingsTagRow } from "@/app/components/settings/SettingsText";
+import type { SettingsSignalIconName } from "@/app/lib/settingsMap";
 import { cn } from "@/app/lib/utils";
 import { TOUCH_TARGET_CLASS } from "@mike/ui";
 
@@ -16,6 +18,8 @@ export interface SettingsShellTab {
     href: string;
     /** What the section is for, what it changes and who it applies to. */
     help?: string;
+    /** Who the section applies to, as labels under the help text. */
+    audience?: { icon: SettingsSignalIconName; label: string }[];
     badge?: ReactNode;
 }
 
@@ -261,12 +265,20 @@ export function SettingsShell({
                         )}
                     >
                         {activeTab?.help ? (
-                            <p
-                                data-slot="settings-tab-help"
-                                className="mb-6 max-w-prose text-sm text-gray-600"
-                            >
-                                {activeTab.help}
-                            </p>
+                            <div className="mb-6 flex max-w-prose flex-col gap-2">
+                                <p data-slot="settings-tab-help" className="text-sm text-gray-600">
+                                    {activeTab.help}
+                                </p>
+                                {activeTab.audience?.length ? (
+                                    <SettingsTagRow>
+                                        {activeTab.audience.map((tag) => (
+                                            <SettingsTag key={tag.label} kind="audience" icon={tag.icon}>
+                                                {tag.label}
+                                            </SettingsTag>
+                                        ))}
+                                    </SettingsTagRow>
+                                ) : null}
+                            </div>
                         ) : null}
                         {children}
                     </div>

@@ -3779,39 +3779,39 @@
       "tab": {
         "account": {
           "title": "Account",
-          "help": "Check your profile, email and plan. Only you see this page."
+          "help": "Check your profile, email and plan."
         },
         "security": {
           "title": "Security",
-          "help": "Change your password and turn on two-step verification. This protects your account only."
+          "help": "Change your password and turn on two-step verification."
         },
         "privacyData": {
           "title": "Privacy and data",
-          "help": "Download or delete your chats, projects and memory. This only affects your own data."
+          "help": "Download or delete your chats, projects and memory."
         },
         "myActivity": {
           "title": "My activity",
-          "help": "See what you did in LiTT, with date and time. It only shows your own actions."
+          "help": "See what you did in LiTT, with date and time."
         },
         "personalisation": {
           "title": "Personalization",
-          "help": "Tell the assistant who you are and how you want it to answer. It applies to all your chats."
+          "help": "Tell the assistant who you are and how you want it to answer."
         },
         "memory": {
           "title": "Memory",
-          "help": "Choose what the assistant remembers about you and delete what you don’t want it to keep. This applies to your account."
+          "help": "Choose what the assistant remembers about you and delete what you don’t want it to keep."
         },
         "appearance": {
           "title": "Appearance",
-          "help": "Choose the text size and dark mode. This only changes how you see LiTT."
+          "help": "Choose the text size and dark mode."
         },
         "assistant": {
           "title": "Assistant",
-          "help": "Choose what you see on the assistant’s start screen and under each answer. It only changes your screen."
+          "help": "Choose what you see on the assistant’s start screen and under each answer."
         },
         "models": {
           "title": "Model preferences",
-          "help": "Choose which model handles each assistant task. This applies to your account."
+          "help": "Choose which model handles each assistant task."
         },
         "byok": {
           "title": "My AI keys",
@@ -3819,15 +3819,15 @@
         },
         "webSearch": {
           "title": "Web search",
-          "help": "Turn on internet search and choose the service. Your search keys are used only if your firm allows it."
+          "help": "Turn on internet search and choose the service."
         },
         "scanReading": {
           "title": "Scanned document reading",
-          "help": "Turn on scan reading with your LandingAI key and set your document types for splitting case files in your personal space."
+          "help": "Turn on scan reading with your LandingAI key and set your document types for splitting case files."
         },
         "connectors": {
           "title": "Connectors",
-          "help": "Connect outside accounts, like Google Drive, to bring in your files. Each connection is yours alone."
+          "help": "Connect outside accounts, like Google Drive, to bring in your files."
         },
         "training": {
           "title": "My training",
@@ -3839,41 +3839,41 @@
         },
         "betaInvitations": {
           "title": "Beta invitations",
-          "help": "Invite people to the beta. Only platform administrators see this."
+          "help": "Invite people to the beta."
         },
         "betaStats": {
           "title": "Beta statistics",
-          "help": "See how many people use the beta, and how. Only platform administrators see this."
+          "help": "See how many people use the beta, and how."
         }
       },
       "firmTab": {
         "general": {
           "title": "General",
-          "help": "Change the firm’s name and profile. All members see it; only administrators change it."
+          "help": "Change the firm’s name and profile."
         },
         "members": {
           "title": "Members",
-          "help": "See who is in the firm, invite people and change roles. Everyone sees the list; only administrators change it."
+          "help": "See who is in the firm, invite people and change roles."
         },
         "providers": {
           "title": "Firm keys",
-          "help": "Save the firm’s AI, web search and scan reading keys, and decide whether members use their own. Only owners and administrators."
+          "help": "Save the firm’s AI, web search and scan reading keys, and decide whether members use their own."
         },
         "scanReading": {
           "title": "Scanned document reading",
-          "help": "Set the document types used to split case files. They apply to the whole firm. Only owners and administrators."
+          "help": "Set the document types used to split case files."
         },
         "training": {
           "title": "Training",
-          "help": "Name mentors and assign pupils if you are an owner or administrator. All members read the firm’s criteria."
+          "help": "Name mentors and assign pupils."
         },
         "audit": {
           "title": "Audit",
-          "help": "See what happened in the firm and who did it. Only owners and administrators."
+          "help": "See what happened in the firm and who did it."
         },
         "privacyData": {
           "title": "Privacy and data",
-          "help": "Decide whether members can export or delete their data, and delete data for the whole firm. Only owners."
+          "help": "Decide whether members can export or delete their data, and delete data for the whole firm."
         }
       },
       "personalBanner": "These settings are yours. Your firm’s are in <link>Firm settings →</link>",
@@ -3892,6 +3892,27 @@
       "responseDetails": "Response details",
       "showTheModelReasoningEffortAnd": "Show the model, reasoning level and token count under each answer.",
       "showTheQuickActionsRowOn": "Show the quick actions row on the assistant start screen."
+    },
+    "signals": {
+      "optional": "Optional",
+      "recommended": "Recommended",
+      "moreInfo": "More information",
+      "onlyYou": "Only for you",
+      "yourSpace": "Your personal space",
+      "firmWide": "Applies to the whole firm",
+      "allMembersSee": "All members see it",
+      "adminsChange": "Owners and administrators change it",
+      "onlyOwnersAdmins": "Only owners and administrators",
+      "onlyOwners": "Only owners",
+      "platformAdmins": "Only platform administrators",
+      "needsTwoFactor": "Asks for two-step verification",
+      "mentorsOwnersAdmins": "Mentors: owners and administrators",
+      "criteriaAllRead": "Criteria: the whole firm reads them",
+      "thirdParty": "Data to a third party",
+      "cost": "Has a cost",
+      "deadline30": "30-day deadline",
+      "notVerified": "Not verified",
+      "cannotUndo": "This cannot be undone."
     }
   },
   "shared": {

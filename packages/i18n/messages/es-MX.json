@@ -3779,39 +3779,39 @@
       "tab": {
         "account": {
           "title": "Cuenta",
-          "help": "Revisa tu perfil, tu correo y tu plan. Solo tú ves esta página."
+          "help": "Revisa tu perfil, tu correo y tu plan."
         },
         "security": {
           "title": "Seguridad",
-          "help": "Cambia tu contraseña y activa la verificación en dos pasos. Protege solo tu cuenta."
+          "help": "Cambia tu contraseña y activa la verificación en dos pasos."
         },
         "privacyData": {
           "title": "Privacidad y datos",
-          "help": "Descarga o borra tus chats, proyectos y memoria. Solo afecta tus datos."
+          "help": "Descarga o borra tus chats, proyectos y memoria."
         },
         "myActivity": {
           "title": "Mi actividad",
-          "help": "Consulta lo que hiciste en LiTT, con fecha y hora. Solo muestra tus acciones."
+          "help": "Consulta lo que hiciste en LiTT, con fecha y hora."
         },
         "personalisation": {
           "title": "Personalización",
-          "help": "Cuéntale al asistente quién eres y cómo quieres sus respuestas. Se aplica a todos tus chats."
+          "help": "Cuéntale al asistente quién eres y cómo quieres sus respuestas."
         },
         "memory": {
           "title": "Memoria",
-          "help": "Elige qué recuerda de ti el asistente y borra lo que no quieras que guarde. Aplica a tu cuenta."
+          "help": "Elige qué recuerda de ti el asistente y borra lo que no quieras que guarde."
         },
         "appearance": {
           "title": "Apariencia",
-          "help": "Elige el tamaño de la letra y el modo oscuro. Solo cambia cómo ves LiTT tú."
+          "help": "Elige el tamaño de la letra y el modo oscuro."
         },
         "assistant": {
           "title": "Asistente",
-          "help": "Decide qué ves en el inicio del asistente y debajo de cada respuesta. Solo cambia tu pantalla."
+          "help": "Decide qué ves en el inicio del asistente y debajo de cada respuesta."
         },
         "models": {
           "title": "Preferencias de modelos",
-          "help": "Elige qué modelo hace cada tarea del asistente. Aplica a tu cuenta."
+          "help": "Elige qué modelo hace cada tarea del asistente."
         },
         "byok": {
           "title": "Mis llaves de IA",
@@ -3819,15 +3819,15 @@
         },
         "webSearch": {
           "title": "Búsqueda web",
-          "help": "Activa la búsqueda en internet y elige el servicio. Tus llaves de búsqueda se usan solo si tu despacho lo permite."
+          "help": "Activa la búsqueda en internet y elige el servicio."
         },
         "scanReading": {
           "title": "Lectura de escaneados",
-          "help": "Activa la lectura de escaneados con tu llave de LandingAI y define tus tipos de documento para separar expediente en tu espacio personal."
+          "help": "Activa la lectura de escaneados con tu llave de LandingAI y define tus tipos de documento para separar expediente."
         },
         "connectors": {
           "title": "Conectores",
-          "help": "Conecta cuentas externas, como Google Drive, para traer tus archivos. Cada conexión es solo tuya."
+          "help": "Conecta cuentas externas, como Google Drive, para traer tus archivos."
         },
         "training": {
           "title": "Mi formación",
@@ -3839,41 +3839,41 @@
         },
         "betaInvitations": {
           "title": "Invitaciones a la beta",
-          "help": "Invita a personas a la beta. Solo lo ven los administradores de la plataforma."
+          "help": "Invita a personas a la beta."
         },
         "betaStats": {
           "title": "Estadísticas de la beta",
-          "help": "Revisa cuánta gente usa la beta y cómo. Solo lo ven los administradores de la plataforma."
+          "help": "Revisa cuánta gente usa la beta y cómo."
         }
       },
       "firmTab": {
         "general": {
           "title": "General",
-          "help": "Cambia el nombre y el perfil del despacho. Todos los miembros lo ven; solo los administradores lo cambian."
+          "help": "Cambia el nombre y el perfil del despacho."
         },
         "members": {
           "title": "Miembros",
-          "help": "Mira quién está en el despacho, invita personas y cambia roles. Todos ven la lista; solo los administradores la cambian."
+          "help": "Mira quién está en el despacho, invita personas y cambia roles."
         },
         "providers": {
           "title": "Llaves del despacho",
-          "help": "Guarda las llaves de IA, de búsqueda web y de lectura de escaneados del despacho, y decide si los miembros usan las suyas. Solo propietarios y administradores."
+          "help": "Guarda las llaves de IA, de búsqueda web y de lectura de escaneados del despacho, y decide si los miembros usan las suyas."
         },
         "scanReading": {
           "title": "Lectura de escaneados",
-          "help": "Define los tipos de documento para separar expediente. Aplican a todo el despacho. Solo propietarios y administradores."
+          "help": "Define los tipos de documento para separar expediente."
         },
         "training": {
           "title": "Formación",
-          "help": "Designa mentores y asigna aprendices si eres propietario o administrador. Todos los miembros leen los criterios del despacho."
+          "help": "Designa mentores y asigna aprendices."
         },
         "audit": {
           "title": "Auditoría",
-          "help": "Consulta qué pasó en el despacho y quién lo hizo. Solo propietarios y administradores."
+          "help": "Consulta qué pasó en el despacho y quién lo hizo."
         },
         "privacyData": {
           "title": "Privacidad y datos",
-          "help": "Decide si los miembros pueden exportar o borrar sus datos, y borra datos de todo el despacho. Solo propietarios."
+          "help": "Decide si los miembros pueden exportar o borrar sus datos, y borra datos de todo el despacho."
         }
       },
       "personalBanner": "Estos ajustes son tuyos. Lo de tu despacho está en <link>Ajustes del despacho →</link>",
@@ -3892,6 +3892,27 @@
       "responseDetails": "Detalles de la respuesta",
       "showTheModelReasoningEffortAnd": "Muestra debajo de cada respuesta el modelo, el nivel de razonamiento y el conteo de tokens.",
       "showTheQuickActionsRowOn": "Muestra la fila de acciones rápidas en el inicio del asistente."
+    },
+    "signals": {
+      "optional": "Opcional",
+      "recommended": "Recomendado",
+      "moreInfo": "Más información",
+      "onlyYou": "Solo para ti",
+      "yourSpace": "Tu espacio personal",
+      "firmWide": "Aplica a todo el despacho",
+      "allMembersSee": "Lo ven todos los miembros",
+      "adminsChange": "Lo cambian propietarios y administradores",
+      "onlyOwnersAdmins": "Solo propietarios y administradores",
+      "onlyOwners": "Solo propietarios",
+      "platformAdmins": "Solo administradores de la plataforma",
+      "needsTwoFactor": "Pide verificación en dos pasos",
+      "mentorsOwnersAdmins": "Mentores: propietarios y administradores",
+      "criteriaAllRead": "Criterios: los lee todo el despacho",
+      "thirdParty": "Datos a un tercero",
+      "cost": "Con costo",
+      "deadline30": "Plazo de 30 días",
+      "notVerified": "Sin verificar",
+      "cannotUndo": "No se puede deshacer."
     }
   },
   "shared": {
