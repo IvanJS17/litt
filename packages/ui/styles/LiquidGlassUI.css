@@ -1,60 +1,53 @@
-/* Glass tints follow the LiTT palette: light panels sit between papel and
-   white, dark ones are tinta lifted toward papel, and shadows are tinta. */
+/* The glass classes are the surfaces of the scale (DesignTokensUI.css,
+   "Superficies de LiTT"), under their old names. Flat is the hoja, subtle is
+   a control on a hoja, float is a menu or popover (the flotante), modal is a
+   dialog. All four are opaque: nothing is white and nothing is translucent
+   except the translucent set, which is for what floats over messages. In the
+   light theme the edge is drawn by the shadow (a 1 px ring plus a soft drop
+   of tinta), never by a white border or a white glow, so the borders are
+   transparent. The dark theme keeps the tinta ramp and its faint papel rim. */
 :root {
-    --liquid-glass-background-flat: #fbfbf9;
-    --liquid-glass-background-subtle: rgba(255, 255, 255, 0.55);
-    --liquid-glass-background-float: #fbfbf9;
-    --liquid-glass-background-modal: rgba(249, 249, 247, 0.95);
-    --liquid-glass-border-flat: rgba(255, 255, 255, 0.7);
-    --liquid-glass-border-subtle: rgba(255, 255, 255, 0.7);
-    --liquid-glass-border-float: rgba(255, 255, 255, 0.7);
-    --liquid-glass-border-modal: rgba(255, 255, 255, 0.7);
+    --liquid-glass-background-flat: var(--surface-sheet);
+    --liquid-glass-background-subtle: var(--surface-sheet);
+    --liquid-glass-background-float: var(--surface-float);
+    --liquid-glass-background-modal: var(--surface-float);
+    --liquid-glass-border-flat: transparent;
+    --liquid-glass-border-subtle: transparent;
+    --liquid-glass-border-float: transparent;
+    --liquid-glass-border-modal: transparent;
 
-    /* Tier 1: broad, relatively flat surfaces such as tables and messages. */
-    --liquid-glass-shadow-flat:
-        0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    /* Tier 1: broad surfaces such as tables, messages, the sidebar. */
+    --liquid-glass-shadow-flat: var(--elevation-sheet);
 
-    /* Tier 2: compact controls that need a soft, tactile bevel. */
-    --liquid-glass-shadow-subtle:
-        0 3px 9px rgba(21, 26, 38, 0.052),
-        inset 0 1px 0 rgba(255, 255, 255, 0.86),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.58);
+    /* Tier 2: compact controls (pills, selects) on a hoja: a firmer ring. */
+    --liquid-glass-shadow-subtle: 0 0 0 1px rgb(21 26 38 / 16%);
 
-    /* Tier 3: persistent app chrome, using the original AppSidebar depth. */
-    --liquid-glass-shadow-float:
-        0 -1px 6px rgba(21, 26, 38, 0.034),
-        0 4px 9px rgba(21, 26, 38, 0.074),
-        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    /* Tier 3: menus, popovers and dialogs that rise over the page. */
+    --liquid-glass-shadow-float: var(--elevation-float);
 
     /* Modal frames sit above every general elevation tier. */
     --liquid-glass-shadow-modal:
-        0 14px 40px rgba(21, 26, 38, 0.101), 0 5px 14px rgba(21, 26, 38, 0.067),
-        inset 0 1px 0 rgba(255, 255, 255, 0.62);
+        0 0 0 1px rgb(21 26 38 / 12%), 0 14px 40px rgba(21, 26, 38, 0.101),
+        0 5px 14px rgba(21, 26, 38, 0.067);
 
-    /* Chat overlays remain translucent because messages pass beneath them. */
-    --liquid-glass-translucent-background: rgba(255, 255, 255, 0.6);
-    --liquid-glass-translucent-background-action: rgba(255, 255, 255, 0.3);
-    --liquid-glass-translucent-background-action-hover: rgba(255, 255, 255, 0.45);
-    --liquid-glass-translucent-border: rgba(255, 255, 255, 0.65);
+    /* Chat overlays remain translucent because messages pass beneath them:
+       the hoja at 88 %, not white. */
+    --liquid-glass-translucent-background: rgb(251 251 249 / 88%);
+    --liquid-glass-translucent-background-action: rgb(251 251 249 / 88%);
+    --liquid-glass-translucent-background-action-hover: rgb(251 251 249 / 96%);
+    --liquid-glass-translucent-border: transparent;
     --liquid-glass-shadow-translucent:
-        0 4px 10px rgba(21, 26, 38, 0.09),
-        inset 0 1px 0 rgba(255, 255, 255, 0.85),
-        inset 0 -6px 14px rgba(255, 255, 255, 0.18);
+        0 0 0 1px rgb(21 26 38 / 12%), 0 4px 10px rgba(21, 26, 38, 0.09);
     --liquid-glass-shadow-translucent-action:
-        0 5px 16px rgba(21, 26, 38, 0.13),
-        inset 0 1px 0 rgba(255, 255, 255, 0.75),
-        inset 0 -8px 18px rgba(255, 255, 255, 0.26);
+        0 0 0 1px rgb(21 26 38 / 12%), 0 5px 16px rgba(21, 26, 38, 0.13);
     --liquid-glass-shadow-translucent-action-hover:
-        0 7px 20px rgba(21, 26, 38, 0.16),
-        inset 0 1px 0 rgba(255, 255, 255, 0.85),
-        inset 0 -8px 18px rgba(255, 255, 255, 0.32);
+        0 0 0 1px rgb(21 26 38 / 16%), 0 7px 20px rgba(21, 26, 38, 0.16);
 }
 
 .dark {
-    --liquid-glass-background-flat: #1b202c;
-    --liquid-glass-background-subtle: rgba(27, 32, 44, 0.9);
-    --liquid-glass-background-float: #1f2430;
+    --liquid-glass-background-flat: var(--surface-sheet);
+    --liquid-glass-background-subtle: var(--surface-sheet);
+    --liquid-glass-background-float: var(--surface-float);
     --liquid-glass-background-modal: rgba(21, 26, 38, 0.95);
     --liquid-glass-border-flat: rgba(236, 236, 230, 0.09);
     --liquid-glass-border-subtle: rgba(236, 236, 230, 0.12);
@@ -62,30 +55,23 @@
     --liquid-glass-border-modal: rgba(236, 236, 230, 0.12);
 
     --liquid-glass-shadow-flat:
-        0 1px 3px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        0 1px 3px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.18);
     --liquid-glass-shadow-subtle:
-        0 4px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.07),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.32);
+        0 4px 10px rgba(0, 0, 0, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.32);
     --liquid-glass-shadow-float:
-        0 -1px 6px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 -1px 6px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.28);
     --liquid-glass-shadow-modal:
-        0 22px 64px rgba(0, 0, 0, 0.52), 0 8px 20px rgba(0, 0, 0, 0.34),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    --liquid-glass-translucent-background: rgba(27, 32, 44, 0.76);
-    --liquid-glass-translucent-background-action: rgba(31, 36, 48, 0.62);
-    --liquid-glass-translucent-background-action-hover: rgba(42, 47, 58, 0.78);
+        0 22px 64px rgba(0, 0, 0, 0.52), 0 8px 20px rgba(0, 0, 0, 0.34);
+    --liquid-glass-translucent-background: rgb(27 32 44 / 88%);
+    --liquid-glass-translucent-background-action: rgb(27 32 44 / 88%);
+    --liquid-glass-translucent-background-action-hover: rgb(42 47 58 / 88%);
     --liquid-glass-translucent-border: rgba(236, 236, 230, 0.15);
     --liquid-glass-shadow-translucent:
-        0 8px 22px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        inset 0 -6px 14px rgba(0, 0, 0, 0.18);
+        0 8px 22px rgba(0, 0, 0, 0.3), inset 0 -6px 14px rgba(0, 0, 0, 0.18);
     --liquid-glass-shadow-translucent-action:
-        0 8px 22px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.07),
-        inset 0 -8px 18px rgba(0, 0, 0, 0.24);
+        0 8px 22px rgba(0, 0, 0, 0.38), inset 0 -8px 18px rgba(0, 0, 0, 0.24);
     --liquid-glass-shadow-translucent-action-hover:
-        0 10px 28px rgba(0, 0, 0, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        inset 0 -8px 18px rgba(0, 0, 0, 0.3);
+        0 10px 28px rgba(0, 0, 0, 0.46), inset 0 -8px 18px rgba(0, 0, 0, 0.3);
 }
 
 .liquid-glass-flat {

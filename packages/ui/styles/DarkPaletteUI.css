@@ -32,13 +32,13 @@
 .dark .bg-white\/25,
 .dark .bg-white\/20,
 .dark .bg-white\/10 {
-    background-color: rgba(27, 32, 44, 0.9);
+    background-color: var(--surface-sheet);
 }
 
 .dark .bg-gray-50,
 .dark .bg-gray-50\/95,
 .dark .bg-gray-50\/80 {
-    background-color: #181d29;
+    background-color: var(--surface-sheet);
 }
 .dark .bg-gray-100,
 .dark .bg-gray-100\/70 { background-color: #222732; }

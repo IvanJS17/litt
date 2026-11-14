@@ -26,7 +26,13 @@
 
     --dropdown-input-background: var(--color-gray-100, #f4f4f0);
     --liquid-glass-hover-background: #f1f1ec;
-    --liquid-glass-selected-background: var(--app-surface-active, #e2e2dd);
+    /* Opaque on purpose: a sticky table cell wears it. The 11 % tinta tint of
+       --app-surface-active, already mixed onto the hoja (#e2e2e2). */
+    --liquid-glass-selected-background: color-mix(
+        in srgb,
+        var(--litt-tinta, #151a26) 11%,
+        var(--surface-sheet, #fbfbf9)
+    );
     --liquid-glass-modal-row-hover-background: var(--color-gray-100, #f4f4f0);
     --liquid-glass-modal-row-selected-background: #e2e2dd;
     /* Keyboard focus is LiTT's one amber accent outside the marks:
@@ -93,7 +99,7 @@
 }
 
 .document-tab-bar {
-    --document-tab-active-background: var(--app-surface-active);
+    --document-tab-active-background: var(--liquid-glass-selected-background);
     --document-tab-inactive-background: transparent;
 }
 
