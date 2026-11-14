@@ -83,7 +83,12 @@ Los SVG llevan contornos, sin dependencia de fuentes, e incluyen el área de pro
 4. No pasar la L a pixel ni la ıTT a serifa. Única excepción: el monograma pixel de 48 px o menos.
 5. No usar la L sola como marca reducida. Siempre «L.» con su punto cuadrado: sin él colisiona con la inicial de Legora.
 6. No usar el corte serifa del monograma por debajo de 64 px ni el corte pixel por encima de 48 px.
-7. No poner el ámbar fósforo sobre papel ni sobre fondos claros, ni el ámbar tinta sobre tinta. El ámbar nunca va en las letras: es exclusivo del cuadrado.
+7. No poner el ámbar fósforo sobre papel ni sobre fondos claros, ni el ámbar tinta sobre tinta. El ámbar nunca va en las letras: es exclusivo del cuadrado. Excepción aprobada (2026-11-13, decisión del dueño), solo para la flecha del botón de enviar:
+    - Qué cubre: la flecha del botón de enviar (`COMPOSER_SEND_BUTTON_CLASS`): la casilla del chat en la web y en Word, y «Agregar al chat» en el menú de citas.
+    - Color: ámbar fósforo `#FFB21E` sobre un fondo tinta `#151A26`, en los dos temas.
+    - Cuándo: solo en el estado «listo para enviar». Deshabilitado (gris) y «Detener» (cuadro papel sobre tinta) no llevan ámbar.
+    - Dibujo: la flecha va en la retícula de píxel (7 × 7, u = 2 px). Su único movimiento es avanzar 1u al pasar el mouse.
+    - Qué no cubre: otros íconos, textos o botones, ni el wordmark ni el monograma.
 8. No aplicar tracking, kerning ni cambios a los espacios: 2.045u del espolón a la ı y 2u entre glifos pixel.
 9. No deformar, inclinar, rotar, contornear, sombrear, degradar ni aplicar brillo o glow. Excepción aprobada (2026-11-13, decisión del dueño): en el estado de error del indicador de estado (`LittStatusMarkUI`), el cuadrado se apaga y queda solo su contorno en `gray-500`. No aplica al wordmark ni al monograma.
 10. No animar el cuadrado (parpadeo de cursor, pulso) sin una spec de movimiento aprobada. Spec aprobada (2026-11-13, decisión del dueño), solo para el indicador de estado del asistente (`LittStatusMarkUI`, «A · Cursor») y nunca para el wordmark ni el monograma:
