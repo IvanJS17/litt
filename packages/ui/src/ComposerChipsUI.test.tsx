@@ -179,6 +179,15 @@ describe("the labels row", () => {
         );
     });
 
+    it("draws the rule between the lists out of the flow, so it cannot change where they wrap", () => {
+        render(row());
+        const attached = screen.getByRole("list", { name: "Attached documents" });
+        // The rule shows only when the lists share a line, and that is measured
+        // from where they wrap: padding on the list would flip the measure.
+        expect(attached.className).not.toMatch(/(?:^|\s)(?:p[lxtrb]|m[lxtrb])-\[?\d/);
+        expect(attached.className).toContain("p-0");
+    });
+
     it("starts with a workflow already on and says nothing", () => {
         render(row());
         expect(live()).toHaveTextContent("");

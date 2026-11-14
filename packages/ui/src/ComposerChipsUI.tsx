@@ -392,9 +392,12 @@ export function ComposerChipsUI({
                     data-chips-attached=""
                     data-same-line={hasActive && sameLine ? "true" : undefined}
                     aria-label={t("ui.composerChips.attachedList")}
+                    // The rule sits in the gap between the lists, out of the
+                    // flow: it must not change where the lists wrap, or the
+                    // measure below would flip with it.
                     className={`relative m-0 flex min-w-0 max-w-full list-none flex-wrap items-center gap-1.5 p-0 ${
                         hasActive && sameLine
-                            ? "pl-[11px] before:absolute before:left-0 before:top-1/2 before:-mt-2 before:h-4 before:w-px before:bg-[var(--litt-composer-chip-ring)] before:content-['']"
+                            ? "before:absolute before:-left-[6px] before:top-1/2 before:-mt-2 before:h-4 before:w-px before:bg-[var(--litt-composer-chip-ring)] before:content-['']"
                             : ""
                     }`}
                 >
