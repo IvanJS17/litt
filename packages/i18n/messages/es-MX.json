@@ -1230,6 +1230,7 @@
         "documentEdited": "Documento editado",
         "documentGenerated": "Documento generado",
         "documentUploaded": "Documento subido",
+        "firmProfileUpdated": "Perfil del despacho actualizado",
         "invitationAccepted": "Invitación aceptada",
         "invitationCancelled": "Invitación cancelada",
         "invitationDeclined": "Invitación rechazada",
@@ -1274,6 +1275,7 @@
         "providerKeyEnabled": "Llave de proveedor activada",
         "providerKeyRemoved": "Llave de proveedor retirada",
         "providerKeySaved": "Llave de proveedor guardada",
+        "pupilEndedByRole": "Fin de la formación de un pasante por cambio de rol",
         "reviewCreated": "Revisión creada",
         "reviewExported": "Revisión exportada",
         "reviewRunCompleted": "Ejecución de revisión completada",
@@ -1284,6 +1286,7 @@
       "field": {
         "access": "Acceso",
         "allowed": "Permitido",
+        "changedFields": "Campos modificados",
         "chatsExported": "Chats exportados",
         "documentsExported": "Documentos exportados",
         "enabled": "Activado",
@@ -1380,6 +1383,17 @@
         "ai": "Modelos de IA",
         "scan": "Lectura de escaneados (LandingAI)",
         "webSearch": "Búsqueda web"
+      },
+      "profileField": {
+        "brief_language": "Idioma de los escritos",
+        "client_type": "Tipo de cliente",
+        "description": "Descripción",
+        "hq_city": "Ciudad de la sede",
+        "hq_state": "Estado de la sede",
+        "industries": "Sectores",
+        "other_states": "Otros estados",
+        "practice_areas": "Áreas de práctica",
+        "size": "Número de abogados"
       }
     },
     "auditLog": "Registro de auditoría",

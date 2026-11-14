@@ -81,6 +81,8 @@ const ACTION_KEYS = {
   "org.invite.cancelled": "invitationCancelled",
   "org.invite.resent": "invitationResent",
   "org.member.role_changed": "memberRoleChanged",
+  "org.profile.updated": "firmProfileUpdated",
+  "training.pupil_ended_by_role": "pupilEndedByRole",
   "org.logo.updated": "logoUpdated",
   "org.logo.removed": "logoRemoved",
   "org.router_models.updated": "modelsUpdated",
@@ -115,6 +117,19 @@ const ACTION_KEYS = {
   "export.tabular": "reviewExported",
   "export.memory": "memoryExported",
 } as const;
+
+const PROFILE_FIELD_KEYS = {
+  hq_state: 1,
+  hq_city: 1,
+  other_states: 1,
+  size: 1,
+  practice_areas: 1,
+  client_type: 1,
+  industries: 1,
+  brief_language: 1,
+  description: 1,
+} as const;
+type ProfileFieldName = keyof typeof PROFILE_FIELD_KEYS;
 
 const OPERATION_KEYS = {
   "chat.message": "chatMessage",
@@ -260,6 +275,7 @@ function subjectCode(event: AuditEvent): SubjectCode | { kind: string } {
     return recorded in SUBJECT_KEYS ? (recorded as SubjectCode) : { kind: recorded };
   };
   if (action.startsWith("org.invite.")) return "recipient";
+  if (action === "training.pupil_ended_by_role") return "member";
   if (action === "org.private_content.permission_changed") return "member";
   if (action.startsWith("org.private_content.")) return kind();
   if (action.startsWith("org.member.") || action === "org.departure.member.departed")
@@ -393,6 +409,18 @@ export function auditDetailFields(
   ) {
     add(t("history.audit.field.itemsTransferred"), detail.transferred);
     add(t("history.audit.field.itemsArchived"), detail.archived);
+  }
+  if (event.action === "training.pupil_ended_by_role" && role)
+    add(t("history.audit.field.role"), roleLabel(role, t));
+  if (event.action === "org.profile.updated") {
+    // The names of the fields that changed, never what they say.
+    const changed = Array.isArray(detail.changed_fields) ? detail.changed_fields : [];
+    const names = changed.flatMap((field) =>
+      typeof field === "string" && field in PROFILE_FIELD_KEYS
+        ? [t(`history.audit.profileField.${field as ProfileFieldName}`)]
+        : [],
+    );
+    if (names.length) add(t("history.audit.field.changedFields"), names.join(", "));
   }
   if (event.action === "org.router_models.updated")
     add(t("history.audit.field.modelsAvailable"), detail.model_count);

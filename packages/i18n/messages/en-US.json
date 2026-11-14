@@ -1230,6 +1230,7 @@
         "documentEdited": "Document edited",
         "documentGenerated": "Document generated",
         "documentUploaded": "Document uploaded",
+        "firmProfileUpdated": "Firm profile updated",
         "invitationAccepted": "Invitation accepted",
         "invitationCancelled": "Invitation cancelled",
         "invitationDeclined": "Invitation declined",
@@ -1274,6 +1275,7 @@
         "providerKeyEnabled": "Provider key enabled",
         "providerKeyRemoved": "Provider key removed",
         "providerKeySaved": "Provider key saved",
+        "pupilEndedByRole": "Training pupil ended by role change",
         "reviewCreated": "Review created",
         "reviewExported": "Review exported",
         "reviewRunCompleted": "Review run completed",
@@ -1284,6 +1286,7 @@
       "field": {
         "access": "Access",
         "allowed": "Allowed",
+        "changedFields": "Fields changed",
         "chatsExported": "Chats exported",
         "documentsExported": "Documents exported",
         "enabled": "Enabled",
@@ -1380,6 +1383,17 @@
         "ai": "AI models",
         "scan": "Scan reading (LandingAI)",
         "webSearch": "Web search"
+      },
+      "profileField": {
+        "brief_language": "Brief language",
+        "client_type": "Client type",
+        "description": "Description",
+        "hq_city": "Headquarters city",
+        "hq_state": "Headquarters state",
+        "industries": "Industries",
+        "other_states": "Other states",
+        "practice_areas": "Practice areas",
+        "size": "Number of lawyers"
       }
     },
     "auditLog": "Audit log",

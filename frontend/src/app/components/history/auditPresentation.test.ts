@@ -165,6 +165,50 @@ describe("audit event presentation", () => {
     );
   });
 
+  it("names a firm-profile change and the fields that changed, never their text", async () => {
+    const changed = {
+      ...event,
+      action: "org.profile.updated",
+      title: null,
+      detail: { org_id: "o", changed_fields: ["description", "hq_city", "bogus"] },
+    };
+    expect(auditAction(changed)).toBe("Firm profile updated");
+    expect(auditDetailFields(changed)).toEqual([
+      { label: "Fields changed", value: "Description, Headquarters city" },
+    ]);
+    expect(auditDetailFields({ ...changed, detail: { org_id: "o", changed_fields: [] } })).toEqual([]);
+    expect(auditDetailFields({ ...changed, detail: null })).toEqual([]);
+    configureClientLocale("es-MX", await loadMessages("es-MX"));
+    try {
+      expect(auditAction(changed)).toBe("Perfil del despacho actualizado");
+      expect(auditDetailFields(changed)).toEqual([
+        { label: "Campos modificados", value: "Descripción, Ciudad de la sede" },
+      ]);
+    } finally {
+      configureClientLocale("en-US", await loadMessages("en-US"));
+    }
+  });
+
+  it("labels a pupil ended by a role change, with the person and the roles", async () => {
+    const ended = {
+      ...event,
+      action: "training.pupil_ended_by_role",
+      detail: { org_id: "o", target_user_id: "u", previous_role: "member", role: "admin" },
+    };
+    expect(auditAction(ended)).toBe("Training pupil ended by role change");
+    expect(auditSubject(ended).type).toBe("Member");
+    expect(auditDetailFields(ended)).toEqual([
+      { label: "Previous role", value: "Member" },
+      { label: "Role", value: "Admin" },
+    ]);
+    configureClientLocale("es-MX", await loadMessages("es-MX"));
+    try {
+      expect(auditAction(ended)).toBe("Fin de la formación de un pasante por cambio de rol");
+    } finally {
+      configureClientLocale("en-US", await loadMessages("en-US"));
+    }
+  });
+
   it("speaks Spanish through the configured client translator", async () => {
     configureClientLocale("es-MX", await loadMessages("es-MX"));
     expect(auditAction({ ...event, action: "playbook.marked_ready" })).toBe(
