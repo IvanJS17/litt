@@ -167,10 +167,14 @@ test.describe("Settings search", () => {
         page,
     }) => {
         const search = await openSettings(page);
-        await search.fill("apearance");
-        await expect(
-            results(page).getByRole("button", { name: /^Dark mode, Appearance\./ }),
-        ).toBeVisible();
+        // The theme control (Theme: Light, Dark, Automatic) is the Appearance
+        // entry; a typo in the section's name or in the control's still finds it.
+        for (const typo of ["apearance", "theem"]) {
+            await search.fill(typo);
+            await expect(
+                results(page).getByRole("button", { name: /^Theme, Appearance\./ }),
+            ).toBeVisible();
+        }
 
         await search.fill("qzxv");
         await expect(results(page)).toContainText("No settings match");

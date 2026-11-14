@@ -74,6 +74,9 @@ describe("searchSettings", () => {
         expect(ids(searchSettings("pasword"))).toContain("security-password");
         expect(ids(searchSettings("apearance"))).toContain("appearance-theme");
         expect(ids(searchSettings("conectors"))).toContain("connectors-installed");
+        // The theme control (Light, Dark, Automatic) is the Appearance entry.
+        expect(ids(searchSettings("theem"))).toContain("appearance-theme");
+        expect(ids(searchSettings("themme"))).toContain("appearance-theme");
     });
 
     it("does not treat a known word as a typo of another", () => {
