@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { notifyError } from "./lib/notify";
 import { ToastViewportUI } from "@mike/ui";
+// Inter, Newsreader and Departure Mono, served from this add-in (no Google
+// Fonts). Sets --font-inter, --font-newsreader and --font-departure-mono.
+import "@litt/fonts/fonts.css";
 import "./styles.css";
 import { PaneErrorBoundary } from "./components/shell/PaneErrorBoundary";
 import { PaneErrorFallback } from "./components/shell/PaneErrorFallback";

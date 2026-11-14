@@ -64,7 +64,7 @@ export function InitialView({
               <LittMonogramPixel size={ICON_SIZE} decorative />
             </div>
             <h1
-              className="min-w-0 text-left font-serif text-3xl font-light text-gray-900 transition-opacity duration-700 ease-in-out [overflow-wrap:anywhere] motion-reduce:transition-none"
+              className="min-w-0 text-left font-serif text-3xl font-normal text-gray-900 transition-opacity duration-700 ease-in-out [overflow-wrap:anywhere] motion-reduce:transition-none"
               style={{ opacity: shown ? 1 : 0 }}
             >
               {t("word.hiName", { name })}

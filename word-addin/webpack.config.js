@@ -174,6 +174,10 @@ module.exports = async (_env, options) => {
         // The frontend's public icon set is canonical. Webpack imports those
         // same SVGs and emits content-hashed copies for the add-in bundle.
         "@icons": path.resolve(__dirname, "..", "frontend", "public", "icons"),
+        // The web app's self-hosted Inter, Newsreader and Departure Mono
+        // (fonts.css and its .woff2 files, SIL OFL): the pane draws the same
+        // letters from its own origin, with no request to Google Fonts.
+        "@litt/fonts": path.resolve(__dirname, "..", "frontend", "src", "app", "fonts"),
         // Shared UI primitives and the framework-free client behavior behind
         // them (error presentation, the model catalog, uploads, excerpts,
         // LiTT's brand, source-code link and training notes): one
@@ -199,6 +203,13 @@ module.exports = async (_env, options) => {
         {
           test: /\.css$/,
           use: ["style-loader", "css-loader", "postcss-loader"],
+        },
+        {
+          test: /\.woff2$/i,
+          type: "asset/resource",
+          generator: {
+            filename: "fonts/[name].[contenthash][ext]",
+          },
         },
         {
           test: /\.svg$/i,

@@ -12,7 +12,7 @@
 # reverted.
 #
 # The add-in bundles shared code from packages/ (@mike/ui, @mike/client and
-# the contracts) and frontend/public/icons through its webpack/tsconfig
+# the contracts), frontend/public/icons and frontend/src/app/fonts through its webpack/tsconfig
 # aliases, so pull requests and pushes use the same path filter: anything
 # else cannot change what this job proves, and skipping it saves Actions
 # minutes (TD-024).
@@ -25,6 +25,7 @@ on:
     paths:
       - "word-addin/**"
       - "frontend/public/icons/**"
+      - "frontend/src/app/fonts/**"
       - "packages/**"
       - ".github/workflows/word-addin.yml"
   # Include stacked PRs whose base is another feature branch.
@@ -32,6 +33,7 @@ on:
     paths:
       - "word-addin/**"
       - "frontend/public/icons/**"
+      - "frontend/src/app/fonts/**"
       - "packages/**"
       - ".github/workflows/word-addin.yml"
 

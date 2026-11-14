@@ -2,7 +2,8 @@
 # The add-in bundles the packages it shares with the web app (packages/ui,
 # packages/client and packages/i18n, reached through webpack aliases, tsconfig paths, and a
 # Tailwind @source entry), the web app's icons (frontend/public/icons, the
-# @icons alias), and the @mike/contracts declarations. Nothing else outside
+# @icons alias), the web app's fonts (frontend/src/app/fonts, the @litt/fonts
+# alias) and the @mike/contracts declarations. Nothing else outside
 # word-addin/ is read.
 # No CI workflow builds this image: build it from the repository root at the
 # deployment gate (deploy/prod/README.md) so a new outside dependency fails
@@ -14,6 +15,7 @@ COPY word-addin/package*.json ./
 RUN npm ci
 COPY word-addin/ ./
 COPY frontend/public/icons /frontend/public/icons
+COPY frontend/src/app/fonts /frontend/src/app/fonts
 COPY packages/contracts /packages/contracts
 COPY packages/ui /packages/ui
 COPY packages/client /packages/client
