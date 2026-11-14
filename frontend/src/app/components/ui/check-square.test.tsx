@@ -38,7 +38,7 @@ describe("CheckSquare", () => {
 
     it("uses the muted styling for an unselectable unchecked square", () => {
         const { container } = render(<CheckSquare state="unchecked" muted />);
-        expect(square(container)).toHaveClass("border-gray-200", "bg-gray-50");
+        expect(square(container)).toHaveClass("border-gray-200", "bg-surface-sheet");
     });
 
     it("ignores muted once the square is checked", () => {

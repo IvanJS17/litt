@@ -243,9 +243,9 @@ describe("MyActivitySettingsPage", () => {
     expect(screen.getByText("Completed")).not.toHaveClass("rounded-full");
     expect(screen.getByTestId("status-dot-event-1")).toHaveClass(
       "rounded-full",
-      "border-white/80",
       "bg-green-400/80",
     );
+    expect(screen.getByTestId("status-dot-event-1")).not.toHaveClass("border-white/80");
     expect(screen.queryByText("gpt-5")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Sort by email" }),

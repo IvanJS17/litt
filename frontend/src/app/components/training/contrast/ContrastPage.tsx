@@ -186,7 +186,7 @@ function StartContrast({
                     maxLength={CASE_MAX_CHARS}
                     disabled={busy}
                     onChange={(event) => setText(event.target.value)}
-                    className="min-h-32 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
+                    className="min-h-32 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
                 />
                 <p id={`${id}-case-count`} className="text-xs text-gray-500">
                     {chars(text) >= CASE_MIN_CHARS
@@ -280,7 +280,7 @@ export function ContrastCard({ contrast, onDone }: { contrast: TrainingCriteriaC
                                     role="region"
                                     aria-labelledby={`${id}-analysis-${index}`}
                                     tabIndex={0}
-                                    className="max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 text-sm leading-6 text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                    className="max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-surface-sheet p-3 text-sm leading-6 text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                 >
                                     <p className="whitespace-pre-wrap break-words">{brief}</p>
                                 </div>
@@ -362,7 +362,7 @@ function Explain({ contrast, onDone }: { contrast: TrainingCriteriaContrast; onD
                 maxLength={EXPLANATION_MAX_CHARS}
                 disabled={busy}
                 onChange={(event) => setValue(event.target.value)}
-                className="min-h-32 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
+                className="min-h-32 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
             />
             <p id={`${id}-explain-count`} className="text-xs text-gray-500">
                 {long

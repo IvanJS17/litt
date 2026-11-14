@@ -86,7 +86,7 @@ export function InitialView({
               key={action.id}
               type="button"
               onClick={() => onSelect(action)}
-              className="inline-flex h-8 items-center justify-center rounded-full border border-white/70 bg-white/55 px-3 font-medium text-gray-600 shadow-[0_3px_9px_rgba(21,26,38,0.06),inset_0_1px_0_rgba(255,255,255,0.86),inset_0_-1px_0_rgba(255,255,255,0.58)] transition-[color,background-color,transform] hover:bg-white hover:text-gray-900 active:scale-[0.98]"
+              className="inline-flex h-8 items-center justify-center rounded-full bg-surface-sheet px-3 font-medium text-gray-600 shadow-elev-sheet transition-[color,background-color,transform] hover:bg-surface-field hover:text-gray-900 active:scale-[0.98]"
             >
               {quickActionDisplayName(action)}
             </button>

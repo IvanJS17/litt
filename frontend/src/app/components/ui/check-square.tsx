@@ -40,7 +40,7 @@ export function CheckSquare({
                 marked
                     ? "border-gray-900 bg-gray-900"
                     : muted
-                      ? "border-gray-200 bg-gray-50"
+                      ? "border-gray-200 bg-surface-sheet"
                       : "border-gray-300",
                 className,
             )}
@@ -55,7 +55,7 @@ export function CheckSquare({
             {state === "indeterminate" ? (
                 <span
                     data-slot="check-square-dash"
-                    className="h-px w-2 bg-white"
+                    className="h-px w-2 bg-[var(--litt-papel)]"
                 />
             ) : null}
         </span>

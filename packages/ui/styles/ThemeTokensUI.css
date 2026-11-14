@@ -99,7 +99,7 @@
 }
 
 .document-tab-bar {
-    --document-tab-active-background: var(--liquid-glass-selected-background);
+    --document-tab-active-background: var(--app-surface-active);
     --document-tab-inactive-background: transparent;
 }
 

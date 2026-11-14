@@ -65,7 +65,7 @@ export function FirmCriteriaConsultedUI({
       data-testid="firm-criteria-consulted"
       className={twMerge(
         clsx(
-          "group min-w-0 rounded-lg border border-gray-200 bg-white/70 px-4 py-3 text-left",
+          "group min-w-0 rounded-lg border border-gray-200 bg-surface-sheet px-4 py-3 text-left",
           className,
         ),
       )}

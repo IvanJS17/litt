@@ -395,7 +395,7 @@ function OrganizationAssignmentList({
     const WITH_ROLE = "grid-cols-[minmax(0,1fr)_5rem_1.5rem] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5rem_1.5rem]";
     const WITHOUT_ROLE = "grid-cols-[minmax(0,1fr)_1.5rem] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_1.5rem]";
     return (
-        <div className="min-h-28 max-h-72 overflow-y-auto rounded-xl bg-white/20 p-1">
+        <div className="min-h-28 max-h-72 overflow-y-auto rounded-xl bg-surface-field p-1">
             {loading ? (
                 <div className="flex min-h-26 items-center justify-center gap-2 text-xs text-gray-400">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -872,7 +872,7 @@ export function AccessEditor({
                                 </DropdownContent>
                             </Dropdown>
                         }
-                        className="bg-white focus-within:bg-white"
+                        className="bg-surface-field focus-within:bg-surface-field"
                     />
                 </section>
             ) : null}

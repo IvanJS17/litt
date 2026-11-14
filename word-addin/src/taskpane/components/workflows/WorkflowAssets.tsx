@@ -102,7 +102,7 @@ export function WorkflowAssets({
   };
 
   return (
-    <section className="mt-2 shrink-0 rounded-xl border border-white/70 bg-white/55 p-3 text-xs">
+    <section className="mt-2 shrink-0 rounded-xl bg-surface-sheet p-3 text-xs shadow-elev-sheet">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="font-medium text-gray-700">{t("word.assets")}</p>
@@ -115,7 +115,7 @@ export function WorkflowAssets({
             type="button"
             disabled={busy}
             onClick={() => uploadRef.current?.click()}
-            className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] text-gray-600 disabled:opacity-50"
+            className="rounded-full border border-gray-200 bg-surface-sheet px-2.5 py-1 text-[11px] text-gray-600 disabled:opacity-50"
           >
             {t("word.addFile")}
           </button>
@@ -149,7 +149,7 @@ export function WorkflowAssets({
           {files.map((file) => (
             <div
               key={file.id}
-              className="flex items-center gap-2 rounded-md bg-white/55 px-2 py-1.5"
+              className="flex items-center gap-2 rounded-md bg-surface-field px-2 py-1.5"
             >
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-gray-600">{file.filename}</span>

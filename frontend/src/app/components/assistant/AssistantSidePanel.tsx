@@ -20,7 +20,7 @@ import { DocumentContent, type DocumentContentMode } from "@/app/components/shar
 import { DocumentTabBar } from "../shared/DocumentTabBar";
 import { CASE_TITLE_FALLBACK, type Citation, type EditAnnotation, type PanelDocument } from "../shared/types";
 import { cn } from "@/app/lib/utils";
-import { LIQUID_GLASS_FLOAT_CLASS } from "@/app/components/ui/liquid-surface";
+import { LIQUID_GLASS_FLAT_CLASS } from "@/app/components/ui/liquid-surface";
 import { reorderTabs, type TabDropPosition } from "@/app/lib/reorderTabs";
 import { useTranslations } from "next-intl";
 
@@ -335,7 +335,7 @@ export function AssistantSidePanel({
             className={cn(
                 "relative flex h-full w-full shrink-0 flex-col md:my-3 md:mr-3 md:h-[calc(100%-1.5rem)] md:w-[var(--assistant-panel-width)]",
                 "rounded-2xl",
-                LIQUID_GLASS_FLOAT_CLASS,
+                LIQUID_GLASS_FLAT_CLASS,
                 "overflow-hidden",
             )}
             style={

@@ -187,7 +187,7 @@ export function TableFilters<T extends string>({
                     {!value && <Check className="h-3.5 w-3.5 text-gray-400" />}
                 </DropdownItem>
                 {options.length > 0 && (
-                    <DropdownSeparator className="-mx-1 bg-white/60" />
+                    <DropdownSeparator className="-mx-1 bg-[var(--litt-composer-ring)]" />
                 )}
                 {options.map((option) => {
                     const Icon = option.icon;

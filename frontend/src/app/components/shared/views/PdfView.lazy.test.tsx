@@ -55,15 +55,15 @@ describe("PDF page rendering", () => {
 
 describe("citation selection while a cited page renders", () => {
     const highlighted = (view: ReturnType<typeof render>, page: number) =>
-        view.container.querySelectorAll(".shadow-md")[page - 1]?.querySelector(".pdf-text-highlight") ?? null;
+        view.container.querySelectorAll(".pdf-page-wrapper")[page - 1]?.querySelector(".pdf-text-highlight") ?? null;
     const scrollTo = () => HTMLElement.prototype.scrollTo as ReturnType<typeof vi.fn>;
     /** Render the viewer, wait until it is revealed, and lay pages out 100px apart. */
     async function readyViewer() {
         const view = render(<PdfView doc={{document_id:"doc"}} />);
         await waitFor(() => expect((view.container.querySelector("[data-document-scroll-viewport]") as HTMLElement).style.opacity).toBe("1"));
         vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-            const all = [...view.container.querySelectorAll(".shadow-md")];
-            const wrapper = this.closest(".shadow-md");
+            const all = [...view.container.querySelectorAll(".pdf-page-wrapper")];
+            const wrapper = this.closest(".pdf-page-wrapper");
             const top = wrapper ? (all.indexOf(wrapper) + 1) * 100 : 0;
             return {top,bottom:top+10,left:0,right:100,width:100,height:10,x:0,y:top,toJSON(){}};
         });
@@ -122,8 +122,8 @@ describe("citation selection while a cited page renders", () => {
         let loaded!: () => void;
         mocks.docGate = new Promise<void>(resolve => {loaded = resolve;});
         vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-            const all = [...document.querySelectorAll(".shadow-md")];
-            const wrapper = this.closest(".shadow-md");
+            const all = [...document.querySelectorAll(".pdf-page-wrapper")];
+            const wrapper = this.closest(".pdf-page-wrapper");
             const top = wrapper ? (all.indexOf(wrapper) + 1) * 100 : 0;
             return {top,bottom:top+10,left:0,right:100,width:100,height:10,x:0,y:top,toJSON(){}};
         });

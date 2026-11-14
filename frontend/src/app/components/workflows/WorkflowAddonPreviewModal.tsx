@@ -113,7 +113,7 @@ function SkillViewer({ skill }: { skill: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex min-h-10 shrink-0 items-center justify-between border-b border-white/60 px-3 py-1.5">
+      <div className="flex min-h-10 shrink-0 items-center justify-between border-b border-gray-100 px-3 py-1.5">
         <span className="text-xs font-medium text-gray-500">{t("workflows.skillMd")}</span>
         <div className="flex items-center gap-3">
           <button
@@ -130,8 +130,8 @@ function SkillViewer({ skill }: { skill: string }) {
             }
             aria-pressed={showRaw}
             onClick={() => setShowRaw((current) => !current)}
-            className={`flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/60 hover:text-gray-900 ${
-              showRaw ? "bg-white/70 text-gray-950" : ""
+            className={`flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-interactive-soft hover:text-gray-900 ${
+              showRaw ? "bg-interactive-soft-strong text-gray-950" : ""
             }`}
           >
             <Code2 className="h-4 w-4" />
@@ -323,7 +323,7 @@ function WorkflowAddonPreviewDialog({
     >
       {selectedAsset ? (
         <div className="mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg">
-          <div className="flex min-h-10 shrink-0 items-center gap-2 border-b border-white/60 py-1.5 text-xs">
+          <div className="flex min-h-10 shrink-0 items-center gap-2 border-b border-gray-100 py-1.5 text-xs">
             <FileTypeIcon
               fileType={selectedAsset.file_type || selectedAsset.filename}
               className="h-4 w-4"
@@ -403,12 +403,12 @@ function WorkflowAddonPreviewDialog({
             >
               {view === "columns" ? (
                 <>
-                  <div className="grid min-h-10 shrink-0 grid-cols-[52px_0.8fr_1.8fr] items-center border-b border-white/60 text-xs font-medium text-gray-500">
+                  <div className="grid min-h-10 shrink-0 grid-cols-[52px_0.8fr_1.8fr] items-center border-b border-gray-100 text-xs font-medium text-gray-500">
                     <div className="px-3 py-1.5">#</div>
-                    <div className="border-l border-white/60 px-3 py-1.5">
+                    <div className="border-l border-gray-100 px-3 py-1.5">
                       {t("workflows.column")}
                     </div>
-                    <div className="border-l border-white/60 px-3 py-1.5">
+                    <div className="border-l border-gray-100 px-3 py-1.5">
                       {t("workflows.prompt")}
                     </div>
                   </div>
@@ -416,15 +416,15 @@ function WorkflowAddonPreviewDialog({
                     {(addon.columns_config ?? []).map((column) => (
                       <div
                         key={`${column.index}-${column.name}`}
-                        className="grid grid-cols-[52px_0.8fr_1.8fr] border-b border-white/50 text-xs last:border-b-0"
+                        className="grid grid-cols-[52px_0.8fr_1.8fr] border-b border-gray-100 text-xs last:border-b-0"
                       >
                         <div className="px-3 py-3 text-gray-400">
                           {column.index + 1}
                         </div>
-                        <div className="border-l border-white/50 px-3 py-3 font-medium text-gray-800">
+                        <div className="border-l border-gray-100 px-3 py-3 font-medium text-gray-800">
                           {column.name}
                         </div>
-                        <div className="border-l border-white/50 px-3 py-3 text-gray-600">
+                        <div className="border-l border-gray-100 px-3 py-3 text-gray-600">
                           {column.prompt}
                         </div>
                       </div>
@@ -433,7 +433,7 @@ function WorkflowAddonPreviewDialog({
                 </>
               ) : view === "assets" ? (
                 <div className="flex h-full min-h-0 flex-col">
-                  <div className="flex min-h-10 shrink-0 items-center border-b border-white/60 px-3 py-1.5 text-xs font-medium text-gray-500">
+                  <div className="flex min-h-10 shrink-0 items-center border-b border-gray-100 px-3 py-1.5 text-xs font-medium text-gray-500">
                     {t("workflows.assets")}
                   </div>
                   <div className="min-h-0 flex-1 overflow-y-auto">
@@ -447,7 +447,7 @@ function WorkflowAddonPreviewDialog({
                           key={file.id}
                           type="button"
                           onClick={() => setSelectedAsset(file)}
-                          className={`flex w-full items-center gap-3 border-b border-white/50 px-3 py-3 text-left text-xs transition-colors last:border-b-0 ${LIQUID_GLASS_HOVER_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus`}
+                          className={`flex w-full items-center gap-3 border-b border-gray-100 px-3 py-3 text-left text-xs transition-colors last:border-b-0 ${LIQUID_GLASS_HOVER_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus`}
                         >
                           <FileTypeIcon
                             fileType={file.file_type || file.filename}

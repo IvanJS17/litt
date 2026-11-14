@@ -748,7 +748,7 @@ export function ProjectChatPanel({
                 onDrop={handleChatDrop}
             >
                 {chatDragOver && (
-                    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-md">
+                    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-surface-desk/50 backdrop-blur-md">
                         <p className="font-serif text-xl text-gray-900">
                             {t("projects.dropFilesHereToAddTo")}
                         </p>

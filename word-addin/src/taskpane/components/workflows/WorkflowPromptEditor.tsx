@@ -54,7 +54,7 @@ function ToolbarButton({
         event.preventDefault();
         onClick();
       }}
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-white hover:text-gray-900 ${
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-interactive-soft hover:text-gray-900 ${
         active ? "bg-gray-200 text-gray-950 hover:bg-gray-200" : ""
       }`}
     >
@@ -313,8 +313,8 @@ export function WorkflowPromptEditor({
   };
 
   return (
-    <div className="flex h-full min-h-[240px] flex-col overflow-hidden rounded-xl border border-white/70 bg-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_24px_rgba(21,26,38,0.06)]">
-      <div className="flex min-h-10 shrink-0 items-center gap-0.5 border-b border-white/70 bg-white/45 px-2 py-1.5">
+    <div className="flex h-full min-h-[240px] flex-col overflow-hidden rounded-xl bg-surface-sheet shadow-elev-sheet">
+      <div className="flex min-h-10 shrink-0 items-center gap-0.5 border-b border-gray-100 bg-interactive-soft px-2 py-1.5">
         {readOnly ? (
           <span className="mr-auto px-2 text-xs font-medium text-gray-500">
             {t("word.readOnly")}
@@ -396,7 +396,7 @@ export function WorkflowPromptEditor({
                 <div
                   role="dialog"
                   aria-label={t("word.insertTable")}
-                  className="absolute left-0 top-full z-[250] mt-1 rounded-md border border-gray-200 bg-white p-2 shadow-lg"
+                  className="absolute left-0 top-full z-[250] mt-1 rounded-md bg-surface-float p-2 shadow-elev-float"
                 >
                   <div
                     className="grid gap-1"
@@ -423,7 +423,7 @@ export function WorkflowPromptEditor({
                           className={`h-4 w-4 rounded-[3px] border ${
                             selected
                               ? "border-gray-700 bg-gray-800"
-                              : "border-gray-200 bg-white"
+                              : "border-gray-200 bg-surface-sheet"
                           }`}
                         />
                       );

@@ -267,7 +267,7 @@ export function TabularCell({
         <div ref={containerRef} className="relative">
             {/* Normal cell row — always visible, preserves table layout */}
             <div
-                className="group relative h-8 px-2 flex items-center text-xs text-gray-800 leading-relaxed cursor-pointer hover:bg-gray-50 transition-colors"
+                className="group relative h-8 px-2 flex items-center text-xs text-gray-800 leading-relaxed cursor-pointer hover:bg-interactive-soft transition-colors"
                 onClick={() => setInlineExpanded((v) => !v)}
             >
                 {cell.content.flag && (

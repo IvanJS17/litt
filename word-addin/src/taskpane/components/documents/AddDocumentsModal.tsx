@@ -647,12 +647,12 @@ export function AddDocumentsModal({
                 allSelected || someSelected
                   ? "border-gray-900 bg-gray-900"
                   : !treeLoaded || summary.count === 0
-                    ? "border-gray-200 bg-gray-50"
+                    ? "border-gray-200 bg-surface-sheet"
                     : "border-gray-300"
               }`}
             >
               {allSelected && <Check className="h-2.5 w-2.5 text-white" />}
-              {someSelected && <span className="h-px w-2 bg-white" />}
+              {someSelected && <span className="h-px w-2 bg-[var(--litt-papel)]" />}
             </span>
             {folderLoading ? (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-gray-400" />
@@ -740,12 +740,12 @@ export function AddDocumentsModal({
                 allSelected || someSelected
                   ? "border-gray-900 bg-gray-900"
                   : !treeLoaded || summary.count === 0
-                    ? "border-gray-200 bg-gray-50"
+                    ? "border-gray-200 bg-surface-sheet"
                     : "border-gray-300"
               }`}
             >
               {allSelected && <Check className="h-2.5 w-2.5 text-white" />}
-              {someSelected && <span className="h-px w-2 bg-white" />}
+              {someSelected && <span className="h-px w-2 bg-[var(--litt-papel)]" />}
             </span>
             {folderLoading ? (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-gray-400" />
@@ -846,7 +846,7 @@ export function AddDocumentsModal({
         </div>
       )}
 
-      <label className="flex h-9 shrink-0 items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 text-gray-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_7px_rgba(21,26,38,0.05)]">
+      <label className="flex h-9 shrink-0 items-center gap-2 rounded-xl bg-surface-field px-3 text-gray-400 ring-1 ring-inset ring-gray-900/10">
         <Search className="h-3.5 w-3.5" />
         <input
           value={search}
@@ -939,7 +939,7 @@ export function AddDocumentsModal({
                             allSelected || someSelected
                               ? "border-gray-900 bg-gray-900"
                               : !projectSelectionReady || items.length === 0
-                                ? "border-gray-200 bg-gray-50"
+                                ? "border-gray-200 bg-surface-sheet"
                                 : "border-gray-300"
                           }`}
                         >
@@ -948,7 +948,7 @@ export function AddDocumentsModal({
                           ) : allSelected ? (
                             <Check className="h-2.5 w-2.5 text-white" />
                           ) : someSelected ? (
-                            <span className="h-px w-2 bg-white" />
+                            <span className="h-px w-2 bg-[var(--litt-papel)]" />
                           ) : null}
                         </span>
                         <ProjectSvgIcon

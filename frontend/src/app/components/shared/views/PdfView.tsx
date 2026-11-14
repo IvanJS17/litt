@@ -475,7 +475,8 @@ export function PdfView({
                 wrapper.style.width = `${viewport.width}px`;
                 wrapper.style.height = `${viewport.height}px`;
                 wrapper.dataset.page = String(pageNum);
-                wrapper.className = "shadow-md";
+                // A page of the user's document: the one place the pure white is used.
+                wrapper.className = "pdf-page-wrapper bg-surface-document shadow-elev-document";
                 const canvas = document.createElement("canvas");
                 canvas.width = 0;
                 canvas.height = 0;
@@ -884,7 +885,7 @@ export function PdfView({
                         <button
                             onClick={handleZoomOut}
                             disabled={zoom <= ZOOM_MIN}
-                            className="flex items-center justify-center w-7 h-7 rounded-full text-gray-600 hover:bg-white/80 disabled:opacity-30 transition-colors"
+                            className="flex items-center justify-center w-7 h-7 rounded-full text-gray-600 hover:bg-interactive-soft disabled:opacity-30 transition-colors"
                         >
                             <ZoomOut className="h-3.5 w-3.5" />
                         </button>
@@ -894,7 +895,7 @@ export function PdfView({
                         <button
                             onClick={handleZoomIn}
                             disabled={zoom >= ZOOM_MAX}
-                            className="flex items-center justify-center w-7 h-7 rounded-full text-gray-600 hover:bg-white/80 disabled:opacity-30 transition-colors"
+                            className="flex items-center justify-center w-7 h-7 rounded-full text-gray-600 hover:bg-interactive-soft disabled:opacity-30 transition-colors"
                         >
                             <ZoomIn className="h-3.5 w-3.5" />
                         </button>

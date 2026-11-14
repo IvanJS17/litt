@@ -169,7 +169,7 @@ export function SettingsShell({
                                             {group.label}
                                         </h2>
                                     ) : null}
-                                    <ul className="overflow-hidden rounded-2xl bg-gray-50">
+                                    <ul className="overflow-hidden rounded-2xl bg-surface-sheet">
                                         {group.tabs.map((tab, index) => (
                                             <li
                                                 key={tab.id}
@@ -325,7 +325,7 @@ export function SettingsShellSkeleton({
                         `mobileHome`), not a strip of tabs: draw that. */}
                     <div className="flex flex-col gap-6 md:hidden">
                         {[4, 3, 2].map((rows, group) => (
-                            <ul key={group} className="overflow-hidden rounded-2xl bg-gray-50">
+                            <ul key={group} className="overflow-hidden rounded-2xl bg-surface-sheet">
                                 {Array.from({ length: rows }, (_, index) => (
                                     <li
                                         key={index}

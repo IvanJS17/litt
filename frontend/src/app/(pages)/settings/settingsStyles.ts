@@ -8,6 +8,6 @@ export function settingsTabButtonClassName(active: boolean) {
         "flex h-9 w-full items-center rounded-lg px-3 text-left text-sm font-medium whitespace-nowrap transition-colors",
         active
             ? "bg-gray-100 text-gray-900"
-            : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
+            : "text-gray-500 hover:bg-interactive-soft hover:text-gray-900",
     );
 }

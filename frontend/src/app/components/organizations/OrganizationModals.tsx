@@ -427,7 +427,7 @@ export function InviteOrganizationMemberModal({
           </div>
 
           {pending.length > 0 ? (
-            <div className="min-h-0 border-t border-white/60 pt-4">
+            <div className="min-h-0 border-t border-gray-100 pt-4">
               <p className="mb-2 text-xs font-medium text-gray-600">
                 {t("organizations.organizationModals.pendingInvitations")}
               </p>

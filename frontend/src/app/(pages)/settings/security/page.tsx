@@ -654,7 +654,7 @@ export default function SecurityPage() {
                 </p>
               </div>
               <div className="flex justify-center">
-                <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-white p-2">
+                <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-surface-document p-2">
                   <img
                     src={enrollment.qrCode}
                     alt={t("settings.security.mfaQrCode")}

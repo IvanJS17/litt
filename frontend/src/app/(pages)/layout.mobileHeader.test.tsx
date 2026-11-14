@@ -143,7 +143,8 @@ describe("mobile page header", () => {
         const toggle = screen.getByRole("button", { name: "Open sidebar" });
         expect(toggle).toHaveClass("h-7", "w-7", "rounded-full");
         expect(toggle.parentElement).toHaveClass(
-            "liquid-glass-subtle",
+            "bg-surface-sheet",
+            "shadow-elev-sheet",
             "rounded-full",
         );
     });

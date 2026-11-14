@@ -6,14 +6,12 @@ import type {
 import {
     LIQUID_GLASS_HOVER_CLASS,
     LIQUID_GLASS_PRESSED_CLASS,
-    LIQUID_GLASS_SUBTLE_CLASS,
 } from "./LiquidGlassUI";
 import { TOUCH_TARGET_CLASS } from "./touchTargetUI.styles";
 
 /**
- * A group of header buttons. The fill is translucent, so a caller that floats
- * the group over scrolling content adds its own `backdrop-blur-*`; in-flow
- * groups on the solid page background do not need one.
+ * A group of header buttons: a hoja with its elevation, on the mesa. It is
+ * opaque, so it needs no blur even when a caller floats it over content.
  */
 export function HeaderButtonsUI({
     className = "",
@@ -21,7 +19,7 @@ export function HeaderButtonsUI({
 }: ComponentProps<"div">) {
     return (
         <div
-            className={`flex shrink-0 items-center gap-2 rounded-full px-1 py-1 ${LIQUID_GLASS_SUBTLE_CLASS} ${className}`}
+            className={`flex shrink-0 items-center gap-2 rounded-full bg-surface-sheet px-1 py-1 shadow-elev-sheet ${className}`}
             {...props}
         />
     );

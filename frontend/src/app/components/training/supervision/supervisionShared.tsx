@@ -42,7 +42,7 @@ export function NoteField({
                 maxLength={NOTE_MAX_CHARS}
                 onChange={(event) => onChange(event.target.value)}
                 disabled={disabled}
-                className="min-h-20 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
+                className="min-h-20 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
             />
             <p className="text-xs text-gray-500">{t("max", { max: NOTE_MAX_CHARS })}</p>
         </div>

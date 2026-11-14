@@ -268,7 +268,7 @@ function CellCard({
                                 // A note is saved with the mark it belongs to.
                                 if (cell.mark && note.trim() !== (cell.note ?? "")) onMark(cell, cell.mark, note);
                             }}
-                            className="min-h-16 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
+                            className="min-h-16 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
                         />
                     </fieldset>
                 )}

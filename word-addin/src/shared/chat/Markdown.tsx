@@ -58,7 +58,7 @@ const MARKDOWN_COMPONENTS: Components = {
           href={href}
           data-mike-citation=""
           title={clientTranslator()("word.showInTheDocument")}
-          className="mx-0.5 inline-flex max-w-full cursor-pointer items-baseline rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 align-baseline font-sans text-[0.85em] not-italic text-gray-600 no-underline transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900"
+          className="mx-0.5 inline-flex max-w-full cursor-pointer items-baseline rounded-md border border-gray-200 bg-surface-sheet px-1.5 py-0.5 align-baseline font-sans text-[0.85em] not-italic text-gray-600 no-underline transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900"
         >
           <span className="truncate">{children}</span>
         </a>
@@ -106,7 +106,7 @@ const MARKDOWN_COMPONENTS: Components = {
     </div>
   ),
   th: ({ children }) => (
-    <th className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-semibold">
+    <th className="border border-gray-200 bg-surface-sheet px-2 py-1 text-left font-semibold">
       {children}
     </th>
   ),

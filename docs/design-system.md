@@ -215,22 +215,61 @@ Word add-in's `word-addin/src/taskpane/styles.css` both import that file, so a
 token change reaches both targets. Do not redeclare one of these tokens in either
 entry stylesheet; `DesignTokensUI.test.ts` fails if you do.
 
-### App surfaces (Mike's own)
+### Superficies de LiTT
 
-These back the "liquid glass" chrome and are the ones most feature code needs.
+Four surfaces and the document. Every fill in the interface is one of them, in
+both themes (`DesignTokensUI.css`; `bg-surface-*` and `shadow-elev-*` are the
+Tailwind names). Nothing in the interface is white: what came from MikeOSS (the
+white menu, the translucent white glass, white rims and glows) is gone.
 
-| Token | Utility | Light value | Intent |
-| --- | --- | --- | --- |
-| `--app-background` | `bg-app-background` | papel `#ecece6` | Page canvas behind panels, including the auth and onboarding pages. |
-| `--app-surface` | `bg-app-surface` | `#f9f9f7` | Resting surface of a panel, table header, menu. |
-| `--app-surface-hover` | `hover:bg-app-surface-hover` | papel `#ecece6` | Row/item hover. |
-| `--app-surface-active` | `bg-app-surface-active` | `#e2e2dd` | Selected or pressed row/item. |
-| `--app-floating` | `bg-app-floating` | `#fcfcfb` | Detached floating elements above a surface. |
+| Surface | Token (utility) | Light | Dark | Use for |
+| --- | --- | --- | --- | --- |
+| Mesa | `--surface-desk` (`bg-surface-desk`) | papel `#ecece6` | tinta `#151a26` | The page everything sits on: `--background`, `--app-background`, `--sidebar`, the auth and onboarding pages. Scrims over it are `bg-surface-desk/NN`. |
+| Hoja | `--surface-sheet` (`bg-surface-sheet`) | `#fbfbf9` | `#1b202c` | Cards, the sidebar and side panels, tables, the composer (the same color: `--litt-composer-surface` is this token), and filled secondary controls. `--card`, `--app-surface`, `--app-floating` (light) are the hoja. Papel 22 % over white. |
+| Flotante | `--surface-float` (`bg-surface-float`) | `#fbfbf9` | `#1f2430` | Menus, popovers and dialogs that rise over a hoja, with `--elevation-float` (`shadow-elev-float`). `--popover`, `--app-floating` (dark). In the light theme it is the hoja: the shadow does the lifting. |
+| Campo | `--surface-field` (`bg-surface-field`) | `#f4f4f0` | `#2a2f3a` | Where you write or choose: inputs, textareas, selects, wells inside a card. `--secondary`, `--muted`, `--accent`, `--sidebar-accent`. Add `ring-1 ring-inset ring-gray-900/10` for the hairline (the dark palette remaps it to papel). |
+| Documento | `--surface-document` (`bg-surface-document`) | `#ffffff` | `#ffffff` | **Only** a page of the user's own document: the PDF page, a QR code, and (when the app paints one) a page thumbnail or the Word preview. It stays white on the dark theme. `shadow-elev-document`. |
 
-Dark values are tinta `#151a26` for the canvas and tinta lifted toward papel
-for the rest (`#1b202c`, `#222732`, `#2a2f3a`, `#1f2430`). Tailwind's gray
-scale is redefined from the same two colors; see
-[Marca LiTT v1.0](#marca-litt-v10).
+Elevation is a 1 px edge plus a soft shadow of tinta, never a white rim or a
+white glow:
+
+| Token | Light | Dark |
+| --- | --- | --- |
+| `--elevation-sheet` | `0 0 0 1px` tinta 8 %, `0 1px 2px` tinta 5 % | `0 0 0 1px` papel 9 % |
+| `--elevation-float` | `0 0 0 1px` tinta 12 %, `0 12px 32px -12px` tinta 28 % | `0 0 0 1px` papel 13 %, `0 16px 40px -12px` black 60 % |
+| `--elevation-document` | `0 0 0 1px` tinta 10 %, `0 2px 8px -2px` tinta 14 % | `0 0 0 1px` black 40 %, `0 8px 24px -8px` black 60 % |
+
+What the old tokens became:
+
+| Before | Now |
+| --- | --- |
+| `--card`, `--app-floating`, `--app-surface` (`#fcfcfb`, `#f9f9f7`) | `--surface-sheet` `#fbfbf9`: the three near-whites (1.01 to 1.02:1 between them) are one |
+| `--popover` (`#ffffff`) | `--surface-float` with `shadow-elev-float` |
+| `--secondary`, `--muted`, `--accent`, `--sidebar-accent` | `--surface-field` |
+| `--app-surface-hover`, `--app-surface-active` (light) | tinta 6 % and 11 % (`--litt-interactive-soft`, `-strong`); dark unchanged |
+| `--liquid-glass-background-subtle` (white 55 %) | the hoja, opaque |
+| `--liquid-glass-translucent-*` (white 30 to 60 %) | the hoja at 88 % (`rgb(251 251 249 / 88%)`; dark `rgb(27 32 44 / 88%)`), only for what floats over messages |
+| `--liquid-glass-border-*` (white 70 %) | transparent in light: the edge is the elevation's |
+| `inset 0 1px 0 rgba(255,255,255,…)` in the shadows | removed, in both themes |
+| `.dark .bg-white`, `.dark .bg-gray-50` | `--surface-sheet` |
+
+Rules of use:
+
+- `bg-white` does not appear in interface code (`noWhiteSurfaces.test.ts`
+  lists the two exceptions: a switch's thumb and a spinner's arc). A white fill
+  is `bg-surface-sheet`; a field is `bg-surface-field`; a hover on a hoja is
+  `hover:bg-interactive-soft`, selected or open is `bg-interactive-soft-strong`;
+  a scrim over the mesa is `bg-surface-desk/NN`.
+- Filter pills (`TabPillButtonUI`) rest as `bg-transparent ring-1
+  ring-gray-900/15` and are `bg-interactive-soft-strong` when active. Header
+  actions on the mesa are `bg-surface-sheet shadow-elev-sheet`.
+- `--color-gray-50` and `-100` stay in the gray scale as colors; they are no
+  longer used as backgrounds for a surface (use the token).
+- Contrast of text, labels, rules and focus on the hoja and the mesa, in both
+  themes, is pinned by `surfaceContrast.test.ts`. The only pair that does not
+  reach 4.5:1 is `gray-400`, reserved for markers (2.7 to 3.2:1).
+- The hoja is papel mixed with white, so the ámbar tinta of the focus ring stays
+  on its ground: 5.44:1 on the hoja. `docs/brand/DESIGN.md` does not change.
 
 Use the class-name constants in `components/ui/liquid-surface.ts` rather than
 retyping the utilities. Liquid-glass controls use
@@ -582,14 +621,16 @@ over a lightweight History row for workspace and attachment scope.
 
 ## Elevation and the glass surface
 
-The signature surface combines a light fill, hairline border, inset highlight
-shadows, and soft elevation. Each liquid-glass class owns all three material
-properties—background, border, and shadow—through light/dark CSS variables in
-`LiquidGlassUI.css`; components should not repeat a surface border utility. The
-flat tier uses a solid fill so broad surfaces and sticky table cells render as
-one continuous plane. The float tier is also solid so menus and persistent
-chrome fully obscure content beneath them; subtle and overlay tiers retain
-their translucency where depth or underlying content matters.
+The glass classes are the surfaces of the scale (see Superficies de LiTT), kept
+under their old names: a fill, an edge and an elevation, owned by the class
+through light/dark CSS variables in `LiquidGlassUI.css`; components should not
+repeat a surface border utility. In the light theme every tier is opaque and
+its edge is the shadow's (a 1 px ring plus a soft drop), with a transparent
+border: no white border, rim or glow. The dark theme keeps its faint papel rim.
+The flat tier uses a solid fill so broad surfaces and sticky table cells render
+as one continuous plane. The float tier is also solid so menus fully obscure
+content beneath them; only the translucent tier lets content show through,
+where depth or underlying content matters.
 Elevation is centralized in
 `packages/ui/styles/LiquidGlassUI.css`, with class-name constants exported
 from `@mike/ui` (`packages/ui/src/LiquidGlassUI.ts`). Do not write a new
@@ -600,9 +641,9 @@ Use the lowest tier that communicates the required depth:
 
 | Material | Class | Use for |
 | --- | --- | --- |
-| Flat | `liquid-glass-flat` | Solid-fill assistant response/message surfaces, tables, glass cards, and signup/login/onboarding cards. |
-| Subtle | `liquid-glass-subtle` | Modal inputs, dropdown triggers, tab pills, PageHeader actions, and search/select controls. |
-| Float | `liquid-glass-float` | Solid-fill open dropdowns/submenus, `AppSidebar`, and persistent app/assistant/document/tabular side panels. Uses the original AppSidebar shadow depth. |
+| Flat (the hoja) | `liquid-glass-flat` | Solid-fill assistant response/message surfaces, tables, glass cards, signup/login/onboarding cards, `AppSidebar` and the persistent side panels. |
+| Subtle | `liquid-glass-subtle` | Compact controls on a hoja: dropdown triggers and search/select controls, with a firmer 16 % ring. Filter pills and header actions use the hoja or an outline (see Superficies de LiTT). |
+| Float (the flotante) | `liquid-glass-float` | Solid-fill open dropdowns/submenus, popovers and notices, with `--elevation-float`. |
 | Modal | `liquid-glass-modal` | The modal frame only; modal contents use the appropriate general tier. |
 | Translucent | `liquid-glass-translucent` | Ask-input surfaces and other translucent content overlays that float over messages. The chat composer is not glass (see Composer). |
 | Composer | `COMPOSER_SURFACE_CLASS` (`litt-composer`) | The chat composer on the web and in Word, and its menus (model picker, slash menu): an opaque sheet with a 1 px ring and one soft shadow, `--litt-composer-*` tokens in `DesignTokensUI.css`, and a neutral (tinta or papel, never amber) focus ring and caret. Radii: 17 px, 20 px with a finger, 18 px in Word. |

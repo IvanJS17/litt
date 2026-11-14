@@ -150,7 +150,7 @@ function DocumentPane({ document }: { document: TrainingReadingDocument | null }
                     role="region"
                     aria-labelledby="reading-document"
                     tabIndex={0}
-                    className="max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 text-sm leading-6 text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    className="max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-surface-sheet p-4 text-sm leading-6 text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                     <p className="whitespace-pre-wrap break-words">{document.text}</p>
                 </div>
@@ -194,7 +194,7 @@ function WriteFindings({
                     maxLength={FINDINGS_MAX}
                     disabled={busy}
                     onChange={(event) => onChange(event.target.value)}
-                    className="min-h-56 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
+                    className="min-h-56 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
                 />
                 <p id="reading-findings-count" className="text-xs text-gray-500">
                     {long

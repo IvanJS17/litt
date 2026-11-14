@@ -911,7 +911,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
               />
             )}
             {readOnly && (
-              <div className="flex h-10 shrink-0 items-center bg-gray-50 px-4 md:px-10">
+              <div className="flex h-10 shrink-0 items-center bg-surface-sheet px-4 md:px-10">
                 <span className="text-xs font-medium text-gray-500">
                   {t("workflows.readOnly")}
                 </span>

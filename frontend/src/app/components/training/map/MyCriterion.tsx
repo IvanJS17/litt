@@ -202,7 +202,7 @@ function AnswerForm({
                 maxLength={ANSWER_MAX_CHARS}
                 disabled={busy}
                 onChange={(event) => onChange(event.target.value)}
-                className="min-h-28 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
+                className="min-h-28 w-full rounded-xl border border-gray-200 bg-surface-field px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
             />
             <p id={helpId} className="text-xs text-gray-500">
                 {tooShort ? t("tooShort", { length, min: ANSWER_MIN_CHARS }) : t("count", { length, max: ANSWER_MAX_CHARS })}

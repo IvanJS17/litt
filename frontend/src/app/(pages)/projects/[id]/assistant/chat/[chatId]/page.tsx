@@ -1762,7 +1762,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                 onDropCapture={handleDocumentDrop}
             >
                 {documentDragOver && (
-                    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-white/50 backdrop-blur-md">
+                    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-surface-desk/50 backdrop-blur-md">
                         <p className="font-serif text-xl text-gray-900">
                             {t("projects.dropFilesHereToOpen")}
                         </p>

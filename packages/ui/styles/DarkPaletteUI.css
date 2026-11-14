@@ -77,6 +77,9 @@
 .dark .border-white\/30,
 .dark .border-white\/20 { border-color: rgba(236, 236, 230, 0.14); }
 .dark .ring-white\/70 { --tw-ring-color: rgba(236, 236, 230, 0.14); }
+/* The hairline rings of the scale: tinta on papel, papel on tinta. */
+.dark .ring-gray-900\/10 { --tw-ring-color: rgb(236 236 230 / 10%); }
+.dark .ring-gray-900\/15 { --tw-ring-color: rgb(236 236 230 / 15%); }
 
 @media (hover: hover) and (pointer: fine) {
     .dark .hover\:bg-white:hover,
