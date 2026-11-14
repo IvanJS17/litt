@@ -18,6 +18,7 @@ import { PlaybookPickerModal } from "../playbooks/PlaybookPickerModal";
 import {
     ComposerChipsUI,
     COMPOSER_SEND_BUTTON_CLASS,
+    SendArrowUI,
     ExcerptModalUI,
     ExcerptPillUI,
 } from "@mike/ui";
