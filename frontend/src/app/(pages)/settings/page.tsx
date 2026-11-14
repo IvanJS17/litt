@@ -27,6 +27,7 @@ import {
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsNotice,
 } from "@/app/components/settings/SettingsText";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
@@ -334,7 +335,8 @@ export default function SettingsPage() {
         <GlassCardUI>
           <SettingsRow layout="stacked">
             <p className="text-base font-medium text-gray-500 capitalize">
-              {profile?.tier || t("settings.home.free")}
+              {/* The server's name for the free plan is English («Free»). */}
+              {!profile?.tier || profile.tier.toLowerCase() === "free" ? t("settings.home.free") : profile.tier}
             </p>
           </SettingsRow>
         </GlassCardUI>
@@ -358,14 +360,18 @@ export default function SettingsPage() {
 
       {/* Danger Zone */}
       <section className="space-y-3">
-        <SettingsHeading id="danger-zone" tone="danger">{t("settings.home.dangerZone")}</SettingsHeading>
+        <SettingsHeading id="danger-zone">{t("settings.home.dangerZone")}</SettingsHeading>
+        {/* Red is for what cannot be undone, and only here: the title stays in ink. */}
+        <SettingsNotice
+          tone="irreversible"
+          entries={[{ icon: "alert", label: t("settings.signals.cannotUndo") }]}
+        >
+          {t("settings.home.permanentlyDeleteYourAccountAndEverything")}
+        </SettingsNotice>
         <GlassCardUI>
           <SettingsRow>
             <div className="min-w-0 space-y-1">
               <SettingsLabel>{t("settings.home.deleteAccount")}</SettingsLabel>
-              <SettingsDescription>
-                {t("settings.home.permanentlyDeleteYourAccountAndEverything")}
-              </SettingsDescription>
             </div>
             <PillButtonUI
               tone="whiteDanger"
