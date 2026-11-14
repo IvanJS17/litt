@@ -1217,7 +1217,7 @@ function ChatInputForChatImpl(
     SendArrowUI,
                                     // 40 px with the finger, in a 44 px zone.
                                     TOUCH_TARGET_CLASS,
-                                    "h-7.5 w-7.5 rounded-[9px] pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:rounded-xl",
+                                    "h-7.5 w-7.5 rounded-[9px] pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:rounded-[12px]",
                                 )}
                                 onClick={handleActionClick}
                                 disabled={
