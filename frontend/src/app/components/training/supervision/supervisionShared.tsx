@@ -12,7 +12,7 @@ import type {
     TrainingUrgencyPass,
 } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
-import { practiceOptionLabel } from "../trainingShared";
+import { usePracticeOptionLabel } from "../trainingShared";
 
 // LiTT training layer 2 «Supervisión» (docs/training.md): pieces shared by
 // the mentor panel and the pupil's «Lo que mi mentor ve de mí». Learning
@@ -57,7 +57,8 @@ export function useStageLabel() {
 /** A stored (normalized) practice area, as the user picked it. */
 export function usePracticeLabel() {
     const t = useTranslations("training");
-    return (practice: string | null) => (practice === null ? t("allPractices") : practiceOptionLabel(practice));
+    const optionLabel = usePracticeOptionLabel();
+    return (practice: string | null) => (practice === null ? t("allPractices") : optionLabel(practice));
 }
 
 /** Whether a pass lifts «Tu turno primero» right now. */

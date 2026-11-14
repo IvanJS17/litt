@@ -267,7 +267,7 @@ const CALENDAR_CLASSES = {
   ),
   weekday: cn(
     calendarStyles.weekday,
-    "!p-0 !text-[10px] !font-medium text-gray-400",
+    "!p-0 !text-3xs !font-medium text-gray-400",
   ),
   day_button: cn(
     calendarStyles.day_button,

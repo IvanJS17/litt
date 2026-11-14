@@ -139,7 +139,7 @@ export function ModelToggle({
   const { workspaceId, orgApiKeys } = useWorkspace();
   const organization =
     workspaceId !== null && workspaceId !== PERSONAL_WORKSPACE && orgApiKeys
-      ? { allowPersonalKeys: orgApiKeys.allow_personal_api_keys }
+      ? { allowPersonalKeys: orgApiKeys.allow_personal_keys.ai }
       : null;
   const emptyReason = noModelsReason(apiKeys, routerSelections, organization);
   return (

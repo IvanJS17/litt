@@ -40,6 +40,8 @@ import {
 import { apiKeyStateFromStatus, hasApiKeyStatus } from "@/app/lib/apiKeyState";
 import type { Message } from "@/app/components/shared/types";
 import { applyDarkMode } from "@/app/lib/theme";
+import { prefetchPlatformMe } from "@/app/hooks/usePlatformMe";
+import { applyTextSize, DEFAULT_TEXT_SIZE, type TextSize } from "@/app/lib/textSize";
 import { syncUiLocale } from "@/app/lib/uiLocaleSync";
 import { notifyError } from "@/app/lib/userFacingError";
 import { reportError } from "@/app/lib/errorReporting";
@@ -89,6 +91,7 @@ interface UserProfile extends RouterProfileLists {
     /** Whether responses and subagents show the model, effort and tokens they used. */
     responseDetailsVisible: boolean;
     darkMode: boolean;
+    textSize?: TextSize;
     projectMemoryDefault: boolean;
     apiKeys: ApiKeyState;
     /** Settings saved with the user's own keys (region, endpoint, location, base URL). */
@@ -150,6 +153,7 @@ interface UserProfileContextType {
         models: string[],
     ) => Promise<boolean>;
     updateDarkMode: (enabled: boolean) => Promise<void>;
+    updateTextSize: (size: TextSize) => Promise<void>;
     updateProjectMemoryDefault: (enabled: boolean) => Promise<void>;
     updateApiKey: (
         provider: ApiKeyProvider,
@@ -371,6 +375,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (isAuthenticated && userId) {
             setLoading(true);
+            // The beta tabs in Settings need this too; asking now, in
+            // parallel with the profile, means it is there when they open.
+            prefetchPlatformMe(userId);
             loadProfile();
         } else {
             setProfile(null);
@@ -385,6 +392,18 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (darkMode !== null) applyDarkMode(darkMode);
     }, [darkMode]);
+
+    // The saved size is the source of truth once the profile answers; until
+    // then the boot script keeps the size this browser last showed. Signed
+    // out, the page is at 100 %.
+    const textSize: TextSize | null = profile
+        ? (profile.textSize ?? DEFAULT_TEXT_SIZE)
+        : signedOut
+          ? DEFAULT_TEXT_SIZE
+          : null;
+    useEffect(() => {
+        if (textSize !== null) applyTextSize(textSize);
+    }, [textSize]);
 
     /** Persists a photo change before publishing the returned value to every profile consumer. */
     const updateProfilePhoto = useCallback(async (photo: string | null) => {
@@ -697,6 +716,22 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         [user, profile?.darkMode, applyProfile],
     );
 
+    const updateTextSize = useCallback(
+        async (size: TextSize): Promise<void> => {
+            if (!user) throw new Error("Sign in to update the text size.");
+            const previous = profile?.textSize ?? DEFAULT_TEXT_SIZE;
+            applyTextSize(size);
+            try {
+                const updated = await updateUserProfile({ textSize: size });
+                applyProfile({ ...updated, textSize: size }, true);
+            } catch (error) {
+                applyTextSize(previous);
+                throw error;
+            }
+        },
+        [user, profile?.textSize, applyProfile],
+    );
+
     const updateProjectMemoryDefault = useCallback(
         async (enabled: boolean): Promise<void> => {
             if (!user) {
@@ -824,6 +859,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             updateResponseDetailsVisible,
             updateRouterModels,
             updateDarkMode,
+            updateTextSize,
             updateProjectMemoryDefault,
             updateApiKey,
             updateApiKeyEnabled,
@@ -848,6 +884,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             updateResponseDetailsVisible,
             updateRouterModels,
             updateDarkMode,
+            updateTextSize,
             updateProjectMemoryDefault,
             updateApiKey,
             updateApiKeyEnabled,

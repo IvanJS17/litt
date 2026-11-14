@@ -46,6 +46,12 @@ export function auditPrivateAccess(
 }
 
 
+const KEY_CAPABILITY_KEYS = {
+  ai: "ai",
+  web_search: "webSearch",
+  scan: "scan",
+} as const;
+
 const ACTION_KEYS = {
   "org.private_content.permission_changed": "privateContentPermissionChanged",
   "org.private_content.opened": "privateContentAccessed",
@@ -54,6 +60,9 @@ const ACTION_KEYS = {
   "org.api_key.removed": "providerKeyRemoved",
   "org.api_key.enabled": "providerKeyEnabled",
   "org.api_key.disabled": "providerKeyDisabled",
+  "org.personal_api_keys.policy_changed": "personalKeysPolicyChanged",
+  // Before the switch was split by capability the server wrote these two;
+  // existing rows keep their words.
   "org.personal_api_keys.allowed": "personalKeysAllowed",
   "org.personal_api_keys.blocked": "personalKeysBlocked",
   "org.managed_accounts.enabled": "managedAccountsEnabled",
@@ -392,6 +401,12 @@ export function auditDetailFields(
     event.action === "org.private_content.permission_changed"
   )
     add(t("history.audit.field.enabled"), detail.enabled);
+  if (event.action === "org.personal_api_keys.policy_changed") {
+    const capability = detailText(event, "capability");
+    const label = capability ? KEY_CAPABILITY_KEYS[capability as keyof typeof KEY_CAPABILITY_KEYS] : undefined;
+    if (label) add(t("history.audit.field.keyKind"), t(`history.audit.keyKind.${label}`));
+    add(t("history.audit.field.allowed"), detail.allowed);
+  }
   if (event.action === "org.private_content.opened")
     add(t("history.audit.field.access"), t("history.audit.readOnly"), "access");
   const purgeAfter = detailText(event, "purge_after");

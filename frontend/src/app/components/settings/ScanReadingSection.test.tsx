@@ -39,7 +39,7 @@ vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
     activeOrganization: workspace.firm,
     orgApiKeys: workspace.firm
       ? {
-          allow_personal_api_keys: workspace.allowPersonal,
+          allow_personal_keys: { ai: workspace.allowPersonal, web_search: workspace.allowPersonal, scan: workspace.allowPersonal },
           keys: {
             sources: workspace.firmLandingai ? { landingai: "org" } : {},
             enabled: workspace.firmLandingai ? { landingai: workspace.firmLandingai.enabled } : {},
@@ -65,9 +65,10 @@ beforeEach(() => {
 });
 
 describe("ScanReadingSection", () => {
-  it("says which workspace the key applies to", () => {
+  it("says which workspace the key applies to, under «More information»", () => {
     render(<ScanReadingSection />);
-    expect(screen.getByText(/These keys are yours and apply to your personal workspace\./)).toBeVisible();
+    const scope = screen.getByText(/These keys are yours and apply to your personal workspace\./);
+    expect(scope.closest("details")).not.toBeNull();
   });
 
   it("offers no personal key, and says the firm has none set up, in a firm that does not allow members' own keys", () => {

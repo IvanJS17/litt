@@ -372,14 +372,14 @@ describe("Mapa y calibración del mentor", () => {
         vi.mocked(api.getPupilCriterion).mockResolvedValue(pupil({ retakes: [], retakes_without_access: 2 }));
         renderEs(<MentorCriterionMap orgId="org-1" pupilId="pupil-1" />);
         expect(await screen.findByText(/2 retomas son de trabajos en asuntos que no puedes abrir/)).toBeInTheDocument();
-        expect(screen.queryByText("Este pupilo no tiene retomas.")).not.toBeInTheDocument();
+        expect(screen.queryByText("Este aprendiz no tiene retomas.")).not.toBeInTheDocument();
     });
 
     it("says when there are no retakes and retries a failed load", async () => {
         vi.mocked(api.getPupilCriterion).mockRejectedValueOnce(new Error("404")).mockResolvedValue(pupil({ hints: { requested: 0, max_level: 0 } }));
         renderEs(<MentorCriterionMap orgId="org-1" pupilId="pupil-1" />);
         fireEvent.click(await screen.findByRole("button", { name: "Reintentar" }));
-        expect(await screen.findByText("Este pupilo no tiene retomas.")).toBeInTheDocument();
-        expect(screen.getByText("Este pupilo no ha pedido pistas.")).toBeInTheDocument();
+        expect(await screen.findByText("Este aprendiz no tiene retomas.")).toBeInTheDocument();
+        expect(screen.getByText("Este aprendiz no ha pedido pistas.")).toBeInTheDocument();
     });
 });

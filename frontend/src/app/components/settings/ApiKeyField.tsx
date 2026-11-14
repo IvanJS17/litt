@@ -9,7 +9,7 @@ import {
 import { SettingsTextInput } from "@/app/components/settings/SettingsTextInput";
 import { FieldLabel, FormTextInput } from "@/app/components/ui/form-field";
 import { SettingsRow } from "./SettingsRow";
-import { SettingsDescription, SettingsLabel } from "./SettingsText";
+import { SettingsDescription, SettingsLabel, SettingsMoreInfo } from "./SettingsText";
 import { isMfaRequiredError } from "@/app/lib/mikeApi";
 import {
   UserVisibleError,
@@ -51,6 +51,7 @@ export function ApiKeyField({
   label,
   variant = "settings",
   description,
+  moreInfo,
   hasSavedKey,
   hasEnvKey = false,
   keyLabel,
@@ -63,6 +64,8 @@ export function ApiKeyField({
   label: string;
   variant?: "settings" | "modal";
   description?: string;
+  /** How it works, where the key applies: folded under «Más información». */
+  moreInfo?: ReactNode;
   hasSavedKey: boolean;
   /** The server's environment supplies a key, so there is nothing to save. */
   hasEnvKey?: boolean;
@@ -268,11 +271,12 @@ export function ApiKeyField({
         : { layout: "stacked" as const })}
     >
       {variant !== "modal" && (
-        <div className={description ? "space-y-1" : undefined}>
+        <div className={description || moreInfo ? "space-y-1" : undefined}>
           <SettingsLabel>{label}</SettingsLabel>
           {description && (
             <SettingsDescription>{description}</SettingsDescription>
           )}
+          {moreInfo ? <SettingsMoreInfo>{moreInfo}</SettingsMoreInfo> : null}
         </div>
       )}
       <div className={variant === "modal" ? "space-y-4" : "space-y-2"}>

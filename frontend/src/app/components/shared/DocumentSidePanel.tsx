@@ -614,7 +614,7 @@ export function DocumentSidePanel({
                             type="button"
                             onClick={() => setMobilePane("document")}
                             className={cn(
-                                "h-6 rounded-full px-2 text-[11px] font-medium transition-colors",
+                                "h-6 rounded-full px-2 text-2xs font-medium transition-colors",
                                 mobilePane === "document"
                                     ? `${LIQUID_GLASS_SUBTLE_CLASS} text-gray-900`
                                     : "text-gray-500 hover:text-gray-800",
@@ -626,7 +626,7 @@ export function DocumentSidePanel({
                             type="button"
                             onClick={() => setMobilePane("details")}
                             className={cn(
-                                "h-6 rounded-full px-2 text-[11px] font-medium transition-colors",
+                                "h-6 rounded-full px-2 text-2xs font-medium transition-colors",
                                 mobilePane === "details"
                                     ? `${LIQUID_GLASS_SUBTLE_CLASS} text-gray-900`
                                     : "text-gray-500 hover:text-gray-800",
@@ -978,7 +978,7 @@ export function DocumentSidePanel({
                                                     </div>
                                                     <span
                                                         className={cn(
-                                                            "inline-flex shrink-0 items-center gap-1 text-[11px] font-normal",
+                                                            "inline-flex shrink-0 items-center gap-1 text-2xs font-normal",
                                                             deleted
                                                                 ? "text-gray-300"
                                                                 : selected
@@ -994,7 +994,7 @@ export function DocumentSidePanel({
                                                     </span>
                                                 </div>
                                                 <div className="flex min-w-0 items-center gap-2">
-                                                    <div className="min-w-0 flex-1 truncate text-[11px] text-gray-400">
+                                                    <div className="min-w-0 flex-1 truncate text-2xs text-gray-400">
                                                         {version.created_at
                                                             ? formatNumericDateTime(
                                                                   format,
@@ -1012,7 +1012,7 @@ export function DocumentSidePanel({
                                                             )}
                                                     >
                                                         {deleted ? (
-                                                            <span className="text-[11px] font-medium text-gray-800">
+                                                            <span className="text-2xs font-medium text-gray-800">
                                                                 {t("shared.documentSidePanel.deleted")}
                                                             </span>
                                                         ) : (
@@ -1103,7 +1103,7 @@ export function DocumentSidePanel({
                                                     </div>
                                                 </div>
                                                 {isTrainingHeld(version) && (
-                                                    <TrainingHeldNoteUI className="text-[11px]" />
+                                                    <TrainingHeldNoteUI className="text-2xs" />
                                                 )}
                                             </div>
                                         );

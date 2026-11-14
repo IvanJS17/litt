@@ -12,10 +12,12 @@ import {
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsNoticeLine,
 } from "@/app/components/settings/SettingsText";
-import { PersonalKeysBlockedNotice, useKeyScope, usePersonalKeysScope } from "@/app/components/settings/KeyScope";
+import { FirmKeysManaged, useKeyScope, usePersonalKeysScope } from "@/app/components/settings/KeyScope";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
+import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { isProviderAvailable } from "@/app/lib/modelAvailability";
 import {
   getWebSearchSettings,
@@ -27,6 +29,7 @@ import {
 import { notifyError } from "@/app/lib/userFacingError";
 import { useTranslations } from "next-intl";
 import type { Translate } from "@/i18n/Translate";
+import type { OrgApiKeySettings } from "@/app/lib/mikeApi";
 
 function searchServices(
   t: Translate,
@@ -68,13 +71,37 @@ type Family = Exclude<Field, "enabled">;
 type ProviderFamily = {
   family: "claude" | "openai";
   label: string;
+  /** The provider that runs the search and whose key is billed. */
+  billedProvider: string;
   provider: { label: string; description: string };
 };
+
+/**
+ * Whose key pays for a search the model provider runs. In the personal space
+ * it is the person's own. In a firm it is the firm's when the firm has that
+ * key, or whenever it does not let members use their own; a member's own only
+ * pays when the firm has none and allows it. Before the firm's keys are known
+ * it says both, in order.
+ */
+export function searchChargeWho(
+  firmName: string | null,
+  aiKeysBlocked: boolean,
+  orgApiKeys: OrgApiKeySettings | null,
+  provider: "claude" | "openai",
+): "personal" | "firm" | "firmThenYours" {
+  if (firmName === null) return "personal";
+  if (aiKeysBlocked) return "firm";
+  const sources = orgApiKeys?.keys?.sources;
+  if (!sources) return "firmThenYours";
+  const firmKeyOn = sources[provider] === "org" && orgApiKeys?.keys?.enabled?.[provider] !== false;
+  return firmKeyOn ? "firm" : "personal";
+}
 
 function providerFamilyTable(t: Translate): ProviderFamily[] {
   return [
   {
     family: "claude",
+    billedProvider: "Claude",
     label: t("settings.webSearchSection.modelsOfFamily", { name: "Claude" }),
     provider: {
       label: "Anthropic Search",
@@ -83,6 +110,7 @@ function providerFamilyTable(t: Translate): ProviderFamily[] {
   },
   {
     family: "openai",
+    billedProvider: "OpenAI",
     label: t("settings.webSearchSection.modelsOfFamily", { name: "OpenAI" }),
     provider: {
       label: "OpenAI Search",
@@ -122,7 +150,11 @@ export function WebSearchSection() {
   const SEARCH_SERVICE_OPTIONS = searchServiceOptions(t);
   const OFF_OPTION = offOption(t);
   const { profile, updateApiKey } = useUserProfile();
-  const { personalBlocked } = useKeyScope();
+  const { personalBlocked } = useKeyScope("web_search");
+  const { firmName, personalBlocked: aiKeysBlocked, orgApiKeys } = useKeyScope("ai");
+  // The keys the person works on in the active workspace: the firm's included
+  // inside a firm, not only their own.
+  const effectiveKeys = useModelApiKeys();
   const scope = usePersonalKeysScope();
   const [settings, setSettings] = useState<WebSearchSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -183,12 +215,24 @@ export function WebSearchSection() {
   };
 
   const providerFamilies = providerFamilyTable(t).filter(
-    ({ family }) => profile && isProviderAvailable(family, profile.apiKeys),
-  ).map(({ family, label, provider }) => ({
+    ({ family }) =>
+      profile && isProviderAvailable(family, effectiveKeys ?? profile.apiKeys),
+  ).map(({ family, label, billedProvider, provider }) => ({
     family,
     label,
     options: [
-      { value: "provider", ...provider },
+      {
+        value: "provider",
+        ...provider,
+        // The cost names the key that really pays, not always «tu llave».
+        notice: (
+          <SettingsNoticeLine icon="receipt">
+            {t(`settings.webSearchSection.charge.${searchChargeWho(firmName, aiKeysBlocked, orgApiKeys, family)}`, {
+              provider: billedProvider,
+            })}
+          </SettingsNoticeLine>
+        ),
+      },
       ...SEARCH_SERVICE_OPTIONS,
       OFF_OPTION,
     ],
@@ -234,6 +278,8 @@ export function WebSearchSection() {
           </SettingsRow>
         ) : (
           <>
+            {/* The firm decides these keys: said first, never under the card. */}
+            {personalBlocked ? <FirmKeysManaged /> : null}
             <SettingsRow>
               <div className="min-w-0 space-y-1">
                 <SettingsLabel>{t("settings.webSearchSection.enableWebSearch")}</SettingsLabel>
@@ -270,16 +316,11 @@ export function WebSearchSection() {
                   }
                 />
               ))}
-            {personalBlocked && chosenServices.length > 0 ? (
-              <SettingsRow>
-                <PersonalKeysBlockedNotice />
-              </SettingsRow>
-            ) : null}
             {personalBlocked ? null : chosenServices.map((service) => (
               <ApiKeyField
                 key={service}
                 label={SEARCH_SERVICES[service].keyLabel}
-                description={scope}
+                moreInfo={scope}
                 hasSavedKey={profile?.apiKeys[service].source === "user"}
                 onSave={(value) => updateApiKey(service, value.trim() || null)}
                 onRemove={() => updateApiKey(service, null)}

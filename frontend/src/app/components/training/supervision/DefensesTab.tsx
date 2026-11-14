@@ -195,7 +195,7 @@ function NewDefense({
                             { value: ALL_PRACTICES, label: practiceLabel(null) },
                             ...PRACTICE_OPTIONS.filter((option) => option !== "Other").map((option) => ({
                                 value: option.trim().toLowerCase(),
-                                label: option,
+                                label: practiceLabel(option.trim().toLowerCase()),
                             })),
                             { value: OTHER_PRACTICE, label: t("defenses.otherPractice") },
                         ]}

@@ -90,6 +90,16 @@
     }
 }
 
+/* Text size (Settings > Appearance, lib/textSize.ts). A percentage keeps the
+   browser's own default size as the base; everything in rem follows. */
+html[data-text-size="large"] {
+    font-size: 112.5%;
+}
+
+html[data-text-size="xlarge"] {
+    font-size: 125%;
+}
+
 /* iOS Safari zooms the page into any text field under 16px and never
    zooms back out. Keep every field at 16px or more on small screens;
    pinch-zoom itself stays available (no maximum-scale in the viewport).

@@ -123,7 +123,7 @@ function orgSettings(
     effective: status,
     router_models: routerModels,
     effective_router_models: routerModels,
-    allow_personal_api_keys: true,
+    allow_personal_keys: { ai: true, web_search: true, scan: true },
     can_manage: true,
     ...overrides,
   } as OrgApiKeySettings;
@@ -131,8 +131,11 @@ function orgSettings(
 
 const renderTab = (props: { notice?: ReactNode } = {}) =>
   render(<OrganizationProviderKeys orgId="org-1" orgName="Acme LLP" {...props} />);
+// The providers to add open with «Add provider».
+const openProviders = async (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(await screen.findByRole("button", { name: "Add provider" }));
 const savedSection = () =>
-  screen.getByRole("region", { name: "Firm keys (Acme LLP)" });
+  screen.getByRole("region", { name: "AI keys of Acme LLP" });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -143,6 +146,7 @@ describe("an owner or admin", () => {
   it("lists what is saved apart from what can be added", async () => {
     mocks.getOrgApiKeys.mockResolvedValue(orgSettings({ openai: {} }));
     renderTab();
+    const user = userEvent.setup();
 
     expect(
       await within(savedSection()).findByRole("switch", {
@@ -152,6 +156,14 @@ describe("an owner or admin", () => {
     const available = screen.getByRole("region", {
       name: "Available Providers",
     });
+    // Closed until asked: the twelve cards are not on the page.
+    const opener = within(available).getByRole("button", { name: "Add provider" });
+    expect(opener).toHaveAttribute("aria-expanded", "false");
+    expect(within(available).queryByRole("button", { name: "Add Anthropic (Claude)" })).not.toBeInTheDocument();
+    expect(within(available).getByText(/available$/)).toBeInTheDocument();
+    await user.click(opener);
+    expect(opener).toHaveAttribute("aria-expanded", "true");
+    expect(opener).toHaveAttribute("aria-controls");
     expect(
       within(available).getByRole("button", { name: "Add Anthropic (Claude)" }),
     ).toBeInTheDocument();
@@ -166,6 +178,7 @@ describe("an owner or admin", () => {
     mocks.saveOrgApiKey.mockResolvedValue(orgSettings({ openai: {} }));
     renderTab();
 
+    await openProviders(user);
     await user.click(await screen.findByRole("button", { name: "Add OpenAI" }));
     // The caller has a key of their own for every provider; the dialog is
     // about the organization's, which has none.
@@ -197,6 +210,7 @@ describe("an owner or admin", () => {
     );
     renderTab();
 
+    await openProviders(user);
     await user.click(
       await screen.findByRole("button", { name: "Add Amazon Bedrock" }),
     );
@@ -240,6 +254,7 @@ describe("an owner or admin", () => {
     const user = userEvent.setup();
     renderTab();
 
+    await openProviders(user);
     await user.click(
       await screen.findByRole("button", { name: "Add OpenRouter" }),
     );
@@ -348,6 +363,7 @@ describe("an owner or admin", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+    await openProviders(user);
     expect(
       await screen.findByRole("button", { name: "Add OpenAI" }),
     ).toBeInTheDocument();
@@ -381,26 +397,75 @@ describe("an owner or admin", () => {
   it("stops members' own keys being used", async () => {
     const user = userEvent.setup();
     mocks.setOrgPersonalApiKeysAllowed.mockResolvedValue(
-      orgSettings({}, { allow_personal_api_keys: false }),
+      orgSettings({}, { allow_personal_keys: { ai: false, web_search: true, scan: true } }),
     );
     renderTab();
 
     const toggle = await screen.findByRole("switch", {
-      name: "Allow members' own keys",
+      name: "Members can use their own AI keys",
     });
     expect(toggle).toBeChecked();
     await user.click(toggle);
 
     expect(mocks.setOrgPersonalApiKeysAllowed).toHaveBeenCalledExactlyOnceWith(
       "org-1",
+      "ai",
       false,
     );
     await waitFor(() => expect(toggle).not.toBeChecked());
+    // Blocking one kind leaves the other two switches where they were.
     expect(
-      screen.getByText(
-        "A member's own keys are never used for work in this organization.",
+      screen.getByRole("switch", { name: "Members can use their own web search keys" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: /Members can use their own scan reading key/ }),
+    ).toBeChecked();
+  });
+
+  it.each([
+    ["Members can use their own web search keys", "web_search"],
+    [
+      "Members can use their own scan reading key (LandingAI)",
+      "scan",
+    ],
+  ])("changes only the capability of the switch it presses: %s", async (name, capability) => {
+    const user = userEvent.setup();
+    mocks.setOrgPersonalApiKeysAllowed.mockResolvedValue(orgSettings({}));
+    renderTab();
+
+    await user.click(await screen.findByRole("switch", { name }));
+
+    expect(mocks.setOrgPersonalApiKeysAllowed).toHaveBeenCalledExactlyOnceWith(
+      "org-1",
+      capability,
+      false,
+    );
+  });
+
+  it.each([
+    ["brave", "Brave Search API Key"],
+    ["tavily", "Tavily API Key"],
+    ["deepseek", "DeepSeek Search API Key"],
+  ])("saves the firm's %s search key for the firm, not for the caller", async (provider, label) => {
+    const user = userEvent.setup();
+    mocks.saveOrgApiKey.mockResolvedValue(orgSettings({ [provider]: {} }));
+    renderTab();
+
+    await user.type(await screen.findByLabelText(label), "synthetic-search");
+    // Only the field that was typed into has something to save.
+    const save = within(screen.getByRole("region", { name: "Web search keys" }))
+      .getAllByRole("button", { name: /^Save/ })
+      .find((button) => !(button as HTMLButtonElement).disabled);
+    await user.click(save!);
+
+    await waitFor(() =>
+      expect(mocks.saveOrgApiKey).toHaveBeenCalledWith(
+        "org-1",
+        provider,
+        "synthetic-search",
+        undefined,
       ),
-    ).toBeInTheDocument();
+    );
   });
 
   it("asks for MFA and then carries out the change", async () => {
@@ -414,12 +479,12 @@ describe("an owner or admin", () => {
         }),
       )
       .mockResolvedValueOnce(
-        orgSettings({}, { allow_personal_api_keys: false }),
+        orgSettings({}, { allow_personal_keys: { ai: false, web_search: true, scan: true } }),
       );
     renderTab();
 
     await user.click(
-      await screen.findByRole("switch", { name: "Allow members' own keys" }),
+      await screen.findByRole("switch", { name: "Members can use their own AI keys" }),
     );
     await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
 
@@ -428,7 +493,7 @@ describe("an owner or admin", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("switch", { name: "Allow members' own keys" }),
+        screen.getByRole("switch", { name: "Members can use their own AI keys" }),
       ).not.toBeChecked(),
     );
   });
@@ -460,7 +525,7 @@ describe("a member who cannot manage the organization", () => {
     mocks.getOrgApiKeys.mockResolvedValue(
       orgSettings(saved, {
         can_manage: false,
-        allow_personal_api_keys: allowPersonal,
+        allow_personal_keys: { ai: allowPersonal, web_search: allowPersonal, scan: allowPersonal },
       }),
     );
 
@@ -494,7 +559,7 @@ describe("a member who cannot manage the organization", () => {
 
     expect(
       await screen.findByText(
-        "This organization has not set up a model provider yet.",
+        "This firm hasn’t set up an AI provider yet.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/A member's own key/)).not.toBeInTheDocument();
@@ -509,20 +574,59 @@ describe("a member who cannot manage the organization", () => {
   });
 });
 
+describe("Llaves del despacho, in the order the decision asks", () => {
+  it("leads with the three switches of members' own keys, then AI, web search and scan reading", async () => {
+    mocks.getOrgApiKeys.mockResolvedValue(orgSettings({ openai: {} }));
+    const { container } = renderTab();
+    await screen.findByRole("switch", { name: "OpenAI provider" });
+    const headings = Array.from(container.querySelectorAll("h2")).map((h) => h.textContent);
+    expect(headings).toEqual([
+      "Members’ own keys",
+      "AI keys of Acme LLP",
+      "Available Providers",
+      "Web search keys",
+      "Scan reading",
+    ]);
+    // Said once at the top, in one sentence; the lead and the short names sit in the card.
+    expect(screen.getByText("Applies to the whole firm")).toBeVisible();
+    expect(screen.getByText(/a member’s key is used only when the firm has none/)).toBeVisible();
+    expect(screen.getByText("Members can use their own keys for…")).toBeVisible();
+    for (const [short, whole] of [
+      ["AI", "Members can use their own AI keys"],
+      ["Web search", "Members can use their own web search keys"],
+      ["Scan reading (LandingAI)", "Members can use their own scan reading key (LandingAI)"],
+    ]) {
+      expect(screen.getByText(short)).toBeVisible();
+      // The switch's name holds the words that show (WCAG 2.5.3).
+      expect(screen.getByRole("switch", { name: whole })).toBeVisible();
+    }
+    // The status line per row is gone: the switch already says it.
+    expect(screen.queryByText(/Never used in this firm|Used when the firm has no key/)).toBeNull();
+    // Web search is marked optional.
+    expect(within(screen.getByRole("region", { name: "Web search keys" })).getByText("Optional")).toBeVisible();
+  });
+
+  it("shows the saved keys without opening anything", async () => {
+    mocks.getOrgApiKeys.mockResolvedValue(orgSettings({ openai: {} }));
+    renderTab();
+    expect(await within(savedSection()).findByRole("switch", { name: "OpenAI provider" })).toBeVisible();
+  });
+});
+
 describe("loading and failure", () => {
   it("offers nothing to press until the organization's keys are known", () => {
     mocks.getOrgApiKeys.mockReturnValue(new Promise(() => {}));
     renderTab();
 
-    // The cards wait in the second section, as on the personal page. What
-    // each one's control is depends on the caller's role, so none is drawn —
-    // and nothing claims a provider is on or off.
+    // The providers wait behind «Add provider», which cannot be pressed yet.
+    // What each card's control is depends on the caller's role, so none is
+    // drawn — and nothing claims a provider is on or off.
     const available = screen.getByRole("region", {
       name: "Available Providers",
     });
-    expect(within(available).getByText("OpenAI")).toBeInTheDocument();
+    expect(within(available).getByRole("button", { name: "Add provider" })).toBeDisabled();
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(screen.queryByText(/^(On|Off)$/)).not.toBeInTheDocument();
   });
 

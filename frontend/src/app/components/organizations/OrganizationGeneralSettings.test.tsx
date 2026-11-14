@@ -282,7 +282,7 @@ describe("leaving", () => {
     mocks.org = orgAs("member");
     render(<OrganizationGeneralSettings />);
     const leave = screen.getByRole("button", { name: "Leave" });
-    expect(leave).toHaveClass("text-red-600");
+    expect(leave).toHaveClass("text-[var(--litt-danger-text)]");
     expect(leave.className).not.toMatch(/bg-(black|gray-9\d\d|red-600|interactive)/);
   });
 
@@ -393,7 +393,7 @@ describe("deleting", () => {
     expect(dialog).toHaveTextContent(
       "Its content and memberships are kept for 30 days.",
     );
-    expect(dialog).toHaveTextContent("An owner can restore it from Settings → Organizations");
+    expect(dialog).toHaveTextContent("An owner can restore it from Settings → My firms");
     // Nothing is deleted until it is confirmed.
     expect(mocks.deleteOrg).not.toHaveBeenCalled();
   });

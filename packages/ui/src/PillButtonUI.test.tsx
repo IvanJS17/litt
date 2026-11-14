@@ -8,7 +8,7 @@ describe("PillButtonUI", () => {
     it("whiteDanger is a white secondary button with red text, never a red fill", () => {
         render(<PillButtonUI tone="whiteDanger">Delete</PillButtonUI>);
         const button = screen.getByRole("button", { name: "Delete" });
-        expect(button).toHaveClass("text-red-600");
+        expect(button).toHaveClass("text-[var(--litt-danger-text)]");
         expect(button.className).not.toMatch(/bg-red|bg-gray-950|bg-interactive/);
     });
 

@@ -78,7 +78,7 @@ export function useJoinedOrganization(userId: string): {
                               // Members' own keys are allowed unless the
                               // owners turned them off (on by default).
                               allowsOwnKeys:
-                                  keys.allow_personal_api_keys !== false,
+                                  keys.allow_personal_keys?.ai !== false,
                           }
                         : null,
                 });

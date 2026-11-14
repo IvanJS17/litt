@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import esMX from "../messages/es-MX.json";
 
 // One name for each thing in the Spanish interface (GLOSSARY.md): the firm is
-// a «despacho» and the keys are «Mis llaves» and «Llaves del despacho». The
+// a «despacho» and the keys are «Mis llaves de IA» and «Llaves del despacho». The
 // legal texts and the managed-account notice are not interface wording and
 // keep theirs.
 type Tree = { [key: string]: string | Tree };
@@ -28,10 +28,19 @@ describe("es-MX vocabulary", () => {
         expect(offenders).toEqual([]);
     });
 
-    it("names the firm's keys «Llaves del despacho», keeping «Mis llaves» for the person's own", () => {
+    it("says «propietario» for a firm's owner (and for the owner of a project), never «dueño»", () => {
+        const offenders = leaves(esMX as Tree)
+            .filter(([path]) => !SEARCH_KEYWORDS.test(path))
+            .filter(([, text]) => /\bdue[ñn]o|\bdue[ñn]a/i.test(text))
+            .map(([path, text]) => `${path}: ${text}`);
+        expect(offenders).toEqual([]);
+    });
+
+    it("names the firm's keys «Llaves del despacho», keeping «Mis llaves de IA» for the person’s own", () => {
         const org = (esMX as Tree).organizations as Tree;
-        for (const section of ["organizationSettingsShell", "organizationProvidersSettings"]) {
-            expect((org[section] as Tree).bringYourOwnKeys).toBe("Llaves del despacho");
-        }
+        expect((org.organizationProvidersSettings as Tree).bringYourOwnKeys).toBe("Llaves del despacho");
+        const map = ((esMX as Tree).settings as Tree).map as Tree;
+        expect(((map.firmTab as Tree).providers as Tree).title).toBe("Llaves del despacho");
+        expect(((map.tab as Tree).byok as Tree).title).toBe("Mis llaves de IA");
     });
 });

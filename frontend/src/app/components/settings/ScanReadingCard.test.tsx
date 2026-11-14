@@ -43,6 +43,20 @@ describe("ScanReadingCard", () => {
     expect(screen.queryByText(/Reads scanned PDFs with LandingAI, an external service/)).toBeNull();
   });
 
+  it("frames the disclaimer in a notice with its two signals, marks the section optional, and points the switch at the text", () => {
+    const { container } = render(<ScanReadingCard {...base} hasSavedKey enabled={false} />);
+    expect(screen.getByText("Optional")).toBeVisible();
+    const notice = container.querySelector("[data-slot=settings-notice]") as HTMLElement;
+    expect(notice).toHaveTextContent("Data to a third party");
+    expect(notice).toHaveTextContent("Has a cost");
+    const body = notice.querySelector("div") as HTMLElement;
+    expect(body.id).not.toBe("");
+    expect(body).toHaveTextContent(/sent in full to LandingAI/);
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-describedby", body.id);
+    // «More information» is the shared one: aria-expanded on its summary.
+    expect(screen.getByText("More information").closest("summary")).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("where it cannot be turned on, says it in one line and folds the disclaimer under More information", () => {
     const { container } = render(
       <ScanReadingCard {...base} canManage={false} showKeyHelp={false} hasSavedKey enabled keyNotice="Aurora set it up." />,

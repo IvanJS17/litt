@@ -25,7 +25,7 @@ import { TOUCH_TARGET_CLASS } from "./touchTargetUI.styles";
 
 /** The soft sheet of an attached document, quote or upload. */
 export const COMPOSER_DOC_CHIP_CLASS =
-    "inline-flex h-6 min-w-0 max-w-full items-center gap-[5px] rounded-[7px] bg-[var(--litt-composer-chip)] pl-2 text-xs text-gray-900 shadow-[inset_0_0_0_1px_var(--litt-composer-chip-ring)] pointer-coarse:h-8 pointer-coarse:text-[13px]";
+    "inline-flex h-6 min-w-0 max-w-full items-center gap-[5px] rounded-[7px] bg-[var(--litt-composer-chip)] pl-2 text-xs text-gray-900 shadow-[inset_0_0_0_1px_var(--litt-composer-chip-ring)] pointer-coarse:h-8 pointer-coarse:text-[0.8125rem]";
 
 /** The × of a label: 16 px, 4 px corners, a 44 px zone to touch. */
 export const COMPOSER_CHIP_REMOVE_CLASS =
@@ -142,7 +142,7 @@ export interface ActiveChipProps {
 }
 
 const ACTIVE_CHIP_CLASS =
-    "inline-flex h-6 min-w-0 max-w-full items-center rounded-full text-xs text-gray-900 shadow-[inset_0_0_0_1px_var(--litt-composer-active-ring)] pointer-coarse:h-8 pointer-coarse:text-[13px]";
+    "inline-flex h-6 min-w-0 max-w-full items-center rounded-full text-xs text-gray-900 shadow-[inset_0_0_0_1px_var(--litt-composer-active-ring)] pointer-coarse:h-8 pointer-coarse:text-[0.8125rem]";
 const ACTIVE_BODY_CLASS =
     "inline-flex min-w-0 items-center self-stretch rounded-full";
 const ACTIVE_BODY_BUTTON_CLASS = `${ACTIVE_BODY_CLASS} cursor-pointer transition-opacity hover:opacity-80`;

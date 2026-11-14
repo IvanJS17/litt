@@ -1261,7 +1261,7 @@ function FileDirectoryHeader() {
     const t = useTranslations();
     return (
         <div
-            className={`${DIRECTORY_GRID_CLASS} px-2 pb-1 pt-0.5 text-[11px] font-medium text-gray-400`}
+            className={`${DIRECTORY_GRID_CLASS} px-2 pb-1 pt-0.5 text-2xs font-medium text-gray-400`}
         >
             <span className="col-span-3">{t("shared.fileDirectory.name")}</span>
             <span>{t("shared.fileDirectory.version")}</span>

@@ -248,7 +248,7 @@ const FLAT_INPUT_CLASS = textButtonUIClassName({
 const MODEL_ROWS_CLASS = "flex flex-col gap-0.5";
 
 const itemClassName =
-  "theme-dropdown-item flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-1 text-[13px] text-gray-700 outline-none transition-colors focus:text-gray-900 data-[highlighted]:text-gray-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 pointer-coarse:min-h-11 [&>*]:pointer-events-none";
+  "theme-dropdown-item flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-1 text-[0.8125rem] text-gray-700 outline-none transition-colors focus:text-gray-900 data-[highlighted]:text-gray-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 pointer-coarse:min-h-11 [&>*]:pointer-events-none";
 
 /**
  * Platform-neutral model-picker presentation. Hosts own model discovery and
@@ -472,7 +472,7 @@ export function ModelToggleUI({
                   </span>
                   <span
                     aria-hidden="true"
-                    className="text-[11px] font-normal leading-none tabular-nums text-gray-500"
+                    className="text-2xs font-normal leading-none tabular-nums text-gray-500"
                   >
                     {items.length}
                   </span>
@@ -502,7 +502,7 @@ export function ModelToggleUI({
                           (routeCounts.get(
                             `${model.group}\u0000${model.label.toLocaleLowerCase()}`,
                           ) ?? 0) > 1) && (
-                          <span className="shrink-0 text-right text-[11px] font-normal text-gray-500">
+                          <span className="shrink-0 text-right text-2xs font-normal text-gray-500">
                             {routeLabel(t, model.source)}
                           </span>
                         )}
@@ -561,7 +561,7 @@ export function ModelToggleUI({
                 />
                 <div
                   aria-hidden="true"
-                  className="mt-1 flex justify-between text-[11px] text-gray-500"
+                  className="mt-1 flex justify-between text-2xs text-gray-500"
                 >
                   <span>{reasoningName(reasoningLevels[0] ?? "none")}</span>
                   <span>

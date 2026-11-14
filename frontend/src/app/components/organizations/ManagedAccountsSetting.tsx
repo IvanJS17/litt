@@ -9,8 +9,8 @@ import {
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import {
-  SettingsDescription,
   SettingsLabel,
+  SettingsNotice,
 } from "@/app/components/settings/SettingsText";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import { isMfaRequiredError, setOrgManagedAccounts, type Org } from "@/app/lib/mikeApi";
@@ -60,11 +60,12 @@ export function ManagedAccountsSetting({
       </SettingsHeading>
       <GlassCardUI>
         <SettingsRow>
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-2">
             <SettingsLabel>{t("orgSettings.managedAccounts.label")}</SettingsLabel>
-            <SettingsDescription>
+            {/* The firm's own text (socium-legal), whole and in view: only its frame changed. */}
+            <SettingsNotice entries={[{ icon: "firm", label: t("settings.signals.affectsInvitedAccounts") }]}>
               {t("orgSettings.managedAccounts.help", { firm: org.name })}
-            </SettingsDescription>
+            </SettingsNotice>
           </div>
           <ToggleSwitchUI
             checked={enabled}

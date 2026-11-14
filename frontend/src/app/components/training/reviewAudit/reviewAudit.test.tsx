@@ -228,14 +228,14 @@ describe("the mentor's section", () => {
         expect(await screen.findByText("No se pudo cargar.")).toBeInTheDocument();
         expect(notifyError).toHaveBeenCalledWith(expect.any(Error), { action: "cargar las revisiones masivas", operation: "training.manage" });
         fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-        expect(await screen.findByText("Este pupilo todavía no tiene auditorías.")).toBeInTheDocument();
+        expect(await screen.findByText("Este aprendiz todavía no tiene auditorías.")).toBeInTheDocument();
     });
 
     it("counts the audits of matters the mentor cannot open without showing them", async () => {
         vi.mocked(api.getPupilReviewAudits).mockResolvedValue(listed([], 2));
         renderEs(<MentorReviewAudits orgId="o1" pupilId="p1" />);
         expect(await screen.findByText(/2 auditorías son de revisiones en asuntos que no puedes abrir/)).toBeInTheDocument();
-        expect(screen.queryByText("Este pupilo todavía no tiene auditorías.")).toBeNull();
+        expect(screen.queryByText("Este aprendiz todavía no tiene auditorías.")).toBeNull();
     });
 
     it("waits for the pupil to finish and shows the sample as marked", async () => {
@@ -248,7 +248,7 @@ describe("the mentor's section", () => {
         expect(screen.getByText("Su marca: correcta")).toBeInTheDocument();
         expect(screen.getByText("Sin marcar todavía")).toBeInTheDocument();
         expect(screen.getByText("bien")).toBeInTheDocument();
-        expect(screen.getByText("Podrás evaluarla cuando el pupilo termine la auditoría.")).toBeInTheDocument();
+        expect(screen.getByText("Podrás evaluarla cuando el aprendiz termine la auditoría.")).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Guardar evaluación" })).toBeNull();
     });
 
@@ -273,7 +273,7 @@ describe("the mentor's section", () => {
         fireEvent.change(first, { target: { value: "" } });
         fireEvent.change(first, { target: { value: "incorrect" } });
         fireEvent.click(screen.getByRole("radio", { name: "Por mejorar" }));
-        fireEvent.change(screen.getByLabelText("Nota para el pupilo (opcional)"), { target: { value: " Precisa el plazo " } });
+        fireEvent.change(screen.getByLabelText("Nota para el aprendiz (opcional)"), { target: { value: " Precisa el plazo " } });
         fireEvent.click(save);
         await waitFor(() =>
             expect(api.evaluateReviewAudit).toHaveBeenCalledWith("o1", "p1", "a1", {
@@ -327,7 +327,7 @@ describe("the mentor's section", () => {
         renderEs(<MentorReviewAudits orgId="o1" pupilId="p1" />);
         expect(await screen.findByText(/Evaluada el/)).toBeInTheDocument();
         expect(screen.getByRole("radio", { name: "Adecuado" })).toBeChecked();
-        expect(screen.getByLabelText("Nota para el pupilo (opcional)")).toHaveValue("Buen criterio");
+        expect(screen.getByLabelText("Nota para el aprendiz (opcional)")).toHaveValue("Buen criterio");
         fireEvent.click(screen.getByRole("button", { name: "Guardar evaluación" }));
         await waitFor(() => expect(notifyError).toHaveBeenCalled());
         expect(vi.mocked(notifyError).mock.calls[0][1]).toMatchObject({
@@ -341,7 +341,7 @@ describe("the mentor's section", () => {
         renderEs(<MentorReviewAudits orgId="o1" pupilId="p1" />);
         expect(await screen.findByText(/Vencida: la revisión se volvió a generar/)).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Guardar evaluación" })).toBeNull();
-        expect(screen.queryByText("Podrás evaluarla cuando el pupilo termine la auditoría.")).toBeNull();
+        expect(screen.queryByText("Podrás evaluarla cuando el aprendiz termine la auditoría.")).toBeNull();
     });
 });
 

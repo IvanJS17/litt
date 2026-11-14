@@ -3,13 +3,16 @@
 import { useTranslations } from "next-intl";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
-import { SettingsDescription } from "@/app/components/settings/SettingsText";
-import type { OrgApiKeySettings } from "@/app/lib/mikeApi";
+import { SettingsManagedByFirm } from "@/app/components/settings/SettingsCrossLink";
+import { firmSettingsHref } from "@/app/lib/settingsMap";
+import { isOrgAdmin } from "@/app/lib/permissions";
+import type { KeyCapability, OrgApiKeySettings } from "@/app/lib/mikeApi";
 
 /**
  * Which workspace a person's own keys apply to, as the server decides it:
  * in a firm's workspace they only count when the firm lets members bring
- * their own (`allow_personal_api_keys`, on unless turned off); in Personal
+ * their own for that kind of key (AI models, web search or scan reading:
+ * `allow_personal_keys[capability]`, each on unless turned off); in Personal
  * they always do. A firm-managed account never has personal keys, wherever
  * it is. Unknown (still loading, or the read failed) is not
  * "blocked": the screen shows the keys and the server still decides.
@@ -20,7 +23,7 @@ import type { OrgApiKeySettings } from "@/app/lib/mikeApi";
  * personal key (provider keys, LandingAI, Brave) ask here and show the firm's
  * state when `personalBlocked`.
  */
-export function useKeyScope(): {
+export function useKeyScope(capability: KeyCapability = "ai"): {
     firmName: string | null;
     personalBlocked: boolean;
     /** A firm-managed account: no personal keys in any workspace. */
@@ -40,7 +43,7 @@ export function useKeyScope(): {
         orgApiKeys: firmName === null ? null : orgApiKeys,
         personalBlocked:
             managed ||
-            (firmName !== null && orgApiKeys?.allow_personal_api_keys === false),
+            (firmName !== null && orgApiKeys?.allow_personal_keys?.[capability] === false),
     };
 }
 
@@ -53,15 +56,24 @@ export function usePersonalKeysScope(): string {
         : t("settings.keyScope.personal");
 }
 
-/** Shown in place of own-key controls in a firm that does not allow them. */
-export function PersonalKeysBlockedNotice() {
-    const t = useTranslations();
-    const { firmName } = useKeyScope();
+/**
+ * «Lo administra tu despacho», for the keys: the first row of the card whose
+ * keys the firm decides. Those who manage the firm get a link to «Ajustes del
+ * despacho → Llaves del despacho»; everyone else, whom to ask. Never a copy of
+ * the firm's form.
+ */
+export function FirmKeysManaged() {
+    const { activeOrganization } = useWorkspace();
+    // Before the firm is known: the same message without its name.
+    if (!activeOrganization) return <SettingsManagedByFirm messageKey="settings.keyScope.managedNoName" />;
+    const values = { name: activeOrganization.name };
+    if (!isOrgAdmin(activeOrganization.role))
+        return <SettingsManagedByFirm messageKey="settings.map.keysManagedByFirmMember" values={values} />;
     return (
-        <SettingsDescription>
-            {/* Before the name loads there is no subject to start with: the
-                sentence without one, never " te da los modelos…". */}
-            {firmName ? t("settings.keyScope.blocked", { name: firmName }) : t("settings.keyScope.blockedNoName")}
-        </SettingsDescription>
+        <SettingsManagedByFirm
+            messageKey="settings.map.keysManagedByFirmAdmin"
+            href={firmSettingsHref(activeOrganization.id, "providers")}
+            values={values}
+        />
     );
 }

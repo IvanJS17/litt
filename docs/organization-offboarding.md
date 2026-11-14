@@ -123,7 +123,7 @@ and legal practice details. Each invitation shows
 the organization, offered role and inviter. Accepting selects that organization
 for the end of setup; it does not complete onboarding or remove the user's
 personal workspace. Users can continue setup without accepting and decide later
-in Settings → Organizations. Invitation details are never looked up from an
+in Settings → My firms. Invitation details are never looked up from an
 unverified email entered into the signup form.
 
 ## Transactions and operations
@@ -189,7 +189,7 @@ including creator access, invitations and new content. Existing content,
 memberships and settings remain recoverable for 30 days. Personal workspaces
 cannot be deleted through organization endpoints.
 
-Owners restore from **Settings → Organizations → Recently deleted**. The
+Owners restore from **Settings → My firms → Recently deleted**. The
 screen shows the exact recovery deadline. Restoration requires MFA when the
 owner has enrolled it. Admins, members and outsiders cannot restore an
 organization. Restoration preserves existing roles and item permissions;

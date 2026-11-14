@@ -188,7 +188,7 @@ function DetailTabs({
 function MetadataItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-medium text-gray-400">{label}</div>
+      <div className="text-2xs font-medium text-gray-400">{label}</div>
       <div className="mt-0.5 max-w-56 truncate text-xs font-medium text-gray-800">
         {value || "—"}
       </div>

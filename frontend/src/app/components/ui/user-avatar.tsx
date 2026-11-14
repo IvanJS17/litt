@@ -47,7 +47,7 @@ export function UserAvatar({ photo, name, email, size = "md", className }: {
       role="img"
       aria-label={name?.trim() || email?.trim() || t("ui.user")}
       data-slot="user-avatar"
-      className={cn("inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-serif font-medium text-white", size === "sm" ? "h-4 w-4 text-[8px]" : "h-5 w-5 text-[10px]", avatarColour(email, name), className)}
+      className={cn("inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-serif font-medium text-white", size === "sm" ? "h-4 w-4 text-[0.5rem]" : "h-5 w-5 text-3xs", avatarColour(email, name), className)}
     >
       {source ? (
         // Already cropped to a small raster data URL; no external fetch or optimizer.

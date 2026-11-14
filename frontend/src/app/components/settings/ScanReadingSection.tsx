@@ -15,7 +15,7 @@ export function ScanReadingSection() {
   const { profile, updateApiKey, updateApiKeyEnabled } = useUserProfile();
   const [busy, setBusy] = useState(false);
   const [pendingMfa, setPendingMfa] = useState<boolean | null>(null);
-  const { firmName, personalBlocked, orgApiKeys } = useKeyScope();
+  const { firmName, personalBlocked, orgApiKeys } = useKeyScope("scan");
   const scope = usePersonalKeysScope();
   const key = profile?.apiKeys.landingai;
   const hasSavedKey = key?.source === "user";

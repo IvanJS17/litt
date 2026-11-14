@@ -64,6 +64,19 @@ describe("SecurityPage", () => {
         });
     });
 
+    it("recommends two-step verification while it is off, and stops recommending once it is on", async () => {
+        const { unmount } = render(<SecurityPage />);
+        expect(await screen.findByText("Recommended")).toBeVisible();
+        unmount();
+        listMfaFactors.mockResolvedValue({
+            all: [{ id: "f1", status: "verified", factor_type: "totp" }],
+            totp: [{ id: "f1", status: "verified", factor_type: "totp" }],
+        });
+        render(<SecurityPage />);
+        await waitFor(() => expect(screen.queryByText("Recommended")).toBeNull());
+        expect(screen.getByRole("heading", { name: /multi-factor/i })).toBeVisible();
+    });
+
     it("says the connection failed when the settings can't be loaded", async () => {
         listMfaFactors.mockRejectedValue(new TypeError("Failed to fetch"));
 

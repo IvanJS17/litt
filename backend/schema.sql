@@ -63,6 +63,10 @@ create table if not exists public.user_profiles (
   -- token count it used (Settings > Features).
   response_details_visible boolean not null default false,
   dark_mode boolean not null default false,
+  -- LiTT: text size chosen in Settings > Appearance (100 %, 112.5 %, 125 %).
+  text_size text not null default 'normal'
+    constraint user_profiles_text_size_check
+    check (text_size in ('normal', 'large', 'xlarge')),
   -- LiTT: interface language the user chose. NULL means automatic (browser
   -- or Word language, then es-MX). Copied to auth.users user_metadata.locale
   -- for the GoTrue emails.
@@ -425,9 +429,13 @@ create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   created_by uuid references auth.users(id) on delete set null,
-  -- Whether work in this organization may run on a member's own provider
-  -- key when the organization has none for that provider (org_api_keys).
-  allow_personal_api_keys boolean not null default true,
+  -- Whether work in this organization may run on a member's own key when the
+  -- organization has none for that provider (org_api_keys), decided per
+  -- capability: AI models, web search (Brave, Tavily, DeepSeek) and scan
+  -- reading (LandingAI).
+  allow_personal_ai_keys boolean not null default true,
+  allow_personal_web_search_keys boolean not null default true,
+  allow_personal_scan_keys boolean not null default true,
   -- LiTT managed accounts (docs/managed-accounts.md): when on, the accounts
   -- this organization invited and that were created by that invitation have
   -- no personal space (user_profiles.created_by_org_id). Backend-only.
@@ -719,10 +727,11 @@ alter table public.user_api_keys enable row level security;
 -- are user_api_keys' exactly, so one store reads and writes both
 -- (modules/user/user.apiKeyStore.ts).
 --
--- organizations.allow_personal_api_keys decides what happens for a provider
--- the organization has no key for: when true (the default, and the behaviour
--- before this table existed) a member's own key is used; when false, work in
--- the organization never runs on a member's personal key.
+-- organizations.allow_personal_{ai,web_search,scan}_keys decide, per kind of
+-- key, what happens for a provider the organization has no key for: when true
+-- (the default, and the behaviour before this table existed) a member's own
+-- key is used; when false, that kind of work in the organization never runs
+-- on a member's personal key.
 create table if not exists public.org_api_keys (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations(id) on delete cascade,
@@ -17523,6 +17532,40 @@ create trigger org_members_training_departure
   before delete on public.org_members
   for each row execute procedure public.org_members_training_departure();
 
+-- 20261113_50: an owner or admin is never a pupil; promotion ends the training.
+create or replace function public.org_members_training_role_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare ended int;
+begin
+  if new.role not in ('owner', 'admin') or new.role is not distinct from old.role then
+    return new;
+  end if;
+  with gone as (
+    delete from public.training_pupils
+      where org_id = new.org_id and trainee_user_id = new.user_id
+      returning 1
+  )
+  select count(*) into ended from gone;
+  if ended > 0 then
+    insert into public.audit_events(user_id, org_id, action, surface, detail)
+    values (new.user_id, new.org_id, 'training.pupil_ended_by_role', 'organization',
+      jsonb_build_object('org_id', new.org_id, 'target_user_id', new.user_id,
+        'previous_role', old.role, 'role', new.role));
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.org_members_training_role_change() from public, anon, authenticated;
+
+drop trigger if exists org_members_training_role_change on public.org_members;
+create trigger org_members_training_role_change
+  after update of role on public.org_members
+  for each row execute procedure public.org_members_training_role_change();
+
 -- A pasante's private notes: the attempt they wrote before a chat turn
 -- ("Tu planteamiento") and the contrast the model produced afterwards with
 -- the conversation's own provider, model and credential. They are learning
@@ -20695,5 +20738,8 @@ insert into public.schema_migrations (filename) values
   ('20261112_50_litt_ocr_keep_reading.sql'),
   ('20261112_60_litt_split_expediente.sql'),
   ('20261113_10_litt_managed_accounts.sql'),
-  ('20261113_30_litt_firm_profile.sql')
+  ('20261113_30_litt_firm_profile.sql'),
+  ('20261113_40_litt_key_policy_by_capability.sql'),
+  ('20261113_50_litt_training_role_rules.sql'),
+  ('20261113_60_litt_text_size.sql')
 on conflict (filename) do nothing;

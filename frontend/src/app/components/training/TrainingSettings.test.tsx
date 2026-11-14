@@ -7,6 +7,7 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getMyTraining: vi.fn(),
     getMyPupils: vi.fn(),
     listOrgMembers: vi.fn(),
+    getOrgFirmProfile: vi.fn(async () => ({ profile: null, can_manage: false })),
     assignTrainingPupil: vi.fn(async () => undefined),
     releaseTrainingPupil: vi.fn(async () => undefined),
     setTrainingStage: vi.fn(async () => undefined),
@@ -77,6 +78,10 @@ describe("Ajustes → Formación", () => {
         ).toBeInTheDocument();
         expect(screen.getByText("All practice areas: Junior")).toBeInTheDocument();
         expect(screen.getByText("Employment: Intern")).toBeInTheDocument();
+        // One line says what each stage changes.
+        expect(screen.getByText("Tries first: writes their own approach before the AI answers.")).toBeInTheDocument();
+        expect(screen.getByText("The AI answers with its methodology and in accountability mode.")).toBeInTheDocument();
+        expect(screen.getByText(/Here you see only what is yours/)).toBeInTheDocument();
         expect(screen.queryByText("My pupils")).toBeNull();
         // Layer 2: what their mentor sees of them, in that organization.
         expect(await screen.findByText("What my mentor sees of me")).toBeInTheDocument();

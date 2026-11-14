@@ -11,7 +11,7 @@ reading ([`document-ocr.md`](document-ocr.md)): the person's or the firm's own.
 
 1. **«Separar expediente»** appears in the document panel of a PDF only when a
    LandingAI key is available in that context (the firm's first; the member's own
-   only if `allow_personal_api_keys` allows it, the same `resolveScanKey` as layer 6)
+   only if `allow_personal_scan_keys` allows it, the same `resolveScanKey` as layer 6)
    and the person can edit the document. A document held for training answers 409
    `training_approval_required`.
 2. The dialog first shows the notice (`documents.split.notice` and
@@ -93,9 +93,13 @@ sent as the file `documento.md`: **the real file name is never sent**
   that is always read and written as a whole, like the router-model lists, and
   the server is the only writer: client roles are revoked from `user_profiles`, and
   on `organizations` `authenticated` keeps only `SELECT`, limited by RLS to the
-  firm's members (who may read the list anyway). **Resolution: the person's
-  list, else the firm's, else the built-in one.** The firm's list is changed by
-  whoever manages the firm's keys (owners and admins); any member reads it.
+  firm's members (who may read the list anyway). **Resolution: one list per workspace. In a firm's workspace the firm's list,
+  else the built-in one; in the personal workspace the person's list, else the
+  built-in one.** A personal list never applies inside a firm's workspace (the
+  list is the firm's to control, the "one home" rule), and the firm's never in the
+  personal one. The firm's list is changed by whoever manages the firm's keys
+  (owners and admins); any member reads it. A firm-managed account has no
+  personal workspace, so it has no personal list to edit.
   API: `GET`/`PUT /user/split-classes` and `GET`/`PUT /orgs/:orgId/split-classes`
   with `{ classes: [...] }` or `{ classes: null }` (restore).
 
@@ -110,8 +114,9 @@ Público de Comercio, poder o documento de personalidad, comprobante de domicili
 acta del Registro Civil, aviso o trámite notarial, and hoja en blanco o sello. It is
 product data, not interface text: it is kept in Spanish and is not translated.
 Editing it (up to 19 types, name, description and optional identifier; add, remove,
-restore the included ones) is in Settings > Features for a person and in the
-Organization page for a firm. The editor warns not to write client data in the
+restore the included ones) is in Settings → Scanned document reading for a person (the card shows
+only in the personal workspace, and not for a firm-managed account) and in the
+Firm settings → Scanned document reading ("Ajustes del despacho → Lectura de escaneados") for a firm. The editor warns not to write client data in the
 descriptions, because they are also sent to LandingAI.
 
 ## API

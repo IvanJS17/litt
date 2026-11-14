@@ -88,7 +88,7 @@ describe("privacy-data async exports", () => {
         }
         for (const button of screen.getAllByRole("button", { name: /^Delete|^Delete all/ })) {
             expect(button.className).not.toMatch(/bg-red-600/);
-            expect(button).toHaveClass("text-red-600");
+            expect(button).toHaveClass("text-[var(--litt-danger-text)]");
         }
     });
 
@@ -255,7 +255,7 @@ describe("privacy-data async exports", () => {
         );
         expect(screen.getByText("Delete all chats in Acme LLP?")).toBeVisible();
         expect(
-            screen.getByText(/Your other workspaces are not affected/),
+            screen.getAllByText(/Your other workspaces are not affected/).at(-1),
         ).toBeVisible();
         await userEvent.click(
             screen.getAllByRole("button", { name: "Delete" }).at(-1)!,
@@ -312,8 +312,13 @@ describe("privacy-data async exports", () => {
 
         render(<PrivacyDataPage />);
         expect(screen.getByText(/Exports data in Acme LLP only/)).toBeVisible();
-        // Bulk deletion is not this member's to do here.
-        expect(screen.queryByText("Delete data")).toBeNull();
+        // Bulk deletion is not this member's to do here: the section says so
+        // (the firm manages it), it does not vanish without a word.
+        expect(screen.getByRole("heading", { name: "Delete data" })).toBeVisible();
+        const managed = document.querySelector("[data-slot=settings-managed-row]") as HTMLElement;
+        expect(managed).toHaveTextContent("Managed by your organization.");
+        expect(managed).toHaveTextContent("In Acme LLP, only owners export or delete data in bulk.");
+        expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
 
         await userEvent.click(
             screen.getAllByRole("button", { name: "Export" })[0],
@@ -354,6 +359,17 @@ describe("privacy-data async exports", () => {
 
         expect(screen.getByText("Export data")).toBeVisible();
         expect(screen.getByText("Delete data")).toBeVisible();
+    });
+});
+
+describe("privacy-data: what cannot be undone", () => {
+    it("says it once, above the deleting actions, as the only red", () => {
+        render(<PrivacyDataPage />);
+        const notice = document.querySelector("[data-tone=irreversible]") as HTMLElement;
+        expect(notice).toHaveTextContent("This cannot be undone.");
+        expect(document.querySelectorAll("[data-tone=irreversible]")).toHaveLength(1);
+        const first = screen.getAllByRole("button", { name: "Delete" })[0];
+        expect(notice.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 });
 

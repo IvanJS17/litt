@@ -660,7 +660,7 @@ export function MarkdownEditor({
                           ),
                       )}
                     </div>
-                    <div className="text-center text-[11px] font-medium text-gray-500">
+                    <div className="text-center text-2xs font-medium text-gray-500">
                       {tablePickerSize
                         ? `${tablePickerSize.rows} x ${tablePickerSize.cols}`
                         : t("ui.selectTableSize")}
@@ -672,7 +672,7 @@ export function MarkdownEditor({
           ) : null}
           <div className="ml-auto" />
           {rawMode && rawModeRequired ? (
-            <span className="whitespace-nowrap px-1 text-[11px] text-gray-500">
+            <span className="whitespace-nowrap px-1 text-2xs text-gray-500">
               {t("ui.rawViewPreservesThisMarkdown")}
             </span>
           ) : null}

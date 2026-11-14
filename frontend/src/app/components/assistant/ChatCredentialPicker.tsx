@@ -122,7 +122,7 @@ export function ChatCredentialPicker({
                         COMPOSER_GHOST_BUTTON_CLASS,
                         COMPOSER_GHOST_WEB_SIZE_CLASS,
                         compact && COMPOSER_GHOST_WEB_ICON_CLASS,
-                        "text-[12.5px]",
+                        "text-[0.78125rem]",
                     )}
                 >
                     <KeyRound aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />

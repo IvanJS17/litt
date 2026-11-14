@@ -100,7 +100,7 @@ export function EditCardUI({
                         <span
                             aria-label={t("ui.editCard.trackedChangeChangenumber", { changeNumber })}
                             title={t("ui.editCard.trackedChangeChangenumber", { changeNumber })}
-                            className="mt-0.5 inline-flex h-4 w-4 shrink-0 self-start items-center justify-center rounded-full bg-gray-200 text-[9px] font-medium leading-none text-gray-600"
+                            className="mt-0.5 inline-flex h-4 w-4 shrink-0 self-start items-center justify-center rounded-full bg-gray-200 text-[0.5625rem] font-medium leading-none text-gray-600"
                         >
                             {changeNumber}
                         </span>
@@ -142,7 +142,7 @@ export function EditCardUI({
 
             {locationHint && (
                 <p
-                    className="mt-1 truncate font-sans text-[11px] text-gray-400"
+                    className="mt-1 truncate font-sans text-2xs text-gray-400"
                     title={locationHint}
                 >
                     {t("ui.editCard.inLocationhint", { locationHint })}

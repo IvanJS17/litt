@@ -48,6 +48,11 @@ describe("FirmCriteriaConsulted", () => {
         expect(screen.getByText(/^Criterio · Materia: /)).toBeInTheDocument();
     });
 
+    it("names the practice area in Spanish, though it is stored in English", () => {
+        renderEs([event({ criteria: [criterion({ practice: "employment" })] })]);
+        expect(screen.getByText(/^Criterio · Materia: Laboral$/)).toBeInTheDocument();
+    });
+
     it("says so for a dissenting opinion, a deleted user, a failure and an empty result", () => {
         renderEs([
             event({ call_id: "a", criteria: [criterion({ kind: "voto_particular", practice: null, rule_id: "r1", author_name: null, author_user_id: null })], truncated: true }),

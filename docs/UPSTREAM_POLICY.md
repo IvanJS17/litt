@@ -175,6 +175,21 @@ word-addin/src/taskpane/**
 10. **PR/CI/merge:** separate owner authorization and exact-head verification.
 11. **Ledger closeout:** adopted/ported/rejected/deferred, resulting LiTT OID and debt.
 
+## Settings from upstream
+
+Every tab or section of Settings that upstream brings is placed in LiTT's map of
+Settings (`frontend/src/app/lib/settingsMap.ts`, described in
+[`settings-map.md`](settings-map.md)) **before it is integrated**: its home
+(personal or firm), group, name and help text, written to the rules in
+[`i18n.md`](i18n.md#writing-the-text-of-settings). The test
+`frontend/src/app/lib/settingsMap.test.ts` watches it: it fails when a page
+appears under `settings/**` or `organizations/[id]/settings/**` that the map
+does not list, or when a tab lacks a home, a group, a name or a help text. A sync
+that fails it is not ready: place the page in the map, never loosen the test.
+Upstream's own tab names and help text are not adopted (`en-US.json` keeps
+upstream's English for the rest of the app, but not for the names and help texts
+of Settings).
+
 ## Interface text from upstream
 
 LiTT moves interface text to a catalog ([`i18n.md`](i18n.md)); upstream keeps

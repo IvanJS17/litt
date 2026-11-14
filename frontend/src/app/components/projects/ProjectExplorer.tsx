@@ -491,7 +491,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                         {doc.filename}
                                     </span>
                                     {isTrainingHeld(doc) && (
-                                        <TrainingHeldNoteUI className="text-[11px]" />
+                                        <TrainingHeldNoteUI className="text-2xs" />
                                     )}
                                 </span>
                             )}

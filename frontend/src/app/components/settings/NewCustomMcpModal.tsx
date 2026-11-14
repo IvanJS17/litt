@@ -51,7 +51,7 @@ export function NewCustomMcpModal({
         <Modal
             open={open}
             onClose={onClose}
-            breadcrumbs={[t("settings.layout.tab.connectors"), t("settings.newCustomMcpModal.newCustomConnector")]}
+            breadcrumbs={[t("settings.map.tab.connectors.title"), t("settings.newCustomMcpModal.newCustomConnector")]}
             size="lg"
             primaryAction={
                 step === "success" && result

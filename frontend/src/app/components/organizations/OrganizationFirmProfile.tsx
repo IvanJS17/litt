@@ -13,7 +13,7 @@ import { OptionPill } from "@/app/components/ui/option-pill";
 import { showToast } from "@/app/components/ui/toast";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
-import { SettingsDescription } from "@/app/components/settings/SettingsText";
+import { SettingsDescription, SettingsNotice } from "@/app/components/settings/SettingsText";
 import {
   FIRM_BRIEF_LANGUAGES,
   FIRM_CITY_MAX,
@@ -192,7 +192,10 @@ export function OrganizationFirmProfile({ orgId }: { orgId: string }) {
       <GlassCardUI>
         <SettingsRow layout="stacked">
           <div className="min-w-0 space-y-1">
-            <SettingsDescription>{t("orgSettings.profile.help")}</SettingsDescription>
+            {/* socium-legal's text, whole and in view: only its frame changed. */}
+            <SettingsNotice entries={[{ icon: "send", label: t("settings.signals.thirdParty") }]}>
+              {t("orgSettings.profile.help")}
+            </SettingsNotice>
             {settings && !canManage ? <SettingsDescription>{t("orgSettings.profile.readOnly")}</SettingsDescription> : null}
           </div>
         </SettingsRow>
@@ -271,7 +274,15 @@ export function OrganizationFirmProfile({ orgId }: { orgId: string }) {
                 </select>
               </div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
+              {/* Before the field it is about, always in view: this text goes to the
+                  AI provider in every chat (socium-legal's text, unedited). */}
+              <SettingsNotice
+                bodyId={warningId}
+                entries={[{ icon: "send", label: t("settings.signals.thirdParty") }]}
+              >
+                {t("orgSettings.profile.freeTextWarning")}
+              </SettingsNotice>
               {label("description", "description")}
               <ModalTextarea
                 id={`${id}-description`}
@@ -284,10 +295,6 @@ export function OrganizationFirmProfile({ orgId }: { orgId: string }) {
                 aria-describedby={warningId}
                 onChange={(event) => edit({ description: event.target.value })}
               />
-              {/* Always visible: this text goes to the AI provider in every chat. */}
-              <p id={warningId} className="text-xs text-gray-600">
-                {t("orgSettings.profile.freeTextWarning")}
-              </p>
               <p className="text-xs text-gray-500">
                 {t("orgSettings.profile.descriptionCount", { count: draft.description.length, max: FIRM_DESCRIPTION_MAX })}
               </p>

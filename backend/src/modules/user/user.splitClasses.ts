@@ -1,7 +1,8 @@
 // The person's own list of document types for splitting a case file
 // (layer 7, docs/document-split.md), from Settings > Features. Stored in
-// user_profiles.split_classes; null means "use the firm's, then the built-in
-// list". The resolution (personal, firm, built-in) lives in lib/ocr/splitClassStore.
+// user_profiles.split_classes; null means "use the built-in list". It governs
+// the personal workspace only; a firm's workspace uses the firm's list. The
+// resolution lives in lib/ocr/splitClassStore.
 import { readUserSplitClasses, saveUserSplitClasses } from "../../lib/ocr/splitClassStore";
 import { parseSplitClassesBody, splitClassesSettings, type SplitClassesSettings } from "../../lib/ocr/splitClasses";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";

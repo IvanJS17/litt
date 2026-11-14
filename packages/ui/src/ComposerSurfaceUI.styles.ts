@@ -41,5 +41,5 @@ export const COMPOSER_GHOST_WEB_ICON_CLASS =
 
 /** Word: 32 px, 10 px corners. */
 export const COMPOSER_GHOST_WORD_SIZE_CLASS =
-    "h-8 rounded-[10px] px-2 text-[13px]";
+    "h-8 rounded-[10px] px-2 text-[0.8125rem]";
 export const COMPOSER_GHOST_WORD_ICON_CLASS = "w-8 px-0";

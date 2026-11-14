@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Plus } from "lucide-react";
 import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { ApiKeyField } from "@/app/components/settings/ApiKeyField";
 import { ByokProviderModal } from "@/app/components/settings/ByokProviderModal";
 import { ConnectorCard } from "@/app/components/settings/ConnectorCard";
 import { ScanReadingCard } from "@/app/components/settings/ScanReadingCard";
-import { SplitClassesCard } from "@/app/components/settings/SplitClassesCard";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import {
   SettingsDescription,
   SettingsLabel,
+  SettingsTag,
+  SettingsTagRow,
 } from "@/app/components/settings/SettingsText";
 import {
   MODEL_API_KEY_FIELDS,
@@ -24,14 +27,14 @@ import { routerSelectionsFromLists } from "@/app/hooks/useModelRouterSelections"
 import {
   MikeApiError,
   getOrgApiKeys,
-  getOrgSplitClasses,
-  saveOrgSplitClasses,
   isMfaRequiredError,
   saveOrgApiKey,
   saveOrgRouterModels,
   setOrgApiKeyEnabled,
   setOrgPersonalApiKeysAllowed,
+  WEB_SEARCH_BACKENDS,
   type ApiKeyProvider,
+  type KeyCapability,
   type ApiKeySettings,
   type OrgApiKeySettings,
 } from "@/app/lib/mikeApi";
@@ -51,7 +54,7 @@ import { useTranslations } from "next-intl";
 
 type PendingMfa =
   | { kind: "toggle"; provider: ApiKeyProvider; enabled: boolean }
-  | { kind: "policy"; allowed: boolean }
+  | { kind: "policy"; capability: KeyCapability; allowed: boolean }
   | { kind: "models"; provider: RouterSlug; models: string[] };
 
 
@@ -74,6 +77,9 @@ export function OrganizationProviderKeys({
   const [pendingMfa, setPendingMfa] = useState<PendingMfa | null>(null);
   const [selectedProvider, setSelectedProvider] =
     useState<ApiKeyProvider | null>(null);
+  // The providers to add are a list of twelve: they open on request.
+  const [providersOpen, setProvidersOpen] = useState(false);
+  const providersId = useId();
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -121,12 +127,16 @@ export function OrganizationProviderKeys({
     }
   }
 
-  async function setPersonalKeysAllowed(allowed: boolean) {
+  async function setPersonalKeysAllowed(
+    capability: KeyCapability,
+    allowed: boolean,
+  ) {
     setBusy("policy");
     try {
-      applied(await setOrgPersonalApiKeysAllowed(orgId, allowed));
+      applied(await setOrgPersonalApiKeysAllowed(orgId, capability, allowed));
     } catch (error) {
-      if (isMfaRequiredError(error)) setPendingMfa({ kind: "policy", allowed });
+      if (isMfaRequiredError(error))
+        setPendingMfa({ kind: "policy", capability, allowed });
       else setActionError(userFacingApiError(error, t("organizations.organizationProviderKeys.policyError")));
     } finally {
       setBusy(null);
@@ -239,11 +249,91 @@ export function OrganizationProviderKeys({
   const availableFields = MODEL_API_KEY_FIELDS.filter(
     (field) => loading || !hasOrgKey(field.provider),
   );
-  const allowPersonal = settings?.allow_personal_api_keys !== false;
+  // Each switch is on unless the server says it was turned off.
+  const allowPersonal = (capability: KeyCapability) =>
+    settings?.allow_personal_keys?.[capability] !== false;
+  const searchServices: Array<{ backend: (typeof WEB_SEARCH_BACKENDS)[number]; name: string }> = [
+    { backend: "brave", name: "Brave Search" },
+    { backend: "tavily", name: "Tavily" },
+    { backend: "deepseek", name: "DeepSeek Search" },
+  ];
+  // The visible name is short under «Los miembros pueden usar sus propias
+  // llaves de…»; the switch keeps the whole sentence as its name, which holds
+  // the visible words.
+  const personalKeyRows: Array<{ capability: KeyCapability; label: string; short: string }> = [
+    {
+      capability: "ai",
+      label: t("organizations.organizationProviderKeys.memberKeysAi"),
+      short: t("organizations.organizationProviderKeys.memberKeysAiShort"),
+    },
+    {
+      capability: "web_search",
+      label: t("organizations.organizationProviderKeys.memberKeysWebSearch"),
+      short: t("organizations.organizationProviderKeys.memberKeysWebSearchShort"),
+    },
+    {
+      capability: "scan",
+      label: t("organizations.organizationProviderKeys.memberKeysScan"),
+      short: t("organizations.organizationProviderKeys.memberKeysScanShort"),
+    },
+  ];
 
   return (
     <>
       <div className="@container space-y-8">
+        {/* The policy leads: it decides what the keys below mean for the
+            members. It is the managers' to change; a member already reads it
+            in «Mis llaves». */}
+        {loading || canManage ? (
+          <section aria-labelledby="org-providers-personal" className="space-y-3">
+            <SettingsTagRow>
+              <SettingsHeading id="org-providers-personal">
+                {t("organizations.organizationProviderKeys.membersOwnKeys")}
+              </SettingsHeading>
+              <SettingsTag kind="audience" icon="firm">
+                {t("settings.signals.firmWide")}
+              </SettingsTag>
+            </SettingsTagRow>
+            <SettingsDescription>
+              {t("organizations.organizationProviderKeys.membersOwnKeysIntro")}
+            </SettingsDescription>
+            <GlassCardUI>
+              <p className="px-4 pb-1 pt-3 text-sm font-semibold text-gray-900">
+                {t("organizations.organizationProviderKeys.memberKeysLead")}
+              </p>
+              {personalKeyRows.map(({ capability, label, short }) => (
+                <div
+                  key={capability}
+                  className="flex items-center justify-between gap-x-6 gap-y-3 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <SettingsLabel>{short}</SettingsLabel>
+                  </div>
+                  <div className="flex shrink-0 items-center">
+                    {loading ? (
+                      <span className="block h-5 w-9 animate-pulse rounded-full bg-gray-200" />
+                    ) : canManage ? (
+                      <ToggleSwitchUI
+                        checked={allowPersonal(capability)}
+                        disabled={busy !== null || pendingMfa !== null}
+                        aria-busy={busy === "policy"}
+                        aria-label={label}
+                        onCheckedChange={(allowed) =>
+                          void setPersonalKeysAllowed(capability, allowed)
+                        }
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-500">
+                        {allowPersonal(capability) ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </GlassCardUI>
+          </section>
+        ) : null}
+
         <section
           aria-labelledby="org-providers-saved"
           className="space-y-3"
@@ -280,8 +370,9 @@ export function OrganizationProviderKeys({
         </section>
 
         {/* Members cannot add a provider, so the list of ones to add is the
-            managers' alone. It stays up while loading so the page does not
-            jump once the role is known. */}
+            managers' alone. The saved keys above are always in view; the
+            twelve to add open with «Agregar proveedor». It stays up while
+            loading so the page does not jump once the role is known. */}
         {loading || canManage ? (
           <section
             aria-labelledby="org-providers-available"
@@ -295,63 +386,72 @@ export function OrganizationProviderKeys({
                 {t("organizations.organizationProviderKeys.everyProviderHasAKeySaved")}
               </SettingsDescription>
             ) : (
-              <div
-                className="grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2"
-                aria-busy={loading}
-              >
-                {availableFields.map(renderCard)}
-              </div>
+              <>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <PillButtonUI
+                    tone="white"
+                    size="sm"
+                    disabled={loading}
+                    aria-expanded={providersOpen}
+                    aria-controls={providersId}
+                    onClick={() => setProvidersOpen((open) => !open)}
+                  >
+                    <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+                    {t("organizations.organizationProviderKeys.addProvider")}
+                  </PillButtonUI>
+                  <span className="text-xs text-gray-500">
+                    {t("organizations.organizationProviderKeys.availableCount", { count: availableFields.length })}
+                  </span>
+                </div>
+                {providersOpen ? (
+                  <div
+                    id={providersId}
+                    className="grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2"
+                    aria-busy={loading}
+                  >
+                    {availableFields.map(renderCard)}
+                  </div>
+                ) : null}
+              </>
             )}
           </section>
         ) : null}
 
-        {/* The policy is the managers' to change; a member already reads
-            it in the notice above. */}
+        {/* The firm's own web-search keys: the same keys a member may save in
+            their own Features, kept for the whole firm. A member only needs
+            them to exist, so the managers alone get the fields. */}
         {loading || canManage ? (
-          <section aria-labelledby="org-providers-personal" className="space-y-3">
-            <SettingsHeading id="org-providers-personal">
-              {t("organizations.organizationProviderKeys.membersOwnKeys")}
-            </SettingsHeading>
-            <GlassCardUI>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4">
-                <div className="min-w-0 flex-[1_1_16rem] space-y-1">
-                  <SettingsLabel>{t("organizations.organizationProviderKeys.allowMembersOwnKeys")}</SettingsLabel>
-                  <SettingsDescription>
-                    {allowPersonal
-                      ? t("organizations.organizationProviderKeys.aMembersOwnKeyIsUsed")
-                      : t("organizations.organizationProviderKeys.aMembersOwnKeysAreNever")}
-                  </SettingsDescription>
-                </div>
-                <div className="ml-auto flex shrink-0 items-center">
-                  {loading ? (
-                    <span className="block h-5 w-9 animate-pulse rounded-full bg-gray-200" />
-                  ) : canManage ? (
-                    <ToggleSwitchUI
-                      checked={allowPersonal}
-                      disabled={busy !== null || pendingMfa !== null}
-                      aria-busy={busy === "policy"}
-                      aria-label={t("organizations.organizationProviderKeys.allowMembersOwnKeys2")}
-                      onCheckedChange={(allowed) =>
-                        void setPersonalKeysAllowed(allowed)
-                      }
-                    />
-                  ) : (
-                    <span className="text-sm text-gray-500">
-                      {allowPersonal ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </GlassCardUI>
+          <section aria-labelledby="org-search-keys" className="space-y-3">
+            <SettingsTagRow>
+              <SettingsHeading id="org-search-keys">
+                {t("organizations.organizationProviderKeys.webSearchKeys")}
+              </SettingsHeading>
+              <SettingsTag kind="optional" />
+            </SettingsTagRow>
+            <SettingsDescription>
+              {t("organizations.organizationProviderKeys.webSearchKeysIntro", { name: orgName })}
+            </SettingsDescription>
+            {!loading ? (
+              <GlassCardUI>
+                {searchServices.map(({ backend, name }) => (
+                  <ApiKeyField
+                    key={backend}
+                    label={t("settings.modelProviders.apiKey", { name })}
+                    hasSavedKey={hasOrgKey(backend)}
+                    onSave={(value) => saveKey(backend, value)}
+                    onRemove={() => saveKey(backend, null)}
+                  />
+                ))}
+              </GlassCardUI>
+            ) : null}
           </section>
         ) : null}
 
-        {/* The scan-reading explanation is on Features for everyone; here it
-            is only the firm key's field, for those who manage it. */}
+        {/* The firm's LandingAI key and switch, for those who manage them. The
+            firm's document types are in «Lectura de escaneados». */}
         {loading || canManage ? (
         <ScanReadingCard
           loading={loading}
-          keyScope={t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
           canManage={canManage}
           hasSavedKey={hasOrgKey("landingai")}
           enabled={hasOrgKey("landingai") && isEnabled("landingai")}
@@ -361,13 +461,6 @@ export function OrganizationProviderKeys({
           onRemoveKey={() => saveKey("landingai", null)}
         />
         ) : null}
-
-        <SplitClassesCard
-          title={t("settings.splitClasses.title")}
-          intro={t("settings.splitClasses.orgIntro")}
-          load={() => getOrgSplitClasses(orgId)}
-          save={(classes) => saveOrgSplitClasses(orgId, classes)}
-        />
       </div>
 
       {canManage ? (
@@ -410,7 +503,7 @@ export function OrganizationProviderKeys({
           if (action.kind === "toggle")
             void toggleProvider(action.provider, action.enabled);
           else if (action.kind === "policy")
-            void setPersonalKeysAllowed(action.allowed);
+            void setPersonalKeysAllowed(action.capability, action.allowed);
           else {
             const answer = modelsAfterMfa.current;
             modelsAfterMfa.current = null;

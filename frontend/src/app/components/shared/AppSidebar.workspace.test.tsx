@@ -309,7 +309,7 @@ describe("AppSidebar workspace switcher", () => {
     // The size and weight the sidebar's own section headings use, in
     // place of the 10px the shared label sets for capitals.
     expect(label).toHaveClass("text-xs", "font-semibold");
-    expect(label).not.toHaveClass("text-[10px]");
+    expect(label).not.toHaveClass("text-3xs");
     // `hidden`: the open menu takes the rest of the page out of the
     // accessibility tree.
     expect(
@@ -327,7 +327,7 @@ describe("AppSidebar workspace switcher", () => {
 
     await openAccountMenu(user);
     await user.click(
-      screen.getByRole("menuitem", { name: "Organization" }),
+      screen.getByRole("menuitem", { name: "Firm settings" }),
     );
 
     expect(state.push).toHaveBeenCalledWith(
@@ -343,7 +343,7 @@ describe("AppSidebar workspace switcher", () => {
 
     await openAccountMenu(user);
     expect(
-      screen.getByRole("menuitem", { name: "Organization" }),
+      screen.getByRole("menuitem", { name: "Firm settings" }),
     ).toBeVisible();
   });
 
@@ -357,7 +357,7 @@ describe("AppSidebar workspace switcher", () => {
     await openAccountMenu(user);
     expect(screen.getByRole("menuitem", { name: "Settings" })).toBeVisible();
     expect(
-      screen.queryByRole("menuitem", { name: "Organization" }),
+      screen.queryByRole("menuitem", { name: "Firm settings" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Organizations" }),

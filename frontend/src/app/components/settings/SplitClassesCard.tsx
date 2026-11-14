@@ -9,7 +9,7 @@ import { ModalTextInput } from "@/app/components/modals/ModalTextInput";
 import { ModalTextarea } from "@/app/components/modals/ModalTextarea";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
-import { SettingsDescription, SettingsLabel } from "@/app/components/settings/SettingsText";
+import { SettingsDescription, SettingsLabel, SettingsNotice } from "@/app/components/settings/SettingsText";
 import { showToast } from "@/app/components/ui/toast";
 import {
   SPLIT_DESCRIPTION_MAX,
@@ -112,6 +112,16 @@ export function SplitClassesCard({
               </SettingsDescription>
             ) : null}
             {!canManage ? <SettingsDescription>{t("settings.splitClasses.readOnly")}</SettingsDescription> : null}
+            {/* Descriptions and identifiers also go to LandingAI: the legal
+                note (socium-legal's, unedited) leads the card, before the
+                fields it is about, not at the foot beside «Guardar». */}
+            <SettingsNotice
+              bodyId={noteId}
+              className="pt-2"
+              entries={[{ icon: "send", label: t("settings.signals.thirdParty") }]}
+            >
+              {t("settings.splitClasses.noClientData")}
+            </SettingsNotice>
           </div>
         </SettingsRow>
         {!settings ? (
@@ -189,10 +199,6 @@ export function SplitClassesCard({
               ))}
             </ol>
             <SettingsRow layout="stacked">
-              {/* Description and identifier also go to LandingAI: no client data in them. */}
-              <p id={noteId} className="text-xs text-gray-600">
-                {t("settings.splitClasses.noClientData")}
-              </p>
               <p className="text-xs text-gray-500">{t("settings.splitClasses.count", { count: draft.length, max })}</p>
               {problem ? (
                 <p role="alert" className="text-xs text-red-700">

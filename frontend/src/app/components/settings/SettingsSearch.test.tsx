@@ -42,12 +42,12 @@ describe("SettingsSearch", () => {
         expect(screen.getByRole("status")).toHaveTextContent(/settings found/);
     });
 
-    it("finds Bring Your Own Keys from 'api key' and opens it on Enter", async () => {
+    it("finds My AI keys from 'api key' and opens it on Enter", async () => {
         const user = userEvent.setup();
         render(<SettingsSearch entries={SETTINGS_SEARCH_ENTRIES} />);
         const input = screen.getByRole("searchbox");
         await user.type(input, "api key");
-        expect(screen.getByRole("button", { name: /^Bring Your Own Keys/ })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /^My AI keys/ })).toBeInTheDocument();
 
         await user.keyboard("{Enter}");
         expect(push).toHaveBeenCalledWith("/settings/byok");

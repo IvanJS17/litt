@@ -412,7 +412,7 @@ The Word add-in supplies the same two variables from
 
 De facto type scale in the app chrome, most to least common: `text-xs` (dense
 table and control text — the default for most chrome), `text-sm` (body copy,
-normal-size buttons), `text-[10px]` (badges, superscript citations),
+normal-size buttons), `text-3xs` (10 px: badges, superscript citations; `text-2xs` is 11 px; both in rem so they follow the text-size setting, never `text-[Npx]`),
 `text-2xl font-serif` (display headings and empty states), `text-xl font-serif`
 (page titles and breadcrumbs). There is no separate heading component; use
 `EmptyState` for empty-state headings and `PageHeader` for page titles so the
@@ -663,6 +663,31 @@ keep their own spacing and should not receive this attribute.
 
 For a real standalone checkbox use `<input type="checkbox">` with
 `TABLE_CHECKBOX_CLASS` (see `TablePrimitive.tsx`), not `check-square`.
+
+## Settings
+
+Settings has two homes («Ajustes» for what is mine, «Ajustes del despacho» for
+what the firm decides) with tabs in groups, written once in
+`frontend/src/app/lib/settingsMap.ts` and described in
+[settings-map.md](settings-map.md). The frame is `SettingsShell`; do not draw
+another sidebar, and every tab or section a screen adds goes in the map (the test
+`settingsMap.test.ts` fails otherwise). Its names and help texts follow
+[the writing rules in i18n.md](i18n.md#writing-the-text-of-settings).
+
+**Group titles** («Mi cuenta», «Mis llaves y servicios»…) are in ink and in the
+page-title serif (`font-serif`, `text-[1.0625rem]` on the desktop bar and
+`text-[1.1875rem]` on the phone list, in `rem` so they follow the text size),
+with air above; the options under them stay `text-sm text-gray-500`. The phone
+rows are 44 px or more.
+
+**Signals.** Six small components in `components/settings/SettingsText.tsx` say
+what a text is: `SettingsTag` (optional, recommended, who it applies to),
+`SettingsNotice` and `SettingsNoticeLine` (a notice, or the one red notice of
+what cannot be undone), `SettingsManagedRow` («Lo administra tu despacho») and
+`SettingsMoreInfo` («Más información»). Each keeps its icon from lucide
+(`aria-hidden`) next to a text that is always visible. Their rules and the
+tokens `--litt-note-rule`, `--litt-danger-rule` and `--litt-danger-text` are in
+`DesignTokensUI.css`; `warningPalette.test.ts` keeps amber and orange out.
 
 ## Reporting failures
 
@@ -921,4 +946,5 @@ Two things about the catalog environment are worth knowing before you edit it:
 
 ## Related
 
+- The map of Settings: [settings-map.md](settings-map.md)
 - Frontend test conventions: [frontend-testing.md](frontend-testing.md)

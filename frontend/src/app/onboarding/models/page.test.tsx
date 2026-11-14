@@ -123,13 +123,13 @@ describe("OnboardingModelsPage", () => {
         mocks.listOrgs.mockResolvedValue([{ id: "org-1", name: "Example LLP", role: "member" }]);
         mocks.getOrgApiKeys.mockResolvedValue({
             effective: { claude: true, sources: { claude: "org" } },
-            allow_personal_api_keys: true,
+            allow_personal_keys: { ai: true, web_search: true, scan: true },
         });
         const user = userEvent.setup();
         render(<OnboardingModelsPage />);
         expect(await screen.findByText(/Example LLP already gives you models; you can add your own if you like/)).toBeVisible();
         expect(mocks.getOrgApiKeys).toHaveBeenCalledWith("org-1");
-        expect(screen.getByRole("heading", { name: "Your own keys (optional)" })).toBeVisible();
+        expect(screen.getByRole("heading", { name: "Your own AI keys (optional)" })).toBeVisible();
         expect(screen.getByText("Step 3 of 3")).toBeVisible();
         await user.click(screen.getByRole("button", { name: "Skip" }));
         expect(mocks.completeOnboarding).toHaveBeenCalledOnce();

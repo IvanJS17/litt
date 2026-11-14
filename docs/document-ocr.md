@@ -35,7 +35,7 @@ scan** is offered again.
 
 Resolved exactly like the web-search keys (`lib/providerCredentials`): inside a
 firm, the firm's key first, then the member's own only if
-`organizations.allow_personal_api_keys` allows it; outside a firm, the person's.
+`organizations.allow_personal_scan_keys` allows it (one switch per kind of key: AI, web search, scan reading); outside a firm, the person's.
 Saving, replacing and removing a firm key is done by whoever already manages the
 firm's keys (owners and admins, Organization > Keys; unchanged). The switch is the
 saved key's own `enabled` flag (same pattern as the other keys).

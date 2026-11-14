@@ -36,6 +36,8 @@ export interface PageHeaderBreadcrumb {
     loading?: boolean;
     skeletonClassName?: string;
     title?: string;
+    /** Room for a long label before it is cut (a name that must be read whole). */
+    wide?: boolean;
 }
 
 type PageHeaderButtonAction = {
@@ -684,7 +686,7 @@ function BreadcrumbItem({
         "min-w-0 items-center gap-1.5",
         current
             ? "flex min-w-[4rem] flex-1 overflow-hidden"
-            : "hidden max-w-56 shrink-0 sm:flex",
+            : cn("hidden shrink-0 sm:flex", item.wide ? "max-w-96" : "max-w-56"),
     );
 
     return (

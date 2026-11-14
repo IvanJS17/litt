@@ -185,9 +185,12 @@ function formatRangeDate(
 
 export function AuditHistory({
   orgId,
+  orgName,
   onBack,
 }: {
   orgId?: string;
+  /** The firm's name, so the heading says whose log this is. */
+  orgName?: string;
   onBack?: () => void;
 }) {
   const t = useTranslations();
@@ -493,8 +496,13 @@ export function AuditHistory({
         shrink
         breadcrumbs={[
           {
-            label: orgId ? t("history.organization") : t("history.settings"),
+            label: orgId
+              ? orgName
+                ? t("settings.map.firmHeading", { name: orgName })
+                : t("settings.map.firmHeadingLoading")
+              : t("history.settings"),
             onClick: onBack,
+            wide: Boolean(orgId),
           },
           { label: title },
         ]}

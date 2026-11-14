@@ -22,14 +22,35 @@ const keys = vi.hoisted(() => ({ configured: ["claude"] as string[] }));
 const workspace = vi.hoisted(() => ({
   firm: null as null | { name: string },
   allowPersonal: true,
+  // Which kinds of own key the firm blocks, when only some are.
+  blocked: [] as string[],
+  // Providers the person can run in the firm, whoever's key it is.
+  effective: ["claude"] as string[],
+  // The firm's own keys, when the read says which it has.
+  firmKeys: undefined as undefined | { sources: Record<string, string>; enabled?: Record<string, boolean> },
 }));
 
 vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
   useWorkspace: () => ({
     activeOrganization: workspace.firm,
+    workspaceId: workspace.firm ? "org-1" : "personal",
     orgApiKeys: workspace.firm
-      ? { allow_personal_api_keys: workspace.allowPersonal }
+      ? {
+          keys: workspace.firmKeys,
+          allow_personal_keys: Object.fromEntries(
+            ["ai", "web_search", "scan"].map((capability) => [
+              capability,
+              workspace.allowPersonal && !workspace.blocked.includes(capability),
+            ]),
+          ),
+          effective: Object.fromEntries(
+            ["claude", "openai", "brave", "tavily", "deepseek"].map((provider) => [
+              provider,
+              workspace.effective.includes(provider),
+            ]),
+          ),
+        }
       : null,
   }),
 }));
@@ -68,6 +89,9 @@ describe("WebSearchSection", () => {
     keys.configured = ["claude"];
     workspace.firm = null;
     workspace.allowPersonal = true;
+    workspace.blocked = [];
+    workspace.effective = ["claude"];
+    workspace.firmKeys = undefined;
     vi.mocked(updateWebSearchSettings).mockReset();
     vi.mocked(notifyError).mockReset();
     vi.mocked(getWebSearchSettings).mockResolvedValue(OFF);
@@ -105,13 +129,55 @@ describe("WebSearchSection", () => {
   it("says the key applies to the personal workspace, or to the firm that takes members' keys", async () => {
     vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true, claude: "brave" });
     const { unmount } = render(<WebSearchSection />);
-    expect(await screen.findByText("These keys are yours and apply to your personal workspace.")).toBeVisible();
+    expect((await screen.findByText("These keys are yours and apply to your personal workspace.")).closest("details")).not.toBeNull();
     unmount();
 
     workspace.firm = { name: "Socium" };
     render(<WebSearchSection />);
-    expect(await screen.findByText(/They are also used in the firm Socium/)).toBeVisible();
+    // The scope is folded under «More information»: in the page, not in view.
+    expect((await screen.findByText(/In Socium they are used only for providers the firm hasn.t set up/)).closest("details")).not.toBeNull();
     expect(screen.getByLabelText("Brave Search API Key")).toBeInTheDocument();
+  });
+
+  it("offers the Claude row in a firm whose Claude key is the firm's, though the person has none of their own", async () => {
+    keys.configured = [];
+    workspace.firm = { name: "Socium" };
+    workspace.effective = ["claude"];
+    vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true });
+    render(<WebSearchSection />);
+
+    expect(await screen.findByRole("button", { name: "Claude models" })).toHaveTextContent("Anthropic Search");
+    expect(trigger("Other models")).toBeInTheDocument();
+  });
+
+  it("offers only 'All models' in a firm with no Claude key at all", async () => {
+    keys.configured = ["claude"];
+    workspace.firm = { name: "Socium" };
+    workspace.effective = [];
+    vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true });
+    render(<WebSearchSection />);
+
+    expect(await screen.findByRole("button", { name: "All models" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Claude models" })).toBeNull();
+  });
+
+  it("follows only the web-search switch: blocking own AI keys leaves the search key field", async () => {
+    workspace.firm = { name: "Socium" };
+    workspace.blocked = ["ai", "scan"];
+    vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true, claude: "brave" });
+    render(<WebSearchSection />);
+
+    expect(await screen.findByLabelText("Brave Search API Key")).toBeInTheDocument();
+  });
+
+  it("hides the search key field when the firm blocks own web search keys, though AI keys stay allowed", async () => {
+    workspace.firm = { name: "Socium" };
+    workspace.blocked = ["web_search"];
+    vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true, claude: "brave" });
+    render(<WebSearchSection />);
+
+    await screen.findByRole("button", { name: "Claude models" });
+    expect(screen.queryByLabelText("Brave Search API Key")).toBeNull();
   });
 
   it("offers no key in a firm that does not allow members' own keys, and says why", async () => {
@@ -119,10 +185,53 @@ describe("WebSearchSection", () => {
     workspace.allowPersonal = false;
     vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true, claude: "brave" });
     render(<WebSearchSection />);
-    expect(
-      await screen.findByText("You work with the keys of Socium. Your firm does not allow adding your own keys."),
-    ).toBeVisible();
+    // First row of the card, never a sentence under it.
+    const row = await screen.findByText(/You work with the keys of Socium/);
+    expect(row.closest("[data-slot=settings-managed-row]")).toHaveTextContent("Your firm manages this.");
+    expect(row.closest("[data-slot=settings-managed-row]")?.nextElementSibling).not.toBeNull();
     expect(screen.queryByLabelText("Brave Search API Key")).toBeNull();
+  });
+
+  describe("the cost names the key that really pays", () => {
+    const ON = { ...OFF, enabled: true, claude: "provider" } as const;
+    const charge = async () => (await screen.findByText(/^Billed to /)).textContent;
+
+    it("is the person's own key in the personal workspace", async () => {
+      vi.mocked(getWebSearchSettings).mockResolvedValue(ON);
+      render(<WebSearchSection />);
+      expect(await charge()).toBe("Billed to your Claude API key.");
+    });
+
+    it("is the firm's key for a member who works with the firm's keys", async () => {
+      workspace.firm = { name: "Socium" };
+      workspace.blocked = ["ai"];
+      vi.mocked(getWebSearchSettings).mockResolvedValue(ON);
+      render(<WebSearchSection />);
+      expect(await charge()).toBe("Billed to the firm’s Claude API key.");
+    });
+
+    it("is the firm's key when the firm has one, though members may bring their own", async () => {
+      workspace.firm = { name: "Socium" };
+      workspace.firmKeys = { sources: { claude: "org" } };
+      vi.mocked(getWebSearchSettings).mockResolvedValue(ON);
+      render(<WebSearchSection />);
+      expect(await charge()).toBe("Billed to the firm’s Claude API key.");
+    });
+
+    it("is the member's own key when the firm has none for it and allows their own", async () => {
+      workspace.firm = { name: "Socium" };
+      workspace.firmKeys = { sources: {} };
+      vi.mocked(getWebSearchSettings).mockResolvedValue(ON);
+      render(<WebSearchSection />);
+      expect(await charge()).toBe("Billed to your Claude API key.");
+    });
+
+    it("says both, in order, while the firm's keys are not known", async () => {
+      workspace.firm = { name: "Socium" };
+      vi.mocked(getWebSearchSettings).mockResolvedValue(ON);
+      render(<WebSearchSection />);
+      expect(await charge()).toBe("Billed to the firm’s key; if it has none, to yours.");
+    });
   });
 
   it("puts the switch back and raises a notice when the save fails", async () => {
