@@ -346,9 +346,15 @@ export function ComposerChipsUI({
         return () => observer.disconnect();
     });
 
-    if (!hasActive && !hasAttached) {
-        return announce ? <ActivationLiveRegion message={announcement} /> : null;
-    }
+    // The live region is the same node whether the row is empty or not: a
+    // region that mounts already holding its text is not announced reliably,
+    // so it must outlive the first label switched on and the last switched off.
+    const liveRegion = announce ? (
+        <ActivationLiveRegion message={announcement} />
+    ) : null;
+
+    // Same shape (a fragment of row-or-nothing, then the region) both ways.
+    if (!hasActive && !hasAttached) return <>{null}{liveRegion}</>;
 
     const activeParts: string[] = [];
     if (workflow) {
@@ -369,53 +375,55 @@ export function ComposerChipsUI({
         .join(" · ");
 
     return (
-        <div
-            ref={rowRef}
-            data-composer-chips=""
-            className={`flex flex-wrap items-center gap-x-2.5 gap-y-1.5 ${justify === "end" ? "justify-end" : ""} ${className ?? ""}`}
-        >
-            <span className="sr-only">{summary}</span>
-            {hasActive && (
-                <ul
-                    data-chips-active=""
-                    aria-label={t("ui.composerChips.activeList")}
-                    className="m-0 flex min-w-0 max-w-full list-none flex-wrap items-center gap-1.5 p-0"
-                >
-                    {workflow && (
-                        <li className="m-0 flex min-w-0 max-w-full">
-                            <ActiveChipUI kind="workflow" {...workflow} title={workflow.title} />
-                        </li>
-                    )}
-                    {playbook && (
-                        <li className="m-0 flex min-w-0 max-w-full">
-                            <ActiveChipUI kind="playbook" {...playbook} title={playbook.title} />
-                        </li>
-                    )}
-                </ul>
-            )}
-            {hasAttached && (
-                <ul
-                    data-chips-attached=""
-                    data-same-line={hasActive && sameLine ? "true" : undefined}
-                    aria-label={t("ui.composerChips.attachedList")}
-                    // The rule sits in the gap between the lists, out of the
-                    // flow: it must not change where the lists wrap, or the
-                    // measure below would flip with it.
-                    className={`relative m-0 flex min-w-0 max-w-full list-none flex-wrap items-center gap-1.5 p-0 ${
-                        hasActive && sameLine
-                            ? "before:absolute before:-left-[6px] before:top-1/2 before:-mt-2 before:h-4 before:w-px before:bg-[var(--litt-composer-chip-ring)] before:content-['']"
-                            : ""
-                    }`}
-                >
-                    {attached.map((item) => (
-                        <li key={item.key} className="m-0 flex min-w-0 max-w-full">
-                            {item.node}
-                        </li>
-                    ))}
-                </ul>
-            )}
-            {announce && <ActivationLiveRegion message={announcement} />}
-        </div>
+        <>
+            <div
+                ref={rowRef}
+                data-composer-chips=""
+                className={`flex flex-wrap items-center gap-x-2.5 gap-y-1.5 ${justify === "end" ? "justify-end" : ""} ${className ?? ""}`}
+            >
+                <span className="sr-only">{summary}</span>
+                {hasActive && (
+                    <ul
+                        data-chips-active=""
+                        aria-label={t("ui.composerChips.activeList")}
+                        className="m-0 flex min-w-0 max-w-full list-none flex-wrap items-center gap-1.5 p-0"
+                    >
+                        {workflow && (
+                            <li className="m-0 flex min-w-0 max-w-full">
+                                <ActiveChipUI kind="workflow" {...workflow} title={workflow.title} />
+                            </li>
+                        )}
+                        {playbook && (
+                            <li className="m-0 flex min-w-0 max-w-full">
+                                <ActiveChipUI kind="playbook" {...playbook} title={playbook.title} />
+                            </li>
+                        )}
+                    </ul>
+                )}
+                {hasAttached && (
+                    <ul
+                        data-chips-attached=""
+                        data-same-line={hasActive && sameLine ? "true" : undefined}
+                        aria-label={t("ui.composerChips.attachedList")}
+                        // The rule sits in the gap between the lists, out of the
+                        // flow: it must not change where the lists wrap, or the
+                        // measure below would flip with it.
+                        className={`relative m-0 flex min-w-0 max-w-full list-none flex-wrap items-center gap-1.5 p-0 ${
+                            hasActive && sameLine
+                                ? "before:absolute before:-left-[6px] before:top-1/2 before:-mt-2 before:h-4 before:w-px before:bg-[var(--litt-composer-chip-ring)] before:content-['']"
+                                : ""
+                        }`}
+                    >
+                        {attached.map((item) => (
+                            <li key={item.key} className="m-0 flex min-w-0 max-w-full">
+                                {item.node}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        {liveRegion}
+        </>
     );
 }
 
