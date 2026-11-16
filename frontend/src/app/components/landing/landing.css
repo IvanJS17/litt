@@ -1,0 +1,180 @@
+/*
+ * The public start page (`/`). Almost everything is Tailwind with the app's
+ * tokens; this file holds only what a utility class cannot say:
+ *
+ *  - the type scale of the page (clamp() sizes with their line height,
+ *    tracking and measure, SPEC §4);
+ *  - the inverted band (SEGUNDO · Próximamente), which takes the tokens of
+ *    the OTHER theme on its own container, so no component needs `dark:`;
+ *  - the three small motions (verification, source swap, theme change).
+ *
+ * The only colors declared here are copies of the other theme's tokens from
+ * DesignTokensUI.css, reassigned in one scope for the inverted band.
+ * landing.styles.test.ts keeps the two in step.
+ */
+
+/* ───────── Anchors and page rhythm ───────── */
+
+html:has(.landing-root) {
+    /* header height + 16 px, so an anchor never ends up under the header */
+    scroll-padding-top: 80px;
+}
+
+@media (min-width: 880px) {
+    html:has(.landing-root) {
+        scroll-padding-top: 92px;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html:has(.landing-root) {
+        scroll-behavior: smooth;
+    }
+}
+
+.landing-wrap {
+    width: min(1200px, 100% - 2 * clamp(20px, 5vw, 48px));
+    margin-inline: auto;
+}
+
+/* The header's lower rule appears once the page has moved. */
+.landing-header[data-scrolled="true"] {
+    box-shadow: 0 1px 0 0 color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+/* ───────── Type scale (SPEC §4) ───────── */
+
+.landing-h1 {
+    font-weight: 500;
+    font-size: clamp(2.5rem, 1.55rem + 3.9vw, 4.5rem);
+    line-height: 1.03;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+    max-width: 13ch;
+}
+
+.landing-h2 {
+    font-weight: 500;
+    font-size: clamp(2rem, 1.45rem + 2.2vw, 3.25rem);
+    line-height: 1.08;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+    max-width: 18ch;
+}
+
+.landing-lede {
+    font-size: clamp(1.125rem, 1.05rem + 0.35vw, 1.3125rem);
+    line-height: 1.5;
+    max-width: 34em;
+    text-wrap: pretty;
+}
+
+.landing-contextlex {
+    font-weight: 600;
+    font-size: clamp(2.75rem, 1.2rem + 7.2vw, 8.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    white-space: nowrap;
+}
+
+.landing-pretty {
+    text-wrap: pretty;
+}
+
+/* ───────── Inverted band ─────────
+ * Light page: the band is tinta with papel letters (the dark tokens).
+ * Dark page: the band is papel with tinta letters (the light tokens).
+ * The focus ring takes the amber that belongs to the band's own background,
+ * which keeps DESIGN.md rule 7.
+ */
+
+:root:not(.dark) .landing-band {
+    color-scheme: dark;
+    --surface-desk: var(--litt-tinta);
+    --surface-sheet: #1b202c;
+    --surface-float: #1f2430;
+    --surface-field: #2a2f3a;
+    --elevation-sheet: 0 0 0 1px rgb(236 236 230 / 9%);
+    --elevation-float: 0 0 0 1px rgb(236 236 230 / 13%), 0 16px 40px -12px rgb(0 0 0 / 60%);
+    --foreground: var(--litt-papel);
+    --muted-foreground: #9b9d9f;
+    --litt-accent: var(--litt-ambar-fosforo);
+    --litt-interactive-border: rgb(236 236 230 / 42%);
+    --litt-interactive-soft: rgb(236 236 230 / 8%);
+    --litt-interactive-soft-strong: rgb(236 236 230 / 14%);
+}
+
+:root.dark .landing-band {
+    color-scheme: light;
+    --surface-desk: var(--litt-papel);
+    --surface-sheet: #fbfbf9;
+    --surface-float: var(--surface-sheet);
+    --surface-field: #f4f4f0;
+    --elevation-sheet: 0 0 0 1px rgb(21 26 38 / 8%), 0 1px 2px rgb(21 26 38 / 5%);
+    --elevation-float: 0 0 0 1px rgb(21 26 38 / 12%), 0 12px 32px -12px rgb(21 26 38 / 28%);
+    --foreground: var(--litt-tinta);
+    --muted-foreground: #5d6169;
+    --litt-accent: var(--litt-ambar-tinta);
+    --litt-interactive-border: rgb(21 26 38 / 50%);
+    --litt-interactive-soft: rgb(21 26 38 / 6%);
+    --litt-interactive-soft-strong: rgb(21 26 38 / 11%);
+}
+
+/* ───────── Motion ─────────
+ * Nothing moves on scroll. The three things below are small and each is off
+ * under `prefers-reduced-motion: reduce`: the page then shows the finished
+ * state straight away.
+ */
+
+/* Theme change: no transitions for two frames, so the page does not blend. */
+.landing-no-transitions *,
+.landing-no-transitions *::before,
+.landing-no-transitions *::after {
+    transition: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    /* The first verification of the session: a spinner, then the tick drawn. */
+    .landing-spinner circle {
+        animation: landing-spin 900ms linear infinite;
+        transform-origin: 50% 50%;
+    }
+
+    .landing-tick-draw path {
+        animation: landing-draw 260ms cubic-bezier(0, 0, 0.2, 1) both;
+    }
+
+    /* A new source fades from 0.2 to 1 in 160 ms. */
+    .landing-swap {
+        animation: landing-swap 160ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+}
+
+.landing-tick path {
+    stroke-dasharray: 24;
+    stroke-dashoffset: 0;
+}
+
+@keyframes landing-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes landing-draw {
+    from {
+        stroke-dashoffset: 24;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes landing-swap {
+    from {
+        opacity: 0.2;
+    }
+    to {
+        opacity: 1;
+    }
+}

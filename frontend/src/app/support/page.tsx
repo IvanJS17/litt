@@ -23,7 +23,7 @@ export default function SupportPage() {
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
-            router.push("/");
+            router.push("/login");
         }
     }, [authLoading, isAuthenticated, router]);
     const [feedbackType, setFeedbackType] = useState<FeedbackType>("question");
@@ -131,7 +131,7 @@ export default function SupportPage() {
                         {t("support.weWillGetInTouchWith")}
                     </p>
                     <button
-                        onClick={() => router.push("/")}
+                        onClick={() => router.push("/assistant")}
                         className="px-4 py-2 bg-interactive text-interactive-foreground rounded-lg hover:bg-interactive-hover transition-colors font-medium text-sm"
                     >
                         {t("support.backToHome")}

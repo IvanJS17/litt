@@ -67,6 +67,9 @@ describe("white in the interface", () => {
         expect([...users].sort()).toEqual([
             // A QR code needs a white quiet zone to be read.
             "frontend/src/app/(pages)/settings/security/page.tsx",
+            // The start page's Word example: a drawn page of a document with
+            // fictitious text, the one white surface of the public page.
+            "frontend/src/app/components/landing/WordSpecimen.tsx",
             // A page of a PDF, drawn with its own shadow (the DOCX page is
             // EigenPal's and keeps its own white).
             "frontend/src/app/components/shared/views/PdfView.tsx",

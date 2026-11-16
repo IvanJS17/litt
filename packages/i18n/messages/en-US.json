@@ -1500,6 +1500,233 @@
     "openAProjectToStartDrafting": "Open a Project to start drafting and reviewing with the help of the Project Assistant.",
     "openProject": "Open project"
   },
+  "landing": {
+    "cl": {
+      "article": "Article 2398",
+      "body": "When an answer relies on the law, LiTT will cite the article in force by name and source, the same way it cites the documents in a matter today. Built for Mexican jurisdiction, not another country’s.",
+      "caption": "Illustration of how a citation to the law will look. Not available yet. The quoted text stays in Spanish.",
+      "code": "Federal Civil Code",
+      "line": "Current Mexican law, connected to the assistant.",
+      "name": "ContextLex MX",
+      "text": "«Hay arrendamiento cuando las dos partes contratantes se obligan recíprocamente, una, a conceder el uso o goce temporal de una cosa, y la otra, a pagar por ese uso o goce un precio cierto.»"
+    },
+    "cta": {
+      "login": "Sign in",
+      "open": "Open LiTT",
+      "request": "Request access",
+      "requestSubject": "LiTT access request"
+    },
+    "donna": {
+      "body": "A living file for each client, where every fact has its source and is confirmed by a lawyer. And a radar that gets ahead of deadlines and changes in the law.",
+      "title": "Donna, the firm’s assistant"
+    },
+    "footer": {
+      "legal": "LiTT is free software under the <agpl>GNU AGPL-3.0</agpl> license and is derived from an open-source project. Copyright notices and credits are in the <credits>source code</credits>. LiTT can make mistakes; its answers are not legal advice.",
+      "nav": "Legal and support",
+      "privacy": "Privacy notice",
+      "support": "Support",
+      "terms": "Terms and conditions",
+      "theme": "Theme",
+      "themeDark": "Dark",
+      "themeLight": "Light",
+      "themeSystem": "Automatic"
+    },
+    "google": {
+      "body": "Bring Drive documents, Gmail messages and Calendar dates into a matter. Only what you authorize, and you can disconnect at any time.",
+      "title": "Google Drive, Gmail and Google Calendar"
+    },
+    "header": {
+      "home": "LiTT, home",
+      "nav": "Sections",
+      "toDark": "Switch to dark theme",
+      "toLight": "Switch to light theme"
+    },
+    "hero": {
+      "badge": "Closed beta",
+      "caption": "Example with fictitious data. Tap a citation to see its source.",
+      "eyebrow": "For law firms and legal teams in Mexico",
+      "lede": "LiTT is an AI legal assistant for Mexican law firms. It works on the documents in the matter, drafts with you in Word, and checks every citation against the cited text before you rely on it.",
+      "lede2": "With your firm’s own AI keys, in Mexican Spanish, and open source.",
+      "note": "Invitation-only beta. Write to us at <mail>soporte@asteroitt.com</mail>.",
+      "title": "What LiTT tells you, you can check."
+    },
+    "index": {
+      "i1": {
+        "body": "Ask about the documents in a matter and get answers that cite their source.",
+        "title": "An assistant for the matter"
+      },
+      "i10": {
+        "body": "The interface, notices and legal texts are written for Mexican practice. Also available in English.",
+        "title": "In Mexican Spanish"
+      },
+      "i11": {
+        "body": "LiTT is free software under AGPL-3.0. Every release links to the exact code it runs.",
+        "title": "Open source"
+      },
+      "i2": {
+        "body": "Every citation is checked against the cited text automatically. If it doesn’t match, LiTT tells you.",
+        "title": "Citation check"
+      },
+      "i3": {
+        "body": "Your firm’s positions for each kind of contract, applied the same way by the whole team.",
+        "title": "Firm playbooks"
+      },
+      "i4": {
+        "body": "Reads scanned PDFs and splits a case file into one file per document.",
+        "title": "Scans and “Split case file”"
+      },
+      "i5": {
+        "body": "Compare two versions and get a new document with the changes marked.",
+        "title": "Compare Word versions"
+      },
+      "i6": {
+        "body": "Each firm with its own matters and permissions. Private matters are visible to their members only.",
+        "title": "Firm workspaces with roles"
+      },
+      "i7": {
+        "body": "Juniors practice with LiTT while their mentor reviews, corrects and follows up.",
+        "title": "Training for juniors"
+      },
+      "i8": {
+        "body": "Connect Notion or Airtable so the assistant can look up your firm’s information.",
+        "title": "MCP connectors"
+      },
+      "i9": {
+        "body": "The firm picks the model and uses its own key. LiTT never switches models without telling you.",
+        "title": "Your own AI keys"
+      },
+      "label": "Available features"
+    },
+    "mcp": {
+      "body": "Use every LiTT feature from the AI you already work with, under the same permissions. Each session is recorded in LiTT.",
+      "title": "LiTT from Claude, ChatGPT or another AI"
+    },
+    "meta": {
+      "description": "LiTT is an AI legal assistant for Mexican law firms: it works on the documents in the matter, drafts in Word and checks every citation against the cited text.",
+      "title": "LiTT · AI legal assistant for law firms in Mexico"
+    },
+    "nav": {
+      "soon": "Coming soon",
+      "trust": "Trust",
+      "what": "What it does"
+    },
+    "s1": {
+      "intro": "Everything below works today in the beta. Every answer points to the document and page it comes from.",
+      "marker": "First",
+      "title": "What it already does for your firm."
+    },
+    "s2": {
+      "intro": "Four features on the way. Beta firms get them first.",
+      "marker": "Second",
+      "tag": "Coming soon",
+      "title": "What we’re working on."
+    },
+    "s3": {
+      "intro": "How LiTT is built, with no fine print. You can check all of it in the code.",
+      "marker": "Third",
+      "t1": {
+        "body": "Each firm uses its own AI key. If a key fails, LiTT tells you instead of quietly using another.",
+        "title": "You choose the model"
+      },
+      "t2": {
+        "body": "Firms, workspaces and matters are separated in the database. A private matter is visible to its members only.",
+        "title": "Each firm kept apart"
+      },
+      "t3": {
+        "body": "We don’t send error reports or usage data to other companies.",
+        "title": "No third-party telemetry"
+      },
+      "t4": {
+        "body": "The audit log and the evidence of what the AI did only accept new entries.",
+        "title": "A record that can’t be rewritten"
+      },
+      "t5": {
+        "body": "Every published release links to its <source>source code</source>, so anyone can review it.",
+        "title": "The code, in the open"
+      },
+      "title": "Your documents and your keys stay yours."
+    },
+    "s4": {
+      "body": "Write to <mail>soporte@asteroitt.com</mail> with your firm’s name and how many people would use LiTT. We’ll reply by email.",
+      "marker": "Fourth",
+      "title": "We’re opening beta seats a few at a time."
+    },
+    "specimen": {
+      "answer1": "Overdue rent accrues default interest of 3 % per month",
+      "answer2": "With two monthly payments unpaid, the landlord may terminate the lease without a court ruling",
+      "checking": "Checking the citation against the document…",
+      "cite": "Citation {n}",
+      "doc": "Lease — Tlalnepantla Warehouse.pdf",
+      "page": "p. {page}",
+      "question": "What happens if the tenant is late with the rent?",
+      "src1": {
+        "clause": "Clause Twelve",
+        "quote": "«…el Arrendatario pagará <mark>un interés moratorio del 3% (tres por ciento) mensual</mark> sobre las cantidades vencidas, desde la fecha de su vencimiento y hasta su pago total.»"
+      },
+      "src2": {
+        "clause": "Clause Fifteen",
+        "quote": "«<mark>La falta de pago de dos o más mensualidades</mark> de renta será causa de rescisión del presente contrato, <mark>sin necesidad de declaración judicial</mark>.»"
+      },
+      "verified": "Citation verified: the text appears on page {page}."
+    },
+    "tab": {
+      "body": "Ask many documents the same questions and get one table back. Every cell carries its citation.",
+      "doc": {
+        "0": "Bodega Tlalnepantla.pdf",
+        "1": "Local Polanco.pdf",
+        "2": "Nave Querétaro.pdf",
+        "3": "Oficinas Monterrey.pdf"
+      },
+      "q": {
+        "0": "«El presente contrato tendrá una vigencia de 36 (treinta y seis) meses…»",
+        "1": "«…un interés moratorio del 3% (tres por ciento) mensual…»",
+        "11": "«…renuncian a cualquier otro fuero y se someten a los tribunales de Nuevo León…»",
+        "2": "«…las partes se someten a los tribunales competentes del Estado de México…»",
+        "3": "«La vigencia del arrendamiento será de 24 (veinticuatro) meses forzosos…»",
+        "4": "«…cubrirá un interés del 2% (dos por ciento) mensual sobre saldos insolutos…»",
+        "5": "«…se someten expresamente a los tribunales de la Ciudad de México…»",
+        "6": "«El presente contrato tendrá una vigencia de 60 (sesenta) meses…»",
+        "7": "«…pagará intereses moratorios a razón del 5% (cinco por ciento) mensual…»",
+        "8": "«…se someten a la jurisdicción de los tribunales de Querétaro, Querétaro…»",
+        "9": "«…por un plazo de 12 (doce) meses contados a partir de la entrega…»"
+      },
+      "region": "Tabular review example",
+      "source": "{doc} · page {page}",
+      "thCourts": "Courts",
+      "thDoc": "Document",
+      "thInterest": "Late interest",
+      "thTerm": "Term",
+      "title": "Tabular review",
+      "v": {
+        "0": "36 months",
+        "1": "3 % per month",
+        "10": "None agreed",
+        "11": "Nuevo León",
+        "2": "State of Mexico",
+        "3": "24 months",
+        "4": "2 % per month",
+        "5": "Mexico City",
+        "6": "60 months",
+        "7": "5 % per month",
+        "8": "Querétaro",
+        "9": "12 months"
+      }
+    },
+    "word": {
+      "body": "Review and draft inside the document, with tracked changes and your firm’s playbooks.",
+      "change": "Suggested change: shows or hides the comment.",
+      "clause0": "ELEVENTH. Payment of rent.",
+      "clause1": "TWELFTH. Default interest.",
+      "comment": "The “Lease, landlord side” playbook caps default interest at 3 % per month.",
+      "new": "3 %",
+      "old": "5 %",
+      "text0": "Rent shall be paid monthly in advance, within the first five calendar days of each month, by transfer to the account the Landlord designates.",
+      "text1a": "In case of late payment, the Tenant shall pay default interest of",
+      "text1b": "per month on overdue amounts.",
+      "title": "Word add-in",
+      "who": "Suggested change"
+    }
+  },
   "legal": {
     "back": "Back",
     "toc": "Contents",

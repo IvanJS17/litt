@@ -1500,6 +1500,233 @@
     "openAProjectToStartDrafting": "Abre un proyecto para empezar a redactar y revisar con la ayuda del Asistente del proyecto.",
     "openProject": "Abrir proyecto"
   },
+  "landing": {
+    "cl": {
+      "article": "Artículo 2398",
+      "body": "Cuando una respuesta se apoye en la ley, LiTT citará el artículo vigente con su nombre y su fuente, igual que hoy cita los documentos del asunto. Hecho para la jurisdicción mexicana, no para la de otro país.",
+      "caption": "Ilustración de cómo se verá una cita de ley. La función aún no está disponible.",
+      "code": "Código Civil Federal",
+      "line": "La legislación mexicana vigente, conectada al asistente.",
+      "name": "ContextLex MX",
+      "text": "«Hay arrendamiento cuando las dos partes contratantes se obligan recíprocamente, una, a conceder el uso o goce temporal de una cosa, y la otra, a pagar por ese uso o goce un precio cierto.»"
+    },
+    "cta": {
+      "login": "Iniciar sesión",
+      "open": "Abrir LiTT",
+      "request": "Solicitar acceso",
+      "requestSubject": "Solicitud de acceso a LiTT"
+    },
+    "donna": {
+      "body": "Una ficha viva de cada cliente, donde cada dato lleva su fuente y lo confirma un abogado. Y un radar que se adelanta a vencimientos y cambios de ley.",
+      "title": "Donna, la asistente del despacho"
+    },
+    "footer": {
+      "legal": "LiTT es software libre bajo la licencia <agpl>GNU AGPL-3.0</agpl> y deriva de un proyecto de código abierto. Los avisos de derechos de autor y los créditos están en el <credits>código fuente</credits>. LiTT puede cometer errores; sus respuestas no son asesoría legal.",
+      "nav": "Legal y soporte",
+      "privacy": "Aviso de privacidad",
+      "support": "Soporte",
+      "terms": "Términos y condiciones",
+      "theme": "Tema",
+      "themeDark": "Oscuro",
+      "themeLight": "Claro",
+      "themeSystem": "Automático"
+    },
+    "google": {
+      "body": "Trae al asunto documentos de Drive, correos de Gmail y fechas de Calendar. Solo lo que autorices, y puedes desconectarlo cuando quieras.",
+      "title": "Google Drive, Gmail y Google Calendar"
+    },
+    "header": {
+      "home": "LiTT, inicio",
+      "nav": "Secciones",
+      "toDark": "Cambiar a tema oscuro",
+      "toLight": "Cambiar a tema claro"
+    },
+    "hero": {
+      "badge": "Beta cerrada",
+      "caption": "Ejemplo con datos ficticios. Toca una cita para ver su fuente.",
+      "eyebrow": "Para despachos y áreas legales en México",
+      "lede": "LiTT es un asistente jurídico con IA para despachos mexicanos. Trabaja sobre los documentos del asunto, redacta contigo en Word y revisa cada cita contra el texto citado antes de que la uses.",
+      "lede2": "Con las llaves de IA de tu despacho, en español de México y con código abierto.",
+      "note": "Beta por invitación. Escríbenos a <mail>soporte@asteroitt.com</mail>.",
+      "title": "Lo que dice LiTT, lo puedes comprobar."
+    },
+    "index": {
+      "i1": {
+        "body": "Pregunta sobre los documentos del asunto y recibe respuestas con cita a la fuente.",
+        "title": "Asistente sobre el asunto"
+      },
+      "i10": {
+        "body": "La interfaz, los avisos y los textos legales están escritos para la práctica mexicana. También en inglés.",
+        "title": "En español de México"
+      },
+      "i11": {
+        "body": "LiTT es software libre bajo AGPL-3.0. Cada versión enlaza al código exacto que está corriendo.",
+        "title": "Código abierto"
+      },
+      "i2": {
+        "body": "Cada cita se revisa sola contra el texto citado. Si no coincide, LiTT te lo dice.",
+        "title": "Verificación de citas"
+      },
+      "i3": {
+        "body": "Los criterios del despacho para cada tipo de contrato, aplicados igual por todo el equipo.",
+        "title": "Playbooks del despacho"
+      },
+      "i4": {
+        "body": "Lee PDF escaneados y divide un expediente en un archivo por documento.",
+        "title": "Escaneados y «Separar expediente»"
+      },
+      "i5": {
+        "body": "Compara dos versiones y obtén un documento nuevo con los cambios marcados.",
+        "title": "Comparar versiones de Word"
+      },
+      "i6": {
+        "body": "Cada despacho con sus asuntos y permisos. Los asuntos privados solo los ven sus miembros.",
+        "title": "Espacios del despacho con roles"
+      },
+      "i7": {
+        "body": "El aprendiz practica con LiTT y su mentor revisa, corrige y da seguimiento.",
+        "title": "Formación de aprendices"
+      },
+      "i8": {
+        "body": "Conecta Notion o Airtable para que el asistente consulte la información de tu despacho.",
+        "title": "Conectores MCP"
+      },
+      "i9": {
+        "body": "El despacho elige el modelo y usa su propia llave. LiTT no cambia de modelo sin avisarte.",
+        "title": "Llaves de IA propias"
+      },
+      "label": "Funciones disponibles"
+    },
+    "mcp": {
+      "body": "Usa todas las funciones de LiTT desde la IA que ya ocupas, con los mismos permisos. Cada sesión queda registrada en LiTT.",
+      "title": "LiTT desde Claude, ChatGPT u otra IA"
+    },
+    "meta": {
+      "description": "LiTT es un asistente jurídico con IA para despachos mexicanos: trabaja sobre los documentos del asunto, redacta en Word y verifica cada cita contra el texto citado.",
+      "title": "LiTT · Asistente jurídico con IA para despachos en México"
+    },
+    "nav": {
+      "soon": "Próximamente",
+      "trust": "Confianza",
+      "what": "Qué hace"
+    },
+    "s1": {
+      "intro": "Todo funciona hoy en la beta. Cada respuesta remite al documento y a la página de donde sale.",
+      "marker": "Primero",
+      "title": "Lo que ya hace por tu despacho."
+    },
+    "s2": {
+      "intro": "Cuatro funciones en camino. Llegarán primero a los despachos de la beta.",
+      "marker": "Segundo",
+      "tag": "Próximamente",
+      "title": "Lo que estamos preparando."
+    },
+    "s3": {
+      "intro": "Cómo está hecho LiTT, dicho sin letra chiquita. Todo se puede comprobar en el código.",
+      "marker": "Tercero",
+      "t1": {
+        "body": "Cada despacho usa su propia llave de IA. Si una llave falla, LiTT te avisa en lugar de usar otra.",
+        "title": "El modelo lo eliges tú"
+      },
+      "t2": {
+        "body": "Despachos, espacios y asuntos están separados en la base de datos. Un asunto privado solo lo ven sus miembros.",
+        "title": "Cada despacho, por separado"
+      },
+      "t3": {
+        "body": "No enviamos reportes de errores ni datos de uso a otras empresas.",
+        "title": "Sin telemetría de terceros"
+      },
+      "t4": {
+        "body": "La bitácora de auditoría y la evidencia de lo que hizo la IA solo admiten entradas nuevas.",
+        "title": "Un registro que no se reescribe"
+      },
+      "t5": {
+        "body": "Cada versión publicada enlaza a su <source>código fuente</source>, para que cualquiera lo revise.",
+        "title": "El código, a la vista"
+      },
+      "title": "Tus documentos y tus llaves siguen siendo tuyos."
+    },
+    "s4": {
+      "body": "Escríbenos a <mail>soporte@asteroitt.com</mail> con el nombre de tu despacho y cuántas personas usarían LiTT. Te respondemos por correo.",
+      "marker": "Cuarto",
+      "title": "Abrimos lugares en la beta poco a poco."
+    },
+    "specimen": {
+      "answer1": "Sobre la renta vencida corre un interés moratorio del 3 % mensual",
+      "answer2": "Con dos mensualidades sin pagar, el arrendador puede rescindir el contrato sin declaración judicial",
+      "checking": "Verificando la cita contra el documento…",
+      "cite": "Cita {n}",
+      "doc": "Arrendamiento — Bodega Tlalnepantla.pdf",
+      "page": "p. {page}",
+      "question": "¿Qué pasa si el arrendatario se atrasa con la renta?",
+      "src1": {
+        "clause": "Cláusula Décima Segunda",
+        "quote": "«…el Arrendatario pagará <mark>un interés moratorio del 3% (tres por ciento) mensual</mark> sobre las cantidades vencidas, desde la fecha de su vencimiento y hasta su pago total.»"
+      },
+      "src2": {
+        "clause": "Cláusula Décima Quinta",
+        "quote": "«<mark>La falta de pago de dos o más mensualidades</mark> de renta será causa de rescisión del presente contrato, <mark>sin necesidad de declaración judicial</mark>.»"
+      },
+      "verified": "Cita verificada: el texto aparece en la página {page}."
+    },
+    "tab": {
+      "body": "Haz las mismas preguntas a muchos documentos y recibe una sola tabla. Cada celda lleva su cita.",
+      "doc": {
+        "0": "Bodega Tlalnepantla.pdf",
+        "1": "Local Polanco.pdf",
+        "2": "Nave Querétaro.pdf",
+        "3": "Oficinas Monterrey.pdf"
+      },
+      "q": {
+        "0": "«El presente contrato tendrá una vigencia de 36 (treinta y seis) meses…»",
+        "1": "«…un interés moratorio del 3% (tres por ciento) mensual…»",
+        "11": "«…renuncian a cualquier otro fuero y se someten a los tribunales de Nuevo León…»",
+        "2": "«…las partes se someten a los tribunales competentes del Estado de México…»",
+        "3": "«La vigencia del arrendamiento será de 24 (veinticuatro) meses forzosos…»",
+        "4": "«…cubrirá un interés del 2% (dos por ciento) mensual sobre saldos insolutos…»",
+        "5": "«…se someten expresamente a los tribunales de la Ciudad de México…»",
+        "6": "«El presente contrato tendrá una vigencia de 60 (sesenta) meses…»",
+        "7": "«…pagará intereses moratorios a razón del 5% (cinco por ciento) mensual…»",
+        "8": "«…se someten a la jurisdicción de los tribunales de Querétaro, Querétaro…»",
+        "9": "«…por un plazo de 12 (doce) meses contados a partir de la entrega…»"
+      },
+      "region": "Ejemplo de revisión tabular",
+      "source": "{doc} · página {page}",
+      "thCourts": "Tribunales",
+      "thDoc": "Documento",
+      "thInterest": "Interés por atraso",
+      "thTerm": "Vigencia",
+      "title": "Revisión tabular",
+      "v": {
+        "0": "36 meses",
+        "1": "3 % mensual",
+        "10": "No se pactó",
+        "11": "Nuevo León",
+        "2": "Estado de México",
+        "3": "24 meses",
+        "4": "2 % mensual",
+        "5": "Ciudad de México",
+        "6": "60 meses",
+        "7": "5 % mensual",
+        "8": "Querétaro",
+        "9": "12 meses"
+      }
+    },
+    "word": {
+      "body": "Revisa y redacta dentro del documento, con control de cambios y los playbooks del despacho.",
+      "change": "Cambio sugerido: muestra u oculta el comentario.",
+      "clause0": "DÉCIMA PRIMERA. Pago de la renta.",
+      "clause1": "DÉCIMA SEGUNDA. Intereses moratorios.",
+      "comment": "El playbook «Arrendamiento, lado arrendador» fija un tope del 3 % mensual.",
+      "new": "3 %",
+      "old": "5 %",
+      "text0": "La renta se pagará por mes adelantado, dentro de los primeros cinco días naturales de cada mes, mediante transferencia a la cuenta que indique el Arrendador.",
+      "text1a": "En caso de retraso, el Arrendatario pagará un interés moratorio del",
+      "text1b": "mensual sobre las cantidades vencidas.",
+      "title": "Complemento para Word",
+      "who": "Cambio sugerido"
+    }
+  },
   "legal": {
     "back": "Volver",
     "toc": "Índice",

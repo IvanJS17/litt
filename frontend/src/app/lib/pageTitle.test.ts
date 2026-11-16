@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { isLegalPath } from "./legalRoutes";
+import { isLegalPath, isSessionlessPath } from "./legalRoutes";
 import { pageTitle } from "./pageTitle";
 
 vi.mock("next-intl/server", () => ({
@@ -19,5 +19,14 @@ describe("isLegalPath", () => {
 
     it.each(["/assistant", "/terminos-extra", "", null, undefined])("%s is not", (path) => {
         expect(isLegalPath(path)).toBe(false);
+    });
+});
+
+describe("isSessionlessPath", () => {
+    it.each(["/", "/terminos", "/privacidad/"])("does not ask for the session on %s", (path) => {
+        expect(isSessionlessPath(path)).toBe(true);
+    });
+    it.each(["/assistant", "/login", "/settings", "", null, undefined])("asks on %s", (path) => {
+        expect(isSessionlessPath(path)).toBe(false);
     });
 });

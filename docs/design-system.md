@@ -1005,6 +1005,42 @@ rest).
 - **Search engines:** off while the beta is closed; see
   [search-indexing.md](search-indexing.md).
 
+## Public start page
+
+`/` (`frontend/src/app/page.tsx`, components in
+`frontend/src/app/components/landing/`) is the public page of LiTT: the same
+page with or without a session, with no API call. Only the main button
+changes (`Iniciar sesión` → `/login`, `Abrir LiTT` → `/assistant`), and the
+server decides it from the session cookie (`lib/sessionHint.ts`), so the HTML
+already has the right one. The design is the owner-approved SPEC of
+2026-11-16; what matters for the next change:
+
+- **Tokens only.** Components use no hex color and no `blue`, `amber-`,
+  `orange-` or `green-` class (`landing.styles.test.ts` checks it). The only hex
+  values are in `landing/landing.css`: copies of the other theme's tokens for the
+  inverted band, pinned value by value by the same test. `dark:` appears only in
+  the header's sun/moon swap and in `CitationSpecimen` (to override
+  `CitationPillUI`'s own `dark:` classes). The one amber outside the wordmark is
+  the focus ring (`--litt-accent`).
+- **The inverted band** (SEGUNDO · Próximamente) takes the tokens of the other
+  theme on its own container: `.landing-band` in `landing/landing.css`
+  reassigns `--surface-*`, `--foreground`, `--muted-foreground`,
+  `--litt-accent` and the interactive tints. Inside it use the semantic
+  utilities (`text-muted-foreground`, `bg-surface-sheet`, `shadow-elev-float`),
+  never `text-gray-*`: `DarkPaletteUI.css` remaps those from `.dark` on `<html>`,
+  which a band on a dark page must not inherit. The values are pinned to
+  `DesignTokensUI.css` by a test.
+- **Departure Mono** only in `LANDING_PIXEL` (`landingStyles.ts`), for the five
+  details of the SPEC (BETA CERRADA, PRÓXIMAMENTE, PRIMERO…CUARTO).
+- **One white surface**: the page of the Word example (`bg-surface-document`,
+  listed in `noWhiteSurfaces.test.ts`).
+- **Motion**: no animation on scroll. The verification of the hero example
+  (once per session, `sessionStorage` key `litt:landing-intro`), the fade of a
+  new source and the header button's docking are the only ones, and every
+  `animation` is inside `prefers-reduced-motion: no-preference`.
+- The theme control writes `litt:theme` on the device (a visitor has no
+  profile); the language control is the sign-in screens' `setLocale`.
+
 ## Component catalog
 
 Every primitive in the table above has stories in the Ladle catalog. Run it
