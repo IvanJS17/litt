@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
-// The public start page (SPEC §13, acceptance 5 to 8): the design system's
+// The public start page (SPEC §13, acceptance 5 to 8; SPEC v2 §2.3 for the menu): the design system's
 // rules, checked on its own files.
 
 const HERE = __dirname;
@@ -112,5 +112,85 @@ describe("palette", () => {
     it("sets the Departure Mono details in one place, at 11 px", () => {
         const users = sources.filter(({ text }) => /font-pixel|PIXEL_TEXT_CLASS/.test(text));
         expect(users.map((u) => u.file)).toEqual(["landingStyles.ts"]);
+    });
+});
+
+describe("the phone menu", () => {
+    const root = postcss.parse(css);
+    const rule = (selector: string) => {
+        let found: postcss.Rule | undefined;
+        root.walkRules((r) => {
+            if (r.selector.replace(/\s+/g, " ") === selector && !found) found = r;
+        });
+        return found;
+    };
+    const decl = (selector: string, prop: string) => {
+        let value: string | undefined;
+        rule(selector)?.walkDecls(prop, (d) => {
+            value = d.value.replace(/\s+/g, " ");
+        });
+        return value;
+    };
+
+    it("moves with transitions, not keyframes, so a close in the middle can turn back", () => {
+        expect(decl(".landing-menu", "transition")).toMatch(/clip-path 160ms/);
+        expect(decl(".landing-scrim", "transition")).toMatch(/opacity 160ms/);
+        expect(decl("html.menu-open .landing-menu", "transition-duration")).toBe("220ms");
+        expect(decl("html.menu-open .landing-scrim", "transition-duration")).toBe("220ms");
+        const keyframes: string[] = [];
+        root.walkAtRules("keyframes", (at) => {
+            keyframes.push(at.params);
+        });
+        expect(keyframes).toEqual(["landing-swap"]);
+    });
+
+    it("has no transition at all under reduced motion", () => {
+        let silenced = "";
+        root.walkAtRules("media", (at) => {
+            if (at.params === "(prefers-reduced-motion: reduce)") silenced += at.toString();
+        });
+        expect(silenced).toMatch(/\.landing-menu/);
+        expect(silenced).toMatch(/\.landing-scrim/);
+        expect(silenced).toMatch(/\.landing-menu-bars span/);
+        expect(silenced).toMatch(/transition: none !important/);
+    });
+
+    it("locks the page's scroll, keeps the panel's own and honors the safe areas", () => {
+        expect(rule("html.menu-open, html.menu-open body")).toBeDefined();
+        expect(decl("html.menu-open, html.menu-open body", "overflow")).toBe("hidden");
+        expect(decl(".landing-menu", "overscroll-behavior")).toBe("contain");
+        expect(decl(".landing-menu", "overflow-y")).toBe("auto");
+        expect(decl(".landing-menu", "max-height")).toBe("calc(100dvh - 100%)");
+        expect(decl(".landing-menu", "padding-block")).toMatch(/env\(safe-area-inset-bottom\)/);
+        expect(decl(".landing-scrim", "touch-action")).toBe("none");
+    });
+
+    it("hides the closed panel and the backdrop, and its rows are 56 px high", () => {
+        expect(decl(".landing-menu[hidden]", "display")).toBe("none");
+        expect(decl(".landing-scrim[hidden]", "display")).toBe("none");
+        expect(decl(".landing-menu-link", "min-height")).toBe("56px");
+    });
+
+    it("sits under the sticky header and over the page", () => {
+        expect(decl(".landing-scrim", "z-index")).toBe("15");
+        const header = readFileSync(join(HERE, "LandingHeader.tsx"), "utf8");
+        expect(header).toMatch(/sticky top-0 z-20/);
+    });
+
+    it("hands hover only to a fine pointer", () => {
+        let hover = "";
+        root.walkAtRules("media", (at) => {
+            if (at.params === "(hover: hover) and (pointer: fine)") hover += at.toString();
+        });
+        expect(hover).toMatch(/\.landing-menu-link:hover/);
+        expect(css).not.toMatch(/^\.landing-menu-link:hover/m);
+    });
+
+    it("has a 44 px button with a name, state and the panel it controls", () => {
+        const header = readFileSync(join(HERE, "LandingHeader.tsx"), "utf8");
+        expect(header).toMatch(/size-11[^"]*min-\[880px\]:hidden|min-\[880px\]:hidden[^"]*size-11/);
+        expect(header).toMatch(/aria-expanded=\{open\}/);
+        expect(header).toMatch(/aria-controls=\{MENU_ID\}/);
+        expect(header).toMatch(/aria-label=\{t\("landing\.header\.menu"\)\}/);
     });
 });
