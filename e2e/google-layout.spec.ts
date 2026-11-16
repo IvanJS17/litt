@@ -28,9 +28,14 @@ for (const width of [390, 1280]) {
     });
     await page.goto("/settings/connectors");
     const discover = page.getByRole("region", { name: "Discover", exact: true });
-    // LiTT suggests no third-party connector, so the Google cards are the
-    // whole Discover list; they share one card component and one height.
+    // Discover holds the Google cards and the two suggested MCP servers
+    // (Notion and Airtable); they all share one card component and one height.
     const drive = discover.getByRole("region", { name: "Google Drive connector", exact: true });
+    for (const name of ["Notion", "Airtable"]) {
+      await expect(
+        discover.getByRole("button", { name: `Add ${name} connector`, exact: true }),
+      ).toBeEnabled();
+    }
     await expect(drive.getByRole("button", { name: "Add Google Drive connector" })).toBeEnabled();
     const cardHeight = await drive.evaluate((element) => element.getBoundingClientRect().height);
     for (const name of ["Google Drive", "Gmail", "Google Calendar"]) {
@@ -142,8 +147,7 @@ for (const addressKind of ["normal", "long"] as const) {
         await expect(logo).toBeVisible();
         await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
       }
-      // The installed cards share one card component, so they match. LiTT
-      // suggests no third-party connector, so Discover has no card to compare.
+      // The installed cards share one card component, so they match.
       const heightOf = (region: ReturnType<typeof installed.getByRole>) =>
         region.evaluate((element) => element.getBoundingClientRect().height);
       const cardHeight = await heightOf(
