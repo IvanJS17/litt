@@ -15,8 +15,10 @@ configured yet, so no one can connect any Google service; Google work is on
 hold. When `GOOGLE_WORKSPACE_DISABLED_PROVIDERS` is **unset**, the backend keeps
 **Google Drive off** (Gmail and Calendar stay on and show their setup steps).
 A list that is set, even an empty one, replaces that default.
-`deploy/prod/compose.yaml` passes the variable with `-` (not `:-`) precisely so
-that an unset variable keeps the code default. The variables it passes are
+`deploy/prod/compose.yaml` passes the variable as `${...-google-drive}` (with `-`,
+not `:-`). Unset gives `google-drive` either way; the difference is an **empty**
+list: `-` passes it through, so an operator can turn all three on, while `:-`
+would turn it back into `google-drive`. The variables it passes are
 `GOOGLE_WORKSPACE_OAUTH_CLIENT_ID/_SECRET`, `GOOGLE_DRIVE_OAUTH_CLIENT_ID/_SECRET`,
 `GOOGLE_DRIVE_PICKER_API_KEY`, `GOOGLE_DRIVE_PICKER_APP_ID` and
 `GOOGLE_WORKSPACE_DISABLED_PROVIDERS`. The local template

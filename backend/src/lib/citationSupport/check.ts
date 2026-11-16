@@ -93,10 +93,13 @@ const FOREIGN_KEY_VIOLATION = "23503";
  */
 export async function forgetCitationSupportChecks(
     db: Db,
-    owner: Pick<CitationSupportScope, "surface" | "ownerId">,
+    owner: Pick<CitationSupportScope, "surface" | "ownerId"> | { surface: CitationSupportSurface; ownerIds: readonly string[] },
 ): Promise<void> {
     try {
-        await db.from("citation_support_checks").delete().eq(OWNER_COLUMN[owner.surface], owner.ownerId);
+        const query = db.from("citation_support_checks").delete();
+        await ("ownerIds" in owner
+            ? query.in(OWNER_COLUMN[owner.surface], [...owner.ownerIds])
+            : query.eq(OWNER_COLUMN[owner.surface], owner.ownerId));
     } catch {
         // Silent mode.
     }

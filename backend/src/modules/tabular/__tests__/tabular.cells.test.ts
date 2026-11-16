@@ -239,6 +239,35 @@ describe("clearTabularReviewCells", () => {
         expect(fake.rpcCalls[1].fn).toBe("finish_tabular_review_generation");
     });
 
+    it("forgets the citation checks of the cells it blanked", async () => {
+        const fake = makeFakeDb({
+            tables: {
+                tabular_reviews: { data: REVIEW, error: null },
+                tabular_cells: { data: [{ id: "cell-1" }, { id: "cell-2" }], error: null },
+            },
+            rpc: (fn) =>
+                fn === "begin_tabular_review_generation"
+                    ? started()
+                    : { data: null, error: null },
+        });
+        const result = await clearTabularReviewCells(fake.db, {
+            reviewId: "rev-1",
+            ...WHO,
+            rowIds: ["row-1"],
+            log: LOG,
+        });
+        expect(result).toEqual({ ok: true, data: null });
+        expect(
+            fake.calls.filter((c) => c.table === "citation_support_checks"),
+        ).toEqual([
+            {
+                table: "citation_support_checks",
+                op: "delete",
+                filters: { tabular_cell_id: ["cell-1", "cell-2"] },
+            },
+        ]);
+    });
+
     it("reaps queued jobs before blanking, only in async mode", async () => {
         process.env.ASYNC_TABULAR_EXTRACTION = "true";
         const fake = makeFakeDb({

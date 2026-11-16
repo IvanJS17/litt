@@ -25,7 +25,9 @@ import {
 } from "../../lib/queue/extractionQueue";
 import { queryTabularCell } from "./tabular.extract";
 import { finalizeCell } from "./tabular.extractRow";
-import { createTabularCellCheck } from "./tabular.citationSupport";
+import { createTabularCellCheck, forgetTabularCellChecks } from "./tabular.citationSupport";
+
+/** Cells per delete, so the id list stays small in the request. */
 import { awaitCellTerminal } from "./tabular.generateStream";
 import { loadReviewRow, loadRowDocumentText } from "./tabular.rows";
 import {
@@ -137,7 +139,7 @@ export async function clearTabularReviewCells(
             }
         }
 
-        const { error } = await db
+        const { data: cleared, error } = await db
             .from("tabular_cells")
             .update({
                 content: null,
@@ -145,8 +147,12 @@ export async function clearTabularReviewCells(
                 generation_id: null,
             })
             .eq("review_id", reviewId)
-            .in("row_id", rowIds);
+            .in("row_id", rowIds)
+            .select("id");
         if (error) return internalFailure(error);
+        // The silent citation check results belong to the content that was
+        // just blanked. Best-effort: forgetting never throws.
+        await forgetTabularCellChecks(db, ((cleared as { id: string }[] | null) ?? []).map((cell) => cell.id));
         return { ok: true, data: null };
     } finally {
         const { error } = await db.rpc("finish_tabular_review_generation", {

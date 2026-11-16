@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import {
   MfaVerificationPopup,
@@ -100,6 +100,10 @@ export function ApiKeyField({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // The "Saved" label goes back to "Save" after a moment; the timer is
+  // dropped with the field so it never fires on one that is gone.
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
   const [pendingMfaAction, setPendingMfaAction] = useState<
     "save" | "remove" | null
   >(null);
@@ -175,7 +179,8 @@ export function ApiKeyField({
       if (ok) {
         setValue("");
         setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        clearTimeout(savedTimer.current);
+        savedTimer.current = setTimeout(() => setSaved(false), 2000);
       } else {
         // The caller reports failure as `false`, with no error to classify.
         notifyError(
