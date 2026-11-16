@@ -126,7 +126,7 @@ function child(directory: string, attempt: string) {
     testFile, "--pool=forks", "--maxWorkers=1", "--no-file-parallelism"], {
     encoding: "utf8", timeout: 90_000,
     env: { ...process.env, PLAYBOOK_NATIVE_ATTEMPT: attempt, PLAYBOOK_NATIVE_ATTEMPT_DIR: directory,
-      DB_JOBS_ENABLED: "true", DOWNLOAD_SIGNING_SECRET: "synthetic-native-test-only", SENTRY_DSN: "" },
+      DB_JOBS_ENABLED: "true", DOWNLOAD_SIGNING_SECRET: "synthetic-native-test-only" },
   });
   writeFileSync(join(directory, `${attempt}.log`), `${result.stdout}\n${result.stderr}`);
   if (result.error) throw result.error;

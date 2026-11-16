@@ -85,7 +85,7 @@ it.each([
     expect((thrown as Error).cause).toBe(error);
     if (level === null) {
         expect(reportError).not.toHaveBeenCalled();
-        // Its log line must not reach Sentry through the console bridge.
+        // Its log line must stay out of the report path.
         expect(markErrorHandled).toHaveBeenCalledWith(thrown);
     } else {
         expect(reportError).toHaveBeenCalledTimes(1);

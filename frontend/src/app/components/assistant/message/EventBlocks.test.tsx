@@ -189,7 +189,7 @@ describe("document step labels", () => {
     });
 });
 
-describe("stopped reads, finds and CourtListener calls", () => {
+describe("stopped reads and finds", () => {
     it("labels a stopped document read as stopped", () => {
         render(<DocReadBlock filename="brief.docx" interrupted />);
         expect(screen.getByText("Read stopped")).toBeInTheDocument();
