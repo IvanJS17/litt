@@ -505,28 +505,16 @@ describe("AssistantMessage stopped steps", () => {
         vi.unstubAllGlobals();
     });
 
-    it("labels connector and CourtListener steps the turn stopped as stopped, without invented counts", () => {
+    it("labels a connector step the turn stopped as stopped", () => {
         render(<AssistantMessage isStreaming events={[
             { type: "mcp_tool_call", connector_id: "", connector_name: "", tool_name: "crm_update_record",
                 openai_tool_name: "crm_update_record", status: "ok", interrupted: true },
-            { type: "courtlistener_search_case_law", query: "fair use", interrupted: true },
-            { type: "courtlistener_get_cases", cluster_ids: [1, 2], interrupted: true },
-            { type: "courtlistener_find_in_case", cluster_id: 1, query: "damages", interrupted: true },
-            { type: "courtlistener_read_case", cluster_id: 1, interrupted: true },
-            { type: "courtlistener_verify_citations", citation_count: 3, interrupted: true },
         ]} />);
         for (const label of [
             "Connector call stopped",
-            "Case law search stopped",
-            "Fetch of 2 cases stopped",
-            "Case search stopped",
-            "Case read stopped case",
-            "Verification of 3 citations stopped",
         ]) {
             expect(screen.getByText(label)).toBeInTheDocument();
         }
-        expect(screen.queryByText(/0 results|0 matches/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/^Searched case law|^Fetched|^Verified|^Read case/)).not.toBeInTheDocument();
     });
 
     it("says a subagent the turn stopped was stopped, not finished", () => {
@@ -555,9 +543,11 @@ describe("AssistantMessage stopped steps", () => {
     const reloaded = (events: AssistantEvent[]) => {
         render(<AssistantMessage events={[
             ...events,
-            { type: "content", text: "Cancelled by user." },
+            { type: "stopped" },
         ]} />);
         fireEvent.click(screen.getByRole("button", { name: /subagent/ }));
+        // LiTT: the reloaded stopped turn's timeline opens one level deeper.
+        fireEvent.click(screen.getAllByRole("button", { name: /subagent/ }).at(-1)!);
     };
 
     it("says a stored cancelled subagent was stopped, not finished", () => {

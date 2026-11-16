@@ -262,7 +262,7 @@ export function createTurnEventSink(
         delete (rest as { isStreaming?: boolean }).isStreaming;
         // Text that stopped streaming is simply finished. Every other step
         // that never reported its result (a document change, a read or
-        // search, a connector or CourtListener call, a subagent) may or may
+        // search, a connector call, a subagent) may or may
         // not have happened: show it as stopped, not as done.
         if (rest.type === "content" || rest.type === "reasoning") {
           return rest as AssistantEvent;

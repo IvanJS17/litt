@@ -612,11 +612,6 @@ describe("error frames", () => {
   // Every other kind of step a turn can end on before its result arrives.
   const unfinishedSteps: [string, Frame, string][] = [
     ["a connector call", { type: "mcp_tool_start", name: "crm_update_record" }, "mcp_tool_call"],
-    ["a case law search", { type: "courtlistener_search_case_law_start", query: "fair use" }, "courtlistener_search_case_law"],
-    ["a case fetch", { type: "courtlistener_get_cases_start", cluster_ids: [1, 2] }, "courtlistener_get_cases"],
-    ["a search in a case", { type: "courtlistener_find_in_case_start", cluster_id: 1, query: "damages" }, "courtlistener_find_in_case"],
-    ["a case read", { type: "courtlistener_read_case_start", cluster_id: 1 }, "courtlistener_read_case"],
-    ["a citation check", { type: "courtlistener_verify_citations_start", citation_count: 3 }, "courtlistener_verify_citations"],
     ["a document read", { type: "doc_read_start", filename: "brief.docx" }, "doc_read"],
     ["a document find", { type: "doc_find_start", filename: "brief.docx", query: "term" }, "doc_find"],
     ["a document search", { type: "doc_search_start", search_id: "s1", scope: "project", query: "term", offset: 0 }, "doc_search"],
