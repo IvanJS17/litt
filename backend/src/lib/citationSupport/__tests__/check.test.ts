@@ -7,7 +7,12 @@ vi.mock("../../observability/report", () => ({
     },
 }));
 
-import { createCitationSupportRunner, createCitationSupportTurn, runCitationSupportChecks } from "../check";
+import {
+    createCitationSupportRunner,
+    createCitationSupportTurn,
+    forgetCitationSupportChecks,
+    runCitationSupportChecks,
+} from "../check";
 import type { CitationSupportInput } from "../inputs";
 
 // The real TypeSafe API and database are never touched: both are mocks.
@@ -362,30 +367,22 @@ describe("the other owners of a result", () => {
         expect(set).toEqual([column]);
     });
 
-    it("removes the check of a cell's previous content before the new one, and only for cells", async () => {
-        const deleted: Record<string, unknown>[] = [];
-        const rows: Record<string, unknown>[] = [];
+    it("writes nothing but the delete when an owner is forgotten, against that owner's column", async () => {
+        const deleted: unknown[] = [];
         const db = {
-            from: () => ({
+            from: (table: string) => ({
                 delete: () => ({
                     eq: async (column: string, value: unknown) => {
-                        deleted.push({ column, value });
+                        deleted.push([table, column, value]);
                         return { error: null };
                     },
                 }),
-                insert: async (row: Record<string, unknown>) => {
-                    rows.push(row);
-                    return { error: null };
-                },
             }),
         } as never;
-        const ask = deps(vi.fn(async () => jevAnswer(0.8)));
-        await runCitationSupportChecks({ db, apiKey: SECRET, scope: { ...SCOPE, surface: "tabular_cell" }, inputs: [input(1)], deps: ask });
-        expect(deleted).toEqual([{ column: "tabular_cell_id", value: "message-1" }]);
-        await runCitationSupportChecks({ db, apiKey: SECRET, scope: { ...SCOPE, surface: "playbook" }, inputs: [input(1)], deps: ask });
-        await runCitationSupportChecks({ db, apiKey: SECRET, scope: SCOPE, inputs: [input(1)], deps: ask });
-        expect(deleted).toHaveLength(1);
-        expect(rows).toHaveLength(3);
+        await forgetCitationSupportChecks(db, { surface: "tabular_cell", ownerId: "cell-1" });
+        expect(deleted).toEqual([["citation_support_checks", "tabular_cell_id", "cell-1"]]);
+        const exploding = { from: () => { throw new Error("db down"); } } as never;
+        await expect(forgetCitationSupportChecks(exploding, { surface: "tabular_cell", ownerId: "cell-1" })).resolves.toBeUndefined();
     });
 });
 

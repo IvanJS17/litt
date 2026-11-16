@@ -106,6 +106,31 @@ describe("chatCitationInputs", () => {
         expect(sent).not.toContain("Plazo\"");
     });
 
+    it("reads COL/ROW as positions, not as the column's own index (which has gaps after a column is deleted)", async () => {
+        const gapped = {
+            columns: [{ index: 0, name: "Partes" }, { index: 2, name: "Plazo" }, { index: 3, name: "Renta" }],
+            documents: [{ id: DOC, filename: "contrato.pdf" }],
+            cells: new Map([
+                [`0:${DOC}`, { summary: "Arrendador y arrendatario." }],
+                [`2:${DOC}`, { summary: "Doce meses forzosos." }],
+                [`3:${DOC}`, { summary: "Renta de 15 mil pesos." }],
+            ]),
+        } as never;
+        const run = (col: number, quote: string) =>
+            chatCitationInputs({
+                fullText: "Dice esto [1].",
+                annotations: [{ ref: 1, col_index: col, row_index: 0, quote }],
+                store: gapped,
+            });
+        const plazo = await run(1, "Doce meses forzosos.");
+        expect(plazo).toHaveLength(1);
+        expect(plazo[0].state.contexto).toBe("Doce meses forzosos.");
+        const renta = await run(2, "Renta de 15 mil pesos.");
+        expect(renta).toHaveLength(1);
+        expect(renta[0].state.contexto).toBe("Renta de 15 mil pesos.");
+        expect(await run(3, "Renta de 15 mil pesos.")).toEqual([]);
+    });
+
     it("ignores a citation of a cell that does not exist", async () => {
         const inputs = await chatCitationInputs({
             fullText: "Algo [1].",
@@ -134,10 +159,17 @@ describe("where the tabular check runs code", () => {
         process.env.LITT_CITATION_CHECK = "enabled";
         process.env.TYPESAFE_API_KEY = "synthetic-key";
         const tables: string[] = [];
+        const deleted: unknown[] = [];
         const db = {
             from: (table: string) => {
                 tables.push(table);
                 return {
+                    delete: () => ({
+                        eq: async (column: string, value: unknown) => {
+                            deleted.push([column, value]);
+                            return { error: null };
+                        },
+                    }),
                     select: () => ({
                         eq: () => ({
                             maybeSingle: async () => ({ data: { citation_check: true, terms_accepted_version: "old" }, error: null }),
@@ -155,6 +187,37 @@ describe("where the tabular check runs code", () => {
             sourceDocumentIds: [DOC],
         });
         await new Promise((resolve) => setTimeout(resolve, 20));
-        expect(tables).toEqual(["user_profiles"]);
+        // The old content's results go; nothing else is read before the permission.
+        expect(tables).toEqual(["citation_support_checks", "user_profiles"]);
+        expect(deleted).toEqual([["tabular_cell_id", "c"]]);
+    });
+
+    it("removes the previous content's results of a cell regenerated with nothing to check", async () => {
+        process.env.LITT_CITATION_CHECK = "enabled";
+        process.env.TYPESAFE_API_KEY = "synthetic-key";
+        const tables: string[] = [];
+        const deleted: unknown[] = [];
+        const db = {
+            from: (table: string) => {
+                tables.push(table);
+                return {
+                    delete: () => ({
+                        eq: async (column: string, value: unknown) => {
+                            deleted.push([column, value]);
+                            return { error: null };
+                        },
+                    }),
+                };
+            },
+        } as never;
+        createTabularCellCheck({ db, userId: "u", reviewId: "r" })!({
+            cellId: "c",
+            result: { summary: "Sin citas.", flag: "grey", reasoning: "" },
+            markdown,
+            sourceDocumentIds: [DOC],
+        });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(deleted).toEqual([["tabular_cell_id", "c"]]);
+        expect(tables).toEqual(["citation_support_checks"]);
     });
 });

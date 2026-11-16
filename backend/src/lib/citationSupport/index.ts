@@ -1,6 +1,7 @@
 export {
     createCitationSupportRunner,
     createCitationSupportTurn,
+    forgetCitationSupportChecks,
     runCitationSupportChecks,
     type CitationSupportOutcome,
     type CitationSupportRunner,

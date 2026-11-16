@@ -11,6 +11,7 @@ import {
     buildCitationSupportInputs,
     createCitationSupportRunner,
     claimForRef,
+    forgetCitationSupportChecks,
     inputFromSpans,
     MAX_CHECKED_CITATIONS,
     type CitationSupportInput,
@@ -130,9 +131,13 @@ export async function chatCitationInputs(args: {
     annotations: readonly { ref: number; col_index: number; row_index: number; quote: string }[];
     store: TabularCellStore;
 }): Promise<CitationSupportInput[]> {
+    // col_index and row_index are positions (the COL/ROW numbers of the
+    // prompt); the store keys cells by the column's own index, which has gaps
+    // once a column is deleted.
     const cellText = (annotation: { col_index: number; row_index: number }) => {
+        const column = args.store.columns[annotation.col_index];
         const document = args.store.documents[annotation.row_index];
-        const cell = document ? args.store.cells.get(`${annotation.col_index}:${document.id}`) : null;
+        const cell = column && document ? args.store.cells.get(`${column.index}:${document.id}`) : null;
         return cell ? plainCell(cell) : "";
     };
     const citations = args.annotations.flatMap((annotation) => {
@@ -181,6 +186,9 @@ export function createTabularCellCheck(args: {
     return (cell) => {
         void (async () => {
             try {
+                // The previous content's results go first, even when the new
+                // content has nothing to check.
+                await forgetCitationSupportChecks(args.db, { surface: "tabular_cell", ownerId: cell.cellId });
                 const inputs = cellCitationInputs(cell);
                 if (!inputs.length) return;
                 runner ??= createCitationSupportRunner({

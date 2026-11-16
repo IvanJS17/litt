@@ -195,12 +195,15 @@ Per path:
   cannot find in the document is skipped, as in the chat. `citation_ref` is the
   marker's order in the cell (summary first, then reasoning). A cell is
   regenerated in place, so the check of its previous content is deleted before
-  the new one is written (the only place the table is ever deleted from besides
-  the cascade; `service_role` has `delete` for it).
+  the new one is written, also when the new content has nothing to check (the
+  only place the table is ever deleted from besides the cascade; `service_role`
+  has `delete` for it).
 - **Tabular chat.** The chat's citations quote the review's **own cells**, not
   the source documents. The claim is the answer's sentence with the marker, the
   quote is the cited cell text, and the context is that cell's paragraph (the
-  cell's words, without its citation markers). This tests whether the assistant
+  cell's words, without its citation markers). The citation's `col_index` is
+  the `COL:n` position the prompt lists, translated to the column's own index
+  before the cell is read (indexes have gaps once a column is deleted). This tests whether the assistant
   represented the cell faithfully, not whether the cell is right about the
   contract (the cell check does that).
 - **Playbook drafts.** Claim: the rule's name and its standard's criteria (or

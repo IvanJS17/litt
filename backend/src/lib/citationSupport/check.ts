@@ -62,6 +62,23 @@ const UNIQUE_VIOLATION = "23505";
 const FOREIGN_KEY_VIOLATION = "23503";
 
 /**
+ * Delete the results of an owner whose content is replaced in place (a
+ * regenerated tabular cell), whether or not the new content has anything to
+ * check, so no result of the old content stays. Never throws: on a failure the
+ * unique index keeps the older result and nothing else is affected.
+ */
+export async function forgetCitationSupportChecks(
+    db: Db,
+    owner: Pick<CitationSupportScope, "surface" | "ownerId">,
+): Promise<void> {
+    try {
+        await db.from("citation_support_checks").delete().eq(OWNER_COLUMN[owner.surface], owner.ownerId);
+    } catch {
+        // Silent mode.
+    }
+}
+
+/**
  * Check every input and write the evidence. Never throws: a failure is
  * counted and reported. After a refused key (401, 402, 403) the remaining
  * citations of the answer are not sent.
@@ -80,19 +97,6 @@ export async function runCitationSupportChecks(args: {
         outcome.failed += 1;
         outcome.firstFailure ??= code;
     };
-
-    // A tabular cell is regenerated in place: the check of its previous
-    // content goes before the new one is written, so no stale result stays.
-    if (args.scope.surface === "tabular_cell" && queue.length) {
-        try {
-            await args.db
-                .from("citation_support_checks")
-                .delete()
-                .eq(OWNER_COLUMN.tabular_cell, args.scope.ownerId);
-        } catch {
-            // The unique index then keeps the older result; nothing else is affected.
-        }
-    }
 
     const worker = async () => {
         for (let input = queue.shift(); input; input = queue.shift()) {
