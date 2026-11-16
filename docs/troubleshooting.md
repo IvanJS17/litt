@@ -20,7 +20,7 @@ matched by email.
 
 Authentication email is sent by Supabase Auth. Check its email-provider
 settings, delivery logs, and rate limits, and configure production SMTP in the
-Supabase dashboard. Mike intentionally shows the same password-reset response
+Supabase dashboard. LiTT intentionally shows the same password-reset response
 for registered and unregistered addresses, so that screen cannot confirm
 whether an account exists.
 
@@ -40,7 +40,7 @@ verify that the latest database migration has been applied
 
 ## Port 54322 is already allocated
 
-Another local Postgres or Supabase stack is using Mike's default host port.
+Another local Postgres or Supabase stack is using LiTT's default host port.
 `npm run stack:status` lists the stacks this repository has left behind,
 including active stacks in other checkouts. Stop the one holding the port
 (`npm run stack:down -- -p <project>` or
@@ -63,7 +63,7 @@ Add a key under **Settings > API Keys**, or configure it in
 `backend/.env` and restart the backend.
 
 For local Ollama models, confirm `ollama list` shows an installed model and the
-backend can reach the URL configured by `OLLAMA_BASE_URL`. Refresh Mike after
+backend can reach the URL configured by `OLLAMA_BASE_URL`. Refresh LiTT after
 installing a model.
 
 ## DOC or DOCX conversion fails

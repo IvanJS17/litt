@@ -48,7 +48,7 @@ Ajustes del despacho · <nombre>
 | Seguridad | personal | `/settings/security` | everyone |
 | Privacidad y datos | personal | `/settings/privacy-data` | everyone, unless the firm lets members neither export nor delete (the opt-out «Verificar mis citas con TypeSafe» is shown to everyone, whatever the firm decides, but only where the deployment runs the check) |
 | Mi actividad | personal | `/settings/my-activity` | everyone |
-| Personalización, Memoria, Apariencia | personal | `/settings/personalisation`, `/memory`, `/appearance` | everyone |
+| Personalización, Memoria, Apariencia (theme Light / Dark / Auto, text size) | personal | `/settings/personalisation`, `/memory`, `/appearance` | everyone |
 | Asistente | personal | `/settings/assistant` | everyone |
 | Preferencias de modelos | personal | `/settings/models` | everyone |
 | Mis llaves de IA | personal | `/settings/byok` | everyone |

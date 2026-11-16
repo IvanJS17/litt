@@ -12,7 +12,7 @@ Feature proposal: [#560](https://github.com/open-legal-products/mike/issues/560)
 ## Problem
 
 Library → Templates accepts uploads, but users must find and download a starting
-document outside Mike before they can use it. The public contract collection
+document outside LiTT before they can use it. The public contract collection
 downloaded on 2026-09-30 contains reusable agreements and supporting documents
 from General Legal, Common Paper, and Bonterms.
 
