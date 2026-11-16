@@ -53,6 +53,7 @@ import {
 import { playbooksRouter } from "./modules/playbooks/playbooks.routes";
 import { aiRecoveryRouter } from "./modules/ai-recovery/ai-recovery.routes";
 import { matterSettingsRouter, mattersRouter } from "./modules/matters/matters.routes";
+import { requestsRouter, requestTypesRouter } from "./modules/requests/requests.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
   handleUnhandledError,
@@ -350,6 +351,7 @@ app.use("/chat", chatRouter);
 app.use("/word-chat", wordChatRouter);
 app.use("/models", modelsRouter);
 app.use("/projects/:projectId/ai-executions", aiRecoveryRouter);
+app.use("/projects/:projectId/matters/:matterId/requests", requestsRouter);
 app.use("/projects/:projectId/matters", matterSettingsRouter);
 app.use("/matters", mattersRouter);
 app.use("/projects/:projectId/memory", projectMemoryRouter);
@@ -367,6 +369,7 @@ app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/gym/attempts", pupilGymRouter);
 app.use("/orgs/:orgId/training/gym/cases", gymCasesRouter);
 app.use("/orgs/:orgId/firm-criteria", firmCriteriaRouter);
+app.use("/orgs/:orgId/request-types", requestTypesRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/platform", platformRouter);

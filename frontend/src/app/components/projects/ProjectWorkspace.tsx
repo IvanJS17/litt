@@ -609,6 +609,14 @@ export function ProjectWorkspaceProvider({
                         onProjectRoot={openProjectRoot}
                         onOpenDetails={() => setProjectDetailsOpen(true)}
                         onOpenMemory={() => setProjectMemoryOpen(true)}
+                        onOpenRequests={
+                            project?.matter_id
+                                ? () =>
+                                      router.push(
+                                          `/projects/${encodeURIComponent(projectId)}/matters/${encodeURIComponent(project.matter_id!)}/requests`,
+                                      )
+                                : null
+                        }
                         onDeleteProject={requestProjectDelete}
                         onSearchChange={setSearch}
                         onOpenAccess={() => setAccessModalOpen(true)}

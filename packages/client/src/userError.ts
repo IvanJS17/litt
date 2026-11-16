@@ -249,6 +249,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     firm_profile_too_large: "validation",
     // A Markdown edit was made on a version that is no longer the current one.
     document_version_conflict: "conflict",
+    // Requests of a retainer matter: another change came first; only the matter
+    // owner and editors write.
+    request_version_conflict: "conflict",
+    matter_write_required: "forbidden",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
     // LiTT governed BYOK: a conversation keeps the route it was started on.

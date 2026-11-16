@@ -1069,6 +1069,7 @@
       "invitation_email_invalid": "Escribe una dirección de correo válida.",
       "matter_has_owner": "Este asunto ya tiene propietario.",
       "matter_owner_target_invalid": "Elige a un miembro actual del despacho.",
+      "matter_write_required": "Solo quien lleva el asunto y los editores pueden cambiar sus solicitudes.",
       "member_data_action_disabled": "Los propietarios de este despacho no permiten que los miembros hagan esto.",
       "memory_revision_conflict": "La memoria cambió desde que se cargó. Revisa lo que está guardado ahora e inténtalo de nuevo.",
       "mfa_verification_required": "Completa la verificación en dos pasos para continuar.",
@@ -1091,6 +1092,7 @@
       "playbook_proposals_running": "Se están calculando los cambios propuestos para este playbook. Espera a que terminen.",
       "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
       "request_too_large": "La solicitud es demasiado grande.",
+      "request_version_conflict": "Esta solicitud cambió desde que la abriste. Recárgala para continuar.",
       "review_running": "Esta revisión tabular ya se está ejecutando.",
       "review_stale": "Hay una versión más reciente de esta revisión tabular.",
       "session_expired": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
@@ -3185,6 +3187,141 @@
     "savedSuccessfully": "Guardado correctamente",
     "sinCarpetaConfigurada": "Sin carpeta configurada",
     "usaElIdExactoLetrasNumeros": "Usa el ID exacto (letras, números, guion y guion bajo). No se aceptan URLs."
+  },
+  "requests": {
+    "title": "Solicitudes",
+    "subtitle": "Lo que tu cliente te pide en esta iguala, quién lo lleva y en qué punto va.",
+    "new": "Nueva solicitud",
+    "backToMatter": "Volver al asunto",
+    "couldNotLoad": "No se pudieron cargar las solicitudes.",
+    "couldNotOpen": "No se pudo abrir la solicitud.",
+    "couldNotCreate": "No se pudo crear la solicitud.",
+    "retry": "Reintentar",
+    "loading": "Cargando solicitudes",
+    "retainer": {
+      "offTitle": "Este asunto no es una iguala",
+      "offOwner": "Márcalo como iguala para llevar aquí las solicitudes de tu cliente. Solo los asuntos de iguala reciben solicitudes.",
+      "offMember": "Pide a quien lleva el asunto que lo marque como iguala. Solo los asuntos de iguala reciben solicitudes.",
+      "mark": "Marcar como iguala",
+      "unmark": "Dejar de tratar este asunto como iguala",
+      "hasRequests": "Este asunto ya tiene solicitudes, así que sigue siendo una iguala.",
+      "couldNotChange": "No se pudo cambiar la marca de iguala."
+    },
+    "list": {
+      "label": "Solicitudes de este asunto",
+      "show": "Mostrar",
+      "all": "Todas las solicitudes",
+      "open": "Abiertas",
+      "finished": "Cerradas o canceladas",
+      "emptyTitle": "Aquí no hay solicitudes",
+      "emptyWrite": "Crea la primera solicitud de esta iguala.",
+      "emptyRead": "Todavía nadie ha creado una solicitud en este asunto.",
+      "assignedTo": "{name} ({level})"
+    },
+    "fields": {
+      "title": "Título",
+      "type": "Tipo",
+      "complexity": "Complejidad",
+      "status": "Estado",
+      "assignee": "Responsable",
+      "unassigned": "Sin responsable",
+      "level": "Nivel de costo",
+      "chooseLevel": "Elige un nivel"
+    },
+    "status": {
+      "received": "Recibida",
+      "in_review": "En revisión",
+      "with_client": "Con el cliente",
+      "with_counterparty": "Con la contraparte",
+      "closed": "Firmada o cerrada",
+      "cancelled": "Cancelada"
+    },
+    "complexity": {
+      "routine": "Rutinaria",
+      "standard": "Estándar",
+      "complex": "Compleja"
+    },
+    "level": {
+      "apprentice": "Pasante",
+      "junior": "Junior",
+      "senior": "Sénior",
+      "partner": "Socio"
+    },
+    "typeSeed": {
+      "contracts_clients": "Contratos con clientes",
+      "contracts_suppliers": "Contratos con proveedores",
+      "intellectual_property": "Propiedad intelectual",
+      "shareholder_meetings": "Asambleas",
+      "corporate_books": "Libros corporativos",
+      "other": "Otra"
+    },
+    "person": {
+      "unknown": "Antiguo integrante"
+    },
+    "form": {
+      "title": "Nueva solicitud",
+      "cancel": "Cancelar",
+      "create": "Crear solicitud",
+      "creating": "Creando…"
+    },
+    "detail": {
+      "pick": "Elige una solicitud para ver su detalle, o crea una nueva.",
+      "readOnly": "Puedes leer esta solicitud. Solo quien lleva el asunto y los editores la cambian.",
+      "changedMeanwhile": "Alguien cambió esta solicitud mientras la editabas. Ves su versión más reciente; haz tu cambio de nuevo.",
+      "couldNotSave": "No se pudo guardar la solicitud.",
+      "saving": "Guardando…",
+      "save": "Guardar cambios",
+      "datesOpen": "Recibida el {received}.",
+      "datesClosed": "Recibida el {received} y cerrada el {closed}."
+    },
+    "rounds": {
+      "title": "Rondas de negociación",
+      "count": "{count, plural, one {# ronda} other {# rondas}}",
+      "none": "Todavía no hay una versión de documento ligada a esta solicitud.",
+      "row": "Ronda {number}, {date}: {name} (versión {version})",
+      "unnamed": "Sin nombre",
+      "unlink": "Desligar",
+      "document": "Documento",
+      "chooseDocument": "Elige un documento",
+      "version": "Versión",
+      "chooseVersion": "Elige una versión",
+      "versionOption": "Versión {version}: {name}",
+      "number": "Número de ronda",
+      "numberNext": "La siguiente",
+      "date": "Fecha de la ronda",
+      "alreadyLinked": "Esa versión ya es una ronda de esta solicitud.",
+      "link": "Ligar como ronda",
+      "couldNotLoadDocuments": "No se pudieron cargar los documentos del asunto.",
+      "couldNotLoadVersions": "No se pudieron cargar las versiones del documento.",
+      "couldNotSave": "No se pudieron cambiar las rondas."
+    },
+    "history": {
+      "title": "Historial"
+    },
+    "event": {
+      "created": "Solicitud creada",
+      "edited": "Datos cambiados",
+      "status_changed": "Estado cambiado",
+      "assigned": "Responsable asignado",
+      "unassigned": "Responsable quitado",
+      "round_linked": "Ronda ligada",
+      "round_unlinked": "Ronda desligada"
+    },
+    "types": {
+      "title": "Tipos de solicitud",
+      "help": "Elige los tipos en que tu despacho clasifica las solicitudes de un cliente.",
+      "readOnly": "Solo propietarios y administradores cambian los tipos.",
+      "nameOf": "Nombre del tipo {name}",
+      "rename": "Renombrar",
+      "restore": "Restaurar",
+      "archive": "Archivar",
+      "archivedNote": "Archivado. Las solicitudes que ya lo usan lo conservan; las nuevas no pueden usarlo.",
+      "nameTaken": "Otro tipo ya tiene ese nombre.",
+      "newLabel": "Tipo nuevo",
+      "add": "Agregar tipo",
+      "couldNotLoad": "No se pudieron cargar los tipos de solicitud.",
+      "couldNotSave": "No se pudieron guardar los tipos de solicitud."
+    }
   },
   "settings": {
     "apiKeyField": {

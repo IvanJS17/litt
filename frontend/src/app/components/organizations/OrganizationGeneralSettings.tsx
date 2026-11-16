@@ -43,6 +43,7 @@ import {
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LittMonogramPixel, PillButtonUI } from "@mike/ui";
 import { ManagedAccountsSetting } from "./ManagedAccountsSetting";
+import { RequestTypesSettings } from "@/app/components/requests/RequestTypesSettings";
 import { OrganizationFirmProfile } from "./OrganizationFirmProfile";
 import { OrganizationLogoModal } from "./OrganizationLogoModal";
 import { useOrganizationSettings } from "./OrganizationSettingsShell";
@@ -361,6 +362,7 @@ export function OrganizationGeneralSettings() {
         <ManagedAccountsSetting org={org} setOrg={setOrg} />
       ) : null}
       {org ? <OrganizationFirmProfile orgId={org.id} /> : null}
+      {org ? <RequestTypesSettings orgId={org.id} /> : null}
 
       <section aria-labelledby="org-general-membership" className="space-y-3">
         <SettingsHeading id="org-general-membership">
