@@ -20,6 +20,11 @@ export type PlaybookProvenance = {
   answers: Record<string, string>;
   /** Reference document names by id. */
   sourceNames: Record<string, string>;
+  /**
+   * «Revisar esta cita»: keys (`playbookReviewKey`) of the rule quotes the
+   * automatic check flagged, once they arrive; absent when none.
+   */
+  reviewed?: ReadonlySet<string>;
 };
 
 export const NO_PROVENANCE: PlaybookProvenance = { answers: {}, sourceNames: {} };

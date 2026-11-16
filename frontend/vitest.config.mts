@@ -80,6 +80,10 @@ export default defineConfig({
             "postcss",
             "@formatjs/icu-messageformat-parser",
             "use-intl",
+            // Word add-in sources rendered by cross-target tests (src/wordAddin);
+            // word-addin/node_modules is absent on CI.
+            "react-markdown",
+            "remark-gfm",
         ],
     },
     server: {

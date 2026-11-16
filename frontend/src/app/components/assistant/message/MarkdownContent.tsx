@@ -9,6 +9,7 @@ import { CitationPillUI, EXCERPT_SOURCE_PROPS } from "@mike/ui";
 import { withoutMarkdownNode } from "./messageStyles";
 import { useTranslations } from "next-intl";
 import { citationTooltip } from "./CitationSources";
+import { CitationReviewHint, needsCitationReview } from "./CitationReviewHint";
 import { splitMarkdownBlocks } from "./markdownBlocks";
 import {
     citationVerificationAriaLabel,
@@ -31,6 +32,8 @@ interface BlockProps {
     inlineCitationTargets: Citation[];
     activeCitation?: Citation | null;
     onCitationClick?: (c: Citation) => void;
+    /** Citation numbers the automatic check put in the low band. */
+    reviewRefs?: readonly number[];
 }
 
 /** One run of Markdown parsed and drawn by itself. */
@@ -39,6 +42,7 @@ function MarkdownBlockImpl({
     inlineCitationTargets,
     activeCitation,
     onCitationClick,
+    reviewRefs,
 }: BlockProps) {
     const t = useTranslations();
 
@@ -182,21 +186,31 @@ function MarkdownBlockImpl({
                             if (annotation) {
                                 const tooltipText = citationTooltip(annotation, t);
                                 return (
-                                    <CitationPillUI
-                                        active={activeCitation === annotation}
-                                        onClick={() =>
-                                            onCitationClick?.(annotation)
-                                        }
-                                        data-citation-ref={annotation.ref}
-                                        className={`${citationVerificationPillClassName(annotation)} mx-0.5 align-super`}
-                                        aria-label={citationVerificationAriaLabel(
-                                            annotation,
-                                            t,
+                                    <>
+                                        <CitationPillUI
+                                            active={activeCitation === annotation}
+                                            onClick={() =>
+                                                onCitationClick?.(annotation)
+                                            }
+                                            data-citation-ref={annotation.ref}
+                                            className={`${citationVerificationPillClassName(annotation)} mx-0.5 align-super`}
+                                            aria-label={citationVerificationAriaLabel(
+                                                annotation,
+                                                t,
+                                            )}
+                                            title={tooltipText}
+                                        >
+                                            {annotation.ref}
+                                        </CitationPillUI>
+                                        {needsCitationReview(
+                                            reviewRefs,
+                                            annotation.ref,
+                                        ) && (
+                                            <CitationReviewHint
+                                                citationRef={annotation.ref}
+                                            />
                                         )}
-                                        title={tooltipText}
-                                    >
-                                        {annotation.ref}
-                                    </CitationPillUI>
+                                    </>
                                 );
                             }
                         }
@@ -300,6 +314,7 @@ function MarkdownContentImpl({
     inlineCitationTargets,
     activeCitation,
     onCitationClick,
+    reviewRefs,
     divRef,
     excerptSource = false,
     streaming = false,
@@ -310,6 +325,8 @@ function MarkdownContentImpl({
     inlineCitationTargets: Citation[];
     activeCitation?: Citation | null;
     onCitationClick?: (c: Citation) => void;
+    /** Citation numbers the automatic check put in the low band. */
+    reviewRefs?: readonly number[];
     divRef?: RefObject<HTMLDivElement | null>;
     /**
      * The text is still arriving: parse and draw it block by block, so the
@@ -335,6 +352,7 @@ function MarkdownContentImpl({
                         inlineCitationTargets={inlineCitationTargets}
                         activeCitation={activeCitation}
                         onCitationClick={onCitationClick}
+                        reviewRefs={reviewRefs}
                     />
                 </Fragment>
             ))}

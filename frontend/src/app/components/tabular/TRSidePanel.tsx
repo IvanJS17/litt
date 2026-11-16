@@ -44,6 +44,7 @@ import {
 import { CloseButton, CitationPillUI } from "@mike/ui";
 import { resolveDocumentViewType } from "@/app/lib/documentViewType";
 import { useTranslations } from "next-intl";
+import { CitationReviewHint, needsCitationReview } from "@/app/components/assistant/message/CitationReviewHint";
 
 interface Props {
     cell: TabularCell;
@@ -72,6 +73,8 @@ interface Props {
     citationDocumentId?: string;
     /** One-based citation number shown in the cell content */
     citationRef?: number;
+    /** Citation numbers of the cell (summary first, then reasoning) the automatic check put in the low band. */
+    reviewRefs?: readonly number[];
 }
 
 type TRPanelCitation = {
@@ -118,6 +121,7 @@ export function TRSidePanel({
     citationCell,
     citationDocumentId,
     citationRef,
+    reviewRefs,
 }: Props) {
     const t = useTranslations();
     const sortedColumns = [...columns].sort((a, b) => a.index - b.index);
@@ -651,6 +655,7 @@ export function TRSidePanel({
                                         <MarkdownContent
                                             citations={summaryCitations}
                                             onCitationClick={handleCitationOpen}
+                                            reviewRefs={reviewRefs}
                                             column={column}
                                         >
                                             {summaryText || "—"}
@@ -673,6 +678,7 @@ export function TRSidePanel({
                                                 citationOffset={
                                                     summaryCitations.length
                                                 }
+                                                reviewRefs={reviewRefs}
                                                 column={column}
                                                 inline
                                             >
@@ -836,9 +842,11 @@ function MarkdownContent({
     citations,
     onCitationClick,
     citationOffset = 0,
+    reviewRefs,
     column,
     inline,
 }: {
+    reviewRefs?: readonly number[];
     children: string;
     citations: ParsedCitation[];
     onCitationClick: (citation: TRPanelCitation) => void;
@@ -907,11 +915,21 @@ function MarkdownContent({
                         const citation = citations[idx];
                         if (citation) {
                             return (
-                                <CitationBadge
-                                    index={citationOffset + idx}
-                                    citation={citation}
-                                    onClick={onCitationClick}
-                                />
+                                <>
+                                    <CitationBadge
+                                        index={citationOffset + idx}
+                                        citation={citation}
+                                        onClick={onCitationClick}
+                                    />
+                                    {needsCitationReview(
+                                        reviewRefs,
+                                        citationOffset + idx + 1,
+                                    ) && (
+                                        <CitationReviewHint
+                                            citationRef={citationOffset + idx + 1}
+                                        />
+                                    )}
+                                </>
                             );
                         }
                     }

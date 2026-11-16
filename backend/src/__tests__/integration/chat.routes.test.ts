@@ -3282,6 +3282,27 @@ describe("chat grants, deletion and roster", () => {
         expect(chatWrites("delete")).toEqual([]);
     });
 
+    it("reads no citation result for a caller who cannot read the chat", async () => {
+        vi.stubEnv("LITT_CITATION_CHECK", "enabled");
+        try {
+            const db = makeRbacDb(null) as unknown as { from: (table: string) => unknown };
+            const from = vi.spyOn(db, "from");
+            mockedCreate.mockImplementation(() => db as never);
+
+            const res = await request(app)
+                .get("/chat/chat-1")
+                .set("Authorization", "Bearer test");
+
+            expect(res.status).toBe(404);
+            expect(res.body).not.toHaveProperty("messages");
+            expect(from.mock.calls.map(([table]) => table)).not.toContain(
+                "citation_support_checks",
+            );
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
     it("reports the caller's derived role on GET /chat/:chatId", async () => {
         mockedCreate.mockImplementation(
             () =>

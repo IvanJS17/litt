@@ -97,6 +97,7 @@ import {
     useComposerInset,
 } from "@/app/hooks/useComposerInset";
 import { useTranslations } from "next-intl";
+import { useChatReviewRefs } from "@/app/hooks/useChatReviewRefs";
 
 interface Props {
     chatId?: string | null;
@@ -302,6 +303,7 @@ export function AssistantChatColumn({
         title?: string;
         message?: string;
     } | null>(null);
+    const reviewRefsOf = useChatReviewRefs(chatId, messages, isResponseLoading);
     const [renameOpen, setRenameOpen] = useState(false);
     const [leaveChatId, setLeaveChatId] = useState<string | null>(null);
     const [renaming, setRenaming] = useState(false);
@@ -1243,6 +1245,7 @@ export function AssistantChatColumn({
                                                                 : undefined
                                                         }
                                                         citations={msg.citations}
+                                                        reviewRefs={reviewRefsOf(msg)}
                                                         citationStatus={
                                                             msg.citationStatus
                                                         }

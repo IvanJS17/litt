@@ -12,6 +12,7 @@ import {
     citationVerificationPillClassName,
 } from "./citationVerification";
 import { useTranslations } from "next-intl";
+import { CitationReviewHint, needsCitationReview } from "./CitationReviewHint";
 import type { AppTranslate } from "@/i18n/Translate";
 
 type CitationSourceRow = {
@@ -142,6 +143,7 @@ export function CitationsBlock({
     canOpenSource,
     showWhenEmpty = false,
     isLoading = false,
+    reviewRefs,
 }: {
     citations: Citation[];
     activeCitation?: Citation | null;
@@ -150,6 +152,8 @@ export function CitationsBlock({
     canOpenSource?: (citation: Citation) => boolean;
     showWhenEmpty?: boolean;
     isLoading?: boolean;
+    /** Citation numbers the automatic check put in the low band. */
+    reviewRefs?: readonly number[];
 }) {
     const t = useTranslations();
     const rows = buildCitationSourceRows(citations, t);
@@ -200,8 +204,11 @@ export function CitationsBlock({
                                 <div className="flex max-w-[60%] shrink-0 flex-wrap justify-end gap-1">
                                     {row.entries.map(
                                         ({ annotation, index }) => (
-                                            <CitationPillUI
+                                            <span
                                                 key={`${row.key}:${index}`}
+                                                className="inline-flex items-center"
+                                            >
+                                            <CitationPillUI
                                                 active={
                                                     activeCitation ===
                                                     annotation
@@ -225,6 +232,16 @@ export function CitationsBlock({
                                             >
                                                 {annotation.ref}
                                             </CitationPillUI>
+                                            {needsCitationReview(
+                                                reviewRefs,
+                                                annotation.ref,
+                                            ) && (
+                                                <CitationReviewHint
+                                                    citationRef={annotation.ref}
+                                                    className="mr-0"
+                                                />
+                                            )}
+                                            </span>
                                         ),
                                     )}
                                 </div>

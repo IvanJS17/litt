@@ -27,6 +27,7 @@ import {
 import { getTrainingTurnNotes } from "../../api/client";
 import { useWordTrainingBacking } from "../../hooks/useWordTrainingBacking";
 import { ChatView } from "./ChatView";
+import { useWordReviewRefs } from "../../hooks/useWordReviewRefs";
 import type {
   ReasoningLevel,
   WorkflowAttachment,
@@ -183,6 +184,15 @@ export function ChatPanel({
       getTrainingTurnNotes,
     ),
   );
+  // «Revisar esta cita»: the check runs after an answer is saved, so its
+  // result is read again shortly after the answer finishes.
+  const reviewRefsOf = useWordReviewRefs({
+    chatId,
+    documentId: wordDocumentId,
+    storage: wordChatStorage,
+    messages: chat.messages,
+    isResponseLoading: chat.isResponseLoading,
+  });
   // LiTT training: a junior's conclusions and their sources, under each answer.
   const trainingBacking = useWordTrainingBacking({
     chatId,
@@ -263,6 +273,7 @@ export function ChatPanel({
       {...trackedEdits}
       trainingNotes={trainingNotes}
       trainingBacking={trainingBacking}
+      reviewRefsOf={reviewRefsOf}
       sessionKey={sessionKey}
       chatModel={chatModel}
       lastSelectedModel={lastSelectedModel}

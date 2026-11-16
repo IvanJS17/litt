@@ -177,6 +177,8 @@ export interface Message {
   edits?: WordDocumentEdit[];
   /** Assistant turns only: quotes behind the answer's `[n]` markers. */
   citations?: WordCitation[];
+  /** Assistant turns only: citation numbers the automatic check put in the low band. */
+  reviewRefs?: number[];
 }
 
 export interface Workflow {

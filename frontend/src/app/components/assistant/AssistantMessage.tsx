@@ -78,6 +78,8 @@ interface Props {
     /** Human-readable error text rendered alongside the red Mike icon. */
     errorMessage?: string;
     citations?: Citation[];
+    /** Citation numbers the automatic check put in the low band («Revisar esta cita»). */
+    reviewRefs?: readonly number[];
     citationStatus?: "started" | "partial" | "final";
     activeCitation?: Citation | null;
     onCitationClick?: (citation: Citation) => void;
@@ -147,6 +149,7 @@ function AssistantMessageImpl({
     isError = false,
     errorMessage,
     citations = EMPTY_CITATIONS,
+    reviewRefs,
     citationStatus,
     activeCitation,
     onCitationClick,
@@ -754,6 +757,7 @@ function AssistantMessageImpl({
                                             }
                                             activeCitation={activeCitation}
                                             onCitationClick={onCitationClick}
+                                            reviewRefs={reviewRefs}
                                             streaming={
                                                 isLastContent &&
                                                 isStreaming &&
@@ -1060,6 +1064,7 @@ function AssistantMessageImpl({
                 {showCitationBlock && (
                     <CitationsBlock
                         citations={citations}
+                        reviewRefs={reviewRefs}
                         activeCitation={activeCitation}
                         onCitationClick={onCitationClick}
                         onOpenSource={handleOpenCitationSource}

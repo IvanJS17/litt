@@ -30,6 +30,61 @@ function ruleClaim(rule: Rule): string {
     return [rule.name?.trim(), statement].filter(Boolean).join(": ");
 }
 
+/** One verified quote a rule stands on: its origin (kind "clause") or a verified legal reference. */
+type CitedQuote = {
+    rule: Rule;
+    claim: string;
+    sourceLabel: string | undefined;
+    quote: string | undefined;
+    /** Index in `rule.legalRefs`; null for the rule's origin. */
+    legalIndex: number | null;
+};
+
+/**
+ * The quotes of a draft in the order they are checked, which is the order of
+ * their `citation_ref`: top-level rules, then each topic's, and within a rule
+ * its origin first and then its verified legal references. One walk for the
+ * check and for reading its result back (reviewRulesFor), so they agree.
+ */
+function* citedQuotes(content: PlaybookContent): Generator<CitedQuote> {
+    const rules = [...content.rules, ...content.topics.flatMap((topic) => topic.rules)];
+    for (const rule of rules) {
+        if (rule.origin?.kind === "clause")
+            yield { rule, claim: ruleClaim(rule), sourceLabel: rule.origin.sourceId, quote: rule.origin.quote, legalIndex: null };
+        for (const [index, legal] of (rule.legalRefs ?? []).entries())
+            if (legal.verified)
+                yield {
+                    rule,
+                    claim: `${rule.name?.trim() ?? ""}: ${legal.text}`.replace(/^: /, ""),
+                    sourceLabel: legal.sourceId,
+                    quote: legal.quote,
+                    legalIndex: index,
+                };
+    }
+}
+
+/** A quote of a stored draft whose check was in the low band, located by rule id. */
+export type PlaybookReviewSource = { ruleId: string; legalIndex: number | null };
+
+/**
+ * Which quotes of a stored draft the checks flagged. The numbers are the order
+ * of the quotes when the draft was written (citedQuotes), so they are only
+ * valid for that content: the caller passes refs only while the playbook is
+ * unchanged since (readDraftReviewRefs). A rule is named by its stable id.
+ */
+export function reviewSourcesFor(content: PlaybookContent, refs: readonly number[]): PlaybookReviewSource[] {
+    if (refs.length === 0) return [];
+    const flagged = new Set(refs);
+    const found: PlaybookReviewSource[] = [];
+    let ref = 0;
+    for (const quote of citedQuotes(content)) {
+        if (!quote.claim || !quote.sourceLabel || !quote.quote) continue;
+        ref += 1;
+        if (flagged.has(ref) && quote.rule.id) found.push({ ruleId: quote.rule.id, legalIndex: quote.legalIndex });
+    }
+    return found;
+}
+
 /**
  * One input per verified quote of the draft, in rule order: a rule's origin
  * (when it stands on a clause) and each of its verified legal references.
@@ -71,12 +126,7 @@ export function playbookCitationInputs(args: {
             }),
         );
     };
-    const rules = [...args.content.rules, ...args.content.topics.flatMap((topic) => topic.rules)];
-    for (const rule of rules) {
-        if (rule.origin?.kind === "clause") add(ruleClaim(rule), rule.origin.sourceId, rule.origin.quote);
-        for (const legal of rule.legalRefs ?? [])
-            if (legal.verified) add(`${rule.name?.trim() ?? ""}: ${legal.text}`.replace(/^: /, ""), legal.sourceId, legal.quote);
-    }
+    for (const quote of citedQuotes(args.content)) add(quote.claim, quote.sourceLabel, quote.quote);
     return inputs;
 }
 

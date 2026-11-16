@@ -19,6 +19,7 @@ export {
     MAX_CONTEXT_CHARS,
     type CitationSupportInput,
 } from "./inputs";
+export { readDraftReviewRefs, readReviewRefs, reviewRefsOf, type ReviewRefsByOwner } from "./review";
 export { citationCheckPermitted, citationCheckWanted, setCitationCheckWanted } from "./preference";
 export {
     askCitationSupport,

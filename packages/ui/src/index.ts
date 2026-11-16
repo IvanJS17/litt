@@ -49,6 +49,7 @@ export * from "./EditCardsSectionUI";
 export * from "./PreResponseWrapperUI";
 export * from "./DocumentEventBlocksUI";
 export * from "./CitationPillUI";
+export * from "./CitationReviewHintUI";
 export * from "./ExcerptPillUI";
 export * from "./ExcerptModalUI";
 export * from "./ResponseSelectionMenuUI";

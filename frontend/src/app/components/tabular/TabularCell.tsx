@@ -10,12 +10,15 @@ import { getPillClass } from "./pillUtils";
 import { SkeletonLine } from "../shared/TablePrimitive";
 import { TRExpandedCellSurface } from "./TRExpandedCellSurface";
 import { CitationPillUI } from "@mike/ui";
+import { CitationReviewHint, needsCitationReview } from "@/app/components/assistant/message/CitationReviewHint";
 import { useTranslations } from "next-intl";
 
 interface Props {
     cell: TCell;
     column?: ColumnConfig;
     closeSignal?: number;
+    /** Citation numbers the automatic check put in the low band («Revisar esta cita»). */
+    reviewRefs?: readonly number[];
     onExpand: () => void;
     onCitationClick?: (
         page: number | undefined,
@@ -68,7 +71,9 @@ function CellMarkdown({
     onCitationClick,
     onExpand,
     inline,
+    reviewRefs,
 }: {
+    reviewRefs?: readonly number[];
     text: string;
     citations: ParsedCitation[];
     pills: string[];
@@ -124,6 +129,7 @@ function CellMarkdown({
                         const citation = citations[idx];
                         if (citation) {
                             return (
+                                <>
                                 <CitationPillUI
                                     title={`${formatCitationLocation(citation)}: "${citation.quote}"`}
                                     onClick={(e) => {
@@ -145,6 +151,10 @@ function CellMarkdown({
                                 >
                                     {idx + 1}
                                 </CitationPillUI>
+                                {needsCitationReview(reviewRefs, idx + 1) && (
+                                    <CitationReviewHint citationRef={idx + 1} />
+                                )}
+                                </>
                             );
                         }
                     }
@@ -188,6 +198,7 @@ export function TabularCell({
     cell,
     column,
     closeSignal,
+    reviewRefs,
     onExpand,
     onCitationClick,
 }: Props) {
@@ -239,6 +250,11 @@ export function TabularCell({
     const firstLine = processed.split("\n").find((l) => l.trim()) ?? processed;
     const collapsedDisplay = firstLine.replace(/^[-*•]\s+/, "");
 
+    // The first listed citation that this cell really has (refs are 1-based).
+    const collapsedReviewRef = reviewRefs?.find(
+        (ref) => ref >= 1 && ref <= citations.length,
+    );
+
     function handleCitationClickInOverlay(
         page: number | undefined,
         quote: string,
@@ -276,7 +292,7 @@ export function TabularCell({
                         title={cell.content.flag}
                     />
                 )}
-                <div className="line-clamp-1 w-full min-w-0">
+                <div className="line-clamp-1 min-w-0 flex-1">
                     <CellMarkdown
                         text={collapsedDisplay}
                         citations={citations}
@@ -287,6 +303,15 @@ export function TabularCell({
                         inline
                     />
                 </div>
+                {/* Outside the clamped block, so a long first line can never
+                    cut it off: one hint for the cell, the expanded view says
+                    which citation. */}
+                {collapsedReviewRef !== undefined && (
+                    <CitationReviewHint
+                        citationRef={collapsedReviewRef}
+                        className={`ml-1 shrink-0 ${cell.content.flag ? "mr-3" : "mr-0"}`}
+                    />
+                )}
             </div>
 
             {/* Inline expanded overlay — absolutely positioned so it overlays without disrupting table layout */}
@@ -306,6 +331,7 @@ export function TabularCell({
                             column={column}
                             onCitationClick={handleCitationClickInOverlay}
                             onExpand={handleSeeDetails}
+                            reviewRefs={reviewRefs}
                         />
                     </div>
                     <div className="px-2 py-1.5 flex items-center justify-end">

@@ -357,6 +357,11 @@ export interface Message {
   /** LiTT training: this turn is a hint or a round with the counterparty's lawyer; the server picks the rung. */
   training_mode?: TrainingTurnMode;
   citations?: Citation[];
+  /**
+   * Citation numbers the automatic support check put in the low band, as the
+   * server stored them (never a probability). Shown as «Revisar esta cita».
+   */
+  reviewRefs?: number[];
   citationStatus?: "started" | "partial" | "final";
   events?: AssistantEvent[];
   /** Set when streaming failed; rendered as a red error block. */
@@ -720,6 +725,8 @@ export interface TabularCell {
     reasoning?: string;
   } | null;
   status: "pending" | "generating" | "done" | "error";
+  /** Citation numbers of the cell the automatic check put in the low band. */
+  review_refs?: number[];
   created_at: string;
 }
 

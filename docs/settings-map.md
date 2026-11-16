@@ -73,7 +73,7 @@ Ajustes del despacho · <nombre>
 | Web search keys and choice | Personal: Búsqueda web. Firm: the search keys inside Llaves del despacho | Same link. |
 | LandingAI key | Personal: Lectura de escaneados. Firm: Llaves del despacho | — |
 | The three «llaves propias» switches (AI, web search, scans) | Firm: Llaves del despacho | — |
-| «Verificar mis citas con TypeSafe» (opt-out of the silent citation check) | Personal: Privacidad y datos, the first card. Not a firm setting: the check is the platform's, there is no key to save and the firm has no switch | — |
+| «Verificar mis citas con TypeSafe» (opt-out of the citation check; what it stores shows as «Revisar esta cita» only for the low band) | Personal: Privacidad y datos, the first card. Not a firm setting: the check is the platform's, there is no key to save and the firm has no switch | — |
 | Document types for splitting a case file | Personal: Lectura de escaneados (personal space only). Firm: Lectura de escaneados | In a firm's space the personal page links to the firm's list. |
 | Mentors and pupils; the firm's criteria | Firm: Formación | «Mi formación» (personal) has only what is mine. |
 

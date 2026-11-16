@@ -276,6 +276,10 @@
       "text2": "”",
       "view": "View"
     },
+    "citationReview": {
+      "description": "The automatic review suggests the quoted text may not support what is claimed. Check it before relying on it.",
+      "label": "Check this citation"
+    },
     "citationSources": {
       "citations": "Citations",
       "id": "Id."

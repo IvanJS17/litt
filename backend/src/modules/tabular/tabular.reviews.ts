@@ -5,6 +5,7 @@
 // reconciling the cell grid to the active column set.
 
 import { recordAudit } from "../../lib/audit";
+import { readReviewRefs, reviewRefsOf } from "../../lib/citationSupport";
 import { chunkArray } from "../../lib/arrays";
 import { mutateInBatches, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import { walkFolderGraph } from "../../lib/folderTree";
@@ -902,6 +903,19 @@ export async function getTabularReviewDetail(
     delete clientReview.active_generation_id;
     delete clientReview.generation_lease_expires_at;
 
+    // Only the cells this reader may see: the low-band citation refs of the
+    // same cells ride along (the hint «Revisar esta cita»).
+    const visibleCells = cells.filter((cell) =>
+        visibleRowIds.has(cell.row_id as string),
+    );
+    const reviewRefs = await readReviewRefs(
+        db,
+        "tabular_cell",
+        visibleCells.flatMap((cell) =>
+            typeof cell.id === "string" ? [cell.id] : [],
+        ),
+    );
+
     return {
         ok: true,
         data: {
@@ -911,12 +925,13 @@ export async function getTabularReviewDetail(
                 access_role: access.projectRole,
                 is_running: isReviewGenerationRunning(review),
             },
-            cells: cells
-                .filter((cell) => visibleRowIds.has(cell.row_id as string))
-                .map((cell) => ({
-                    ...cell,
-                    content: parseCellContent(cell.content),
-                })),
+            cells: visibleCells.map((cell) => ({
+                ...cell,
+                content: parseCellContent(cell.content),
+                ...(reviewRefs.has(cell.id as string)
+                    ? { review_refs: reviewRefsOf(reviewRefs, cell.id) }
+                    : {}),
+            })),
             rows,
             documents: docs as unknown as Record<string, unknown>[],
         },

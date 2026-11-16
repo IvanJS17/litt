@@ -13,6 +13,7 @@
 // DB preparation live here. `prepareChatStream` returns the prepared data the
 // route needs to run the stream; it does not stream.
 import { selectInBatches } from "../../lib/batchedQuery";
+import { readReviewRefs, reviewRefsOf } from "../../lib/citationSupport";
 import { type Db } from "../../lib/supabase";
 import { withDelegationEvents, withoutEmptyAssistantReservations } from "./engine/index";
 
@@ -145,8 +146,20 @@ export async function getChatMessages(
         .eq("chat_id", chatId)
         .order("created_at", { ascending: true });
 
-    return hydrateEditStatuses(
-        withoutEmptyAssistantReservations(messages ?? []),
+    const visible = withoutEmptyAssistantReservations(messages ?? []);
+    // The caller has already authorised the chat, so these messages are
+    // readable; the low-band citation refs of their answers ride along.
+    const reviewRefs = await readReviewRefs(
         db,
+        "chat",
+        visible.flatMap((m) =>
+            m.role === "assistant" && typeof m.id === "string" ? [m.id] : [],
+        ),
+    );
+    const hydrated = await hydrateEditStatuses(visible, db);
+    return hydrated.map((m) =>
+        reviewRefs.has(m.id as string)
+            ? { ...m, review_refs: reviewRefsOf(reviewRefs, m.id) }
+            : m,
     );
 }

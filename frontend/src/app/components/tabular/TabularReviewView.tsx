@@ -11,6 +11,7 @@ import { reviewRowRemoval } from "./reviewRowRemoval";
 import { reviewColumnRemoval } from "./reviewColumnRemoval";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useDelayedReviewRefs } from "@/app/hooks/useDelayedReviewRefs";
 import { useReviewAuditEntry } from "../training/reviewAudit/useReviewAuditEntry";
 import {
     Plus,
@@ -153,6 +154,21 @@ export function TRView({ reviewId, projectId }: Props) {
     const [columns, setColumns] = useState<ColumnConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
+    // Counts the runs and regenerations that finished, to look for their
+    // citation check results once (see useDelayedReviewRefs).
+    const [citationCheckTick, setCitationCheckTick] = useState(0);
+    const loadReviewRefs = useCallback(async () => {
+        const detail = await getTabularReview(reviewId);
+        return Object.fromEntries(
+            detail.cells.flatMap((cell) =>
+                cell.review_refs?.length ? [[cell.id, cell.review_refs] as const] : [],
+            ),
+        );
+    }, [reviewId]);
+    const reviewRefsByCell = useDelayedReviewRefs(
+        citationCheckTick > 0 ? `${reviewId}:${citationCheckTick}` : null,
+        loadReviewRefs,
+    );
     const [stoppingGeneration, setStoppingGeneration] = useState(false);
     const [generationGuard, setGenerationGuard] = useState<
         "running" | "stale" | null
@@ -758,6 +774,9 @@ export function TRView({ reviewId, projectId }: Props) {
         setRows(detail.rows);
         setDocuments(detail.documents);
         setColumns(detail.review.columns_config || []);
+        // The automatic citation check runs after the cells are saved: read
+        // its result again in a few seconds («Revisar esta cita»).
+        setCitationCheckTick((tick) => tick + 1);
     }
 
     // Reads an SSE response and applies cell_update frames until [DONE].
@@ -2012,6 +2031,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                 documents={documents}
                                 cells={cells}
                                 cellStore={cellStore}
+                                reviewRefsByCell={reviewRefsByCell}
                                 highlightedCell={highlightedCell}
                                 savingColumn={savingColumn}
                                 savingColumnsConfig={savingColumnsConfig}
@@ -2096,6 +2116,10 @@ export function TRView({ reviewId, projectId }: Props) {
                     return (
                         <TRSidePanel
                             cell={expandedCell}
+                            reviewRefs={
+                                reviewRefsByCell[expandedCell.id] ??
+                                expandedCell.review_refs
+                            }
                             row={expandedRow}
                             rows={filteredRows}
                             documentId={requestedDocumentId}

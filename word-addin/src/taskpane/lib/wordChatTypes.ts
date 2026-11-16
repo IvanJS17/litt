@@ -103,6 +103,8 @@ export interface WordAssistantMessage extends RuntimeMessageBase {
   edits?: WordDocumentEdit[];
   /** Quotes behind the answer's `[n]` markers, from the backend pipeline. */
   citations?: SavedMessage["citations"];
+  /** Citation numbers the automatic check put in the low band. */
+  reviewRefs?: SavedMessage["reviewRefs"];
 }
 
 export type WordChatMessage = WordUserMessage | WordAssistantMessage;

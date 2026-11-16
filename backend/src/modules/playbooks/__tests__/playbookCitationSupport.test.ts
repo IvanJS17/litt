@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { locateQuoteInSource } from "../playbooks.draft";
-import { playbookCitationInputs } from "../playbooks.citationSupport";
+import { playbookCitationInputs, reviewSourcesFor } from "../playbooks.citationSupport";
 import type { PlaybookContent } from "../playbooks.types";
 
 const STORED = "33333333-3333-4333-8333-333333333333";
@@ -78,5 +78,40 @@ describe("locateQuoteInSource", () => {
         expect(found!.excerpt).toBe(text.replace(/\.$/, ""));
         expect(locateQuoteInSource(text, "no está aquí")).toBeNull();
         expect(locateQuoteInSource(text, "   ")).toBeNull();
+    });
+});
+
+describe("reviewSourcesFor", () => {
+    const drafted = () =>
+        content([
+            rule({ id: "r1", origin: { kind: "answer", questionIds: ["q1"], unbacked: false } }),
+            rule({
+                id: "r2",
+                origin: { kind: "clause", sourceId: "A1", quote: CLAUSE, unbacked: false },
+                legalRefs: [
+                    { text: "Código Civil, art. 2118", sourceId: "A1", quote: LAW, verified: true },
+                    { text: "mencionada", verified: false },
+                ],
+            }),
+            rule({ id: "r3", origin: { kind: "clause", sourceId: "A1", quote: CLAUSE, unbacked: false } }),
+        ]);
+    // The stored draft: the labels are replaced by the stored source id.
+    const stored = () =>
+        JSON.parse(JSON.stringify(drafted()).replaceAll('"A1"', `"${STORED}"`)) as PlaybookContent;
+
+    it("numbers the quotes exactly as the check did, so a flagged ref lands on its own rule", () => {
+        const inputs = playbookCitationInputs({ content: drafted(), sources, sourceIds: [STORED], locate: locateQuoteInSource });
+        expect(inputs.map((i) => i.ref)).toEqual([1, 2, 3]);
+        expect(reviewSourcesFor(stored(), [1])).toEqual([{ ruleId: "r2", legalIndex: null }]);
+        expect(reviewSourcesFor(stored(), [2])).toEqual([{ ruleId: "r2", legalIndex: 0 }]);
+        expect(reviewSourcesFor(stored(), [3, 1])).toEqual([
+            { ruleId: "r2", legalIndex: null },
+            { ruleId: "r3", legalIndex: null },
+        ]);
+    });
+
+    it("names nothing when there is nothing flagged or the ref is not a quote", () => {
+        expect(reviewSourcesFor(stored(), [])).toEqual([]);
+        expect(reviewSourcesFor(stored(), [9])).toEqual([]);
     });
 });

@@ -1,8 +1,8 @@
 import { clientTranslator } from "@mike/client";
-import { Children, memo } from "react";
+import { Children, createContext, memo, useContext } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { CitationPillUI } from "@mike/ui";
+import { CitationPillUI, CitationReviewHintUI } from "@mike/ui";
 
 import { cn } from "../lib/utils";
 
@@ -10,6 +10,41 @@ import { cn } from "../lib/utils";
 // plugins array/components object defeats its internal memoization and forces
 // a full re-parse of every message on every transcript render.
 const REMARK_PLUGINS = [remarkGfm];
+
+/**
+ * The citation numbers the automatic check put in the low band, for the
+ * message being drawn. The components table below is shared by every message,
+ * so the per-message list travels by context.
+ */
+const ReviewRefsContext = createContext<readonly number[] | undefined>(
+  undefined,
+);
+
+/** A numbered citation chip, followed by «Revisar esta cita» when listed. */
+function NumberedCitation({ href, number }: { href: string; number: string }) {
+  const reviewRefs = useContext(ReviewRefsContext);
+  const t = clientTranslator();
+  return (
+    <>
+      <CitationPillUI
+        data-mike-citation=""
+        data-citation-href={href}
+        title={t("word.showInTheDocument")}
+        aria-label={t("word.citationNumber", { number })}
+        className="mx-0.5 align-super"
+      >
+        {number}
+      </CitationPillUI>
+      {reviewRefs?.includes(Number(number)) && (
+        <CitationReviewHintUI
+          label={t("assistant.citationReview.label")}
+          description={t("assistant.citationReview.description")}
+          citationRef={Number(number)}
+        />
+      )}
+    </>
+  );
+}
 
 const MARKDOWN_COMPONENTS: Components = {
   p: ({ children }) => (
@@ -40,17 +75,7 @@ const MARKDOWN_COMPONENTS: Components = {
       const numberedCitation = label.match(/^\[(\d+)\]$/);
       if (numberedCitation) {
         return (
-          <CitationPillUI
-            data-mike-citation=""
-            data-citation-href={href}
-            title={clientTranslator()("word.showInTheDocument")}
-            aria-label={clientTranslator()("word.citationNumber", {
-              number: numberedCitation[1] ?? "",
-            })}
-            className="mx-0.5 align-super"
-          >
-            {numberedCitation[1]}
-          </CitationPillUI>
+          <NumberedCitation href={href} number={numberedCitation[1] ?? ""} />
         );
       }
       return (
@@ -128,11 +153,15 @@ const MARKDOWN_COMPONENTS: Components = {
 export const Markdown = memo(function Markdown({
   children,
   className,
+  reviewRefs,
 }: {
   children: string;
   className?: string;
+  /** Citation numbers the automatic check put in the low band. */
+  reviewRefs?: readonly number[];
 }) {
   return (
+    <ReviewRefsContext.Provider value={reviewRefs}>
     <div
       className={cn(
         "text-sm leading-relaxed text-gray-900 break-words",
@@ -146,5 +175,6 @@ export const Markdown = memo(function Markdown({
         {children}
       </ReactMarkdown>
     </div>
+    </ReviewRefsContext.Provider>
   );
 });

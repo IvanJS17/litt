@@ -276,6 +276,10 @@
       "text2": "»",
       "view": "Ver"
     },
+    "citationReview": {
+      "description": "La revisión automática indica que el texto citado podría no respaldar lo que se afirma. Revísalo antes de usarlo.",
+      "label": "Revisar esta cita"
+    },
     "citationSources": {
       "citations": "Citas",
       "id": "Id."

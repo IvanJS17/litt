@@ -21,6 +21,7 @@ import type { CreatedTurnNote } from "../../lib/trainingNotes";
 
 import { randomUUID } from "node:crypto";
 import { queryFailureCause, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
+import { readReviewRefs, reviewRefsOf } from "../../lib/citationSupport";
 import type { Db } from "../../lib/supabase";
 import { resolveRequestTimeZone } from "../../lib/userTime";
 import {
@@ -360,11 +361,17 @@ export async function getWordChatWithMessages(
       editsByMessage.set(messageId, current);
     }
   }
+  // The chat was authorised above; the low-band citation refs of its
+  // answers ride along (the hint «Revisar esta cita»).
+  const reviewRefs = await readReviewRefs(db, "word", assistantMessageIds);
   return {
     ok: true,
     chat,
     messages: visibleMessages.map((message) => ({
       ...message,
+      ...(reviewRefs.has(message.id as string)
+        ? { review_refs: reviewRefsOf(reviewRefs, message.id) }
+        : {}),
       ...(typeof message.id === "string" && editsByMessage.has(message.id)
         ? { edits: editsByMessage.get(message.id) }
         : {}),

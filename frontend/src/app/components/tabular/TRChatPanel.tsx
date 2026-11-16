@@ -21,6 +21,8 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Pencil, Trash2 } from "lucide-react";
+import { CitationReviewHint, needsCitationReview } from "@/app/components/assistant/message/CitationReviewHint";
+import { useDelayedReviewRefs } from "@/app/hooks/useDelayedReviewRefs";
 import {
     streamTabularChat,
     streamTabularChatTurn,
@@ -102,6 +104,8 @@ interface TRMessage {
     content: string;
     events?: AssistantEvent[];
     annotations?: TRCitationAnnotation[];
+    /** Citation numbers the automatic check put in the low band («Revisar esta cita»). */
+    reviewRefs?: readonly number[];
     isStreaming?: boolean;
     /**
      * This turn ended in a failure. Already-streamed text is kept, but the
@@ -172,7 +176,9 @@ const EMPTY_TR_ANNOTATIONS: TRCitationAnnotation[] = [];
 function TRAssistantMessage({
     msg,
     onCitationClick,
+    reviewRefs,
 }: {
+    reviewRefs?: readonly number[];
     msg: TRMessage;
     onCitationClick: (colIdx: number, rowIdx: number) => void;
 }) {
@@ -271,7 +277,7 @@ function TRAssistantMessage({
                     {groups.map((g, gIdx) => {
                         if (g.kind === "content") {
                             return <div key={g.index}>
-                                <TRMarkdown text={processedTexts[g.index]} citationsList={citationsList} onCitationClick={onCitationClick} />
+                                <TRMarkdown text={processedTexts[g.index]} citationsList={citationsList} onCitationClick={onCitationClick} reviewRefs={reviewRefs} />
                                 {g.index === lastContentIndex && plainTail && <span className="whitespace-pre-wrap">{plainTail}</span>}
                             </div>;
                         }
@@ -314,7 +320,8 @@ function TRAssistantMessage({
     );
 }
 
-const TRMarkdown = memo(function TRMarkdown({text, citationsList, onCitationClick}: {
+const TRMarkdown = memo(function TRMarkdown({text, citationsList, onCitationClick, reviewRefs}: {
+    reviewRefs?: readonly number[];
     text: string;
     citationsList: TRCitationAnnotation[];
     onCitationClick: (column: number, row: number) => void;
@@ -355,6 +362,7 @@ const TRMarkdown = memo(function TRMarkdown({text, citationsList, onCitationClic
                             const cit = citationsList[idx];
                             if (cit) {
                                 return (
+                                    <>
                                     <CitationPillUI
                                         onClick={() =>
                                             onCitationClick(
@@ -367,6 +375,10 @@ const TRMarkdown = memo(function TRMarkdown({text, citationsList, onCitationClic
                                     >
                                         {cit.ref}
                                     </CitationPillUI>
+                                    {needsCitationReview(reviewRefs, cit.ref) && (
+                                        <CitationReviewHint citationRef={cit.ref} />
+                                    )}
+                                    </>
                                 );
                             }
                         }
@@ -382,7 +394,7 @@ const TRMarkdown = memo(function TRMarkdown({text, citationsList, onCitationClic
             </ReactMarkdown>
         </div>
     );
-}, (previous, next) => previous.text === next.text && previous.onCitationClick === next.onCitationClick && previous.citationsList.length === next.citationsList.length && previous.citationsList.every((value, index) => value === next.citationsList[index]));
+}, (previous, next) => previous.text === next.text && previous.onCitationClick === next.onCitationClick && previous.reviewRefs === next.reviewRefs && previous.citationsList.length === next.citationsList.length && previous.citationsList.every((value, index) => value === next.citationsList[index]));
 
 // ---------------------------------------------------------------------------
 // MessageBubble
@@ -392,7 +404,9 @@ export const TRMessageBubble = memo(function MessageBubble({
     msg,
     trainingNote,
     onCitationClick,
+    reviewRefs,
 }: {
+    reviewRefs?: readonly number[];
     msg: TRMessage;
     trainingNote?: TrainingNoteView;
     onCitationClick: (colIdx: number, rowIdx: number) => void;
@@ -414,7 +428,7 @@ export const TRMessageBubble = memo(function MessageBubble({
             </div>
         );
     }
-    return <TRAssistantMessage msg={msg} onCitationClick={onCitationClick} />;
+    return <TRAssistantMessage msg={msg} onCitationClick={onCitationClick} reviewRefs={reviewRefs} />;
 });
 
 // ---------------------------------------------------------------------------
@@ -708,6 +722,33 @@ export function TRChatPanel({
         hasScrolledRef.current = false;
     }, [currentChatId]);
 
+    // «Revisar esta cita»: the answer is shown before its automatic citation
+    // check is stored, so the thread is read once or twice a few seconds after
+    // an answer with citations ends, and only the refs are taken from it.
+    const [reviewWasLoading, setReviewWasLoading] = useState(isLoading);
+    const [reviewFinished, setReviewFinished] = useState<string | null>(null);
+    if (reviewWasLoading !== isLoading) {
+        setReviewWasLoading(isLoading);
+        const last = messages[messages.length - 1];
+        if (reviewWasLoading && currentChatId && last?.role === "assistant" && last.id && last.annotations?.length) {
+            setReviewFinished(`${currentChatId}:${last.id}`);
+        }
+    }
+    const loadReviewRefs = useCallback(async () => {
+        if (!currentChatId) return {};
+        const raw = await getTabularChatMessages(reviewId, currentChatId);
+        return Object.fromEntries(
+            raw.flatMap((message) =>
+                message.role === "assistant" && message.review_refs?.length
+                    ? [[message.id, message.review_refs] as const]
+                    : [],
+            ),
+        );
+    }, [reviewId, currentChatId]);
+    const freshReviewRefs = useDelayedReviewRefs(
+        currentChatId && reviewFinished?.startsWith(`${currentChatId}:`) ? reviewFinished : null,
+        loadReviewRefs,
+    );
     // LiTT training: private notes beside the pasante's own messages.
     const trainingNotes = matchTrainingNotes(
         messages,
@@ -2091,6 +2132,7 @@ export function TRChatPanel({
                                     msg={msg}
                                     trainingNote={trainingNotes.get(i)}
                                     onCitationClick={onCitationClick}
+                                    reviewRefs={(msg.id ? freshReviewRefs[msg.id] : undefined) ?? msg.reviewRefs}
                                 />
                                 {msg.role === "assistant" && (
                                     <BackingSlot
