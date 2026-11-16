@@ -2060,6 +2060,53 @@ export async function listOrgs(): Promise<Org[]> {
     return apiRequest<Org[]>("organizations.manage", "/orgs");
 }
 
+export type McpConsentWorkspace = {
+    id: string;
+    name: string | null;
+    kind: "personal" | "organization";
+};
+
+/** What the consent page shows for an app that asked to connect (GET /mcp-connect/authorizations/:id). */
+export interface McpConsentRequest {
+    client: {
+        id: string;
+        name: string;
+        kind: "dcr" | "cimd" | "preregistered";
+        uri: string | null;
+        redirect_uri: string;
+        redirect_host: string;
+        loopback_only: boolean;
+    };
+    scopes: string[];
+    workspaces: McpConsentWorkspace[];
+    default_workspace: string | null;
+}
+
+export async function getMcpConsentRequest(requestId: string): Promise<McpConsentRequest> {
+    return apiRequest<McpConsentRequest>(
+        "mcp.consent",
+        `/mcp-connect/authorizations/${encodeURIComponent(requestId)}`,
+    );
+}
+
+/** The address to send the browser to: back to the app, with a code or an error. */
+export async function decideMcpConsent(
+    requestId: string,
+    decision:
+        | { decision: "deny" }
+        | { decision: "approve"; workspaces: string[]; scopes: string[]; default_workspace?: string },
+): Promise<{ redirect_url: string }> {
+    return apiRequest<{ redirect_url: string }>(
+        "mcp.consent",
+        `/mcp-connect/authorizations/${encodeURIComponent(requestId)}/decision`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(decision),
+        },
+    );
+}
+
 export type { DeletedOrganization } from "@mike/contracts";
 export type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
 

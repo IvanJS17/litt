@@ -5,6 +5,7 @@ import { LegalNotice } from "@/app/components/legal/LegalLinks";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/app/lib/authApi";
+import { safeAuthNext } from "@/app/lib/authRedirects";
 import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
@@ -73,6 +74,20 @@ function describeLoginError(error: unknown): UserFacingError {
         : described;
 }
 
+/**
+ * Where to go once signed in: an allowed `?next=` (an app asking to connect
+ * sends the person here and expects them back), else the usual first screen.
+ * Read from the address at the moment of use, so it follows the page the
+ * person is actually on.
+ */
+function afterLoginPath(): string {
+    const next =
+        typeof window === "undefined"
+            ? null
+            : new URLSearchParams(window.location.search).get("next");
+    return safeAuthNext(next, "/onboarding/profile");
+}
+
 export default function LoginPage() {
     const t = useTranslations();
     const router = useRouter();
@@ -104,7 +119,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
-            router.replace("/onboarding/profile");
+            router.replace(afterLoginPath());
         }
     }, [authLoading, isAuthenticated, router]);
 
@@ -114,7 +129,7 @@ export default function LoginPage() {
         try {
             await login(email, password);
             await refreshSession();
-            router.push("/onboarding/profile");
+            router.push(afterLoginPath());
         } catch (caught: unknown) {
             setError(describeLoginError(caught));
         } finally {

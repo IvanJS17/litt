@@ -80,6 +80,21 @@ describe("LoginPage", () => {
         );
     });
 
+    it("returns to an app's connection request after signing in, and ignores any other destination", async () => {
+        login.mockResolvedValue({ user: { id: "user-1" } });
+        const user = userEvent.setup();
+        window.history.pushState({}, "", "/login?next=%2Fconnect%2Fauthorize%3Frequest%3Dr1");
+        try {
+            render(<LoginPage />);
+            await user.type(screen.getByRole("textbox", { name: "Email" }), "a@example.com");
+            await user.type(screen.getByLabelText("Password"), "oldpass");
+            await user.click(screen.getByRole("button", { name: "Log in" }));
+            expect(push).toHaveBeenCalledWith("/connect/authorize?request=r1");
+        } finally {
+            window.history.pushState({}, "", "/");
+        }
+    });
+
     it("allows an existing account to submit a password shorter than the new minimum", async () => {
         login.mockResolvedValue({ user: { id: "user-1" } });
         const user = userEvent.setup();

@@ -9,7 +9,7 @@ import type { Row } from "../helpers/memoryDb";
 const h = vi.hoisted(() => ({
     caller: { id: "user-1", email: "ana@firm.example" },
     personalDisabled: false,
-    state: null as null | { db: unknown; tables: Record<string, Row[]> },
+    state: null as null | { db: unknown; tables: Record<string, Row[]>; failNext: (table: string, op: string, error: unknown) => void },
     documents: new Map<string, () => Response>(),
     fetched: [] as string[],
 }));
@@ -259,7 +259,7 @@ describe("GET /oauth/authorize", () => {
 
     it("requires PKCE S256 and reports it to the client, with iss", async () => {
         const clientId = await register();
-        for (const extra of [{ code_challenge_method: "plain" }, { code_challenge: "" }]) {
+        for (const extra of [{ code_challenge_method: "plain" }, { code_challenge: "" }] as Record<string, string>[]) {
             const res = await authorize({ clientId, extra });
             expect(res.status).toBe(302);
             const back = new URL(res.headers.location);
