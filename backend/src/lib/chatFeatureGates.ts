@@ -13,6 +13,13 @@
 //   are none. The assistant sees only route names and descriptions; a route
 //   that cannot run fails closed and never falls back to another model.
 //
+// - citation check (lib/citationSupport): sends each citation of an answer
+//   (the claim, the quoted text and its context) to TypeSafe, a third party
+//   in the United States, with the platform's TYPESAFE_API_KEY. Off unless
+//   LITT_CITATION_CHECK is `enabled`, and also off without that key. It stays
+//   off in production until the texts from socium-legal are published
+//   (docs/citation-support-check.md). Each person can opt out.
+//
 // Turning one on is a deployment decision recorded with the owner's approval.
 
 export function chatWebSearchEnabled(): boolean {
@@ -21,4 +28,14 @@ export function chatWebSearchEnabled(): boolean {
 
 export function chatSubagentsEnabled(): boolean {
     return process.env.LITT_CHAT_SUBAGENTS?.trim() === "enabled";
+}
+
+export function citationCheckEnabled(): boolean {
+    return process.env.LITT_CITATION_CHECK?.trim() === "enabled";
+}
+
+/** The platform's TypeSafe key, or null: with no key the check does not exist. Never log it. */
+export function citationCheckApiKey(): string | null {
+    if (!citationCheckEnabled()) return null;
+    return process.env.TYPESAFE_API_KEY?.trim() || null;
 }

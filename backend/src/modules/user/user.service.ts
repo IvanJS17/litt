@@ -49,6 +49,7 @@ export {
 } from "./user.subagentRoutes";
 
 export { getApiKeyStatus, saveApiKey } from "./user.apiKeys";
+export { getCitationCheckSetting, updateCitationCheckSetting } from "./user.citationCheck";
 
 export {
     listMcpConnectors,

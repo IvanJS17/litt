@@ -55,6 +55,13 @@ export type PlatformStats = {
   usage: { last_7_days: UsageCounts; last_30_days: UsageCounts };
   organizations: { name: string; members: number; usage: UsageCounts }[];
   people: StatsPerson[];
+  /** Silent citation check: results per day (UTC) and band over the last 30 days. Counts only. */
+  citation_check: CitationCheckStats;
+};
+export type CitationCheckBands = { not_supported: number; review: number; supported: number };
+export type CitationCheckStats = {
+  totals: CitationCheckBands;
+  days: ({ day: string } & CitationCheckBands)[];
 };
 export type StatsBucket = { key: string | null; count: number };
 export type StatsPerson = {
@@ -143,6 +150,29 @@ async function usageEvents(db: Db, since: string): Promise<UsageEvent[]> {
     events.push({ user_id: owner.user_id, feature, at: v.created_at });
   }
   return events;
+}
+
+/** Counts of the citation check's stored results by band and UTC day; the rows hold no text. */
+export async function citationCheckStats(db: Db, since: string): Promise<CitationCheckStats> {
+  const rows = await selectAllByKey<{ id: string; created_at: string; band: string }>(
+    "stats.citation_checks", () =>
+      db.from("citation_support_checks").select("id,created_at,band").gte("created_at", since),
+    "id");
+  const empty = (): CitationCheckBands => ({ not_supported: 0, review: 0, supported: 0 });
+  const totals = empty();
+  const byDay = new Map<string, CitationCheckBands>();
+  for (const row of rows) {
+    if (row.band !== "not_supported" && row.band !== "review" && row.band !== "supported") continue;
+    const day = row.created_at.slice(0, 10);
+    const counts = byDay.get(day) ?? empty();
+    counts[row.band]++;
+    totals[row.band]++;
+    byDay.set(day, counts);
+  }
+  return {
+    totals,
+    days: [...byDay.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([day, counts]) => ({ day, ...counts })),
+  };
 }
 
 export async function buildPlatformStats(db: Db, now = new Date()): Promise<PlatformStats> {
@@ -240,6 +270,7 @@ export async function buildPlatformStats(db: Db, now = new Date()): Promise<Plat
       }))
       .sort((a, b) => a.name.localeCompare(b.name)),
     people,
+    citation_check: await citationCheckStats(db, since30),
   };
 }
 

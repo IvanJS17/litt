@@ -22,6 +22,7 @@ import { randomUUID } from "node:crypto";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
+import { createCitationSupportTurn } from "../../lib/citationSupport";
 import { enqueueChatTurnAudit } from "../../lib/audit";
 import { setOperation, isReported, reportError } from "../../lib/observability/report";
 import {
@@ -276,7 +277,17 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                       })
                 : Promise.resolve();
 
+            // Silent citation support check: null unless the server switch and
+            // the platform key are on and the person has not opted out. It reads the verified citations and runs after
+            // the answer is saved; it never touches what the lawyer sees.
+            const citationSupport = await createCitationSupportTurn({
+                db,
+                userId,
+                orgId,
+                surface: "chat",
+            });
             const { fullText, events, citations } = await runLLMStream({
+                onCitationSupportInputs: citationSupport?.collect,
                 onActivity: run?.touch,
                 apiMessages,
                 docStore,
@@ -414,6 +425,15 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 citations,
                 turn: { userId, chatId, messageId: turnMessageId || null, recordEgress: trainingEgress },
             });
+
+            void citationSupport?.finish(
+                turnMessageId || null,
+                !!completedTurnPersisted &&
+                    !persistedEvents.some(
+                        (event) =>
+                            event.type === "ask_inputs" || event.type === "error",
+                    ),
+            );
 
             void enqueueChatTurnAudit(
                 db,

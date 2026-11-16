@@ -2163,6 +2163,11 @@ export interface PlatformStats {
         usage: PlatformStatsUsage;
         last_activity: string | null;
     }[];
+    /** Silent citation check: stored results by UTC day and band, last 30 days. Counts only. */
+    citation_check: {
+        totals: Record<"not_supported" | "review" | "supported", number>;
+        days: ({ day: string } & Record<"not_supported" | "review" | "supported", number>)[];
+    };
 }
 
 /** A platform (beta) invitation; `/platform/invitations`, administrators only. */
