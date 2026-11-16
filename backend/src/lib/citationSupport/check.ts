@@ -29,6 +29,30 @@ import {
 const CONCURRENCY = 6;
 
 /**
+ * Requests in flight at once across the whole process. A tabular review
+ * checks many cells at the same time, each with its own run; this keeps the
+ * total bounded so a large review cannot flood TypeSafe.
+ */
+export const MAX_IN_FLIGHT = 12;
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+
+async function acquireSlot(): Promise<void> {
+    if (inFlight < MAX_IN_FLIGHT) {
+        inFlight += 1;
+        return;
+    }
+    await new Promise<void>((resolve) => waiting.push(resolve));
+}
+
+function releaseSlot(): void {
+    const next = waiting.shift();
+    // The slot passes straight to the next waiter; only free it when nobody waits.
+    if (next) next();
+    else inFlight -= 1;
+}
+
+/**
  * Where a result is kept: the row it belongs to. One surface per path, each
  * with its own owner column in citation_support_checks; the result is deleted
  * with that row.
@@ -102,7 +126,14 @@ export async function runCitationSupportChecks(args: {
         for (let input = queue.shift(); input; input = queue.shift()) {
             if (keyRefused) return;
             try {
-                const answer = await askCitationSupport(args.apiKey, input.state, args.deps);
+                await acquireSlot();
+                let answer: Awaited<ReturnType<typeof askCitationSupport>>;
+                try {
+                    if (keyRefused) return;
+                    answer = await askCitationSupport(args.apiKey, input.state, args.deps);
+                } finally {
+                    releaseSlot();
+                }
                 const { error } = await args.db.from("citation_support_checks").insert({
                     organization_id: args.scope.orgId,
                     [OWNER_COLUMN[args.scope.surface]]: args.scope.ownerId,

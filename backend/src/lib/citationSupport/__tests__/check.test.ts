@@ -8,6 +8,7 @@ vi.mock("../../observability/report", () => ({
 }));
 
 import {
+    MAX_IN_FLIGHT,
     createCitationSupportRunner,
     createCitationSupportTurn,
     forgetCitationSupportChecks,
@@ -149,6 +150,34 @@ describe("runCitationSupportChecks", () => {
         expect(outcome.checked).toBe(20);
         expect(peak).toBeGreaterThan(1);
         expect(peak).toBeLessThanOrEqual(6);
+    });
+
+    it("keeps the whole process under MAX_IN_FLIGHT requests, however many runs start at once", async () => {
+        const { db } = memoryDb();
+        let active = 0;
+        let peak = 0;
+        const fetchImpl = vi.fn(async () => {
+            active += 1;
+            peak = Math.max(peak, active);
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            active -= 1;
+            return jevAnswer(0.8);
+        });
+        // Ten cells at once, six citations each: 60 requests, at most 12 in flight.
+        const outcomes = await Promise.all(
+            Array.from({ length: 10 }, (_, cell) =>
+                runCitationSupportChecks({
+                    db,
+                    apiKey: "k",
+                    scope: { ...SCOPE, ownerId: `cell-${cell}` },
+                    inputs: Array.from({ length: 6 }, (_, i) => input(i + 1)),
+                    deps: deps(fetchImpl),
+                }),
+            ),
+        );
+        expect(outcomes.reduce((sum, o) => sum + o.checked, 0)).toBe(60);
+        expect(peak).toBeGreaterThan(6);
+        expect(peak).toBeLessThanOrEqual(MAX_IN_FLIGHT);
     });
 
     it.each([401, 402, 403])("stops asking after a %s and writes nothing", async (status) => {

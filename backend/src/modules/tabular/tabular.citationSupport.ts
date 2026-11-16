@@ -183,6 +183,13 @@ export function createTabularCellCheck(args: {
     // Without the server switch and the platform key this capability runs no code.
     if (!citationCheckApiKey()) return undefined;
     let runner: ReturnType<typeof createCitationSupportRunner> | undefined;
+    // One lookup of the review's firm per run, not one per cell.
+    let orgId: Promise<string | null> | undefined;
+    const reviewOrgId = () =>
+        (orgId ??= (async () => {
+            const { data } = await args.db.from("tabular_reviews").select("org_id").eq("id", args.reviewId).maybeSingle();
+            return (data as { org_id?: string | null } | null)?.org_id ?? null;
+        })());
     return (cell) => {
         void (async () => {
             try {
@@ -195,14 +202,7 @@ export function createTabularCellCheck(args: {
                     db: args.db,
                     userId: args.userId,
                     legalVersion: LEGAL_VERSION,
-                    orgId: async () => {
-                        const { data } = await args.db
-                            .from("tabular_reviews")
-                            .select("org_id")
-                            .eq("id", args.reviewId)
-                            .maybeSingle();
-                        return (data as { org_id?: string | null } | null)?.org_id ?? null;
-                    },
+                    orgId: reviewOrgId,
                 });
                 await (await runner)?.run({ surface: "tabular_cell", ownerId: cell.cellId }, inputs);
             } catch {

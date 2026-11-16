@@ -225,7 +225,9 @@ describe.skipIf(!container)("citation support checks in PostgreSQL", () => {
             if (!exists) continue;
             expect(
                 psql(`select has_table_privilege('${role}', 'public.citation_support_checks', 'select')
-                    or has_table_privilege('${role}', 'public.citation_support_checks', 'insert')`),
+                    or has_table_privilege('${role}', 'public.citation_support_checks', 'insert')
+                    or has_table_privilege('${role}', 'public.citation_support_checks', 'delete')
+                    or has_table_privilege('${role}', 'public.citation_support_checks', 'update')`),
             ).toBe("f");
         }
     });
