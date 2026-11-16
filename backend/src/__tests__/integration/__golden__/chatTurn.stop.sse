@@ -1,0 +1,15 @@
+id: 1
+data: {"type":"chat_id","chatId":"chat-1","turnId":"<uuid-1>","assistantMessageId":"<uuid-1>"}
+
+id: 2
+data: {"type":"chat_title","chatId":"chat-1","title":"Generated Title"}
+
+id: 3
+data: {"type":"content_delta","text":"Part"}
+
+id: 4
+data: {"type":"cancelled"}
+
+id: 5
+data: [DONE]
+

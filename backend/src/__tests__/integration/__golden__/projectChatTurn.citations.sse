@@ -1,0 +1,24 @@
+id: 1
+data: {"type":"chat_id","chatId":"chat-1","turnId":"<uuid-1>","assistantMessageId":"<uuid-1>"}
+
+id: 2
+data: {"type":"chat_title","chatId":"chat-1","title":"Generated Title"}
+
+id: 3
+data: {"type":"content_delta","text":"Rent is due monthly [1].\n"}
+
+id: 4
+data: {"type":"citations","status":"started","citations":[]}
+
+id: 5
+data: {"type":"citations","status":"partial","citations":[{"type":"citation_data","kind":"document","ref":1,"document":{"document_id":"doc-id-1","title":"contract.txt","type":"pdf","metadata":[],"quotes":[{"quote":"The tenant shall pay rent on the first day of each month.","target":{"page":1}}],"version_id":null,"version_number":null},"doc_id":"doc-0","document_id":"doc-id-1","version_id":null,"version_number":null,"filename":"contract.txt","page":1,"quote":"The tenant shall pay rent on the first day of each month.","quotes":[{"page":1,"quote":"The tenant shall pay rent on the first day of each month."}]}]}
+
+id: 6
+data: {"type":"citations","status":"final","citations":[{"type":"citation_data","kind":"document","ref":1,"document":{"document_id":"doc-id-1","title":"contract.txt","type":"pdf","metadata":[],"quotes":[{"quote":"The tenant shall pay rent on the first day of each month.","target":{"page":1},"verification":{"verified":true,"start_char":0,"end_char":57,"source_excerpt":"The tenant shall pay rent on the first day of each month."}}],"version_id":null,"version_number":null},"doc_id":"doc-0","document_id":"doc-id-1","version_id":null,"version_number":null,"filename":"contract.txt","page":1,"quote":"The tenant shall pay rent on the first day of each month.","quotes":[{"page":1,"quote":"The tenant shall pay rent on the first day of each month.","verification":{"verified":true,"start_char":0,"end_char":57,"source_excerpt":"The tenant shall pay rent on the first day of each month."}}],"verified":true}]}
+
+id: 7
+data: {"type":"response_details","model":"gpt-6.1-sol","reasoning":"high","usage":{"input_tokens":10,"output_tokens":5}}
+
+id: 8
+data: [DONE]
+

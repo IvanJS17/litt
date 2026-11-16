@@ -26,7 +26,7 @@ describe("where the citation check can be reached from", () => {
         expect(importers).toEqual([
             "lib/chatFeatureGates.ts",
             "modules/chat/chat.messages.ts",
-            "modules/chat/chat.routes.ts",
+            "modules/chat/chat.turn.ts",
             "modules/chat/engine/streaming.ts",
             "modules/playbooks/playbooks.citationSupport.ts",
             "modules/playbooks/playbooks.draft.ts",

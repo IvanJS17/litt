@@ -72,8 +72,8 @@ import type { CreatedTurnNote } from "../../lib/trainingNotes";
 // This performs the DB work that precedes the SSE stream: resolving or creating
 // the chat, persisting the user message, opening the memory conversation turn,
 // building doc context + messages, and assembling the workflow store. It
-// RETURNS the prepared data; the route owns the header flush, runLLMStream
-// loop, and persistence.
+// RETURNS the prepared data; chat.turn.ts owns the runLLMStream loop and
+// persistence, and the route only attaches the response.
 
 export type PreparedChatStream = {
     chatId: string;
