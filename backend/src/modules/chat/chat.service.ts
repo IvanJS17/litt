@@ -21,6 +21,18 @@ export {
 export { updateChatSettings } from "./chat.settings";
 export { updateChatTitle } from "./chat.titles";
 export { prepareChatStream } from "./chat.prepare";
+// The chat turn without HTTP: parse a request body, start the turn, run its
+// generation loop against a sink (see chat.turn.ts).
+export {
+  parseChatTurnRequest,
+  startChatTurn,
+  runChatTurn,
+  abandonChatTurn,
+  type ChatTurnSink,
+  type ParsedChatTurnRequest,
+  type StartedChatTurn,
+  type StartChatTurnFailure,
+} from "./chat.turn";
 export {
   devLog,
   appendAssistantEventsToMessage,

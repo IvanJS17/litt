@@ -1,87 +1,51 @@
-import { BACKEND_REPORTING_OWNER } from "../../lib/reportedUpstreamCodes";
-import { abortable } from "../../lib/abortable";
 import {
     attachAssistantTurnSse,
     getActiveAssistantTurn,
     getAssistantTurnRun,
-    startAssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
-import { stopOutcomeFrame } from "../../lib/streamRuns";
 // HTTP layer for the chat module.
 //
 // Route handlers parse params/query/body, call the chat.service functions,
-// and map their typed results onto status codes and JSON. The SSE streaming
-// loop for POST /chat (header flush, runLLMStream, abort handling,
-// assistant-message persistence) stays here — its ordering is delicate; the
-// pre-stream preparation lives in chat.service.ts.
+// and map their typed results onto status codes and JSON. POST /chat is the
+// thin adapter of the chat turn (chat.turn.ts): it parses, starts the turn,
+// attaches the response to the turn's run, and runs the generation loop,
+// which writes frames to the run rather than to `res`.
 
 import { Router } from "express";
-import { randomUUID } from "node:crypto";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
-import { createCitationSupportTurn } from "../../lib/citationSupport";
-import { enqueueChatTurnAudit, stoppedTurnAuditStatus } from "../../lib/audit";
 import {
-    appendAssistantEventsToMessage,
-    AssistantStreamError,
-    assistantStreamErrorPayload,
-    buildStoppedAssistantEvent,
-    buildStoppedAssistantMessage,
-    extractCitations,
-    isAbortError,
-    isMeaningfulTextlessAssistantOutput,
-    runLLMStream,
-    stripTransientAssistantEvents,
-    throwIfTurnStopped,
-    writeApprovedConnectorFrames,
-    parseChatMessages,
-    parseOptionalAskInputsResponse,
-    parseOptionalChatId,
     parseOptionalModel,
     parseOptionalReasoning,
     parseOptionalProjectId,
-    createReservedAssistantMessageUpdater,
-    createSubagentRunStore,
-    logAssistantMessageFailure,
     requestIdOf,
-    reserveAssistantMessage,
 } from "./engine/index";
-import { setOperation, isReported, reportError } from "../../lib/observability/report";
+import { setOperation } from "../../lib/observability/report";
 import { normalizeEmail } from "../../lib/access";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { can } from "../../lib/permissions";
-import {
-    finishTrainingTurn,
-    readTrainingBody,
-    trainingEnginePlan,
-} from "../../lib/trainingTurn";
-import { generateAssistantChatTitle, logChatTitleFailure } from "./chat.title";
 import { sendInternalError } from "../../lib/httpError";
 import { sendServiceFailure } from "../../lib/serviceResult";
-import { titleModelForChat } from "../../lib/modelSelection";
-import { LEGAL_VERSION, parseCredentialRef } from "../user/user.service";
 import {
-    releaseMemoryConversationTurn,
-    scheduleMemoryConsolidation,
-} from "../../lib/memory/schedule";
+    abandonChatTurn,
+    parseChatTurnRequest,
+    runChatTurn,
+    startChatTurn,
+} from "./chat.turn";
 import {
     createChat,
     deleteChat,
-    discardRejectedChatInput,
-    devLog,
     getAccessibleChat,
     getChatMessages,
     grantChatAccess,
     listChatGrants,
     listChatPeople,
     listChats,
-    prepareChatStream,
     revokeChatAccess,
     leaveChat,
     withChatLeaveAccess,
     updateChatSettings,
-    updateChatTitle,
 } from "./chat.service";
 import {
     resolveWorkspaceFilter,
@@ -520,657 +484,33 @@ chatRouter.delete("/:chatId", requireAuth, asyncRoute(async (req, res) => {
 // POST /chat — streaming
 chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     setOperation("chat.turn");
-    const requestId = requestIdOf(res);
-    const userId = res.locals.userId as string;
-    const body =
-        req.body && typeof req.body === "object" && !Array.isArray(req.body)
-            ? (req.body as Record<string, unknown>)
-            : {};
-    const parsedMessages = parseChatMessages(body.messages);
-    if (!parsedMessages.ok) {
-        return void res.status(400).json({ detail: parsedMessages.detail });
+    const parsed = parseChatTurnRequest(req.body);
+    if (!parsed.ok) {
+        return void res.status(parsed.status).json({ detail: parsed.detail });
     }
-    const parsedChatId = parseOptionalChatId(body.chat_id);
-    if (!parsedChatId.ok) {
-        return void res.status(400).json({ detail: parsedChatId.detail });
-    }
-    const parsedProjectId = parseOptionalProjectId(body.project_id);
-    if (!parsedProjectId.ok) {
-        return void res.status(400).json({ detail: parsedProjectId.detail });
-    }
-    const parsedModel = parseOptionalModel(body.model);
-    if (!parsedModel.ok) {
-        return void res.status(400).json({ detail: parsedModel.detail });
-    }
-    const parsedReasoning = parseOptionalReasoning(body.reasoning);
-    if (!parsedReasoning.ok) {
-        return void res.status(400).json({ detail: parsedReasoning.detail });
-    }
-    const parsedCredentialRef = parseCredentialRef(body.credential_ref);
-    if (!parsedCredentialRef.ok) {
-        return void res.status(400).json({ detail: parsedCredentialRef.detail });
-    }
-    const parsedAskInputsResponse = parseOptionalAskInputsResponse(
-        body.ask_inputs_response,
-    );
-    if (!parsedAskInputsResponse.ok) {
-        return void res
-            .status(400)
-            .json({ detail: parsedAskInputsResponse.detail });
-    }
-    const messages = parsedMessages.value;
-    const chat_id = parsedChatId.value;
-    const project_id = parsedProjectId.value.projectId;
-    const model = parsedModel.value;
-    const askInputsResponse = parsedAskInputsResponse.value;
-    // Reserve a stable assistant identity before streaming. This lets clients
-    // associate streamed UI with the same durable message after a reload.
-    const assistantMessageId = askInputsResponse ? null : randomUUID();
-    const turnMessageId =
-        assistantMessageId ?? askInputsResponse?.assistant_message_id ?? "";
-    const inputMessageId = askInputsResponse ? null : randomUUID();
-
-    devLog("[chat/stream] incoming request", {
-        userId,
-        chat_id,
-        project_id,
-        model,
-        messageCount: messages?.length,
-    });
-
-    const userEmail = res.locals.userEmail as string | undefined;
     const db = createServerSupabase();
-
-    const prep = await prepareChatStream(db, {
-        userId,
-        userEmail,
-        messages,
-        chatId: chat_id ?? null,
-        inputMessageId,
-        projectIdProvided: parsedProjectId.value.provided,
-        projectId: parsedProjectId.value.projectId,
-        askInputsResponse,
-        requestedModel: model,
-        requestedCredentialRef: parsedCredentialRef.value,
-        requestedReasoning: parsedReasoning.value,
-        requestedTimeZone: req.body?.time_zone,
-        requestedOrgId: req.body?.org_id,
-        attempt: readTrainingBody(body).attempt,
-        confidence: readTrainingBody(body).confidence,
-        trainingMode: readTrainingBody(body).mode,
-        trainingCriteria: {
-            routes: readTrainingBody(body).criteriaRoutes,
-            explanation: readTrainingBody(body).criteriaExplanation,
-        },
+    const turn = await startChatTurn(db, {
+        userId: res.locals.userId as string,
+        userEmail: res.locals.userEmail as string | undefined,
+        requestId: requestIdOf(res),
+        parsed: parsed.value,
     });
-    if (!prep.ok) {
-        if ("internal" in prep) return void sendInternalError(res, prep.error);
-        return void res.status(prep.status).json({
-            ...(prep.code ? { code: prep.code } : {}),
-            detail: prep.detail,
+    if (!turn.ok) {
+        if ("internal" in turn) return void sendInternalError(res, turn.error);
+        return void res.status(turn.status).json({
+            ...(turn.code ? { code: turn.code } : {}),
+            detail: turn.detail,
         });
     }
-
-    const {
-        chatId,
-        lastUser,
-        resolvedProjectId,
-        allowDocumentMutation,
-        canReadProjectMemory,
-        canCurateProjectMemory,
-        memorySharedAudience,
-        memoryTurn,
-        docIndex,
-        docStore,
-        apiMessages,
-        workflowStore,
-        webSearch,
-        webSearchAccount,
-        apiKeys,
-        orgId,
-        titleModel,
-        subagentRoutes,
-        selectedModel,
-        selectedReasoningLevel,
-        nonce,
-        approvalEvents,
-        trainingNote,
-        trainingPlan,
-        trainingEgress,
-    } = prep.prepared;
-    let chatTitle = prep.prepared.chatTitle;
-    let completedTurnPersisted = prep.prepared.completedTurnPersisted;
-    let memoryTurnScheduled = false;
-    const subagentRuns = createSubagentRunStore({
-        db,
-        userId,
-        userEmail,
-        chatId,
-        messageId: turnMessageId,
-    });
-
-    devLog("[chat/stream] starting LLM stream", {
-        apiMessageCount: apiMessages.length,
-        docCount: Object.keys(docIndex).length,
-        workflowCount: Object.keys(workflowStore).length,
-    });
-
+    // The browser is one reader of the turn's run: it gets every frame from
+    // the first, then the live ones. The loop does not know it is there.
     try {
-        // The generation is a server-owned run from here on: it survives the
-        // caller's socket (a refresh, a closed tab) and only the Stop
-        // endpoint aborts it. One run per chat at a time.
-        const run = startAssistantTurnRun({
-            id: assistantMessageId ?? randomUUID(),
-            chatId,
-            userId,
-            assistantMessageId: turnMessageId,
-        });
-        if (!run) {
-            if (inputMessageId) {
-                const discarded = await discardRejectedChatInput(db, {
-                    chatId, inputMessageId, userId,
-                });
-                if (!discarded.ok) return void sendInternalError(res, discarded.error);
-            }
-            return void res.status(409).json({
-                code: "turn_in_progress",
-                detail: "A response is already being generated for this chat.",
-            });
-        }
-        // Make the advertised identity durable before the response becomes an
-        // SSE stream. If this reservation fails, return a normal HTTP error
-        // while headers are still mutable; clients must never receive an ID
-        // that cannot subsequently be loaded from chat history.
-        if (assistantMessageId) {
-            const reserveError = await reserveAssistantMessage({
-                db,
-                table: "chat_messages",
-                id: assistantMessageId,
-                chatId,
-                inputMessageId: inputMessageId as string,
-                authorUserId: userId,
-            });
-            if (reserveError) {
-                logAssistantMessageFailure({
-                    kind: "chat.message_reserve_failed",
-                    label: "[chat/stream] failed to reserve assistant message",
-                    cause: reserveError,
-                    component: "chat-stream",
-                });
-                run.finish();
-                return void res
-                    .status(500)
-                    .json({ detail: "Failed to start assistant response" });
-            }
-        }
-
-        const stream = attachAssistantTurnSse(res, run);
-        const write = stream.write;
-        const updateReservedAssistantMessage =
-            createReservedAssistantMessageUpdater({
-                db,
-                table: "chat_messages",
-                id: assistantMessageId ?? "",
-                chatId,
-                enabled: !!assistantMessageId,
-            });
-
-        let titlePromise: Promise<void> = Promise.resolve();
-        // A holder, not a `let`: it is assigned inside the title promise's
-        // catch, which TypeScript's flow analysis cannot see.
-        const titleOutcome: { failure: { error: unknown } | null } = { failure: null };
-        // Where the finished answer was saved, once it was. A stop that is seen
-        // only after the save marks that answer as stopped instead of saving it
-        // a second time.
-        let savedAnswerMessageId: string | null = null;
-        try {
-            write(
-                `data: ${JSON.stringify({
-                    type: "chat_id",
-                    chatId,
-                    turnId: run.id,
-                    ...(assistantMessageId ? { assistantMessageId } : {}),
-                })}\n\n`,
-            );
-            writeApprovedConnectorFrames(write, approvalEvents);
-
-            const shouldGenerateTitle =
-                !chatTitle && !!lastUser?.content && !askInputsResponse;
-            const titleMessage = lastUser
-                ? [
-                      lastUser.content,
-                      lastUser.workflow
-                          ? `Workflow: ${lastUser.workflow.title}`
-                          : "",
-                      lastUser.playbook
-                          ? `Playbook: ${lastUser.playbook.title}`
-                          : "",
-                      lastUser.files?.length
-                          ? `Files: ${lastUser.files.map((file) => file.filename).join(", ")}`
-                          : "",
-                  ]
-                      .filter(Boolean)
-                      .join("\n")
-                : "";
-            titlePromise = shouldGenerateTitle
-                ? generateAssistantChatTitle({
-                      abortSignal: stream.signal,
-                      model: titleModelForChat(selectedModel, titleModel),
-                      message: titleMessage,
-                      apiKeys,
-                      conversationId: chatId,
-                  })
-                      .then(async (title) => {
-                          if (stream.signal.aborted) return;
-                          const saved = await updateChatTitle(db, {
-                              chatId,
-                              title,
-                          });
-                          if (!saved.ok) throw saved.error;
-                          chatTitle = title;
-                          if (!stream.signal.aborted) {
-                              write(
-                                  `data: ${JSON.stringify({ type: "chat_title", chatId, title })}\n\n`,
-                              );
-                          }
-                      })
-                      .catch((error) => {
-                          // Decided once the reply has settled: see the
-                          // logChatTitleFailure calls below.
-                          if (!stream.signal.aborted) titleOutcome.failure = { error };
-                      })
-                : Promise.resolve();
-
-            // Silent citation support check: null unless the server switch and
-            // the platform key are on and the person has not opted out. It reads the verified citations and runs after
-            // the answer is saved; it never touches what the lawyer sees.
-            const citationSupport = await createCitationSupportTurn({
-                db,
-                userId,
-                orgId,
-                surface: "chat",
-                legalVersion: LEGAL_VERSION,
-            });
-            const { fullText, events, citations } = await runLLMStream({
-                onCitationSupportInputs: citationSupport?.collect,
-                onActivity: run?.touch,
-                apiMessages,
-                docStore,
-                docIndex,
-                userId,
-                userEmail,
-                db,
-                write,
-                allowDocumentMutation,
-                trainingPlan: trainingEnginePlan(trainingPlan),
-                workflowStore,
-                webSearch,
-                webSearchAccount,
-                subagentRuns,
-                subagentRoutes,
-                model: selectedModel,
-                reasoning: selectedReasoningLevel,
-                apiKeys,
-                orgId,
-                signal: stream.signal,
-                projectId: resolvedProjectId,
-                conversationId: chatId,
-                includeMemory: true,
-                connectorApprovals: true,
-                memoryProjectId: canReadProjectMemory
-                    ? resolvedProjectId
-                    : null,
-                memorySharedAudience,
-                nonce,
-                // This route first makes the advertised assistant ID durable.
-                // It emits [DONE] only after the reserved row has been
-                // populated.
-                emitDone: false,
-            });
-            throwIfTurnStopped(stream.signal, { fullText, events });
-
-            devLog("[chat/stream] LLM stream finished", {
-                fullTextLen: fullText?.length ?? 0,
-                eventCount: events?.length ?? 0,
-            });
-
-            // Upstream providers occasionally end the stream cleanly but empty
-            // (observed via OpenRouter). Silence reads as a hung composer, so
-            // surface it — unless tools produced visible artifacts, which carry
-            // their own completion signal.
-            const hasToolOutput =
-                approvalEvents.length > 0 ||
-                events?.some(isMeaningfulTextlessAssistantOutput);
-            if (!fullText?.trim() && !hasToolOutput) {
-                write(
-                    `data: ${JSON.stringify({
-                        type: "error",
-                        message:
-                            "The model returned an empty response. Try again, or pick a different model.",
-                        safe_to_display: true,
-                        ...(requestId ? { request_id: requestId } : {}),
-                    })}\n\n`,
-                );
-                write("data: [DONE]\n\n");
-                return;
-            }
-
-            const persistedEvents = stripTransientAssistantEvents(events);
-            if (askInputsResponse) {
-                const appended = await appendAssistantEventsToMessage(
-                    db,
-                    chatId,
-                    askInputsResponse.assistant_message_id,
-                    userId,
-                    persistedEvents,
-                    citations,
-                );
-                completedTurnPersisted = appended;
-                if (appended) {
-                    savedAnswerMessageId = askInputsResponse.assistant_message_id;
-                }
-            } else {
-                const saveError = await updateReservedAssistantMessage(
-                    persistedEvents.length ? persistedEvents : null,
-                    citations.length ? citations : null,
-                );
-                if (saveError) {
-                    logAssistantMessageFailure({
-                        kind: "chat.message_save_failed",
-                        label: "[chat/stream] failed to save assistant response",
-                        cause: saveError,
-                        component: "chat-stream",
-                    });
-                    // A turn stopped while the save was pending ends as stopped,
-                    // not as a save failure (the stop path saves it again).
-                    throwIfTurnStopped(stream.signal, { fullText, events });
-                    write(
-                        `data: ${JSON.stringify({
-                            type: "error",
-                            message:
-                                "The response was generated but could not be saved.",
-                            reporting_owner: BACKEND_REPORTING_OWNER,
-                            ...(requestId ? { request_id: requestId } : {}),
-                        })}\n\n`,
-                    );
-                    write("data: [DONE]\n\n");
-                    return;
-                }
-                savedAnswerMessageId = assistantMessageId;
-            }
-            await subagentRuns.flush();
-
-            await abortable(titlePromise, stream.signal).catch(() => {});
-            if (titleOutcome.failure) {
-                logChatTitleFailure(
-                    "[chat/stream] failed to generate chat title",
-                    titleOutcome.failure.error,
-                    null,
-                );
-            }
-
-            // The answer is saved, but the turn may have been stopped while it was
-            // being saved (or while the title was awaited). A stop seen here
-            // still ends it as stopped: no fallback title, no memory
-            // consolidation, and the stored answer gets the stop label.
-            throwIfTurnStopped(stream.signal, { fullText, events });
-
-            if (!chatTitle && lastUser?.content) {
-                const title = lastUser.content.slice(0, 120);
-                // The SSE response is already streaming, so a failure here
-                // cannot become an HTTP error — but it must not be announced
-                // either: an ignored error pushed a chat_title frame the
-                // client rendered and the next reload undid. Log it and leave
-                // the chat untitled.
-                const saved = await updateChatTitle(db, { chatId, title });
-                if (!saved.ok) {
-                    logAssistantMessageFailure({
-                        kind: "chat.title_failed",
-                        label: "[chat/stream] failed to save chat title",
-                        cause: saved.error,
-                        component: "chat-stream",
-                    });
-                } else {
-                    chatTitle = title;
-                    if (shouldGenerateTitle && !stream.signal.aborted) {
-                        write(
-                            `data: ${JSON.stringify({ type: "chat_title", chatId, title })}\n\n`,
-                        );
-                    }
-                }
-            }
-
-            // ask_inputs is an intentional pause, not a completed conversation.
-            // A continuation reuses the preceding assistant row, so resolve that
-            // durable identity only when there is no newly reserved message id.
-            if (
-                completedTurnPersisted &&
-                !persistedEvents.some(
-                    (event) =>
-                        event.type === "ask_inputs" || event.type === "error",
-                )
-            ) {
-                const completedTurnId =
-                    assistantMessageId ??
-                    askInputsResponse?.assistant_message_id ??
-                    null;
-                if (completedTurnId) {
-                    const scheduled = await scheduleMemoryConsolidation({
-                        db,
-                        surface: "chat",
-                        conversationId: chatId,
-                        actorUserId: userId,
-                        projectId: canCurateProjectMemory
-                            ? resolvedProjectId
-                            : null,
-                        turnId: completedTurnId,
-                        turn: memoryTurn,
-                    });
-                    memoryTurnScheduled = scheduled != null;
-                }
-            }
-            // LiTT training: the final answer is durable, so the pasante's
-            // private contrast is produced now, aside from the turn, with the
-            // conversation's own model and credential. It cannot fail the turn.
-            finishTrainingTurn(db, {
-                plan: trainingPlan,
-                note: trainingNote,
-                completed: !persistedEvents.some((event) => event.type === "error"),
-                answer: fullText ?? "",
-                model: selectedModel,
-                apiKeys,
-                citations,
-                turn: { userId, chatId, messageId: turnMessageId || null, recordEgress: trainingEgress },
-            });
-
-            void citationSupport?.finish(
-                turnMessageId || null,
-                !!completedTurnPersisted &&
-                    !persistedEvents.some(
-                        (event) =>
-                            event.type === "ask_inputs" || event.type === "error",
-                    ),
-            );
-
-            void enqueueChatTurnAudit(
-                db,
-                {
-                    userId,
-                    orgId,
-                    userEmail,
-                    chatId,
-                    projectId: resolvedProjectId,
-                    title:
-                        chatTitle ?? lastUser?.content?.slice(0, 120) ?? null,
-                    model: selectedModel,
-                },
-                persistedEvents,
-            );
-            write("data: [DONE]\n\n");
-        } catch (err) {
-            // The title ran in parallel with the reply; only now is it known
-            // whether its failure is the reply's failure seen twice.
-            await abortable(titlePromise, stream.signal).catch(() => {});
-            if (titleOutcome.failure) {
-                logChatTitleFailure(
-                    "[chat/stream] failed to generate chat title",
-                    titleOutcome.failure.error,
-                    isAbortError(err) ? null : err,
-                );
-            }
-            if (isAbortError(err)) {
-                devLog("[chat/stream] turn stopped", { chatId });
-                // The events the turn finished before it stopped: a document
-                // it edited or created has a new version even though the turn
-                // did not complete, so its audit row is written all the same.
-                void enqueueChatTurnAudit(
-                    db,
-                    {
-                        userId,
-                        orgId,
-                        userEmail,
-                        chatId,
-                        projectId: resolvedProjectId,
-                        title: chatTitle,
-                        model: selectedModel,
-                        status: stoppedTurnAuditStatus(run?.stopReason),
-                    },
-                    err instanceof AssistantStreamError ? err.events : null,
-                );
-                if (err instanceof AssistantStreamError) {
-                    const partial = savedAnswerMessageId
-                        ? {
-                              events: [buildStoppedAssistantEvent(run?.stopReason)],
-                              citations: [],
-                          }
-                        : buildStoppedAssistantMessage({
-                              stopReason: run?.stopReason,
-                              fullText: err.fullText,
-                              events: err.events,
-                              buildCitations: (fullText) =>
-                                  extractCitations(fullText, docIndex),
-                          });
-                    let saveError: unknown | null = null;
-                    if (savedAnswerMessageId) {
-                        // The finished answer is already stored: add only what
-                        // marks it as stopped (the label after its events).
-                        await appendAssistantEventsToMessage(
-                            db,
-                            chatId,
-                            savedAnswerMessageId,
-                            userId,
-                            partial.events,
-                            [],
-                        );
-                    } else if (askInputsResponse) {
-                        await appendAssistantEventsToMessage(
-                            db,
-                            chatId,
-                            askInputsResponse.assistant_message_id,
-                            userId,
-                            partial.events,
-                            partial.citations,
-                        );
-                    } else {
-                        saveError = await updateReservedAssistantMessage(
-                            partial.events.length ? partial.events : null,
-                            partial.citations.length ? partial.citations : null,
-                        );
-                    }
-                    if (saveError) {
-                        logAssistantMessageFailure({
-                            kind: "chat.message_save_failed",
-                            label: "[chat/stream] failed to save aborted stream",
-                            cause: saveError,
-                            component: "chat-stream",
-                        });
-                    } else {
-                        await subagentRuns.flush();
-                    }
-                }
-                // Readers still attached (Stop came from another tab, or
-                // this one is watching) learn the outcome the same way a
-                // reload would: persistence uses the same stop reason.
-                write(stopOutcomeFrame(run));
-                write("data: [DONE]\n\n");
-                return;
-            }
-            if (!isReported(err)) {
-                reportError(err, { tags: { operation: "chat.turn", stage: "chat-stream" } });
-            }
-            console.error("[chat/stream] error:", err);
-            const errorPayload = assistantStreamErrorPayload(err, requestId);
-            const message = errorPayload.message;
-            const errorEvents =
-                err instanceof AssistantStreamError
-                    ? stripTransientAssistantEvents(err.events)
-                    : [{ type: "error" as const, message }];
-            const errorFullText =
-                err instanceof AssistantStreamError ? err.fullText : "";
-            try {
-                const citations = extractCitations(errorFullText, docIndex);
-                const saveError = askInputsResponse
-                    ? null
-                    : await updateReservedAssistantMessage(
-                          errorEvents.length ? errorEvents : null,
-                          citations.length ? citations : null,
-                      );
-                if (askInputsResponse) {
-                    await appendAssistantEventsToMessage(
-                        db,
-                        chatId,
-                        askInputsResponse.assistant_message_id,
-                        userId,
-                        errorEvents,
-                        citations,
-                    );
-                }
-                if (saveError)
-                    logAssistantMessageFailure({
-                        kind: "chat.message_save_failed",
-                        label: "[chat/stream] failed to save error",
-                        cause: saveError,
-                        component: "chat-stream",
-                    });
-                else await subagentRuns.flush();
-            } catch (saveErr) {
-                logAssistantMessageFailure({
-                    kind: "chat.message_save_failed",
-                    label: "[chat/stream] failed to save error",
-                    cause: saveErr,
-                    component: "chat-stream",
-                });
-            }
-            try {
-                write(
-                    `data: ${JSON.stringify({
-                        type: "error",
-                        ...errorPayload,
-                    })}\n\n`,
-                );
-                write("data: [DONE]\n\n");
-            } catch {
-                /* ignore */
-            }
-        } finally {
-            stream.finish();
-        }
-    } finally {
-        if (memoryTurn && !memoryTurnScheduled) {
-            try {
-                await releaseMemoryConversationTurn({
-                    db,
-                    surface: "chat",
-                    conversationId: chatId,
-                    turn: memoryTurn,
-                });
-            } catch {
-                console.warn("[memory] chat activity release failed", {
-                    chatId,
-                });
-            }
-        }
+        attachAssistantTurnSse(res, turn.started.run);
+    } catch (error) {
+        await abandonChatTurn(db, turn.started);
+        throw error;
     }
+    await runChatTurn(db, turn.started);
 }));
 
 chatRouter.use(routerErrorHandler("[chat]"));

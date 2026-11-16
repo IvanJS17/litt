@@ -33,7 +33,9 @@ Streaming endpoints are the one place HTTP leaks into the module body: SSE
 loops (header flush, LLM stream, stop handling, assistant-message
 persistence) stay in the routes file because stream lifetime *is* an HTTP
 concern. Only their pre-stream preparation and post-stream persistence live in
-the service. `tabular.generateStream.ts` is the single sanctioned exception
+the service. The exception is `POST /chat`, whose turn already lives outside
+the routes file (see "The chat turn and its sink" below).
+`tabular.generateStream.ts` is the single sanctioned exception
 that takes `res` directly, because two routes share its *async* stream; its
 header says so. Its synchronous half takes a `write` function instead — that
 generation is a server-owned run, so the frames belong to the run, not to one
@@ -81,6 +83,38 @@ id in `meta`). `attachAssistantTurnSse(res, run)` hands back the same
   attach rather than treat the hidden reservation row as "no answer".
 - A chat has at most one run at a time: a second `POST` while one is
   generating answers `409 turn_in_progress`.
+
+#### The chat turn and its sink
+
+`POST /chat` is a thin adapter over `modules/chat/chat.turn.ts`, which has no
+`req`/`res`:
+
+- `parseChatTurnRequest(body)` validates the body (pure; 400 on the first
+  problem, in the order the route always checked).
+- `startChatTurn(db, { userId, userEmail, requestId, parsed })` authorises and
+  prepares the turn, registers the run (one per chat; `409 turn_in_progress`)
+  and makes the assistant row durable. It returns a typed result
+  (`{ ok: true, started }`, `{ ok: false, status, code?, detail }` or
+  `{ ok: false, internal: true, error }`) instead of writing a response, and
+  releases the turn's memory lease on every way out that does not start a turn.
+- `runChatTurn(db, started, sink = started.run)` is the generation loop. It
+  writes SSE frames to a `ChatTurnSink` (`id`, `signal`, `write`, `finish`,
+  `touch`, `stopReason` — the shape of the turn's run), ends it exactly once,
+  saves the answer before `[DONE]`, and settles the memory lease (scheduled on
+  a completed answer, released otherwise). `abandonChatTurn` gives the lease
+  back when a transport started a turn but could not run it.
+
+The web route is `parse → startChatTurn → attachAssistantTurnSse(res, run) →
+runChatTurn`: the response is one reader of the run, so the loop does not know
+whether anyone is attached. Another transport calls the same three functions
+and reads the run (`getAssistantTurnRun` + `run.subscribe`) or the persisted
+message. The names are re-exported from `chat.service.ts`.
+
+`src/__tests__/integration/chatTurn.golden.routes.test.ts` (and the
+project-chat twin) record the response bytes and the ordered side effects of
+a turn against committed fixtures in `src/__tests__/integration/__golden__/`;
+re-record with `UPDATE_GOLDEN=1` only for an intentional wire change. Project
+chat and Word chat still run their loops in their routes files.
 
 #### Tabular review chat
 
