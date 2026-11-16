@@ -8,13 +8,12 @@
  */
 import { expect } from "vitest";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 export type TimelineEntry = { k: string; v: unknown };
 
 const GOLDEN_DIR = join(
-    dirname(fileURLToPath(import.meta.url)),
+    __dirname,
     "..",
     "integration",
     "__golden__",
