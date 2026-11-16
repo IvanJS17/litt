@@ -163,6 +163,20 @@ export async function chatCitationInputs(args: {
 }
 
 /**
+ * Forget the silent citation checks of cells whose content was blanked
+ * (clear-cells). Only deletes results; never sends anything.
+ */
+export async function forgetTabularCellChecks(db: Db, cellIds: readonly string[]): Promise<void> {
+    for (let i = 0; i < cellIds.length; i += CELL_CHECK_DELETE_BATCH)
+        await forgetCitationSupportChecks(db, {
+            surface: "tabular_cell",
+            ownerIds: cellIds.slice(i, i + CELL_CHECK_DELETE_BATCH),
+        });
+}
+
+const CELL_CHECK_DELETE_BATCH = 200;
+
+/**
  * The cell check of one run (a review's generation, a worker's row, a single
  * regeneration), or undefined when the server switch or the key is off. The person's permission is read once, on the first cell that
  * has something to check, and never before the cell is saved.

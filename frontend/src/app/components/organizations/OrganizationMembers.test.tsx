@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, onTestFinished } from "vitest";
 import {
   fireEvent,
   render,
@@ -166,17 +166,21 @@ describe("the Departed view", () => {
 describe("OrganizationMembers", () => {
   it("is a table page: the roster with its identity columns, under a header that leads back to settings", async () => {
     const user = userEvent.setup();
+    // jsdom has no layout: give the header room so its breadcrumb plan keeps
+    // every crumb visible instead of collapsing them after measuring.
+    const width = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(2000);
+    onTestFinished(() => width.mockRestore());
     render(<OrganizationMembers orgId="org-1" orgName="Elite Law LLP" />);
 
     expect(await screen.findByText("William Chen")).toBeInTheDocument();
     expect(screen.getAllByText("Members")).not.toHaveLength(0);
     // The heading says which firm these settings are about.
-    // The header keeps a hidden copy of each crumb to measure it, and the
-    // visible crumb collapses once the measuring has run (jsdom has no
-    // width), so the name is on the page once or twice depending on timing.
+    // The visible crumb, not the aria-hidden copy the header keeps to measure it.
     expect(
-      screen.getAllByText("Firm settings · Elite Law LLP").length,
-    ).toBeGreaterThan(0);
+      screen
+        .getAllByText("Firm settings · Elite Law LLP")
+        .filter((element) => !element.closest("[aria-hidden]")),
+    ).toHaveLength(1);
     // The count sits beside the column's name.
     expect(screen.getByText("(2)")).toBeInTheDocument();
     await user.click(
