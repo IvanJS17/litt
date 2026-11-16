@@ -49,6 +49,8 @@ import { useTranslations } from "use-intl";
 interface AssistantMessageProps {
   message: WordAssistantTurn;
   isStreaming: boolean;
+  /** Citation numbers the automatic check put in the low band. */
+  reviewRefs?: readonly number[];
   minHeight?: React.CSSProperties["minHeight"];
   editStateByKey: Readonly<Record<string, EditRuntimeState>>;
   onApplyEdit: (key: string) => void;
@@ -116,6 +118,7 @@ function persistedEditStatus(
 function AssistantMessageImpl({
   message,
   isStreaming,
+  reviewRefs,
   minHeight,
   editStateByKey,
   onApplyEdit,
@@ -430,7 +433,7 @@ function AssistantMessageImpl({
             return (
               <React.Fragment key={group.key}>
                 {group.text && !holdForEdit && (
-                  <ProseBlock isStreaming={isStreaming && groupIndex === groups.length - 1} text={group.text} citations={message.citations} onClick={handleCitationClick} />
+                  <ProseBlock isStreaming={isStreaming && groupIndex === groups.length - 1} text={group.text} citations={message.citations} reviewRefs={reviewRefs} onClick={handleCitationClick} />
                 )}
               </React.Fragment>
             );

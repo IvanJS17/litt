@@ -491,6 +491,7 @@ interface WordChatServerMessage {
   workflow?: { id: string; title: string } | null;
   playbook?: { id: string; title: string } | null;
   citations?: unknown;
+  review_refs?: number[] | null;
   edits?: unknown;
 }
 
@@ -637,6 +638,9 @@ export async function getCloudWordChat(
         events,
         edits: edits.length > 0 ? edits : undefined,
         citations: normalizeWordCitations(message.citations),
+        ...(message.review_refs?.length
+          ? { reviewRefs: message.review_refs }
+          : {}),
       };
     }),
   };

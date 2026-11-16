@@ -249,6 +249,9 @@ export function messageFromStorage(
     ...(message.citations && message.citations.length > 0
       ? { citations: message.citations }
       : {}),
+    ...(message.reviewRefs && message.reviewRefs.length > 0
+      ? { reviewRefs: message.reviewRefs }
+      : {}),
     live: false,
   };
 }

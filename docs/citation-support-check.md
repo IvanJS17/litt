@@ -180,8 +180,8 @@ What the server returns is only the list of citation numbers in the low band
 | Surface | Where it travels | Authorization (the same as reading the owner) | Where it is drawn |
 | --- | --- | --- | --- |
 | Web chat, project chat | `review_refs` on each assistant message of `GET /chat/:chatId` | `getAccessibleChat` (visibility) before the transcript is read | after the citation pill in the answer and in the sources list (`MarkdownContent`, `CitationsBlock`) |
-| Cloud Word chat | `review_refs` on each assistant message of `GET /word-chat/:chatId` | the Word document and chat access checks | **not drawn yet**: the add-in's markdown renderer (`word-addin/src/shared/chat/Markdown.tsx`) has no per-message context; the data is already in the payload |
-| Tabular review cells | `review_refs` on each cell of `GET /tabular-review/:reviewId` | `ensureReviewAccess`, and only the cells whose row the reader may see | after the pill in the grid cell, the expanded cell and the side panel (summary then reasoning, as the refs are numbered) |
+| Cloud Word chat | `review_refs` on each assistant message of `GET /word-chat/:chatId` | the Word document and chat access checks | after the numbered citation chip in the answer (`Markdown.tsx`, the message's refs travel by context); a just-finished answer is read again at 10 s and 40 s (`useWordReviewRefs`). Device-only chats have none |
+| Tabular review cells | `review_refs` on each cell of `GET /tabular-review/:reviewId` | `ensureReviewAccess`, and only the cells whose row the reader may see | in the grid cell (collapsed: once, beside the clamped text so it is never cut off), the expanded cell and the side panel (summary then reasoning, as the refs are numbered) |
 | Tabular review chat | `review_refs` on each assistant message of `GET /tabular-review/:reviewId/chats/:chatId/messages` | `ensureReviewChatReadAccess`, and only the messages the reader may see | after the pill in the answer |
 | Playbook drafts | `reviewSources` (`{ ruleId, legalIndex }[]`) on `GET /playbooks/:id` | `getPlaybook` (playbook access) | in the rule's origin: next to the quote of a clause origin and next to the flagged legal reference |
 
@@ -270,8 +270,7 @@ Per path:
 
 - Showing the result to the lawyer: **done for the low band only** («Revisar
   esta cita», see «What the lawyer sees»). Not done and not decided: any label
-  for the `review` and `supported` bands (never a check mark), and the hint in
-  the Word add-in's markdown renderer (the payload already carries `review_refs`).
+  for the `review` and `supported` bands (never a check mark).
 - Measuring false alarms on real citations (the pilot's 300-citation sample,
   two annotators). Reading real client text to label it is a separate
   permission question; the stored numbers alone give distributions, not

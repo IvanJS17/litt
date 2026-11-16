@@ -24,6 +24,7 @@ import type {
     EditDecision,
     ReasoningLevel,
     WordAssistantChatController,
+    WordChatMessage,
     WordTrackedEditsController,
     WorkflowAttachment,
 } from "../../lib/wordChatTypes";
@@ -59,6 +60,8 @@ interface ChatViewProps
     trainingNotes?: ReadonlyMap<number, TrainingNoteView>;
     /** LiTT training: a junior's accountability checks, by assistant message id. */
     trainingBacking?: WordTrainingBacking;
+    /** The citation numbers to flag «Revisar esta cita» on an answer. */
+    reviewRefsOf?: (message: WordChatMessage) => readonly number[] | undefined;
     chatModel?: string | null;
     lastSelectedModel?: string | null;
     chatReasoningLevel?: ReasoningLevel | null;
@@ -164,6 +167,7 @@ export function ChatView({
     sessionKey,
     trainingNotes,
     trainingBacking,
+    reviewRefsOf,
     chatModel,
     lastSelectedModel,
     chatReasoningLevel,
@@ -914,6 +918,7 @@ export function ChatView({
                                     index === messages.length - 1 &&
                                     isResponseLoading
                                 }
+                                reviewRefs={reviewRefsOf?.(message)}
                                 minHeight={
                                     message.id === latestAssistantMessageId
                                         ? assistantMinHeight
