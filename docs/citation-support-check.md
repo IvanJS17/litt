@@ -1,11 +1,12 @@
-# Citation support check (TypeSafe, Jev) — silent mode
+# Citation support check (TypeSafe, Jev) — silent store, hint for the low band
 
 LiTT already checks that the text a citation quotes **exists** in the document
 (`modules/chat/engine/verifyCitations.ts`). It does not check that the quote
 **supports the claim** the answer makes. This capability asks Jev, the
 TypeSafe model, that second question, and **stores the answer for the beta
-statistics. The lawyer sees nothing.** Showing it is a later, separate
-decision.
+statistics. The lawyer sees one thing from it:** a discreet hint, «Revisar esta
+cita», next to a citation whose stored band is the low one (see «What the
+lawyer sees»). Nothing is shown for any other band.
 
 Design source: the 2026-11-14 report and pilot
 (`artifacts/typesafe-20261114/INFORME.md`, `piloto/RESULTADO.md`).
@@ -18,7 +19,7 @@ Design source: the 2026-11-14 report and pilot
 | Key | `TYPESAFE_API_KEY`, the **platform's**. There are no per-user or per-firm keys, no per-capability switch and no per-space switch. Without the key the check does not exist and nothing fails. |
 | Who | Everyone who has accepted the current `LEGAL_VERSION`, with a personal **opt-out**: Settings › Privacidad y datos › «Verificar mis citas con TypeSafe» (`user_profiles.citation_check`, on by default). The card is not drawn where the deployment does not run the check. |
 | Where | Every citation the chat engine verifies (the web chat, project chats and the Word add-in cloud chats), the citations of **tabular review cells**, the **tabular review chat**, and the verified **source quotes of playbook drafts**. See «Where it applies». The three newer paths need migration `20261116_10_litt_citation_support_scope.sql` applied before the backend that runs them is deployed. |
-| What the lawyer sees | Nothing changes. |
+| What the lawyer sees | «Revisar esta cita» next to a citation in the low band, and nothing for the others. Owner decision «opción A», 2026-11-16 (see «What the lawyer sees»). |
 
 ### Legal texts (integrated in this change)
 
@@ -161,6 +162,51 @@ document, matter, firm or user id, name or email, and no custom `User-Agent`.
   browser roles have no grant. The migration also adds
   `user_profiles.citation_check boolean not null default true`.
 
+## What the lawyer sees
+
+Owner decision «opción A» (2026-11-16): next to a citation whose stored band is
+`not_supported` (p < 0.3, «may not support»), the screen shows the plain-text
+hint **«Revisar esta cita»** (en-US «Check this citation»), small, in the
+warning tone (`text-warning`, no pill, no icon). Its description, for assistive
+technology and as the tooltip, is «La revisión automática indica que el texto
+citado podría no respaldar lo que se afirma. Revísalo antes de usarlo.»
+(`assistant.citationReview.label` / `.description`). **Nothing is shown for the
+`review` and `supported` bands**: no check mark, no «verified», no number. This
+is screen text only; no legal text changed.
+
+What the server returns is only the list of citation numbers in the low band
+(`review_refs`, ascending), never a probability or another band:
+
+| Surface | Where it travels | Authorization (the same as reading the owner) | Where it is drawn |
+| --- | --- | --- | --- |
+| Web chat, project chat | `review_refs` on each assistant message of `GET /chat/:chatId` | `getAccessibleChat` (visibility) before the transcript is read | after the citation pill in the answer and in the sources list (`MarkdownContent`, `CitationsBlock`) |
+| Cloud Word chat | `review_refs` on each assistant message of `GET /word-chat/:chatId` | the Word document and chat access checks | **not drawn yet**: the add-in's markdown renderer (`word-addin/src/shared/chat/Markdown.tsx`) has no per-message context; the data is already in the payload |
+| Tabular review cells | `review_refs` on each cell of `GET /tabular-review/:reviewId` | `ensureReviewAccess`, and only the cells whose row the reader may see | after the pill in the grid cell, the expanded cell and the side panel (summary then reasoning, as the refs are numbered) |
+| Tabular review chat | `review_refs` on each assistant message of `GET /tabular-review/:reviewId/chats/:chatId/messages` | `ensureReviewChatReadAccess`, and only the messages the reader may see | after the pill in the answer |
+| Playbook drafts | `reviewSources` (`{ ruleId, legalIndex }[]`) on `GET /playbooks/:id` | `getPlaybook` (playbook access) | in the rule's origin: next to the quote of a clause origin and next to the flagged legal reference |
+
+`lib/citationSupport/review.ts` reads with the service role and performs **no**
+authorization of its own: every caller passes only owner ids it already
+authorised and attaches the answer to the same payload. It returns nothing when
+`LITT_CITATION_CHECK` is not `enabled`, counts only the current
+`QUESTION_VERSION`, and a failed read is one `[report]` and no hint, never a
+failed payload. The person's opt-out is not consulted on read: what exists is
+shown.
+
+**Playbooks.** A draft's refs are positions of the quotes in the content as it
+was drafted (`citedQuotes` in `playbooks.citationSupport.ts` is the one walk
+used both to check and to read the result back). Once the playbook changes (its
+`updated_at` is later than its first stored result; marking it ready counts) the
+positions could point at another rule, so nothing is returned: the hint belongs
+to the draft under review.
+
+**Timing.** The check runs after the answer, the cell or the draft is saved, so
+its result arrives seconds later. The web app reads the results again **twice**,
+10 s and 40 s after an answer, a run, a cell regeneration or a freshly drafted
+playbook is on screen (`useDelayedReviewRefs`), and takes only the refs from the
+reply. No polling, no sockets. A tabular run is read through the review detail,
+a chat through the chat, the review chat through its message list.
+
 ## Owner's query
 
 Settings › Estadísticas de la beta (platform administrators only) has a
@@ -222,9 +268,10 @@ Per path:
 
 ## Not done / next
 
-- Showing the result to the lawyer (labels like «Probablemente respalda
-  (estimación automática)», «Revisar», «Puede no respaldar»; never a check mark).
-  It needs its own text from socium-legal.
+- Showing the result to the lawyer: **done for the low band only** («Revisar
+  esta cita», see «What the lawyer sees»). Not done and not decided: any label
+  for the `review` and `supported` bands (never a check mark), and the hint in
+  the Word add-in's markdown renderer (the payload already carries `review_refs`).
 - Measuring false alarms on real citations (the pilot's 300-citation sample,
   two annotators). Reading real client text to label it is a separate
   permission question; the stored numbers alone give distributions, not

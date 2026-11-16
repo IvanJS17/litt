@@ -122,6 +122,8 @@ interface ServerMessage {
     workflow?: { id: string; title: string } | null;
     playbook?: { id: string; title: string } | null;
     citations?: Citation[] | null;
+    /** Low-band citation numbers of the automatic support check. */
+    review_refs?: number[] | null;
     created_at: string;
 }
 interface ServerChatDetailOut {
@@ -4344,6 +4346,7 @@ export async function getChat(chatId: string): Promise<ChatDetailOut> {
                     .map((e) => (e as { type: "content"; text: string }).text)
                     .join("") ?? "",
             citations: m.citations ?? undefined,
+            reviewRefs: m.review_refs?.length ? m.review_refs : undefined,
             events,
         };
     });
@@ -4946,6 +4949,8 @@ export interface RawTRMessage {
     role: "user" | "assistant";
     content: string | AssistantEvent[] | null;
     annotations?: TRCitationAnnotation[] | null;
+    /** Low-band citation numbers of the automatic support check. */
+    review_refs?: number[] | null;
     created_at: string;
 }
 
@@ -4955,6 +4960,7 @@ interface TRDisplayMessage {
     content: string;
     events?: AssistantEvent[];
     annotations?: TRCitationAnnotation[];
+    reviewRefs?: number[];
 }
 
 export interface TRChat {
@@ -5018,6 +5024,7 @@ export function mapTRMessages(raw: RawTRMessage[]): TRDisplayMessage[] {
             content,
             events,
             annotations: m.annotations ?? undefined,
+            reviewRefs: m.review_refs?.length ? m.review_refs : undefined,
         };
     });
 }
@@ -5646,6 +5653,12 @@ export interface Playbook {
      * getPlaybook, and only for an editor or owner; null when not drafted.
      */
     intake?: { answers: Record<string, string> } | null;
+    /**
+     * LiTT: the quotes of a draft the automatic citation check flagged
+     * («Revisar esta cita»), by rule id. Only on getPlaybook, only for a
+     * draft that has not changed since it was written.
+     */
+    reviewSources?: { ruleId: string; legalIndex: number | null }[];
     createdAt: string;
     updatedAt: string;
 }

@@ -7,6 +7,8 @@
 
 import { useTranslations } from "next-intl";
 import type { PlaybookRule } from "@/app/lib/mikeApi";
+import { CitationReviewHint } from "@/app/components/assistant/message/CitationReviewHint";
+import { playbookReviewKey } from "./usePlaybookReviewSources";
 import type { PlaybookProvenance } from "./usePlaybookProvenance";
 
 const QUOTE_CLASS =
@@ -67,7 +69,12 @@ export function PlaybookRuleOrigin({
           )}
           {origin.kind === "clause" && origin.quote && (
             <figure className="mt-1">
-              <figcaption>{t("quoteLabel")}</figcaption>
+              <figcaption>
+                {t("quoteLabel")}
+                {rule.id && provenance.reviewed?.has(playbookReviewKey(rule.id, null)) && (
+                  <CitationReviewHint className="ml-2" />
+                )}
+              </figcaption>
               <blockquote className={QUOTE_CLASS}>{origin.quote}</blockquote>
             </figure>
           )}
@@ -81,6 +88,9 @@ export function PlaybookRuleOrigin({
             {legalRefs.map((ref, index) => (
               <li key={`${index}:${ref.text}`} className="[overflow-wrap:anywhere]">
                 {ref.text}
+                {rule.id && provenance.reviewed?.has(playbookReviewKey(rule.id, index)) && (
+                  <CitationReviewHint className="ml-2" />
+                )}
                 {" · "}
                 {ref.verified ? (
                   t("verified")

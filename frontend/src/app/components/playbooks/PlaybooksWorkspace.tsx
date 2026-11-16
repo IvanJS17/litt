@@ -44,6 +44,7 @@ import { PlaybookDraftBanner } from "@/app/components/playbooks/PlaybookDraftBan
 import { PlaybookCorrections } from "@/app/components/playbooks/PlaybookCorrections";
 import { usePlaybookCorrectionPupils } from "@/app/components/playbooks/usePlaybookCorrectionPupils";
 import { usePlaybookProvenance } from "@/app/components/playbooks/usePlaybookProvenance";
+import { usePlaybookReviewSources } from "@/app/components/playbooks/usePlaybookReviewSources";
 import { PlaybookDetailsModal } from "@/app/components/playbooks/PlaybookDetailsModal";
 import type { PlaybookDetails } from "@/app/components/playbooks/PlaybookDetailsFields";
 import { PlaybookPageSkeleton } from "@/app/components/playbooks/PlaybookPageSkeleton";
@@ -389,8 +390,16 @@ function PlaybooksWorkspace() {
     canEdit,
   );
   const correctionsOffered = canEdit && correctionPupils.length > 0;
-  const provenance = usePlaybookProvenance(
+  const baseProvenance = usePlaybookProvenance(
     selected && content ? { ...selected, content } : null,
+  );
+  const reviewedSources = usePlaybookReviewSources(selected ?? null);
+  const provenance = useMemo(
+    () =>
+      reviewedSources.size > 0
+        ? { ...baseProvenance, reviewed: reviewedSources }
+        : baseProvenance,
+    [baseProvenance, reviewedSources],
   );
   const canManageAccess = !!selected && selected.canManageAccess === true;
   const checkedPlaybooks = visiblePlaybooks.filter((item) =>

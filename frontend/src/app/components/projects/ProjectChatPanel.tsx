@@ -26,6 +26,7 @@ import {
     touchChatActivity,
 } from "@/app/lib/chatActivity";
 import { useAssistantChat } from "@/app/hooks/useAssistantChat";
+import { useChatReviewRefs } from "@/app/hooks/useChatReviewRefs";
 import { matchTrainingNotes, useTrainingTurnNotes } from "@mike/ui";
 import { BackingSlot } from "@/app/components/training/criterion/BackingPanel";
 import { useWebTrainingBacking } from "@/app/hooks/useWebTrainingBacking";
@@ -303,6 +304,11 @@ export function ProjectChatPanel({
         projectId,
         tracksCurrentChat: !isSideChat,
     });
+    const reviewRefsOf = useChatReviewRefs(
+        activeChatId || undefined,
+        messages,
+        isResponseLoading,
+    );
     // LiTT training: private notes beside the pasante's own messages.
     const trainingNotes = matchTrainingNotes(
         messages,
@@ -896,6 +902,7 @@ export function ProjectChatPanel({
                                         }
                                         isError={!!msg.error}
                                         citations={msg.citations}
+                                        reviewRefs={reviewRefsOf(msg)}
                                         citationStatus={msg.citationStatus}
                                         activeCitation={activeCitation}
                                         onCitationClick={onCitationClick}

@@ -63,6 +63,8 @@ interface Props {
     documents: Document[];
     cells: TabularCell[];
     cellStore?: ReviewCellStore;
+    /** Low-band citation numbers per cell id that arrived after the cells did. */
+    reviewRefsByCell?: Readonly<Record<string, readonly number[]>>;
     savingColumn: boolean;
     savingColumnsConfig: boolean;
     selectedRowIds: string[];
@@ -97,6 +99,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
         documents,
         cells,
         cellStore,
+        reviewRefsByCell,
         savingColumn,
         savingColumnsConfig,
         selectedRowIds,
@@ -435,6 +438,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                                             rowId={row.id}
                                             column={col}
                                             store={cellStore}
+                                            reviewRefsByCell={reviewRefsByCell}
                                             closeSignal={scrollCloseSignal}
                                             onExpand={onExpand}
                                             onCitationClick={onCitationClick}
@@ -452,11 +456,12 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
 });
 
 const noopSubscribe = () => () => {};
-function LiveReviewCell({ cell, rowId, column, store, closeSignal, onExpand, onCitationClick }: {
+function LiveReviewCell({ cell, rowId, column, store, reviewRefsByCell, closeSignal, onExpand, onCitationClick }: {
     cell: TabularCell | undefined;
     rowId: string;
     column: ColumnConfig;
     store?: ReviewCellStore;
+    reviewRefsByCell?: Readonly<Record<string, readonly number[]>>;
     closeSignal: number;
     onExpand: Props["onExpand"];
     onCitationClick: Props["onCitationClick"];
@@ -470,6 +475,7 @@ function LiveReviewCell({ cell, rowId, column, store, closeSignal, onExpand, onC
         cell={current}
         column={column}
         closeSignal={closeSignal}
+        reviewRefs={reviewRefsByCell?.[current.id] ?? current.review_refs}
         onExpand={() => onExpand(current)}
         onCitationClick={(...args) => onCitationClick(current, ...args)}
     /> : null;

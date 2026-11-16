@@ -3,7 +3,9 @@
 // unmarks a ready playbook as a model for its workspace.
 
 import { z } from "zod";
+import { readDraftReviewRefs } from "../../lib/citationSupport";
 import { createServerSupabase, type Db } from "../../lib/supabase";
+import { reviewSourcesFor, type PlaybookReviewSource } from "./playbooks.citationSupport";
 import { recordPlaybookAudit } from "./playbooks.audit";
 import {
   assertPlaybookNotBeingReplaced,
@@ -59,16 +61,27 @@ export async function getPlaybookWithIntake(
   id: string,
   db: Db = createServerSupabase(),
   email?: string | null,
-): Promise<Playbook & { intake?: PlaybookIntake | null }> {
+): Promise<
+  Playbook & { intake?: PlaybookIntake | null; reviewSources: PlaybookReviewSource[] }
+> {
   const playbook = await getPlaybook(userId, id, db, email);
-  if (!playbook.canEdit) return playbook;
+  // The caller can read this playbook (getPlaybook), so the quotes the
+  // automatic check flagged in its draft may be shown with it.
+  const reviewSources =
+    playbook.status === "draft"
+      ? reviewSourcesFor(
+          playbook.content,
+          await readDraftReviewRefs(db, id, playbook.updatedAt),
+        )
+      : [];
+  if (!playbook.canEdit) return { ...playbook, reviewSources };
   const { data, error } = await db
     .from("playbooks")
     .select("intake_json")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
-  return { ...playbook, intake: publicIntake(data?.intake_json) };
+  return { ...playbook, reviewSources, intake: publicIntake(data?.intake_json) };
 }
 
 export const PLAYBOOK_STATE_CHANGED_MESSAGE =

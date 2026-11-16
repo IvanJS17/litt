@@ -4,7 +4,7 @@
 // compensating actions (delete the review when its rows cannot be built, page
 // the ids RPC until it runs dry).
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { attachActiveVersionPaths } from "../../../lib/documentVersions";
 
 const {
@@ -494,6 +494,72 @@ describe("getTabularReviewDetail", () => {
             summary: "yes",
             flag: "green",
         });
+    });
+});
+
+describe("getTabularReviewDetail citation review hint", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    it("reads no citation result for a caller without access to the review", async () => {
+        vi.stubEnv("LITT_CITATION_CHECK", "enabled");
+        ensureReviewAccess.mockResolvedValue({ ok: false });
+        const { db, calls } = makeFakeDb({
+            tables: { tabular_reviews: { data: { id: "rev-1" }, error: null } },
+        });
+        const result = await getTabularReviewDetail(db, {
+            reviewId: "rev-1",
+            ...WHO,
+        });
+        expect(result).toMatchObject({ ok: false, kind: "not_found" });
+        expect(callTo(calls, "citation_support_checks")).toBeUndefined();
+    });
+
+    it("asks only for the cells the caller can see and attaches just the refs it gets", async () => {
+        vi.stubEnv("LITT_CITATION_CHECK", "enabled");
+        loadReviewRows.mockResolvedValue([
+            { id: "row-1", label: "Doc", source_document_ids: [] },
+        ]);
+        const { db, calls } = makeFakeDb({
+            tables: {
+                tabular_reviews: {
+                    data: { id: "rev-1", document_ids: [] },
+                    error: null,
+                },
+                tabular_cells: {
+                    data: [
+                        { id: "c1", row_id: "row-1", content: '{"summary":"a"}' },
+                        { id: "c2", row_id: "row-1", content: '{"summary":"b"}' },
+                        // A row the caller cannot read: its cell is dropped.
+                        { id: "c3", row_id: "row-hidden", content: '{"summary":"c"}' },
+                    ],
+                    error: null,
+                },
+                citation_support_checks: {
+                    data: [
+                        { id: "k1", tabular_cell_id: "c1", citation_ref: 2 },
+                        { id: "k2", tabular_cell_id: "c1", citation_ref: 1 },
+                    ],
+                    error: null,
+                },
+            },
+        });
+        const result = await getTabularReviewDetail(db, {
+            reviewId: "rev-1",
+            ...WHO,
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(callTo(calls, "citation_support_checks")?.filters).toMatchObject({
+            band: "not_supported",
+            tabular_cell_id: ["c1", "c2"],
+        });
+        expect(result.data.cells.map((cell) => cell.review_refs)).toEqual([
+            [1, 2],
+            undefined,
+        ]);
+        expect(JSON.stringify(result.data)).not.toContain("probability");
     });
 });
 

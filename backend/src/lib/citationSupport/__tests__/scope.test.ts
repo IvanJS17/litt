@@ -25,31 +25,44 @@ describe("where the citation check can be reached from", () => {
             .sort();
         expect(importers).toEqual([
             "lib/chatFeatureGates.ts",
+            "modules/chat/chat.messages.ts",
             "modules/chat/chat.routes.ts",
             "modules/chat/engine/streaming.ts",
             "modules/playbooks/playbooks.citationSupport.ts",
             "modules/playbooks/playbooks.draft.ts",
+            "modules/playbooks/playbooks.state.ts",
             "modules/project-chat/projectChat.routes.ts",
             "modules/tabular/tabular.cells.ts",
+            "modules/tabular/tabular.chats.ts",
             "modules/tabular/tabular.citationSupport.ts",
             "modules/tabular/tabular.extractRow.ts",
             "modules/tabular/tabular.extraction.ts",
             "modules/tabular/tabular.generateStream.ts",
+            "modules/tabular/tabular.reviews.ts",
             "modules/tabular/tabular.routes.ts",
             "modules/user/user.citationCheck.ts",
             "modules/word-chat/wordChat.routes.ts",
+            "modules/word-chat/wordChat.service.ts",
         ]);
     });
 
-    it("only the two adapters import the library itself", () => {
+    it("only the two adapters send; the read side only imports the review readers", () => {
         const direct = walk(SRC)
             .filter((file) => /tabular|playbook/.test(file))
             .filter((file) => /from "\.\.\/\.\.\/lib\/citationSupport"/.test(readFileSync(join(SRC, file), "utf8")))
             .sort();
         expect(direct).toEqual([
             "modules/playbooks/playbooks.citationSupport.ts",
+            // Read side (the «Revisar esta cita» hint): readReviewRefs / readDraftReviewRefs only.
+            "modules/playbooks/playbooks.state.ts",
+            "modules/tabular/tabular.chats.ts",
             "modules/tabular/tabular.citationSupport.ts",
+            "modules/tabular/tabular.reviews.ts",
         ]);
+        for (const file of direct.filter((f) => !/citationSupport\.ts$/.test(f))) {
+            const imported = readFileSync(join(SRC, file), "utf8").match(/import \{([^}]*)\} from "\.\.\/\.\.\/lib\/citationSupport"/)?.[1] ?? "";
+            expect(imported).not.toMatch(/Runner|Turn|runCitationSupportChecks|askCitationSupport/);
+        }
     });
 
     it("the tabular and playbook paths never pass the chat engine's hook", () => {

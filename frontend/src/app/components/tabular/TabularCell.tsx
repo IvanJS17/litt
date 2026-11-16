@@ -10,12 +10,15 @@ import { getPillClass } from "./pillUtils";
 import { SkeletonLine } from "../shared/TablePrimitive";
 import { TRExpandedCellSurface } from "./TRExpandedCellSurface";
 import { CitationPillUI } from "@mike/ui";
+import { CitationReviewHint, needsCitationReview } from "@/app/components/assistant/message/CitationReviewHint";
 import { useTranslations } from "next-intl";
 
 interface Props {
     cell: TCell;
     column?: ColumnConfig;
     closeSignal?: number;
+    /** Citation numbers the automatic check put in the low band («Revisar esta cita»). */
+    reviewRefs?: readonly number[];
     onExpand: () => void;
     onCitationClick?: (
         page: number | undefined,
@@ -68,7 +71,9 @@ function CellMarkdown({
     onCitationClick,
     onExpand,
     inline,
+    reviewRefs,
 }: {
+    reviewRefs?: readonly number[];
     text: string;
     citations: ParsedCitation[];
     pills: string[];
@@ -124,6 +129,7 @@ function CellMarkdown({
                         const citation = citations[idx];
                         if (citation) {
                             return (
+                                <>
                                 <CitationPillUI
                                     title={`${formatCitationLocation(citation)}: "${citation.quote}"`}
                                     onClick={(e) => {
@@ -145,6 +151,10 @@ function CellMarkdown({
                                 >
                                     {idx + 1}
                                 </CitationPillUI>
+                                {needsCitationReview(reviewRefs, idx + 1) && (
+                                    <CitationReviewHint citationRef={idx + 1} />
+                                )}
+                                </>
                             );
                         }
                     }
@@ -188,6 +198,7 @@ export function TabularCell({
     cell,
     column,
     closeSignal,
+    reviewRefs,
     onExpand,
     onCitationClick,
 }: Props) {
@@ -284,6 +295,7 @@ export function TabularCell({
                         column={column}
                         onCitationClick={onCitationClick}
                         onExpand={onExpand}
+                        reviewRefs={reviewRefs}
                         inline
                     />
                 </div>
@@ -306,6 +318,7 @@ export function TabularCell({
                             column={column}
                             onCitationClick={handleCitationClickInOverlay}
                             onExpand={handleSeeDetails}
+                            reviewRefs={reviewRefs}
                         />
                     </div>
                     <div className="px-2 py-1.5 flex items-center justify-end">

@@ -21,6 +21,7 @@ import {
     type MessageTimeContext,
     type TabularCellStore,
 } from "../chat/chat.service";
+import { readReviewRefs, reviewRefsOf } from "../../lib/citationSupport";
 import { MESSAGE_TIME_PROMPT, resolveRequestTimeZone } from "../../lib/userTime";
 import { type ReasoningLevel, type UserApiKeys } from "../../lib/llm";
 import { randomUUID } from "node:crypto";
@@ -552,10 +553,24 @@ export async function listTabularReviewChatMessages(
         return internalFailure(error);
     }
 
+    // Only the messages this reader may see: the low-band citation refs of
+    // those answers ride along (the hint «Revisar esta cita»).
+    const reviewRefs = await readReviewRefs(
+        db,
+        "tabular_chat",
+        messages.flatMap((message) =>
+            message.role === "assistant" && typeof message.id === "string"
+                ? [message.id]
+                : [],
+        ),
+    );
     return {
         ok: true,
         data: messages.map(
-            ({ source_document_ids: _provenance, ...message }) => message,
+            ({ source_document_ids: _provenance, ...message }) =>
+                reviewRefs.has(message.id as string)
+                    ? { ...message, review_refs: reviewRefsOf(reviewRefs, message.id) }
+                    : message,
         ),
     };
 }
