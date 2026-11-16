@@ -21,6 +21,10 @@ async function setUp(page: Page, opts: { locale: "es-MX" | "en-US"; theme: "ligh
     await page.addInitScript((theme) => window.localStorage.setItem("litt:theme", theme), opts.theme);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // The stored theme is applied after hydration and its pill animates for
+    // 150 ms; wait for it to settle so contrast checks never read a mid-transition color.
+    await expect(page.locator(`[data-theme-option="${opts.theme}"][aria-checked="true"]`)).toBeAttached();
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
 }
 
 test("a visitor gets the page: LiTT, the privacy notice and the terms, in the HTML", async ({ request }) => {
