@@ -152,7 +152,7 @@ unless it breaks a LiTT invariant, in which case it is reverted or gated.
 | Desktop macOS app (`desktop/`) and its workflow | Second data plane outside tenancy, audit and retention; macOS runners multiply Actions usage. Revisit 2026-11-20 |
 | Workflows that raise Actions usage (separate Supabase jobs, nightly stress, image builds on every push) | TD-024 reductions stay; image builds move to the deployment gate |
 | US template catalog content | Not presented as Mexican authority; the catalog feature stays without US seeds |
-| Suggested third-party MCP connector | No third-party service suggested by default |
+| Suggested third-party MCP connector | Only Notion and Airtable are suggested (owner decision 2026-11-15) |
 | Organization-visible defaults, owner access to private content, audit deletion, organization purge | C2, C3 and C5 |
 
 Upstream's `loadtest.yml` removal is not applied. LiTT keeps its stream
