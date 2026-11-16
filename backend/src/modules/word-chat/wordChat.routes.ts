@@ -1,3 +1,4 @@
+import { createCitationSupportTurn } from "../../lib/citationSupport";
 import { BACKEND_REPORTING_OWNER } from "../../lib/reportedUpstreamCodes";
 import { sendInternalError } from "../../lib/httpError";
 import {
@@ -48,7 +49,7 @@ import {
   submitClientToolResult,
 } from "../chat/chat.service";
 import { enqueueChatTurnAudit } from "../../lib/audit";
-import { parseCredentialRef } from "../user/user.service";
+import { LEGAL_VERSION, parseCredentialRef } from "../user/user.service";
 import { setOperation, isReported, reportError } from "../../lib/observability/report";
 import {
   persistWordDocumentEdits,
@@ -845,7 +846,12 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         assistantMessageId,
       })}\n\n`,
     );
+    // Silent citation support check (lib/citationSupport); null unless on for this person.
+    const citationSupport = persistChat
+      ? await createCitationSupportTurn({ db, userId, orgId: null, surface: "word", legalVersion: LEGAL_VERSION })
+      : null;
     const { fullText, events, citations } = await runLLMStream({
+      onCitationSupportInputs: citationSupport?.collect,
       onActivity: run?.touch,
       apiMessages,
       docStore,
@@ -930,6 +936,14 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         });
         memoryTurnScheduled = scheduled != null;
       }
+    void citationSupport?.finish(
+      assistantMessageId,
+      !persistedEvents.some((event) =>
+        typeof event === "object" && event !== null && "type" in event
+          ? event.type === "error" || event.type === "ask_inputs"
+          : false,
+      ),
+    );
     // LiTT training: the final answer is durable, so the pasante's private
     // contrast is produced now, aside from the turn, with the conversation's
     // own model and credential. It cannot fail the turn.

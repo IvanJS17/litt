@@ -132,6 +132,7 @@ async function signedIn(page: Page, s: Scenario) {
                 generated_at: "2026-11-13T12:00:00Z", legal_version: "2026-11", totals: { users: 31, deleted_users: 2, organizations: 5, awaiting_acceptance: 1 },
                 breakdowns: { scope: [], title: [], jurisdiction: [], practice_area: [] },
                 usage: { last_7_days: usage, last_30_days: usage }, organizations: [], people: [],
+                citation_check: { totals: { not_supported: 0, review: 0, supported: 0 }, days: [] },
             });
         }
         if (p === "/platform/invitations") return ok([]);

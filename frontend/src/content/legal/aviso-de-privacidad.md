@@ -1,8 +1,8 @@
 # Aviso de Privacidad de LiTT
 
-**Última actualización:** 13 de noviembre de 2026
+**Última actualización:** 15 de noviembre de 2026
 
-**Entrada en vigor:** 13 de noviembre de 2026
+**Entrada en vigor:** 15 de noviembre de 2026
 
 ## 1. Quién es el responsable
 
@@ -117,10 +117,18 @@ cuenta y para prestarnos su servicio:
 | Cloudflare (R2) | Respaldos diarios de la base de datos, cifrados; no incluyen documentos | Centros de datos de Cloudflare; ubicación asignada automáticamente por el proveedor |
 | Cloudflare | Resolución de nombres de dominio (DNS). No recibe el tráfico de la aplicación | Centros de datos de Cloudflare; ubicación asignada automáticamente por el proveedor |
 | Neubox | Envío de los correos del sistema desde no-reply@asteroitt.com | Estados Unidos (Dallas) |
+| TypeSafe AI, Inc. | Verificación de citas: estima si el texto que cita una respuesta del asistente respalda lo que la respuesta afirma. Recibe, por cada cita, la oración de la respuesta, el texto citado y un fragmento breve del texto que lo rodea; no recibe datos de tu cuenta | Estados Unidos; algunos de sus subencargados operan también en otros países |
 
-El servidor y el correo saliente están fuera de México, y Cloudflare puede tratar los datos en
-centros de datos de otros países. Al ser nuestros encargados, esa comunicación no es una
-transferencia y no requiere tu consentimiento.
+El servidor, el correo saliente y TypeSafe están fuera de México, y Cloudflare y algunos
+subencargados de TypeSafe pueden tratar los datos en otros países. Al ser nuestros encargados,
+esa comunicación no es una transferencia y no requiere tu consentimiento.
+
+**Verificación de citas con TypeSafe.** Viene encendida. Según sus condiciones, TypeSafe no
+entrena sus modelos con los textos que recibe. LiTT no tiene con TypeSafe un plan de retención
+cero; sin él, sus condiciones no fijan un plazo para borrarlos y le permiten obtener de ellos
+datos técnicos de uso, como registros, estadísticas y métricas. LiTT guarda el resultado sin el
+texto enviado y lo borra cuando se borra la respuesta. Puedes apagarla en Ajustes → Privacidad y datos
+(sección 7).
 
 **Transferencias.** No transferimos tus datos a terceros para que los usen por su cuenta. Solo
 los comunicaríamos sin tu consentimiento en los casos que permite el artículo 36 de la Ley, por
@@ -135,8 +143,9 @@ preparan dentro de LiTT.
 
 ## 6. Servicios que tú eliges: proveedores de IA, búsqueda web, lectura de escaneados, Google y otros conectores
 
-LiTT no tiene un proveedor de inteligencia artificial propio, ni servicios propios de búsqueda
-web, de lectura de escaneados o de separación de expedientes. Cada persona o despacho conecta la
+LiTT no tiene un proveedor de inteligencia artificial propio para el asistente, ni servicios
+propios de búsqueda web, de lectura de escaneados o de separación de expedientes. La
+verificación de citas sí es un servicio de LiTT (sección 5). Cada persona o despacho conecta la
 llave de su propio proveedor y decide qué activa o usa.
 
 Cuando usas el asistente, LiTT envía al proveedor y al modelo que **tú elegiste** lo necesario para
@@ -192,6 +201,8 @@ retención y uso de datos para entrenamiento.
 - Desactiva la búsqueda web o la lectura de escaneados, elimina tus llaves propias o desconecta
   Google y los demás conectores cuando quieras. «Separar expediente» solo envía información a
   LandingAI cuando la pides.
+- Apaga la verificación de citas en Ajustes → Privacidad y datos. Desde ese momento, LiTT deja de
+  enviar a TypeSafe las citas de las respuestas a tus mensajes.
 - Escríbenos a soporte@asteroitt.com para pedir que limitemos un uso concreto de tus datos.
   Te responderemos en los plazos de la sección 8.
 
@@ -305,7 +316,9 @@ personas) que un despacho o una persona usuaria sube o escribe en LiTT.
   termine el servicio. Nuestro personal no lo consulta, salvo para atender una solicitud de
   soporte del propio despacho, para proteger la seguridad del servicio o para cumplir un mandato
   de autoridad competente.
-- **Proveedores.** El contenido se almacena con los encargados de la sección 5. Cuando una persona
+- **Proveedores.** El contenido se almacena con los encargados de la sección 5. Las citas de las
+  respuestas del asistente se envían a TypeSafe, también encargado de LiTT, salvo que la persona
+  que hace la pregunta apague la verificación de citas (sección 5). Cuando una persona
   usa el asistente, el contenido que ella selecciona se envía al proveedor de IA que ella o su
   despacho eligió, con su llave y bajo los términos de ese proveedor. Si ella o su despacho
   activan la búsqueda web o la lectura de escaneados, o si ella pide separar un expediente, el

@@ -44,6 +44,16 @@
       "awaitingNote": "Cuentan en los totales, pero no aparecen por despacho ni por persona hasta que acepten.",
       "byFirm": "Por despacho",
       "byPerson": "Por persona",
+      "citationCheck": {
+        "day": "Día",
+        "empty": "Aún no hay resultados.",
+        "heading": "Verificación de citas (modo silencioso)",
+        "hint": "Resultados guardados por banda y por día (UTC), últimos 30 días. Solo conteos: sin texto de citas ni de respuestas.",
+        "notSupported": "No respalda",
+        "review": "Revisar",
+        "supported": "Respalda",
+        "total": "Total"
+      },
       "count": "Cantidad",
       "deletedUser": "Usuario eliminado",
       "deletedUsers": "Usuarios eliminados",
@@ -2981,6 +2991,12 @@
       "pasteTheFullServiceAccountKey": "Pega el contenido completo de un archivo de llave de cuenta de servicio de Google Cloud (JSON).",
       "vertexLocation": "Ubicación de Vertex AI",
       "vertexLocationPlaceholder": "us-central1 o global"
+    },
+    "citationCheck": {
+      "couldNotUpdate": "No se pudo actualizar la verificación de citas",
+      "enable": "Verificar mis citas con TypeSafe",
+      "help": "Por cada cita de una respuesta, LiTT envía a TypeSafe AI, Inc., en Estados Unidos, la oración, el texto citado y un fragmento breve del texto que lo rodea, sin el nombre del documento ni datos tuyos o de tu despacho, para estimar si la cita respalda lo que se afirma. Si lo apagas, LiTT deja de enviar a TypeSafe las citas de las respuestas a tus mensajes.",
+      "title": "Verificación de citas"
     },
     "connectorCard": {
       "manageName": "Administrar {name}",

@@ -9,6 +9,7 @@ import {
   SettingsManagedRow,
   SettingsNotice,
 } from "@/app/components/settings/SettingsText";
+import { CitationCheckCard } from "@/app/components/settings/CitationCheckCard";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
@@ -126,10 +127,13 @@ export default function PrivacyDataPage() {
   const workspace = workspaceId ?? PERSONAL_WORKSPACE;
   if (!canExport && !canDelete) {
     return (
-      <EmptyState
-        title={t("settings.privacyData.managedByYourOrganization")}
-        description={t("settings.privacyData.managedByOwnersDescription", { name: activeOrganization?.name ?? t("settings.privacyData.thisOrganization") })}
-      />
+      <div className="space-y-8">
+        <CitationCheckCard />
+        <EmptyState
+          title={t("settings.privacyData.managedByYourOrganization")}
+          description={t("settings.privacyData.managedByOwnersDescription", { name: activeOrganization?.name ?? t("settings.privacyData.thisOrganization") })}
+        />
+      </div>
     );
   }
   return (
@@ -384,6 +388,8 @@ function PrivacyData({
 
   return (
     <div className="space-y-8">
+      {/* Personal, not the firm's: the opt-out belongs to this person. */}
+      <CitationCheckCard />
       {!canExport && <ManagedDataSection id="export-data" title={t("settings.privacyData.exportData")} />}
       {canExport && (
         <section className="space-y-3">

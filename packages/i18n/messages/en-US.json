@@ -44,6 +44,16 @@
       "awaitingNote": "They count in the totals but don't appear by firm or by person until they accept.",
       "byFirm": "By firm",
       "byPerson": "By person",
+      "citationCheck": {
+        "day": "Day",
+        "empty": "No results yet.",
+        "heading": "Citation checking (silent mode)",
+        "hint": "Saved results by band and by day (UTC), last 30 days. Counts only: no citation or answer text.",
+        "notSupported": "Does not support",
+        "review": "Review",
+        "supported": "Supports",
+        "total": "Total"
+      },
       "count": "Count",
       "deletedUser": "Deleted user",
       "deletedUsers": "Deleted users",
@@ -2981,6 +2991,12 @@
       "pasteTheFullServiceAccountKey": "Paste the full contents of a Google Cloud service-account key file (JSON).",
       "vertexLocation": "Vertex AI location",
       "vertexLocationPlaceholder": "us-central1 or global"
+    },
+    "citationCheck": {
+      "couldNotUpdate": "Could not update citation checking",
+      "enable": "Check my citations with TypeSafe",
+      "help": "For each citation in an answer, LiTT sends TypeSafe AI, Inc., in the United States, the sentence, the quoted text and a short piece of the text around it, without the document's name or any details about you or your firm, to estimate whether the citation supports what is stated. If you turn it off, LiTT stops sending TypeSafe the citations of the answers to your messages.",
+      "title": "Citation checking"
     },
     "connectorCard": {
       "manageName": "Manage {name}",
