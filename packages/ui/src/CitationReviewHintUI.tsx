@@ -33,7 +33,7 @@ export function CitationReviewHintUI({
             title={description}
             aria-describedby={descriptionId}
             className={twMerge(
-                "mx-1 whitespace-nowrap font-sans text-[0.7rem] font-normal leading-none text-warning",
+                "mx-1 whitespace-nowrap font-sans text-2xs font-normal leading-none text-warning",
                 className,
             )}
         >
