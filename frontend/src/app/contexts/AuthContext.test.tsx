@@ -68,7 +68,8 @@ describe("AuthProvider", () => {
         updateAuthPassword.mockReset();
         window.localStorage.clear();
         nav.path = null;
-        window.history.replaceState(null, "", "/");
+        // The tests are about the app: `/` is the public start page, which asks for nothing.
+        window.history.replaceState(null, "", "/assistant");
     });
 
     it("does not ask for a session on a legal text, and asks at the first move to the app", async () => {
@@ -95,6 +96,30 @@ describe("AuthProvider", () => {
         );
         await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("lawyer@example.test"));
         expect(getAuthSession).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not ask for a session on the public start page either, and asks when the person leaves it", async () => {
+        window.history.replaceState(null, "", "/");
+        nav.path = "/";
+        getAuthSession.mockResolvedValue(user);
+
+        const { rerender } = render(
+            <AuthProvider>
+                <Consumer />
+            </AuthProvider>,
+        );
+        fireEvent.focus(window);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(getAuthSession).not.toHaveBeenCalled();
+
+        window.history.replaceState(null, "", "/login");
+        nav.path = "/login";
+        rerender(
+            <AuthProvider>
+                <Consumer />
+            </AuthProvider>,
+        );
+        await waitFor(() => expect(getAuthSession).toHaveBeenCalledTimes(1));
     });
 
     it("asks for the session on every other screen from the start", async () => {

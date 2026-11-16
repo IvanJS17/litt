@@ -66,7 +66,7 @@ export default function SettingsLayout({
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
-            router.push("/");
+            router.push("/login");
         }
     }, [isAuthenticated, authLoading, router]);
 

@@ -493,7 +493,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     // the notice carries a real Retry.
     function handleSignOut() {
         void signOut()
-            .then(() => router.push("/"))
+            .then(() => router.push("/login"))
             .catch((error) => {
                 notifyError(error, {
                     action: t("shared.appSidebar.signOutAction"),

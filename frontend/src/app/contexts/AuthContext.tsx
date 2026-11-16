@@ -28,7 +28,7 @@ import {
 } from "@/app/lib/userFacingError";
 import { clearToasts, dismissToastsWithKey } from "@mike/ui";
 import { usePathname } from "next/navigation";
-import { isLegalPath } from "@/app/lib/legalRoutes";
+import { isSessionlessPath } from "@/app/lib/legalRoutes";
 
 type User = AuthUser;
 
@@ -94,10 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [authError, setAuthError] = useState<string | null>(null);
     const channelRef = useRef<BroadcastChannel | null>(null);
     const sessionRequestRef = useRef<Promise<User | null> | null>(null);
-    // The legal texts need no session, so a visit that starts on one does not
-    // ask for it (the 401 for a visitor is noise in the console and a wasted
-    // request). The first move to any other screen does. `sessionAsked` is
-    // whether the check has been made yet.
+    // The legal texts and the public start page (`/`) need no session, so a
+    // visit that starts on one does not ask for it (the 401 for a visitor is
+    // noise in the console and a wasted request). The first move to any other
+    // screen does. `sessionAsked` is whether the check has been made yet.
     const sessionAsked = useRef(false);
     const pathname = usePathname();
 
@@ -301,7 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Through the ref (assigned by the effect above, which runs first):
         // the check only sets state after its request settles.
-        if (!isLegalPath(window.location.pathname)) {
+        if (!isSessionlessPath(window.location.pathname)) {
             sessionAsked.current = true;
             void checkSessionRef.current(true);
         }
@@ -323,9 +323,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, [applySessionUser, broadcastAuthState, checkSession]);
 
-    // Left a legal text for the app: now the session matters.
+    // Left a legal text or the start page for the app: now the session matters.
     useEffect(() => {
-        if (sessionAsked.current || !pathname || isLegalPath(pathname)) return;
+        if (sessionAsked.current || !pathname || isSessionlessPath(pathname)) return;
         sessionAsked.current = true;
         void checkSessionRef.current(true);
     }, [pathname]);

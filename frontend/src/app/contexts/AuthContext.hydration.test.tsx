@@ -30,6 +30,8 @@ afterEach(() => {
 // request had already answered, so its first client render showed the
 // signed-out heading where the server had rendered the loader.
 it("hydrates a late boundary with the server's loading state, then shows the session", async () => {
+    // A screen of the app (the start page, `/`, does not ask for a session).
+    window.history.replaceState(null, "", "/signup/check-email");
     const container = document.createElement("div");
     container.innerHTML = renderToString(
         <AuthProvider>

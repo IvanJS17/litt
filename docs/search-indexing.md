@@ -28,9 +28,9 @@ One switch, `SEARCH_INDEXING_ALLOWED` in
 2. In `frontend/public/_headers` delete the `/*` block with `X-Robots-Tag`
    (only matters on a Cloudflare deploy; harmless to leave out of Docker).
 3. Decide what should be listed. Most of the app is behind a login and gives
-   a crawler nothing; the public pages are `/login`, `/terminos` and
+   a crawler nothing; the public pages are `/` (the start page), `/login`, `/terminos` and
    `/privacidad`. If you want only those, change `robots.ts` to
-   `allow: ["/terminos", "/privacidad"]` with `disallow: "/"` and keep the
+   `allow: ["/$", "/terminos", "/privacidad"]` with `disallow: "/"` and keep the
    meta on the rest.
 4. Add a `sitemap.ts` if you want one (Next serves `app/sitemap.ts` at
    `/sitemap.xml`).
