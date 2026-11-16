@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import esMX from "../../../../../packages/i18n/messages/es-MX.json";
 import enUS from "../../../../../packages/i18n/messages/en-US.json";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { LandingPage } from "./LandingPage";
-import { VERIFY_SESSION_KEY } from "./CitationSpecimen";
+import { INTRO_SESSION_KEY } from "./AssistantSpecimen";
 import { HERO_CTA_ID } from "./landingConstants";
 
 const refresh = vi.fn();
@@ -37,8 +38,8 @@ function mediaQueries(reduce: boolean) {
 }
 
 beforeEach(() => {
-    // A visit already seen in this session: the verification is complete, nothing plays.
-    window.sessionStorage.setItem(VERIFY_SESSION_KEY, "1");
+    // A visit already seen in this session: the steps are all there, nothing plays.
+    window.sessionStorage.setItem(INTRO_SESSION_KEY, "1");
     window.localStorage.clear();
     document.documentElement.className = "";
     refresh.mockClear();
@@ -54,7 +55,7 @@ describe("the public start page without a session", () => {
     it("names LiTT and links the privacy notice and the terms, in the HTML", () => {
         const { container } = render(<LandingPage signedIn={false} />);
         expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-            "What LiTT tells you, you can check.",
+            "The legal assistant that works the matter with you.",
         );
         expect(container.querySelector('a[href="/privacidad"]')).toHaveTextContent("Privacy notice");
         expect(container.querySelector('a[href="/terminos"]')).toHaveTextContent("Terms and conditions");
@@ -62,10 +63,10 @@ describe("the public start page without a session", () => {
         expect(container.textContent).toMatch(/LiTT is an AI legal assistant/);
     });
 
-    it("has the three main buttons on /login and none on /assistant", () => {
+    it("has the four main buttons on /login and none on /assistant", () => {
         const { container } = render(<LandingPage signedIn={false} />);
         const login = container.querySelectorAll('a[href="/login"]');
-        expect(login).toHaveLength(3); // header, hero, CUARTO
+        expect(login).toHaveLength(4); // header, phone menu (closed, in the DOM), hero, QUINTO
         login.forEach((a) => expect(a).toHaveTextContent("Sign in"));
         expect(container.querySelector('a[href="/assistant"]')).toBeNull();
         expect(screen.queryByText("Open LiTT")).toBeNull();
@@ -87,14 +88,27 @@ describe("the public start page without a session", () => {
         expect(screen.getByRole("contentinfo")).toBeInTheDocument();
         expect(screen.getByRole("navigation", { name: "Sections" })).toBeInTheDocument();
         expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-        expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(4);
+        expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
         expect(screen.getByRole("link", { name: "Skip to content" })).toHaveAttribute("href", "#main");
     });
 
-    it("lists the eleven features of the index and the four that are coming", () => {
+    it("orders the sections: the four features, why LiTT, coming soon, trust, access", () => {
         render(<LandingPage signedIn={false} />);
-        const index = screen.getByRole("list", { name: "Available features" });
-        expect(within(index).getAllByRole("listitem")).toHaveLength(11);
+        const sections = [...document.querySelectorAll("main > section[id]")].map((el) => el.id);
+        expect(sections).toEqual(["funciones", "por-que", "proximamente", "confianza", "acceso"]);
+        const features = within(document.getElementById("funciones")!).getAllByRole("heading", { level: 3 });
+        expect(features.map((h) => h.textContent)).toEqual([
+            "Assistant",
+            "Projects",
+            "Tabular review",
+            "Workflows and playbooks",
+        ]);
+    });
+
+    it("lists the eight things built for Mexican practice and the four that are coming", () => {
+        render(<LandingPage signedIn={false} />);
+        const index = screen.getByRole("list", { name: "Built for Mexican practice." });
+        expect(within(index).getAllByRole("listitem")).toHaveLength(8);
         const soon = screen.getByRole("region", { name: "What we’re working on." });
         expect(within(soon).getAllByText("Coming soon", { selector: ".sr-only" })).toHaveLength(4);
         expect(within(soon).getByText("Article 2398")).toBeInTheDocument();
@@ -104,7 +118,7 @@ describe("the public start page without a session", () => {
         render(<LandingPage signedIn={false} />);
         const quote = document.querySelector("#landing-source blockquote");
         expect(quote).toHaveAttribute("lang", "es");
-        expect(quote?.textContent).toMatch(/^«…el Arrendatario pagará/);
+        expect(quote?.textContent).toMatch(/^«Septiembre 2026/);
         const [law] = screen.getAllByText(/^«Hay arrendamiento/);
         expect(law).toHaveAttribute("lang", "es");
     });
@@ -124,10 +138,10 @@ describe("the public start page without a session", () => {
 });
 
 describe("the public start page with a session", () => {
-    it("opens the app from the three main buttons", () => {
+    it("opens the app from the four main buttons", () => {
         const { container } = render(<LandingPage signedIn />);
         const open = container.querySelectorAll('a[href="/assistant"]');
-        expect(open).toHaveLength(3);
+        expect(open).toHaveLength(4);
         open.forEach((a) => expect(a).toHaveTextContent("Open LiTT"));
         expect(container.querySelector('a[href="/login"]')).toBeNull();
         // The same page: the legal links and the request are still there.
@@ -140,8 +154,9 @@ describe("the public start page in Mexican Spanish", () => {
     it("says «Iniciar sesión» and links the legal texts with their Spanish names", () => {
         inSpanish(<LandingPage signedIn={false} />);
         expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-            "Lo que dice LiTT, lo puedes comprobar.",
+            "El asistente jurídico que trabaja el asunto contigo.",
         );
+        // The phone menu's buttons are in the DOM but hidden: a reader does not meet them.
         expect(screen.getAllByRole("link", { name: "Iniciar sesión" })).toHaveLength(3);
         expect(screen.getByRole("link", { name: "Aviso de privacidad" })).toHaveAttribute("href", "/privacidad");
         expect(screen.getByRole("link", { name: "Términos y condiciones" })).toHaveAttribute("href", "/terminos");
@@ -173,7 +188,7 @@ describe("the public start page in Mexican Spanish", () => {
 
 describe("the header's button", () => {
     function headerButton() {
-        return within(screen.getByRole("banner")).getByText("Sign in").closest("a")!;
+        return screen.getByRole("banner").querySelector<HTMLAnchorElement>("a[data-docked]")!;
     }
 
     it("docks: hidden and inert while the hero's buttons are in view, shown when they leave", () => {
@@ -214,100 +229,142 @@ describe("the header's button", () => {
     });
 });
 
-describe("the hero's example", () => {
+describe("the hero's example: the assistant at work", () => {
     function pill(n: number) {
         return screen.getByRole("button", { name: `Citation ${n}` });
     }
+
+    it("shows the question, the four steps, the answer with three citations and the new document", () => {
+        render(<LandingPage signedIn={false} />);
+        expect(screen.getByText(/^Review the lease and the account statement/)).toBeInTheDocument();
+        expect(screen.getByText("Finished in 4 steps")).toBeInTheDocument();
+        const steps = document.querySelectorAll("figure ol > li");
+        expect([...steps].map((li) => li.textContent)).toEqual([
+            "Read Lease — Tlalnepantla Warehouse.pdf",
+            "Read Account statement — October 2026.pdf",
+            "Used the “Payment demand” workflow",
+            "Drafted Demand letter.docx",
+        ]);
+        expect(screen.getByText(/^The tenant owes the September and October rent/)).toHaveTextContent(
+            "default interest of 3% per month",
+        );
+        expect(screen.getAllByRole("button", { name: /^Citation \d$/ })).toHaveLength(3);
+        expect(screen.getAllByText("Demand letter.docx").length).toBeGreaterThan(0);
+        expect(screen.getByText("2 pages · new in the project")).toBeInTheDocument();
+    });
+
+    it("draws the composer with the model, hidden from a reader and from phones", () => {
+        render(<LandingPage signedIn={false} />);
+        const composer = screen.getByText("Ask about the matter…").parentElement!;
+        expect(composer).toHaveAttribute("aria-hidden", "true");
+        expect(composer.className).toMatch(/\bhidden\b/);
+        expect(composer.className).toMatch(/min-\[600px\]:flex/);
+        expect(composer).toHaveTextContent("Claude Sonnet 5.5");
+    });
 
     it("starts on the first source, verified", () => {
         render(<LandingPage signedIn={false} />);
         expect(pill(1)).toHaveAttribute("aria-pressed", "true");
         expect(pill(2)).toHaveAttribute("aria-pressed", "false");
+        expect(pill(3)).toHaveAttribute("aria-pressed", "false");
         const source = document.getElementById("landing-source")!;
         expect(source).toHaveAttribute("aria-live", "polite");
-        expect(source).toHaveTextContent("p. 7");
-        expect(source).toHaveTextContent("Citation verified: the text appears on page 7.");
+        expect(source).toHaveTextContent("p. 2");
+        expect(source).toHaveTextContent("Account statement — October 2026.pdf");
+        expect(source).toHaveTextContent("Citation verified: the text appears on page 2.");
     });
 
-    it("shows the second source on click, on focus and on a mouse hover, not on a touch", async () => {
+    it("shows the other sources on click, on focus and on a mouse hover, not on a touch", async () => {
         const user = userEvent.setup();
         render(<LandingPage signedIn={false} />);
-        await user.click(pill(2));
-        expect(pill(2)).toHaveAttribute("aria-pressed", "true");
+        await user.click(pill(3));
+        expect(pill(3)).toHaveAttribute("aria-pressed", "true");
         expect(pill(1)).toHaveAttribute("aria-pressed", "false");
         const source = document.getElementById("landing-source")!;
         expect(source).toHaveTextContent("p. 9");
-        expect(source).toHaveTextContent("Clause Fifteen");
+        expect(source).toHaveTextContent("Clause Fifteen · Lease — Tlalnepantla Warehouse.pdf");
         expect(source).toHaveTextContent("Citation verified: the text appears on page 9.");
 
-        act(() => pill(1).focus());
-        expect(pill(1)).toHaveAttribute("aria-pressed", "true");
+        act(() => pill(2).focus());
+        expect(pill(2)).toHaveAttribute("aria-pressed", "true");
+        expect(source).toHaveTextContent("p. 7");
+        expect(source).toHaveTextContent("Clause Twelve");
 
-        fireEvent.pointerEnter(pill(2), { pointerType: "touch" });
+        fireEvent.pointerEnter(pill(1), { pointerType: "touch" });
+        expect(pill(2)).toHaveAttribute("aria-pressed", "true");
+        fireEvent.pointerEnter(pill(1), { pointerType: "mouse" });
         expect(pill(1)).toHaveAttribute("aria-pressed", "true");
-        fireEvent.pointerEnter(pill(2), { pointerType: "mouse" });
-        expect(pill(2)).toHaveAttribute("aria-pressed", "true");
         // The source it is already showing does not change.
-        fireEvent.pointerEnter(pill(2), { pointerType: "mouse" });
-        expect(pill(2)).toHaveAttribute("aria-pressed", "true");
+        fireEvent.pointerEnter(pill(1), { pointerType: "mouse" });
+        expect(pill(1)).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("verifies the citation once per browser session, then draws the tick", () => {
+    it("brings the steps in one after another once per browser session", () => {
         vi.useFakeTimers();
         mediaQueries(false);
         window.sessionStorage.clear();
         const first = render(<LandingPage signedIn={false} />);
-        const source = document.getElementById("landing-source")!;
-        expect(source).toHaveTextContent("Checking the citation against the document…");
-        expect(window.sessionStorage.getItem(VERIFY_SESSION_KEY)).toBe("1");
+        const items = () => [...document.querySelectorAll<HTMLElement>("[data-intro]")];
+        expect(window.sessionStorage.getItem(INTRO_SESSION_KEY)).toBe("1");
+        // Heading of the steps, four steps, answer, document: seven things, six turns.
+        expect(items()).toHaveLength(7);
+        expect(items().every((el) => el.dataset.intro === "out")).toBe(true);
         act(() => {
-            vi.advanceTimersByTime(900);
+            vi.advanceTimersByTime(250);
         });
-        expect(source).toHaveTextContent("Citation verified: the text appears on page 7.");
-        expect(source.querySelector(".landing-tick-draw")).not.toBeNull();
+        // The steps' heading comes with the first step.
+        expect(items().filter((el) => el.dataset.intro === "in").length).toBe(2);
+        act(() => {
+            vi.advanceTimersByTime(260);
+        });
+        expect(items().filter((el) => el.dataset.intro === "in").length).toBe(3);
+        act(() => {
+            vi.advanceTimersByTime(260 * 6 + 400);
+        });
+        // Done: nothing is marked any more, everything is in place.
+        expect(items()).toHaveLength(0);
         first.unmount();
 
-        // Same session, again: it is already verified, nothing plays.
+        // Same session, again: it is all there, nothing plays.
         render(<LandingPage signedIn={false} />);
-        expect(document.getElementById("landing-source")).toHaveTextContent(
-            "Citation verified: the text appears on page 7.",
-        );
-        expect(document.querySelector(".landing-spinner")).toBeNull();
+        expect(document.querySelectorAll("[data-intro]")).toHaveLength(0);
     });
 
-    it("does not animate with reduced motion: the verification is already done", () => {
+    it("does not animate with reduced motion: everything is in place from the start", () => {
         mediaQueries(true);
         window.sessionStorage.clear();
         render(<LandingPage signedIn={false} />);
-        expect(document.getElementById("landing-source")).toHaveTextContent(
-            "Citation verified: the text appears on page 7.",
-        );
-        expect(document.querySelector(".landing-spinner")).toBeNull();
-        expect(document.querySelector(".landing-tick-draw")).toBeNull();
-        expect(window.sessionStorage.getItem(VERIFY_SESSION_KEY)).toBeNull();
+        expect(document.querySelectorAll("[data-intro]")).toHaveLength(0);
+        expect(window.sessionStorage.getItem(INTRO_SESSION_KEY)).toBeNull();
     });
 
-    it("shows the finished state when storage is blocked", () => {
+    it("shows the finished page when storage is blocked", () => {
         mediaQueries(false);
         window.sessionStorage.clear();
         vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
             throw new Error("blocked");
         });
         render(<LandingPage signedIn={false} />);
+        expect(document.querySelectorAll("[data-intro]")).toHaveLength(0);
         expect(document.getElementById("landing-source")).toHaveTextContent("Citation verified");
-        expect(document.querySelector(".landing-spinner")).toBeNull();
         vi.restoreAllMocks();
     });
 });
 
 describe("the tabular review example", () => {
-    it("starts on a cell of the first data column and shows its source", () => {
+    it("names the table and counts its contracts", () => {
+        render(<LandingPage signedIn={false} />);
+        expect(screen.getByText("Leases 2026")).toBeInTheDocument();
+        expect(screen.getByText("4 of 186 contracts")).toBeInTheDocument();
+    });
+
+    it("starts on the term of the first row, which a phone shows without scrolling, and shows its source", () => {
         render(<LandingPage signedIn={false} />);
         const source = document.getElementById("landing-tab-source")!;
         expect(source).toHaveAttribute("aria-live", "polite");
-        expect(source).toHaveTextContent("Nave Querétaro.pdf · page 4");
-        expect(source).toHaveTextContent("«El presente contrato tendrá una vigencia de 60 (sesenta) meses…»");
-        expect(screen.getByRole("button", { name: /60 months/ })).toHaveAttribute("aria-pressed", "true");
+        expect(source).toHaveTextContent("Bodega Tlalnepantla.pdf · page 3");
+        expect(source).toHaveTextContent("«El presente contrato tendrá una vigencia de 36 (treinta y seis) meses…»");
+        expect(screen.getByRole("button", { name: /36 months/ })).toHaveAttribute("aria-pressed", "true");
     });
 
     it("changes the source with a click and with a mouse hover", async () => {
@@ -316,10 +373,10 @@ describe("the tabular review example", () => {
         await user.click(screen.getByRole("button", { name: /Mexico City/ }));
         const source = document.getElementById("landing-tab-source")!;
         expect(source).toHaveTextContent("Local Polanco.pdf · page 10");
-        fireEvent.pointerEnter(screen.getByRole("button", { name: /36 months/ }), { pointerType: "touch" });
+        fireEvent.pointerEnter(screen.getByRole("button", { name: /60 months/ }), { pointerType: "touch" });
         expect(source).toHaveTextContent("Local Polanco.pdf · page 10");
-        fireEvent.pointerEnter(screen.getByRole("button", { name: /36 months/ }), { pointerType: "mouse" });
-        expect(source).toHaveTextContent("Bodega Tlalnepantla.pdf · page 3");
+        fireEvent.pointerEnter(screen.getByRole("button", { name: /60 months/ }), { pointerType: "mouse" });
+        expect(source).toHaveTextContent("Nave Querétaro.pdf · page 4");
     });
 
     it("has one cell with nothing to cite and it is not a button", () => {
@@ -424,5 +481,391 @@ describe("theme and language", () => {
         await vi.waitFor(() =>
             expect(within(group).getByRole("radio", { name: "Español" })).toHaveAttribute("aria-checked", "true"),
         );
+    });
+});
+
+describe("why LiTT: keys, models and your own servers", () => {
+    function column(name: string) {
+        return screen.getByRole("article", { name });
+    }
+
+    it("has the three columns, with the claim about price in the keys one and no price anywhere", () => {
+        render(<LandingPage signedIn={false} />);
+        const why = within(document.getElementById("por-que")!);
+        expect(why.getByRole("heading", { level: 2 })).toHaveTextContent(
+            "The legal AI of large firms, within reach of yours.",
+        );
+        expect(column("Bring your own keys")).toHaveTextContent(
+            "You pay the provider only for what you use, with no per-seat price.",
+        );
+        expect(column("Bring your own keys")).toHaveTextContent("If a key fails, LiTT tells you instead of using another.");
+        expect(column("Install it on your servers")).toHaveTextContent("AGPL-3.0");
+        // No price or plan is promised anywhere on the page.
+        const text = document.body.textContent ?? "";
+        expect(text).not.toMatch(/\bUS?\$|\bMXN\b|\bUSD\b|free plan|gratis|\/\s?(mo|month|mes)\b/i);
+        // No other platform is named.
+        expect(text).not.toMatch(/harvey|legora|mikeoss/i);
+    });
+
+    it("puts GLM-Legal under OpenRouter and only the open model on the firm's own server", () => {
+        render(<LandingPage signedIn={false} />);
+        const picker = within(screen.getByRole("img", { name: /^Example model picker/ }));
+        const rows = [...document.querySelectorAll('[aria-label^="Example model picker"] li')].map((li) =>
+            (li.textContent ?? "").replace(/\s+/g, " ").trim(),
+        );
+        expect(rows).toEqual([
+            "With your key",
+            "Claude Sonnet 5.5",
+            "GPT-6.1 Sol",
+            "Gemini 3.1 Pro (Preview)",
+            "Mistral Large 4 (Preview)",
+            "Through OpenRouter",
+            "GLM-LegalZ.ai",
+            "On the firm’s server",
+            "Qwen 3Local",
+        ]);
+        expect(picker).toBeDefined();
+        // Closed weights: GLM-Legal is never offered as installable.
+        const local = rows.slice(rows.indexOf("On the firm’s server"));
+        expect(local.join(" ")).not.toMatch(/GLM-Legal/);
+    });
+
+    it("describes the keys and the firm network as images and hides their pieces from a reader", () => {
+        render(<LandingPage signedIn={false} />);
+        for (const name of [/^Example: Anthropic, OpenAI and OpenRouter keys saved/, /^Diagram: LiTT, the database and the model/]) {
+            const image = screen.getByRole("img", { name });
+            expect(image.firstElementChild).toHaveAttribute("aria-hidden", "true");
+        }
+        expect(screen.getByText("Nothing leaves the network.")).toBeInTheDocument();
+    });
+
+    it("has the projects and workflows examples as described images", () => {
+        render(<LandingPage signedIn={false} />);
+        expect(screen.getByRole("img", { name: /^Example: the Tlalnepantla Warehouse project with six documents/ })).toBeInTheDocument();
+        expect(screen.getByRole("img", { name: /^Example: five of the firm’s workflows and playbooks/ })).toBeInTheDocument();
+    });
+
+    it("links the repository from the access section, in another tab", () => {
+        render(<LandingPage signedIn={false} />);
+        const access = within(document.getElementById("acceso")!);
+        const link = access.getByRole("link", { name: "GitHub" });
+        expect(link).toHaveAttribute("href", "https://github.com/IvanJS17/litt");
+        expect(link).toHaveAttribute("target", "_blank");
+        expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    });
+
+    it("keeps three points of trust", () => {
+        render(<LandingPage signedIn={false} />);
+        const items = within(document.getElementById("confianza")!).getAllByRole("listitem");
+        expect(items.map((li) => li.querySelector("h3")?.textContent)).toEqual([
+            "Each firm kept apart",
+            "No third-party telemetry",
+            "A record that can’t be rewritten",
+        ]);
+    });
+});
+
+describe("an old link to #que-hace", () => {
+    it("is changed to #funciones and goes there", () => {
+        const scrollIntoView = vi.fn();
+        Element.prototype.scrollIntoView = scrollIntoView;
+        window.history.replaceState(null, "", "/#que-hace");
+        render(<LandingPage signedIn={false} />);
+        expect(window.location.hash).toBe("#funciones");
+        expect(scrollIntoView).toHaveBeenCalled();
+        window.history.replaceState(null, "", "/");
+    });
+});
+
+describe("the phone menu", () => {
+    const wide: { listener: ((event: { matches: boolean }) => void) | null } = { listener: null };
+    const scrollIntoView = vi.fn();
+
+    function phone() {
+        wide.listener = null;
+        vi.stubGlobal(
+            "matchMedia",
+            vi.fn((query: string) => ({
+                matches: false,
+                media: query,
+                addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => {
+                    if (query.includes("min-width: 880px")) wide.listener = listener;
+                },
+                removeEventListener: vi.fn(),
+            })),
+        );
+    }
+
+    beforeEach(() => {
+        phone();
+        Element.prototype.scrollIntoView = scrollIntoView;
+        scrollIntoView.mockClear();
+        window.history.replaceState(null, "", "/");
+    });
+
+    function button() {
+        return screen.getByRole("button", { name: "Menu" });
+    }
+    function panel() {
+        return document.getElementById("landing-menu")!;
+    }
+    function banner() {
+        return screen.getByRole("banner");
+    }
+
+    it("is not in the server's HTML as a button, but its panel is, closed, with its content", () => {
+        const html = renderToString(
+            <IntlClientProvider locale="en-US" messages={enUS}>
+                <LandingPage signedIn={false} />
+            </IntlClientProvider>,
+        );
+        expect(html).not.toContain("landing-menu-button");
+        expect(html).toMatch(/<div id="landing-menu" hidden=""/);
+        expect(html).toMatch(/href="#por-que"[^>]*class="landing-menu-link/);
+        expect(html).toContain("Privacy notice");
+    });
+
+    it("has a button named Menu that controls the panel, closed", () => {
+        render(<LandingPage signedIn={false} />);
+        expect(button()).toHaveAttribute("aria-expanded", "false");
+        expect(button()).toHaveAttribute("aria-controls", "landing-menu");
+        expect(button()).toHaveAttribute("type", "button");
+        expect(button().className).toMatch(/min-\[880px\]:hidden/);
+        expect(button().className).toMatch(/size-11/); // 44 px
+        expect(panel()).toHaveAttribute("hidden");
+        // The content stays in the DOM while it is closed.
+        expect(within(panel()).getAllByRole("link", { hidden: true }).length).toBeGreaterThanOrEqual(8);
+    });
+
+    it("opens: expanded, the first link focused, the page behind inert and the scroll locked", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        expect(button()).toHaveAttribute("aria-expanded", "true");
+        expect(panel()).not.toHaveAttribute("hidden");
+        expect(within(panel()).getByRole("link", { name: "Features" })).toHaveFocus();
+        expect(document.documentElement).toHaveClass("menu-open");
+        expect(document.getElementById("main")).toHaveAttribute("inert");
+        expect(document.getElementById("landing-skip")).toHaveAttribute("inert");
+        expect(document.querySelector("footer")).toHaveAttribute("inert");
+        // The header's own controls too, but not the button or the panel.
+        expect(banner().querySelector('a[href="#top"]')).toHaveAttribute("inert");
+        expect(banner().querySelector("a[data-docked]")).toHaveAttribute("inert");
+        expect(button()).not.toHaveAttribute("inert");
+        expect(panel().closest("[inert]")).toBeNull();
+        // The panel carries every control the footer has, and the legal links.
+        const inside = within(panel());
+        expect(inside.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+        expect(inside.getByRole("link", { name: "Request access" })).toBeInTheDocument();
+        expect(inside.getByRole("radiogroup", { name: "Theme" })).toBeInTheDocument();
+        expect(inside.getByRole("radiogroup", { name: "Language" })).toBeInTheDocument();
+        expect(inside.getByRole("link", { name: "Privacy notice" })).toHaveAttribute("href", "/privacidad");
+        expect(inside.getByRole("link", { name: "Terms and conditions" })).toHaveAttribute("href", "/terminos");
+    });
+
+    it("has the four sections and 56 px rows", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        const nav = within(panel()).getByRole("navigation", { name: "Sections" });
+        const links = within(nav).getAllByRole("link");
+        expect(links.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
+            ["Features", "#funciones"],
+            ["Why LiTT", "#por-que"],
+            ["Coming soon", "#proximamente"],
+            ["Trust", "#confianza"],
+        ]);
+        links.forEach((a) => expect(a).toHaveClass("landing-menu-link"));
+    });
+
+    it("keeps Tab inside: button, links, buttons, theme, language, legal links, and back to the button", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        const seen: string[] = [];
+        for (let i = 0; i < 11; i += 1) {
+            await user.tab();
+            seen.push((document.activeElement as HTMLElement).textContent?.trim() || (document.activeElement as HTMLElement).getAttribute("aria-label") || "?");
+        }
+        expect(seen).toEqual([
+            "Why LiTT",
+            "Coming soon",
+            "Trust",
+            "Sign in",
+            "Request access",
+            "Automatic",
+            "English",
+            "Privacy notice",
+            "Terms and conditions",
+            "Menu",
+            "Features",
+        ]);
+        // Shift+Tab from the first thing goes to the last, and from the button to the last link.
+        await user.tab({ shift: true });
+        expect(button()).toHaveFocus();
+        await user.tab({ shift: true });
+        expect(within(panel()).getByRole("link", { name: "Terms and conditions" })).toHaveFocus();
+    });
+
+    it("closes with Esc and gives the focus back to the button", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        await user.keyboard("{Escape}");
+        expect(button()).toHaveAttribute("aria-expanded", "false");
+        expect(button()).toHaveFocus();
+        expect(document.getElementById("main")).not.toHaveAttribute("inert");
+        expect(document.documentElement).not.toHaveClass("menu-open");
+        // The panel waits for its exit transition (160 ms), then is hidden again.
+        await vi.waitFor(() => expect(panel()).toHaveAttribute("hidden"));
+    });
+
+    it("closes with the button, and a second tap opens it again before the exit ends", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        await user.click(button());
+        expect(button()).toHaveAttribute("aria-expanded", "false");
+        await user.click(button());
+        expect(button()).toHaveAttribute("aria-expanded", "true");
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        expect(panel()).not.toHaveAttribute("hidden");
+    });
+
+    it("closes from the backdrop", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        const scrim = document.querySelector<HTMLElement>(".landing-scrim")!;
+        expect(scrim).not.toHaveAttribute("hidden");
+        await user.click(scrim);
+        expect(button()).toHaveAttribute("aria-expanded", "false");
+        expect(button()).toHaveFocus();
+    });
+
+    it("goes to a section from a link: closes at once, sets the hash, moves the focus to its heading", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        await user.click(within(panel()).getByRole("link", { name: "Why LiTT" }));
+        expect(button()).toHaveAttribute("aria-expanded", "false");
+        expect(panel()).toHaveAttribute("hidden"); // immediately, not after the transition
+        expect(window.location.hash).toBe("#por-que");
+        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+        expect(document.getElementById("landing-why-title")).toHaveFocus();
+        expect(document.getElementById("landing-why-title")).toHaveAttribute("tabindex", "-1");
+        expect(document.documentElement).not.toHaveClass("menu-open");
+        expect(document.getElementById("main")).not.toHaveAttribute("inert");
+    });
+
+    it("jumps without smooth scrolling with reduced motion, and the panel is hidden at once", async () => {
+        vi.stubGlobal(
+            "matchMedia",
+            vi.fn((query: string) => ({
+                matches: query.includes("reduce"),
+                media: query,
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+            })),
+        );
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        await user.click(within(panel()).getByRole("link", { name: "Trust" }));
+        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
+        await user.click(button());
+        await user.keyboard("{Escape}");
+        expect(panel()).toHaveAttribute("hidden");
+    });
+
+    it("closes when a legal link or a button is chosen", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        await user.click(within(panel()).getByRole("link", { name: "Privacy notice" }));
+        expect(button()).toHaveAttribute("aria-expanded", "false");
+        expect(panel()).toHaveAttribute("hidden");
+    });
+
+    it("changes theme and language from the menu and stays open", async () => {
+        const user = userEvent.setup();
+        inSpanish(<LandingPage signedIn={false} />);
+        await user.click(screen.getByRole("button", { name: "Menú" }));
+        const menu = within(document.getElementById("landing-menu")!);
+        await user.click(menu.getByRole("radio", { name: "Oscuro" }));
+        expect(document.documentElement).toHaveClass("dark");
+        await user.click(menu.getByRole("radio", { name: "English" }));
+        expect(setLocale).toHaveBeenCalledWith("en-US");
+        expect(screen.getByRole("button", { name: "Menú" })).toHaveAttribute("aria-expanded", "true");
+        // The footer's group shows the same preference.
+        expect(document.querySelector("footer [role=radio][aria-checked=true]")).not.toBeNull();
+    });
+
+    it("closes when the window becomes 880 px wide, on history navigation and on pagehide", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        for (const leave of [
+            () => wide.listener?.({ matches: true }),
+            () => window.dispatchEvent(new PopStateEvent("popstate")),
+            () => window.dispatchEvent(new Event("pagehide")),
+        ]) {
+            await user.click(button());
+            expect(button()).toHaveAttribute("aria-expanded", "true");
+            act(() => {
+                leave();
+            });
+            expect(button()).toHaveAttribute("aria-expanded", "false");
+            expect(panel()).toHaveAttribute("hidden");
+            expect(document.documentElement).not.toHaveClass("menu-open");
+        }
+    });
+
+    it("does not stay open to the wide window: it ignores a change to a narrow one", async () => {
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        act(() => {
+            wide.listener?.({ matches: false });
+        });
+        expect(button()).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("hides the docked button while open and gives it back after", async () => {
+        let notify: (entries: Array<{ isIntersecting: boolean }>) => void = () => {};
+        vi.stubGlobal(
+            "IntersectionObserver",
+            class {
+                constructor(callback: typeof notify) {
+                    notify = callback;
+                }
+                observe() {}
+                disconnect() {}
+            },
+        );
+        const user = userEvent.setup();
+        render(<LandingPage signedIn={false} />);
+        const docked = () => banner().querySelector<HTMLElement>("a[data-docked]")!;
+        act(() => notify([{ isIntersecting: false }]));
+        expect(docked()).not.toHaveAttribute("inert");
+        await user.click(button());
+        expect(docked()).toHaveAttribute("inert");
+        expect(docked().className).toMatch(/opacity-0/);
+        await user.keyboard("{Escape}");
+        expect(docked()).not.toHaveAttribute("inert");
+    });
+
+    it("leaves nothing behind when the page unmounts with the menu open", async () => {
+        const user = userEvent.setup();
+        const view = render(<LandingPage signedIn={false} />);
+        await user.click(button());
+        view.unmount();
+        expect(document.documentElement).not.toHaveClass("menu-open");
+    });
+
+    it("puts the docked button before the theme button on a phone and after it from 880 px", () => {
+        render(<LandingPage signedIn={false} />);
+        const docked = banner().querySelector("a[data-docked]")!;
+        expect(docked.className).toMatch(/\border-first\b/);
+        expect(docked.className).toMatch(/min-\[880px\]:order-1/);
     });
 });

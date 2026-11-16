@@ -7,7 +7,10 @@ import esMX from "../messages/es-MX.json";
 // keep theirs.
 type Tree = { [key: string]: string | Tree };
 
-const EXEMPT = ["managedAccount.", "legal."];
+// `landing.why.byok.title` is the name the public page gives the feature, "Trae
+// tus propias llaves" (SPEC v2 §5): the visitor is not in the app yet and has
+// not met «Mis llaves de IA».
+const EXEMPT = ["managedAccount.", "legal.", "landing.why.byok.title"];
 // Aliases for search only: people may still type the old words.
 const SEARCH_KEYWORDS = /\.keywords$/;
 const OLD_NAMES = /organizaci[oó]n|organizaciones|BYOK|llaves propias \(|tus propias llaves/i;
