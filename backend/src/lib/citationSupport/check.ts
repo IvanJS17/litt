@@ -1,6 +1,7 @@
 // Citation support check, silent mode (docs/citation-support-check.md).
 //
-// After an assistant answer with citations is saved, and only when the server
+// After an assistant answer with citations (a chat answer, a tabular review
+// cell, a tabular chat answer or a playbook draft) is saved, and only when the server
 // switch LITT_CITATION_CHECK is `enabled`, the platform has a TYPESAFE_API_KEY
 // the person has not opted out and has accepted the current LEGAL_VERSION, each citation is checked in the
 // background: one request per citation, in parallel, and the result is
@@ -27,12 +28,51 @@ import {
 /** Requests in flight at once for one answer. */
 const CONCURRENCY = 6;
 
+/**
+ * Requests in flight at once across the whole process. A tabular review
+ * checks many cells at the same time, each with its own run; this keeps the
+ * total bounded so a large review cannot flood TypeSafe.
+ */
+export const MAX_IN_FLIGHT = 12;
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+
+async function acquireSlot(): Promise<void> {
+    if (inFlight < MAX_IN_FLIGHT) {
+        inFlight += 1;
+        return;
+    }
+    await new Promise<void>((resolve) => waiting.push(resolve));
+}
+
+function releaseSlot(): void {
+    const next = waiting.shift();
+    // The slot passes straight to the next waiter; only free it when nobody waits.
+    if (next) next();
+    else inFlight -= 1;
+}
+
+/**
+ * Where a result is kept: the row it belongs to. One surface per path, each
+ * with its own owner column in citation_support_checks; the result is deleted
+ * with that row.
+ */
+export type CitationSupportSurface = "chat" | "word" | "tabular_cell" | "tabular_chat" | "playbook";
+
+const OWNER_COLUMN: Record<CitationSupportSurface, string> = {
+    chat: "message_id",
+    word: "word_message_id",
+    tabular_cell: "tabular_cell_id",
+    tabular_chat: "tabular_chat_message_id",
+    playbook: "playbook_id",
+};
+
 export type CitationSupportScope = {
     /** The firm whose space the answer is in; null in a personal space. Counted, never sent. */
     orgId: string | null;
-    /** The saved assistant message: a chat message, or a Word chat message. */
-    messageId: string;
-    surface: "chat" | "word";
+    /** The saved row the results belong to: the message, cell or playbook of `surface`. */
+    ownerId: string;
+    surface: CitationSupportSurface;
 };
 
 export type CitationSupportOutcome = {
@@ -44,6 +84,23 @@ export type CitationSupportOutcome = {
 
 const UNIQUE_VIOLATION = "23505";
 const FOREIGN_KEY_VIOLATION = "23503";
+
+/**
+ * Delete the results of an owner whose content is replaced in place (a
+ * regenerated tabular cell), whether or not the new content has anything to
+ * check, so no result of the old content stays. Never throws: on a failure the
+ * unique index keeps the older result and nothing else is affected.
+ */
+export async function forgetCitationSupportChecks(
+    db: Db,
+    owner: Pick<CitationSupportScope, "surface" | "ownerId">,
+): Promise<void> {
+    try {
+        await db.from("citation_support_checks").delete().eq(OWNER_COLUMN[owner.surface], owner.ownerId);
+    } catch {
+        // Silent mode.
+    }
+}
 
 /**
  * Check every input and write the evidence. Never throws: a failure is
@@ -69,12 +126,17 @@ export async function runCitationSupportChecks(args: {
         for (let input = queue.shift(); input; input = queue.shift()) {
             if (keyRefused) return;
             try {
-                const answer = await askCitationSupport(args.apiKey, input.state, args.deps);
+                await acquireSlot();
+                let answer: Awaited<ReturnType<typeof askCitationSupport>>;
+                try {
+                    if (keyRefused) return;
+                    answer = await askCitationSupport(args.apiKey, input.state, args.deps);
+                } finally {
+                    releaseSlot();
+                }
                 const { error } = await args.db.from("citation_support_checks").insert({
                     organization_id: args.scope.orgId,
-                    ...(args.scope.surface === "word"
-                        ? { word_message_id: args.scope.messageId }
-                        : { message_id: args.scope.messageId }),
+                    [OWNER_COLUMN[args.scope.surface]]: args.scope.ownerId,
                     citation_ref: input.ref,
                     document_id: input.documentId,
                     version_id: input.versionId,
@@ -127,32 +189,29 @@ function reportFailures(outcome: CitationSupportOutcome): void {
 }
 
 /**
- * One answer's silent check. `create` returns null unless the space's TypeSafe
- * key is present and on, so a space without one runs no code of this
- * capability. `collect` goes to the engine, which hands it the inputs once the
- * citations are verified; `finish` runs after the answer is saved.
+ * The permission to check for one person's work, or null when it does not
+ * exist: the server switch is off, there is no platform key, the person
+ * opted out, or they have not accepted the current legal version. Nothing is
+ * read or sent in those cases. Read once; `run` may then be called for as many
+ * rows as the work produces (one answer, or every cell of a tabular run).
  */
-export type CitationSupportTurn = {
-    collect: (inputs: CitationSupportInput[]) => void;
-    finish: (messageId: string | null | undefined, saved: boolean) => Promise<CitationSupportOutcome | null>;
+export type CitationSupportRunner = {
+    run: (
+        owner: { surface: CitationSupportSurface; ownerId: string },
+        inputs: readonly CitationSupportInput[],
+    ) => Promise<CitationSupportOutcome | null>;
 };
 
-/**
- * The check for one answer, or null when it does not exist for it: the server
- * switch is off, there is no platform key, the person opted out, or they have
- * not accepted the current legal version. Nothing
- * is read or sent in those cases.
- */
-export async function createCitationSupportTurn(args: {
+export async function createCitationSupportRunner(args: {
     db: Db;
+    /** The person whose action triggered the generation: their opt-out and acceptance count. */
     userId: string;
-    /** The conversation's organization (a personal organization counts as none). */
-    orgId: string | null | undefined;
-    surface: "chat" | "word";
+    /** The organization of the space (a personal organization counts as none), or a lookup read only when something is checked. */
+    orgId: string | null | undefined | (() => Promise<string | null | undefined>);
     /** The current LEGAL_VERSION: only people who accepted it are ever sent. */
     legalVersion: string;
     deps?: SupportDeps;
-}): Promise<CitationSupportTurn | null> {
+}): Promise<CitationSupportRunner | null> {
     const apiKey = citationCheckApiKey();
     if (!apiKey) return null;
     try {
@@ -160,22 +219,17 @@ export async function createCitationSupportTurn(args: {
     } catch {
         return null; // Silent mode: a failed preference read is "no check".
     }
-    let inputs: CitationSupportInput[] = [];
     return {
-        collect: (collected) => {
-            inputs = collected;
-        },
-        // Detached from the turn: the caller does not await it.
-        finish: async (messageId, saved) => {
-            if (!saved || !messageId || !inputs.length) return null;
+        // Never throws and is never awaited by the work it follows.
+        run: async (owner, inputs) => {
+            if (!inputs.length) return null;
             try {
                 const outcome = await runCitationSupportChecks({
                     db: args.db,
                     apiKey,
                     scope: {
-                        orgId: await teamOrgIdOf(args.db, args.orgId),
-                        messageId,
-                        surface: args.surface,
+                        orgId: await teamOrgIdOf(args.db, typeof args.orgId === "function" ? await args.orgId() : args.orgId),
+                        ...owner,
                     },
                     inputs,
                     deps: args.deps,
@@ -186,6 +240,40 @@ export async function createCitationSupportTurn(args: {
                 reportFailures({ checked: 0, failed: 1, firstFailure: "unexpected" });
                 return null;
             }
+        },
+    };
+}
+
+/**
+ * One answer's silent check. `collect` goes to the engine, which hands it the
+ * inputs once the citations are verified; `finish` runs after the answer is
+ * saved.
+ */
+export type CitationSupportTurn = {
+    collect: (inputs: CitationSupportInput[]) => void;
+    finish: (messageId: string | null | undefined, saved: boolean) => Promise<CitationSupportOutcome | null>;
+};
+
+/** The check for one chat answer, or null when it does not exist for it (see createCitationSupportRunner). */
+export async function createCitationSupportTurn(args: {
+    db: Db;
+    userId: string;
+    orgId: string | null | undefined;
+    surface: "chat" | "word" | "tabular_chat";
+    legalVersion: string;
+    deps?: SupportDeps;
+}): Promise<CitationSupportTurn | null> {
+    const runner = await createCitationSupportRunner(args);
+    if (!runner) return null;
+    let inputs: CitationSupportInput[] = [];
+    return {
+        collect: (collected) => {
+            inputs = collected;
+        },
+        // Detached from the turn: the caller does not await it.
+        finish: async (messageId, saved) => {
+            if (!saved || !messageId) return null;
+            return runner.run({ surface: args.surface, ownerId: messageId }, inputs);
         },
     };
 }

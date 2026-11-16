@@ -26,6 +26,7 @@ function makeDb() {
     const calls: Call[] = [];
     function from(table: string) {
         const state: Call = { table, op: "select", filters: {} };
+        let selected = false;
         const b: Record<string, unknown> = {
             update(payload: Record<string, unknown>) {
                 state.op = "update";
@@ -44,9 +45,15 @@ function makeDb() {
                 state.filters[col] = vals;
                 return b;
             },
+            select() {
+                selected = true;
+                return b;
+            },
             then(onF: (v: unknown) => unknown) {
                 calls.push({ ...state, filters: { ...state.filters } });
-                return Promise.resolve({ data: null, error: null }).then(onF);
+                // `.select("id")` on an update answers with the saved cell, as PostgREST does.
+                const data = selected && state.op === "update" ? [{ id: `cell-${String(state.filters.column_index)}` }] : null;
+                return Promise.resolve({ data, error: null }).then(onF);
             },
         };
         return b;
@@ -96,7 +103,7 @@ describe("extractRowColumns", () => {
             const frames: Array<{ row_id: string; status: string }> = [];
             const onError = vi.fn();
             const complete = await streamTabularGenerateSync({
-                db: db as never, reviewId: "rev-1", columns: COLUMNS,
+                db: db as never, reviewId: "rev-1", userId: "user-1", columns: COLUMNS,
                 rows: Array.from({ length: 5 }, (_, index) => ({ ...ROW, id: `row-${index}` })),
                 cellMap: new Map(), model: "m", apiKeys: {}, generationId: "gen-1",
                 abortSignal: new AbortController().signal, onError,
@@ -114,6 +121,29 @@ describe("extractRowColumns", () => {
             expect(failed.every((call) => call.filters.generation_id === "gen-1")).toBe(true);
         },
     );
+
+    it("tells the silent citation check about each saved cell it still owns, and only then", async () => {
+        queryTabularAllColumns.mockImplementation(async (_m, _f, _t, cols, onResult) => {
+            for (const c of cols) await onResult(c.index, RESULT(c.index));
+        });
+        const citationCheck = vi.fn();
+        await extractRowColumns({
+            db: makeDb() as never, reviewId: "rev-1", row: ROW, columns: COLUMNS, existingByColumn: new Map(),
+            model: "m", apiKeys: {}, sink: sinkSpy(), generationId: "gen-1", citationCheck,
+        });
+        expect(citationCheck).toHaveBeenCalledTimes(2);
+        expect(citationCheck.mock.calls[0][0]).toMatchObject({
+            cellId: "cell-0", result: RESULT(0), sourceDocumentIds: ["doc-1"],
+            markdown: "## Source document: Contract.pdf\ntext",
+        });
+        // Without the check the update is unchanged: no select.
+        const plain = makeDb();
+        await extractRowColumns({
+            db: plain as never, reviewId: "rev-1", row: ROW, columns: COLUMNS, existingByColumn: new Map(),
+            model: "m", apiKeys: {}, sink: sinkSpy(), generationId: "gen-1",
+        });
+        expect(plain.calls.filter((call) => call.payload?.status === "done")).toHaveLength(2);
+    });
 
     it("passes reporting ownership to the query for queue work", async () => {
         const cause = new Error("provider unavailable");

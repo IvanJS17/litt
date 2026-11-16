@@ -1,8 +1,12 @@
 export {
+    createCitationSupportRunner,
     createCitationSupportTurn,
+    forgetCitationSupportChecks,
     runCitationSupportChecks,
     type CitationSupportOutcome,
+    type CitationSupportRunner,
     type CitationSupportScope,
+    type CitationSupportSurface,
     type CitationSupportTurn,
 } from "./check";
 export {
@@ -10,6 +14,7 @@ export {
     buildCitationSupportInputs,
     claimForRef,
     contextAround,
+    inputFromSpans,
     MAX_CHECKED_CITATIONS,
     MAX_CONTEXT_CHARS,
     type CitationSupportInput,

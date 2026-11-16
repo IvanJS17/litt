@@ -25,6 +25,7 @@ import {
 } from "../../lib/queue/extractionQueue";
 import { queryTabularCell } from "./tabular.extract";
 import { finalizeCell } from "./tabular.extractRow";
+import { createTabularCellCheck } from "./tabular.citationSupport";
 import { awaitCellTerminal } from "./tabular.generateStream";
 import { loadReviewRow, loadRowDocumentText } from "./tabular.rows";
 import {
@@ -411,7 +412,8 @@ export async function regenerateTabularCell(
             return GENERATION_FAILED;
         }
 
-        const { error: completedError } = await db
+        const citationCheck = createTabularCellCheck({ db, userId, reviewId });
+        const completion = db
             .from("tabular_cells")
             .update({
                 content: JSON.stringify(result),
@@ -422,7 +424,19 @@ export async function regenerateTabularCell(
             .eq("row_id", row.id)
             .eq("column_index", columnIndex)
             .eq("generation_id", generationId);
+        // With the silent citation check on, learn which cell was saved.
+        const { data: completed, error: completedError } = citationCheck
+            ? await completion.select("id")
+            : await completion;
         if (completedError) return internalFailure(completedError);
+        const cellId = (completed as { id?: string }[] | null)?.[0]?.id;
+        if (cellId)
+            citationCheck?.({
+                cellId,
+                result,
+                markdown,
+                sourceDocumentIds: row.source_document_ids ?? [],
+            });
 
         return { ok: true, data: { status: 200, body: result } };
     } catch (error) {

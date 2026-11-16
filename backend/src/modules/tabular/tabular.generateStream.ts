@@ -47,6 +47,7 @@ import { type UserApiKeys } from "../../lib/llm";
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { extractRowColumns, finalizeCell } from "./tabular.extractRow";
+import { createTabularCellCheck } from "./tabular.citationSupport";
 import { type ReviewRow } from "./tabular.rows";
 import { mutateInBatches, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import {
@@ -647,6 +648,8 @@ export async function streamTabularGenerateSync(args: {
     abortSignal: AbortSignal;
     onError?: (error: unknown) => void;
     onActivity?: () => void;
+    /** The person who started the run: whose opt-out and acceptance the citation check reads. */
+    userId: string;
 }): Promise<boolean> {
     const {
         write,
@@ -663,6 +666,11 @@ export async function streamTabularGenerateSync(args: {
     } = args;
 
     const textCache = createTextExtractionCache();
+    const citationCheck = createTabularCellCheck({
+        db,
+        userId: args.userId,
+        reviewId,
+    });
     let nextRowIndex = 0;
     const cellFrame = (
         rowId: string,
@@ -698,6 +706,7 @@ export async function streamTabularGenerateSync(args: {
             apiKeys,
             generationId,
             abortSignal,
+            citationCheck,
             sink: {
                 activity: args.onActivity,
                 generating: (rowId, columnIndex) =>

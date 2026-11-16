@@ -100,6 +100,7 @@ import {
     titleTabularChat,
     updateTabularReviewChat,
 } from "./tabular.chats";
+import { checkTabularChatCitations } from "./tabular.citationSupport";
 import { draftColumnPrompt } from "./tabular.prompt";
 // The memory fence spans the chat stream itself: it opens before the first
 // frame and has to be released (or handed to the curator) after the last one,
@@ -648,6 +649,7 @@ tabularRouter.post("/:reviewId/generate", requireAuth, asyncRoute(async (req, re
             model: tabular_model,
             apiKeys: api_keys,
             generationId,
+            userId,
             abortSignal: generationSignal,
             onError: (error) => {
                 if (sentGenerationError) return;
@@ -1159,6 +1161,18 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                     saved.error,
                 );
             assistantSaved = saved.saved;
+            // Silent citation support check: after the answer is saved, aside
+            // from the turn (never awaited, never throws).
+            if (assistantSaved && !persistedEvents.some((event) => event.type === "ask_inputs" || event.type === "error"))
+                checkTabularChatCitations({
+                    db,
+                    userId,
+                    orgId,
+                    messageId: assistantMessageId,
+                    fullText: fullText ?? "",
+                    annotations,
+                    store: tabularStore,
+                });
             // LiTT training: the final answer is durable, so the pasante's
             // private contrast is produced now, aside from the turn, with the
             // conversation's own model and credential. It cannot fail the turn.

@@ -16,8 +16,8 @@
 // - citation check (lib/citationSupport): sends each citation of an answer
 //   (the claim, the quoted text and its context) to TypeSafe, a third party
 //   in the United States, with the platform's TYPESAFE_API_KEY. Off unless
-//   LITT_CITATION_CHECK is `enabled`, and also off without that key. It stays
-//   off in production until the texts from socium-legal are published
+//   LITT_CITATION_CHECK is `enabled`, and also off without that key. It is on
+//   in production since 2026-11-16, with the legal texts published
 //   (docs/citation-support-check.md). Each person can opt out.
 //
 // Turning one on is a deployment decision recorded with the owner's approval.

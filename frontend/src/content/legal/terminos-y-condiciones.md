@@ -1,8 +1,8 @@
 # Términos y Condiciones de LiTT (Beta)
 
-**Última actualización:** 15 de noviembre de 2026
+**Última actualización:** 16 de noviembre de 2026
 
-**Entrada en vigor:** 15 de noviembre de 2026
+**Entrada en vigor:** 16 de noviembre de 2026
 
 ## 1. Quiénes somos y qué regulan estos Términos
 
@@ -213,25 +213,26 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
     5. la propuesta de LandingAI puede tener errores. Revísala y corrígela antes de aceptarla, y
        comprueba que cada parte tenga todas sus páginas, en el orden correcto, y que ninguna
        página quede fuera. LiTT crea un PDF nuevo por cada parte y no modifica el original.
-14. **Verificación de citas.** Para estimar si el texto que cita una respuesta del asistente
-    respalda lo que la respuesta afirma, LiTT usa a TypeSafe AI, Inc., su encargado en Estados
+14. **Verificación de citas.** Para estimar si el texto que citan las respuestas del asistente,
+    las celdas de las revisiones tabulares y los borradores de playbook respalda lo que en ellos se
+    afirma, LiTT usa a TypeSafe AI, Inc., su encargado en Estados
     Unidos (cláusula 9.3.4). La verificación es un servicio de LiTT: no usa tu llave, no te
     cuesta y viene encendida para todos los Usuarios. Mientras esté encendida:
-    1. por cada cita, LiTT envía a TypeSafe la oración de la respuesta que lleva la cita, el
-       texto citado y un fragmento breve del texto que lo rodea. Ese texto puede incluir datos
+    1. por cada cita, LiTT envía a TypeSafe la oración que lleva la cita (en un borrador de
+       playbook, el nombre y el criterio de la regla), el texto citado y un fragmento breve del texto que lo rodea. Ese texto puede incluir datos
        personales e información confidencial de tus clientes. LiTT no envía el nombre del
        documento ni datos tuyos o de tu despacho;
     2. según sus condiciones, TypeSafe no entrena sus modelos con esos textos. LiTT no tiene con
        TypeSafe un plan de retención cero; sin él, sus condiciones no fijan un plazo para
        borrarlos y le permiten obtener de ellos datos técnicos de uso, como registros,
        estadísticas y métricas;
-    3. LiTT guarda el resultado con la respuesta, sin el texto enviado, y lo borra cuando se borra
-       la respuesta. Por ahora no te lo muestra: lo usa para medir la exactitud de la función,
+    3. LiTT guarda el resultado con la respuesta, la celda o el playbook, sin el texto enviado, y lo
+       borra cuando estos se borran. Por ahora no te lo muestra: lo usa para medir la exactitud de la función,
        sin leer el contenido de tus conversaciones, y te avisará en la aplicación antes de
        empezar a mostrarlo. Esa medición forma parte de prestar esta función. Cuando se muestre,
        el resultado será una estimación automática, no una garantía (cláusula 7.6); y
     4. puedes apagarla en Ajustes → Privacidad y datos. Desde ese momento, LiTT deja de enviar a TypeSafe
-       las citas de las respuestas a tus mensajes; lo que TypeSafe ya recibió sigue lo dicho en
+       las citas de lo que el asistente genera a petición tuya; lo que TypeSafe ya recibió sigue lo dicho en
        el inciso 2. Si no quieres que las citas de un asunto salgan a TypeSafe, apágala antes de
        trabajar en él (cláusula 8.4).
 

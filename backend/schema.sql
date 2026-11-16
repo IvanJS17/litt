@@ -9775,6 +9775,11 @@ create table if not exists public.citation_support_checks (
   -- one of the two. The result goes with the answer.
   message_id uuid references public.chat_messages(id) on delete cascade,
   word_message_id uuid references public.word_chat_messages(id) on delete cascade,
+  -- 20261116_10_litt_citation_support_scope: three more owners, one per path.
+  -- A tabular cell, a tabular review chat message, a playbook draft.
+  tabular_cell_id uuid references public.tabular_cells(id) on delete cascade,
+  tabular_chat_message_id uuid references public.tabular_review_chat_messages(id) on delete cascade,
+  playbook_id uuid references public.playbooks(id) on delete cascade,
   -- The firm whose space the answer belongs to; null in a personal space. A
   -- reference for counting, not a foreign key.
   organization_id uuid,
@@ -9796,8 +9801,9 @@ create table if not exists public.citation_support_checks (
   question_version text not null,
   latency_ms integer not null check (latency_ms >= 0),
   input_tokens integer check (input_tokens >= 0),
-  constraint citation_support_checks_one_message
-    check ((message_id is null) <> (word_message_id is null))
+  constraint citation_support_checks_one_owner
+    check (num_nonnulls(message_id, word_message_id, tabular_cell_id,
+                        tabular_chat_message_id, playbook_id) = 1)
 );
 create unique index if not exists citation_support_checks_chat_once
   on public.citation_support_checks (message_id, citation_ref, question_version)
@@ -9805,6 +9811,15 @@ create unique index if not exists citation_support_checks_chat_once
 create unique index if not exists citation_support_checks_word_once
   on public.citation_support_checks (word_message_id, citation_ref, question_version)
   where word_message_id is not null;
+create unique index if not exists citation_support_checks_cell_once
+  on public.citation_support_checks (tabular_cell_id, citation_ref, question_version)
+  where tabular_cell_id is not null;
+create unique index if not exists citation_support_checks_tabular_chat_once
+  on public.citation_support_checks (tabular_chat_message_id, citation_ref, question_version)
+  where tabular_chat_message_id is not null;
+create unique index if not exists citation_support_checks_playbook_once
+  on public.citation_support_checks (playbook_id, citation_ref, question_version)
+  where playbook_id is not null;
 create index if not exists citation_support_checks_day_idx
   on public.citation_support_checks (created_at desc);
 
@@ -9832,13 +9847,16 @@ create trigger citation_support_checks_no_update_trigger
 -- only policies are the backend's (service_role), as for the AI evidence.
 alter table public.citation_support_checks enable row level security;
 revoke all on public.citation_support_checks from public, anon, authenticated;
-grant select, insert on public.citation_support_checks to service_role;
+grant select, insert, delete on public.citation_support_checks to service_role;
 drop policy if exists citation_support_checks_service_select on public.citation_support_checks;
 create policy citation_support_checks_service_select on public.citation_support_checks
   for select to service_role using (true);
 drop policy if exists citation_support_checks_service_insert on public.citation_support_checks;
 create policy citation_support_checks_service_insert on public.citation_support_checks
   for insert to service_role with check (true);
+drop policy if exists citation_support_checks_service_delete on public.citation_support_checks;
+create policy citation_support_checks_service_delete on public.citation_support_checks
+  for delete to service_role using (true);
 create extension if not exists pg_trgm;
 -- Managed Supabase may install extensions outside public.
 do $$
@@ -20823,5 +20841,6 @@ insert into public.schema_migrations (filename) values
   ('20261113_50_litt_training_role_rules.sql'),
   ('20261113_60_litt_text_size.sql'),
   ('20261114_10_litt_theme.sql'),
-  ('20261114_20_litt_citation_support.sql')
+  ('20261114_20_litt_citation_support.sql'),
+  ('20261116_10_litt_citation_support_scope.sql')
 on conflict (filename) do nothing;

@@ -71,6 +71,7 @@ it.each([
     })!;
     const frames: string[] = [];
     const pending = streamTabularGenerateSync({
+      userId: "user-1",
       write: (line) => {
         frames.push(line);
         return run.write(line);

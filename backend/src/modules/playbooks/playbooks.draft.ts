@@ -24,6 +24,7 @@ import { downloadFile, headFile } from "../../lib/storage";
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { chatRouteColumns, recordChatEgress } from "../user/user.service";
 import { recordPlaybookAudit } from "./playbooks.audit";
+import { checkPlaybookDraftCitations } from "./playbooks.citationSupport";
 import {
   creationScope,
   enterImportStage,
@@ -448,6 +449,41 @@ export function normalizeForQuote(value: string): string {
     .replace(/[‘’]/g, "'")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Where `quote` sits in `text` under the same comparison `verifyDraftProvenance`
+ * uses (normalizeForQuote): the offsets and the original text there, or null.
+ * Lets a verified quote be shown its surroundings (the citation support check).
+ */
+export function locateQuoteInSource(
+  text: string,
+  quote: string,
+): { start: number; end: number; excerpt: string } | null {
+  const needle = normalizeForQuote(quote);
+  if (!needle) return null;
+  let normalized = "";
+  const origin: number[] = [];
+  for (let at = 0; at < text.length; ) {
+    const char = String.fromCodePoint(text.codePointAt(at)!);
+    if (/\s/.test(char)) {
+      if (normalized && !normalized.endsWith(" ")) {
+        normalized += " ";
+        origin.push(at);
+      }
+    } else {
+      for (const out of normalizeForQuote(char)) {
+        normalized += out;
+        origin.push(at);
+      }
+    }
+    at += char.length;
+  }
+  const found = normalized.indexOf(needle);
+  if (found < 0) return null;
+  const start = origin[found];
+  const end = (origin[found + needle.length] ?? text.length);
+  return { start, end, excerpt: text.slice(start, end).trim() };
 }
 
 // "art." ends in a dot, so it takes no closing word boundary: "art. 1840"
@@ -917,6 +953,17 @@ export async function compilePlaybookDraft(
       completed_at: new Date().toISOString(),
     });
     const playbook = await getPlaybook(userId, id, db, work.userEmail);
+    // Silent citation support check of the verified quotes, aside from the job.
+    checkPlaybookDraftCitations({
+      db,
+      userId,
+      orgId: work.orgId,
+      playbookId: id,
+      content,
+      sources,
+      sourceIds: work.sourceIds,
+      locate: locateQuoteInSource,
+    });
     if (recorded)
       await recordDraftAudit(db, work, {
         playbook,

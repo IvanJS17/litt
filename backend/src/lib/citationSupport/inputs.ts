@@ -116,6 +116,38 @@ function capContext(contexts: string[]): string {
         .slice(0, MAX_CONTEXT_CHARS);
 }
 
+/**
+ * One input from quotes already found in `source` (at these offsets): the
+ * claim as given, each quote's text, and the context around each, capped.
+ * Shared by every path that checks citations (chat, tabular, playbooks).
+ */
+export function inputFromSpans(args: {
+    ref: number;
+    claim: string;
+    source: string;
+    spans: readonly { start: number; end: number; text: string }[];
+    documentId: string | null;
+    versionId: string | null;
+}): CitationSupportInput {
+    const contexts: string[] = [];
+    for (const span of args.spans) {
+        const context = contextAround(args.source, span.start, span.end);
+        if (context && !contexts.some((seenContext) => seenContext.includes(context))) contexts.push(context);
+    }
+    return {
+        ref: args.ref,
+        documentId: args.documentId,
+        versionId: args.versionId,
+        startChar: Math.min(...args.spans.map((s) => s.start)),
+        endChar: Math.max(...args.spans.map((s) => s.end)),
+        state: {
+            afirmacion: clip(args.claim),
+            cita: args.spans.map((s) => s.text).join(SEGMENT_SEPARATOR).slice(0, MAX_QUOTE_CHARS),
+            contexto: capContext(contexts),
+        },
+    };
+}
+
 type VerifiedQuote = {
     quote: string;
     verification?: {
@@ -156,29 +188,21 @@ export async function buildCitationSupportInputs(args: {
             continue;
         }
         if (!source) continue;
-        const spans = quotes.map((q) => ({
-            start: q.verification!.start_char as number,
-            end: q.verification!.end_char as number,
-            text: q.verification!.source_excerpt ?? q.quote,
-        }));
-        const contexts: string[] = [];
-        for (const span of spans) {
-            const context = contextAround(source, span.start, span.end);
-            if (context && !contexts.some((seenContext) => seenContext.includes(context))) contexts.push(context);
-        }
         seen.add(c.ref);
-        inputs.push({
-            ref: c.ref,
-            documentId: typeof c.document_id === "string" ? c.document_id : null,
-            versionId: typeof c.version_id === "string" ? c.version_id : null,
-            startChar: Math.min(...spans.map((s) => s.start)),
-            endChar: Math.max(...spans.map((s) => s.end)),
-            state: {
-                afirmacion: claim,
-                cita: spans.map((s) => s.text).join(SEGMENT_SEPARATOR).slice(0, MAX_QUOTE_CHARS),
-                contexto: capContext(contexts),
-            },
-        });
+        inputs.push(
+            inputFromSpans({
+                ref: c.ref,
+                claim,
+                source,
+                documentId: typeof c.document_id === "string" ? c.document_id : null,
+                versionId: typeof c.version_id === "string" ? c.version_id : null,
+                spans: quotes.map((q) => ({
+                    start: q.verification!.start_char as number,
+                    end: q.verification!.end_char as number,
+                    text: q.verification!.source_excerpt ?? q.quote,
+                })),
+            }),
+        );
     }
     return inputs;
 }
