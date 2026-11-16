@@ -432,7 +432,7 @@
       "returnedABriefToLitt": "Returned a brief to LiTT",
       "returnedAPartialBriefToLitt": "Returned a partial brief to LiTT",
       "route": "Route {route}",
-      "someSubagentsStopped": "{finished, plural, one {# subagent} other {# subagents}} finished, {stopped} stopped",
+      "someSubagentsStopped": "{finished, plural, one {# subagent} other {# subagents}} finished, {stopped, plural, one {# stopped} other {# stopped}}",
       "startedAndResumed": "Started {started, plural, one {#} other {#}} and resumed {resumed, plural, one {#} other {#}} {total, plural, one {subagent} other {subagents}}",
       "startedCount": "Started {count, plural, one {a subagent} other {# subagents}}",
       "statusCompleted": "Completed",
