@@ -138,7 +138,7 @@ const silent = () => new Date(Date.now() - 10 * 60_000).toISOString();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  getUserApiKeys.mockResolvedValue(claudeRoute);
+  getUserApiKeys.mockResolvedValue({ claude: "test-key" });
   completeText.mockResolvedValue(reviewed("Reviewed"));
   storage.deleteFile.mockResolvedValue(undefined);
   storage.uploadFile.mockResolvedValue(undefined);
@@ -258,7 +258,7 @@ describe("queueing a playbook review", () => {
 });
 
 /** The governed route a caller that just checked the keys passes in (BYOK: only the pinned key). */
-const claudeRoute = {
+const claudeResolvedRoute = {
   ok: true as const,
   route: { provider: "claude" as const, model: "claude-test", credentialRef: "env:claude" },
   apiKeys: { claude: "test-key" },
@@ -280,7 +280,7 @@ describe("the playbook.review job", () => {
         edited_version_id: "saved-version", completed_at: "2026-11-07T10:00:00.000Z" });
       return reviewed("This claim must not be returned");
     });
-    const result = await runPlaybookReview(db, work, claudeRoute);
+    const result = await runPlaybookReview(db, work, claudeResolvedRoute);
     expect(result).toMatchObject({ status: "completed", summary: "The other claim won",
       findings: savedFindings, editedVersionId: "saved-version", editedVersionNumber: 7,
       completedAt: "2026-11-07T10:00:00.000Z" });
@@ -311,7 +311,7 @@ describe("the playbook.review job", () => {
         return query;
       }) as unknown as Db["from"];
     }
-    const result = await runPlaybookReview(db, work, claudeRoute);
+    const result = await runPlaybookReview(db, work, claudeResolvedRoute);
     expect(result).toMatchObject({ status: "completed", summary: "Saved summary",
       findings: savedFindings, editedVersionId: "saved-version" });
     expect(row.status).toBe("completed");
@@ -599,7 +599,7 @@ describe("a review whose tracked changes could not be prepared", () => {
     const work = playbookReviewWork(tables.playbook_runs[0], payload);
 
     // The chat tool reports the rejection; the run must not stay `running`.
-    const failure = await runPlaybookReview(db, work, claudeRoute)
+    const failure = await runPlaybookReview(db, work, claudeResolvedRoute)
       .catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(Error);

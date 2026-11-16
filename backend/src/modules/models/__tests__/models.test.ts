@@ -560,9 +560,10 @@ describe("GET /models/opencode-go", () => {
             detail: INTERNAL_ERROR_MESSAGE,
         });
         expect(response.text).not.toContain("nope");
-        // One detailed server line plus one sanitized report line.
-        expect(consoleError.mock.calls.filter((call) => call[0] !== "[report]")).toHaveLength(1);
-        expect(consoleError.mock.calls.filter((call) => call[0] === "[report]")).toHaveLength(1);
+        // One detailed server line plus one report (the report module is
+        // stubbed in this file, so its sanitized log line is not printed).
+        expect(consoleError.mock.calls).toHaveLength(1);
+        expect(reportError).toHaveBeenCalledOnce();
         consoleError.mockRestore();
     });
 });

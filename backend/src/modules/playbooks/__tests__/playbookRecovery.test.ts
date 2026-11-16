@@ -11,9 +11,17 @@ const { completeText } = vi.hoisted(() => ({ completeText: vi.fn() }));
 vi.mock("../../../lib/llm", async (original) => ({
   ...(await original<typeof import("../../../lib/llm")>()), completeText,
 }));
-vi.mock("../../../lib/providerCredentials/index", () => ({
+const { getUserApiKeys } = vi.hoisted(() => ({
   getUserApiKeys: async () => ({ claude: "synthetic-test-key" }),
 }));
+vi.mock("../../../lib/providerCredentials/index", () => ({
+  getUserApiKeys,
+  getEffectiveApiKeys: getUserApiKeys,
+}));
+// LiTT: a review runs on the route pinned when it was requested (BYOK).
+vi.mock("../../user/user.service", async () =>
+  (await import("./routeMock.js")).userServiceMock(getUserApiKeys),
+);
 vi.mock("../../../lib/audit", () => ({ recordAudit: async () => undefined }));
 vi.mock("../../../lib/storage", async (original) => {
   const fs = await import("node:fs");
@@ -138,6 +146,8 @@ async function seed(directory: string) {
   }]).tables;
   tables.playbook_runs = [{
     id: "run", playbook_id: "book", user_id: "owner", model: "claude-opus-5",
+    // LiTT: the route pinned when the review was requested.
+    model_provider: "claude", credential_ref: "env:claude",
     document_id: "doc", document_name: "Synthetic.docx", edited_version_id: null,
     content_json: content, review_mode: "strict", review_scope: "full",
     status: "running", summary: null, findings_json: [], error: null,
