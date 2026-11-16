@@ -287,6 +287,17 @@ services:
       # exige AUTH_HANDOFF_ENCRYPTION_SECRET (>= 32 caracteres) al arrancar.
       WORD_ADDIN_URL: ${WORD_ADDIN_URL:?required}
       AUTH_HANDOFF_ENCRYPTION_SECRET: ${AUTH_HANDOFF_ENCRYPTION_SECRET:?required}
+      # Conectores de Google (docs/google-workspace.md). Sin cliente OAuth, cada
+      # conector dice que falta configurarlo. DISABLED_PROVIDERS usa "-" (no ":-"):
+      # si la variable no está en .env queda el default del código (Drive apagado);
+      # una lista explícita, incluso vacía, lo reemplaza.
+      GOOGLE_WORKSPACE_OAUTH_CLIENT_ID: ${GOOGLE_WORKSPACE_OAUTH_CLIENT_ID:-}
+      GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET: ${GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_OAUTH_CLIENT_ID: ${GOOGLE_DRIVE_OAUTH_CLIENT_ID:-}
+      GOOGLE_DRIVE_OAUTH_CLIENT_SECRET: ${GOOGLE_DRIVE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_PICKER_API_KEY: ${GOOGLE_DRIVE_PICKER_API_KEY:-}
+      GOOGLE_DRIVE_PICKER_APP_ID: ${GOOGLE_DRIVE_PICKER_APP_ID:-}
+      GOOGLE_WORKSPACE_DISABLED_PROVIDERS: ${GOOGLE_WORKSPACE_DISABLED_PROVIDERS-google-drive}
     depends_on:
       db-init:
         condition: service_completed_successfully
