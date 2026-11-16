@@ -220,12 +220,15 @@ export function DocReadBlock({
     onClick,
     showConnector,
     isStreaming,
+    interrupted,
     showFileIcon = true,
 }: {
     filename: string;
     onClick?: () => void;
     showConnector?: boolean;
     isStreaming?: boolean;
+    /** The turn ended before the read reported its result. */
+    interrupted?: boolean;
     showFileIcon?: boolean;
 }) {
     return (
@@ -239,6 +242,7 @@ export function DocReadBlock({
             onClick={onClick}
             showConnector={showConnector}
             isStreaming={isStreaming}
+            interrupted={interrupted}
         />
     );
 }
@@ -248,6 +252,7 @@ export function DocFindBlock({
     query,
     totalMatches,
     isStreaming,
+    interrupted,
     showConnector,
     onClick,
 }: {
@@ -255,6 +260,8 @@ export function DocFindBlock({
     query: string;
     totalMatches: number;
     isStreaming?: boolean;
+    /** The turn ended before the find reported its matches. */
+    interrupted?: boolean;
     showConnector?: boolean;
     onClick?: () => void;
 }) {
@@ -264,6 +271,7 @@ export function DocFindBlock({
             query={query}
             totalMatches={totalMatches}
             isStreaming={isStreaming}
+            interrupted={interrupted}
             showConnector={showConnector}
             onClick={onClick}
         />
@@ -274,11 +282,14 @@ export function DocCreatedBlock({
     filename,
     showConnector,
     isStreaming,
+    interrupted,
     onClick,
 }: {
     filename: string;
     showConnector?: boolean;
     isStreaming?: boolean;
+    /** The turn ended before the document was reported as created. */
+    interrupted?: boolean;
     onClick?: () => void;
 }) {
     const t = useTranslations();
@@ -286,11 +297,15 @@ export function DocCreatedBlock({
         <EventBlock
             showConnector={showConnector}
             isStreaming={isStreaming}
-            dotColor="green"
+            dotColor={interrupted ? "gray" : "green"}
         >
             <div className="flex min-w-0 items-center gap-1.5">
                 <EventLabel className="shrink-0">
-                    {isStreaming ? t("assistant.eventBlocks.creating") : t("assistant.eventBlocks.created")}
+                    {isStreaming
+                        ? t("assistant.eventBlocks.creating")
+                        : interrupted
+                          ? t("assistant.eventBlocks.creationStopped")
+                          : t("assistant.eventBlocks.created")}
                 </EventLabel>
                 {isStreaming || !onClick ? (
                     <span className="flex min-w-0 items-center gap-1.5">
@@ -327,6 +342,7 @@ export function DocReplicatedBlock({
     showConnector,
     isStreaming,
     hasError,
+    interrupted,
     onOpenCopy,
 }: {
     filename: string;
@@ -343,6 +359,8 @@ export function DocReplicatedBlock({
     showConnector?: boolean;
     isStreaming?: boolean;
     hasError?: boolean;
+    /** The turn ended before the replication reported its result. */
+    interrupted?: boolean;
     onOpenCopy?: (copy: {
         new_filename: string;
         document_id: string;
@@ -350,9 +368,15 @@ export function DocReplicatedBlock({
     }) => void;
 }) {
     const t = useTranslations();
-    const label = isStreaming ? t("assistant.eventBlocks.replicating") : t("assistant.eventBlocks.replicated");
+    const label = isStreaming
+        ? t("assistant.eventBlocks.replicating")
+        : hasError
+          ? t("assistant.eventBlocks.replicationFailed")
+          : interrupted
+            ? t("assistant.eventBlocks.replicationStopped")
+            : t("assistant.eventBlocks.replicated");
     const suffix =
-        !isStreaming && count > 1
+        !isStreaming && !hasError && !interrupted && count > 1
             ? ` ${count} times`
             : isStreaming
               ? "..."
@@ -361,7 +385,7 @@ export function DocReplicatedBlock({
         <EventBlock
             showConnector={showConnector}
             isStreaming={isStreaming}
-            dotColor={hasError ? "red" : "green"}
+            dotColor={hasError ? "red" : interrupted ? "gray" : "green"}
         >
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <EventLabel className="shrink-0">{label}</EventLabel>
@@ -668,16 +692,25 @@ export function DocEditBlock({
     showConnector,
     isStreaming,
     hasError,
+    interrupted,
     onClick,
 }: {
     filename: string;
     showConnector?: boolean;
     isStreaming?: boolean;
     hasError?: boolean;
+    /** The turn ended before the edit reported its result. */
+    interrupted?: boolean;
     onClick?: () => void;
 }) {
     const t = useTranslations();
-    const label = isStreaming ? t("assistant.eventBlocks.editing") : hasError ? t("assistant.eventBlocks.editFailed") : t("assistant.eventBlocks.edited");
+    const label = isStreaming
+        ? t("assistant.eventBlocks.editing")
+        : hasError
+          ? t("assistant.eventBlocks.editFailed")
+          : interrupted
+            ? t("assistant.eventBlocks.editStopped")
+            : t("assistant.eventBlocks.edited");
 
     return (
         <DocEditBlockUI
@@ -689,7 +722,7 @@ export function DocEditBlock({
             onClick={onClick}
             showConnector={showConnector}
             isStreaming={isStreaming}
-            dotColor={hasError ? "red" : "green"}
+            dotColor={hasError ? "red" : interrupted ? "gray" : "green"}
         />
     );
 }

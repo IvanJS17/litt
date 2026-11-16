@@ -55,12 +55,15 @@ export function DocReadBlockUI({
     onClick,
     showConnector,
     isStreaming,
+    interrupted,
 }: {
     filename?: string;
     fileIcon?: ReactNode;
     onClick?: () => void;
     showConnector?: boolean;
     isStreaming?: boolean;
+    /** The turn ended before the read reported its result. */
+    interrupted?: boolean;
 }) {
     const t = useTranslations();
     const file = filename ? (
@@ -79,11 +82,15 @@ export function DocReadBlockUI({
         <DocumentEventBlockUI
             showConnector={showConnector}
             isStreaming={isStreaming}
-            dotColor="green"
+            dotColor={interrupted ? "gray" : "green"}
         >
             <div className="flex min-w-0 items-center gap-1.5">
                 <span className="shrink-0 font-medium">
-                    {isStreaming ? t("ui.documentEventBlocks.reading") : t("ui.documentEventBlocks.read")}
+                    {isStreaming
+                        ? t("ui.documentEventBlocks.reading")
+                        : interrupted
+                          ? t("ui.documentEventBlocks.readStopped")
+                          : t("ui.documentEventBlocks.read")}
                 </span>
                 {!isStreaming && onClick ? (
                     <button
@@ -108,6 +115,7 @@ export function DocFindBlockUI({
     query,
     totalMatches,
     isStreaming,
+    interrupted,
     showConnector,
     onClick,
 }: {
@@ -115,22 +123,30 @@ export function DocFindBlockUI({
     query: string;
     totalMatches: number;
     isStreaming?: boolean;
+    /** The turn ended before the find reported its matches. */
+    interrupted?: boolean;
     showConnector?: boolean;
     onClick?: () => void;
 }) {
     const t = useTranslations();
-    const matchSuffix = isStreaming
-        ? ""
-        : ` (${totalMatches} ${totalMatches === 1 ? "match" : "matches"})`;
+    // A find that never reported has no match count, not zero matches.
+    const matchSuffix =
+        isStreaming || interrupted
+            ? ""
+            : ` (${totalMatches} ${totalMatches === 1 ? "match" : "matches"})`;
 
     return (
         <DocumentEventBlockUI
             showConnector={showConnector}
             isStreaming={isStreaming}
-            dotColor={totalMatches > 0 ? "green" : "gray"}
+            dotColor={!interrupted && totalMatches > 0 ? "green" : "gray"}
         >
             <span className="font-medium">
-                {isStreaming ? t("ui.documentEventBlocks.finding") : t("ui.documentEventBlocks.found")}
+                {isStreaming
+                    ? t("ui.documentEventBlocks.finding")
+                    : interrupted
+                      ? t("ui.documentEventBlocks.findStopped")
+                      : t("ui.documentEventBlocks.found")}
             </span>{" "}
             <span>
                 {t("ui.documentEventBlocks.queryMatchsuffix", { query, matchSuffix })}

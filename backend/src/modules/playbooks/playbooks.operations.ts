@@ -49,8 +49,13 @@ import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import type { EditAnnotation } from "@mike/contracts";
 import { extractDocxBodyText, type EditInput } from "../../lib/docxTrackedChanges";
 import { loadActiveVersion } from "../../lib/documentVersions";
+import { buildDownloadUrl } from "../../lib/downloadTokens";
+import { isVersionHeld } from "../../lib/trainingRelease";
 import {
-  applyTrackedEditsToDocument,
+  prepareDocumentReviewEdits,
+  discardUnpublishedReviewUpload,
+  DocumentReviewRetryableError,
+  publishDocumentReview,
   loadCurrentVersionBytes,
 } from "../documents/documents.service";
 import { loadCreatorProfiles, type CreatorProfile } from "../../lib/userLookup";
@@ -2143,17 +2148,14 @@ async function loadReviewDocument(
  * set of tracked changes, and links every change to its finding. A finding
  * whose text cannot be located keeps its suggestion as text.
  */
-async function applyReviewEdits(args: {
+async function prepareReviewEdits(args: {
   db: Db;
   userId: string;
   userEmail?: string | null;
   documentId: string;
   expectedVersion: { id: string; storagePath: string };
   findings: PlaybookFinding[];
-}): Promise<{
-  findings: PlaybookFinding[];
-  version: { id: string; number: number; downloadUrl: string; trainingHeld: boolean } | null;
-}> {
+}) {
   const planned: { index: number; edit: EditInput }[] = [];
   args.findings.forEach((finding, index) => {
     const suggestion = finding.suggestedText.trim();
@@ -2188,39 +2190,13 @@ async function applyReviewEdits(args: {
       });
     }
   });
-  if (!planned.length) return { findings: args.findings, version: null };
-  const result = await applyTrackedEditsToDocument({
+  return prepareDocumentReviewEdits(args.db, {
     documentId: args.documentId,
     userId: args.userId,
     userEmail: args.userEmail,
     expectedVersion: args.expectedVersion,
-    edits: planned.map((item) => item.edit),
-    db: args.db,
+    edits: planned.map(({ index, edit }) => ({ findingIndex: index, edit })),
   });
-  // A reader who cannot edit, or text that cannot be found, keeps the review
-  // as text alone.
-  if (!result.ok) return { findings: args.findings, version: null };
-  const failed = new Set(result.errors.map((error) => error.index));
-  const applied = planned.filter((_, index) => !failed.has(index));
-  const findings = [...args.findings];
-  // Each applied edit yields one change, in order; without that guarantee the
-  // changes stay in the document but are not tied to findings.
-  if (applied.length === result.annotations.length)
-    applied.forEach((item, position) => {
-      findings[item.index] = {
-        ...findings[item.index],
-        edit: result.annotations[position],
-      };
-    });
-  return {
-    findings,
-    version: {
-      id: result.version_id,
-      number: result.version_number,
-      downloadUrl: result.download_url,
-      trainingHeld: result.training_held,
-    },
-  };
 }
 
 export const INTERRUPTED_RUN_ERROR =
@@ -2374,7 +2350,7 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
  */
 export async function startPlaybookReview(args: PlaybookReviewRequest) {
   const { run, work, resolved, db } = await beginPlaybookReview(args);
-  return { run, done: runPlaybookReview(db, work, resolved) };
+  return { run, done: runPlaybookReview(db, work, resolved, args.signal) };
 }
 
 /**
@@ -2421,6 +2397,8 @@ export async function runPlaybookReview(
   db: Db,
   work: PlaybookReviewWork,
   resolvedRoute?: ResolvedChatRoute,
+  /** The asking chat turn's; see PlaybookReviewRequest.signal. */
+  signal?: AbortSignal,
 ) {
   const { runId } = work;
   const stopHeartbeat = keepPlaybookWorkAttended(db, "playbook_runs", runId);
@@ -2466,6 +2444,7 @@ export async function runPlaybookReview(
           apiKeys: keys,
           prompt,
           sources,
+          signal,
         })
       : await completeText({
           model: work.model,
@@ -2473,6 +2452,7 @@ export async function runPlaybookReview(
           user: prompt,
           maxTokens: 20_000,
           apiKeys: keys,
+          abortSignal: signal,
         });
     const parsed = reviewSchema.parse(parseModelJson(raw));
     const normalized = normalizeFindings(
@@ -2490,65 +2470,81 @@ export async function runPlaybookReview(
     await assertAuthorizationStamp(db, contentOrg, work.authorization);
     stage = "review.apply_edits";
     markStage(stage);
-    const { findings, version } =
-      work.documentId && work.expectedVersion
-        ? await applyReviewEdits({
-            db,
-            userId: work.userId,
-            userEmail: work.userEmail,
-            documentId: work.documentId,
-            expectedVersion: work.expectedVersion,
-            findings: reviewed,
-          })
-        : { findings: reviewed, version: null };
-    const versionId = version?.id ?? null;
-    const completedAt = new Date().toISOString();
+    // A provider can finish its answer after the turn was stopped: a stopped
+    // review saves nothing, neither a new version nor a completed run.
+    signal?.throwIfAborted();
+    const prepared = work.documentId && work.expectedVersion
+      ? await prepareReviewEdits({
+          db, userId: work.userId, userEmail: work.userEmail,
+          documentId: work.documentId, expectedVersion: work.expectedVersion, findings: reviewed,
+        })
+      : null;
+    // The download can finish after the stop too. This is the last point
+    // before publication (#853's write-time check, moved here for #819's
+    // publish step): nothing has been published, so the upload prepared
+    // meanwhile is deleted.
+    if (signal?.aborted) {
+      if (prepared) await discardUnpublishedReviewUpload(prepared);
+      signal.throwIfAborted();
+    }
     stage = "review.save";
     markStage(stage);
-    const updated = await db
-      .from("playbook_runs")
-      .update({
-        status: "completed",
-        summary: parsed.summary,
-        findings_json: findings,
-        edited_version_id: versionId,
-        completed_at: completedAt,
-        updated_at: completedAt,
-      })
-      .eq("id", runId)
-      .eq("user_id", work.userId)
-      .eq("status", "running")
-      .select("id");
-    if (updated.error) throw updated.error;
-    // Only the claim whose write landed records the run in the audit log.
-    if (updated.data?.length)
-      await recordPlaybookRunAudit(db, work, { status: "completed", findings });
-    return {
-      id: runId,
-      playbookId: work.playbookId,
-      model: work.model,
-      documentName: work.documentName,
-      documentId: work.documentId,
-      editedVersionId: versionId,
-      /** For the response that made them; a stored run has only the id. */
-      editedVersionNumber: version?.number ?? null,
-      editedDownloadUrl: version?.downloadUrl ?? null,
-      editedTrainingHeld: version?.trainingHeld ?? false,
-      reviewMode: work.reviewMode,
-      reviewScope: scope,
-      status: "completed" as const,
-      summary: parsed.summary,
-      findings,
-      error: null,
-      startedAt: work.startedAt,
-      completedAt,
-    };
+    const publication = await publishDocumentReview(db, {
+      runId, userId: work.userId, summary: parsed.summary, findings: reviewed, prepared,
+    });
+    const row = publication.run;
+    if (!row || row.status !== "completed")
+      throw new PlaybookRequestError("This review is no longer running.", 409);
+    const result = publicRun(row, new Set());
+    // Only a newly completed outcome owns the audit, including text-only
+    // source conflicts. Reconciliation cannot promise an exactly-once audit.
+    if (publication.disposition === "published" || publication.disposition === "source_changed") {
+      await recordPlaybookRunAudit(db, work, { status: "completed", findings: result.findings })
+        .catch((error) => reportPlaybookFailure(error, {
+          stage: "review.save", jobKind: "playbook.review",
+          ids: { run_id: runId, playbook_id: work.playbookId },
+        }));
+    }
+    let editedVersionNumber: number | null = null;
+    let editedDownloadUrl: string | null = null;
+    let editedTrainingHeld = false;
+    if (result.editedVersionId && result.documentId) {
+      // Display conveniences are outside the commit. A query/signing failure
+      // cannot turn a saved review into a failed one or lose its findings.
+      try {
+        const { data: version, error } = await db.from("document_versions")
+          .select("version_number, storage_path, filename")
+          .eq("id", result.editedVersionId).eq("document_id", result.documentId)
+          .is("deleted_at", null).maybeSingle();
+        if (error) throw error;
+        if (version) {
+          editedVersionNumber = version.version_number;
+          if (version.storage_path)
+            editedDownloadUrl = buildDownloadUrl(version.storage_path, version.filename?.trim() || "Untitled document.docx");
+          // A pasante's unapproved version (docs/training.md): no download link.
+          editedTrainingHeld = await isVersionHeld(db, result.editedVersionId);
+        }
+      } catch (error) {
+        reportPlaybookFailure(error, { stage: "review.save", jobKind: "playbook.review",
+          ids: { run_id: runId, playbook_id: work.playbookId } });
+      }
+    }
+    return { ...result, status: "completed" as const, editedVersionNumber, editedDownloadUrl, editedTrainingHeld };
   } catch (error) {
     const report = {
       jobKind: "playbook.review" as const,
       ids: { run_id: runId, playbook_id: work.playbookId },
     };
-    if (!isPlaybookRefusal(error)) reportPlaybookFailure(error, { ...report, stage });
+    // A review its chat turn stopped did not fail: it was cut short on
+    // purpose, so it is not reported, and its run says to run it again.
+    const stopped = signal?.aborted === true;
+    if (!stopped && !isPlaybookRefusal(error))
+      reportPlaybookFailure(error, { ...report, stage });
+    // A failed publication response is not proof of rollback: the
+    // transaction may still be in flight. Never stamp that run failed. A
+    // failure while preparing the edits is certain (nothing was published)
+    // and is recorded below like any other failure.
+    if (error instanceof DocumentReviewRetryableError) throw error;
     // Not console.error: see recordImportFailure.
     console.warn("[playbooks] review failed", { runId, error: safeError(error) });
     const completedAt = new Date().toISOString();
@@ -2556,7 +2552,7 @@ export async function runPlaybookReview(
       .from("playbook_runs")
       .update({
         status: "failed",
-        error: runFailureMessage(error),
+        error: stopped ? INTERRUPTED_RUN_ERROR : runFailureMessage(error),
         completed_at: completedAt,
         updated_at: completedAt,
       })
@@ -2590,6 +2586,7 @@ async function completeReviewWithSources(args: {
   apiKeys: UserApiKeys;
   prompt: string;
   sources: PlaybookSourceRow[];
+  signal?: AbortSignal;
 }): Promise<string> {
   const known = new Set(args.sources.map((source) => source.id));
   const result = await streamChatWithTools({
@@ -2599,6 +2596,7 @@ async function completeReviewWithSources(args: {
     tools: [READ_SOURCE_TOOL],
     maxIterations: 8,
     apiKeys: args.apiKeys,
+    abortSignal: args.signal,
     runTools: (calls) =>
       Promise.all(
         calls.map(async (call) => ({

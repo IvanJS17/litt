@@ -36,7 +36,7 @@ import {
     createPollFailureGate,
     type PollFailureGate,
 } from "../observability/pollFailureGate";
-import { asReportableError } from "../httpError";
+import { asReportableError, withResponseStatus } from "../httpError";
 
 /**
  * Poll cadence depends on the driver: with Redis configured, BullMQ delivers
@@ -369,7 +369,7 @@ async function claimDbJobs(
     limit: number,
     claimGate: PollFailureGate,
 ): Promise<DbJob[]> {
-    const { data, error } = await db.rpc("claim_db_jobs", {
+    const { data, error, status } = await db.rpc("claim_db_jobs", {
         p_limit: limit,
         p_stale_seconds: STALE_SECONDS,
     });
@@ -380,7 +380,7 @@ async function claimDbJobs(
         // asReportableError keeps the PostgREST object as the cause, so its
         // `code` (PGRST202 = RPC missing) reaches failure_code and the log
         // line says why; re-wrapping `error.message` in a new Error lost it.
-        const failure = asReportableError(error, claimDbJobs);
+        const failure = asReportableError(withResponseStatus(error, status), claimDbJobs);
         if (claimGate.failure(failure).report) {
             // The Error object, not a string: the log keeps the stack and the
             // PostgREST code on its cause chain.

@@ -79,7 +79,7 @@ export function distinctPeople(
   );
 }
 
-export const personName = (person: PersonOption, unknown: string) =>
+const personName = (person: PersonOption, unknown: string) =>
   person.display_name || person.email || unknown;
 
 /**

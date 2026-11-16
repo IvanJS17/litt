@@ -2,11 +2,12 @@
 //
 // Service layer behind downloads.routes.ts. Takes an explicit Supabase client
 // (`db`) plus request-derived primitives, resolves a signed download token to
-// the bytes it grants access to, and RETURNS a typed result. It never touches
+// the object it grants access to, and RETURNS a typed result. It never touches
 // req/res — the route maps the result onto status codes, headers, and body.
 
 import type { Db } from "../../lib/supabase";
-import { downloadFile } from "../../lib/storage";
+import type { Readable } from "node:stream";
+import { headFile, openFileStream } from "../../lib/storage";
 import { verifyDownload } from "../../lib/downloadTokens";
 import { ensureDocAccess } from "../../lib/access";
 import {
@@ -24,7 +25,44 @@ function contentTypeFor(filename: string): string {
 }
 
 /**
- * Resolve a signed download token to file bytes, enforcing that the token's
+ * An object a download token resolved to: what the response headers need,
+ * and a way to open the bytes. Opening is deferred so a conditional or HEAD
+ * request can be answered from the metadata without reading the object.
+ */
+export type ObjectDownload = {
+    size: number;
+    etag: string | null;
+    contentType: string;
+    filename: string;
+    /**
+     * Open the object as a stream. Rejects (StorageOperationError) when the
+     * store cannot serve it, before any byte is produced; `signal` releases
+     * the read when the client goes away.
+     */
+    open: (signal: AbortSignal) => Promise<Readable>;
+};
+
+/**
+ * Metadata for the object at `path`, or null when it is not there. A HEAD,
+ * not a read: the bytes are streamed to the client later, never held whole.
+ */
+async function describeObject(
+    path: string,
+    filename: string,
+): Promise<ObjectDownload | null> {
+    const head = await headFile(path);
+    if (!head) return null;
+    return {
+        size: head.size,
+        etag: head.etag,
+        contentType: contentTypeFor(filename),
+        filename,
+        open: (signal) => openFileStream(path, { signal }),
+    };
+}
+
+/**
+ * Resolve a signed download token to the object it grants access to, enforcing that the token's
  * storage path is still backed by a live document version the caller can
  * access. Every failure after token verification collapses to "not_found" so
  * a valid-looking token cannot be used to probe for foreign files.
@@ -38,7 +76,7 @@ export async function resolveTokenDownload(
     db: Db,
     args: { token: string; userId: string; userEmail: string | undefined },
 ): Promise<
-    | { ok: true; bytes: Buffer; contentType: string; filename: string }
+    | { ok: true; download: ObjectDownload }
     | { ok: false; kind: "invalid_link" | "not_found" }
     | TrainingApprovalRequired
     | { ok: false; kind: "error"; error: unknown }
@@ -79,13 +117,7 @@ export async function resolveTokenDownload(
         return { ok: false, kind: "not_found" };
     }
 
-    const raw = await downloadFile(info.path);
-    if (!raw) return { ok: false, kind: "not_found" };
-
-    return {
-        ok: true,
-        bytes: Buffer.from(raw),
-        contentType: contentTypeFor(info.filename),
-        filename: info.filename,
-    };
+    const download = await describeObject(info.path, info.filename);
+    if (!download) return { ok: false, kind: "not_found" };
+    return { ok: true, download };
 }

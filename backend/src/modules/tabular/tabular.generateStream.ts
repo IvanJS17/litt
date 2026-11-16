@@ -44,10 +44,12 @@ import {
     type RunProgressUpdate,
 } from "../../lib/queue/runProgress";
 import { type UserApiKeys } from "../../lib/llm";
+import { providerFailureKind, providerFailureStatus } from "../../lib/llm/providerErrors";
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { extractRowColumns, finalizeCell } from "./tabular.extractRow";
 import { createTabularCellCheck } from "./tabular.citationSupport";
+import { gridErrorFrame, isRefusalShownToUser } from "./tabular.extraction";
 import { type ReviewRow } from "./tabular.rows";
 import { mutateInBatches, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import {
@@ -671,6 +673,24 @@ export async function streamTabularGenerateSync(args: {
         userId: args.userId,
         reviewId,
     });
+    // Every row calls the same model with the same keys, so a refused key or
+    // an outage fails each row alike: report each kind of failure once per run.
+    // A user's own rejected key is not reported at all: the run sends the
+    // grid its frame below (the extract-row warning is its log line).
+    const reportedFailures = new Set<string>();
+    const reportFailure = (error: unknown): boolean => {
+        if (isRefusalShownToUser(error)) return false;
+        const kind = providerFailureKind(error);
+        // Unknown failures can be distinct adapter/application bugs with
+        // different stacks. Only identified provider conditions repeat here;
+        // the final transport owns sampling for everything else.
+        if (kind === "chat.stream_failed") return true;
+        const failure = `${kind}:${providerFailureStatus(error) ?? ""}`;
+        if (reportedFailures.has(failure)) return false;
+        reportedFailures.add(failure);
+        return true;
+    };
+    let sentErrorFrame = false;
     let nextRowIndex = 0;
     const cellFrame = (
         rowId: string,
@@ -707,6 +727,7 @@ export async function streamTabularGenerateSync(args: {
             generationId,
             abortSignal,
             citationCheck,
+            reportFailure,
             sink: {
                 activity: args.onActivity,
                 generating: (rowId, columnIndex) =>
@@ -717,6 +738,11 @@ export async function streamTabularGenerateSync(args: {
         });
 
         if (error) onError?.(error);
+        const frame = error && !sentErrorFrame ? gridErrorFrame(error) : null;
+        if (frame) {
+            sentErrorFrame = true;
+            write(`data: ${JSON.stringify({ type: "error", ...frame })}\n\n`);
+        }
 
         // Stopped cells return to pending; genuine missing model output is
         // still an error. Completed cells remain untouched.

@@ -99,3 +99,4 @@ export {
 export type { ScanReadingState } from "./documents.ocr";
 
 export { getSplitState, proposeSplit, createSplitDocuments } from "./documents.split";
+export { prepareDocumentReviewEdits, publishDocumentReview, discardUnpublishedReviewUpload, DocumentReviewRetryableError } from "./documents.reviewPublication";

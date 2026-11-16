@@ -38,7 +38,7 @@ import {
   createPollFailureGate,
   type PollFailureGate,
 } from "../../lib/observability/pollFailureGate";
-import { asReportableError } from "../../lib/httpError";
+import { asReportableError, withResponseStatus } from "../../lib/httpError";
 import {
   decodeMarkdownBytes,
   isMarkdownDocumentType,
@@ -57,7 +57,9 @@ import {
   versionStorageKey,
 } from "../../lib/storage";
 import { createServerSupabase, type Db } from "../../lib/supabase";
-import { UPLOAD_VERIFICATION_LEASE_SECONDS } from "./uploads.manifest";
+import { ExtractionBusyError, ExtractionLimitError, withBackgroundExtraction } from "../../lib/extraction/isolated";
+import { isAllocationFailure } from "../../lib/extraction/limits";
+import { MAX_UPLOAD_SIZE_BYTES, UPLOAD_VERIFICATION_LEASE_SECONDS } from "./uploads.manifest";
 
 type UploadSessionRow = {
   id: string;
@@ -104,6 +106,11 @@ type UploadJobRow = {
 
 export const UPLOAD_JOB_MAX_ATTEMPTS = 3;
 export const UPLOAD_JOB_LEASE_SECONDS = 30 * 60;
+// Same bounds as the background text jobs (documents.textJobs.ts): wait up
+// to a minute for the parser, then try again later without spending one of
+// the job's attempts.
+const PARSER_SLOT_WAIT_MS = 60_000;
+const PARSER_BUSY_RETRY_MS = 30_000;
 const UPLOAD_WORKER_POLL_MS = 1_000;
 /** Ceiling for the idle poll interval while every iteration keeps failing. */
 const UPLOAD_WORKER_MAX_BACKOFF_MS = 30_000;
@@ -116,6 +123,8 @@ const TERMINAL_UPLOAD_ERROR_CODES = new Set([
   "content_type_mismatch",
   "invalid_pdf_file",
   "invalid_markdown_file",
+  "invalid_docx_package",
+  "document_too_large",
   // The destination document no longer exists. Retrying cannot make it exist
   // again — it can only put it back, which is the bug this code prevents.
   "document_deleted",
@@ -171,6 +180,46 @@ async function validateMarkdownFile(filePath: string): Promise<void> {
     decodeMarkdownBytes(bytes, { fatal: true });
   } catch {
     throw new InvalidMarkdownFileError();
+  }
+}
+
+class DocxValidationError extends AppError {
+  constructor(
+    readonly code: "invalid_docx_package" | "document_too_large" | "processing_failed",
+    cause?: unknown,
+  ) {
+    super("upload.docx_validation_failed", code, { cause });
+  }
+}
+
+async function validateDocxFile(artifact: SealedFileArtifact): Promise<void> {
+  // Bound the compressed source before reading it. Reuse the parser's
+  // existing admission and OS budgets.
+  if (artifact.size > MAX_UPLOAD_SIZE_BYTES) throw new DocxValidationError("invalid_docx_package");
+  try {
+    // Wait for the parser as the background text jobs do; a validation queued
+    // behind another file's parse is not a failure. The background gate lets
+    // one upload at a time into the parser's own queue, so a batch of
+    // UPLOAD_PROCESSING_CONCURRENCY workers cannot fill it and turn away
+    // interactive parses. Only that one upload holds its (size-bounded)
+    // bytes while it waits; the rest wait outside the gate holding nothing.
+    await withBackgroundExtraction({ waitMs: PARSER_SLOT_WAIT_MS }, async (extract) => {
+      const bytes = await readFile(artifact.filePath);
+      const result = await extract("validateDocxPackage", bytes.buffer.slice(
+        bytes.byteOffset, bytes.byteOffset + bytes.byteLength,
+      ) as ArrayBuffer);
+      if (!result.valid) throw new DocxValidationError("invalid_docx_package");
+    });
+  } catch (error) {
+    // Still busy after the wait: processUploadJob requeues without charging
+    // an attempt, so it must arrive unwrapped.
+    if (error instanceof DocxValidationError || error instanceof ExtractionBusyError) throw error;
+    // Unexpected child/I/O failures remain retryable, not malformed.
+    throw new DocxValidationError(
+      error instanceof ExtractionLimitError || isAllocationFailure(error)
+        ? "document_too_large" : "processing_failed",
+      error,
+    );
   }
 }
 
@@ -811,6 +860,7 @@ export async function processUploadFile(
     if (file.file_type === "pdf") await validatePdfFile(artifact.filePath);
     if (isMarkdownDocumentType(file.file_type))
       await validateMarkdownFile(artifact.filePath);
+    if (file.file_type === "docx") await validateDocxFile(artifact);
     switch (session.purpose) {
       case "document_create":
         return await processCreatedDocument(db, session, file, artifact);
@@ -918,6 +968,21 @@ async function removeFailedCreatedDocument(
 ): Promise<void> {
   if (session.purpose !== "document_create") return;
   markStage("failed-document-remove");
+  // The row goes first, and the objects only if the row went. An earlier
+  // attempt of this job may have committed a version (which sets
+  // current_version_id) and then lost its worker; the row survives this
+  // delete, and its version still points at these same storage keys.
+  const { data: removed, error } = await db
+    .from("documents")
+    .delete()
+    .eq("id", file.resource_id)
+    .eq("user_id", session.user_id)
+    .eq("status", "error")
+    .is("current_version_id", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!removed) return;
   await deleteFilesBestEffort(
     [
       storageKey(session.user_id, file.resource_id, file.filename),
@@ -925,14 +990,44 @@ async function removeFailedCreatedDocument(
     ],
     "failed-document-remove",
   );
-  const { error } = await db
-    .from("documents")
-    .delete()
-    .eq("id", file.resource_id)
-    .eq("user_id", session.user_id)
-    .eq("status", "error")
-    .is("current_version_id", null);
-  if (error) throw error;
+}
+
+/**
+ * Put a claimed job back in the queue without spending an attempt: the claim
+ * RPC charged one, and a busy parser says nothing about the file. Mirrors
+ * DbJobDeferredError for db_jobs, which upload jobs (their own table) do not use.
+ */
+async function deferUploadJob(
+  db: Db,
+  job: UploadJobRow,
+  sessionId: string,
+  workerId: string,
+): Promise<void> {
+  const now = new Date();
+  const { data: deferred, error: deferError } = await db
+    .from("upload_processing_jobs")
+    .update({
+      status: "queued",
+      attempts: Math.max(0, job.attempts - 1),
+      available_at: new Date(now.getTime() + PARSER_BUSY_RETRY_MS).toISOString(),
+      locked_at: null,
+      locked_by: null,
+      error_code: "document_extraction_busy",
+      updated_at: now.toISOString(),
+    })
+    .eq("id", job.id)
+    .eq("locked_by", workerId)
+    .select("id")
+    .maybeSingle();
+  if (deferError || !deferred) throw deferError ?? leaseLost();
+  const { error: fileError } = await db
+    .from("upload_session_files")
+    .update({ status: "uploaded", error_code: null, updated_at: now.toISOString() })
+    .eq("id", job.file_id)
+    .eq("session_id", sessionId)
+    .eq("status", "processing");
+  if (fileError) throw fileError;
+  await refreshUploadSessionStatus(db, sessionId);
 }
 
 export async function processUploadJob(
@@ -1025,17 +1120,26 @@ export async function processUploadJob(
         // A failed timer heartbeat makes ownership uncertain. Re-prove the
         // lease before recording even a failure result.
         await heartbeatJob(db, jobId, workerId);
+        if (error instanceof ExtractionBusyError) {
+          // Other files held the parser for the whole wait. Nothing is wrong
+          // with this one: requeue it, give back the attempt the claim
+          // charged, and report nothing.
+          await deferUploadJob(db, typedJob, typedSession.id, workerId);
+          return;
+        }
         failed = true;
         // These failures cannot be fixed by retrying the same upload.
         terminalProcessingFailure =
           error instanceof DeletedDocumentError ||
           error instanceof ChangedDocumentError ||
           error instanceof InvalidPdfFileError ||
-          error instanceof InvalidMarkdownFileError;
+          error instanceof InvalidMarkdownFileError ||
+          (error instanceof DocxValidationError && error.code !== "processing_failed");
         if (
           !(error instanceof ChangedDocumentError) &&
           !(error instanceof InvalidPdfFileError) &&
-          !(error instanceof InvalidMarkdownFileError)
+          !(error instanceof InvalidMarkdownFileError) &&
+          !(error instanceof DocxValidationError && error.code === "invalid_docx_package")
         ) {
           reportError(error, {
             tags: {
@@ -1066,6 +1170,7 @@ export async function processUploadJob(
               : error instanceof DeletedDocumentError ? "document_deleted"
               : error instanceof InvalidPdfFileError ? "invalid_pdf_file"
               : error instanceof InvalidMarkdownFileError ? "invalid_markdown_file"
+              : error instanceof DocxValidationError ? error.code
               : "processing_failed",
             updated_at: new Date().toISOString(),
           })
@@ -1308,7 +1413,7 @@ async function claimNextUploadJob(
   workerId: string,
   maxRunningPerUser: number,
 ) {
-  const { data, error } = await db.rpc("claim_upload_processing_job", {
+  const { data, error, status } = await db.rpc("claim_upload_processing_job", {
     target_worker_id: workerId,
     target_lease_seconds: UPLOAD_JOB_LEASE_SECONDS,
     target_max_running_per_user: maxRunningPerUser,
@@ -1316,7 +1421,7 @@ async function claimNextUploadJob(
   // A PostgREST error is a plain object: give it a stack here and keep its
   // `code` (PGRST202 = RPC missing, i.e. migrations not applied) on the
   // cause chain, where the diagnostic classifier reads it into failure_code.
-  if (error) throw asReportableError(error, claimNextUploadJob);
+  if (error) throw asReportableError(withResponseStatus(error, status), claimNextUploadJob);
   return typeof data === "string" && data ? data : null;
 }
 

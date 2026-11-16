@@ -100,6 +100,21 @@ describe("readWebPage", () => {
         expect(result.text).toBe("caf\u00e9");
     });
 
+    it("reads a page whose JSON-LD is malformed", async () => {
+        const html = ARTICLE.replace(
+            "</head>",
+            '<script type="application/ld+json">{"@type": "Article",}</script></head>',
+        );
+        guardedFetch.mockResolvedValue(page(html, "text/html"));
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const result = await readWebPage("https://example.test/s172").finally(() =>
+            logged.mockRestore(),
+        );
+
+        expect(result.text).toContain("promote the success of the company");
+    });
+
     it("reads a PDF served as a generic binary file", async () => {
         guardedFetch.mockResolvedValue(
             page("%PDF-1.7 ...", "application/octet-stream"),

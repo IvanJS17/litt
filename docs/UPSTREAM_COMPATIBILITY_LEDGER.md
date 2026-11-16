@@ -1974,3 +1974,36 @@ Two new messages (`word.openLittInWord`, `word.thisPageIsLittsWordAdd`) in
 
 The eight bumps of #844 are in; open LiTT Dependabot PRs for the same packages
 are closed after the merge.
+
+## 32. Cycle 2026-11-16 (cycle 12)
+
+Pin `3edd321ace14670e227eee57b103964afd702ac1` (ancestor of `upstream/main`;
+`upstream/main` is not merged), 119 commits after the cycle 11 pin. Owner
+approval 2026-11-16: groups 1 to 10 in, group 11 (Sentry) and group 12
+(CourtListener) rejected. Branch `sync/upstream-c12-20261116`, on `origin/main`
+with #202 (citation check for tabular cells, tabular chat and playbooks) in.
+Intake: `artifacts/upstream-intake-20261116/`; evidence:
+`artifacts/upstream-sync-c12-20261116/`.
+
+### 32.1 Disposition by group
+
+| Group | Disposition | What stays |
+|---|---|---|
+| 1 Citations and connectors | adapt | Upstream's hyphen-break and page-range fixes and partial connector batch results; LiTT's `citationSupport` hooks stay where `verifyCitations` ran (chat, tabular cells, tabular chat, playbooks). `ToolCallBatchResult` keeps completed calls when Stop interrupts a later one. |
+| 2 Code cleanup | adopt | Unused exports made local (`AccessEditor`, `PersonFilter`), except `AUTH_ERROR_SENTENCES` that the drift test reads. |
+| 3 Documents and downloads | adapt | Streamed downloads through the storage facade; ZIP name collisions; edit-resolution race. No filesystem storage driver and no signed download route (LiTT has none). The training-release gate (`assertVersionReleasable`) runs before any byte leaves. LiTT's `Untitled` rule for dot-only names kept. |
+| 4 DOCX validation | adapt | Package validation with `invalid_docx_package`, `invalid_markdown_file`, `document_too_large`, mapped to es-MX sentences. |
+| 5 Excel preview | adapt | Unsupported OLE and unreadable files fail at once, es-MX copy. |
+| 6 Server diagnostics | adapt | Local logs only: poll-failure gate, boot warning, unreadable document is not a server error. `diagnostics.ts` takes the provider-failure vocabulary. |
+| 7 Per-user key rejection in tabular | adapt | Rejected key explained, no retry; own gateway failures are not server errors. |
+| 8 Account erasure batching | adapt | Batched deletes; the 24 Oct retention decision and private-matter checks unchanged. |
+| 9 Chat Stop | adapt | Completed edits kept, audit lists changed documents, stopped subagent shown after reload; the stopped turn stays LiTT's `{ type: "stopped" }` mark, not the sentence. |
+| 10 Playbook review atomic save | adapt | Migration `20261107_01_playbook_review_publication.sql` (calls LiTT's `create_document_version`, which stores the training seal); the review's version carries `training_author_user_id` and `pasante` stage. |
+| 11 Sentry | reject | Files deleted; error handling goes to `observability/report` and `diagnostics`. `rg -i sentry` outside migrations, docs and the production README finds nothing; no `@sentry/*` in any lockfile. |
+| 12 CourtListener | reject | `courtlistener.ts`, its tests and event-block cases removed. |
+
+### 32.2 Interface text
+
+Stopped-state keys for connectors, document events, document search, web
+activity and subagent groups, and the spreadsheet and upload failures, in
+`en-US.json` and `es-MX.json`.

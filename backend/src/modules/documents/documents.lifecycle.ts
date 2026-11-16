@@ -235,7 +235,7 @@ async function resolveSeal(
 }
 
 /** Sealed with `userId` as author when they are a pasante where the document lives. */
-async function authorSeal(
+export async function authorSeal(
   db: Db,
   documentId: string,
   userId: string,

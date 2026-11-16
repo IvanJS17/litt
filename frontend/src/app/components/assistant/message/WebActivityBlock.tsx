@@ -77,10 +77,13 @@ function WebToolError({ message }: { message?: string }) {
 export function WebSearchBlock({
     event,
     isStreaming,
+    interrupted,
     showConnector,
 }: {
     event: WebSearchEvent;
     isStreaming?: boolean;
+    /** The turn ended before the search reported its results. */
+    interrupted?: boolean;
     showConnector?: boolean;
 }) {
     const t = useTranslations();
@@ -89,6 +92,8 @@ export function WebSearchBlock({
         const error = event.error;
     const label: ReactNode = isStreaming ? (
         <>{t("assistant.webActivityBlock.searchingTheWeb", { query, hasQuery: String(!!query) })}</>
+    ) : interrupted ? (
+        <>{t("assistant.webActivityBlock.webSearchStopped", { query, hasQuery: String(!!query) })}</>
     ) : error ? (
         query ? <>{t("assistant.webActivityBlock.webSearchFailed", { query })}</> : t("assistant.webActivityBlock.webSearchUnavailable")
     ) : (
@@ -123,10 +128,13 @@ export function WebSearchBlock({
 export function WebReadBlock({
     event,
     isStreaming,
+    interrupted,
     showConnector,
 }: {
     event: WebReadEvent;
     isStreaming?: boolean;
+    /** The turn ended before the read reported its result. */
+    interrupted?: boolean;
     showConnector?: boolean;
 }) {
     const t = useTranslations();
@@ -135,14 +143,23 @@ export function WebReadBlock({
         <EventBlock
             showConnector={showConnector}
             isStreaming={isStreaming}
-            dotColor={error ? "red" : "green"}
+            dotColor={error ? "red" : interrupted ? "gray" : "green"}
         >
             <EventLabel>
-                {isStreaming ? t("assistant.webActivityBlock.reading") : error ? t("assistant.webActivityBlock.readFailed") : t("assistant.webActivityBlock.read")}
+                {isStreaming
+                    ? t("assistant.webActivityBlock.reading")
+                    : error
+                      ? t("assistant.webActivityBlock.readFailed")
+                      : interrupted
+                        ? t("assistant.webActivityBlock.readStopped")
+                        : t("assistant.webActivityBlock.read")}
             </EventLabel>{" "}
             {/* Only a page the server actually read is a link: the model
                 picks the URL, and it may not be one the user should open. */}
-            <WebPageName source={event} linked={!isStreaming && !error} />
+            <WebPageName
+                source={event}
+                linked={!isStreaming && !error && !interrupted}
+            />
             {isStreaming ? <span>...</span> : null}
             <WebToolError message={error} />
         </EventBlock>
