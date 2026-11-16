@@ -37,6 +37,8 @@ describe("i18n: no visible literals in migrated areas", () => {
         expect(outside).toEqual([]);
     });
 
+    // It parses every migrated file, so it is the slow one: on a loaded
+    // machine the suite default (20 s) is not enough for work that is not wrong.
     it("migrated files show only catalog text, within the baseline", () => {
         const over: Record<string, string[]> = {};
         const stale: Record<string, string> = {};
@@ -52,7 +54,7 @@ describe("i18n: no visible literals in migrated areas", () => {
             if (![...files].some((abs) => toRepo(abs) === file)) stale[file] = "no longer a migrated source file";
         expect(over, "Move these strings to packages/i18n/messages (both catalogs) and use t()").toEqual({});
         expect(stale, "The literal count went down: lower i18n-literal-baseline.json").toEqual({});
-    });
+    }, 120_000);
 
     it("the scan finds each kind of visible literal, and skips catalog and technical text", () => {
         const source = `

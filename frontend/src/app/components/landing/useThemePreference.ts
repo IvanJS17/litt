@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { isTheme, THEME_STORAGE_KEY, applyTheme, type Theme } from "@/app/lib/theme";
 import { DEFAULT_THEME } from "@mike/client";
 
@@ -55,6 +55,12 @@ export function useThemePreference(): { preference: Theme; choose: (theme: Theme
     // the device for Automático, which only `applyTheme` sets up.
     useEffect(() => {
         if (readPreference() === "system") applyTheme("system");
+    }, []);
+    // The server drew the pill on Automático; when the device has another
+    // choice the pill moves to it on this first client render. Do that move
+    // with transitions off, so it is not seen sliding from Automático.
+    useLayoutEffect(() => {
+        if (readPreference() !== DEFAULT_THEME) withoutTransitions(() => undefined);
     }, []);
     return { preference, choose: chooseTheme };
 }

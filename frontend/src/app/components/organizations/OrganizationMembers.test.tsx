@@ -171,7 +171,12 @@ describe("OrganizationMembers", () => {
     expect(await screen.findByText("William Chen")).toBeInTheDocument();
     expect(screen.getAllByText("Members")).not.toHaveLength(0);
     // The heading says which firm these settings are about.
-    expect(screen.getByText("Firm settings · Elite Law LLP")).toBeInTheDocument();
+    // The header keeps a hidden copy of each crumb to measure it, and the
+    // visible crumb collapses once the measuring has run (jsdom has no
+    // width), so the name is on the page once or twice depending on timing.
+    expect(
+      screen.getAllByText("Firm settings · Elite Law LLP").length,
+    ).toBeGreaterThan(0);
     // The count sits beside the column's name.
     expect(screen.getByText("(2)")).toBeInTheDocument();
     await user.click(

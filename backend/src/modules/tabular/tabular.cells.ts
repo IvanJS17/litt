@@ -26,6 +26,10 @@ import {
 import { queryTabularCell } from "./tabular.extract";
 import { finalizeCell } from "./tabular.extractRow";
 import { createTabularCellCheck } from "./tabular.citationSupport";
+import { forgetCitationSupportChecks } from "../../lib/citationSupport";
+
+/** Cells per delete, so the id list stays small in the request. */
+const CHECK_DELETE_BATCH = 200;
 import { awaitCellTerminal } from "./tabular.generateStream";
 import { loadReviewRow, loadRowDocumentText } from "./tabular.rows";
 import {
@@ -137,7 +141,7 @@ export async function clearTabularReviewCells(
             }
         }
 
-        const { error } = await db
+        const { data: cleared, error } = await db
             .from("tabular_cells")
             .update({
                 content: null,
@@ -145,8 +149,17 @@ export async function clearTabularReviewCells(
                 generation_id: null,
             })
             .eq("review_id", reviewId)
-            .in("row_id", rowIds);
+            .in("row_id", rowIds)
+            .select("id");
         if (error) return internalFailure(error);
+        // The silent citation check results belong to the content that was
+        // just blanked. Best-effort: forgetCitationSupportChecks never throws.
+        const clearedIds = ((cleared as { id: string }[] | null) ?? []).map((cell) => cell.id);
+        for (let i = 0; i < clearedIds.length; i += CHECK_DELETE_BATCH)
+            await forgetCitationSupportChecks(db, {
+                surface: "tabular_cell",
+                ownerIds: clearedIds.slice(i, i + CHECK_DELETE_BATCH),
+            });
         return { ok: true, data: null };
     } finally {
         const { error } = await db.rpc("finish_tabular_review_generation", {

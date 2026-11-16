@@ -1999,7 +1999,7 @@ Intake: `artifacts/upstream-intake-20261116/`; evidence:
 | 8 Account erasure batching | adapt | Batched deletes; the 24 Oct retention decision and private-matter checks unchanged. |
 | 9 Chat Stop | adapt | Completed edits kept, audit lists changed documents, stopped subagent shown after reload; the stopped turn stays LiTT's `{ type: "stopped" }` mark, not the sentence. |
 | 10 Playbook review atomic save | adapt | Migration `20261107_01_playbook_review_publication.sql` (calls LiTT's `create_document_version`, which stores the training seal); the review's version carries `training_author_user_id` and `pasante` stage. |
-| 11 Sentry | reject | Files deleted; error handling goes to `observability/report` and `diagnostics`. `rg -i sentry` outside migrations, docs and the production README finds nothing; no `@sentry/*` in any lockfile. |
+| 11 Sentry | reject | Files deleted; error handling goes to `observability/report` and `diagnostics`. `rg -iw sentry` outside migrations, docs and the production README finds nothing (a plain `rg -i` also matches `ProgressEntry` and `webkitGetAsEntry`); no `@sentry/*` in any lockfile. |
 | 12 CourtListener | reject | `courtlistener.ts`, its tests and event-block cases removed. |
 
 ### 32.2 Interface text
