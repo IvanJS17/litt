@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 import { EXTRACTION_OPS } from "../../../lib/extraction/ops";
 import { ExtractionBusyError, ExtractionLimitError, withExtractionRequest, withExtractionSlot } from "../../../lib/extraction/isolated";
@@ -597,7 +597,7 @@ describe("upload processing", () => {
     // Another file's parse holds the single slot when this upload arrives.
     let release!: () => void;
     const held = withExtractionSlot({}, () => new Promise<void>((resolve) => { release = resolve; }));
-    const db = fakeDb({ documents: [{ data: { id: file.resource_id } }] });
+    const db = fakeDb({ documents: [{ data: null }, { data: { id: file.resource_id } }] });
     const upload = processUploadFile(db as never, baseSession, file);
     const settled = vi.fn();
     void upload.then(settled, settled);
@@ -621,8 +621,10 @@ describe("upload processing", () => {
     const file = { ...baseFile, file_type: "docx", expected_size_bytes: bytes.length };
     let release!: () => void;
     const held = withExtractionSlot({}, () => new Promise<void>((resolve) => { release = resolve; }));
-    const db = fakeDb({ documents: Array.from({ length: 9 }, () => ({ data: { id: file.resource_id } })) });
-    const uploads = Array.from({ length: 9 }, () => processUploadFile(db as never, baseSession, file));
+    // One database per upload: the uploads interleave, and each reads its
+    // document (none yet), then updates it.
+    const dbs = Array.from({ length: 9 }, () => fakeDb({ documents: [{ data: null }, { data: { id: file.resource_id } }] }));
+    const uploads = dbs.map((db) => processUploadFile(db as never, baseSession, file));
     const order: string[] = [];
     void uploads[0]!.then(() => order.push("upload"), () => order.push("upload"));
     await vi.waitFor(() => expect(mocks.createFileReadStream).toHaveBeenCalledTimes(9));
@@ -875,7 +877,7 @@ describe("upload processing", () => {
       zip.file(part, xml.replace("?>", '?>\n \t<?mso-application progid="Word.Document"?>'));
       const bytes = await zip.generateAsync({ type: "nodebuffer" });
       mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-      const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+      const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
       await expect(processUploadFile(db as never, baseSession, {
         ...baseFile, filename: "valid.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -959,7 +961,7 @@ describe("upload processing", () => {
     zip.file("word/document.xml", xml);
     const bytes = await zip.generateAsync({ type: "nodebuffer" });
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-    const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
     await expect(processUploadFile(db as never, baseSession, {
       ...baseFile, filename: "fake.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -990,7 +992,7 @@ describe("upload processing", () => {
       .replace('Target="word/', 'TargetMode="Internal" Target="/word/'));
     const bytes = await zip.generateAsync({ type: "nodebuffer" });
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-    const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
     await expect(processUploadFile(db as never, baseSession, {
       ...baseFile, filename: "valid.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -1009,7 +1011,7 @@ describe("upload processing", () => {
     ]));
     const bytes = await zip.generateAsync({ type: "nodebuffer" });
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-    const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
     await expect(processUploadFile(db as never, baseSession, {
       ...baseFile, filename: "fake.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -1025,7 +1027,7 @@ describe("upload processing", () => {
     zip.file("word/document.xml", encoding === "utf16be" ? encoded.swap16() : encoded);
     const bytes = await zip.generateAsync({ type: "nodebuffer" });
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-    const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
     await expect(processUploadFile(db as never, baseSession, {
       ...baseFile, filename: "valid.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -1037,7 +1039,7 @@ describe("upload processing", () => {
       sections: [{ children: [new Paragraph("Hello")] }],
     }));
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-    const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
     await expect(processUploadFile(db as never, baseSession, {
       ...baseFile, filename: "generated.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -1062,7 +1064,7 @@ describe("upload processing", () => {
   ])("accepts DOCX content-types with %s", async (_name, xml) => {
     const bytes = await minimalDocxBytes(xml);
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-    const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
     await expect(processUploadFile(db as never, baseSession, {
       ...baseFile, filename: "valid.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -1077,7 +1079,7 @@ describe("upload processing", () => {
     zip.file("[Content_Types].xml", contentTypes.replace('</Types>', ''));
     const bytes = await zip.generateAsync({ type: "nodebuffer" });
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-    const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id }, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
 
     await expect(processUploadFile(db as never, baseSession, {
       ...baseFile, filename: "fake.docx", file_type: "docx", expected_size_bytes: bytes.length,
@@ -1261,14 +1263,19 @@ describe("upload processing", () => {
   describe("an editor save: a new user_edit version on top of its base", () => {
     const documentId = "55555555-5555-4555-8555-555555555555";
     const baseVersionId = "77777777-7777-4777-8777-777777777777";
-    const docxBytes = Buffer.from([1, 2, 3, 4]);
-    const docxFile = {
-      ...baseFile,
-      filename: "edited.docx",
-      file_type: "docx",
-      content_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      expected_size_bytes: docxBytes.length,
-    };
+    // A Word save must be a real package: DOCX uploads are validated now.
+    let docxBytes: Buffer;
+    let docxFile: typeof baseFile & { filename: string; file_type: string; content_type: string; expected_size_bytes: number };
+    beforeAll(async () => {
+      docxBytes = await minimalDocxBytes();
+      docxFile = {
+        ...baseFile,
+        filename: "edited.docx",
+        file_type: "docx",
+        content_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        expected_size_bytes: docxBytes.length,
+      };
+    });
     const editSession = {
       ...baseSession,
       purpose: "document_version_create" as const,

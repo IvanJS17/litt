@@ -26,10 +26,14 @@ describe("normalizeDocxZipPaths", () => {
     expect(names).not.toContain("word\\document.xml");
   });
 
-  it("does not inflate a package that lies about a part's size past the cap", async () => {
+  it("renames a package that lies about a part's size without inflating it", async () => {
     const bytes = await lyingBackslashDocx(120 * 1024 * 1024);
     expect(bytes.length).toBeLessThan(1024 * 1024);
-    // Over the cap the original comes back untouched instead of being rewritten.
-    expect(await normalizeDocxZipPaths(bytes)).toBe(bytes);
+    // The rename edits the name bytes in place (upstream c12): no part is
+    // inflated, so the lie about the size cannot cost memory or time.
+    const out = await normalizeDocxZipPaths(bytes);
+    expect(out.length).toBe(bytes.length);
+    expect(out.includes("word/document.xml")).toBe(true);
+    expect(out.includes("word\\document.xml")).toBe(false);
   }, 60_000);
 });

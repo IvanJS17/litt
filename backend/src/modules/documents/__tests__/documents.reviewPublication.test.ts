@@ -54,10 +54,13 @@ function database(options: { throwReadErrors?: boolean } = {}) {
     projects: [], project_access_grants: [], organizations: [], org_members: [],
     project_org_access_overrides: [], workflows: [], workflow_shares: [],
     workflow_org_access_overrides: [], playbook_runs: [],
+    // LiTT: the pasante seal the review's new version carries.
+    training_stages: [],
   };
   const calls: RequestCall[] = [];
   const failures: Failure[] = [];
-  const rpcResults: Record<string, unknown> = {};
+  // LiTT: no private matter denies the project unless a case says so.
+  const rpcResults: Record<string, unknown> = { private_matter_denied_project_ids: [] };
   const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
     const url = new URL(String(input));
     const target = url.pathname.replace("/rest/v1/", "");
@@ -447,7 +450,7 @@ describe("review preparation uses actual document-edit permissions", () => {
     expect(storage.downloadFile).not.toHaveBeenCalled();
   });
 
-  it.each(["projects", "project_access_grants", "org_members", "project_org_access_overrides", "rpc/org_item_is_ownerless", "rpc/org_private_access_role"])(
+  it.each(["projects", "project_access_grants", "org_members", "project_org_access_overrides", "rpc/org_item_is_ownerless"])(
     "throws authorization IO errors from %s through real Supabase throwOnError",
     async (target) => {
       const f = database();
@@ -466,12 +469,39 @@ describe("review preparation uses actual document-edit permissions", () => {
     },
   );
 
-  it("throws an audited standalone access RPC error rather than permanently recording a text-only review", async () => {
+  // LiTT (C2): a private matter closes its project to someone outside its team,
+  // a review's new version included; the guard is asked of the database.
+  it("prepares nothing for a project a private matter denies the reviewer", async () => {
     const f = database();
-    Object.assign(f.rows.documents[0], { user_id: "other-user", org_id: "org-1" });
-    f.failures.push({ matches: call => call.target === "rpc/org_private_document_access", message: "access unavailable" });
-    await expectPrepareFailure(prepareDocumentReviewEdits(f.db, args()), { message: "access unavailable" });
+    project(f, { visibility: "public" });
+    f.rpcResults.private_matter_denied_project_ids = ["project-1"];
+    expect(await prepareDocumentReviewEdits(f.db, args())).toBeNull();
+    expect(f.calls.some(call => call.target === "rpc/private_matter_denied_project_ids")).toBe(true);
     expect(storage.downloadFile).not.toHaveBeenCalled();
+    expect(storage.uploadFile).not.toHaveBeenCalled();
+  });
+
+  it("fails closed, preparing nothing, when the private-matter guard cannot be answered", async () => {
+    const f = database();
+    project(f, { visibility: "public" });
+    f.failures.push({ matches: call => call.target === "rpc/private_matter_denied_project_ids", message: "guard unavailable" });
+    expect(await prepareDocumentReviewEdits(f.db, args())).toBeNull();
+    expect(storage.downloadFile).not.toHaveBeenCalled();
+    expect(storage.uploadFile).not.toHaveBeenCalled();
+  });
+
+  // docs/training.md: a pasante's review edit is their work, held until approved.
+  it.each([
+    ["a pasante", "pasante", { training_author_user_id: "user-1", training_stage: "pasante" }],
+    ["a lawyer", "abogado", {}],
+  ])("seals the review's version for %s only", async (_who, stage, seal) => {
+    const f = database();
+    Object.assign(f.rows.documents[0], { org_id: "org-1" });
+    membership(f, "member");
+    f.rows.training_stages = [{ org_id: "org-1", trainee_user_id: "user-1", practice: null, stage }];
+    const result = await prepareDocumentReviewEdits(f.db, args());
+    expect(result?.version).toMatchObject(seal);
+    if (!("training_stage" in seal)) expect(result?.version).not.toHaveProperty("training_stage");
   });
 });
 

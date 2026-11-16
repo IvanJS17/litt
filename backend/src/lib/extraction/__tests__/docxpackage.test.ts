@@ -37,6 +37,6 @@ it.each(["darwin", "win32"])("constructs the existing heap-only command on %s (n
     Object.defineProperty(process, "platform", { value: platform });
     vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", "1024");
     const command = extractionCommand("process.js");
-    expect(command).toEqual({ command: process.execPath, args: ["--disable-wasm-trap-handler", "--max-old-space-size=1024", "process.js"] });
+    expect(command).toEqual({ command: process.execPath, args: ["--disable-wasm-trap-handler", "--max-old-space-size=1024", "--wasm-max-mem-pages=16384", "process.js"] });
   } finally { Object.defineProperty(process, "platform", descriptor); }
 });

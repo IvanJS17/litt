@@ -69,7 +69,8 @@ describe("ZIP export limits", () => {
 
   it("preserves dot-only names and replacement-name collisions after reopening the archive", async () => {
     const requested = [".", "..", " . ", " .. ", "_", "_ (2)", "...", ".env"];
-    const expected = ["_", "_ (2)", "_ (3)", "_ (4)", "_ (5)", "_ (2) (2)", "...", ".env"];
+    // LiTT names a dot-only document "Untitled" (upstream writes "_").
+    const expected = ["Untitled", "Untitled (2)", "Untitled (3)", "Untitled (4)", "_", "_ (2)", "...", ".env"];
     const zip = new JSZip();
     const usedNames = new Set<string>();
     requested.forEach((name, index) => {

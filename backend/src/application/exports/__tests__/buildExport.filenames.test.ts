@@ -34,6 +34,12 @@ vi.mock("../../../lib/documentVersions", async (importOriginal) => ({
         return docs;
     },
 }));
+// LiTT: a version leaves the firm only when no training seal holds it
+// (exportBuild.trainingLock.test.ts covers the gate itself).
+vi.mock("../../../lib/trainingRelease", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../lib/trainingRelease")>()),
+    assertVersionReleasable: async () => ({ ok: true }),
+}));
 vi.mock("../../../lib/audit", () => ({ recordAudit: vi.fn() }));
 vi.mock("../../../lib/auditExport", () => ({ AUDIT_CSV_FILENAME: "audit.csv", buildAuditCsv: vi.fn() }));
 vi.mock("../buildJsonExport", () => ({
@@ -52,7 +58,7 @@ const job: ExportBuildRequest = {
 };
 const db = {
     from: () => ({ select: () => ({ in: async (_column: string, ids: string[]) => ({
-        data: ids.map(id => ({ id, user_id: "u1", project_id: null })), error: null,
+        data: ids.map(id => ({ id, current_version_id: `${id}-version`, user_id: "u1", project_id: null })), error: null,
     }) }) }),
 };
 

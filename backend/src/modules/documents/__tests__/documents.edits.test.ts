@@ -113,13 +113,17 @@ describe("resolving a tracked edit", () => {
     const fake = scriptedDb([
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       // Accepting another card on the same document swapped the path first.
       { table: "document_versions", op: "update", data: null },
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", data: { id: "v1" } },
       { table: "document_edits", op: "update" },
       { table: "document_edits", data: [] },
+      // The card learns whether the new bytes may leave (lib/trainingRelease).
+      { table: "document_versions", data: { training_stage: null, content_sha256: "h" } },
     ]);
     expect((await run(fake.db)).ok).toBe(true);
     expect(storage.downloadFile.mock.calls.map(([key]) => key)).toEqual(["docs/v1.docx", "docs/v1-other.docx"]);
@@ -142,6 +146,7 @@ describe("resolving a tracked edit", () => {
     const fake = scriptedDb([
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", data: null },
       // The winner's byte swap is visible before its separate status write.
       { table: "document_edits", data: PENDING_EDIT },
@@ -161,9 +166,11 @@ describe("resolving a tracked edit", () => {
     const fake = scriptedDb([
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", data: null },
       { table: "document_edits", data: { ...PENDING_EDIT, status: "rejected" } },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
     ]);
     expect(await run(fake.db)).toMatchObject({ ok: true, body: { already_resolved: true, status: "rejected" } });
     expect(docx.resolveTrackedChange).toHaveBeenCalledOnce();
@@ -177,6 +184,7 @@ describe("resolving a tracked edit", () => {
     const lostAttempt = [
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", data: null },
     ] as const;
     const fake = scriptedDb(Array.from({ length: 5 }, () => lostAttempt).flat());

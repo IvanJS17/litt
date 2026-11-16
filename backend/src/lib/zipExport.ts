@@ -50,9 +50,9 @@ export function uniqueArchiveFilename(
     return requestedName;
   }
 
-  const dot = filename.lastIndexOf(".");
-  const stem = dot > 0 ? filename.slice(0, dot) : filename;
-  const extension = dot > 0 ? filename.slice(dot) : "";
+  const dot = requestedName.lastIndexOf(".");
+  const stem = dot > 0 ? requestedName.slice(0, dot) : requestedName;
+  const extension = dot > 0 ? requestedName.slice(dot) : "";
   let copyNumber = 2;
   let candidate = `${stem} (${copyNumber})${extension}`;
   while (taken(candidate)) {

@@ -633,7 +633,8 @@ describe("deleteUserProjects", () => {
         ).resolves.toBe(1);
 
         expect(ids(tables.projects)).toEqual(["p-matter", "p-personal", "p-colleague"]);
-        expect(checkProjectAccess.mock.calls.map(([id]) => id)).toEqual(["p-org", "p-matter"]);
+        // Ids are read in key order (batched paging), so the checks run in that order.
+        expect(checkProjectAccess.mock.calls.map(([id]) => id)).toEqual(["p-matter", "p-org"]);
     });
 
     it("returns 0 when the user owns no projects", async () => {
