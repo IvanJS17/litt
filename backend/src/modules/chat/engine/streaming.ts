@@ -335,8 +335,9 @@ export async function runLLMStream(params: {
   emitDone?: boolean;
   /**
    * Silent citation support check (lib/citationSupport): given the verified
-   * citations of the final answer, what each one's check will read. Only a
-   * space with its own TypeSafe key passes this; it never changes the answer.
+   * citations of the final answer, what each one's check will read. The
+   * routes pass it only where the platform runs the check and the person has
+   * not opted out; it never changes the answer.
    */
   onCitationSupportInputs?: (inputs: CitationSupportInput[]) => void;
   /** Add read-only app/project memory as an earliest untrusted reference turn. */

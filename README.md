@@ -48,6 +48,8 @@ code proposals go through pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 - **Bring your own keys (BYOK).** Each person or firm uses its own model keys,
   set up in the app. LiTT does not fall back silently to another key or model.
+  The one platform service is the optional citation support check, which uses
+  the platform's key and which each person can turn off in Settings.
 - **No third-party telemetry.** No error reports or usage data are sent to
   third parties. Each process logs failures locally.
 - **Source for every build (AGPL-3.0 §13).** Every build embeds its commit, and

@@ -2,13 +2,14 @@
 // https://docs.typesafe.ai/api/system-one.md
 //
 // Does the quote, read with its context, support the claim the answer made
-// about it? One Noul question per citation, answered with the probability of
+// about it? One System One question per citation, answered with the probability of
 // "yes". The question, the thresholds and the pinned model come from the
 // pilot of 2026-11-14 (192 test cases, 97.2 % of the bad citations marked,
 // 0 of 50 good ones); changing any of them changes what the numbers mean, so
 // QUESTION_VERSION changes with them.
 //
-// The key is the owner's own (never the platform's) and travels only in the
+// The key is the platform's (TYPESAFE_API_KEY; there are no per-user or
+// per-firm keys) and travels only in the
 // Authorization header to the one fixed host below. Redirects are refused so
 // the header cannot follow one to another origin. Neither the key, the claim,
 // the quote nor TypeSafe's response text appears in a message or a log: every

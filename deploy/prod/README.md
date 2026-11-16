@@ -173,6 +173,12 @@ recibo. Los que no salen de Bitwarden se generan en el VPS.
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `/etc/litt-restic.env` | BWS `LITT_R2_BACKUPS_*` (token del bucket `litt-backups`) |
 | `RESTIC_PASSWORD` | `/etc/litt-restic.env` | BWS `LITT_RESTIC_PASSWORD` |
 
+Opcionales (apagados o vacíos por defecto): `TYPESAFE_API_KEY` es una llave **de la
+plataforma** (verificación de citas; con `LITT_CITATION_CHECK=enabled`, ver
+`docs/citation-support-check.md`) y las variables `GOOGLE_*` configuran los conectores
+de Google (`docs/google-workspace.md`); sin cliente OAuth ninguno se puede conectar, y
+sin `GOOGLE_WORKSPACE_DISABLED_PROVIDERS` Drive queda apagado.
+
 Los demás valores del `.env` no son secretos y ya vienen en `.env.example`:
 el bucket, el host, el puerto y el usuario SMTP y el remitente.
 

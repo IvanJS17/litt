@@ -6,7 +6,7 @@ is required.
 
 The stack includes:
 
-- the Mike frontend and backend;
+- the LiTT frontend and backend;
 - Supabase Postgres, Auth, data API, and gateway;
 - RustFS for S3-compatible object storage; and
 - Mailpit for local authentication email.
@@ -100,7 +100,7 @@ data; `supabase stop --no-backup` removes both.
 
 ## Supabase CLI stack
 
-`supabase start`, run from `backend/`, starts only the services Mike uses:
+`supabase start`, run from `backend/`, starts only the services LiTT uses:
 Postgres, Auth, the data API, the gateway, and the local mail catcher. The
 others are disabled in `backend/supabase/config.toml`. To browse tables in
 Supabase Studio, set `enabled = true` under `[studio]` there and restart the
@@ -110,7 +110,7 @@ stack; Studio is then at `http://localhost:54323`.
 
 | Service | Address | Notes |
 | --- | --- | --- |
-| Mike | `http://localhost:3000` | Main application |
+| LiTT | `http://localhost:3000` | Main application |
 | Supabase API | `http://localhost:54321` | Auth and data API gateway |
 | Postgres | `localhost:54322` | Host access for database tools |
 | RustFS console | `http://localhost:9001` | `rustfsadmin` / `rustfsadmin` |
@@ -123,7 +123,7 @@ localhost but must be regenerated before exposing an instance anywhere.
 ## Local registration and email
 
 A new email-and-password registration must confirm its address before it can
-sign in. Supabase Auth sends authentication email; the Mike backend does not
+sign in. Supabase Auth sends authentication email; the LiTT backend does not
 send it directly. Open [Mailpit](http://localhost:8025) to read the
 confirmation message. Mailpit also captures local email-change and
 password-reset messages, and no email leaves your machine. These links pass
@@ -186,7 +186,7 @@ Google account as an OAuth test user while the Google app remains in testing.
 ## Local models with Ollama
 
 [Ollama](https://ollama.com) models are discovered dynamically. Anything shown
-by `ollama list` appears in Mike's model pickers under **Local**, without an API
+by `ollama list` appears in LiTT's model pickers under **Local**, without an API
 key.
 
 The Dockerized backend reaches Ollama on the host at
@@ -194,14 +194,14 @@ The Dockerized backend reaches Ollama on the host at
 available elsewhere.
 
 Choose a model that fits the host's available memory, pull it, then refresh
-Mike. Replace `MODEL_TAG` with a tag from the Ollama library:
+LiTT. Replace `MODEL_TAG` with a tag from the Ollama library:
 
 ```bash
 ollama pull MODEL_TAG
 ```
 
 Models with tool-calling support can drive the full assistant. If a local model
-rejects tools, Mike retries without them so plain chat can continue. Model size
+rejects tools, LiTT retries without them so plain chat can continue. Model size
 has a significant effect on speed and memory use, especially during tabular
 review where the model may run across many cells.
 

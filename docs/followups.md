@@ -268,3 +268,17 @@ Also: the plural guard covers only «times», «veces» and «marked turns» (#1
 - The type of a created document is only used for its proposed name; no column keeps it.
 - Real LandingAI Split smoke: done (3.7 s, 0.0948 credits, four groups; see
   `PROJECT_STATUS.md`). Not run: a browser flow with a real case file.
+
+## Citation support check (Jev) and tests (2026-11-16)
+
+- Tabular review and playbooks are not connected to the citation support check:
+  tabular builds citations with `buildCitations`, which bypasses
+  `verifyCitations`. Decide whether to connect them. See
+  [`citation-support-check.md`](citation-support-check.md). (#199)
+- Showing the check's result to the lawyer needs its own text from the legal
+  counsel; until then it is stored for the beta statistics only. (#199)
+- Flaky tests under load: the `ApiKeyField` 2 s timer in
+  `frontend/src/app/settings/byok/page.test.tsx`, and a timeout in
+  `i18nLiterals.test.ts`. (#196)
+- PostgREST memory growth is contained by the 256 MiB limit with no swap; the
+  root cause is upstream. (#197)

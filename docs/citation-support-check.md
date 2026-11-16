@@ -10,11 +10,11 @@ decision.
 Design source: the 2026-11-14 report and pilot
 (`artifacts/typesafe-20261114/INFORME.md`, `piloto/RESULTADO.md`).
 
-## Status: built, off
+## Status: built, on in production (silent)
 
 | | |
 | --- | --- |
-| Server switch | `LITT_CITATION_CHECK=enabled`. Anything else, or unset, is off. **Off by default** (`deploy/prod/compose.yaml` passes `disabled`). |
+| Server switch | `LITT_CITATION_CHECK=enabled`. Anything else, or unset, is off. On in production since 2026-11-16 (release `20261116a`). Off by default in the repository: `deploy/prod/compose.yaml` and `deploy/prod/.env.example` pass `disabled` unless the operator sets it. |
 | Key | `TYPESAFE_API_KEY`, the **platform's**. There are no per-user or per-firm keys, no per-capability switch and no per-space switch. Without the key the check does not exist and nothing fails. |
 | Who | Everyone who has accepted the current `LEGAL_VERSION`, with a personal **opt-out**: Settings › Privacidad y datos › «Verificar mis citas con TypeSafe» (`user_profiles.citation_check`, on by default). The card is not drawn where the deployment does not run the check. |
 | Where | Every citation the chat engine verifies: the web chat, project chats and the Word add-in (cloud chats). |
@@ -52,13 +52,12 @@ silent stage (Terms 6.14.3 and 8.2).
 
 ### Turning it on in production
 
-`LITT_CITATION_CHECK` stays `disabled` in the repository and in
-`deploy/prod/compose.yaml`. The coordinator turns it on at deploy time, after
-the release carrying these texts and the new `LEGAL_VERSION` is live:
-
-1. Deploy this release (texts, `LEGAL_VERSION`, migration `20261114_20`).
-2. Set `TYPESAFE_API_KEY` and `LITT_CITATION_CHECK=enabled` in
-   `deploy/prod/.env` and redeploy the backend.
+Production runs with `LITT_CITATION_CHECK=enabled` and the platform's
+`TYPESAFE_API_KEY` in `/srv/litt/.env` (never in the repository). To turn it on
+elsewhere: deploy a release that carries the legal texts and the current
+`LEGAL_VERSION`, set both variables in `deploy/prod/.env` and redeploy the
+backend. To turn it off, set `LITT_CITATION_CHECK=disabled` and redeploy; a
+person can also opt out for themselves in Settings.
 
 ## What happens
 

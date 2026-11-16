@@ -1,6 +1,6 @@
 # MCP connectors
 
-Mike connects to remote [Model Context Protocol](https://modelcontextprotocol.io)
+LiTT connects to remote [Model Context Protocol](https://modelcontextprotocol.io)
 servers from **Settings > Connectors**. Installed connectors appear under
 **Installed**. Hosted providers appear under **Discover**, and an arbitrary
 remote server can be added with **+ Custom**. Google Drive, Gmail and Google
@@ -48,9 +48,10 @@ Organization-owned connections shared by every member are not supported.
 
 Most hosted MCP servers support OAuth Dynamic Client Registration (DCR). The
 user adds the server and completes the provider's consent screen; the
-deployment does not need provider-specific credentials. LiTT suggests no
-third-party server under Discover, so a hosted server is added through
-**+ Custom**.
+deployment does not need provider-specific credentials. LiTT suggests two hosted
+servers under Discover, **Notion** and **Airtable**; both are signed in with the
+person's own account, per person and per workspace. Any other hosted server is
+added through **+ Custom**.
 
 Servers that use a bearer token or custom headers can be added through
 **+ Custom**. Credentials are encrypted at rest. Failed registration does not
@@ -58,14 +59,14 @@ leave an incomplete connector installed.
 
 ### Pre-configured OAuth clients
 
-Some providers do not support DCR. The person operating Mike must create one
+Some providers do not support DCR. The person operating LiTT must create one
 OAuth client with the provider and configure its credentials in
-`backend/.env`. Each Mike user can then authorize their own provider account.
+`backend/.env`. Each LiTT user can then authorize their own provider account.
 
 - [Slack](#slack)
 - [Google-hosted MCP servers](#google-hosted-mcp-servers)
 
-If the deployment is not configured, Mike rejects the connector before saving
+If the deployment is not configured, LiTT rejects the connector before saving
 it. The warning links to this guide rather than assuming a callback URI for the
 deployment.
 
@@ -107,7 +108,8 @@ rights in the workspace.
    values together.
 4. Set `SLACK_MCP_OAUTH_CLIENT_ID` and
    `SLACK_MCP_OAUTH_CLIENT_SECRET` in `backend/.env`, then restart the backend.
-5. In Mike, go to **Settings > Connectors > Discover**, click **Add** on Slack,
+5. Slack is not one of the suggested servers under Discover. In LiTT, go to
+   **Settings > Connectors > + Custom**, add `https://mcp.slack.com/mcp`,
    and approve the consent screen. A workspace owner or administrator may
    need to approve the app first.
 
@@ -137,7 +139,7 @@ for example, the Drive endpoint is
 
 - Connector bearer tokens, custom headers, and OAuth tokens are encrypted at
   rest using `MCP_CONNECTORS_ENCRYPTION_SECRET`.
-- Remote URLs are subject to Mike's outbound SSRF protections.
+- Remote URLs are subject to LiTT's outbound SSRF protections.
 - Connector tools are cached after successful registration and can be enabled
   or disabled from the connector's Manage dialog.
 
@@ -172,7 +174,7 @@ turned off, deleted, or replaced in the meantime. Changing the server URL,
 credentials, or authorized account invalidates a pending approval. Routine
 OAuth token refresh does not.
 
-Approvals are available in the Mike assistant and project chats. The Word
+Approvals are available in the LiTT assistant and project chats. The Word
 add-in and tabular review cannot show them, so a write that needs approval is
 refused there with an explanation.
 
