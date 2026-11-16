@@ -25,7 +25,7 @@
 //     again once per that window, so a long outage stays on the issue's
 //     timeline. Off by default: a poll loop's backed-off line is enough.
 
-import { diagnosticErrorTags } from "./sentryPrivacy";
+import { diagnosticErrorTags } from "./diagnostics";
 
 // The class key is the error's name plus an allowlist-shaped `code` found on
 // the error or its cause chain (PostgREST, SQLSTATE, errno). An error with no

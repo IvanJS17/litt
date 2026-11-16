@@ -248,6 +248,11 @@ vi.mock("../../middleware/auth", () => ({
 process.env.GEMINI_API_KEY ??= "test-key";
 process.env.OPENAI_API_KEY ??= "test-key";
 process.env.ANTHROPIC_API_KEY ??= "test-key";
+// This file posts more turns than the chat lane's default budget (30 per 15
+// minutes) allows; the limiter itself is covered elsewhere.
+vi.hoisted(() => {
+  process.env.RATE_LIMIT_CHAT_MAX ??= "1000";
+});
 import { app } from "../../app";
 
 const DOCUMENT_ID = "123e4567-e89b-42d3-a456-426614174000";
@@ -1055,7 +1060,7 @@ describe("server-owned Word turns", () => {
     expect(assistantUpdate()).toMatchObject({
       content: [
         { type: "content", text: "Late answer" },
-        { type: "content", text: "Cancelled by user." },
+        { type: "stopped" },
       ],
     });
     expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
@@ -1105,7 +1110,7 @@ describe("server-owned Word turns", () => {
         );
         const { deadlineMessage } = await import("../../lib/streamRuns.js");
         const stopEvent = reason === "user"
-          ? { type: "content", text: "Cancelled by user." }
+          ? { type: "stopped" }
           : {
               type: "error",
               message: deadlineMessage(reason),

@@ -1323,7 +1323,7 @@ export function buildStoppedAssistantEvent(
   stopReason?: StreamStopReason | null,
 ): AssistantEvent {
   return !stopReason || stopReason === "user"
-    ? { type: "content", text: "Cancelled by user." }
+    ? { type: "stopped" }
     : {
         type: "error",
         message: deadlineMessage(stopReason),

@@ -1,5 +1,3 @@
-import { normalizeDownloadFilename } from "./storage";
-
 export const MAX_ZIP_EXPORT_DOCUMENTS = 200;
 export const MAX_ZIP_EXPORT_BYTES = 2 * 1024 * 1024 * 1024;
 

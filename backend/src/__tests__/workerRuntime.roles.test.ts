@@ -34,8 +34,8 @@ vi.mock("../lib/observability/report", () => ({ reportError: vi.fn() }));
 
 import { startAllWorkers, stopAllWorkers } from "../workerRuntime";
 import { createServerSupabase } from "../lib/supabase";
-import { reportError } from "../lib/observability/sentry";
-import { diagnosticErrorTags } from "../lib/observability/sentryPrivacy";
+import { reportError } from "../lib/observability/report";
+import { diagnosticErrorTags } from "../lib/observability/diagnostics";
 
 beforeEach(() => vi.spyOn(console, "log").mockImplementation(() => {}));
 afterEach(async () => {

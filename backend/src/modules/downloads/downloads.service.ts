@@ -102,6 +102,21 @@ export async function resolveTokenDownload(
     const access = await ensureDocAccess(doc, args.userId, args.userEmail, db);
     if (!access.ok) return { ok: false, kind: "not_found" };
 
+    const releasable = await assertVersionReleasable(
+        db,
+        version as {
+            id: string;
+            training_stage: SealStage;
+            content_sha256: string | null;
+        },
+    );
+    if (!releasable.ok) {
+        if (releasable.kind === "conflict") return releasable as TrainingApprovalRequired;
+        if (releasable.kind === "error")
+            return { ok: false, kind: "error", error: releasable.error };
+        return { ok: false, kind: "not_found" };
+    }
+
     const download = await describeObject(info.path, info.filename);
     if (!download) return { ok: false, kind: "not_found" };
     return { ok: true, download };

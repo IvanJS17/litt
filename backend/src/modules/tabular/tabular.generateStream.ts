@@ -48,11 +48,8 @@ import { providerFailureKind, providerFailureStatus } from "../../lib/llm/provid
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { extractRowColumns, finalizeCell } from "./tabular.extractRow";
-<<<<<<< HEAD
 import { createTabularCellCheck } from "./tabular.citationSupport";
-=======
 import { gridErrorFrame, isRefusalShownToUser } from "./tabular.extraction";
->>>>>>> 3edd321ace14670e227eee57b103964afd702ac1
 import { type ReviewRow } from "./tabular.rows";
 import { mutateInBatches, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import {
@@ -671,13 +668,11 @@ export async function streamTabularGenerateSync(args: {
     } = args;
 
     const textCache = createTextExtractionCache();
-<<<<<<< HEAD
     const citationCheck = createTabularCellCheck({
         db,
         userId: args.userId,
         reviewId,
     });
-=======
     // Every row calls the same model with the same keys, so a refused key or
     // an outage fails each row alike: report each kind of failure once per run.
     // A user's own rejected key is not reported at all: the run sends the
@@ -696,7 +691,6 @@ export async function streamTabularGenerateSync(args: {
         return true;
     };
     let sentErrorFrame = false;
->>>>>>> 3edd321ace14670e227eee57b103964afd702ac1
     let nextRowIndex = 0;
     const cellFrame = (
         rowId: string,
@@ -732,11 +726,8 @@ export async function streamTabularGenerateSync(args: {
             apiKeys,
             generationId,
             abortSignal,
-<<<<<<< HEAD
             citationCheck,
-=======
             reportFailure,
->>>>>>> 3edd321ace14670e227eee57b103964afd702ac1
             sink: {
                 activity: args.onActivity,
                 generating: (rowId, columnIndex) =>

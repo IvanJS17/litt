@@ -6,20 +6,43 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 // The download routes hand the object to the client as a stream. These cases
 // drive the real router and storage facade against a scripted adapter, so each
-// one controls exactly when the store yields, fails, or stalls. The signed
-// (filesystem-driver) route is used because its token is the only input; the
-// authenticated route shares the same response helper.
+// one controls exactly when the store yields, fails, or stalls. LiTT has no
+// filesystem driver (and so no signed-URL route); the authenticated
+// /download/:token route is driven instead, with authentication and the
+// access/training gate of the service stubbed (they have their own tests) and
+// the object opened through the real storage facade.
 
 vi.hoisted(() => {
   process.env.DOWNLOAD_SIGNING_SECRET = "test-signing-secret";
   process.env.STORAGE_DOWNLOAD_TIMEOUT_MS = "10000";
 });
 
-import { setStorageAdapter, type StorageAdapter } from "../../lib/storage";
-import { signBlobToken } from "../../lib/downloadTokens";
+import { headFile, openFileStream, setStorageAdapter, type StorageAdapter } from "../../lib/storage";
+
+vi.mock("../../middleware/auth", () => ({
+  requireAuth: (_req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => {
+    res.locals.userId = "u1";
+    next();
+  },
+}));
+vi.mock("../../lib/supabase", () => ({ createServerSupabase: () => ({}) }));
+vi.mock("../../modules/downloads/downloads.service", () => ({
+  resolveTokenDownload: async () => {
+    const head = await headFile("documents/u1/d1/source.pdf");
+    return {
+      ok: true,
+      download: {
+        size: head!.size,
+        etag: head!.etag,
+        contentType: "application/pdf",
+        filename: "report.pdf",
+        open: (signal: AbortSignal) => openFileStream("documents/u1/d1/source.pdf", { signal }),
+      },
+    };
+  },
+}));
 import { downloadsRouter } from "../../modules/downloads/downloads.routes";
 
-const KEY = "documents/u1/d1/source.pdf";
 const FIRST = Buffer.from("first chunk;");
 const SECOND = Buffer.from("second chunk");
 const SIZE = FIRST.length + SECOND.length;
@@ -46,9 +69,8 @@ function adapterReading(reader: Reader): StorageAdapter {
 }
 
 const app = express();
-// Sentry's http integration puts 4 'close' listeners on every production
-// response before the route runs; vitest loads http before any SDK could
-// patch it, so the same load is added here.
+// Other middleware may already hold a few 'close' listeners on a production
+// response before the route runs, so the same load is added here.
 app.use((_req, res, next) => {
   for (let i = 0; i < 4; i++) res.on("close", () => {});
   next();
@@ -56,7 +78,7 @@ app.use((_req, res, next) => {
 app.use("/download", downloadsRouter);
 let server: http.Server;
 let base: string;
-const path = () => `/download/signed/${signBlobToken(KEY, "report.pdf", 60)}`;
+const path = () => "/download/signed-token";
 
 beforeAll(async () => {
   server = app.listen(0);
@@ -95,7 +117,7 @@ function get(onChunk: (chunk: Buffer, req: http.ClientRequest) => void) {
   );
 }
 
-describe("GET /download/signed/:token streaming", () => {
+describe("GET /download/:token streaming", () => {
   it("sends the first chunk before the store has produced the rest", async () => {
     let clientHasFirst!: () => void;
     const firstArrived = new Promise<void>((resolve) => (clientHasFirst = resolve));
@@ -116,7 +138,7 @@ describe("GET /download/signed/:token streaming", () => {
     expect(res.body.toString()).toBe("first chunk;second chunk");
   });
 
-  it("stays under Node's listener limit on the response (MIKE-BACKEND-5F)", async () => {
+  it("stays under Node's listener limit on the response", async () => {
     const warnings: string[] = [];
     const onWarning = (warning: Error) => warnings.push(warning.name);
     process.on("warning", onWarning);

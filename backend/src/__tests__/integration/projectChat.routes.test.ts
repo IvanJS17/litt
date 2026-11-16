@@ -388,7 +388,7 @@ describe("POST /projects/:projectId/chat", () => {
     );
 
     it.each([
-        ["user", { type: "content", text: "Cancelled by user." }, '"type":"cancelled"'],
+        ["user", { type: "stopped" }, '"type":"cancelled"'],
         ["idle", { type: "error", safe_to_display: true }, '"type":"error"'],
     ] as const)(
         "ends a turn stopped (%s) while its finished answer is being saved as stopped",
@@ -532,7 +532,7 @@ describe("POST /projects/:projectId/chat", () => {
             expect(assistantInserts().at(-1)?.value).toMatchObject({
                 content: [
                     { type: "content", text: "Done" },
-                    { type: "content", text: "Cancelled by user." },
+                    { type: "stopped" },
                 ],
             });
             expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();

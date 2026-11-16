@@ -394,24 +394,6 @@ describe("verifyCitations (batch)", () => {
     expect((out[0] as Record<string, unknown>).verified).toBe(true);
     expect(out[1]).toBe(other);
   });
-
-  it("applies the line-end hyphen rule to CourtListener opinion text", async () => {
-    const opinion = "The duty of indem-\nnification covers pp. 3-\n7 of the record.";
-    const caseQuote = (ref: number, quote: string) => ({
-      type: "citation_data", kind: "case", ref, cluster_id: 7,
-      quotes: [{ opinionId: 3, quote }],
-    });
-    const out = await verifyCitations(
-      [caseQuote(1, "the duty of indemnification"), caseQuote(2, "covers pp. 37 of the record")],
-      fetcherFor({}),
-      async () => [{ opinion_id: 3, text: opinion }],
-    );
-    expect(out[0]).toMatchObject({
-      verified: true,
-      quotes: [{ quote: "The duty of indem-\nnification" }],
-    });
-    expect(out[1]).toMatchObject({ verified: false });
-  });
 });
 
 describe("shared quote normalization", () => {
@@ -423,7 +405,6 @@ describe("shared quote normalization", () => {
       const out = await verifyCitations(
         [docAnnotation([{ page: 1, quote: "the SUPPLIER shall provide" }])],
         async () => source,
-        async () => [],
       );
       expect(out[0]).toMatchObject({ verified: true });
       expect(normalize.mock.calls.filter(([text]) => text === source)).toHaveLength(1);

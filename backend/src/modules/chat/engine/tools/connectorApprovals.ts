@@ -16,7 +16,7 @@ import type {
   McpToolEvent,
 } from "@mike/contracts";
 import { AppError } from "../../../../lib/appError";
-import { reportError } from "../../../../lib/observability/sentry";
+import { reportError } from "../../../../lib/observability/report";
 import type { Db } from "../../../../lib/supabase";
 import type { ConnectorOwner } from "../../../../lib/connectorOwner";
 import type { ConnectorCallPlan } from "../../../../lib/mcp/types";

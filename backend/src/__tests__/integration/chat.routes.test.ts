@@ -3828,7 +3828,7 @@ describe("server-owned turns: resume, stop, concurrency", () => {
         }
 
         it.each([
-            ["user", { type: "content", text: "Cancelled by user." }, '"type":"cancelled"'],
+            ["user", { type: "stopped" }, '"type":"cancelled"'],
             ["idle", { type: "error", safe_to_display: true }, '"type":"error"'],
         ] as const)(
             "ends the turn as stopped (%s) and marks the saved answer, without consolidating memory",
@@ -3914,7 +3914,7 @@ describe("server-owned turns: resume, stop, concurrency", () => {
             ).toMatchObject({
                 content: [
                     { type: "content", text: "Done" },
-                    { type: "content", text: "Cancelled by user." },
+                    { type: "stopped" },
                 ],
             });
             expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
@@ -4005,13 +4005,13 @@ describe("server-owned turns: resume, stop, concurrency", () => {
             // The answer is appended once; the stop adds only its label.
             expect(eventAppends().map(({ args }) => (args as { p_events: unknown }).p_events)).toEqual([
                 [{ type: "content", text: "Done" }],
-                [{ type: "content", text: "Cancelled by user." }],
+                [{ type: "stopped" }],
             ]);
             expect(dbControl.assistantMessageRows?.[0].content).toEqual([
                 expect.objectContaining({ type: "ask_inputs" }),
                 expect.objectContaining({ type: "ask_inputs_response" }),
                 { type: "content", text: "Done" },
-                { type: "content", text: "Cancelled by user." },
+                { type: "stopped" },
             ]);
             expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
         });

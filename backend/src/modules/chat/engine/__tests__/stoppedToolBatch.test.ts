@@ -65,7 +65,6 @@ import {
   runLLMStream,
 } from "../streaming";
 import { createKeyedLock } from "../tools/documentLocks";
-import { emptyToolCallBatchResult } from "../tools/toolBatchResult";
 import { runToolCalls } from "../tools/toolDispatcher";
 
 const cardCall = (id: string) => ({
@@ -123,8 +122,6 @@ function runOne(
     undefined,
     undefined,
     undefined,
-    undefined,
-    undefined,
     options,
   );
 }
@@ -153,8 +150,6 @@ describe("a stopped turn's tool batch", () => {
       "user-1",
       {} as never,
       write,
-      undefined,
-      undefined,
       undefined,
       undefined,
       undefined,
@@ -309,46 +304,6 @@ describe("a batch where a later call rejects", () => {
     expect(editEvents(outcome)).toEqual([
       expect.objectContaining({ document_id: "d1", version_id: "v2" }),
     ]);
-  });
-});
-
-describe("grouped case searches before a rejecting call", () => {
-  it("keeps the searches that finished in the batch result, once", async () => {
-    planConnectorToolCall.mockRejectedValueOnce(new Error("connector planning failed"));
-    const results = emptyToolCallBatchResult();
-    const { docStore, docIndex } = lease();
-    const outcome = await runToolCalls(
-      [
-        { id: "find-1", function: { name: "courtlistener_find_in_case", arguments: JSON.stringify({ cluster_id: 1, query: "damages" }) } },
-        { id: "find-2", function: { name: "courtlistener_find_in_case", arguments: JSON.stringify({ cluster_id: 2, query: "damages" }) } },
-        { id: "mcp-1", function: { name: "mcp_crm_update_record", arguments: JSON.stringify({ id: "r1" }) } },
-      ],
-      docStore,
-      "user-1",
-      {} as never,
-      vi.fn(),
-      undefined,
-      undefined,
-      docIndex,
-      new Map(),
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { results },
-    ).then(
-      () => null,
-      (error: unknown) => error,
-    );
-
-    expect(outcome).toBeInstanceOf(Error);
-    const groups = results.courtlistenerEvents.filter(
-      (event) => event.type === "courtlistener_find_in_case",
-    );
-    expect(groups).toHaveLength(1);
-    expect(groups[0]).toMatchObject({ cluster_id: null });
-    expect((groups[0] as { searches?: unknown[] }).searches).toHaveLength(2);
   });
 });
 

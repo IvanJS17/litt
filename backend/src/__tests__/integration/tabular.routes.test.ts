@@ -2944,7 +2944,7 @@ describe("tabular.routes", () => {
             expect(assistantInsert()).toMatchObject({
                 content: [
                     { type: "content", text: "Late answer" },
-                    { type: "content", text: "Cancelled by user." },
+                    { type: "stopped" },
                 ],
             });
             expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
@@ -3015,7 +3015,7 @@ describe("tabular.routes", () => {
                         payload: expect.objectContaining({
                             content: [
                                 { type: "content", text: "Done" },
-                                { type: "content", text: "Cancelled by user." },
+                                { type: "stopped" },
                             ],
                         }),
                     },

@@ -6,9 +6,9 @@ import { Readable } from "node:stream";
  * Stream `source` into an HTTP response; one call per response.
  *
  * Not `pipeline(source, res)`: that puts 7 'close' listeners on `res`, and
- * Sentry's http integration has already put 4 on every response, so each
+ * Express and its middleware already put 4 on every response, so each
  * streamed download went one over Node's default limit of 10 and raised a
- * MaxListenersExceededWarning (MIKE-BACKEND-5F). This adds one 'close'
+ * MaxListenersExceededWarning. This adds one 'close'
  * listener and keeps what the routes relied on from `pipeline`:
  *
  * - backpressure: a slow client pauses the read from object storage;

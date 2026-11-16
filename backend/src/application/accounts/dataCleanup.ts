@@ -21,8 +21,6 @@ import {
 } from "../../lib/batchedQuery";
 import { checkProjectAccess } from "../../lib/access";
 import { can } from "../../lib/permissions";
-import { checkProjectAccess } from "../../lib/access";
-import { can } from "../../lib/permissions";
 
 // Every `.in()` id list travels in the request URL, for reads, updates and
 // deletes alike. 500 UUIDs is about 18 KB of URL, past the gateway's limit;

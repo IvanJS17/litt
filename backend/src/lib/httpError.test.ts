@@ -284,7 +284,7 @@ describe("sendUpstreamUnavailable", () => {
 describe("withResponseStatus", () => {
   it("names the status of a failure whose PostgREST body is blank", async () => {
     const { asReportableError, withResponseStatus } = await import("./httpError.js");
-    const { diagnosticErrorTags } = await import("./observability/sentryPrivacy.js");
+    const { diagnosticErrorTags } = await import("./observability/diagnostics.js");
     // The gateway's answer while its upstream restarts (seen live): every
     // field blank, so the status is the only thing left to report.
     const blank = { code: "", details: null, hint: null, message: "" };

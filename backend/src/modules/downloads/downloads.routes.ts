@@ -71,7 +71,7 @@ async function sendObject(
     }
     headers();
     try {
-        // Not `pipeline(body, res)`: see pipeToResponse (MIKE-BACKEND-5F).
+        // Not `pipeline(body, res)`: see pipeToResponse.
         await pipeToResponse(body, res);
     } catch (error) {
         if (!(error instanceof StorageOperationError)) {

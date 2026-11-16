@@ -185,7 +185,7 @@ describe("version text extraction", () => {
   it("fails an unreadable document once instead of spending its retries", async () => {
     // JSZip's own rejection of a .docx that is not a ZIP container.
     mocks.docx.mockRejectedValue(new Error("Can't find end of central directory : is this a zip file ?"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const fake = scriptedDb([
       { table: "document_versions", data: version },
       { table: "document_version_texts", op: "update", data: { version_id: "v1" } },
