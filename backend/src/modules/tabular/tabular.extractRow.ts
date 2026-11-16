@@ -31,6 +31,7 @@ import { ExtractionBusyError, ExtractionLimitError } from "../../lib/extraction/
 import { type UserApiKeys } from "../../lib/llm";
 import { queryTabularAllColumns } from "./tabular.extract";
 import { loadRowDocumentText, type ReviewRow } from "./tabular.rows";
+import type { TabularCellCheck } from "./tabular.citationSupport";
 import { type CellResult, type Column, type Db } from "./tabular.shared";
 
 /**
@@ -119,6 +120,11 @@ export async function extractRowColumns(args: {
     /** Queue runners report failed attempts; inline streams report here. */
     reportFailure?: boolean;
     textCache?: TextExtractionCache;
+    /**
+     * Silent citation support check (tabular.citationSupport.ts): told of each
+     * cell this run saved. Never awaited, never throws into the run.
+     */
+    citationCheck?: TabularCellCheck;
 }): Promise<ExtractRowResult> {
     const {
         db,
@@ -233,9 +239,23 @@ export async function extractRowColumns(args: {
                     .eq("review_id", reviewId)
                     .eq("row_id", row.id)
                     .eq("column_index", columnIndex);
-                await (generationId
+                const guarded = generationId
                     ? query.eq("generation_id", generationId)
-                    : query);
+                    : query;
+                if (args.citationCheck) {
+                    // The cell this run still owns (a superseded run matches none).
+                    const saved = await guarded.select("id");
+                    const cellId = (saved.data as { id?: string }[] | null)?.[0]?.id;
+                    if (cellId)
+                        args.citationCheck({
+                            cellId,
+                            result,
+                            markdown,
+                            sourceDocumentIds: row.source_document_ids ?? [],
+                        });
+                } else {
+                    await guarded;
+                }
                 await sink.done(row.id, columnIndex, result);
             },
             apiKeys,

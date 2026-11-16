@@ -3,9 +3,10 @@ import { join, relative, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // The check covers the citations the chat engine verifies (web chat, project
-// chat and the Word add-in). The tabular review builds its citations on
-// another path and the playbooks produce none, so neither may reach
-// lib/citationSupport.
+// chat and the Word add-in) and, through their own adapters, the tabular review
+// (its cells and its chat) and the source quotes of playbook drafts. Each path
+// reaches lib/citationSupport only through its own adapter, so the set of files
+// that can send text to the service stays this short and is pinned here.
 const SRC = resolve(__dirname, "../../..");
 const walk = (dir: string, out: string[] = []): string[] => {
     for (const entry of readdirSync(dir)) {
@@ -17,7 +18,7 @@ const walk = (dir: string, out: string[] = []): string[] => {
 };
 
 describe("where the citation check can be reached from", () => {
-    it("only the chat routes, the chat engine and the setting import it", () => {
+    it("only the chat routes, the chat engine, the tabular and playbook adapters and the setting import it", () => {
         const importers = walk(SRC)
             .filter((file) => !file.startsWith("lib/citationSupport/"))
             .filter((file) => /citationSupport/.test(readFileSync(join(SRC, file), "utf8")))
@@ -26,18 +27,40 @@ describe("where the citation check can be reached from", () => {
             "lib/chatFeatureGates.ts",
             "modules/chat/chat.routes.ts",
             "modules/chat/engine/streaming.ts",
+            "modules/playbooks/playbooks.citationSupport.ts",
+            "modules/playbooks/playbooks.draft.ts",
             "modules/project-chat/projectChat.routes.ts",
+            "modules/tabular/tabular.cells.ts",
+            "modules/tabular/tabular.citationSupport.ts",
+            "modules/tabular/tabular.extractRow.ts",
+            "modules/tabular/tabular.extraction.ts",
+            "modules/tabular/tabular.generateStream.ts",
+            "modules/tabular/tabular.routes.ts",
             "modules/user/user.citationCheck.ts",
             "modules/word-chat/wordChat.routes.ts",
         ]);
-        for (const file of importers) {
-            expect(file).not.toMatch(/tabular|playbook/);
-        }
     });
 
-    it("the tabular and playbook paths never pass the engine's hook", () => {
+    it("only the two adapters import the library itself", () => {
+        const direct = walk(SRC)
+            .filter((file) => /tabular|playbook/.test(file))
+            .filter((file) => /from "\.\.\/\.\.\/lib\/citationSupport"/.test(readFileSync(join(SRC, file), "utf8")))
+            .sort();
+        expect(direct).toEqual([
+            "modules/playbooks/playbooks.citationSupport.ts",
+            "modules/tabular/tabular.citationSupport.ts",
+        ]);
+    });
+
+    it("the tabular and playbook paths never pass the chat engine's hook", () => {
         for (const file of walk(SRC).filter((f) => /tabular|playbook/.test(f))) {
             expect(readFileSync(join(SRC, file), "utf8")).not.toContain("onCitationSupportInputs");
         }
+    });
+
+    it("subagents are never checked: the engine's hook is skipped for them", () => {
+        expect(readFileSync(join(SRC, "modules/chat/engine/streaming.ts"), "utf8")).toMatch(
+            /onCitationSupportInputs && !isSubagent/,
+        );
     });
 });

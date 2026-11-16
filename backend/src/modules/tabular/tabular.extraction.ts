@@ -7,6 +7,7 @@ import { type ExtractionJobData } from "../../lib/queue/extractionQueue";
 import { publishCellUpdate as defaultPublish, type RunProgressUpdate } from "../../lib/queue/runProgress";
 import { assistantStreamErrorPayload } from "../chat/chat.service";
 import { extractRowColumns, finalizeCell } from "./tabular.extractRow";
+import { createTabularCellCheck } from "./tabular.citationSupport";
 import { loadReviewRow } from "./tabular.rows";
 import {
     finishGenerationIfIdle,
@@ -228,6 +229,11 @@ export async function runExtractionJob(
             model: tabular_model,
             apiKeys: api_keys,
             generationId,
+            citationCheck: createTabularCellCheck({
+                db,
+                userId,
+                reviewId,
+            }),
             sink: {
                 generating: (id, columnIndex) =>
                     publish(reviewId, {
