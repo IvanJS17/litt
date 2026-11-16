@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   headFile: vi.fn(),
   downloadFile: vi.fn(),
   createFileReadStream: vi.fn(),
+  openFileStream: vi.fn(),
   // When set, replaces the zip export's per-document access checker.
   accessChecker: null as null | (() => Promise<{ ok: boolean }>),
 }));
@@ -50,6 +51,7 @@ vi.mock("../../lib/storage", async (importOriginal) => ({
   headFile: mocks.headFile,
   downloadFile: mocks.downloadFile,
   createFileReadStream: mocks.createFileReadStream,
+  openFileStream: mocks.openFileStream,
 }));
 
 import { documentsRouter } from "../../modules/documents/documents.routes";
@@ -119,6 +121,9 @@ beforeEach(() => {
   mocks.createFileReadStream.mockImplementation(() =>
     Readable.from([Buffer.from([0x25, 0x50, 0x44])]),
   );
+  mocks.openFileStream.mockImplementation(async () =>
+    Readable.from([Buffer.from([0x25, 0x50, 0x44])]),
+  );
 });
 
 function approve(hash = HASH) {
@@ -155,6 +160,7 @@ describe.each(outputs)("$name", ({ send }) => {
     });
     expect(mocks.getSignedUrl).not.toHaveBeenCalled();
     expect(mocks.createFileReadStream).not.toHaveBeenCalled();
+    expect(mocks.openFileStream).not.toHaveBeenCalled();
     expect(mocks.downloadFile).not.toHaveBeenCalled();
   });
 
