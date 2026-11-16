@@ -2995,7 +2995,7 @@
     "citationCheck": {
       "couldNotUpdate": "Could not update citation checking",
       "enable": "Check my citations with TypeSafe",
-      "help": "For each citation in an answer, LiTT sends TypeSafe AI, Inc., in the United States, the sentence, the quoted text and a short piece of the text around it, without the document's name or any details about you or your firm, to estimate whether the citation supports what is stated. If you turn it off, LiTT stops sending TypeSafe the citations of the answers to your messages.",
+      "help": "For each citation in an answer, a tabular review cell or a playbook draft, LiTT sends TypeSafe AI, Inc., in the United States, the sentence, the quoted text and a short piece of the text around it, without the document's name or any details about you or your firm, to estimate whether the citation supports what is stated. If you turn it off, LiTT stops sending TypeSafe the citations in what the assistant generates at your request.",
       "title": "Citation checking"
     },
     "connectorCard": {

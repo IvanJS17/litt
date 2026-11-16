@@ -2995,7 +2995,7 @@
     "citationCheck": {
       "couldNotUpdate": "No se pudo actualizar la verificación de citas",
       "enable": "Verificar mis citas con TypeSafe",
-      "help": "Por cada cita de una respuesta, LiTT envía a TypeSafe AI, Inc., en Estados Unidos, la oración, el texto citado y un fragmento breve del texto que lo rodea, sin el nombre del documento ni datos tuyos o de tu despacho, para estimar si la cita respalda lo que se afirma. Si lo apagas, LiTT deja de enviar a TypeSafe las citas de las respuestas a tus mensajes.",
+      "help": "Por cada cita de una respuesta, una celda de revisión tabular o un borrador de playbook, LiTT envía a TypeSafe AI, Inc., en Estados Unidos, la oración, el texto citado y un fragmento breve del texto que lo rodea, sin el nombre del documento ni datos tuyos o de tu despacho, para estimar si la cita respalda lo que se afirma. Si lo apagas, LiTT deja de enviar a TypeSafe las citas de lo que el asistente genera a petición tuya.",
       "title": "Verificación de citas"
     },
     "connectorCard": {
