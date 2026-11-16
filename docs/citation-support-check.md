@@ -17,7 +17,7 @@ Design source: the 2026-11-14 report and pilot
 | Server switch | `LITT_CITATION_CHECK=enabled`. Anything else, or unset, is off. On in production since 2026-11-16 (release `20261116a`). Off by default in the repository: `deploy/prod/compose.yaml` and `deploy/prod/.env.example` pass `disabled` unless the operator sets it. |
 | Key | `TYPESAFE_API_KEY`, the **platform's**. There are no per-user or per-firm keys, no per-capability switch and no per-space switch. Without the key the check does not exist and nothing fails. |
 | Who | Everyone who has accepted the current `LEGAL_VERSION`, with a personal **opt-out**: Settings › Privacidad y datos › «Verificar mis citas con TypeSafe» (`user_profiles.citation_check`, on by default). The card is not drawn where the deployment does not run the check. |
-| Where | Every citation the chat engine verifies: the web chat, project chats and the Word add-in (cloud chats). |
+| Where | Every citation the chat engine verifies (the web chat, project chats and the Word add-in cloud chats), the citations of **tabular review cells**, the **tabular review chat**, and the verified **source quotes of playbook drafts**. See «Where it applies». The three newer paths need migration `20261116_10_litt_citation_support_scope.sql` applied before the backend that runs them is deployed. |
 | What the lawyer sees | Nothing changes. |
 
 ### Legal texts (integrated in this change)
@@ -138,24 +138,25 @@ document, matter, firm or user id, name or email, and no custom `User-Agent`.
 
 ## What is stored
 
-`citation_support_checks` (migration `20261114_20_litt_citation_support.sql`):
+`citation_support_checks` (migrations `20261114_20_litt_citation_support.sql` and `20261116_10_litt_citation_support_scope.sql`):
 
 | Column | Meaning |
 | --- | --- |
-| `message_id` / `word_message_id` | The answer: a `chat_messages` row or a `word_chat_messages` row (exactly one). `on delete cascade`. |
+| `message_id` / `word_message_id` / `tabular_cell_id` / `tabular_chat_message_id` / `playbook_id` | The row the result belongs to: a chat message, a Word chat message, a tabular cell, a tabular review chat message or a draft playbook (**exactly one**, `citation_support_checks_one_owner`). Which path a result came from is the column that is set. `on delete cascade` for each. Migration `20261116_10_litt_citation_support_scope.sql`. |
 | `organization_id` | The firm of the space, or null in a personal space. A count reference, not a foreign key. |
 | `citation_ref` | The `[n]` of the citation. |
-| `document_id`, `version_id`, `start_char`, `end_char` | Where the quotes are (offsets, no text). |
+| `document_id`, `version_id`, `start_char`, `end_char` | Where the quotes are (offsets, no text). For a playbook draft, `document_id` is the stored source's id and the offsets are in its text. |
 | `probability`, `band` | Jev's answer and its band. |
 | `model`, `question_version` | The model that answered (the response's own `model`) and the question. |
 | `latency_ms`, `input_tokens` | For cost and speed. |
 
 - **No text** of the claim, the quote or the context, no key, no person.
-- **It lives and dies with the answer.** Deleting the message (or its chat, or
-  the Word chat) deletes the results. It is **not** independent evidence and
+- **It lives and dies with its owner.** Deleting the message (or its chat, or
+  the Word chat), the tabular cell (or its row or review), the review chat
+  message (or its chat) or the draft playbook deletes the results. It is **not** independent evidence and
   not part of the insert-only AI/audit records; rows are only never *updated*
   (a trigger refuses it).
-- Unique per `(answer, citation_ref, question_version)`.
+- Unique per `(owner, citation_ref, question_version)` (one partial index per owner column).
 - RLS is on and the only policies are the backend's (`service_role`); the
   browser roles have no grant. The migration also adds
   `user_profiles.citation_check boolean not null default true`.
@@ -169,16 +170,52 @@ day** over the last 30 days, with a total row (`citation_check` in
 
 ## Where it applies, and where it does not
 
-- **Connected:** `modules/chat/chat.routes.ts`, `project-chat/projectChat.routes.ts`
-  and `word-chat/wordChat.routes.ts` pass the engine's
-  `onCitationSupportInputs` hook (`modules/chat/engine/streaming.ts`, only
-  where `verifyCitations` ran and never for subagents).
-- **Not connected, on purpose:** the **tabular review** builds its citations
-  with its own builder (`buildCitations`), which bypasses `verifyCitations`:
-  it is another path, with another shape. **Playbooks** produce no citations
-  through this verifier. Word chats kept only on the device (no saved message)
-  are not checked, because there is no answer to attach the result to.
-  `__tests__/scope.test.ts` pins this.
+Every path uses the same code (`lib/citationSupport`: the runner, the inputs,
+the TypeSafe client) and the same rules: the platform key, the server switch,
+the opt-out and acceptance of **the person whose action triggered the
+generation**, the same payload, the same question and model, silent, after the
+result is saved, never awaited. Each path has a thin adapter that builds the
+inputs from what it already holds.
+
+| Path | Adapter | What is checked | Owner of the result (`citation_support_checks`) |
+| --- | --- | --- | --- |
+| Web chat, project chats, cloud Word chat | `engine/streaming.ts` hook `onCitationSupportInputs` (only where `verifyCitations` ran, never for subagents) | each verified document citation | `message_id` / `word_message_id` |
+| Tabular review **cells** | `modules/tabular/tabular.citationSupport.ts`, called from `extractRowColumns` (the generate stream and the extraction worker) and from the single-cell regenerate | each inline `[[document:ID\|\|page:N\|\|quote:…]]` of the cell's summary and reasoning whose quote is found in the source document the row holds | `tabular_cell_id` |
+| Tabular review **chat** | `checkTabularChatCitations`, after `saveTabularChatTurn` | each `<CITATIONS>` entry whose quote is found in the cited cell | `tabular_chat_message_id` |
+| **Playbook drafts** | `modules/playbooks/playbooks.citationSupport.ts`, after the draft is saved in `compilePlaybookDraft` | each rule with `origin.kind = "clause"` and each `legalRefs` entry that `verifyDraftProvenance` kept as verified, and whose quote is located in the attachment | `playbook_id` (the draft) |
+
+Per path:
+
+- **Cells.** Claim: the sentence of the cell text that carries the marker (the
+  citation markers become plain `[n]` and the chat's `claimForRef` finds the
+  sentence). Quote: the cited text, as found in the document. Context: the
+  quote's paragraph in the cited document's text (the row's own source text,
+  already in memory), capped at 1,400 characters. A citation without a document
+  id belongs to the row's only document, or is skipped. A quote the server
+  cannot find in the document is skipped, as in the chat. `citation_ref` is the
+  marker's order in the cell (summary first, then reasoning). A cell is
+  regenerated in place, so the check of its previous content is deleted before
+  the new one is written (the only place the table is ever deleted from besides
+  the cascade; `service_role` has `delete` for it).
+- **Tabular chat.** The chat's citations quote the review's **own cells**, not
+  the source documents. The claim is the answer's sentence with the marker, the
+  quote is the cited cell text, and the context is that cell's paragraph (the
+  cell's words, without its citation markers). This tests whether the assistant
+  represented the cell faithfully, not whether the cell is right about the
+  contract (the cell check does that).
+- **Playbook drafts.** Claim: the rule's name and its standard's criteria (or
+  its concept, or its guidance), clipped; for a legal reference, the rule's name
+  and the reference text. Quote: the verified quote. Context: the attachment's
+  text around it (`locateQuoteInSource` finds it under the same comparison as
+  `verifyDraftProvenance`, without accents or case). `document_id` holds the
+  stored playbook source id. A rule from the questionnaire (`origin.kind =
+  "answer"`) or from general practice has no quote and is not checked. The
+  correction-based and proposal paths (`playbooks.corrections.ts`,
+  `playbooks.proposals.ts`) are not connected.
+- **Not checked:** Word chats kept only on the device (no saved message), and
+  anything whose quote the server could not place in a text.
+
+`__tests__/scope.test.ts` pins which files may reach the library.
 
 ## Not done / next
 

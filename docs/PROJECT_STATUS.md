@@ -45,8 +45,10 @@
   (`LITT_CITATION_CHECK=enabled`). Covers the web chat, project chats and cloud
   Word chat; each person can opt out in Settings → Privacy and data; results go
   to `citation_support_checks` for the beta statistics and the lawyer sees
-  nothing. `LEGAL_VERSION` is `2026-11-15`. Tabular review and playbooks are not
-  connected ([`citation-support-check.md`](citation-support-check.md)).
+  nothing. `LEGAL_VERSION` is `2026-11-15`. Tabular review (cells and chat) and
+  playbook drafts are connected in code, pending the owner's confirmation of the
+  legal wording and the migration `20261116_10`
+  ([`citation-support-check.md`](citation-support-check.md)).
 - **Google connectors** (#200): the Google variables are passed to the backend
   in `deploy/prod/compose.yaml` and Drive is off by default, but there is **no
   OAuth client yet**, so nobody can connect Google. The owner postponed Google
@@ -60,8 +62,9 @@
 Tracked in [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md) and [`followups.md`](followups.md).
 The ones that matter now:
 
-- Connect tabular review and playbooks to the citation check, or decide not to
-  (TD-047); showing the result to the lawyer needs its own legal text.
+- Confirm that the legal wording covers the tabular and playbook citation
+  checks before deploying them (TD-047); showing the result to the lawyer needs
+  its own legal text.
 - Two frontend tests are flaky under load (TD-046).
 - PostgREST memory growth is contained, not fixed; root cause is upstream (TD-048).
 - Google: create the OAuth client and verify scopes before enabling any service.
