@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 async function setUp(page: Page, opts: { locale: "es-MX" | "en-US"; theme: "light" | "dark"; session?: boolean }) {
     const { baseURL } = test.info().project.use;
     const url = baseURL ?? "http://localhost:3000";
-    const cookies = [{ name: "LITT_LOCALE", value: opts.locale, url }];
+    const cookies: { name: string; value: string; url: string }[] = [{ name: "LITT_LOCALE", value: opts.locale, url }];
     if (opts.session) cookies.push({ name: "mike-session", value: "x", url });
     await page.context().addCookies(cookies);
     await page.addInitScript((theme) => window.localStorage.setItem("litt:theme", theme), opts.theme);

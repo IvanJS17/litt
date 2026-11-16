@@ -189,4 +189,3 @@ export function LandingPage({ signedIn }: { signedIn: boolean }) {
         </div>
     );
 }
-

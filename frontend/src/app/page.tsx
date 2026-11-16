@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
 import { LandingPage } from "@/app/components/landing/LandingPage";
 import { hasSessionCookie } from "@/app/lib/sessionHint";
+import { SITE_URL } from "@/app/lib/siteUrl";
 
 // The public address (the same one app/layout.tsx puts in `metadataBase`).
-const SITE_URL = "https://litt.asteroitt.com";
 
 /**
  * The start page's own title and description (the root layout's template would

@@ -8,9 +8,9 @@
  *    the OTHER theme on its own container, so no component needs `dark:`;
  *  - the three small motions (verification, source swap, theme change).
  *
- * No color is declared here: every value below is a token that DesignTokensUI.css
- * already defines, reassigned in one scope. landing.tokens.test.ts keeps the
- * two in step.
+ * The only colors declared here are copies of the other theme's tokens from
+ * DesignTokensUI.css, reassigned in one scope for the inverted band.
+ * landing.styles.test.ts keeps the two in step.
  */
 
 /* ───────── Anchors and page rhythm ───────── */

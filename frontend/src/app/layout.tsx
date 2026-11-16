@@ -13,10 +13,10 @@ import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
 import { TEXT_SIZE_BOOT_SCRIPT } from "@/app/lib/textSize";
 import { TITLE_TEMPLATE } from "@/app/lib/documentTitle";
 import { SEARCH_INDEXING_ALLOWED } from "@/app/lib/searchIndexing";
+import { SITE_URL } from "@/app/lib/siteUrl";
 
 // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream, is
 // credited in the README.
-const SITE_URL = "https://litt.asteroitt.com";
 
 // `cover` lets the page reach under the notch and the home indicator, so the
 // safe-area insets (env(safe-area-inset-*)) start to mean something: the

@@ -1015,9 +1015,13 @@ server decides it from the session cookie (`lib/sessionHint.ts`), so the HTML
 already has the right one. The design is the owner-approved SPEC of
 2026-11-16; what matters for the next change:
 
-- **Tokens only.** No hex color, no `blue`, `amber-`, `orange-` or `green-`
-  class, no `dark:` per component (`landing.styles.test.ts` checks it). The one
-  amber outside the wordmark is the focus ring (`--litt-accent`).
+- **Tokens only.** Components use no hex color and no `blue`, `amber-`,
+  `orange-` or `green-` class (`landing.styles.test.ts` checks it). The only hex
+  values are in `landing/landing.css`: copies of the other theme's tokens for the
+  inverted band, pinned value by value by the same test. `dark:` appears only in
+  the header's sun/moon swap and in `CitationSpecimen` (to override
+  `CitationPillUI`'s own `dark:` classes). The one amber outside the wordmark is
+  the focus ring (`--litt-accent`).
 - **The inverted band** (SEGUNDO · Próximamente) takes the tokens of the other
   theme on its own container: `.landing-band` in `landing/landing.css`
   reassigns `--surface-*`, `--foreground`, `--muted-foreground`,
