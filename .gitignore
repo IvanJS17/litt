@@ -11,6 +11,9 @@ build
 !.env.local.example
 
 *.log
+*.hosted.bak
+*.orig
+*.rej
 *.raw-llm-stream.json
 *.tsbuildinfo
 next-env.d.ts
