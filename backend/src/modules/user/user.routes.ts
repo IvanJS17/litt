@@ -578,13 +578,13 @@ userRouter.patch(
 // runs the silent citation check, and whether this person left it on.
 // PUT /user/citation-check — { enabled: boolean }: the personal opt-out.
 userRouter.get("/citation-check", requireAuth, asyncRoute(async (_req, res) => {
-    setOperation("settings.privacy");
+    setOperation("settings.profile");
     const result = await getCitationCheckSetting(createServerSupabase(), res.locals.userId as string);
     if (!result.ok) return sendServiceFailure(res, result);
     res.json(result.data);
 }));
 userRouter.put("/citation-check", requireAuth, asyncRoute(async (req, res) => {
-    setOperation("settings.privacy");
+    setOperation("settings.profile");
     const result = await updateCitationCheckSetting(
         createServerSupabase(),
         res.locals.userId as string,

@@ -49,7 +49,7 @@ import {
   submitClientToolResult,
 } from "../chat/chat.service";
 import { enqueueChatTurnAudit } from "../../lib/audit";
-import { parseCredentialRef } from "../user/user.service";
+import { LEGAL_VERSION, parseCredentialRef } from "../user/user.service";
 import { setOperation, isReported, reportError } from "../../lib/observability/report";
 import {
   persistWordDocumentEdits,
@@ -848,7 +848,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     );
     // Silent citation support check (lib/citationSupport); null unless on for this person.
     const citationSupport = persistChat
-      ? await createCitationSupportTurn({ db, userId, orgId: null, surface: "word" })
+      ? await createCitationSupportTurn({ db, userId, orgId: null, surface: "word", legalVersion: LEGAL_VERSION })
       : null;
     const { fullText, events, citations } = await runLLMStream({
       onCitationSupportInputs: citationSupport?.collect,

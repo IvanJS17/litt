@@ -203,7 +203,11 @@ describe("runCitationSupportChecks", () => {
 
 
 // A db that serves the person's preference row and records the evidence.
-function turnDb(citationCheck: boolean | null, extra: { insertError?: { code: string } | null } = {}) {
+const LEGAL = "2026-11-15";
+function turnDb(
+    citationCheck: boolean | null,
+    extra: { insertError?: { code: string } | null; accepted?: string | null } = {},
+) {
     const inserted = memoryDb(extra.insertError ?? null);
     const db = {
         from(table: string) {
@@ -212,7 +216,13 @@ function turnDb(citationCheck: boolean | null, extra: { insertError?: { code: st
                     select: () => ({
                         eq: () => ({
                             maybeSingle: async () => ({
-                                data: citationCheck === null ? null : { citation_check: citationCheck },
+                                data:
+                                    citationCheck === null
+                                        ? null
+                                        : {
+                                              citation_check: citationCheck,
+                                              terms_accepted_version: extra.accepted === undefined ? LEGAL : extra.accepted,
+                                          },
                                 error: null,
                             }),
                         }),
@@ -234,7 +244,7 @@ function turnDb(citationCheck: boolean | null, extra: { insertError?: { code: st
 
 describe("createCitationSupportTurn", () => {
     const make = (db: never, fetchImpl = vi.fn(async () => jevAnswer(0.2)), orgId: string | null = "org-1") =>
-        createCitationSupportTurn({ db, userId: "u", orgId, surface: "chat", deps: deps(fetchImpl) });
+        createCitationSupportTurn({ db, userId: "u", orgId, surface: "chat", legalVersion: LEGAL, deps: deps(fetchImpl) });
 
     it("does not exist while the server switch is off or without the platform key: nothing is read, asked or written", async () => {
         const { db, tables } = turnDb(true);
@@ -256,9 +266,26 @@ describe("createCitationSupportTurn", () => {
         expect(tables).toEqual([]);
     });
 
-    it("is on for a person who never chose (no row value) and for one who left it on", async () => {
+    it("is on for a person who left it on and accepted the current legal version", async () => {
         expect(await make(turnDb(true).db)).not.toBeNull();
-        expect(await make(turnDb(null).db)).not.toBeNull();
+    });
+
+    it("never sends a citation of a person who has not accepted the current LEGAL_VERSION (socium-legal C1)", async () => {
+        const fetchImpl = vi.fn(async () => jevAnswer(0.2));
+        for (const accepted of [null, "", "2026-11-13.2", "2026-11-14", "2026-11-15.2", "old"]) {
+            const { db, rows } = turnDb(true, { accepted });
+            expect(await make(db, fetchImpl)).toBeNull();
+            expect(rows).toEqual([]);
+        }
+        // No profile row at all: no doubt is resolved in favour of sending.
+        expect(await make(turnDb(null).db, fetchImpl)).toBeNull();
+        expect(fetchImpl).not.toHaveBeenCalled();
+        // The same person, once they accept the current version.
+        expect(await make(turnDb(true, { accepted: LEGAL }).db, fetchImpl)).not.toBeNull();
+    });
+
+    it("an opt-out wins over an accepted version", async () => {
+        expect(await make(turnDb(false, { accepted: LEGAL }).db)).toBeNull();
     });
 
     it("writes no evidence without a saved answer or without citations", async () => {

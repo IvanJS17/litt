@@ -58,7 +58,7 @@ import { generateAssistantChatTitle, logChatTitleFailure } from "./chat.title";
 import { sendInternalError } from "../../lib/httpError";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { titleModelForChat } from "../../lib/modelSelection";
-import { parseCredentialRef } from "../user/user.service";
+import { LEGAL_VERSION, parseCredentialRef } from "../user/user.service";
 import {
     releaseMemoryConversationTurn,
     scheduleMemoryConsolidation,
@@ -783,6 +783,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 userId,
                 orgId,
                 surface: "chat",
+                legalVersion: LEGAL_VERSION,
             });
             const { fullText, events, citations } = await runLLMStream({
                 onCitationSupportInputs: citationSupport?.collect,

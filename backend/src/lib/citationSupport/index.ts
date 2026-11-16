@@ -14,7 +14,7 @@ export {
     MAX_CONTEXT_CHARS,
     type CitationSupportInput,
 } from "./inputs";
-export { citationCheckWanted, setCitationCheckWanted } from "./preference";
+export { citationCheckPermitted, citationCheckWanted, setCitationCheckWanted } from "./preference";
 export {
     askCitationSupport,
     CitationSupportError,

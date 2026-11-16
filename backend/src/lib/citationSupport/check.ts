@@ -2,7 +2,7 @@
 //
 // After an assistant answer with citations is saved, and only when the server
 // switch LITT_CITATION_CHECK is `enabled`, the platform has a TYPESAFE_API_KEY
-// and the person has not opted out, each citation is checked in the
+// the person has not opted out and has accepted the current LEGAL_VERSION, each citation is checked in the
 // background: one request per citation, in parallel, and the result is
 // written to citation_support_checks as numbers and references. Nothing is
 // shown to the lawyer and nothing waits for it; a failure leaves one
@@ -13,7 +13,7 @@ import { reportError } from "../observability/report";
 import type { Db } from "../supabase";
 import { citationCheckApiKey } from "../chatFeatureGates";
 import { teamOrgIdOf } from "../personalOrgs";
-import { citationCheckWanted } from "./preference";
+import { citationCheckPermitted } from "./preference";
 import type { CitationSupportInput } from "./inputs";
 import {
     askCitationSupport,
@@ -139,7 +139,8 @@ export type CitationSupportTurn = {
 
 /**
  * The check for one answer, or null when it does not exist for it: the server
- * switch is off, there is no platform key, or the person opted out. Nothing
+ * switch is off, there is no platform key, the person opted out, or they have
+ * not accepted the current legal version. Nothing
  * is read or sent in those cases.
  */
 export async function createCitationSupportTurn(args: {
@@ -148,12 +149,14 @@ export async function createCitationSupportTurn(args: {
     /** The conversation's organization (a personal organization counts as none). */
     orgId: string | null | undefined;
     surface: "chat" | "word";
+    /** The current LEGAL_VERSION: only people who accepted it are ever sent. */
+    legalVersion: string;
     deps?: SupportDeps;
 }): Promise<CitationSupportTurn | null> {
     const apiKey = citationCheckApiKey();
     if (!apiKey) return null;
     try {
-        if (!(await citationCheckWanted(args.db, args.userId))) return null;
+        if (!(await citationCheckPermitted(args.db, args.userId, args.legalVersion))) return null;
     } catch {
         return null; // Silent mode: a failed preference read is "no check".
     }

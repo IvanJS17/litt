@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { citationCheckWanted, setCitationCheckWanted } from "../preference";
+import { citationCheckPermitted, citationCheckWanted, setCitationCheckWanted } from "../preference";
 
 const dbWith = (result: { data?: unknown; error?: { code?: string } | null }) =>
     ({
@@ -28,5 +28,20 @@ describe("setCitationCheckWanted", () => {
     it("says whether a profile was updated", async () => {
         expect(await setCitationCheckWanted(dbWith({ data: [{ user_id: "u" }] }), "u", false)).toBe(true);
         expect(await setCitationCheckWanted(dbWith({ data: [] }), "u", false)).toBe(false);
+    });
+});
+
+describe("citationCheckPermitted", () => {
+    const row = (citation_check: unknown, terms_accepted_version: unknown) => dbWith({ data: { citation_check, terms_accepted_version } });
+    it("needs no opt-out and the current legal version", async () => {
+        expect(await citationCheckPermitted(row(true, "v2"), "u", "v2")).toBe(true);
+        expect(await citationCheckPermitted(row(false, "v2"), "u", "v2")).toBe(false);
+        expect(await citationCheckPermitted(row(true, "v1"), "u", "v2")).toBe(false);
+        expect(await citationCheckPermitted(row(true, null), "u", "v2")).toBe(false);
+    });
+    it("reads any doubt as no", async () => {
+        expect(await citationCheckPermitted(dbWith({ data: null }), "u", "v2")).toBe(false);
+        expect(await citationCheckPermitted(dbWith({ error: { code: "42703" } }), "u", "v2")).toBe(false);
+        expect(await citationCheckPermitted(dbWith({ error: { code: "XX000" } }), "u", "v2")).toBe(false);
     });
 });
