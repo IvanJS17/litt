@@ -1318,8 +1318,21 @@ export async function appendAskInputsResponseToAssistantMessage(
         : "failed";
 }
 
+/** The stored outcome of an explicit Stop or a stream deadline. */
+export function buildStoppedAssistantEvent(
+  stopReason?: StreamStopReason | null,
+): AssistantEvent {
+  return !stopReason || stopReason === "user"
+    ? { type: "content", text: "Cancelled by user." }
+    : {
+        type: "error",
+        message: deadlineMessage(stopReason),
+        safe_to_display: true,
+      };
+}
+
 export function appendCancelledAssistantEvent(events: AssistantEvent[]) {
-  return [...events, { type: "stopped" as const }];
+  return [...events, buildStoppedAssistantEvent("user")];
 }
 
 export function buildCancelledAssistantMessage(args: {
@@ -1342,15 +1355,9 @@ export function buildStoppedAssistantMessage(
     stopReason?: StreamStopReason | null;
   },
 ) {
-  if (!args.stopReason || args.stopReason === "user")
-    return buildCancelledAssistantMessage(args);
   const events: AssistantEvent[] = [
     ...stripTransientAssistantEvents(args.events),
-    {
-      type: "error",
-      message: deadlineMessage(args.stopReason),
-      safe_to_display: true,
-    },
+    buildStoppedAssistantEvent(args.stopReason),
   ];
   return { events, citations: args.buildCitations(args.fullText, events) };
 }

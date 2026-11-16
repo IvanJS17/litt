@@ -24,6 +24,7 @@ const {
     beginMemoryConversationTurn,
     releaseMemoryConversationTurn,
     scheduleMemoryConsolidation,
+    generateChatTitle,
 } = vi.hoisted(() => ({
     ensureReviewAccess: vi.fn(),
     checkProjectAccess: vi.fn(),
@@ -44,6 +45,8 @@ const {
         job_id: "job-1",
         generation: 1,
     }),
+    // A chat's first exchange is titled by a model call; no title by default.
+    generateChatTitle: vi.fn().mockResolvedValue(null),
 }));
 
 // ---------------------------------------------------------------------------
@@ -66,6 +69,7 @@ let supabaseState: {
     tables: Record<string, QueryResult | QueryResult[]>;
     inserts: { table: string; payload: unknown }[];
     updates: { table: string; payload: unknown }[];
+    assistantInsertGate: Promise<void> | null;
 };
 
 function resetSupabaseState() {
@@ -76,6 +80,7 @@ function resetSupabaseState() {
         tables: {},
         inserts: [],
         updates: [],
+        assistantInsertGate: null,
     };
 }
 resetSupabaseState();
@@ -125,8 +130,12 @@ function makeQuery(table: string) {
     "contains",
     ];
     for (const m of chain) q[m] = vi.fn(() => q);
+    let assistantInsert = false;
     q.insert = vi.fn((payload: unknown) => {
         supabaseState.inserts.push({ table, payload });
+        assistantInsert =
+            table === "tabular_review_chat_messages" &&
+            (payload as { role?: unknown }).role === "assistant";
         return q;
     });
     // Update payloads are recorded alongside inserts: what a route writes on
@@ -145,11 +154,18 @@ function makeQuery(table: string) {
     resolve: (v: unknown) => unknown,
     reject?: (e: unknown) => unknown,
   ) => {
-    const result = resultForTable(table);
-    return Promise.resolve({
-      ...result,
-      count: Array.isArray(result.data) ? result.data.length : 0,
-    }).then(resolve, reject);
+    // A test can hold the assistant answer's insert open to land a Stop
+    // while the turn is being saved.
+    const gate = assistantInsert ? supabaseState.assistantInsertGate : null;
+    return (gate ?? Promise.resolve())
+      .then(() => {
+        const result = resultForTable(table);
+        return {
+          ...result,
+          count: Array.isArray(result.data) ? result.data.length : 0,
+        };
+      })
+      .then(resolve, reject);
   };
     return q;
 }
@@ -212,6 +228,13 @@ vi.mock("../../modules/tabular/tabular.extractRow", async (importOriginal) => ({
         typeof import("../../modules/tabular/tabular.extractRow")
     >()),
     extractRowColumns: (...args: unknown[]) => extractRowColumns(...args),
+}));
+
+vi.mock("../../modules/tabular/tabular.extract", async (importOriginal) => ({
+    ...(await importOriginal<
+        typeof import("../../modules/tabular/tabular.extract")
+    >()),
+    generateChatTitle: (...args: unknown[]) => generateChatTitle(...args),
 }));
 
 vi.mock("../../lib/memory/schedule", () => ({
@@ -2187,6 +2210,37 @@ describe("tabular.routes", () => {
             }
         });
 
+        it("tells the grid a rejected key is the key, using the provider layer's real error", async () => {
+            const { APICallError } = await import("ai");
+            const { toProviderStreamError } = await import("../../lib/llm/providerErrors.js");
+            const rejected = toProviderStreamError(
+                new APICallError({
+                    message: "PRIVATE provider text: invalid x-api-key",
+                    url: "https://api.example.test/v1/messages",
+                    requestBodyValues: {},
+                    statusCode: 401,
+                }),
+                { label: "Anthropic", modelId: "claude-sonnet-5-5", keySource: "user" },
+            );
+            extractRowColumns.mockImplementationOnce(async (raw: unknown) => {
+                const args = raw as ExtractArgs;
+                return { processed: args.columns, received: new Set<number>(), missing: [0], error: rejected };
+            });
+
+            const res = await startGeneration();
+
+            expect(res.status).toBe(200);
+            const errorRecord = records(res.text).find((record) => record.includes('"type":"error"'));
+            expect(errorRecord).toBeDefined();
+            expect(JSON.parse(errorRecord!.slice(errorRecord!.indexOf("data: ") + 6))).toMatchObject({
+                type: "error",
+                message: rejected.message,
+                safe_to_display: true,
+                code: "invalid_api_key",
+            });
+            expect(res.text).not.toContain("PRIVATE provider text");
+        });
+
         it("keeps extracting after the requesting socket closes, and a reload attaches from where it left off", async () => {
             const held = heldExtraction();
             const first = startGeneration();
@@ -2859,6 +2913,125 @@ describe("tabular.routes", () => {
             held.release();
             expect((await firstDone).text).toContain("data: [DONE]");
             expect(runLLMStream).toHaveBeenCalledTimes(1);
+        });
+
+        it("stores a stream that returns after Stop as stopped, not as a completed answer", async () => {
+            const started = new Promise<StreamParams>((resolve) => {
+                runLLMStream.mockImplementation(async (raw: unknown) => {
+                    const params = raw as StreamParams;
+                    resolve(params);
+                    await new Promise<void>((done) =>
+                        params.signal?.addEventListener("abort", () => done(), {
+                            once: true,
+                        }),
+                    );
+                    // Ignores the abort and returns the whole answer anyway.
+                    return {
+                        fullText: "Late answer",
+                        events: [{ type: "content", text: "Late answer" }],
+                    };
+                });
+            });
+            const firstDone = send().then((res) => res);
+            await started;
+            const turnId = await activeTurnId();
+            const { getAssistantTurnRun } =
+                await import("../../lib/assistantTurnRuns.js");
+            getAssistantTurnRun(turnId, "tabular")!.stop();
+
+            const text = (await firstDone).text;
+            expect(text).toContain('"type":"cancelled"');
+            expect(assistantInsert()).toMatchObject({
+                content: [
+                    { type: "content", text: "Late answer" },
+                    { type: "content", text: "Cancelled by user." },
+                ],
+            });
+            expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
+        });
+
+        describe("a Stop that lands after the answer is generated", () => {
+            /**
+             * Runs a first exchange (so the chat would be titled) whose answer
+             * is already generated, holds the given step open, presses Stop
+             * during it, then lets the step finish.
+             */
+            async function stopDuring(step: "save" | "title") {
+                supabaseState.tables.tabular_review_chats = {
+                    data: { ...CHAT_ROW, title: null },
+                    error: null,
+                };
+                let release!: () => void;
+                const held = new Promise<void>((resolve) => {
+                    release = resolve;
+                });
+                let reached = false;
+                if (step === "save") {
+                    supabaseState.assistantInsertGate = held.then(() => {});
+                } else {
+                    generateChatTitle.mockImplementationOnce(async () => {
+                        reached = true;
+                        await held;
+                        return "A title";
+                    });
+                }
+                runLLMStream.mockResolvedValue({
+                    fullText: "Done",
+                    events: [{ type: "content", text: "Done" }],
+                });
+                const response = send().then((res) => res);
+                await vi.waitFor(() => {
+                    expect(step === "save" ? assistantInsert() : reached).toBeTruthy();
+                });
+                const turnId = await activeTurnId();
+                const { getAssistantTurnRun } =
+                    await import("../../lib/assistantTurnRuns.js");
+                getAssistantTurnRun(turnId, "tabular")!.stop();
+                release();
+                return (await response).text;
+            }
+
+            const stoppedUpdates = () =>
+                supabaseState.updates.filter(
+                    ({ table }) => table === "tabular_review_chat_messages",
+                );
+            const assistantInsertCount = () =>
+                supabaseState.inserts.filter(
+                    ({ table, payload }) =>
+                        table === "tabular_review_chat_messages" &&
+                        (payload as { role?: unknown }).role === "assistant",
+                ).length;
+
+            it("ends a turn stopped while its answer is saved as stopped: stored once, labelled, untitled, not curated", async () => {
+                const text = await stopDuring("save");
+
+                expect(text).toContain('"type":"cancelled"');
+                expect(text.split("data: [DONE]").length - 1).toBe(1);
+                // Inserted once as the finished answer, then marked as stopped.
+                expect(assistantInsertCount()).toBe(1);
+                expect(stoppedUpdates()).toEqual([
+                    {
+                        table: "tabular_review_chat_messages",
+                        payload: expect.objectContaining({
+                            content: [
+                                { type: "content", text: "Done" },
+                                { type: "content", text: "Cancelled by user." },
+                            ],
+                        }),
+                    },
+                ]);
+                expect(generateChatTitle).not.toHaveBeenCalled();
+                expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
+            });
+
+            it("ends a turn stopped while its title is generated as stopped, and does not curate it", async () => {
+                const text = await stopDuring("title");
+
+                expect(text).toContain('"type":"cancelled"');
+                expect(assistantInsertCount()).toBe(1);
+                expect(stoppedUpdates()).toHaveLength(1);
+                expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
+            });
         });
 
         it.each(["user", "idle", "max_lifetime"] as const)(

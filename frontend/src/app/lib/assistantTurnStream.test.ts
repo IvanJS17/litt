@@ -168,6 +168,26 @@ describe("consumeAssistantTurnStream", () => {
     ]);
     turn.finish();
   });
+
+  it("shows an edit that was still running when the turn was stopped as stopped", async () => {
+    const turn = begin();
+    const sink = createTurnEventSink(turn, []);
+    await consumeAssistantTurnStream(
+      sseResponse([
+        frame(1, { type: "doc_edited_start", filename: "brief.docx" }),
+        frame(2, { type: "cancelled" }),
+        "data: [DONE]\n\n",
+      ]),
+      { turn, sink, cursor: createTurnCursor("chat-a") },
+    );
+    expect(turn.turn.assistant.events?.[0]).toMatchObject({
+      type: "doc_edited",
+      filename: "brief.docx",
+      interrupted: true,
+    });
+    expect(turn.turn.assistant.events?.[0]).not.toHaveProperty("isStreaming");
+    turn.finish();
+  });
 });
 
 describe("readAssistantTurn", () => {
@@ -545,6 +565,88 @@ describe("error frames", () => {
       },
     ]);
     turn.finish();
+  });
+
+  it("ends tool steps still in progress, as a deadline's error ends the turn", async () => {
+    expect(
+      await eventsOf([
+        { type: "doc_created_start", filename: "memo.docx" },
+        { type: "doc_replicate_start", filename: "answer.docx", count: 2 },
+        { type: "doc_edited_start", filename: "brief.docx" },
+        {
+          type: "error",
+          message: "The request timed out because it stopped responding. Please try again.",
+          safe_to_display: true,
+        },
+      ]),
+    ).toEqual([
+      { type: "doc_created", filename: "memo.docx", download_url: "", interrupted: true },
+      { type: "doc_replicated", filename: "answer.docx", count: 2, interrupted: true },
+      {
+        type: "doc_edited",
+        filename: "brief.docx",
+        document_id: "",
+        version_id: "",
+        download_url: "",
+        annotations: [],
+        interrupted: true,
+      },
+      {
+        type: "error",
+        message: "The request timed out because it stopped responding. Please try again.",
+        safe_to_display: true,
+      },
+    ]);
+  });
+
+  it("keeps a step that reported its result as done when the turn then fails", async () => {
+    const [edited] = (await eventsOf([
+      { type: "doc_edited_start", filename: "brief.docx" },
+      { type: "doc_edited", filename: "brief.docx", document_id: "doc-1", version_id: "ver-2" },
+      { type: "error", message: "boom" },
+    ])) ?? [];
+    expect(edited).toMatchObject({ type: "doc_edited", document_id: "doc-1", isStreaming: false });
+    expect(edited).not.toHaveProperty("interrupted");
+  });
+
+  // Every other kind of step a turn can end on before its result arrives.
+  const unfinishedSteps: [string, Frame, string][] = [
+    ["a connector call", { type: "mcp_tool_start", name: "crm_update_record" }, "mcp_tool_call"],
+    ["a case law search", { type: "courtlistener_search_case_law_start", query: "fair use" }, "courtlistener_search_case_law"],
+    ["a case fetch", { type: "courtlistener_get_cases_start", cluster_ids: [1, 2] }, "courtlistener_get_cases"],
+    ["a search in a case", { type: "courtlistener_find_in_case_start", cluster_id: 1, query: "damages" }, "courtlistener_find_in_case"],
+    ["a case read", { type: "courtlistener_read_case_start", cluster_id: 1 }, "courtlistener_read_case"],
+    ["a citation check", { type: "courtlistener_verify_citations_start", citation_count: 3 }, "courtlistener_verify_citations"],
+    ["a document read", { type: "doc_read_start", filename: "brief.docx" }, "doc_read"],
+    ["a document find", { type: "doc_find_start", filename: "brief.docx", query: "term" }, "doc_find"],
+    ["a document search", { type: "doc_search_start", search_id: "s1", scope: "project", query: "term", offset: 0 }, "doc_search"],
+    ["a web search", { type: "web_search_start", search_id: "w1", query: "news" }, "web_search"],
+    ["a web read", { type: "web_read_start", read_id: "r1", url: "https://example.com/a" }, "web_read"],
+    ["a subagent", { type: "delegation_start", delegation_id: "d1", title: "Research", task: "Find cases" }, "delegation"],
+  ];
+  const ending: [string, Frame][] = [
+    ["a deadline's error", { type: "error", message: "timed out", safe_to_display: true }],
+    ["Stop", { type: "cancelled" }],
+  ];
+
+  it.each(
+    unfinishedSteps.flatMap(([label, start, type]) =>
+      ending.map(([end, frame]) => [label, end, start, frame, type] as const),
+    ),
+  )("shows %s that %s ended before its result as stopped", async (_label, _end, start, end, type) => {
+    const step = ((await eventsOf([start, end])) ?? []).find((e) => e.type === type);
+    expect(step).toMatchObject({ type, interrupted: true });
+    expect(step).not.toHaveProperty("isStreaming");
+  });
+
+  it("keeps a search that reported its results as done when the turn is then stopped", async () => {
+    const search = ((await eventsOf([
+      { type: "web_search_start", search_id: "w1", query: "news" },
+      { type: "web_search", search_id: "w1", query: "news", results: [{ url: "https://example.com/a", title: "A" }] },
+      { type: "cancelled" },
+    ])) ?? []).find((e) => e.type === "web_search");
+    expect(search).toMatchObject({ type: "web_search", isStreaming: false });
+    expect(search).not.toHaveProperty("interrupted");
   });
 
   it("finalizes an in-flight content block before appending the error", async () => {
@@ -1629,7 +1731,7 @@ describe("delegation", () => {
 
   it("stops a running delegation on Stop", async () => {
     expect(await eventsOf([start("d1"), { type: "cancelled" }])).toEqual([
-      { ...running("d1"), isStreaming: undefined },
+      { ...running("d1"), isStreaming: undefined, interrupted: true },
       { type: "stopped" },
     ]);
   });

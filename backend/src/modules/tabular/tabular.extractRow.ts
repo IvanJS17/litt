@@ -117,8 +117,11 @@ export async function extractRowColumns(args: {
     generationId?: string | null;
     /** Stops the run (client disconnect, or lease lost). */
     abortSignal?: AbortSignal;
-    /** Queue runners report failed attempts; inline streams report here. */
-    reportFailure?: boolean;
+    /**
+     * Queue runners report failed attempts; inline streams report here, and
+     * a run passes a gate that admits each kind of model failure once.
+     */
+    reportFailure?: boolean | ((error: unknown) => boolean);
     textCache?: TextExtractionCache;
     /**
      * Silent citation support check (tabular.citationSupport.ts): told of each

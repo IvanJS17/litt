@@ -1,3 +1,5 @@
+import { normalizeDownloadFilename } from "./storage";
+
 export const MAX_ZIP_EXPORT_DOCUMENTS = 200;
 export const MAX_ZIP_EXPORT_BYTES = 2 * 1024 * 1024 * 1024;
 
@@ -50,9 +52,9 @@ export function uniqueArchiveFilename(
     return requestedName;
   }
 
-  const dot = requestedName.lastIndexOf(".");
-  const stem = dot > 0 ? requestedName.slice(0, dot) : requestedName;
-  const extension = dot > 0 ? requestedName.slice(dot) : "";
+  const dot = filename.lastIndexOf(".");
+  const stem = dot > 0 ? filename.slice(0, dot) : filename;
+  const extension = dot > 0 ? filename.slice(dot) : "";
   let copyNumber = 2;
   let candidate = `${stem} (${copyNumber})${extension}`;
   while (taken(candidate)) {

@@ -20,6 +20,7 @@ import { buildMemoryArchive } from "../../lib/memory/archive";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
 import { uniqueArchiveFilename } from "../../lib/zipExport";
 import { memberDataActionAllowed } from "../../modules/orgs/orgs.service";
+import { uniqueArchiveFilename } from "../../lib/zipExport";
 import {
     JsonExportType,
     MAX_ZIP_EXPORT_DOCUMENTS,
@@ -144,6 +145,7 @@ async function buildDocumentsZipExport(db: Db, job: ExportBuildRequest, userId: 
 
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
+    const usedNames = new Set<string>();
     let added = 0;
     const usedNames = new Set<string>();
     const omitted: string[] = [];

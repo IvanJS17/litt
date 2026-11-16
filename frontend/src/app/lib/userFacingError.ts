@@ -352,6 +352,10 @@ const USER_SIDE_UPLOAD_CODES: ReadonlySet<string> = new Set([
     "invalid_pdf_file",
     // The bytes were not UTF-8 text; only the user can fix that.
     "invalid_markdown_file",
+    // The bytes are not a Word package (a renamed .xlsx, .odt or plain ZIP).
+    "invalid_docx_package",
+    // Past the parser's budget; the worker reported it when it happened.
+    "document_too_large",
 ]);
 
 /**

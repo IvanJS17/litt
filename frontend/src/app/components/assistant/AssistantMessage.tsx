@@ -483,15 +483,17 @@ function AssistantMessageImpl({
         }
         if (event.type === "mcp_tool_call") {
             const isError = event.status === "error";
-            const label = event.connector_name
-                ? `${event.connector_name}: ${connectorToolLabel(event.tool_name, event.tool_title)}`
-                : toolCallLabel(event.openai_tool_name, t);
+            const label = event.interrupted
+                ? t("assistant.assistantMessage.connectorCallStopped")
+                : event.connector_name
+                  ? `${event.connector_name}: ${connectorToolLabel(event.tool_name, event.tool_title)}`
+                  : toolCallLabel(event.openai_tool_name, t);
             return (
                 <EventBlock
                     key={globalIdx}
                     showConnector={showConnector}
                     isStreaming={event.isStreaming}
-                    dotColor={isError ? "red" : "green"}
+                    dotColor={isError ? "red" : event.interrupted ? "gray" : "green"}
                 >
                     <span className="flex min-w-0 items-center gap-1.5 font-medium">
                         <ConnectorSkeuoIcon
@@ -519,6 +521,7 @@ function AssistantMessageImpl({
                     key={globalIdx}
                     filename={event.filename}
                     isStreaming={event.isStreaming}
+                    interrupted={!!event.interrupted}
                     onClick={
                         !event.isStreaming &&
                         event.document_id &&
@@ -541,15 +544,18 @@ function AssistantMessageImpl({
         }
         if (event.type === "doc_search") {
             return <DocSearchBlock key={globalIdx} event={event}
-                isStreaming={event.isStreaming} showConnector={showConnector} />;
+                isStreaming={event.isStreaming} interrupted={!!event.interrupted}
+                showConnector={showConnector} />;
         }
         if (event.type === "web_search") {
             return <WebSearchBlock key={globalIdx} event={event}
-                isStreaming={event.isStreaming} showConnector={showConnector} />;
+                isStreaming={event.isStreaming} interrupted={!!event.interrupted}
+                showConnector={showConnector} />;
         }
         if (event.type === "web_read") {
             return <WebReadBlock key={globalIdx} event={event}
-                isStreaming={event.isStreaming} showConnector={showConnector} />;
+                isStreaming={event.isStreaming} interrupted={!!event.interrupted}
+                showConnector={showConnector} />;
         }
         if (event.type === "doc_find") {
             return (
@@ -559,6 +565,7 @@ function AssistantMessageImpl({
                     query={event.query}
                     totalMatches={event.total_matches}
                     isStreaming={!!event.isStreaming}
+                    interrupted={!!event.interrupted}
                     showConnector={showConnector}
                     onClick={
                         !event.isStreaming &&
@@ -583,6 +590,7 @@ function AssistantMessageImpl({
                     key={globalIdx}
                     filename={event.filename}
                     isStreaming={event.isStreaming}
+                    interrupted={!!event.interrupted}
                     showConnector={showConnector}
                     onClick={
                         !event.isStreaming &&
@@ -613,6 +621,7 @@ function AssistantMessageImpl({
                     copies={event.copies}
                     isStreaming={!!event.isStreaming}
                     hasError={!!event.error}
+                    interrupted={!!event.interrupted}
                     showConnector={showConnector}
                     onOpenCopy={
                         !event.isStreaming && onOpenDocument
@@ -635,6 +644,7 @@ function AssistantMessageImpl({
                     filename={event.filename}
                     isStreaming={event.isStreaming}
                     hasError={!!event.error}
+                    interrupted={!!event.interrupted}
                     showConnector={showConnector}
                     onClick={
                         !event.isStreaming &&

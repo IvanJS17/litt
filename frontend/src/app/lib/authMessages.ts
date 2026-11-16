@@ -41,7 +41,7 @@ function say(t: ClientTranslator, sentence: AuthSentence): string {
 }
 
 /** The catalog sentence each code shows. */
-export const AUTH_ERROR_SENTENCES = {
+const AUTH_ERROR_SENTENCES = {
     // Credentials
     invalid_credentials: "invalidCredentials",
     // GoTrue reports a missing account as a dead session, not as "no such

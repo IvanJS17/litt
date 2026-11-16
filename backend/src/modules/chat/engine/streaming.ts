@@ -90,6 +90,10 @@ import {
   CITATIONS_OPEN_TAG,
 } from "./citations";
 import { runToolCalls } from "./tools/toolDispatcher";
+import {
+  emptyToolCallBatchResult,
+  type ToolCallBatchResult,
+} from "./tools/toolBatchResult";
 import { addApprovalItems } from "./tools/connectorApprovals";
 import { createKeyedLock, type KeyedLock } from "./tools/documentLocks";
 import type { SubagentRunStore } from "./tools/delegateRuns";
@@ -167,6 +171,9 @@ export function assistantStreamErrorPayload(
     ...(isReported(error) ? { reporting_owner: BACKEND_REPORTING_OWNER } : {}),
     ...(requestId ? { request_id: requestId } : {}),
   };
+  // A caller that runs the model itself (tabular) holds the provider's own
+  // error, not an AssistantStreamError; it gets the verdict the engine would
+  // have tagged on that same failure.
   const safe =
     error instanceof AssistantStreamError
       ? [...error.events]
@@ -175,13 +182,30 @@ export function assistantStreamErrorPayload(
             (event): event is Extract<AssistantEvent, { type: "error" }> =>
               event.type === "error" && event.safe_to_display === true,
           )
-      : undefined;
-  if (!safe) return { message: ASSISTANT_ERROR_MESSAGE, ...reporting };
+      : modelFailureEvent(error);
+  if (!safe?.safe_to_display) return { message: ASSISTANT_ERROR_MESSAGE, ...reporting };
   return {
     message: safe.message,
     safe_to_display: true,
     ...(safe.code ? { code: safe.code } : {}),
     ...reporting,
+  };
+}
+
+/** The error event a failed model call becomes, shown only when it is ours. */
+function modelFailureEvent(
+  err: unknown,
+): Extract<AssistantEvent, { type: "error" }> {
+  const safeToDisplay = err instanceof UserFacingError;
+  return {
+    type: "error",
+    message: safeToDisplay ? err.message : ASSISTANT_ERROR_MESSAGE,
+    ...(safeToDisplay ? { safe_to_display: true } : {}),
+    // A rejected key is worth naming: the client turns this into a prompt
+    // to go fix the key rather than a suggestion to retry.
+    ...(err instanceof InvalidApiKeyError
+      ? { code: "invalid_api_key" as const }
+      : {}),
   };
 }
 
@@ -224,6 +248,22 @@ export class AssistantStreamAbortError extends AssistantStreamError {
     super("Stream aborted.", fullText, events);
     this.name = "AbortError";
   }
+}
+
+/**
+ * Treat a turn as stopped when its signal fired after `runLLMStream` had
+ * already returned: a deadline or Stop that lands during citation
+ * verification, or while a provider or tool ignored the abort. The run has
+ * told its readers the turn is over (and may have force-finished it), so the
+ * route must take its stop path rather than persist, title and curate the
+ * turn as a completed answer.
+ */
+export function throwIfTurnStopped(
+  signal: AbortSignal,
+  result: { fullText: string; events: AssistantEvent[] },
+): void {
+  if (signal.aborted)
+    throw new AssistantStreamAbortError(result.fullText, result.events);
 }
 
 class AssistantStreamAskInputsPause extends Error {
@@ -788,6 +828,86 @@ export async function runLLMStream(params: {
     for (const { event } of await Promise.all(runs)) if (event) events.push(event);
   };
 
+  // Tool batches still running. On a Stop or a deadline the model adapter
+  // ends the stream at once, without waiting for the batch it is executing
+  // (the SDK runs tools inside its own stream), so runLLMStream unwinds while
+  // runToolCalls is still awaiting a later call. The catch below records what
+  // such a batch finished so far, so a saved edit is in the stored turn.
+  const unrecordedBatches = new Set<ToolCallBatchResult>();
+  // Events of the calls that completed, in the order this turn shows
+  // tool results. A batch is recorded once: `completed` is what the
+  // dispatcher returned for it, which is `batch` itself unless a test
+  // stands in for the dispatcher.
+  const recordBatchEvents = (
+    batch: ToolCallBatchResult,
+    completed: ToolCallBatchResult = batch,
+  ) => {
+    if (!unrecordedBatches.delete(batch)) return;
+    for (const r of completed.docsRead) {
+      events.push({
+        type: "doc_read",
+        filename: r.filename,
+        document_id: r.document_id,
+        version_id: r.version_id,
+        version_number: r.version_number,
+      });
+    }
+    for (const f of completed.docsFound) {
+      events.push({
+        type: "doc_find",
+        filename: f.filename,
+        document_id: f.document_id,
+        version_id: f.version_id,
+        version_number: f.version_number,
+        query: f.query,
+        total_matches: f.total_matches,
+      });
+    }
+    events.push(...(completed.documentSearchEvents ?? []));
+    events.push(...(completed.textCardEvents ?? []));
+    for (const dl of completed.docsCreated) {
+      events.push({
+        type: "doc_created",
+        filename: dl.filename,
+        download_url: dl.download_url,
+        training_held: dl.training_held,
+        document_id: dl.document_id,
+        version_id: dl.version_id,
+        version_number: dl.version_number ?? null,
+      });
+    }
+    for (const r of completed.docsReplicated) {
+      events.push({
+        type: "doc_replicated",
+        filename: r.filename,
+        count: r.count,
+        copies: r.copies,
+      });
+    }
+    for (const wf of completed.workflowsApplied) {
+      events.push({
+        type: "workflow_applied",
+        workflow_id: wf.workflow_id,
+        title: wf.title,
+      });
+    }
+    for (const e of completed.docsEdited) {
+      events.push({
+        type: "doc_edited",
+        filename: e.filename,
+        document_id: e.document_id,
+        version_id: e.version_id,
+        version_number: e.version_number,
+        download_url: e.download_url,
+        training_held: e.training_held,
+        annotations: e.annotations,
+      });
+    }
+    for (const event of completed.mcpEvents) {
+      events.push(event);
+    }
+  };
+
   try {
     throwIfAborted(signal);
     // Single request-time choke point for every runLLMStream caller (chat,
@@ -1001,110 +1121,56 @@ export async function runLLMStream(params: {
             arguments: JSON.stringify(c.input),
           },
         }));
-        const {
-          toolResults,
-          docsRead,
-          docsFound,
-          documentSearchEvents,
-          docsCreated,
-          docsReplicated,
-          workflowsApplied,
-          docsEdited,
-          askInputsEvents,
-          textCardEvents,
-          mcpEvents,
-        } = await runToolCalls(
-          toolCalls,
-          docStore,
-          userId,
-          db,
-          write,
-          workflowStore,
-          tabularStore,
-          docIndex,
-          turnEditState,
-          turnReadState,
-          projectId,
-          nonce,
-          {
-            connectorApprovals: canPauseForApproval,
-            userEmail,
-            orgId,
-            model: selectedModel,
-            documentLocks,
-            documentsScoped: subagentRun?.documentsScoped,
-            methodology: offerMethodology,
-            personMessage: lastPersonMessage,
-            allowDocumentMutation,
-          },
-        );
+        const batch = emptyToolCallBatchResult();
+        unrecordedBatches.add(batch);
+        let completed: ToolCallBatchResult;
+        try {
+          completed = await runToolCalls(
+            toolCalls,
+            docStore,
+            userId,
+            db,
+            write,
+            workflowStore,
+            tabularStore,
+            docIndex,
+            turnEditState,
+            turnReadState,
+            projectId,
+            nonce,
+            {
+              connectorApprovals: canPauseForApproval,
+              userEmail,
+              orgId,
+              model: selectedModel,
+              documentLocks,
+              documentsScoped: subagentRun?.documentsScoped,
+              methodology: offerMethodology,
+              personMessage: lastPersonMessage,
+              allowDocumentMutation,
+              signal,
+              results: batch,
+            },
+          );
+        } catch (error) {
+          // A later call rejected, but the ones before it ran: an edit that
+          // saved a new version, a created document. Keep their events in the
+          // turn the route stores as failed or stopped.
+          recordBatchEvents(batch);
+          // A call that rejects after the turn was stopped ends it as stopped,
+          // the outcome its readers were already told.
+          throwIfAborted(signal);
+          throw error;
+        }
+        const { toolResults, askInputsEvents } = completed;
         // A failure after this point happened with tool results in hand; the
         // breadcrumb tells it apart from one in the first model call.
         markStage("tool-result");
+        recordBatchEvents(batch, completed);
+        // Checked only now: a tool that finished before the stop (an edit
+        // that saved a new version, a created document) keeps its event in
+        // the stopped turn the route stores.
         throwIfAborted(signal);
-        for (const r of docsRead) {
-          events.push({
-            type: "doc_read",
-            filename: r.filename,
-            document_id: r.document_id,
-            version_id: r.version_id,
-            version_number: r.version_number,
-          });
-        }
-        for (const f of docsFound) {
-          events.push({
-            type: "doc_find",
-            filename: f.filename,
-            document_id: f.document_id,
-            version_id: f.version_id,
-            version_number: f.version_number,
-            query: f.query,
-            total_matches: f.total_matches,
-          });
-        }
-        events.push(...(documentSearchEvents ?? []));
-        events.push(...(textCardEvents ?? []));
-        for (const dl of docsCreated) {
-          events.push({
-            type: "doc_created",
-            filename: dl.filename,
-            download_url: dl.download_url,
-            training_held: dl.training_held,
-            document_id: dl.document_id,
-            version_id: dl.version_id,
-            version_number: dl.version_number ?? null,
-          });
-        }
-        for (const r of docsReplicated) {
-          events.push({
-            type: "doc_replicated",
-            filename: r.filename,
-            count: r.count,
-            copies: r.copies,
-          });
-        }
-        for (const wf of workflowsApplied) {
-          events.push({
-            type: "workflow_applied",
-            workflow_id: wf.workflow_id,
-            title: wf.title,
-          });
-        }
-        for (const e of docsEdited) {
-          events.push({
-            type: "doc_edited",
-            filename: e.filename,
-            document_id: e.document_id,
-            version_id: e.version_id,
-            version_number: e.version_number,
-            download_url: e.download_url,
-            training_held: e.training_held,
-            annotations: e.annotations,
-          });
-        }
-        for (const event of mcpEvents) {
-          events.push(event);
-        }
 
         const delegated = await delegating;
         // Once the answer has stopped or failed, its catch records these.
@@ -1156,11 +1222,16 @@ export async function runLLMStream(params: {
     }).finally(() => providerWebSearch.release());
     await recordDelegations();
   } catch (err) {
+    // Before any await: what a still-running batch finished by now.
+    for (const batch of [...unrecordedBatches]) recordBatchEvents(batch);
     if (isAskInputsPause(err)) {
       // The ask_inputs event has already been emitted and persisted in `events`.
       // Stop this assistant turn here so the model does not add redundant
       // prose telling the user to answer the picker or attach documents.
-    } else if (isAbortError(err)) {
+    } else if (isAbortError(err) || signal?.aborted) {
+      // Any failure after the turn's signal fired (a client tool or a tool
+      // call that rejects once the stop reached it) ends the turn as
+      // stopped: that is the outcome its readers were given.
       await recordDelegations().catch(() => {});
       flushPartialTurn({ emit: false });
       throw new AssistantStreamAbortError(
@@ -1197,19 +1268,10 @@ export async function runLLMStream(params: {
           tags: { component: "chat-stream", ...(isSubagent ? { operation: "chat.subagent" as const } : {}) },
         }, "[chat/stream] model stream failed");
       }
-      const message = safeToDisplay ? err.message : ASSISTANT_ERROR_MESSAGE;
-      events.push({
-        type: "error",
-        message,
-        ...(safeToDisplay ? { safe_to_display: true } : {}),
-        // A rejected key is worth naming: the client turns this into a prompt
-        // to go fix the key rather than a suggestion to retry.
-        ...(err instanceof InvalidApiKeyError
-          ? { code: "invalid_api_key" as const }
-          : {}),
-      });
+      const errorEvent = modelFailureEvent(err);
+      events.push(errorEvent);
       throw new AssistantStreamError(
-        message,
+        errorEvent.message,
         fullText,
         events.map(sanitizeAssistantEvent),
         { cause: failure },

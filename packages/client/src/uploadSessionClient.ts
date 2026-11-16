@@ -121,6 +121,18 @@ const UPLOAD_FILE_CONTENT_MESSAGES: Record<
             count: filenames.length,
             names: filenames.join(", "),
         }),
+    invalid_docx_package: (filenames) =>
+        clientTranslator()("documents.upload.invalidDocx", {
+            count: filenames.length,
+            names: filenames.join(", "),
+        }),
+    // Well formed, but past the parser's time or memory budget; the same
+    // bytes would hit the same budget again.
+    document_too_large: (filenames) =>
+        clientTranslator()("documents.upload.documentTooLarge", {
+            count: filenames.length,
+            names: filenames.join(", "),
+        }),
 };
 
 /**

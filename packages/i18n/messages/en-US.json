@@ -157,6 +157,7 @@
       "youDoNotHavePermissionTo": "You do not have permission to delete this file."
     },
     "assistantMessage": {
+      "connectorCallStopped": "Connector call stopped",
       "copyResponse": "Copy response",
       "copyThisAnswer": "copy this answer",
       "littCouldnTWriteTo": "LiTT couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
@@ -290,6 +291,7 @@
     "docSearchBlock": {
       "scopeForQuery": "{scope} for “{query}”",
       "searchFailedIn": "Search failed in",
+      "searchStoppedIn": "Search stopped in {scope} for “{query}”",
       "searched": "Searched",
       "searching": "Searching"
     },
@@ -316,11 +318,13 @@
       "askingForInput": "Asking for input",
       "created": "Created",
       "creating": "Creating",
+      "creationStopped": "Creation stopped",
       "documents": "Documents",
       "documentsRequested": "Documents requested",
       "downloadFilename": "Download {filename}",
       "downloadThisDocument": "download this document",
       "editFailed": "Edit failed",
+      "editStopped": "Edit stopped",
       "edited": "Edited",
       "editing": "Editing",
       "noDocumentsAttached": "No documents attached",
@@ -332,6 +336,8 @@
       "rejected": "Rejected",
       "replicated": "Replicated",
       "replicating": "Replicating",
+      "replicationFailed": "Replication failed",
+      "replicationStopped": "Replication stopped",
       "reviewing": "Reviewing...",
       "skipped": "Skipped",
       "thinking": "Thinking...",
@@ -420,11 +426,13 @@
       "couldNotFinish": "Couldn't finish",
       "couldNotStart": "Couldn't start: {reason}",
       "countSubagentsFinished": "{count} subagents finished",
+      "countSubagentsStopped": "{count} subagents stopped",
       "partialBrief": "partial brief",
       "resumedCount": "Resumed {count, plural, one {a subagent} other {# subagents}}",
       "returnedABriefToLitt": "Returned a brief to LiTT",
       "returnedAPartialBriefToLitt": "Returned a partial brief to LiTT",
       "route": "Route {route}",
+      "someSubagentsStopped": "{finished, plural, one {# subagent} other {# subagents}} finished, {stopped} stopped",
       "startedAndResumed": "Started {started, plural, one {#} other {#}} and resumed {resumed, plural, one {#} other {#}} {total, plural, one {subagent} other {subagents}}",
       "startedCount": "Started {count, plural, one {a subagent} other {# subagents}}",
       "statusCompleted": "Completed",
@@ -436,6 +444,7 @@
       "stoppedAtItsLimit": "Stopped at its limit",
       "subagent": "Subagent",
       "subagentFinished": "Subagent finished",
+      "subagentStopped": "Subagent stopped",
       "subagents": "Subagents",
       "taskFromLitt": "Task from LiTT",
       "waitingForYourApproval": "Waiting for your approval"
@@ -472,11 +481,13 @@
     "webActivityBlock": {
       "read": "Read",
       "readFailed": "Read failed",
+      "readStopped": "Read stopped",
       "reading": "Reading",
       "searchedTheWeb": "Searched the web{hasQuery, select, true { for “{query}”} other {}}",
       "searchingTheWeb": "Searching the web{hasQuery, select, true { for “{query}”} other {}}",
       "sources": "Sources",
       "webSearchFailed": "Web search failed for “{query}”",
+      "webSearchStopped": "Web search stopped{hasQuery, select, true { for “{query}”} other {}}",
       "webSearchUnavailable": "Web search unavailable"
     },
     "workflowSlashMenu": {
@@ -967,8 +978,10 @@
     },
     "upload": {
       "batchTooLarge": "An upload batch must be {size} GB or smaller.",
+      "documentTooLarge": "{count, plural, one {{names} is too large or complex to process.} other {{names} are too large or complex to process.}}",
       "fileTooLarge": "Each uploaded file must be {size} MB or smaller.",
       "filesFailed": "{names} could not be uploaded. Please try again.",
+      "invalidDocx": "{count, plural, one {{names} is not a valid DOCX file.} other {{names} are not valid DOCX files.}}",
       "invalidMarkdown": "{count, plural, one {{names} is not a valid UTF-8 text file.} other {{names} are not valid UTF-8 text files.}}",
       "invalidPdf": "{count, plural, one {{names} is not a valid PDF file.} other {{names} are not valid PDF files.}}",
       "tooManyFiles": "You can upload at most {count} files at a time.",
@@ -4398,7 +4411,10 @@
     },
     "spreadsheetView": {
       "failedToLoadSpreadsheet": "Failed to load spreadsheet.",
-      "thisSpreadsheetCouldNotBeDisplayed": "This spreadsheet could not be displayed."
+      "thisSpreadsheetCouldNotBeDisplayed": "This spreadsheet could not be displayed.",
+      "unreadableAdvice": "Download the original, or try saving a new .xlsx copy.",
+      "unsupportedOle": "Legacy or encrypted Excel files cannot be previewed here.",
+      "unsupportedOleAdvice": "For preview, save an unencrypted .xlsx copy and upload it."
     },
     "tableLoadMoreRow": {
       "loadMore": "Load more",
@@ -5885,11 +5901,13 @@
       "workflowType": "Workflow"
     },
     "documentEventBlocks": {
+      "findStopped": "Find stopped",
       "finding": "Finding",
       "found": "Found",
       "in": "in",
       "queryMatchsuffix": "“{query}”{matchSuffix}",
       "read": "Read",
+      "readStopped": "Read stopped",
       "reading": "Reading"
     },
     "editCard": {

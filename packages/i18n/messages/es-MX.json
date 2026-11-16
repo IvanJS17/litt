@@ -157,6 +157,7 @@
       "youDoNotHavePermissionTo": "No tienes permiso para borrar este archivo."
     },
     "assistantMessage": {
+      "connectorCallStopped": "Llamada al conector detenida",
       "copyResponse": "Copiar respuesta",
       "copyThisAnswer": "copiar esta respuesta",
       "littCouldnTWriteTo": "LiTT no pudo copiar al portapapeles. Revisa el permiso del portapapeles de tu navegador y luego inténtalo de nuevo.",
@@ -290,6 +291,7 @@
     "docSearchBlock": {
       "scopeForQuery": "{scope} para «{query}»",
       "searchFailedIn": "La búsqueda falló en",
+      "searchStoppedIn": "Búsqueda detenida en {scope} para «{query}»",
       "searched": "Buscado",
       "searching": "Buscando"
     },
@@ -316,11 +318,13 @@
       "askingForInput": "Pidiendo datos",
       "created": "Creado",
       "creating": "Creando",
+      "creationStopped": "Creación detenida",
       "documents": "Documentos",
       "documentsRequested": "Documentos pedidos",
       "downloadFilename": "Descargar {filename}",
       "downloadThisDocument": "descargar este documento",
       "editFailed": "Falló la edición",
+      "editStopped": "Edición detenida",
       "edited": "Editado",
       "editing": "Editando",
       "noDocumentsAttached": "No hay documentos adjuntos",
@@ -332,6 +336,8 @@
       "rejected": "Rechazado",
       "replicated": "Copiado",
       "replicating": "Copiando",
+      "replicationFailed": "Falló la copia",
+      "replicationStopped": "Copia detenida",
       "reviewing": "Revisando…",
       "skipped": "Omitido",
       "thinking": "Pensando…",
@@ -420,11 +426,13 @@
       "couldNotFinish": "No se pudo terminar",
       "couldNotStart": "No se pudo iniciar: {reason}",
       "countSubagentsFinished": "{count} subagentes terminaron",
+      "countSubagentsStopped": "{count} subagentes detenidos",
       "partialBrief": "informe parcial",
       "resumedCount": "{count, plural, one {Se reanudó un subagente} other {Se reanudaron # subagentes}}",
       "returnedABriefToLitt": "Devolvió un informe a LiTT",
       "returnedAPartialBriefToLitt": "Devolvió un informe parcial a LiTT",
       "route": "Ruta {route}",
+      "someSubagentsStopped": "{finished, plural, one {# subagente terminó} other {# subagentes terminaron}} y {stopped, plural, one {# se detuvo} other {# se detuvieron}}",
       "startedAndResumed": "{started, plural, one {Se inició #} other {Se iniciaron #}} y {resumed, plural, one {se reanudó #} other {se reanudaron #}} {total, plural, one {subagente} other {subagentes}}",
       "startedCount": "{count, plural, one {Se inició un subagente} other {Se iniciaron # subagentes}}",
       "statusCompleted": "Completado",
@@ -436,6 +444,7 @@
       "stoppedAtItsLimit": "Se detuvo al llegar a su límite",
       "subagent": "Subagente",
       "subagentFinished": "Subagente terminado",
+      "subagentStopped": "Subagente detenido",
       "subagents": "Subagentes",
       "taskFromLitt": "Tarea de LiTT",
       "waitingForYourApproval": "Esperando tu aprobación"
@@ -472,11 +481,13 @@
     "webActivityBlock": {
       "read": "Leído",
       "readFailed": "No se pudo leer",
+      "readStopped": "Lectura detenida",
       "reading": "Leyendo",
       "searchedTheWeb": "Buscó en la web{hasQuery, select, true { «{query}»} other {}}",
       "searchingTheWeb": "Buscando en la web{hasQuery, select, true { «{query}»} other {}}",
       "sources": "Fuentes",
       "webSearchFailed": "No se pudo buscar en la web «{query}»",
+      "webSearchStopped": "Búsqueda web detenida{hasQuery, select, true { «{query}»} other {}}",
       "webSearchUnavailable": "Búsqueda web no disponible"
     },
     "workflowSlashMenu": {
@@ -967,8 +978,10 @@
     },
     "upload": {
       "batchTooLarge": "Un lote de subida debe pesar {size} GB o menos.",
+      "documentTooLarge": "{count, plural, one {{names} es demasiado grande o complejo para procesarse.} other {{names} son demasiado grandes o complejos para procesarse.}}",
       "fileTooLarge": "Cada archivo debe pesar {size} MB o menos.",
       "filesFailed": "No se pudo subir {names}. Inténtalo de nuevo.",
+      "invalidDocx": "{count, plural, one {{names} no es un archivo DOCX válido.} other {{names} no son archivos DOCX válidos.}}",
       "invalidMarkdown": "{count, plural, one {{names} no es un archivo de texto UTF-8 válido.} other {{names} no son archivos de texto UTF-8 válidos.}}",
       "invalidPdf": "{count, plural, one {{names} no es un archivo PDF válido.} other {{names} no son archivos PDF válidos.}}",
       "tooManyFiles": "Puedes subir como máximo {count} archivos a la vez.",
@@ -4398,7 +4411,10 @@
     },
     "spreadsheetView": {
       "failedToLoadSpreadsheet": "No se pudo cargar la hoja de cálculo.",
-      "thisSpreadsheetCouldNotBeDisplayed": "No se pudo mostrar esta hoja de cálculo."
+      "thisSpreadsheetCouldNotBeDisplayed": "No se pudo mostrar esta hoja de cálculo.",
+      "unreadableAdvice": "Descarga el original o prueba a guardar una copia .xlsx nueva.",
+      "unsupportedOle": "Aquí no se pueden ver los archivos de Excel antiguos o cifrados.",
+      "unsupportedOleAdvice": "Para verlo, guarda una copia .xlsx sin cifrar y súbela."
     },
     "tableLoadMoreRow": {
       "loadMore": "Cargar más",
@@ -5885,11 +5901,13 @@
       "workflowType": "Flujo"
     },
     "documentEventBlocks": {
+      "findStopped": "Búsqueda detenida",
       "finding": "Buscando",
       "found": "Encontrados",
       "in": "en",
       "queryMatchsuffix": "«{query}»{matchSuffix}",
       "read": "Leído",
+      "readStopped": "Lectura detenida",
       "reading": "Leyendo"
     },
     "editCard": {

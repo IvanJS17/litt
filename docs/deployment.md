@@ -205,6 +205,24 @@ v4-only bundle cannot. Keep a compatible add-in build for those devices.
 Do not clear browser/add-in storage to resolve a version error: device-only
 chats have no durable server copy.
 
+### Playbook review publication upgrade
+
+`20261107_01_playbook_review_publication.sql` adds atomic publication of a
+review's document version, tracked edits and saved findings. Before deploying
+its backend, stop accepting new playbook reviews and let old in-flight reviews
+finish. Apply the migration, reload the PostgREST schema cache, and replace
+**all** API and worker processes before accepting reviews again. The old
+publisher bypasses the new transaction, so a mixed-version rolling deployment
+does not provide this guarantee. Backend rollback restores that older behavior.
+
+The migration does not reconstruct edits orphaned by an older interrupted
+review: those versions lack the provenance needed to recover the exact findings.
+An upload the database answered as unpublished is deleted; one whose
+publication outcome is unknown (a lost response or timeout) is kept and may
+remain an unreferenced object. Never remove an object merely because a review
+row is missing after a timeout: history can be deleted after a successful
+publication while its document version stays.
+
 ### Adopting the ledger on an older deployment
 
 Deployments upgraded before `20261009_03_schema_migrations.sql` have no
@@ -321,7 +339,8 @@ admission slot instead of holding it indefinitely.
 Generic job concurrency does not create more parser slots.
 
 Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
-`prlimit` fails extraction. Defaults:
+`prlimit` fails extraction; the backend and worker log a warning at startup when
+it is not on `PATH`. Defaults:
 
 | Limit | Setting |
 | --- | --- |

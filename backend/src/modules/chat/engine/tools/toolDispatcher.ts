@@ -1,4 +1,4 @@
-import type { ConnectorApprovalItem, DocumentSearchEvent, TextCardEvent } from "@mike/contracts";
+import type { ConnectorApprovalItem, DocumentSearchEvent } from "@mike/contracts";
 import { textCardEvent } from "./textCard";
 import { METHODOLOGY_TOOL_NAME, runMethodology } from "./methodologyTool";
 import { methodologyText, readAnnexLocale } from "../../../../lib/methodology";
@@ -22,13 +22,17 @@ import {
 import { diagnosticErrorTags } from "../../../../lib/observability/diagnostics";
 import { documentSearchFailure } from "./documentSearchErrors";
 import { findDocumentText, createDocumentVersions, type VersionAuthorship } from "../../../documents/documents.service";
-import { executeMcpToolCall, type McpToolEvent } from "../../../../lib/mcpConnectors";
+import { executeMcpToolCall } from "../../../../lib/mcpConnectors";
 import {
   APPROVAL_UNAVAILABLE_MESSAGE,
   addApprovalItems,
   planConnectorToolCall,
 } from "./connectorApprovals";
 import { createKeyedLock, type KeyedLock } from "./documentLocks";
+import {
+  emptyToolCallBatchResult,
+  type ToolCallBatchResult,
+} from "./toolBatchResult";
 import {
   GOOGLE_DRIVE_TOOL_PREFIX,
   executeGoogleDriveToolCall,
@@ -71,8 +75,6 @@ import {
   type DocEditedResult,
   type TurnEditState,
   type TurnReadState,
-  type DocCreatedResult,
-  type DocReplicatedResult,
 } from "./documentOps";
 import {
   spotlight,
@@ -294,55 +296,36 @@ export async function runToolCalls(
      * exactly `true`; left out, the steps come back as text (fail-closed).
      */
     allowDocumentMutation?: boolean;
+    /**
+     * The turn's abort signal. Calls run one after another, so a turn stopped
+     * by Stop or a stream deadline starts none of the batch's remaining tools
+     * (their document edits, creations and connector writes included).
+     */
+    signal?: AbortSignal;
+    /**
+     * Where to collect the batch's results. They are added as each call
+     * completes, so if a later call rejects, the caller still knows which
+     * edits, creations and other results already happened.
+     */
+    results?: ToolCallBatchResult;
   } = {},
-): Promise<{
-  toolResults: unknown[];
-  docsRead: {
-    filename: string;
-    document_id?: string;
-    version_id?: string | null;
-    version_number?: number | null;
-  }[];
-  docsFound: {
-    filename: string;
-    document_id?: string;
-    version_id?: string | null;
-    version_number?: number | null;
-    query: string;
-    total_matches: number;
-  }[];
-  docsCreated: DocCreatedResult[];
-  documentSearchEvents: DocumentSearchEvent[];
-  docsReplicated: DocReplicatedResult[];
-  workflowsApplied: { workflow_id: string; title: string }[];
-  docsEdited: DocEditedResult[];
-  askInputsEvents: AskInputsEvent[];
-  textCardEvents: TextCardEvent[];
-  mcpEvents: McpToolEvent[];
-}> {
-  const toolResults: unknown[] = [];
-  const docsRead: {
-    filename: string;
-    document_id?: string;
-    version_id?: string | null;
-    version_number?: number | null;
-  }[] = [];
-  const docsFound: {
-    filename: string;
-    document_id?: string;
-    version_id?: string | null;
-    version_number?: number | null;
-    query: string;
-    total_matches: number;
-  }[] = [];
-  const docsCreated: DocCreatedResult[] = [];
-  const documentSearchEvents: DocumentSearchEvent[] = [];
-  const docsReplicated: DocReplicatedResult[] = [];
-  const workflowsApplied: { workflow_id: string; title: string }[] = [];
-  const docsEdited: DocEditedResult[] = [];
-  const askInputsEvents: AskInputsEvent[] = [];
-  const textCardEvents: TextCardEvent[] = [];
-  const mcpEvents: McpToolEvent[] = [];
+): Promise<ToolCallBatchResult> {
+  // Filled in place as each call completes, so a caller that passed
+  // `results` still has what finished when a later call rejects.
+  const results = options.results ?? emptyToolCallBatchResult();
+  const {
+    toolResults,
+    docsRead,
+    docsFound,
+    docsCreated,
+    documentSearchEvents,
+    docsReplicated,
+    workflowsApplied,
+    docsEdited,
+    askInputsEvents,
+    textCardEvents,
+    mcpEvents,
+  } = results;
   const approvalItems: ConnectorApprovalItem[] = [];
   const documentLocks = options.documentLocks ?? createKeyedLock();
 
@@ -430,8 +413,15 @@ export async function runToolCalls(
     args.scope === "document" &&
     !!resolveDocLabel(String(args.doc_id ?? ""), docStore, docIndex);
 
+  // Checked before each call and again right before a write that first awaits
+  // something (a document lock held by another call of the answer, connector
+  // planning, a source download): a turn stopped during that wait must not
+  // start the write after its readers were told it is over. runLLMStream
+  // throws its abort as soon as this returns.
+  const stopped = () => options.signal?.aborted === true;
   let connectorOwner: ConnectorOwner | undefined;
   for (const tc of toolCalls) {
+    if (stopped()) break;
     let args: Record<string, unknown> = {};
     try {
       args = JSON.parse(tc.function.arguments || "{}");
@@ -456,6 +446,7 @@ export async function runToolCalls(
         args,
         db,
       );
+      if (stopped()) break;
       if (plan.type === "approval" && options.connectorApprovals) {
         // Nothing runs now. The turn pauses on this item, and the user's
         // decision continues it (see connectorApprovals.ts).
@@ -962,7 +953,13 @@ export async function runToolCalls(
       } else {
         // The live Word document has no stored id; its request-local label
         // still serializes reviews of the same document within this turn.
-        const release = await documentLocks.acquire(indexed?.document_id ?? docId);
+        // A stop while this waits behind another review of the document
+        // ends the wait: the review is not started.
+        const release = await documentLocks.acquireUnlessAborted(
+          indexed?.document_id ?? docId,
+          options.signal,
+        );
+        if (!release) break;
         try {
           const isDocx = docInfo.file_type === "docx";
           // A Word document is read from its file by the review itself; other
@@ -972,6 +969,8 @@ export async function runToolCalls(
             : await readDocumentContent(docId, docStore, write, docIndex, db, {
                 emitEvents: false,
               });
+          // The review saves its suggestions as a new version.
+          if (stopped()) break;
           const run = await reviewWithPlaybook({
             userId,
             userEmail: options.userEmail,
@@ -984,6 +983,9 @@ export async function runToolCalls(
             model: options.model,
             reviewMode: args.review_mode === "permissive" ? "permissive" : "strict",
             db,
+            // A stop during the review also stops it: the model call ends,
+            // and its suggestions are not saved as a version.
+            signal: options.signal,
           });
           const annotations = run.findings.flatMap((finding) =>
             finding.edit ? [finding.edit] : [],
@@ -1053,6 +1055,8 @@ export async function runToolCalls(
             }),
           });
         } catch (error) {
+          // The review ended because the turn was stopped: not a failure.
+          if (stopped()) break;
           if (error instanceof PlaybookRequestError) fail(error.message);
           else {
             reportToolFailure(error);
@@ -1231,12 +1235,6 @@ export async function runToolCalls(
           content: JSON.stringify({ error: err }),
         });
       } else {
-        write(
-          `data: ${JSON.stringify({
-            type: "doc_edited_start",
-            filename: docInfo.filename,
-          })}\n\n`,
-        );
         const edits: EditInput[] = (editsRaw as Record<string, unknown>[]).map(
           (e) => ({
             find: String(e.find ?? ""),
@@ -1246,24 +1244,44 @@ export async function runToolCalls(
             reason: e.reason ? String(e.reason) : undefined,
           }),
         );
-        const result = await documentLocks.run(indexed.document_id, async () => {
-          const edited = await runEditDocument({
-            documentId: indexed.document_id,
-            userId,
-            userEmail: options.userEmail ?? null,
-            edits,
-            db,
-            reuseVersion: turnEditState?.get(indexed.document_id),
-          });
-          if (edited.ok) {
-            turnEditState?.set(indexed.document_id, {
-              versionId: edited.version_id,
-              versionNumber: edited.version_number,
-              storagePath: edited.storage_path,
+        // A stop while this waits behind another edit of the document ends
+        // the wait (runUnlessAborted resolves to null): the edit is skipped.
+        const result = await documentLocks.runUnlessAborted(
+          indexed.document_id,
+          options.signal,
+          async () => {
+            if (stopped()) return null;
+            // Announce the edit only once it is about to run: a turn stopped
+            // while this call waited on the lock must not leave an "Editing"
+            // card behind.
+            write(
+              `data: ${JSON.stringify({
+                type: "doc_edited_start",
+                filename: docInfo.filename,
+              })}\n\n`,
+            );
+            const edited = await runEditDocument({
+              documentId: indexed.document_id,
+              userId,
+              userEmail: options.userEmail ?? null,
+              edits,
+              db,
+              reuseVersion: turnEditState?.get(indexed.document_id),
+              signal: options.signal,
             });
-          }
-          return edited;
-        });
+            // Stopped while the source downloaded: nothing was written.
+            if (!edited.ok && stopped()) return null;
+            if (edited.ok) {
+              turnEditState?.set(indexed.document_id, {
+                versionId: edited.version_id,
+                versionNumber: edited.version_number,
+                storagePath: edited.storage_path,
+              });
+            }
+            return edited;
+          },
+        );
+        if (!result) break;
 
         if (result.ok) {
           clearTurnReadsForDocument(turnReadState, indexed.document_id);
@@ -1474,6 +1492,8 @@ export async function runToolCalls(
               sourceInfo.file_type,
             );
 
+            // Nothing is written before this point.
+            if (stopped()) break;
             // Parallel uploads: the doc bytes (and PDF
             // rendition if any) for every new copy.
             const uploadJobs: Promise<unknown>[] = [];
@@ -1772,17 +1792,5 @@ export async function runToolCalls(
 
   addApprovalItems(askInputsEvents, approvalItems);
 
-  return {
-    toolResults,
-    docsRead,
-    docsFound,
-    docsCreated,
-    documentSearchEvents,
-    docsReplicated,
-    workflowsApplied,
-    docsEdited,
-    askInputsEvents,
-    textCardEvents,
-    mcpEvents,
-  };
+  return results;
 }
