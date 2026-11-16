@@ -1,0 +1,2 @@
+# Recorded response bytes: the trailing blank line is part of the stream.
+*.sse -whitespace linguist-generated
