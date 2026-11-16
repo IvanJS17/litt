@@ -7,7 +7,7 @@ vi.mock("../../observability/report", () => ({
     },
 }));
 
-import { createCitationSupportTurn, runCitationSupportChecks } from "../check";
+import { createCitationSupportRunner, createCitationSupportTurn, runCitationSupportChecks } from "../check";
 import type { CitationSupportInput } from "../inputs";
 
 // The real TypeSafe API and database are never touched: both are mocks.
@@ -27,7 +27,7 @@ const input = (ref: number): CitationSupportInput => ({
 
 const SCOPE = {
     orgId: "org-1",
-    messageId: "message-1",
+    ownerId: "message-1",
     surface: "chat" as const,
 };
 
@@ -337,5 +337,78 @@ describe("createCitationSupportTurn", () => {
         await expect(turn.finish("m", true)).resolves.toBeNull();
         expect(reported.calls).toHaveLength(1);
         expect(JSON.stringify(reported.calls)).not.toContain(SECRET);
+    });
+});
+
+describe("the other owners of a result", () => {
+    const owners = [
+        ["tabular_cell", "tabular_cell_id"],
+        ["tabular_chat", "tabular_chat_message_id"],
+        ["playbook", "playbook_id"],
+    ] as const;
+
+    it.each(owners)("writes a %s result against %s and no other owner", async (surface, column) => {
+        const { db, rows } = memoryDb();
+        await runCitationSupportChecks({
+            db,
+            apiKey: SECRET,
+            scope: { ...SCOPE, surface },
+            inputs: [input(1)],
+            deps: deps(vi.fn(async () => jevAnswer(0.8))),
+        });
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ [column]: "message-1" });
+        const set = Object.keys(rows[0]).filter((key) => /message_id|^tabular_|^playbook_id/.test(key));
+        expect(set).toEqual([column]);
+    });
+
+    it("removes the check of a cell's previous content before the new one, and only for cells", async () => {
+        const deleted: Record<string, unknown>[] = [];
+        const rows: Record<string, unknown>[] = [];
+        const db = {
+            from: () => ({
+                delete: () => ({
+                    eq: async (column: string, value: unknown) => {
+                        deleted.push({ column, value });
+                        return { error: null };
+                    },
+                }),
+                insert: async (row: Record<string, unknown>) => {
+                    rows.push(row);
+                    return { error: null };
+                },
+            }),
+        } as never;
+        const ask = deps(vi.fn(async () => jevAnswer(0.8)));
+        await runCitationSupportChecks({ db, apiKey: SECRET, scope: { ...SCOPE, surface: "tabular_cell" }, inputs: [input(1)], deps: ask });
+        expect(deleted).toEqual([{ column: "tabular_cell_id", value: "message-1" }]);
+        await runCitationSupportChecks({ db, apiKey: SECRET, scope: { ...SCOPE, surface: "playbook" }, inputs: [input(1)], deps: ask });
+        await runCitationSupportChecks({ db, apiKey: SECRET, scope: SCOPE, inputs: [input(1)], deps: ask });
+        expect(deleted).toHaveLength(1);
+        expect(rows).toHaveLength(3);
+    });
+});
+
+describe("createCitationSupportRunner", () => {
+    it("does not exist without the key, the preference or the accepted version, and reads the firm only when it checks", async () => {
+        const fetchImpl = vi.fn(async () => jevAnswer(0.4));
+        const { db, rows } = turnDb(true);
+        const orgOf = vi.fn(async () => "org-1");
+        const runner = await createCitationSupportRunner({ db, userId: "u", orgId: orgOf, legalVersion: LEGAL, deps: deps(fetchImpl) });
+        expect(runner).not.toBeNull();
+        expect(orgOf).not.toHaveBeenCalled();
+        expect(await runner!.run({ surface: "tabular_cell", ownerId: "cell-1" }, [])).toBeNull();
+        expect(orgOf).not.toHaveBeenCalled();
+        await runner!.run({ surface: "tabular_cell", ownerId: "cell-1" }, [input(1)]);
+        await runner!.run({ surface: "playbook", ownerId: "pb-1" }, [input(1)]);
+        expect(rows).toMatchObject([
+            { organization_id: "org-1", tabular_cell_id: "cell-1", band: "review" },
+            { organization_id: "org-1", playbook_id: "pb-1" },
+        ]);
+        for (const other of [turnDb(false).db, turnDb(true, { accepted: "2026-01-01" }).db]) {
+            expect(await createCitationSupportRunner({ db: other, userId: "u", orgId: "org-1", legalVersion: LEGAL, deps: deps(fetchImpl) })).toBeNull();
+        }
+        delete process.env.TYPESAFE_API_KEY;
+        expect(await createCitationSupportRunner({ db, userId: "u", orgId: "org-1", legalVersion: LEGAL })).toBeNull();
     });
 });
