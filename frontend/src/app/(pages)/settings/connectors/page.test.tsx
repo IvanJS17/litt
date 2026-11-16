@@ -27,8 +27,8 @@ import { needsMfaVerification } from "@/app/components/popups/MfaVerificationPop
 
 // Replace only the network functions the OAuth popup flow drives; keep the real
 // MikeApiError / isMfaRequiredError so `instanceof` checks in the page behave.
-// LiTT ships no suggested connector (connectorPresets.test.ts); the Discover
-// mechanism is exercised on a fixture list.
+// The Discover mechanism is exercised on a fixture list, independent of the
+// presets LiTT ships (connectorPresets.test.ts).
 vi.mock("@/app/components/settings/connectorPresets", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@/app/components/settings/connectorPresets")>();
     const presets = [

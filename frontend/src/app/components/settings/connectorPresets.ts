@@ -1,11 +1,15 @@
 export type ConnectorPreset = { name: string; serverUrl: string };
 
 /**
- * One-click MCP servers offered under Discover. LiTT suggests no third-party
- * service by default, so the list ships empty; a server is added through
- * **+ Custom** by the person who chose it.
+ * One-click MCP servers offered under Discover. The owner chose these two on
+ * 2026-11-15; any other server is added through **+ Custom** by the person who
+ * chose it. Each connection is still per person and per workspace, signed in
+ * with that person's own account.
  */
-export const CONNECTOR_PRESETS: ReadonlyArray<ConnectorPreset> = [];
+export const CONNECTOR_PRESETS: ReadonlyArray<ConnectorPreset> = [
+    { name: "Notion", serverUrl: "https://mcp.notion.com/mcp" },
+    { name: "Airtable", serverUrl: "https://mcp.airtable.com/mcp" },
+];
 
 /**
  * Preset URLs and stored connector URLs differ in trailing slashes and
