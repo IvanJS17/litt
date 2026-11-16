@@ -34,7 +34,7 @@ Ajustes (lo mío)
   Mis llaves y servicios .. Mis llaves de IA · Búsqueda web · Lectura de escaneados · Conectores
   Mi formación ............ Mi formación (+ aprendices y Panel del mentor, dentro, si soy mentor)
   Mis despachos ........... lista e invitaciones; cada despacho abre «Ajustes del despacho»
-  Administración de la plataforma ... Invitaciones a la beta · Estadísticas de la beta (solo admin de plataforma)
+  Administración de la plataforma ... Invitaciones a la beta · Estadísticas de la beta (solo admin de plataforma; incluye los conteos de la verificación de citas por banda y por día)
 
 Ajustes del despacho · <nombre>
   Despacho ................ General · Miembros
@@ -46,7 +46,7 @@ Ajustes del despacho · <nombre>
 | --- | --- | --- | --- |
 | Cuenta | personal | `/settings` | everyone |
 | Seguridad | personal | `/settings/security` | everyone |
-| Privacidad y datos | personal | `/settings/privacy-data` | everyone, unless the firm lets members neither export nor delete |
+| Privacidad y datos | personal | `/settings/privacy-data` | everyone, unless the firm lets members neither export nor delete (the opt-out «Verificar mis citas con TypeSafe» is shown to everyone, whatever the firm decides, but only where the deployment runs the check) |
 | Mi actividad | personal | `/settings/my-activity` | everyone |
 | Personalización, Memoria, Apariencia | personal | `/settings/personalisation`, `/memory`, `/appearance` | everyone |
 | Asistente | personal | `/settings/assistant` | everyone |
@@ -73,6 +73,7 @@ Ajustes del despacho · <nombre>
 | Web search keys and choice | Personal: Búsqueda web. Firm: the search keys inside Llaves del despacho | Same link. |
 | LandingAI key | Personal: Lectura de escaneados. Firm: Llaves del despacho | — |
 | The three «llaves propias» switches (AI, web search, scans) | Firm: Llaves del despacho | — |
+| «Verificar mis citas con TypeSafe» (opt-out of the silent citation check) | Personal: Privacidad y datos, the first card. Not a firm setting: the check is the platform's, there is no key to save and the firm has no switch | — |
 | Document types for splitting a case file | Personal: Lectura de escaneados (personal space only). Firm: Lectura de escaneados | In a firm's space the personal page links to the firm's list. |
 | Mentors and pupils; the firm's criteria | Firm: Formación | «Mi formación» (personal) has only what is mine. |
 

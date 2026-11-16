@@ -2083,6 +2083,21 @@ export async function getPlatformMe(): Promise<PlatformMe> {
     return apiRequest<PlatformMe>("organizations.manage", "/platform/me");
 }
 
+/** The personal setting of the silent citation check; `available` is false where the deployment does not run it. */
+export type CitationCheckSetting = { available: boolean; enabled: boolean };
+
+export async function getCitationCheckSetting(): Promise<CitationCheckSetting> {
+    return apiRequest<CitationCheckSetting>("settings.profile", "/user/citation-check");
+}
+
+export async function setCitationCheckEnabled(enabled: boolean): Promise<CitationCheckSetting> {
+    return apiRequest<CitationCheckSetting>("settings.profile", "/user/citation-check", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+    });
+}
+
 export async function getPlatformStats(): Promise<PlatformStats> {
     return apiRequest<PlatformStats>("organizations.manage", "/platform/stats");
 }

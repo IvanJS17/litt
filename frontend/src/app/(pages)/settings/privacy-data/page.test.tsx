@@ -24,6 +24,9 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getUserExportStatus: vi.fn(),
     downloadUserExport: vi.fn(),
     isMfaRequiredError: () => false,
+    // The citation check card: not offered here.
+    getCitationCheckSetting: vi.fn().mockResolvedValue({ available: false, enabled: true }),
+    setCitationCheckEnabled: vi.fn(),
 }));
 
 vi.mock("@/app/contexts/ChatHistoryContext", () => ({
