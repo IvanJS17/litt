@@ -484,6 +484,11 @@ type GuardedFetchOptions = {
     label?: string;
     /** Also allow plain http: URLs (public web pages). */
     allowHttp?: boolean;
+    /**
+     * `false` returns a 3xx answer as it is instead of following it, for
+     * callers that treat a redirect as a failure (client metadata documents).
+     */
+    followRedirects?: boolean;
 };
 
 export async function guardedFetch(
@@ -567,6 +572,7 @@ async function guardedFetchUnlabelled(
     // redirect is not something any MCP flow needs, and skipping it avoids
     // having to reason about 307/308 body semantics.
     if (method !== "GET" && method !== "HEAD") return response;
+    if (options.followRedirects === false) return response;
 
     let headers = new Headers(
         (requestInit.headers as HeadersInit | undefined) ??

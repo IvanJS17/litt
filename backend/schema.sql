@@ -20873,6 +20873,29 @@ create trigger mcp_oauth_audit_insert_only_trigger
   before update or delete on public.mcp_oauth_audit
   for each row execute function public.mcp_oauth_audit_insert_only();
 
+-- Housekeeping, called by the registration endpoint: Claude registers a new
+-- client on every new connection, so unused registrations must not pile up.
+create or replace function public.mcp_oauth_purge()
+returns void
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  delete from public.mcp_oauth_requests where expires_at < now() - interval '1 day';
+  delete from public.mcp_oauth_codes where expires_at < now() - interval '1 day';
+  delete from public.mcp_oauth_tokens where expires_at < now() - interval '1 day';
+  delete from public.mcp_grants
+    where expires_at < now() - interval '30 days'
+       or revoked_at < now() - interval '30 days';
+  delete from public.mcp_oauth_clients c
+    where c.kind in ('dcr', 'cimd')
+      and coalesce(c.last_used_at, c.created_at) < now() - interval '7 days'
+      and not exists (select 1 from public.mcp_grants g where g.client_id = c.client_id);
+end;
+$$;
+revoke all on function public.mcp_oauth_purge() from public, anon, authenticated;
+grant execute on function public.mcp_oauth_purge() to service_role;
+
 alter table public.mcp_oauth_clients enable row level security;
 alter table public.mcp_grants enable row level security;
 alter table public.mcp_oauth_requests enable row level security;
