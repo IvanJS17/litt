@@ -1,0 +1,18 @@
+id: 1
+data: {"type":"chat_id","chatId":"chat-1","turnId":"<uuid-1>","assistantMessageId":"<uuid-1>"}
+
+id: 2
+data: {"type":"chat_title","chatId":"chat-1","title":"Generated Title"}
+
+id: 3
+data: {"type":"citations","status":"final","citations":[]}
+
+id: 4
+data: {"type":"response_details","model":"gpt-6.1-sol","reasoning":"high","usage":{"input_tokens":10,"output_tokens":5}}
+
+id: 5
+data: {"type":"error","message":"The model returned an empty response. Try again, or pick a different model.","safe_to_display":true,"request_id":"<uuid-2>"}
+
+id: 6
+data: [DONE]
+

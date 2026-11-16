@@ -1,0 +1,126 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache",
+    "connection": "keep-alive",
+    "x-accel-buffering": "no"
+  },
+  "timeline": [
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "chats",
+        "value": {
+          "user_id": "u1",
+          "project_id": null,
+          "model_provider": "openai",
+          "model": "gpt-6.1-sol",
+          "credential_ref": "env:openai",
+          "reasoning_level": "high",
+          "org_id": null
+        }
+      }
+    },
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "audit_events",
+        "value": {
+          "user_id": "u1",
+          "org_id": null,
+          "user_email": null,
+          "action": "llm.egress",
+          "status": "completed",
+          "title": null,
+          "surface": "assistant",
+          "project_id": null,
+          "chat_id": "chat-1",
+          "document_id": null,
+          "review_id": null,
+          "model": "gpt-6.1-sol",
+          "detail": {
+            "provider": "openai",
+            "credential_ref": "env:openai",
+            "host": "api.openai.com"
+          }
+        }
+      }
+    },
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "chat_messages",
+        "value": {
+          "id": "<uuid-3>",
+          "chat_id": "chat-1",
+          "role": "user",
+          "content": "What does the contract say?",
+          "files": null,
+          "workflow": null,
+          "playbook": null,
+          "author_user_id": "u1"
+        }
+      }
+    },
+    {
+      "k": "memory.begin",
+      "v": null
+    },
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "chat_messages",
+        "value": {
+          "id": "<uuid-1>",
+          "chat_id": "chat-1",
+          "role": "assistant",
+          "content": null,
+          "citations": null,
+          "author_user_id": "u1",
+          "memory_input_message_id": "<uuid-3>"
+        }
+      }
+    },
+    {
+      "k": "sse",
+      "v": "id: 1\ndata: {\"type\":\"chat_id\",\"chatId\":\"chat-1\",\"turnId\":\"<uuid-1>\",\"assistantMessageId\":\"<uuid-1>\"}\n\n"
+    },
+    {
+      "k": "db.update",
+      "v": {
+        "table": "chats",
+        "value": {
+          "title": "Generated Title"
+        },
+        "filters": {
+          "id": "chat-1"
+        }
+      }
+    },
+    {
+      "k": "sse",
+      "v": "id: 2\ndata: {\"type\":\"chat_title\",\"chatId\":\"chat-1\",\"title\":\"Generated Title\"}\n\n"
+    },
+    {
+      "k": "sse",
+      "v": "id: 3\ndata: {\"type\":\"citations\",\"status\":\"final\",\"citations\":[]}\n\n"
+    },
+    {
+      "k": "sse",
+      "v": "id: 4\ndata: {\"type\":\"response_details\",\"model\":\"gpt-6.1-sol\",\"reasoning\":\"high\",\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}\n\n"
+    },
+    {
+      "k": "sse",
+      "v": "id: 5\ndata: {\"type\":\"error\",\"message\":\"The model returned an empty response. Try again, or pick a different model.\",\"safe_to_display\":true,\"request_id\":\"<uuid-2>\"}\n\n"
+    },
+    {
+      "k": "sse",
+      "v": "id: 6\ndata: [DONE]\n\n"
+    },
+    {
+      "k": "memory.release",
+      "v": null
+    }
+  ]
+}

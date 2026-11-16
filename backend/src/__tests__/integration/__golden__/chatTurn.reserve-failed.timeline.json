@@ -1,0 +1,88 @@
+{
+  "status": 500,
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+    "connection": "close"
+  },
+  "timeline": [
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "chats",
+        "value": {
+          "user_id": "u1",
+          "project_id": null,
+          "model_provider": "openai",
+          "model": "gpt-6.1-sol",
+          "credential_ref": "env:openai",
+          "reasoning_level": "high",
+          "org_id": null
+        }
+      }
+    },
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "audit_events",
+        "value": {
+          "user_id": "u1",
+          "org_id": null,
+          "user_email": null,
+          "action": "llm.egress",
+          "status": "completed",
+          "title": null,
+          "surface": "assistant",
+          "project_id": null,
+          "chat_id": "chat-1",
+          "document_id": null,
+          "review_id": null,
+          "model": "gpt-6.1-sol",
+          "detail": {
+            "provider": "openai",
+            "credential_ref": "env:openai",
+            "host": "api.openai.com"
+          }
+        }
+      }
+    },
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "chat_messages",
+        "value": {
+          "id": "<uuid-2>",
+          "chat_id": "chat-1",
+          "role": "user",
+          "content": "What does the contract say?",
+          "files": null,
+          "workflow": null,
+          "playbook": null,
+          "author_user_id": "u1"
+        }
+      }
+    },
+    {
+      "k": "memory.begin",
+      "v": null
+    },
+    {
+      "k": "db.insert",
+      "v": {
+        "table": "chat_messages",
+        "value": {
+          "id": "<uuid-3>",
+          "chat_id": "chat-1",
+          "role": "assistant",
+          "content": null,
+          "citations": null,
+          "author_user_id": "u1",
+          "memory_input_message_id": "<uuid-2>"
+        }
+      }
+    },
+    {
+      "k": "memory.release",
+      "v": null
+    }
+  ]
+}

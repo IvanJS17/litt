@@ -1,0 +1,21 @@
+id: 1
+data: {"type":"chat_id","chatId":"chat-1","turnId":"<uuid-1>","assistantMessageId":"<uuid-1>"}
+
+id: 2
+data: {"type":"chat_title","chatId":"chat-1","title":"Generated Title"}
+
+id: 3
+data: {"type":"tool_call_start","name":"ask_inputs"}
+
+id: 4
+data: {"type":"ask_inputs","event_id":"<uuid-2>","items":[{"id":"jurisdiction","kind":"text","question":"Which jurisdiction?"}]}
+
+id: 5
+data: {"type":"citations","status":"final","citations":[]}
+
+id: 6
+data: {"type":"response_details","model":"gpt-6.1-sol","reasoning":"high"}
+
+id: 7
+data: [DONE]
+
