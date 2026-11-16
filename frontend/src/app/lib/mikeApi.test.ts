@@ -136,6 +136,8 @@ import {
     createOrgInvitation,
     getPlatformMe,
     getPlatformStats,
+    getCitationCheckSetting,
+    setCitationCheckEnabled,
     listPlatformInvitations,
     createPlatformInvitation,
     deletePlatformInvitation,
@@ -3746,6 +3748,14 @@ describe("thin endpoint wrappers", () => {
         },
         { name: "getPlatformMe", call: () => getPlatformMe(), url: "/platform/me" },
         { name: "getPlatformStats", call: () => getPlatformStats(), url: "/platform/stats" },
+        { name: "getCitationCheckSetting", call: () => getCitationCheckSetting(), url: "/user/citation-check" },
+        {
+            name: "setCitationCheckEnabled",
+            call: () => setCitationCheckEnabled(false),
+            url: "/user/citation-check",
+            method: "PUT",
+            body: { enabled: false },
+        },
         { name: "listPlatformInvitations", call: () => listPlatformInvitations(), url: "/platform/invitations" },
         {
             name: "createPlatformInvitation",
