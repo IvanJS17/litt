@@ -67,9 +67,9 @@ vi.mock("../../lib/storage", async (importOriginal) => ({
 import { documentsRouter } from "../../modules/documents/documents.routes";
 
 const app = express();
-// Sentry's http integration puts 4 'close' listeners on every production
-// response before the route runs (measured with the SDK loaded first, as
-// src/instrument.ts does); vitest loads http before any SDK could patch it.
+// Express and its middleware put 4 'close' listeners on every production
+// response before the route runs (see pipeToResponse.ts); the bare test app
+// has none, so add 4 to reproduce the real count the route must stay under.
 app.use((_req, res, next) => {
   for (let i = 0; i < 4; i++) res.on("close", () => {});
   next();

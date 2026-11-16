@@ -21,7 +21,7 @@ function renderField({
   onSave?: (value: string) => Promise<boolean>;
   onRemove?: () => Promise<boolean>;
 } = {}) {
-  render(
+  const view = render(
     <>
     <ToastViewportUI />
     <ApiKeyField
@@ -35,7 +35,7 @@ function renderField({
   const input = screen.getByLabelText(
     "Anthropic (Claude) API Key",
   ) as HTMLInputElement;
-  return { input, onSave, onRemove };
+  return { input, onSave, onRemove, unmount: view.unmount };
 }
 
 describe("ApiKeyField", () => {
@@ -54,6 +54,25 @@ describe("ApiKeyField", () => {
     expect(input.value).toBe("");
     expect(input).not.toHaveAttribute("placeholder");
     expect(input.readOnly).toBe(false);
+  });
+
+  it("leaves no timer behind once a saved field is gone", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const { input, unmount } = renderField();
+      await user.type(input, "new-key");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      expect(await screen.findByRole("button", { name: "Saved" })).toBeDisabled();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      const before = vi.getTimerCount();
+      unmount();
+      expect(vi.getTimerCount()).toBeLessThan(before);
+      await vi.advanceTimersByTimeAsync(2500);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("clears the mask on focus so a replacement key can be entered", async () => {
