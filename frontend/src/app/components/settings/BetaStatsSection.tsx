@@ -32,6 +32,7 @@ const OVERVIEW_COLS = "lg:grid-cols-[minmax(0,1fr)_8rem_8rem]";
 // «Por persona»: the Persona column keeps room for a whole email while there
 // is width (`lg:break-words` below); only a narrow screen breaks it inside.
 const PEOPLE_COLS = "lg:grid-cols-[minmax(16rem,1.6fr)_1fr_1.4fr_2fr_0.9fr]";
+const CITATION_COLS = "lg:grid-cols-[1.4fr_1fr_1fr_1fr]";
 const CELL = "min-w-0 overflow-visible text-clip whitespace-normal break-words text-xs text-gray-700";
 
 function Cell({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
@@ -200,6 +201,40 @@ export function BetaStatsSection() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-2" data-testid="stats-citation-check">
+            <h3 className="text-sm font-medium text-gray-900">{t("access.stats.citationCheck.heading")}</h3>
+            <SettingsDescription>{t("access.stats.citationCheck.hint")}</SettingsDescription>
+            {stats.citation_check.days.length === 0 ? (
+              <SettingsDescription>{t("access.stats.citationCheck.empty")}</SettingsDescription>
+            ) : (
+              <>
+                <TableHeaderRow className={cn("hidden h-8 min-w-0 gap-x-4 pl-3 lg:grid", CITATION_COLS)}>
+                  <TableHeaderCell>{t("access.stats.citationCheck.day")}</TableHeaderCell>
+                  <TableHeaderCell>{t("access.stats.citationCheck.notSupported")}</TableHeaderCell>
+                  <TableHeaderCell>{t("access.stats.citationCheck.review")}</TableHeaderCell>
+                  <TableHeaderCell>{t("access.stats.citationCheck.supported")}</TableHeaderCell>
+                </TableHeaderRow>
+                <TableBody>
+                  {[{ day: t("access.stats.citationCheck.total"), ...stats.citation_check.totals }, ...stats.citation_check.days].map(
+                    (row, index) => (
+                      <TableRow
+                        key={index === 0 ? "total" : row.day}
+                        interactive={false}
+                        data-testid="stats-citation-row"
+                        className={cn(ROW, "grid", CITATION_COLS, index === 0 && "font-medium")}
+                      >
+                        <Cell label={t("access.stats.citationCheck.day")}>{row.day}</Cell>
+                        <Cell label={t("access.stats.citationCheck.notSupported")}>{row.not_supported}</Cell>
+                        <Cell label={t("access.stats.citationCheck.review")}>{row.review}</Cell>
+                        <Cell label={t("access.stats.citationCheck.supported")}>{row.supported}</Cell>
+                      </TableRow>
+                    ),
+                  )}
+                </TableBody>
+              </>
+            )}
           </div>
 
           <div className="space-y-2">

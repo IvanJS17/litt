@@ -25,6 +25,13 @@ const stats = {
     },
     usage: { last_7_days: usage(1), last_30_days: usage(2) },
     organizations: [{ name: "Firma Uno", members: 1, usage: usage(2) }],
+    citation_check: {
+        totals: { not_supported: 2, review: 3, supported: 7 },
+        days: [
+            { day: "2026-11-14", not_supported: 1, review: 1, supported: 5 },
+            { day: "2026-11-13", not_supported: 1, review: 2, supported: 2 },
+        ],
+    },
     people: [
         {
             deleted: false, name: "Ana Pérez", email: "a-very-long-address.for.mobile@firma-uno.example",
@@ -41,6 +48,26 @@ const stats = {
 
 describe("BetaStatsSection", () => {
     beforeEach(() => vi.clearAllMocks());
+
+    it("shows the silent citation check as counts per band and day, with a total row", async () => {
+        mocks.get.mockResolvedValue(stats);
+        render(<BetaStatsSection />);
+        const section = await screen.findByTestId("stats-citation-check");
+        const rows = within(section).getAllByTestId("stats-citation-row");
+        expect(rows).toHaveLength(3);
+        expect(within(rows[0]).getByText("2")).toBeInTheDocument();
+        expect(within(rows[1]).getByText("2026-11-14")).toBeInTheDocument();
+        expect(within(rows[2]).getByText("2026-11-13")).toBeInTheDocument();
+        expect(section.textContent).not.toMatch(/quote|cita:/i);
+    });
+
+    it("says there are no results yet when the check has stored none", async () => {
+        mocks.get.mockResolvedValue({ ...stats, citation_check: { totals: { not_supported: 0, review: 0, supported: 0 }, days: [] } });
+        render(<BetaStatsSection />);
+        const section = await screen.findByTestId("stats-citation-check");
+        expect(within(section).getByText("No results yet.")).toBeInTheDocument();
+        expect(within(section).queryAllByTestId("stats-citation-row")).toHaveLength(0);
+    });
 
     it("shows a loading state until the counts arrive", async () => {
         mocks.get.mockReturnValue(new Promise(() => {}));

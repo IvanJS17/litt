@@ -1,8 +1,8 @@
 # Términos y Condiciones de LiTT (Beta)
 
-**Última actualización:** 13 de noviembre de 2026
+**Última actualización:** 15 de noviembre de 2026
 
-**Entrada en vigor:** 13 de noviembre de 2026
+**Entrada en vigor:** 15 de noviembre de 2026
 
 ## 1. Quiénes somos y qué regulan estos Términos
 
@@ -134,9 +134,9 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
 
 ## 6. Llaves propias, Proveedores de IA y otros servicios de terceros
 
-1. **Tú eliges el proveedor.** LiTT no tiene un proveedor de IA propio. Cada Usuario o despacho
-   conecta la Llave propia de su Proveedor de IA y elige el proveedor y el modelo de cada
-   conversación o trabajo.
+1. **Tú eliges el proveedor.** LiTT no tiene un proveedor de IA propio para el asistente. Cada
+   Usuario o despacho conecta la Llave propia de su Proveedor de IA y elige el proveedor y el
+   modelo de cada conversación o trabajo.
 2. **Qué recibe el proveedor.** Al usar el asistente, LiTT envía al proveedor que elegiste el
    mensaje, los documentos o fragmentos que seleccionas y el contexto necesario. El proveedor
    trata esa información **bajo sus propios términos**, en virtud de tu relación directa con él.
@@ -213,6 +213,27 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
     5. la propuesta de LandingAI puede tener errores. Revísala y corrígela antes de aceptarla, y
        comprueba que cada parte tenga todas sus páginas, en el orden correcto, y que ninguna
        página quede fuera. LiTT crea un PDF nuevo por cada parte y no modifica el original.
+14. **Verificación de citas.** Para estimar si el texto que cita una respuesta del asistente
+    respalda lo que la respuesta afirma, LiTT usa a TypeSafe AI, Inc., su encargado en Estados
+    Unidos (cláusula 9.3.4). La verificación es un servicio de LiTT: no usa tu llave, no te
+    cuesta y viene encendida para todos los Usuarios. Mientras esté encendida:
+    1. por cada cita, LiTT envía a TypeSafe la oración de la respuesta que lleva la cita, el
+       texto citado y un fragmento breve del texto que lo rodea. Ese texto puede incluir datos
+       personales e información confidencial de tus clientes. LiTT no envía el nombre del
+       documento ni datos tuyos o de tu despacho;
+    2. según sus condiciones, TypeSafe no entrena sus modelos con esos textos. LiTT no tiene con
+       TypeSafe un plan de retención cero; sin él, sus condiciones no fijan un plazo para
+       borrarlos y le permiten obtener de ellos datos técnicos de uso, como registros,
+       estadísticas y métricas;
+    3. LiTT guarda el resultado con la respuesta, sin el texto enviado, y lo borra cuando se borra
+       la respuesta. Por ahora no te lo muestra: lo usa para medir la exactitud de la función,
+       sin leer el contenido de tus conversaciones, y te avisará en la aplicación antes de
+       empezar a mostrarlo. Esa medición forma parte de prestar esta función. Cuando se muestre,
+       el resultado será una estimación automática, no una garantía (cláusula 7.6); y
+    4. puedes apagarla en Ajustes → Privacidad y datos. Desde ese momento, LiTT deja de enviar a TypeSafe
+       las citas de las respuestas a tus mensajes; lo que TypeSafe ya recibió sigue lo dicho en
+       el inciso 2. Si no quieres que las citas de un asunto salgan a TypeSafe, apágala antes de
+       trabajar en él (cláusula 8.4).
 
 ## 7. La IA no sustituye el criterio profesional
 
@@ -277,9 +298,10 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
       despacho, que se expresan en estos Términos y en la configuración de la aplicación;
    2. guardar confidencialidad (cláusula 8);
    3. mantener medidas de seguridad administrativas, técnicas y físicas razonables;
-   4. usar solo los proveedores de infraestructura que se listan en el Aviso de Privacidad. El
-      despacho autoriza su uso al aceptar estos Términos. LiTT avisará con anticipación cualquier
-      cambio en esa lista;
+   4. usar solo los proveedores que se listan en la sección 5 del Aviso de Privacidad: los de
+      infraestructura y TypeSafe, para la verificación de citas (cláusula 6.14). El despacho
+      autoriza su uso al aceptar estos Términos. LiTT avisará con anticipación cualquier cambio
+      en esa lista;
    5. avisar al despacho sin demora de cualquier vulneración de seguridad que afecte su
       Contenido;
    6. remitir al despacho las solicitudes de titulares que reciba sobre su Contenido y ayudarle a
@@ -419,8 +441,8 @@ Si encuentras una vulnerabilidad, sigue la cláusula 8.8.
    entregan a clientes, y descargarlos con regularidad. LiTT no es un archivo ni un sistema de
    custodia de expedientes. Si no respaldas tu información, asumes el riesgo de perderla.
 6. **Servicios de terceros.** El Servicio depende de terceros que LiTT no controla: los
-   proveedores de hospedaje, almacenamiento, nombres de dominio y correo que se listan en el Aviso
-   de Privacidad; tu Proveedor de IA; Google y los demás conectores; y tu propia conexión. Sus
+   proveedores de hospedaje, almacenamiento, nombres de dominio, correo y verificación de citas que
+   se listan en el Aviso de Privacidad; tu Proveedor de IA; Google y los demás conectores; y tu propia conexión. Sus
    fallas, interrupciones, cambios o incidentes pueden afectar el Servicio, y LiTT no responde por
    ellos (cláusula 16).
 7. **Tu remedio.** Si el Servicio no funciona como esperas o no te satisface, tu remedio es dejar
@@ -440,7 +462,7 @@ Si encuentras una vulnerabilidad, sigue la cláusula 8.8.
       revisión y la aprobación de la cláusula 7;
    2. los errores de los Resultados o de las marcas y avisos del Servicio (cláusula 7.6);
    3. los actos u omisiones de los Proveedores de IA, de Google, de otros conectores y de los
-      proveedores de infraestructura (cláusula 15.6), ni los cargos de tu Proveedor de IA
+      proveedores de la cláusula 15.6, ni los cargos de tu Proveedor de IA
       (cláusula 6.9);
    4. el Contenido que tú o tu despacho suban, ni la configuración y los accesos que elijan;
    5. las fallas, interrupciones, errores, cambios o retiro de funciones del Servicio;

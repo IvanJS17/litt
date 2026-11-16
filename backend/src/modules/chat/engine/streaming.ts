@@ -1,5 +1,10 @@
 import { BACKEND_REPORTING_OWNER } from "../../../lib/reportedUpstreamCodes";
 import { AppError } from "../../../lib/appError";
+import {
+  answerProse,
+  buildCitationSupportInputs,
+  type CitationSupportInput,
+} from "../../../lib/citationSupport";
 import { teamOrgIdOf } from "../../../lib/personalOrgs";
 import type { WebSearchAccount, WebSearchPlan } from "../../../lib/webSearch";
 import { buildGoogleWorkspaceTools } from "../../../lib/integrations/googleWorkspace";
@@ -328,6 +333,12 @@ export async function runLLMStream(params: {
   signal?: AbortSignal;
   /** Let a route persist the completed turn before it signals stream success. */
   emitDone?: boolean;
+  /**
+   * Silent citation support check (lib/citationSupport): given the verified
+   * citations of the final answer, what each one's check will read. Only a
+   * space with its own TypeSafe key passes this; it never changes the answer.
+   */
+  onCitationSupportInputs?: (inputs: CitationSupportInput[]) => void;
   /** Add read-only app/project memory as an earliest untrusted reference turn. */
   includeMemory?: boolean;
   /** Memory scope is independent from generated-document destination. */
@@ -1243,6 +1254,19 @@ export async function runLLMStream(params: {
       return pending;
     };
     citations = await verifyCitations(rawCitations, getSourceText);
+    if (params.onCitationSupportInputs && !isSubagent) {
+      try {
+        params.onCitationSupportInputs(
+          await buildCitationSupportInputs({
+            prose: answerProse(fullText, CITATIONS_OPEN_TAG),
+            citations,
+            getSourceText,
+          }),
+        );
+      } catch {
+        // Silent mode: a failure here must never reach the answer.
+      }
+    }
   }
   devLog("[chat/stream] final citations", {
     hasCitationsBlock: citationDiagnostics.hasBlock,
