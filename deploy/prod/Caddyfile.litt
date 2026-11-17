@@ -22,4 +22,21 @@ word.litt.asteroitt.com {
 	encode zstd gzip
 	reverse_proxy litt-word:3200
 }
+# Servidor MCP de LiTT (docs/mcp-server.md): solo /mcp, /oauth/* y los
+# documentos .well-known de OAuth, por el mismo gateway /api de la web (litt:3000
+# reenvía /api/* al backend). Todo lo demás de este host responde 404. Con
+# LITT_MCP_SERVER=disabled el backend también contesta 404 en esas rutas.
+mcp.litt.asteroitt.com {
+	@mcp path /mcp /mcp/* /oauth/* /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/* /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/*
+	handle @mcp {
+		rewrite * /api{path}
+		reverse_proxy litt:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+	handle {
+		respond 404
+	}
+}
 # END litt
