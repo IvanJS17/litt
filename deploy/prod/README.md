@@ -22,7 +22,7 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 | `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, litt-web, litt-word) |
 | `gateway.conf` | Fachada interna de Supabase (gotrue+postgrest) para el backend |
 | `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` (enlaces de los correos) |
-| `Caddyfile.litt` | Bloques de `litt.asteroitt.com` y `word.litt.asteroitt.com` para el Caddy compartido (marcadores `# BEGIN/END litt`) |
+| `Caddyfile.litt` | Bloques de `litt.asteroitt.com`, `word.litt.asteroitt.com` y `mcp.litt.asteroitt.com` para el Caddy compartido (marcadores `# BEGIN/END litt`) |
 | `.env.example` | Contrato de variables (copiar a `/srv/litt/.env`, 600) |
 | `supabase-jwt.py` | Generador de las llaves JWT `anon` / `service_role` |
 | `litt-backup.sh` | Respaldo diario (pg_dump + restic en R2; sin documentos, por diseño) |
@@ -42,6 +42,8 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
       `contextlexmx`).
 - [x] Registro DNS `A word.litt` → la misma IP, sin proxy de Cloudflare (§9);
       creado el 2026-11-11.
+- [x] Registro DNS `A mcp.litt` → `78.47.184.224`, sin proxy de Cloudflare (§3, MCP);
+      vivo desde el 2026-11-17.
 - [ ] Imágenes del release construidas desde el commit exacto y verificadas
       (sección 1).
 
@@ -190,6 +192,10 @@ Cloudflare hacia el VPS y el bloque `mcp.litt.asteroitt.com` de `Caddyfile.litt`
 pasar `/mcp`, `/oauth/*` y los `.well-known` de OAuth y los reenvía al gateway `/api` de la web
 (`litt:3000`), igual que el resto de la API. Para encenderlo: `LITT_MCP_SERVER=enabled` y
 `LITT_MCP_PUBLIC_URL=https://mcp.litt.asteroitt.com` en `/srv/litt/.env`, y recrear el backend.
+Está encendido en producción desde el 2026-11-17 (`20261117c`). Comprobación desde fuera:
+`/.well-known/oauth-authorization-server` → 200; `POST /mcp` sin token → 401 con
+`resource_metadata`; `/` del host MCP → 404 (por diseño: solo deja pasar las rutas de MCP y OAuth).
+Las tablas MCP necesitan `GRANT ... TO service_role` en su propia migración (PR #229).
 
 Los demás valores del `.env` no son secretos y ya vienen en `.env.example`:
 el bucket, el host, el puerto y el usuario SMTP y el remitente.
@@ -376,7 +382,7 @@ proxy el navegador no tendría un certificado válido. Caddy emite el suyo por A
 cuanto el nombre resuelve a la IP. Verificar con DoH (`cloudflare-dns.com/dns-query`)
 antes de recargar Caddy.
 
-**Caddy.** `Caddyfile.litt` trae el bloque `word.litt.asteroitt.com` →
+**Caddy.** `Caddyfile.litt` trae los bloques `word.litt.asteroitt.com` y `mcp.litt.asteroitt.com` →
 `litt-word:3200` dentro de los mismos marcadores `# BEGIN litt` / `# END litt`. Se
 aplica con el procedimiento de §5: respaldo, `probe` de **todos** los dominios antes,
 editar solo entre los marcadores, `caddy validate`, `caddy reload`, `probe` después y

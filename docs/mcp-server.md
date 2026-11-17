@@ -1,6 +1,6 @@
 # LiTT MCP server — authorization server and `/mcp`
 
-**Status:** Code deployed in `20261117a`; `LITT_MCP_SERVER=disabled` in production. Not yet on. The chat tools (PR #226) and the public-host config (PR #227) are on `main` after the deploy and not yet in production.
+**Status:** On in production since 2026-11-17 (release `20261117c`, `LITT_MCP_SERVER=enabled`, `LITT_MCP_PUBLIC_URL=https://mcp.litt.asteroitt.com`). Live checks pass (metadata, `401` with `resource_metadata`, registration `201`, authorize `302` to consent). Registration first failed with `42501` (the MCP tables had no `service_role` grant), fixed by PR #229. Real Claude/ChatGPT login and tool call: pending (owner account).
 
 LiTT can be connected to an AI app that speaks the Model Context Protocol
 (Claude, ChatGPT, Codex, Hermes). This page describes what the backend serves

@@ -32,7 +32,7 @@
 | Client profile, matter requests, deadline radar | on (no flag) | Deployed with the 2026-11-16 release. [`client-profile.md`](client-profile.md), [`matter-requests.md`](matter-requests.md), [`deadline-radar.md`](deadline-radar.md) |
 | Firm profile, settings map, managed accounts, text size, Light/Dark/Auto theme | on | [`firm-profile.md`](firm-profile.md), [`settings-map.md`](settings-map.md), [`managed-accounts.md`](managed-accounts.md), [`design-system.md`](design-system.md) |
 | Notion and Airtable connectors (per person and per workspace) | on | Suggested one-click MCP presets. No firm-shared connector. [`connectors.md`](connectors.md) |
-| LiTT MCP server (`/mcp`, OAuth) | **off** (`LITT_MCP_SERVER=disabled`) | Code is deployed. The chat tools (PR #226) and the public-host config for `mcp.litt.asteroitt.com` (PR #227, Caddy) are merged to `main` after this deploy and not yet deployed. Being enabled, not yet on. [`mcp-server.md`](mcp-server.md) |
+| LiTT MCP server (`/mcp`, OAuth) | **on** (`LITT_MCP_SERVER=enabled`, since 2026-11-17, release `20261117c`) | Host `https://mcp.litt.asteroitt.com`. Live checks pass: AS metadata (PKCE S256, CIMD), protected resource metadata, `401` with `resource_metadata` without a token, dynamic registration `201`, authorize `302` to the consent page, bad token `400`, other paths `404`. Registration first failed with `42501` (missing `service_role` grants), fixed by PR #229. **Real Claude/ChatGPT test pending** (owner account, login and a tool call not yet run). [`mcp-server.md`](mcp-server.md) |
 | Chat subagents, web search | on (compose default `enabled`) | [`subagents.md`](subagents.md), [`web-search.md`](web-search.md) |
 | Google Drive, Gmail, Calendar | **off** | No Google OAuth client exists; the owner postponed Google work. [`google-workspace.md`](google-workspace.md) |
 | Microsoft 365 and Dropbox connectors | not built | Announced as in design. No code. |
@@ -49,9 +49,9 @@ matter now:
 
 - Owner confirmation of the legal wording that covers citation checks on tabular
   cells and playbook drafts (TD-047). Those checks are already live.
-- MCP: deploy the public-host config (PR #227, merged to `main`) and set
-  `LITT_MCP_SERVER=enabled` with `LITT_MCP_PUBLIC_URL`; then re-check. Mode B's run record
-  does not name the reviewed version (TD-049).
+- MCP: on in production since 2026-11-17 (`LITT_MCP_SERVER=enabled`, public host
+  `https://mcp.litt.asteroitt.com`). Real Claude/ChatGPT login and tool call with an owner
+  account still pending. Mode B's run record does not name the reviewed version (TD-049).
 - PostgREST memory grows slowly; contained by a 256 MiB limit with no swap. Re-measure
   by 2026-11-22 (TD-048).
 - Flaky backend and frontend tests seen in CI on 2026-11-14 (TD-050).

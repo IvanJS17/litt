@@ -14,10 +14,17 @@ Sections below that say a PR is pending or a test is flaky were written before t
 Checked against `origin/main` at `7cd3cba3c`, 2026-11-17, from the reviewer notes of PRs
 #193 to #226.
 
-- **Closed since the last list:** radar paging and item order (#224, `ad7f318df`);
+- **Closed since the last list:** MCP tables missing `service_role` grants (PR #229; the
+  two MCP migrations had no grant and production's `public` schema has no default
+  privileges, so registration failed with `42501` right after the flag was enabled;
+  guard test `littTableGrants.test.ts`; lesson: every new table needs its grants in the
+  same migration); radar paging and item order (#224, `ad7f318df`);
   MCP `origin_label` fencing and test doubles (#226); tabular review and playbook
   drafts are connected to the citation support check (#202); the flaky frontend tests
   named in TD-046 (`17edecc62`).
+- **Open: real Claude/ChatGPT test pending.** MCP is on in production (`20261117c`) and
+  the live checks pass, but no owner account has yet logged in from Claude or ChatGPT and
+  run a tool call. Close it when that works and is recorded here.
 - **Open, in the debt ledger:** TD-047 (legal wording of the citation checks), TD-048
   (PostgREST memory, re-measure by 2026-11-22), TD-049 (MCP mode B run record), TD-050
   (flaky backend and frontend tests from the 2026-11-14 CI runs).

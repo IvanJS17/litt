@@ -46,7 +46,7 @@ Each line gives the feature and its state. "Flag" names the environment switch.
 - [Beta statistics](beta-stats.md) — counts for platform administrators, audited, no export. Shipped.
 - [Preset templates](preset-templates.md) — the preset contract catalog (ships empty in LiTT). Shipped, empty.
 - [Connectors (MCP)](connectors.md) — hosted presets (Notion, Airtable), custom servers, OAuth. Shipped for presets; no firm-shared connector.
-- [LiTT MCP server](mcp-server.md) — OAuth authorization server and `/mcp` for AI apps. Code deployed; flag `LITT_MCP_SERVER` is `disabled` in production; public-host config merged (PR #227), not yet deployed.
+- [LiTT MCP server](mcp-server.md) — OAuth authorization server and `/mcp` for AI apps. On in production since 2026-11-17 (`LITT_MCP_SERVER=enabled`); real Claude/ChatGPT test pending.
 - [Google Workspace](google-workspace.md) — Drive, Gmail and Calendar connectors. Not enabled: no OAuth client; postponed by the owner.
 - [Google Drive](google-drive.md) — pointer to the Drive part of Google Workspace. Not enabled.
 - [Microsoft Word add-in (user guide)](../word-addin/README.md) — setup and command reference. Shipped.
