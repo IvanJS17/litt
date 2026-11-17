@@ -73,7 +73,7 @@ Each line gives the feature and its state. "Flag" names the environment switch.
 - [Troubleshooting](troubleshooting.md) — common local and production problems
 - [Safe local testing](safe-local-testing.md) — disposable resources, synthetic documents, secret handling
 - [Security policy](../SECURITY.md) — private vulnerability reporting
-- [Incidents](incidents/) — dated post-incident notes (2026-09-29, assistant streaming)
+- [Incident: assistant update depth](incidents/2026-09-29-assistant-update-depth.md) and [streaming effects audit](incidents/2026-09-29-streaming-effects-audit.md) — dated post-incident notes (2026-09-29)
 
 ## Testing and CI
 
