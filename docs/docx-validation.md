@@ -1,5 +1,7 @@
 # DOCX upload validation
 
+**Status:** Shipped in production (no flag).
+
 Sealed DOCX uploads are checked before destination storage copies, conversion,
 or document/version writes. The checks cover required package parts, the main
 Word relationship, content type, document/body namespace identity, XML syntax,

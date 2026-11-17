@@ -1,5 +1,7 @@
 # Obligation rules of a retainer matter
 
+**Status:** Shipped in production by deploy `20261117d` (PR #231); no flag; each rule is turned on per retainer matter by the lawyer.
+
 Obligation rules extend the [deadline radar](deadline-radar.md). A rule is an
 obligation of the law whose date LiTT **counts, in code, from a confirmed date
 of the [client profile](client-profile.md)**: the annual shareholders' meeting

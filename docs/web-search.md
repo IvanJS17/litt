@@ -1,5 +1,7 @@
 # Web search
 
+**Status:** Shipped in production; flag `LITT_CHAT_WEB_SEARCH` (compose default `enabled`).
+
 The assistant can search the web and read web pages in chats and project
 chats. It is off for each user until they turn it on under
 **Settings → Web search**. Tabular review and the Word add-in do not

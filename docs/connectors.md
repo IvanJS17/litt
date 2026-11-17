@@ -1,5 +1,7 @@
 # MCP connectors
 
+**Status:** Notion and Airtable presets shipped in production (PR #198). Google is not enabled (no OAuth client); Microsoft 365 and Dropbox are not built.
+
 LiTT connects to remote [Model Context Protocol](https://modelcontextprotocol.io)
 servers from **Settings > Connectors**. Installed connectors appear under
 **Installed**. Hosted providers appear under **Discover**, and an arbitrary

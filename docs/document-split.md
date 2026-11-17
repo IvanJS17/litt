@@ -1,5 +1,7 @@
 # Split a case file (layer 7)
 
+**Status:** Shipped in production (layer 7); no flag. A browser run with a real case file is not done.
+
 A PDF that arrives with several documents inside (an escritura with its annexes,
 IDs, tax certificates, a Registro Público boleta) can be split into one PDF per
 document. **LandingAI Split** proposes the groups, the lawyer adjusts the

@@ -1,5 +1,7 @@
 # Word add-in development and deployment
 
+**Status:** Shipped in production in the Word add-in build; the Microsoft 365 install check is owner-only.
+
 This guide contains the detailed setup, deployment, testing, and troubleshooting
 reference for the [LiTT Word add-in](../word-addin/README.md).
 

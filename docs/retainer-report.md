@@ -1,5 +1,7 @@
 # Retainer report
 
+**Status:** Shipped in production by deploy `20261117d` (PR #230); no flag.
+
 The retainer report ("reporte de la iguala") is the document a lawyer sends to
 the client of a retainer matter: what was handled in the last 30, 60 or 90
 days, which facts of the [client profile](client-profile.md) were confirmed,

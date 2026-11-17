@@ -1,5 +1,7 @@
 # Firm-managed accounts («Cuentas administradas por el despacho»)
 
+**Status:** Shipped in production; a firm setting, no environment flag.
+
 A firm pays for LiTT for its lawyers and turns off their own keys. Without this
 setting a lawyer could still put keys in the personal workspace, use the firm's
 LiTT for personal matters, or move firm content out to it.

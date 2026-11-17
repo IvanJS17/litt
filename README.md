@@ -112,14 +112,17 @@ The bundled credentials and infrastructure are for local development only.
 
 ## Documentation
 
-- [Documentation index](docs/README.md)
+- [Documentation index](docs/README.md) — every document, grouped by purpose
+- [Agent instructions](AGENTS.md) — rules for AI agents and contributors working in this repository
+- [Project status](docs/PROJECT_STATUS.md) — production deploy, what is on and off, open items
+- [Release gates](docs/RELEASE_GATES.md) — the gates before a change reaches production
+- [`llms.txt`](llms.txt) — a short map of the repository for AI tools
 - [Local development](docs/local-development.md)
 - [Manual and production deployment](docs/deployment.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Safe local testing](docs/safe-local-testing.md)
 - [Microsoft Word add-in](docs/word-addin-development.md)
 - [End-to-end testing and CI](docs/e2e-ci.md)
-- [Project status](docs/PROJECT_STATUS.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Open-source credits](CREDITS.md)

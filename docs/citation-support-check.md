@@ -1,5 +1,7 @@
 # Citation support check (TypeSafe, Jev) — silent store, hint for the low band
 
+**Status:** On in production since 2026-11-16 (`LITT_CITATION_CHECK=enabled`); repository default `disabled`; each person can opt out.
+
 LiTT already checks that the text a citation quotes **exists** in the document
 (`modules/chat/engine/verifyCitations.ts`). It does not check that the quote
 **supports the claim** the answer makes. This capability asks Jev, the

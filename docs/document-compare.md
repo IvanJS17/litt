@@ -1,5 +1,7 @@
 # Document comparison (redline)
 
+**Status:** Shipped in production; no flag.
+
 A person can compare two Word documents of a project and get a **third, new
 Word document** that shows the differences as tracked changes (insertions,
 deletions and formatting changes). The two documents keep their bytes, their

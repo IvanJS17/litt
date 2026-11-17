@@ -1,5 +1,7 @@
 # Scoped memory
 
+**Status:** Shipped in production (no flag).
+
 LiTT can maintain a private Markdown file named `memory.md` for a user in each
 workspace they use — one for Personal, and one for each organization they
 belong to — and one shared Markdown file for each project. Memory is optional,

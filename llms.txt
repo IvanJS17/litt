@@ -1,0 +1,53 @@
+# LiTT
+
+> LiTT is an AI workspace for law firms and legal departments in Mexico (document review, drafting, legal research, tabular review). It is a modified version of MikeOSS (AGPL-3.0-only). Closed beta by invitation at https://litt.asteroitt.com. Each firm's documents, matters and keys are separated from other firms' by row-level security. Users bring their own model keys (BYOK); the one platform service is an optional citation support check that each person can turn off.
+
+Repository: https://github.com/IvanJS17/litt (issues are disabled; code proposals go through pull requests). Production deploys are tagged `prod-YYYYMMDDx` in Git, each pointing to the commit that runs; most are also published as a GitHub release. Every build embeds its commit; the app links to that source (AGPL-3.0 section 13).
+
+Current production deploy: `20261117d` (commit `1e11b983b`, tag `prod-20261117d`).
+
+Read first: the repository's agent rules and the current state. Local setup uses synthetic data only. Production state and open items change; check PROJECT_STATUS.md before relying on them.
+
+## Start here
+
+- [Agent instructions](https://github.com/IvanJS17/litt/blob/main/AGENTS.md): rules for agents working in this repository
+- [Documentation index](https://github.com/IvanJS17/litt/blob/main/docs/README.md): every document, one line each, grouped by purpose
+- [Project status](https://github.com/IvanJS17/litt/blob/main/docs/PROJECT_STATUS.md): production deploy, what is on and off, open items
+- [Release gates](https://github.com/IvanJS17/litt/blob/main/docs/RELEASE_GATES.md): the gates before production
+- [Technical debt](https://github.com/IvanJS17/litt/blob/main/docs/TECHNICAL_DEBT.md): authoritative open debt with exit criteria
+
+## Product features
+
+- [Firm profile](https://github.com/IvanJS17/litt/blob/main/docs/firm-profile.md): the firm description the assistant reads
+- [Playbooks](https://github.com/IvanJS17/litt/blob/main/docs/playbooks.md): negotiation guides turned into reviewable rules
+- [Training](https://github.com/IvanJS17/litt/blob/main/docs/training.md): mentors, pupils, supervision and criterion
+- [Document conversion](https://github.com/IvanJS17/litt/blob/main/docs/document-conversion.md): Markdown, Word and PDF into a new document
+- [Document comparison](https://github.com/IvanJS17/litt/blob/main/docs/document-compare.md): two Word files into a new one with tracked changes
+- [Scan reading (OCR)](https://github.com/IvanJS17/litt/blob/main/docs/document-ocr.md): optional, with the person's or firm's own key
+- [Split a case file](https://github.com/IvanJS17/litt/blob/main/docs/document-split.md): one PDF into one file per document
+- [Client profile](https://github.com/IvanJS17/litt/blob/main/docs/client-profile.md), [matter requests](https://github.com/IvanJS17/litt/blob/main/docs/matter-requests.md), [deadline radar](https://github.com/IvanJS17/litt/blob/main/docs/deadline-radar.md), [obligation rules](https://github.com/IvanJS17/litt/blob/main/docs/obligation-rules.md), [retainer report](https://github.com/IvanJS17/litt/blob/main/docs/retainer-report.md): retainer-matter features
+- [Citation support check](https://github.com/IvanJS17/litt/blob/main/docs/citation-support-check.md): silent second check of citations, per-person opt-out
+- [Connectors (MCP)](https://github.com/IvanJS17/litt/blob/main/docs/connectors.md): hosted presets and custom servers
+- [LiTT MCP server](https://github.com/IvanJS17/litt/blob/main/docs/mcp-server.md): OAuth authorization server and `/mcp` for AI apps (on in production since 2026-11-17, release `20261117c`)
+- [Word add-in](https://github.com/IvanJS17/litt/blob/main/word-addin/README.md): Microsoft Word task pane
+
+## Architecture and operations
+
+- [Backend architecture](https://github.com/IvanJS17/litt/blob/main/docs/backend-architecture.md): domain modules over a shared kernel
+- [Design system](https://github.com/IvanJS17/litt/blob/main/docs/design-system.md): tokens, primitives, accessibility baseline
+- [Local development](https://github.com/IvanJS17/litt/blob/main/docs/local-development.md): Docker Compose stack with synthetic data
+- [Deployment](https://github.com/IvanJS17/litt/blob/main/docs/deployment.md): managed infrastructure, environment variables, migrations
+- [Troubleshooting](https://github.com/IvanJS17/litt/blob/main/docs/troubleshooting.md)
+- [End-to-end tests in CI](https://github.com/IvanJS17/litt/blob/main/docs/e2e-ci.md)
+
+## Upstream
+
+- [Upstream policy](https://github.com/IvanJS17/litt/blob/main/docs/UPSTREAM_POLICY.md): how MikeOSS changes are taken; current pin and intake schedule
+- [Upstream compatibility ledger](https://github.com/IvanJS17/litt/blob/main/docs/UPSTREAM_COMPATIBILITY_LEDGER.md): per-cycle dispositions
+
+## Optional
+
+- [Contributing](https://github.com/IvanJS17/litt/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/IvanJS17/litt/blob/main/SECURITY.md)
+- [Credits](https://github.com/IvanJS17/litt/blob/main/CREDITS.md)
+- [Project status history](https://github.com/IvanJS17/litt/blob/main/docs/PROJECT_STATUS_HISTORY.md)

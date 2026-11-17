@@ -1,5 +1,7 @@
 # LiTT and search engines
 
+**Status:** Shipped in production (no flag).
+
 While the beta is closed, LiTT asks every search engine not to list it, at
 `litt.asteroitt.com`. Nothing here hides the site: a person with the address
 can still open it, and `robots.txt` is a request, not a lock. Access is
