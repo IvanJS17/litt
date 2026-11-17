@@ -852,7 +852,7 @@
       "chooseVersion": "Elige una versión",
       "button": "Proponer datos con IA",
       "running": "Leyendo el documento…",
-      "helper": "Se enviará el texto de esta versión a {provider}, con tu propia llave o la de tu organización, nunca una de LiTT. Cada propuesta queda por confirmar hasta que un abogado la revise.",
+      "helper": "Se enviará el texto de esta versión a {provider}, con tu propia llave o la de tu despacho, nunca una de LiTT. Cada propuesta queda por confirmar hasta que un abogado la revise.",
       "couldNotExtract": "No se pudo proponer datos con IA.",
       "result": {
         "title": "Resultado",

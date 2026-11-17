@@ -137,7 +137,7 @@ a version without ready text is refused (422 `source_text_unavailable`).
   `profile_extraction`: provider, model, credential reference, host, matter and
   version ids; never content) **before** the call, and if it cannot be recorded
   nothing is sent.
-- **Size.** Up to 120,000 characters of text (`MAX_EXTRACT_TEXT_CHARS`); above
+- **Size.** Up to 120,000 characters of text, counted as JavaScript string length (UTF-16 code units) (`MAX_EXTRACT_TEXT_CHARS`); above
   it the run is refused (422 `extraction_text_too_large`). At most 25 items are
   read per run; the rest count as discarded.
 - **Closed output.** The model answers one JSON array of
@@ -161,8 +161,9 @@ a version without ready text is refused (422 `source_text_unavailable`).
   path) with its `created` event marked `reason = assisted_extraction`, so it
   reads "proposed with AI" in its history. Nothing reaches the radar until a
   lawyer confirms it; confirming and rejecting are the existing per-fact actions.
-  A passage already in the profile for the same fact (rejected or not) is not
-  proposed again (`discarded_duplicate`).
+  A passage already in the profile for the same fact and the same document
+  version (rejected or not) is not proposed again (`discarded_duplicate`); the
+  same text uploaded as a new version can be proposed again.
 - **Rate limit.** 10 runs per person per 15 minutes
   (`RATE_LIMIT_PROFILE_EXTRACT_MAX`, `RATE_LIMIT_PROFILE_EXTRACT_WINDOW_MINUTES`), keyed by user.
 - **Failures.** 422 `extraction_provider_failed` (the provider could not answer),
@@ -174,7 +175,7 @@ a version without ready text is refused (422 `source_text_unavailable`).
 
 UI: under the profile's header, writers whose space has a route see a panel
 with the version picker, the button, the line "The text of this version will be
-sent to {provider}, using your own key or your organization's key, never LiTT's. Each suggestion
+sent to {provider}, using your own key or your firm's key, never LiTT's. Each suggestion
 stays awaiting confirmation until a lawyer reviews it." (the provider is the
 route's, named before the click), the result of the run and the proposals
 awaiting confirmation, each with Confirm and Reject.
