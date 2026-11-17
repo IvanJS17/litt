@@ -489,6 +489,7 @@ function AddDocumentsModalForWorkspace({
                         (upload) => upload.filename,
                     )}
                     showTabs={!projectDocumentsOnly}
+                    destination="project"
                     initialTab={initialTab}
                     tabs={tabs}
                     excludeProjectId={

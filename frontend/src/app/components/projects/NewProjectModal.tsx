@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import {
     UploadBatchError,
     addDocumentToProject,
@@ -34,6 +34,7 @@ import {
 import { AccessVisibilityField } from "../modals/AccessVisibilityField";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
 import { useTranslations } from "next-intl";
+import { formatBytes } from "./ProjectPageParts";
 
 const PERSONAL_WORKSPACE = "__personal__";
 
@@ -149,10 +150,17 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
         // dropped the second of two files called `contract.pdf` — a normal
         // thing to attach from two different folders — and the user was never
         // told one of their picks had not been taken.
-        setPendingFiles((prev) => [
-            ...prev,
-            ...files.filter((file) => !prev.includes(file)),
-        ]);
+        // The same File object is listed once, within one pick or across
+        // picks. Two different files that share a name are both kept.
+        setPendingFiles((prev) => {
+            const next = [...new Set([...prev, ...files])];
+            return next.length === prev.length ? prev : next;
+        });
+    }
+
+    /** Takes a file off the "to upload" list before the project is created. */
+    function removePendingFile(file: File) {
+        setPendingFiles((prev) => prev.filter((entry) => entry !== file));
     }
 
     /** A stable per-file upload id, so outcomes map back to their File. */
@@ -605,12 +613,19 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                 variant="minimal"
                                 className="text-xl text-gray-600"
                                 disabled={projectExists}
+                                aria-describedby="new-project-cm-help"
                             />
+                            <p
+                                id="new-project-cm-help"
+                                className="mt-1.5 text-xs text-gray-500"
+                            >
+                                {t("projects.cmNumberHelp")}
+                            </p>
                         </div>
 
                         <div>
                             <FieldLabel htmlFor="new-project-practice">
-                                {t("projects.practice")}
+                                {t("projects.practiceOptional")}
                             </FieldLabel>
                             <ProjectPracticeField
                                 id="new-project-practice"
@@ -621,6 +636,9 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                 }}
                                 disabled={projectExists}
                             />
+                            <p className="mt-1.5 text-xs text-gray-500">
+                                {t("projects.practiceHelp")}
+                            </p>
                         </div>
 
                         {orgId !== PERSONAL_WORKSPACE ? (
@@ -674,12 +692,69 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                         visibility={visibility}
                     />
                 ) : (
-                    <div className="flex min-h-0 flex-1 flex-col">
-                        <FileDirectory
-                            selectedDocuments={selectedDocuments}
-                            onChange={setSelectedDocuments}
-                            showTabs
-                        />
+                    <div className="flex min-h-0 flex-1 flex-col gap-4">
+                        {pendingFiles.length > 0 && (
+                            <section
+                                aria-labelledby="new-project-pending-heading"
+                                className="shrink-0"
+                            >
+                                <h3
+                                    id="new-project-pending-heading"
+                                    className="text-sm font-medium text-gray-700"
+                                >
+                                    {t("projects.pendingFilesHeading")} (
+                                    {pendingFiles.length})
+                                </h3>
+                                <ul className="mt-2 max-h-36 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-100">
+                                    {pendingFiles.map((file, index) => (
+                                        <li
+                                            key={`${index}-${file.name}-${file.size}`}
+                                            className="flex min-w-0 items-center gap-2 px-2 py-1.5 text-xs"
+                                        >
+                                            <span className="min-w-0 flex-1 truncate text-gray-700">
+                                                {file.name}
+                                            </span>
+                                            <span className="shrink-0 text-gray-400">
+                                                {formatBytes(file.size)}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    removePendingFile(file)
+                                                }
+                                                disabled={
+                                                    loading ||
+                                                    uploadedFilesRef.current.has(
+                                                        file,
+                                                    )
+                                                }
+                                                aria-label={t(
+                                                    "projects.removePendingFile",
+                                                    { filename: file.name },
+                                                )}
+                                                className="shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-40"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-1.5 text-xs text-gray-500">
+                                    {t("projects.pendingFilesNote")}
+                                </p>
+                            </section>
+                        )}
+                        <div className="flex min-h-0 flex-1 flex-col">
+                            <h3 className="mb-2 shrink-0 text-sm font-medium text-gray-700">
+                                {t("projects.existingDocumentsHeading")}
+                            </h3>
+                            <FileDirectory
+                                selectedDocuments={selectedDocuments}
+                                onChange={setSelectedDocuments}
+                                showTabs
+                                destination="new-project"
+                            />
+                        </div>
                     </div>
                 )}
 

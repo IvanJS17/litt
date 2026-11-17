@@ -179,7 +179,7 @@ describe("NewProjectModal sharing", () => {
         });
         renderModal();
 
-        expect(await screen.findByLabelText("Practice")).toHaveTextContent(
+        expect(await screen.findByLabelText("Practice (optional)")).toHaveTextContent(
             "Corporate and M&A",
         );
     });
@@ -1034,6 +1034,72 @@ describe("NewProjectModal sharing", () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
+    describe("files waiting to be uploaded", () => {
+        async function openDocumentsStep() {
+            const user = userEvent.setup({ delay: null });
+            renderModal();
+            await user.type(screen.getByPlaceholderText("Add project name"), "P");
+            await user.click(screen.getByRole("button", { name: "Next" }));
+            await user.click(screen.getByRole("button", { name: "Next" }));
+            const input = document.querySelector(
+                'input[type="file"]',
+            ) as HTMLInputElement;
+            return { user, input };
+        }
+
+        it("lists a chosen file with its size and when it is uploaded", async () => {
+            const { input } = await openDocumentsStep();
+            expect(screen.queryByText("To upload (1)")).not.toBeInTheDocument();
+            fireEvent.change(input, {
+                target: { files: [new File(["abc"], "contract.pdf")] },
+            });
+            const heading = await screen.findByRole("heading", { name: "To upload (1)" });
+            const list = within(heading.closest("section") as HTMLElement);
+            expect(list.getByText("contract.pdf")).toBeInTheDocument();
+            expect(list.getByText("3 B")).toBeInTheDocument();
+            expect(
+                list.getByText("They are uploaded when you create the project."),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole("heading", {
+                    name: "Add documents you already have in LiTT",
+                }),
+            ).toBeInTheDocument();
+        });
+
+        it("removes a file from the list so it is not uploaded", async () => {
+            const { user, input } = await openDocumentsStep();
+            fireEvent.change(input, {
+                target: {
+                    files: [new File(["a"], "a.pdf"), new File(["b"], "b.pdf")],
+                },
+            });
+            await user.click(
+                await screen.findByRole("button", {
+                    name: "Remove a.pdf from the upload list",
+                }),
+            );
+            expect(screen.queryByText("a.pdf")).not.toBeInTheDocument();
+            expect(screen.getByText("b.pdf")).toBeInTheDocument();
+
+            await user.click(screen.getByRole("button", { name: "Create project" }));
+            await waitFor(() => expect(uploadProjectDocuments).toHaveBeenCalled());
+            const [, sent] = vi.mocked(uploadProjectDocuments).mock.calls[0];
+            expect(sent.map((entry) => entry.file.name)).toEqual(["b.pdf"]);
+        });
+
+        it("lists the same File once, in one pick or across picks", async () => {
+            const { input } = await openDocumentsStep();
+            const file = new File(["a"], "once.pdf");
+            fireEvent.change(input, { target: { files: [file, file] } });
+            fireEvent.change(input, { target: { files: [file] } });
+            expect(
+                await screen.findByRole("heading", { name: "To upload (1)" }),
+            ).toBeInTheDocument();
+            expect(screen.getAllByText("once.pdf")).toHaveLength(1);
+        });
+    });
+
     it("keeps two files that happen to share a name", async () => {
         // The picker deduplicated by NAME, so the second `contract.pdf` — a
         // normal thing to attach from two different folders — was dropped
@@ -1149,8 +1215,8 @@ describe("NewProjectModal sharing", () => {
         await user.click(screen.getByRole("button", { name: "Back" }));
 
         expect(screen.getByLabelText("Project name")).toBeDisabled();
-        expect(screen.getByLabelText("CM number")).toBeDisabled();
-        expect(screen.getByLabelText("Practice")).toBeDisabled();
+        expect(screen.getByLabelText("Client/matter code (optional)")).toBeDisabled();
+        expect(screen.getByLabelText("Practice (optional)")).toBeDisabled();
         expect(
             screen.getByText(
                 /name, CM\s+number and practice can no longer be changed\s+here/,

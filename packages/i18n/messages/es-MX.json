@@ -3197,7 +3197,7 @@
   },
   "projects": {
     "access": "Acceso",
-    "addACmNumber": "Agrega un número de CM…",
+    "addACmNumber": "Ej. 2026-014",
     "addDocuments": "Agregar documentos",
     "addProjectName": "Agrega el nombre del proyecto",
     "addToChat": "Agregar al chat",
@@ -3214,7 +3214,7 @@
     "chats": "Chats",
     "closeSideChat": "Cerrar chat lateral",
     "cm": "CM",
-    "cmNumber": "Número de CM",
+    "cmNumber": "Clave de cliente/asunto (opcional)",
     "collapseExplorer": "Contraer explorador",
     "continue": "Continuar",
     "couldNotUpdateProjectDetails": "No se pudieron actualizar los detalles del proyecto.",
@@ -3430,7 +3430,14 @@
         "label": "Vista del espacio de trabajo"
       }
     },
-    "youDoNotHavePermission": "No tienes permiso para borrar este archivo."
+    "youDoNotHavePermission": "No tienes permiso para borrar este archivo.",
+    "cmNumberHelp": "Tu clave interna para este asunto, si tu despacho usa una. Aparece junto al nombre del proyecto.",
+    "practiceOptional": "Práctica (opcional)",
+    "practiceHelp": "Sirve para filtrar tus proyectos.",
+    "pendingFilesHeading": "Por subir",
+    "pendingFilesNote": "Se suben al crear el proyecto.",
+    "removePendingFile": "Quitar {filename} de la lista por subir",
+    "existingDocumentsHeading": "Agregar documentos que ya tienes en LiTT"
   },
   "radar": {
     "title": "Radar de vencimientos",
@@ -4328,7 +4335,8 @@
         "publicLawAndRegulatory": "Derecho público y regulatorio",
         "realEstate": "Inmobiliario",
         "tax": "Fiscal",
-        "technologyAndTelecommunications": "Tecnología y telecomunicaciones"
+        "technologyAndTelecommunications": "Tecnología y telecomunicaciones",
+        "other": "Otra"
       },
       "enterYourJurisdiction": "Escribe tu jurisdicción",
       "enterYourJurisdictionOfPractice": "Escribe tu jurisdicción de práctica",
@@ -5389,8 +5397,13 @@
     "fileDirectory": {
       "collapse": "Contraer",
       "created": "Creado",
-      "documents": "Documentos",
+      "documents": "Mi biblioteca",
+      "documentsDescription": "Documentos que subiste fuera de cualquier proyecto.",
       "empty": "Vacío",
+      "emptyLibrary": "No tienes documentos en tu biblioteca fuera de proyectos.",
+      "emptyLibraryInProject": "No tienes documentos en tu biblioteca fuera de proyectos. Los documentos de este proyecto ya están en el proyecto.",
+      "emptyProjects": "No tienes otros proyectos con documentos todavía.",
+      "emptyTemplates": "Aún no tienes plantillas. Puedes agregarlas en Biblioteca › Plantillas.",
       "expand": "Expandir",
       "expandNameAndLoadAllFiles": "Expande {name} y carga todos los archivos antes de seleccionarlo",
       "fileDirectory": "Directorio de archivos",
@@ -5400,13 +5413,16 @@
       "noMatchesFound": "No se encontraron coincidencias",
       "noProjectsYet": "Aún no hay proyectos",
       "noTemplatesYet": "Aún no hay plantillas",
-      "projects": "Proyectos",
+      "projects": "Otros proyectos",
+      "projectsDescription": "Documentos de tus proyectos.",
+      "projectsDescriptionCopy": "Documentos de tus otros proyectos, para copiarlos aquí.",
       "search": "Buscar…",
       "selectAllFilesInName": "Seleccionar todos los archivos de {name}",
       "selectFilename": "Seleccionar {filename}",
       "selectedcountSelected": "{selectedCount, plural, one {# seleccionado} other {# seleccionados}}",
       "size": "Tamaño",
       "templates": "Plantillas",
+      "templatesDescription": "Tus plantillas de Biblioteca › Plantillas: documentos base para redactar. No son workflows ni playbooks.",
       "uploading": "Subiendo",
       "version": "Versión"
     },

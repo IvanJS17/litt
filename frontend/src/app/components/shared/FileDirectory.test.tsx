@@ -238,10 +238,10 @@ describe("FileDirectory", () => {
         );
 
         expect(
-            screen.getByRole("button", { name: "Documents" }),
+            screen.getByRole("button", { name: "My library" }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole("button", { name: "Projects" }),
+            screen.getByRole("button", { name: "Other projects" }),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole("button", { name: "Templates" }),
