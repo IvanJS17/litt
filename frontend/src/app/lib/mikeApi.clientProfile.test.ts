@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     confirmProfileFact,
     createProfileFact,
+    extractProfileFacts,
     getClientProfile,
+    getProfileExtractionRoute,
     rejectProfileFact,
 } from "./mikeApi";
 
@@ -66,4 +68,54 @@ describe("client profile API", () => {
             await expect(rejectProfileFact("p", "m", "f")).rejects.toThrow("Malformed");
         },
     );
+});
+
+describe("assisted extraction API", () => {
+    const route = { provider: "claude", model: "claude-sonnet-5-5" };
+    const good = { proposed: 2, discarded_quote_not_found: 1, discarded_invalid: 0, discarded_duplicate: 3, fact_ids: ["f1", "f2"] };
+
+    it("asks where the text would go, and says there is no button when the server says null", async () => {
+        reply({ route });
+        expect(await getProfileExtractionRoute("p 1", "m 1")).toEqual(route);
+        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe(`${M}/extraction`);
+        expect(init.method ?? "GET").toBe("GET");
+        reply({ route: null });
+        expect(await getProfileExtractionRoute("p", "m")).toBeNull();
+    });
+
+    it.each([[{}], [null], [[]], [{ route: {} }], [{ route: { provider: "claude" } }], [{ route: { model: "x" } }], [{ route: { provider: 1, model: 2 } }], [{ route: "claude" }]])(
+        "treats %j as a failed route read",
+        async (body) => {
+            reply(body);
+            await expect(getProfileExtractionRoute("p", "m")).rejects.toThrow("Malformed");
+        },
+    );
+
+    it("runs one version with an empty POST and returns the counts", async () => {
+        reply(good);
+        expect(await extractProfileFacts("p 1", "m 1", "v 1")).toEqual(good);
+        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe(`${M}/versions/v%201/extract`);
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(init.body as string)).toEqual({});
+    });
+
+    it.each([
+        [{}],
+        [null],
+        [[]],
+        [{ ...good, proposed: "2" }],
+        [{ ...good, proposed: -1 }],
+        [{ ...good, proposed: 1.5 }],
+        [{ ...good, discarded_quote_not_found: undefined }],
+        [{ ...good, discarded_invalid: null }],
+        [{ ...good, discarded_duplicate: NaN }],
+        [{ ...good, fact_ids: undefined }],
+        [{ ...good, fact_ids: "f1" }],
+        [{ ...good, fact_ids: [1] }],
+    ])("treats %j as a failed run", async (body) => {
+        reply(body);
+        await expect(extractProfileFacts("p", "m", "v")).rejects.toThrow("Malformed");
+    });
 });

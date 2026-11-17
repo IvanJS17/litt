@@ -6585,6 +6585,57 @@ export async function rejectProfileFact(
     );
 }
 
+/**
+ * Where the text of a version would go if the AI is asked to propose facts: the
+ * provider and model the project chat uses for this person. null when there is
+ * no such route (no key, no model, or the person only reads): no button then.
+ */
+export async function getProfileExtractionRoute(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").ProfileExtractionRoute | null> {
+    const body = await apiRequest<{ route?: import("@mike/contracts").ProfileExtractionRoute | null }>(
+        "matter.profile",
+        `${clientProfilePath(projectId, matterId)}/extraction`,
+    );
+    const route = body?.route;
+    if (route === null) return null;
+    if (typeof route?.provider !== "string" || typeof route.model !== "string")
+        throw new Error("Malformed extraction route response");
+    return route;
+}
+
+/**
+ * Asks the space's AI to propose facts from ONE version's text (synchronous:
+ * it answers when the model has). The proposals are pending facts; the counts
+ * say what was kept and what was discarded.
+ */
+export async function extractProfileFacts(
+    projectId: string,
+    matterId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").ProfileExtraction> {
+    const result = await apiRequest<import("@mike/contracts").ProfileExtraction>(
+        "matter.profile",
+        `${clientProfilePath(projectId, matterId)}/versions/${encodeURIComponent(versionId)}/extract`,
+        jsonInit("POST", {}),
+    );
+    const counts = [
+        result?.proposed,
+        result?.discarded_quote_not_found,
+        result?.discarded_invalid,
+        result?.discarded_duplicate,
+    ];
+    // A reply without its counts is a failed run, not "nothing was proposed".
+    if (
+        !counts.every((count) => typeof count === "number" && Number.isInteger(count) && count >= 0) ||
+        !Array.isArray(result.fact_ids) ||
+        !result.fact_ids.every((id) => typeof id === "string")
+    )
+        throw new Error("Malformed extraction response");
+    return result;
+}
+
 // ---------------------------------------------------------------------------
 // Deadline radar of a retainer matter (docs/deadline-radar.md)
 // ---------------------------------------------------------------------------

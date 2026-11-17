@@ -812,7 +812,8 @@
       "confirmed": "Confirmado por {name} el {date}",
       "rejected": "Rechazado por {name} el {date}",
       "reason": "Motivo: {reason}",
-      "unknownPerson": "Usuario eliminado"
+      "unknownPerson": "Usuario eliminado",
+      "proposed": "Propuesto con IA a petición de {name} el {date}"
     },
     "actions": {
       "confirm": "Confirmar",
@@ -843,6 +844,25 @@
       "quoteNotFound": "Ese pasaje no aparece en el texto de la versión elegida. Cópialo tal como está en el documento.",
       "sourceTextUnavailable": "El texto de esa versión todavía no está listo. Inténtalo en unos minutos.",
       "versionNotInMatter": "Esa versión no es de un documento de este asunto."
+    },
+    "extract": {
+      "title": "Proponer datos con IA",
+      "description": "Elige una versión y la IA propone datos de la ficha, cada uno con su cita del documento.",
+      "version": "Documento y versión",
+      "chooseVersion": "Elige una versión",
+      "button": "Proponer datos con IA",
+      "running": "Leyendo el documento…",
+      "helper": "Se enviará el texto de esta versión a {provider}, con tu propia llave o la de tu despacho, nunca una de LiTT. Cada propuesta queda por confirmar hasta que un abogado la revise.",
+      "couldNotExtract": "No se pudo proponer datos con IA.",
+      "result": {
+        "title": "Resultado",
+        "proposed": "{count, plural, =0 {La IA no propuso datos nuevos.} one {La IA propuso # dato.} other {La IA propuso # datos.}}",
+        "discardedQuote": "{count, plural, one {# propuesta se descartó porque su cita no aparece en el documento.} other {# propuestas se descartaron porque su cita no aparece en el documento.}}",
+        "discardedInvalid": "{count, plural, one {# propuesta se descartó por no cumplir el formato.} other {# propuestas se descartaron por no cumplir el formato.}}",
+        "discardedDuplicate": "{count, plural, one {# propuesta se descartó porque la ficha ya tiene ese dato.} other {# propuestas se descartaron porque la ficha ya tiene esos datos.}}",
+        "review": "Revisa cada propuesta y confírmala o recházala. Lo que nadie confirma no llega al radar."
+      },
+      "proposals": "Propuestas por confirmar"
     }
   },
   "common": {
@@ -1204,6 +1224,10 @@
       "cookie_session_required": "Vuelve a iniciar sesión para continuar.",
       "document_version_conflict": "Este documento cambió desde que lo abriste. Recárgalo para continuar.",
       "email_address_invalid": "Escribe un correo electrónico válido.",
+      "extraction_output_invalid": "La IA no respondió con el formato esperado, así que no se guardó nada. Inténtalo de nuevo.",
+      "extraction_provider_failed": "El proveedor de IA no pudo responder. No se guardó nada. Inténtalo de nuevo en un momento.",
+      "extraction_provider_refused": "El proveedor de IA no aceptó la solicitud. Revisa la llave y el modelo en Ajustes.",
+      "extraction_text_too_large": "El texto de esa versión es demasiado largo para leerlo de una vez (hasta 120,000 caracteres). Elige una versión más corta.",
       "fact_already_decided": "Este dato ya se confirmó o se rechazó. Recarga la ficha para ver su estado.",
       "fact_stale": "El documento citado cambió o ya no está disponible, así que este dato no se puede confirmar. Captúralo de nuevo con la versión vigente.",
       "firm_criteria_limit_reached": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",

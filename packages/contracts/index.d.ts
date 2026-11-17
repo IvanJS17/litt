@@ -2493,6 +2493,29 @@ export type ProfileFactInput = {
   };
 };
 
+/**
+ * Where the text of a version would go if the lawyer asks the space's AI to
+ * propose facts: the provider and model the project chat uses for this person.
+ * `null` when there is no such route (no key, no model) or the caller only reads.
+ */
+export type ProfileExtractionRoute = {
+  provider: string;
+  model: string;
+};
+
+/** What one assisted-extraction run did. Proposals are pending facts, to be confirmed one by one. */
+export type ProfileExtraction = {
+  proposed: number;
+  /** The model's quote is not in the version's text: discarded, never saved. */
+  discarded_quote_not_found: number;
+  /** Beyond the cap of 25, outside the closed schema, or refused by the profile's own rules. */
+  discarded_invalid: number;
+  /** The same fact from the same passage already exists in the profile. */
+  discarded_duplicate: number;
+  /** The facts this run saved, in order. */
+  fact_ids: string[];
+};
+
 export type ProfileFactDecisionInput = {
   /** Optional note kept with the decision (up to 500 characters). */
   reason?: string;

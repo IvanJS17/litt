@@ -6,3 +6,4 @@
 
 export { confirmProfileFact, rejectProfileFact } from "./client-profile.decide";
 export { createProfileFact, getClientProfile, loadFacts } from "./client-profile.facts";
+export { extractProfileFacts, getExtractionRoute } from "./client-profile.extract";

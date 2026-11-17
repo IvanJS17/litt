@@ -85,6 +85,10 @@ describe.skipIf(!container)("obligation rule events in PostgreSQL", () => {
         const migration = readFileSync(resolve(process.cwd(), "migrations", "20261117_30_litt_matter_obligation_rules.sql"), "utf8");
         psql(migration);
         psql(migration);
+        // The guard is replaced by a later migration (the order is per date); it is re-runnable too.
+        const guard = readFileSync(resolve(process.cwd(), "migrations", "20261117_50_litt_radar_item_guard_due_on.sql"), "utf8");
+        psql(guard);
+        psql(guard);
     }, 180_000);
 
     afterAll(() => {
@@ -206,6 +210,21 @@ describe.skipIf(!container)("obligation rule events in PostgreSQL", () => {
         psql(insertAction("dismiss", { key: `cff.efirma_vencimiento@1:${uid(FACT)}`, reason: "x", due: null }));
         expect(failure(insertAction("done", { key: `cff.efirma_vencimiento@1:${uid(FACT)}`, due: null }))).toContain("does not follow");
         expect(psql("select count(*) from public.matter_obligation_item_events")).toBe("4");
+    });
+
+    it("orders the actions of an item per date: the same item re-dated by another anchor mode can be acknowledged again", () => {
+        // W1: the read model counts only the events of the item's current date, so a re-dated item reads open.
+        psql(insertAction("ack", { due: "2027-04-30" }));
+        expect(failure(insertAction("ack", { due: "2027-04-30" }))).toContain("does not follow");
+        psql(insertAction("ack", { due: "2027-10-31" }));
+        expect(failure(insertAction("ack", { due: "2027-10-31" }))).toContain("does not follow");
+        psql(insertAction("done", { due: "2027-10-31" }));
+        // The old date is still its own line: it can still be closed.
+        psql(insertAction("dismiss", { due: "2027-04-30", reason: "x" }));
+        expect(failure(insertAction("done", { due: "2027-04-30" }))).toContain("does not follow");
+        // An undated item is its own line too.
+        psql(insertAction("ack", { due: null }));
+        expect(failure(insertAction("ack", { due: null }))).toContain("does not follow");
     });
 
     it("shows events to the matter's active roster only", () => {

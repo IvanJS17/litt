@@ -92,7 +92,12 @@ roster reads, every write is the backend's), explicit grants to `service_role`:
   version). On → off → on; the database refuses the same state twice.
 - `matter_obligation_item_events`: `ack`, `dismiss` (reason required), `done`
   on an item named `<rule_code>@<version>:<anchor fact id>`, in the same one-way
-  order as the radar actions. Items themselves are computed on read.
+  order as the radar actions. Items themselves are computed on read. The order
+  is per item **and per date**: re-anchoring the same fact in another mode
+  (direct or first cycle) gives the item another date, which reads open again, so
+  the guard (`20261117_50_litt_radar_item_guard_due_on.sql`) looks only at the
+  events of the same key and the same date, as the read model does; before it, that
+  item could not be acknowledged again (409 `radar_item_closed`).
 
 The account export carries the decisions and actions the holder recorded, in
 matters they can still open.
