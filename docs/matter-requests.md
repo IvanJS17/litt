@@ -88,6 +88,7 @@ writes (only `service_role`).
 | `DELETE .../requests/:requestId/rounds/:roundId` | owner or editor; unlinks the round, the document stays |
 | `PUT /projects/:projectId/matters/:matterId/retainer` | matter owner; unmarking is refused while requests exist (`409 retainer_has_requests`) |
 | `GET/POST /orgs/:orgId/request-types`, `PATCH .../:typeId` | read: any member of the team organization; write: owner or admin (audited) |
+| `GET /orgs/:orgId/requests/counts?period=month\|quarter&date=YYYY-MM-DD` | firm owner or admin, **counts only** (see below). A member, a matter editor or viewer: `403 org_admin_required`; not in the firm, or a personal organization: `404` |
 
 Rounds reuse the documents' versions: this module only **reads**
 `document_versions`/`documents` to check ownership and never writes a version row
@@ -99,6 +100,40 @@ The matter's project detail (`GET /projects/:id`) adds `matter_id` and
 `/projects/:id/matters/:matterId/requests`; the catalog is a section of
 **Ajustes del despacho › General**.
 
+## Firm counts
+
+An owner or admin who is not on a private matter's team cannot open it, so they
+never read its requests. What they get is **numbers**: `GET
+/orgs/:orgId/requests/counts`, drawn in **Ajustes del despacho › General**
+(section "Request counts", owners and admins only, beside the type catalog).
+
+- **Source.** The `security definer` function `matter_request_counts(org, user,
+  start, end)` (`20261116_50_litt_matter_request_counts.sql`; ordinal 50 on
+  purpose, another branch may add 40). Fixed `search_path`, `execute` for
+  `service_role` only, and it re-checks that the user is an owner or admin of a
+  team organization (`42501` otherwise), so a service bug cannot widen it.
+- **No text, no names.** The answer holds counts, a day count and an opaque
+  label per matter. A private matter's **name is not shown**: outside its team
+  nobody sees it (not even the firm's owners; they already see ownerless matters
+  without titles), so each retainer is **"Iguala N"**, N being its position among
+  the firm's retainer matters by creation date. Types are the firm's catalog
+  (visible to every member). No title, person, id of a request or matter.
+- **Period.** `period` is `month` (default) or `quarter`; `date` is any day in
+  it (default today in `America/Mexico_City`). The window is the whole month or
+  quarter, both ends inclusive.
+- **What is counted.** Every breakdown (per matter, type, complexity, assignee
+  level, and state) counts the requests **received in the period**, in their
+  state today (`total`, `open`, `closed`, `cancelled`; `unassigned` is a level).
+  The totals add `open_at_end` (not closed or cancelled when the period ended),
+  `closed_in_period` and `cancelled_in_period` (by `closed_on`, whenever
+  received), `rounds` (distinct negotiation rounds of the received requests) and
+  `median_days`: the **median of calendar days** `closed_on - received_on` of the
+  requests *closed* in the period (never hours; cancelled ones are left out;
+  `null` when none).
+- **Audit.** Every read writes `request_counts.read` to `audit_events` (insert
+  only) with the organization and period, **before** the numbers are returned;
+  if the event cannot be written the read fails (`500`) and hands nothing over.
+
 ## Tests
 
 - `src/__tests__/integration/matterRequests.routes.test.ts`: the permissions
@@ -109,6 +144,7 @@ The matter's project detail (`GET /projects/:id`) adds `matter_id` and
   `MIKE_TEST_POSTGRES_CONTAINER`): the migration twice over the final schema,
   the retainer guard, constraints, insert-only events, RLS, no browser write,
   account deletion with no foreign key to `auth.users`.
+- `src/__tests__/integration/matterRequestCounts.routes.test.ts`: owner and admin allowed (no matter membership), editor, viewer, stranger, other firm and personal organization refused, nothing but numbers in the answer, audit before the answer, bad period/date. The function's grouping, medians, privileges and the absence of any title or matter name are in `matterRequests.postgres.test.ts`.
 - `src/application/exports/__tests__/buildJsonExport.matterRequests.test.ts`.
 - `frontend/src/app/components/requests/*.test.tsx`.
 
