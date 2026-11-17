@@ -2007,3 +2007,37 @@ Intake: `artifacts/upstream-intake-20261116/`; evidence:
 Stopped-state keys for connectors, document events, document search, web
 activity and subagent groups, and the spreadsheet and upload failures, in
 `en-US.json` and `es-MX.json`.
+
+
+## 33. Cycle 2026-11-17 (cycle 13)
+
+Pin `4cbf434e9b0517dd94b6d37b23fd1dd959d5c919` (`upstream/main` at the intake;
+ancestor check done), 31 commits (21 without merges, 10 merges) after the cycle
+12 pin `3edd321ac`. Branch `sync/upstream-c13-4cbf434e`, on `origin/main`
+`1e11b983b`. Intake: `artifacts/upstream-intake-20261117/`. Owner decisions
+2026-11-17: Legal Data Hunter deferred (not rejected); upstream support e-mail
+rejected; dependency updates adapted without Sentry; Word add-in cleanup adapted.
+The range touches no migration and no `schema.sql`: no access-function work.
+
+### 33.1 Disposition by topic
+
+| Topic | Disposition | What stays |
+|---|---|---|
+| Legal Data Hunter (11 commits: 10 listed below and merge #425) | defer | No net functional change: the merge takes LiTT's side and a separate commit restores `origin/main` for every file the LDH commits touched and removes the files they added (list in `artifacts/upstream-c13/ldh-files.txt`). No preset connector, no new third-party host, no new UI strings, no change to the 60,000-character MCP result cap. Next topic re-applies it from the commits below. |
+| Support e-mail `support@mikeoss.com` (`a01eed1f1`, merge #900) | reject | `SUPPORT_EMAIL` stays `soporte@asteroitt.com` and the 11 test/story files keep LiTT's address. |
+| Dependency bumps (#901, #902, #903, #904, #905, #908, #909) | adapt | Versions adopted in the root, backend, frontend and word-addin `package.json`; every `@sentry/*` line dropped; `@opennextjs/cloudflare` stays a frontend devDependency; LiTT-only packages kept (`@modelcontextprotocol/node`, `docxodus`, `next-intl`, `use-intl`). Backend takes upstream's `semver` devDependency instead of `@types/semver`. Lockfiles regenerated (`npm install --package-lock-only`, Node 22): 0 `@sentry` in any lockfile. `scripts/audit-allowlist.json` unchanged; `node scripts/audit-gate.mjs` passes in root, backend, frontend and word-addin. |
+| Word add-in cleanup (#898) | adapt | Removed `listProjectDocuments` (add-in copy), the singular upload wrappers and `markWordEditApplied`; no callers in the add-in. The web app's `uploadStandaloneDocument` and the backend `listProjectDocuments` are different symbols and stay. |
+
+### 33.2 Deferred Legal Data Hunter commits (to re-apply later)
+
+`b24fce3f3`, `0afc39d83`, `67b18d954`, `4041c1577`, `1764ed506`, `095f64985`,
+`b1f3e664c`, `a4b3cda52`, `c2ce09730`, `9749b8a6f` (merge `b9cb54f6d`, PR #425).
+`b1f3e664c` also touches the `sourceDocuments` files that LiTT deleted with
+CourtListener (modify/delete: the deletion is kept).
+
+### 33.3 Conflicts
+
+36 `CONFLICT` lines: 33 `content` and 3 `modify/delete`. LiTT's side kept for
+the 3 `sourceDocuments` files (deleted), the LDH files and the support e-mail
+files; `package.json` merged by hand (above); `mikeApi.ts` (Word add-in) keeps
+LiTT's functions and drops the unused one.
