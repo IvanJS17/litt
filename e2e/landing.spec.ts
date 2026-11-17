@@ -76,6 +76,32 @@ for (const locale of ["es-MX", "en-US"] as const) {
     }
 }
 
+test("every way into the beta opens the Tally questionnaire with its origin and the page's language", async ({ page }) => {
+    await setUp(page, { locale: "es-MX", theme: "light" });
+    const form = "https://tally.so/r/2jAeGL";
+    // The page sends nothing to Tally by itself: these are plain links, the same tab, with a safe rel.
+    for (const link of await page.getByRole("link", { name: "Solicitar acceso" }).all()) {
+        await expect(link).toHaveAttribute("href", `${form}?origen=acceso&lang=es-MX`);
+        await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+        await expect(link).not.toHaveAttribute("target", /.+/);
+    }
+    const soon = page.locator("#proximamente");
+    await expect(soon.getByRole("link", { name: "Únete a la lista de espera" })).toHaveAttribute(
+        "href",
+        `${form}?origen=inhouse&lang=es-MX`,
+    );
+    const origins = await soon
+        .getByRole("link", { name: /^Me interesa/ })
+        .evaluateAll((links) => links.map((a) => new URL((a as HTMLAnchorElement).href).searchParams.get("origen")));
+    expect(origins).toEqual(["soon-contextlex", "soon-mcp", "soon-donna", "soon-conectores"]);
+    // The support address is still a plain contact link in the footer.
+    await expect(page.getByRole("contentinfo").locator('a[href="mailto:soporte@asteroitt.com"]')).toHaveCount(1);
+    // Honest copy: the footnotes are there and Donna is never sold by the hour.
+    await expect(soon).toContainText("* Google en preparación; Microsoft 365 y Dropbox en diseño.");
+    await expect(soon).toContainText("* Harness: el programa con el que trabajas con una IA");
+    expect((await soon.textContent()) ?? "").not.toMatch(/\bhoras?\b/i);
+});
+
 test("the header's button docks only once the hero's buttons leave the screen", async ({ page }) => {
     await setUp(page, { locale: "en-US", theme: "light" });
     const header = page.getByRole("banner").getByRole("link", { name: "Sign in" });

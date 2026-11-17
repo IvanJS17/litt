@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { SUPPORT_EMAIL } from "./landingConstants";
+import { useLocale, useTranslations } from "next-intl";
+import { accessFormHref } from "./landingConstants";
 import {
     LANDING_BUTTON_PRIMARY,
     LANDING_BUTTON_SECONDARY,
@@ -46,7 +46,7 @@ export function PrimaryButton({
     );
 }
 
-/** "Solicitar acceso": the beta is by invitation, so access is asked for by email. */
+/** "Solicitar acceso": the beta is by invitation, so access is asked for in the questionnaire. */
 export function RequestAccessButton({
     className,
     onClick,
@@ -55,10 +55,11 @@ export function RequestAccessButton({
     onClick?: React.MouseEventHandler<HTMLAnchorElement>;
 }) {
     const t = useTranslations();
-    const subject = encodeURIComponent(t("landing.cta.requestSubject"));
+    const locale = useLocale();
     return (
         <a
-            href={`mailto:${SUPPORT_EMAIL}?subject=${subject}`}
+            href={accessFormHref("acceso", locale)}
+            rel="noopener noreferrer"
             onClick={onClick}
             className={[LANDING_BUTTON_SECONDARY, LANDING_BUTTON_SIZE, className].filter(Boolean).join(" ")}
         >

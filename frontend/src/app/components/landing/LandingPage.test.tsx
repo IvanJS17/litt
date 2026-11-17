@@ -7,7 +7,7 @@ import enUS from "../../../../../packages/i18n/messages/en-US.json";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { LandingPage } from "./LandingPage";
 import { INTRO_SESSION_KEY } from "./AssistantSpecimen";
-import { HERO_CTA_ID } from "./landingConstants";
+import { ACCESS_FORM_URL, accessFormHref, HERO_CTA_ID } from "./landingConstants";
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -72,13 +72,52 @@ describe("the public start page without a session", () => {
         expect(screen.queryByText("Open LiTT")).toBeNull();
     });
 
-    it("asks for access by email with a subject in the page's language", () => {
+    it("asks for access in the questionnaire, saying where the visitor came from and in which language", () => {
         render(<LandingPage signedIn={false} />);
-        const [first] = screen.getAllByRole("link", { name: "Request access" });
-        expect(first).toHaveAttribute(
+        const requests = screen.getAllByRole("link", { name: "Request access" });
+        expect(requests.length).toBeGreaterThan(0);
+        requests.forEach((a) => {
+            expect(a).toHaveAttribute("href", "https://tally.so/r/2jAeGL?origen=acceso&lang=en-US");
+            expect(a).toHaveAttribute("rel", "noopener noreferrer");
+        });
+        // The address lives in one constant: no other link to the form is hand-written.
+        expect(accessFormHref("soon-donna", "es-MX")).toBe(`${ACCESS_FORM_URL}?origen=soon-donna&lang=es-MX`);
+    });
+
+    it("sends the in-house waitlist and each coming-soon card to the questionnaire with their origin", () => {
+        render(<LandingPage signedIn={false} />);
+        const soon = screen.getByRole("region", { name: "What we’re working on." });
+        expect(within(soon).getByRole("link", { name: "Join the waitlist" })).toHaveAttribute(
             "href",
-            "mailto:soporte@asteroitt.com?subject=LiTT%20access%20request",
+            "https://tally.so/r/2jAeGL?origen=inhouse&lang=en-US",
         );
+        const interested = within(soon).getAllByRole("link", { name: /^I’m interested/ });
+        expect(interested.map((a) => new URL(a.getAttribute("href")!).searchParams.get("origen"))).toEqual([
+            "soon-contextlex",
+            "soon-mcp",
+            "soon-donna",
+            "soon-conectores",
+        ]);
+        interested.forEach((a) => expect(a.textContent).toMatch(/^I’m interested: .+/));
+    });
+
+    it("keeps the support address as a plain contact link in the footer", () => {
+        render(<LandingPage signedIn={false} />);
+        const footer = screen.getByRole("contentinfo");
+        expect(within(footer).getByRole("link", { name: /support/i })).toHaveAttribute(
+            "href",
+            "mailto:soporte@asteroitt.com",
+        );
+    });
+
+    it("explains the harness and which connectors are only planned, without promising what is not there", () => {
+        render(<LandingPage signedIn={false} />);
+        const soon = screen.getByRole("region", { name: "What we’re working on." });
+        expect(within(soon).getByText(/^\* Harness: the program you use to work with an AI/)).toBeInTheDocument();
+        expect(
+            within(soon).getByText("* Google is in preparation; Microsoft 365 and Dropbox are in design."),
+        ).toBeInTheDocument();
+        expect(soon.textContent).not.toMatch(/\bhours?\b/i);
     });
 
     it("is organized in landmarks, one h1 and one h2 per section", () => {
@@ -105,12 +144,12 @@ describe("the public start page without a session", () => {
         ]);
     });
 
-    it("lists the eight things built for Mexican practice and the four that are coming", () => {
+    it("lists the eight things built for Mexican practice and the five that are coming", () => {
         render(<LandingPage signedIn={false} />);
         const index = screen.getByRole("list", { name: "Built for Mexican practice." });
         expect(within(index).getAllByRole("listitem")).toHaveLength(8);
         const soon = screen.getByRole("region", { name: "What we’re working on." });
-        expect(within(soon).getAllByText("Coming soon", { selector: ".sr-only" })).toHaveLength(4);
+        expect(within(soon).getAllByText("Coming soon", { selector: ".sr-only" })).toHaveLength(5);
         expect(within(soon).getByText("Article 2398")).toBeInTheDocument();
     });
 
@@ -168,13 +207,19 @@ describe("the public start page in Mexican Spanish", () => {
         expect(screen.getAllByRole("link", { name: "Abrir LiTT" })).toHaveLength(3);
     });
 
-    it("sets the access request subject in Spanish", () => {
+    it("opens the questionnaire in Spanish and names the new coming-soon cards", () => {
         inSpanish(<LandingPage signedIn={false} />);
         const [request] = screen.getAllByRole("link", { name: "Solicitar acceso" });
-        expect(request).toHaveAttribute(
+        expect(request).toHaveAttribute("href", "https://tally.so/r/2jAeGL?origen=acceso&lang=es-MX");
+        expect(screen.getByRole("link", { name: "Únete a la lista de espera" })).toHaveAttribute(
             "href",
-            "mailto:soporte@asteroitt.com?subject=Solicitud%20de%20acceso%20a%20LiTT",
+            "https://tally.so/r/2jAeGL?origen=inhouse&lang=es-MX",
         );
+        expect(screen.getByRole("heading", { name: "Donna: intake y memoria de cada cliente" })).toBeInTheDocument();
+        expect(
+            screen.getByRole("heading", { name: "LiTT desde Claude, ChatGPT u otra IA (el harness de tu preferencia)" }),
+        ).toBeInTheDocument();
+        expect(screen.getByText("Cinco novedades en camino.", { exact: false })).toBeInTheDocument();
     });
 
     it("has the same keys in both catalogs for the page", () => {

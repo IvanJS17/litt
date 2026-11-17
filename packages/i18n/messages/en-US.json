@@ -1561,15 +1561,19 @@
       "name": "ContextLex MX",
       "text": "«Hay arrendamiento cuando las dos partes contratantes se obligan recíprocamente, una, a conceder el uso o goce temporal de una cosa, y la otra, a pagar por ese uso o goce un precio cierto.»"
     },
+    "connectors": {
+      "body": "Bring documents, email and dates into the matter: Google Drive, Gmail and Calendar, plus Microsoft 365 (OneDrive, Outlook) and Dropbox.* Only what you authorize, and you can disconnect whenever you like.",
+      "note": "* Google is in preparation; Microsoft 365 and Dropbox are in design.",
+      "title": "Google, Microsoft 365 and Dropbox connectors"
+    },
     "cta": {
       "login": "Sign in",
       "open": "Open LiTT",
-      "request": "Request access",
-      "requestSubject": "LiTT access request"
+      "request": "Request access"
     },
     "donna": {
-      "body": "A living file for each client, where every fact has its source and is confirmed by a lawyer. And a radar that gets ahead of deadlines and changes in the law.",
-      "title": "Donna, the firm’s assistant"
+      "body": "Receives and organizes every retainer client’s requests (type, complexity, rounds), keeps a living profile where each fact carries a source a lawyer has confirmed, and runs a radar that sees deadlines coming.",
+      "title": "Donna: intake and memory for every client"
     },
     "features": {
       "assistant": {
@@ -1621,10 +1625,6 @@
       "themeLight": "Light",
       "themeSystem": "Automatic"
     },
-    "google": {
-      "body": "Bring Drive documents, Gmail messages and Calendar dates into a matter. Only what you authorize, and you can disconnect at any time.",
-      "title": "Google Drive, Gmail and Google Calendar"
-    },
     "header": {
       "home": "LiTT, home",
       "menu": "Menu",
@@ -1641,9 +1641,15 @@
       "note": "Invitation-only beta. Write to us at <mail>soporte@asteroitt.com</mail>.",
       "title": "The legal assistant that works the matter with you."
     },
+    "inhouse": {
+      "body": "For legal teams inside companies: register and prioritize internal requests and keep the business informed with follow-up. We’ll adapt LiTT when there’s demand.",
+      "join": "Join the waitlist",
+      "title": "Intake for in-house legal teams"
+    },
     "mcp": {
-      "body": "Use every LiTT feature from the AI you already work with, under the same permissions. Each session is recorded in LiTT.",
-      "title": "LiTT from Claude, ChatGPT or another AI"
+      "body": "Use all of LiTT’s features from the AI (the harness* of your choice) you already use, with the same permissions. Every session is recorded in LiTT.",
+      "note": "* Harness: the program you use to work with an AI—for example Claude, ChatGPT or an agent like Claude Code. LiTT connects to it through MCP, an open standard.",
+      "title": "LiTT from Claude, ChatGPT or another AI (the harness of your choice)"
     },
     "meta": {
       "description": "LiTT is an AI legal assistant for small and mid-sized Mexican law firms: it reads the documents in the matter, answers with the source, drafts in Word and reviews hundreds of documents in a table. With your keys, your model and, if you want, on your own servers.",
@@ -1709,7 +1715,8 @@
       "tabTables": "Tables · 1"
     },
     "soon": {
-      "intro": "Four features on the way. Beta firms get them first.",
+      "interest": "I’m interested",
+      "intro": "Five things on the way. They’ll reach beta participants and the waitlist first.",
       "marker": "Third",
       "tag": "Coming soon",
       "title": "What we’re working on."
