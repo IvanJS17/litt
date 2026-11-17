@@ -30,6 +30,7 @@ import {
   listChatCredentialOptions,
   recordChatEgressOrThrow,
   resolveUserChatSelection,
+  type ChatCredentialOption,
   type ChatRouteFailure,
   type ResolvedChatRoute,
 } from "../user/user.service";
@@ -64,6 +65,9 @@ type Route = { route: ProfileExtractionRoute; resolved: ResolvedChatRoute };
 
 const NOT_FOUND = "Not found";
 
+/** Whose keys the extraction may use (C1): never the deployment's or an operator's. */
+const ALLOWED_KEY_SOURCES: readonly ChatCredentialOption["source"][] = ["personal", "organization"];
+
 function routeFailure(error: Pick<ChatRouteFailure, "status" | "code" | "detail"> | { status: number; code: string; detail: string }) {
   const kind = error.status === 400 ? "validation" : error.status === 409 ? "conflict" : "unprocessable";
   return failure(kind, error.detail, error.code);
@@ -80,19 +84,28 @@ async function resolveRoute(db: Db, args: { userId: string; orgId: string }): Pr
   const selection = await resolveUserChatSelection(db, { userId: args.userId, orgId: args.orgId });
   if (!selection.ok) return routeFailure(selection);
   // What the chat's key selector preselects for a new conversation here (the
-  // person's own key, then the firm's, then the deployment's); sent as the
-  // explicit choice, exactly as the chat client does. None: it fails closed.
+  // person's own key, then the firm's); sent as the explicit choice, exactly as
+  // the chat client does. The chat may fall to the deployment's key (or an
+  // operator route); this never does: only a person's or a firm's key is used,
+  // and with neither it fails closed. No key, no route, no call, no record.
   const choices = await listChatCredentialOptions(db, {
     userId: args.userId,
     orgId: args.orgId,
     model: selection.selectedModel,
   });
+  const preselected = choices?.options.find((option) => option.credential_ref === choices.default);
+  if (preselected && !ALLOWED_KEY_SOURCES.includes(preselected.source))
+    return failure(
+      "unprocessable",
+      `An API key is required to use ${selection.selectedModel}. Add your own key or ask your organization to add one.`,
+      "missing_api_key",
+    );
   const governed = await governChatRoute(db, {
     userId: args.userId,
     orgId: args.orgId,
     chat: null,
     selectedModel: selection.selectedModel,
-    requestedCredentialRef: choices?.default ?? null,
+    requestedCredentialRef: preselected?.credential_ref ?? null,
   });
   if (!governed.ok) return routeFailure(governed);
   return ok({ route: { provider: governed.route.provider, model: governed.route.model }, resolved: governed });

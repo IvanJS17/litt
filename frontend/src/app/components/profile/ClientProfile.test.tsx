@@ -551,7 +551,7 @@ describe("assisted extraction", () => {
     const button = await screen.findByRole("button", { name: "Propose facts with AI" });
     expect(button).toBeDisabled();
     expect(button).toHaveAccessibleDescription(
-      "The text of this version will be sent to Anthropic (Claude) using the key the chat uses in this space. Each suggestion stays awaiting confirmation until a lawyer reviews it.",
+      "The text of this version will be sent to Anthropic (Claude) using your own key or your organization's key, never LiTT's. Each suggestion stays awaiting confirmation until a lawyer reviews it.",
     );
     await choose();
     expect(button).toBeEnabled();
@@ -561,7 +561,7 @@ describe("assisted extraction", () => {
   it("names a provider the catalog does not know as the server called it", async () => {
     mocks.getProfileExtractionRoute.mockResolvedValue({ provider: "acme-llm", model: "m" });
     renderPage();
-    expect(await screen.findByText(/will be sent to acme-llm using the key/)).toBeInTheDocument();
+    expect(await screen.findByText(/will be sent to acme-llm using your own key/)).toBeInTheDocument();
   });
 
   it("runs the chosen version, shows what was proposed, and lists the pending proposals to confirm or reject", async () => {
@@ -693,7 +693,7 @@ describe("assisted extraction", () => {
     );
     const button = await screen.findByRole("button", { name: "Proponer datos con IA" });
     expect(button).toHaveAccessibleDescription(
-      "Se enviará el texto de esta versión a OpenAI, con la llave que usa el chat en este espacio. Cada propuesta queda por confirmar hasta que un abogado la revise.",
+      "Se enviará el texto de esta versión a OpenAI, con tu propia llave o la de tu organización, nunca una de LiTT. Cada propuesta queda por confirmar hasta que un abogado la revise.",
     );
     expect(screen.getByLabelText("Documento y versión")).toBeInTheDocument();
   });

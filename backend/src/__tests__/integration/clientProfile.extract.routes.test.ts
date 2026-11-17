@@ -493,6 +493,46 @@ describe("where it goes: the chat's rule, no other (C1, C2, C3)", () => {
         expect(tables().audit_events[0].detail).toMatchObject({ credential_ref: `org:${ORG}:claude:v2` });
     });
 
+    it("never uses the deployment's key (C1): route null, missing_api_key, no call, no egress row", async () => {
+        as(EDITOR);
+        tables().user_api_keys.length = 0;
+        // The person's settings carry the deployment's key too, as the chat's model selection sees it.
+        h.settings = { ...h.settings, api_keys: { claude: "sk-deployment" } };
+        vi.stubEnv("ANTHROPIC_API_KEY", "sk-deployment");
+        // The chat itself would preselect the deployment's key here.
+        const choices = await listChatCredentialOptions(h.state!.db as never, { userId: EDITOR, orgId: ORG, model: "claude-sonnet-5-5" });
+        expect(choices?.options.map((option) => option.source)).toEqual(["deployment"]);
+        expect(choices?.default).toBe("env:claude");
+        expect((await request(app).get(`${base}/extraction`)).body).toEqual({ route: null });
+        const res = await run();
+        expect(res.status).toBe(422);
+        expect(res.body.code).toBe("missing_api_key");
+        expect(h.llm.calls).toHaveLength(0);
+        expect(facts()).toHaveLength(0);
+        expect(tables().audit_events).toHaveLength(0);
+    });
+
+    it("the person's own key wins over the firm's, and the deployment's key is present but unused", async () => {
+        as(EDITOR);
+        vi.stubEnv("ANTHROPIC_API_KEY", "sk-deployment");
+        tables().org_api_keys = [{ ...(await keyRow({ kind: "org", id: ORG }, "claude", "sk-firm", 2)), org_id: ORG }];
+        const res = await run();
+        expect(res.status).toBe(200);
+        expect(h.llm.calls).toHaveLength(1);
+        expect((h.llm.calls[0].apiKeys as { claude: string }).claude).toBe("sk-own");
+    });
+
+    it("uses the firm's key when there is no own key, even with a deployment key configured", async () => {
+        as(EDITOR);
+        tables().user_api_keys.length = 0;
+        vi.stubEnv("ANTHROPIC_API_KEY", "sk-deployment");
+        tables().org_api_keys = [{ ...(await keyRow({ kind: "org", id: ORG }, "claude", "sk-firm", 2)), org_id: ORG }];
+        expect((await request(app).get(`${base}/extraction`)).body).toEqual({ route: { provider: "claude", model: "claude-sonnet-5-5" } });
+        const res = await run();
+        expect(res.status).toBe(200);
+        expect((h.llm.calls[0].apiKeys as { claude: string }).claude).toBe("sk-firm");
+    });
+
     it("fails closed with no key: no call, nothing saved, nothing recorded, no other provider tried", async () => {
         as(EDITOR);
         tables().user_api_keys.length = 0;

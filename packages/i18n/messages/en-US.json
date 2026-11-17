@@ -852,7 +852,7 @@
       "chooseVersion": "Choose a version",
       "button": "Propose facts with AI",
       "running": "Reading the document…",
-      "helper": "The text of this version will be sent to {provider} using the key the chat uses in this space. Each suggestion stays awaiting confirmation until a lawyer reviews it.",
+      "helper": "The text of this version will be sent to {provider} using your own key or your organization's key, never LiTT's. Each suggestion stays awaiting confirmation until a lawyer reviews it.",
       "couldNotExtract": "Could not propose facts with AI.",
       "result": {
         "title": "Result",

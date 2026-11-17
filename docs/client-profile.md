@@ -113,10 +113,15 @@ version** and proposes facts, each with a quote. It is a synchronous request
 (the key never travels in a job) and the button never starts OCR or a split:
 a version without ready text is refused (422 `source_text_unavailable`).
 
-- **Same route as the chat.** The model is what the project chat would pick for
+- **Same route as the chat, never LiTT's key.** The model is what the project chat would pick for
   this person (`resolveUserChatSelection`), the key is what the chat's key
-  selector preselects for a new conversation (the person's own, then the firm's,
-  then the deployment's; `listChatCredentialOptions`), and the route is governed
+  selector preselects for a new conversation (`listChatCredentialOptions`) but
+  only if it is the person's own key, else the organization's: **never the
+  deployment's key** (nor an operator route), even where the chat would fall to
+  it (`source` of the preselected option must be `personal` or `organization`).
+  With neither, `GET /extraction` answers `{ route: null }` (no button) and the
+  POST fails with `missing_api_key` before any provider call or egress record.
+  The route is governed
   like a chat's (`governChatRoute`): only that credential is in the key bag and
   every other provider is switched off. No key or model fails closed with the
   chat's own code (`model_required`, `missing_api_key`,
@@ -169,7 +174,7 @@ a version without ready text is refused (422 `source_text_unavailable`).
 
 UI: under the profile's header, writers whose space has a route see a panel
 with the version picker, the button, the line "The text of this version will be
-sent to {provider}, with the key the chat uses in this space. Each suggestion
+sent to {provider}, using your own key or your organization's key, never LiTT's. Each suggestion
 stays awaiting confirmation until a lawyer reviews it." (the provider is the
 route's, named before the click), the result of the run and the proposals
 awaiting confirmation, each with Confirm and Reject.

@@ -11,7 +11,7 @@ import { extractionProviderName } from "./profileOptions";
  * Assisted extraction (docs/client-profile.md): the lawyer picks one version
  * and asks the space's AI to propose facts from its text. The line under the
  * button says, before the click, where the text goes and with whose key: the
- * provider of the route the chat uses in this space. Each proposal comes back
+ * provider of the route the chat uses in this space (own or firm key only). Each proposal comes back
  * as a pending fact with its quote, to be confirmed or rejected one by one.
  */
 export function ProfileExtractPanel({
