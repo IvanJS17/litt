@@ -11,6 +11,9 @@
 //   /orgs/:orgId/request-types   (requestTypesRouter)
 //     GET /, POST /, PATCH /:typeId
 //
+//   /orgs/:orgId/requests   (requestCountsRouter)
+//     GET /counts?period=month|quarter&date=YYYY-MM-DD   counts only, owner or admin
+//
 // Thin handlers: parse, call the facade, map the ServiceResult. Nothing here
 // touches the database.
 
@@ -22,6 +25,7 @@ import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import {
   createMatterRequest,
   createRequestType,
+  getFirmRequestCounts,
   getMatterRequest,
   linkRound,
   listMatterRequests,
@@ -111,3 +115,15 @@ requestTypesRouter.patch("/:typeId", requireAuth, asyncRoute(async (req, res) =>
 }));
 
 requestTypesRouter.use(routerErrorHandler("[request-types]"));
+
+export const requestCountsRouter = Router({ mergeParams: true });
+
+requestCountsRouter.get("/counts", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await getFirmRequestCounts(createServerSupabase(), {
+    ...orgActor(req, res),
+    period: req.query.period,
+    date: req.query.date,
+  }));
+}));
+
+requestCountsRouter.use(routerErrorHandler("[request-counts]"));

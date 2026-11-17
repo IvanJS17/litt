@@ -4,6 +4,7 @@ import {
     createMatterRequest,
     createRequestType,
     getMatterRequest,
+    getRequestCounts,
     linkMatterRequestRound,
     listMatterRequests,
     listRequestTypes,
@@ -23,7 +24,7 @@ const reply = (body: unknown) => {
 };
 beforeEach(() => {
     fetchMock.mockReset();
-    reply({ types: [], can_manage: false });
+    reply({ types: [], can_manage: false, totals: {}, by_matter: [] });
 });
 
 const M = "/api/projects/p%201/matters/m%201";
@@ -38,6 +39,8 @@ describe("matter requests API", () => {
         ["retainer", () => setMatterRetainer("p 1", "m 1", true), `${M}/retainer`, "PUT", { is_retainer: true }],
         ["list types", () => listRequestTypes("o 1"), "/api/orgs/o%201/request-types", "GET", undefined],
         ["create type", () => createRequestType("o 1", "Poderes"), "/api/orgs/o%201/request-types", "POST", { name: "Poderes" }],
+        ["counts", () => getRequestCounts("o 1", "month"), "/api/orgs/o%201/requests/counts?period=month", "GET", undefined],
+        ["counts of a date", () => getRequestCounts("o 1", "quarter", "2026-11-16"), "/api/orgs/o%201/requests/counts?period=quarter&date=2026-11-16", "GET", undefined],
         ["update type", () => updateRequestType("o 1", "t 1", { archived: true }), "/api/orgs/o%201/request-types/t%201", "PATCH", { archived: true }],
     ] as const)("%s", async (_name, call, path, method, body) => {
         await call();
@@ -46,6 +49,11 @@ describe("matter requests API", () => {
         expect(init.method ?? "GET").toBe(method);
         if (body) expect(JSON.parse(init.body as string)).toEqual(body);
         else expect(init.body).toBeUndefined();
+    });
+
+    it.each([[{}], [[]], [null], [{ totals: {} }], [{ by_matter: [] }]])("treats %j as failed counts", async (body) => {
+        reply(body);
+        await expect(getRequestCounts("o 1", "month")).rejects.toThrow("Malformed");
     });
 
     it.each([[{}], [[]], [null]])("treats %j as a failed catalog load", async (body) => {

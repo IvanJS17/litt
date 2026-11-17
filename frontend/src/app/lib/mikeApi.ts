@@ -6429,3 +6429,19 @@ export async function updateRequestType(
         jsonInit("PATCH", patch),
     );
 }
+
+export async function getRequestCounts(
+    orgId: string,
+    period: import("@mike/contracts").MatterRequestCountsPeriod,
+    date?: string,
+): Promise<import("@mike/contracts").MatterRequestCounts> {
+    const query = new URLSearchParams({ period });
+    if (date) query.set("date", date);
+    const counts = await apiRequest<import("@mike/contracts").MatterRequestCounts>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/requests/counts?${query.toString()}`,
+    );
+    // A reply without its tables is a failed load, not an empty period.
+    if (!counts?.totals || !Array.isArray(counts.by_matter)) throw new Error("Malformed request counts response");
+    return counts;
+}

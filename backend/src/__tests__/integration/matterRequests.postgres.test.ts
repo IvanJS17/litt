@@ -68,6 +68,9 @@ describe.skipIf(!container)("matter requests in PostgreSQL", () => {
         const migration = readFileSync(resolve(process.cwd(), "migrations", "20261116_30_litt_matter_requests.sql"), "utf8");
         psql(migration);
         psql(migration);
+        const counts = readFileSync(resolve(process.cwd(), "migrations", "20261116_50_litt_matter_request_counts.sql"), "utf8");
+        psql(counts);
+        psql(counts);
     }, 180_000);
 
     afterAll(() => {
@@ -229,5 +232,93 @@ describe.skipIf(!container)("matter requests in PostgreSQL", () => {
               where t.relname like 'matter_request%' and c.contype = 'f'
                 and c.confrelid = 'auth.users'::regclass`),
         ).toBe("0");
+    });
+
+    describe("firm counts (20261116_50)", () => {
+        const SECOND_MATTER = 33;
+        const TYPE_2 = 71;
+        const counts = (user: number, start = "2026-11-01", end = "2026-11-30", role = "service_role") =>
+            JSON.parse(
+                psql(`begin; set local role ${role};
+                    select public.matter_request_counts(${q(ORG)}, ${q(user)}, '${start}', '${end}');
+                    commit;`).split("\n").pop()!,
+            );
+        const seed = () => {
+            psql(`set session_replication_role = replica;
+                update public.matters set created_at = '2026-01-01' where id = ${q(MATTER)};
+                insert into public.matters(id, workspace_id, name, is_retainer, created_at)
+                  values (${q(SECOND_MATTER)}, ${q(WORKSPACE)}, 'Iguala secreta Patito', true, '2026-02-01');
+                insert into public.matter_request_types(id, organization_id, name, sort_order) values (${q(TYPE_2)}, ${q(ORG)}, 'Tipo propio', 20);
+                delete from public.matter_request_events; delete from public.matter_requests;
+                insert into public.matter_requests(id, matter_id, type_id, title, complexity, status, assignee_user_id, assignee_level, received_on, closed_on) values
+                  (${q(80)}, ${q(MATTER)}, ${q(TYPE)}, 'Titulo secreto uno', 'routine', 'closed', ${q(EDITOR)}, 'junior', '2026-11-01', '2026-11-05'),
+                  (${q(81)}, ${q(MATTER)}, ${q(TYPE)}, 'Titulo secreto dos', 'complex', 'closed', ${q(EDITOR)}, 'senior', '2026-10-20', '2026-11-10'),
+                  (${q(82)}, ${q(MATTER)}, ${q(TYPE_2)}, 'Titulo secreto tres', 'standard', 'in_review', null, null, '2026-11-15', null),
+                  (${q(83)}, ${q(SECOND_MATTER)}, ${q(TYPE_2)}, 'Titulo secreto cuatro', 'standard', 'cancelled', null, null, '2026-11-02', '2026-11-03'),
+                  (${q(84)}, ${q(SECOND_MATTER)}, ${q(TYPE)}, 'Titulo secreto cinco', 'routine', 'received', null, null, '2026-09-30', null);
+                insert into public.matter_request_rounds(request_id, matter_id, round_number, round_date, document_id, version_id) values
+                  (${q(80)}, ${q(MATTER)}, 1, '2026-11-01', ${q(DOC)}, ${q(VERSION)}),
+                  (${q(80)}, ${q(MATTER)}, 2, '2026-11-03', ${q(DOC)}, ${q(VERSION_2)});`);
+        };
+
+        it("counts the period, with opaque matter labels and a median in calendar days", () => {
+            seed();
+            const result = counts(ORG_ADMIN);
+            expect(result.totals).toEqual({
+                received: 3, open: 1, closed: 1, cancelled: 1,
+                open_at_end: 2, closed_in_period: 2, cancelled_in_period: 1,
+                rounds: 2, median_days: 12.5,
+            });
+            expect(result.by_matter).toEqual([
+                { ordinal: 1, total: 2, open: 1, closed: 1, cancelled: 0, rounds: 2, median_days: 12.5 },
+                { ordinal: 2, total: 1, open: 0, closed: 0, cancelled: 1, rounds: 0, median_days: null },
+            ]);
+            expect(result.by_type.map((row: Record<string, unknown>) => [row.seed_key, row.name, row.total])).toEqual([
+                ["contracts_clients", null, 1],
+                [null, "Tipo propio", 2],
+            ]);
+            expect(result.by_complexity.map((row: Record<string, unknown>) => [row.key, row.total])).toEqual([
+                ["routine", 1], ["standard", 2], ["complex", 0],
+            ]);
+            expect(result.by_level.map((row: Record<string, unknown>) => [row.key, row.total])).toEqual([
+                ["apprentice", 0], ["junior", 1], ["senior", 0], ["partner", 0], ["unassigned", 2],
+            ]);
+            expect(result.by_status.map((row: Record<string, unknown>) => [row.key, row.total])).toEqual([
+                ["received", 0], ["in_review", 1], ["with_client", 0], ["with_counterparty", 0], ["closed", 1], ["cancelled", 1],
+            ]);
+        });
+
+        it("counts a quarter and an empty period", () => {
+            seed();
+            expect(counts(OWNER, "2026-10-01", "2026-12-31").totals).toMatchObject({ received: 4, closed_in_period: 2, median_days: 12.5 });
+            const empty = counts(OWNER, "2025-01-01", "2025-01-31");
+            expect(empty.totals).toMatchObject({ received: 0, closed_in_period: 0, median_days: null, rounds: 0 });
+            expect(empty.by_matter).toHaveLength(2);
+        });
+
+        it("returns numbers and labels only: no title, matter name, person or id of a request", () => {
+            seed();
+            const text = JSON.stringify(counts(ORG_ADMIN, "2026-01-01", "2026-12-31"));
+            for (const secret of ["Titulo secreto", "Iguala secreta", "Patito", "Contrato", uid(MATTER), uid(80), uid(EDITOR), "title", "name\":\"Iguala"])
+                expect(text).not.toContain(secret);
+        });
+
+        it("answers an owner or admin of the firm and nobody else", () => {
+            seed();
+            expect(counts(OWNER).totals.received).toBe(3);
+            for (const user of [EDITOR, VIEWER, REVOKED, OUTSIDER])
+                expect(failure(`select public.matter_request_counts(${q(ORG)}, ${q(user)}, '2026-11-01', '2026-11-30')`)).toContain("owner or admin");
+            expect(failure(`select public.matter_request_counts(${q(OTHER_ORG)}, ${q(OWNER)}, '2026-11-01', '2026-11-30')`)).toContain("owner or admin");
+            expect(failure(`select public.matter_request_counts(${q(ORG)}, ${q(OWNER)}, '2026-11-30', '2026-11-01')`)).toContain("invalid period");
+        });
+
+        it("is executable by service_role alone", () => {
+            seed();
+            for (const role of ["authenticated", "anon"])
+                expect(failure(`set role ${role}; select public.matter_request_counts(${q(ORG)}, ${q(OWNER)}, '2026-11-01', '2026-11-30')`)).toContain("permission denied");
+            expect(
+                psql(`select prosecdef, proconfig::text from pg_proc where proname = 'matter_request_counts'`),
+            ).toBe("t|{\"search_path=public, pg_temp\"}");
+        });
     });
 });

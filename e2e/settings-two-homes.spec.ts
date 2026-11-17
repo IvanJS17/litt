@@ -114,6 +114,20 @@ async function signedIn(page: Page, s: Scenario) {
                 can_manage: manages,
             });
         }
+        if (p === `/orgs/${FIRM}/requests/counts`) {
+            const zero = { total: 0, open: 0, closed: 0, cancelled: 0 };
+            return ok({
+                period: "month",
+                period_start: "2026-11-01",
+                period_end: "2026-11-30",
+                totals: { received: 0, open: 0, closed: 0, cancelled: 0, open_at_end: 0, closed_in_period: 0, cancelled_in_period: 0, rounds: 0, median_days: null },
+                by_matter: [{ ordinal: 1, ...zero, rounds: 0, median_days: null }],
+                by_type: [],
+                by_complexity: [],
+                by_level: [],
+                by_status: [],
+            });
+        }
         if (p === `/orgs/${FIRM}/firm-criteria`) {
             return ok({ criteria: [], playbooks: [], limit: 50, can_write: true });
         }

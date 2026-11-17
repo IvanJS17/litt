@@ -31,6 +31,7 @@ export * from "./ThemeSegmentedUI";
 export * from "./InputUI";
 export * from "./PasswordInputUI";
 export * from "./dropdown";
+export * from "./KeyChipUI";
 export * from "./ModelToggleUI";
 export * from "./WorkflowSlashCommandUI";
 export * from "./ChatHistoryDropdownUI";

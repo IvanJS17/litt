@@ -76,6 +76,7 @@ Ajustes del despacho · <nombre>
 | The three «llaves propias» switches (AI, web search, scans) | Firm: Llaves del despacho | — |
 | «Verificar mis citas con TypeSafe» (opt-out of the citation check; what it stores shows as «Revisar esta cita» only for the low band) | Personal: Privacidad y datos, the first card. Not a firm setting: the check is the platform's, there is no key to save and the firm has no switch | — |
 | Document types for splitting a case file | Personal: Lectura de escaneados (personal space only). Firm: Lectura de escaneados | In a firm's space the personal page links to the firm's list. |
+| Request counts of the firm's retainer matters (numbers only, owners and administrators) | Firm: General, below the request types (`RequestCountsSettings`). Not a new tab | — |
 | Mentors and pupils; the firm's criteria | Firm: Formación | «Mi formación» (personal) has only what is mine. |
 
 ## Old addresses

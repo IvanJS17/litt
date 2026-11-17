@@ -54,7 +54,7 @@ import { playbooksRouter } from "./modules/playbooks/playbooks.routes";
 import { aiRecoveryRouter } from "./modules/ai-recovery/ai-recovery.routes";
 import { mcpConsentRouter, mcpPublicRouter } from "./modules/mcp/mcp.routes";
 import { matterSettingsRouter, mattersRouter } from "./modules/matters/matters.routes";
-import { requestsRouter, requestTypesRouter } from "./modules/requests/requests.routes";
+import { requestCountsRouter, requestsRouter, requestTypesRouter } from "./modules/requests/requests.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
   handleUnhandledError,
@@ -395,6 +395,7 @@ app.use("/orgs/:orgId/training/pupils/:userId/gym/attempts", pupilGymRouter);
 app.use("/orgs/:orgId/training/gym/cases", gymCasesRouter);
 app.use("/orgs/:orgId/firm-criteria", firmCriteriaRouter);
 app.use("/orgs/:orgId/request-types", requestTypesRouter);
+app.use("/orgs/:orgId/requests", requestCountsRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/platform", platformRouter);
