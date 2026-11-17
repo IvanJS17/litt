@@ -6,7 +6,7 @@
  * (client-profile.decide.ts) or left pending.
  */
 
-import type { ClientProfile, ProfileFact, ProfilePerson, ProfileSourceVersion } from "@mike/contracts";
+import type { ClientProfile, ProfileFact, ProfileFactData, ProfileFactKind, ProfilePerson, ProfileSourceVersion } from "@mike/contracts";
 import { loadCreatorProfiles } from "../../lib/userLookup";
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
@@ -43,6 +43,8 @@ export type Actor = {
 };
 
 export const NOT_FOUND = "Not found";
+
+type VersionLike = { id: string; document_id: string; version_number: number | null; filename: string | null };
 
 export async function loadEvents(db: Db, matterId: string, factId?: string): Promise<ServiceResult<EventRow[]>> {
   let query = db.from("matter_profile_fact_events").select(EVENT_COLUMNS).eq("matter_id", matterId);
@@ -183,45 +185,83 @@ export async function createProfileFact(
     if ((existing ?? []).length >= MAX_FACTS_PER_MATTER)
       return failure("conflict", "The profile holds as many facts as it can.", FACT_LIMIT_CODE);
 
-    const { data: inserted, error } = await db
-      .from("matter_profile_facts")
-      .insert({
-        matter_id: access.data.matterId,
-        kind,
-        label,
-        data,
-        document_id: version.data.document_id,
-        version_id: versionId,
-        start_char: located.start,
-        end_char: located.end,
-        quote: located.excerpt,
-        text_sha256: sha256(state.text),
-        created_by: actor.userId,
-      })
-      .select(FACT_COLUMNS)
-      .single();
-    if (error || !inserted) return internalFailure(error);
-    const row = inserted as unknown as FactRow;
-
-    // Like the requests' events, a lost "created" row is reported and never
-    // hides a fact that was saved; a decision's row is another matter
-    // (client-profile.decide.ts) and is never swallowed.
-    const { data: event, error: eventError } = await db
-      .from("matter_profile_fact_events")
-      .insert({ fact_id: row.id, matter_id: row.matter_id, actor_user_id: actor.userId, action: "created" })
-      .select(EVENT_COLUMNS)
-      .single();
-    if (eventError)
-      reportError(new AppError("client_profile.event_write_failed", "[client-profile] event insert failed", { cause: eventError }), {
-        tags: { operation: "client_profile.event" },
-      });
-    const sources = new Map([
-      [versionId, { versionNumber: version.data.version_number, filename: version.data.filename, staleReason: null, currentSha: sha256(state.text) }],
-    ]);
-    return ok(toFact(row, event ? [event as unknown as EventRow] : [], sourceStateFor(row, sources)));
+    return insertFact(db, {
+      matterId: access.data.matterId,
+      userId: actor.userId,
+      version: version.data,
+      text: state.text,
+      kind,
+      label,
+      data,
+      located,
+    });
   } catch (error) {
     return internalFailure(error);
   }
+}
+
+/**
+ * Saves a fact whose citation was already found in `text` (and `text` is the
+ * text of `version`), and its `created` event. The one write both capture paths
+ * share: by hand, and assisted extraction (`reason` then says so). A lost
+ * "created" row is reported and never hides a fact that was saved; a decision's
+ * row is another matter (client-profile.decide.ts) and is never swallowed.
+ */
+export async function insertFact(
+  db: Db,
+  args: {
+    matterId: string;
+    userId: string;
+    version: Pick<VersionLike, "document_id" | "id" | "version_number" | "filename">;
+    text: string;
+    kind: ProfileFactKind;
+    label: string;
+    data: ProfileFactData;
+    located: { start: number; end: number; excerpt: string };
+    reason?: string;
+  },
+): Promise<ServiceResult<ProfileFact>> {
+  const { version, text, located } = args;
+  const textSha = sha256(text);
+  const { data: inserted, error } = await db
+    .from("matter_profile_facts")
+    .insert({
+      matter_id: args.matterId,
+      kind: args.kind,
+      label: args.label,
+      data: args.data,
+      document_id: version.document_id,
+      version_id: version.id,
+      start_char: located.start,
+      end_char: located.end,
+      quote: located.excerpt,
+      text_sha256: textSha,
+      created_by: args.userId,
+    })
+    .select(FACT_COLUMNS)
+    .single();
+  if (error || !inserted) return internalFailure(error);
+  const row = inserted as unknown as FactRow;
+
+  const { data: event, error: eventError } = await db
+    .from("matter_profile_fact_events")
+    .insert({
+      fact_id: row.id,
+      matter_id: row.matter_id,
+      actor_user_id: args.userId,
+      action: "created",
+      ...(args.reason ? { reason: args.reason } : {}),
+    })
+    .select(EVENT_COLUMNS)
+    .single();
+  if (eventError)
+    reportError(new AppError("client_profile.event_write_failed", "[client-profile] event insert failed", { cause: eventError }), {
+      tags: { operation: "client_profile.event" },
+    });
+  const sources = new Map([
+    [version.id, { versionNumber: version.version_number, filename: version.filename, staleReason: null, currentSha: textSha }],
+  ]);
+  return ok(toFact(row, event ? [event as unknown as EventRow] : [], sourceStateFor(row, sources)));
 }
 
 export const isFactId = (value: unknown): value is string => typeof value === "string" && isUuid(value);

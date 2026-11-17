@@ -812,7 +812,8 @@
       "confirmed": "Confirmed by {name} on {date}",
       "rejected": "Rejected by {name} on {date}",
       "reason": "Reason: {reason}",
-      "unknownPerson": "Deleted user"
+      "unknownPerson": "Deleted user",
+      "proposed": "Proposed with AI at the request of {name} on {date}"
     },
     "actions": {
       "confirm": "Confirm",
@@ -843,6 +844,25 @@
       "quoteNotFound": "That passage is not in the text of the chosen version. Copy it as it appears in the document.",
       "sourceTextUnavailable": "The text of that version is not ready yet. Try again in a few minutes.",
       "versionNotInMatter": "That version is not from a document of this matter."
+    },
+    "extract": {
+      "title": "Propose facts with AI",
+      "description": "Choose a version and the AI proposes facts for the profile, each with its quote from the document.",
+      "version": "Document and version",
+      "chooseVersion": "Choose a version",
+      "button": "Propose facts with AI",
+      "running": "Reading the document…",
+      "helper": "The text of this version will be sent to {provider} using the key the chat uses in this space. Each suggestion stays awaiting confirmation until a lawyer reviews it.",
+      "couldNotExtract": "Could not propose facts with AI.",
+      "result": {
+        "title": "Result",
+        "proposed": "{count, plural, =0 {The AI proposed no new facts.} one {The AI proposed # fact.} other {The AI proposed # facts.}}",
+        "discardedQuote": "{count, plural, one {# suggestion was discarded because its quote is not in the document.} other {# suggestions were discarded because their quote is not in the document.}}",
+        "discardedInvalid": "{count, plural, one {# suggestion was discarded because it did not fit the format.} other {# suggestions were discarded because they did not fit the format.}}",
+        "discardedDuplicate": "{count, plural, one {# suggestion was discarded because the profile already has that fact.} other {# suggestions were discarded because the profile already has those facts.}}",
+        "review": "Review each suggestion and confirm or reject it. Nothing reaches the radar until someone confirms it."
+      },
+      "proposals": "Suggestions awaiting confirmation"
     }
   },
   "common": {
@@ -1204,6 +1224,10 @@
       "cookie_session_required": "Sign in again to continue.",
       "document_version_conflict": "This document changed since you opened it. Reload it to continue.",
       "email_address_invalid": "Enter a valid email address.",
+      "extraction_output_invalid": "The AI did not answer in the expected format, so nothing was saved. Try again.",
+      "extraction_provider_failed": "The AI provider could not answer. Nothing was saved. Try again in a moment.",
+      "extraction_provider_refused": "The AI provider did not accept the request. Check the key and the model in Settings.",
+      "extraction_text_too_large": "That version’s text is too long to read in one go (up to 120,000 characters). Choose a shorter version.",
       "fact_already_decided": "This fact was already confirmed or rejected. Reload the profile to see its status.",
       "fact_stale": "The cited document changed or is no longer available, so this fact cannot be confirmed. Capture it again from the current version.",
       "firm_criteria_limit_reached": "Your firm holds as many criteria as it can. Remove one to write another.",

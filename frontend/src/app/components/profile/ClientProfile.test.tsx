@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ClientProfile as ClientProfileData, ProfileFact } from "@mike/contracts";
+import type { ClientProfile as ClientProfileData, ProfileExtraction, ProfileFact } from "@mike/contracts";
 import esMX from "../../../../../packages/i18n/messages/es-MX.json";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { ClientProfile } from "./ClientProfile";
@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   createProfileFact: vi.fn(),
   confirmProfileFact: vi.fn(),
   rejectProfileFact: vi.fn(),
+  getProfileExtractionRoute: vi.fn(),
+  extractProfileFacts: vi.fn(),
   notifyError: vi.fn(),
 }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
@@ -19,6 +21,8 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   createProfileFact: mocks.createProfileFact,
   confirmProfileFact: mocks.confirmProfileFact,
   rejectProfileFact: mocks.rejectProfileFact,
+  getProfileExtractionRoute: mocks.getProfileExtractionRoute,
+  extractProfileFacts: mocks.extractProfileFacts,
 }));
 vi.mock("@/app/lib/userFacingError", () => ({
   notifyError: mocks.notifyError,
@@ -71,6 +75,8 @@ const renderPage = () => render(<ClientProfile projectId="project-1" matterId="m
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getClientProfile.mockResolvedValue(profile());
+  // No route by default: the button of assisted extraction is not offered.
+  mocks.getProfileExtractionRoute.mockResolvedValue(null);
 });
 
 describe("ClientProfile", () => {
@@ -484,5 +490,211 @@ describe("in Spanish", () => {
     expect(screen.getByRole("article", { name: "Fecha" })).toHaveTextContent("Aviso: 1 día (Días naturales)");
     expect(screen.getByRole("button", { name: "Agregar dato" })).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/\bhoras?\b|\bminutos?\b|estimaci/i);
+  });
+});
+
+
+describe("assisted extraction", () => {
+  const route = { provider: "claude", model: "claude-sonnet-5-5" };
+  const proposed = (over: Partial<ProfileFact> = {}) =>
+    fact({
+      id: "fact-ai",
+      kind: "date",
+      label: "Vencimiento del arrendamiento",
+      data: { date_kind: "expiry", date_on: "2028-12-31" },
+      events: [{ id: "e9", actor_user_id: ANA, action: "created", reason: "assisted_extraction", created_at: "2026-11-17T10:00:00Z" }],
+      ...over,
+    });
+  const result = (over: Partial<ProfileExtraction> = {}): ProfileExtraction => ({
+    proposed: 1,
+    discarded_quote_not_found: 0,
+    discarded_invalid: 0,
+    discarded_duplicate: 0,
+    fact_ids: ["fact-ai"],
+    ...over,
+  });
+  const choose = async (versionLabel = "contrato.docx, version 2") => {
+    await userEvent.selectOptions(await screen.findByLabelText("Document and version"), versionLabel);
+  };
+
+  it("offers no button when the space has no route for this person, or the person only reads", async () => {
+    renderPage();
+    await screen.findByRole("article");
+    expect(screen.queryByRole("button", { name: "Propose facts with AI" })).not.toBeInTheDocument();
+
+    mocks.getProfileExtractionRoute.mockClear();
+    mocks.getClientProfile.mockResolvedValue(profile({ can_write: false, versions: [] }));
+    renderPage();
+    await screen.findAllByRole("article");
+    expect(mocks.getProfileExtractionRoute).not.toHaveBeenCalled();
+  });
+
+  it("does not ask about a route for a matter that is not a retainer", async () => {
+    mocks.getClientProfile.mockResolvedValue(profile({ retainer: false, can_write: false, facts: [], versions: [] }));
+    renderPage();
+    await screen.findByText("This matter is not a retainer");
+    expect(mocks.getProfileExtractionRoute).not.toHaveBeenCalled();
+  });
+
+  it("hides the button when the route cannot be read, without bothering the person", async () => {
+    mocks.getProfileExtractionRoute.mockRejectedValue(new Error("down"));
+    renderPage();
+    await screen.findByRole("article");
+    await waitFor(() => expect(mocks.getProfileExtractionRoute).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Propose facts with AI" })).not.toBeInTheDocument();
+    expect(mocks.notifyError).not.toHaveBeenCalled();
+  });
+
+  it("says where the text goes before the click, and needs a version", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    renderPage();
+    const button = await screen.findByRole("button", { name: "Propose facts with AI" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(
+      "The text of this version will be sent to Anthropic (Claude) using the key the chat uses in this space. Each suggestion stays awaiting confirmation until a lawyer reviews it.",
+    );
+    await choose();
+    expect(button).toBeEnabled();
+    expect(mocks.extractProfileFacts).not.toHaveBeenCalled();
+  });
+
+  it("names a provider the catalog does not know as the server called it", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue({ provider: "acme-llm", model: "m" });
+    renderPage();
+    expect(await screen.findByText(/will be sent to acme-llm using the key/)).toBeInTheDocument();
+  });
+
+  it("runs the chosen version, shows what was proposed, and lists the pending proposals to confirm or reject", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    let finish!: (value: ProfileExtraction) => void;
+    mocks.extractProfileFacts.mockReturnValue(new Promise((done) => (finish = done)));
+    renderPage();
+    await screen.findByRole("button", { name: "Propose facts with AI" });
+    await choose();
+    await userEvent.click(screen.getByRole("button", { name: "Propose facts with AI" }));
+    expect(mocks.extractProfileFacts).toHaveBeenCalledWith("project-1", "matter-1", "ver-1");
+    const busy = screen.getByRole("button", { name: "Reading the document…" });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByLabelText("Document and version")).toBeDisabled();
+
+    mocks.getClientProfile.mockResolvedValue(profile({ facts: [proposed(), fact()] }));
+    finish(result({ discarded_quote_not_found: 2, discarded_invalid: 1, discarded_duplicate: 3 }));
+    expect(await screen.findByText("The AI proposed 1 fact.")).toBeInTheDocument();
+    expect(screen.getByText("2 suggestions were discarded because their quote is not in the document.")).toBeInTheDocument();
+    expect(screen.getByText("1 suggestion was discarded because it did not fit the format.")).toBeInTheDocument();
+    expect(screen.getByText("3 suggestions were discarded because the profile already has those facts.")).toBeInTheDocument();
+    expect(screen.getByText("Review each suggestion and confirm or reject it. Nothing reaches the radar until someone confirms it.")).toBeInTheDocument();
+
+    const list = screen.getByRole("region", { name: "Suggestions awaiting confirmation" });
+    const card = within(list).getByRole("article", { name: "Vencimiento del arrendamiento" });
+    expect(card).toHaveTextContent("Awaiting confirmation");
+    expect(card).toHaveTextContent("Proposed with AI at the request of Ana Pérez");
+    expect(card).not.toHaveTextContent("assisted_extraction");
+    expect(within(card).getByRole("button", { name: "Confirm" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Reject" })).toBeInTheDocument();
+    // The facts typed by hand stay in their group, and the proposal is not listed twice.
+    expect(screen.getAllByRole("article", { name: "Vencimiento del arrendamiento" })).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Contracts" })).toBeInTheDocument();
+    // The button is back for another run.
+    expect(screen.getByRole("button", { name: "Propose facts with AI" })).toBeEnabled();
+  });
+
+  it("confirms a proposal one by one, and then it moves to its group", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    mocks.extractProfileFacts.mockResolvedValue(result());
+    mocks.getClientProfile.mockResolvedValue(profile({ facts: [proposed()] }));
+    mocks.confirmProfileFact.mockResolvedValue(proposed({ status: "confirmed", effective_status: "confirmed" }));
+    renderPage();
+    await screen.findByRole("button", { name: "Propose facts with AI" });
+    await choose();
+    await userEvent.click(screen.getByRole("button", { name: "Propose facts with AI" }));
+    const card = await screen.findByRole("article", { name: "Vencimiento del arrendamiento" });
+    mocks.getClientProfile.mockResolvedValue(
+      profile({ facts: [proposed({ status: "confirmed", effective_status: "confirmed", decided_by: ANA, decided_at: "2026-11-17T11:00:00Z" })] }),
+    );
+    await userEvent.click(within(card).getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(mocks.confirmProfileFact).toHaveBeenCalledWith("project-1", "matter-1", "fact-ai", {}));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Suggestions awaiting confirmation" })).not.toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "Dates" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Vencimiento del arrendamiento" })).toHaveTextContent("Confirmed");
+  });
+
+  it("rejects a proposal with a reason", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    mocks.extractProfileFacts.mockResolvedValue(result());
+    mocks.getClientProfile.mockResolvedValue(profile({ facts: [proposed()] }));
+    mocks.rejectProfileFact.mockResolvedValue(proposed({ status: "rejected", effective_status: "rejected" }));
+    renderPage();
+    await screen.findByRole("button", { name: "Propose facts with AI" });
+    await choose();
+    await userEvent.click(screen.getByRole("button", { name: "Propose facts with AI" }));
+    const card = await screen.findByRole("article", { name: "Vencimiento del arrendamiento" });
+    await userEvent.click(within(card).getByRole("button", { name: "Reject" }));
+    await userEvent.type(within(card).getByLabelText("Reason (optional)"), "No es el vencimiento");
+    await userEvent.click(within(card).getByRole("button", { name: "Reject the fact" }));
+    await waitFor(() =>
+      expect(mocks.rejectProfileFact).toHaveBeenCalledWith("project-1", "matter-1", "fact-ai", { reason: "No es el vencimiento" }),
+    );
+  });
+
+  it("says plainly when nothing was proposed, and does not talk about reviewing", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    mocks.extractProfileFacts.mockResolvedValue(result({ proposed: 0, fact_ids: [], discarded_invalid: 1 }));
+    renderPage();
+    await screen.findByRole("button", { name: "Propose facts with AI" });
+    await choose();
+    await userEvent.click(screen.getByRole("button", { name: "Propose facts with AI" }));
+    expect(await screen.findByText("The AI proposed no new facts.")).toBeInTheDocument();
+    expect(screen.getByText("1 suggestion was discarded because it did not fit the format.")).toBeInTheDocument();
+    expect(screen.queryByText(/Review each suggestion/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/quote is not in the document/)).not.toBeInTheDocument();
+  });
+
+  it("reports a failed run, with nothing left over from the last one", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    mocks.extractProfileFacts.mockResolvedValueOnce(result({ proposed: 2, fact_ids: [] }));
+    mocks.extractProfileFacts.mockRejectedValueOnce({ code: "extraction_text_too_large" });
+    renderPage();
+    await screen.findByRole("button", { name: "Propose facts with AI" });
+    await choose();
+    await userEvent.click(screen.getByRole("button", { name: "Propose facts with AI" }));
+    expect(await screen.findByText("The AI proposed 2 facts.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Propose facts with AI" }));
+    await waitFor(() =>
+      expect(mocks.notifyError).toHaveBeenCalledWith({ code: "extraction_text_too_large" }, { action: "Could not propose facts with AI." }),
+    );
+    expect(screen.queryByText("The AI proposed 2 facts.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Propose facts with AI" })).toBeEnabled();
+  });
+
+  it("offers no button to a matter with no documents to read", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    mocks.getClientProfile.mockResolvedValue(profile({ versions: [] }));
+    renderPage();
+    await screen.findByRole("article");
+    await waitFor(() => expect(mocks.getProfileExtractionRoute).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Propose facts with AI" })).not.toBeInTheDocument();
+  });
+
+  it("shows a version without a name by its document id and a dash", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    renderPage();
+    const select = await screen.findByLabelText("Document and version");
+    expect(within(select).getByRole("option", { name: "doc-2, version –" })).toBeInTheDocument();
+  });
+
+  it("speaks Spanish, with the line legal approved", async () => {
+    mocks.getProfileExtractionRoute.mockResolvedValue({ provider: "openai", model: "gpt-6-luna" });
+    render(
+      <IntlClientProvider locale="es-MX" messages={esMX as never}>
+        <ClientProfile projectId="project-1" matterId="matter-1" />
+      </IntlClientProvider>,
+    );
+    const button = await screen.findByRole("button", { name: "Proponer datos con IA" });
+    expect(button).toHaveAccessibleDescription(
+      "Se enviará el texto de esta versión a OpenAI, con la llave que usa el chat en este espacio. Cada propuesta queda por confirmar hasta que un abogado la revise.",
+    );
+    expect(screen.getByLabelText("Documento y versión")).toBeInTheDocument();
   });
 });

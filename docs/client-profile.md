@@ -4,8 +4,8 @@ The client profile ("ficha del cliente") is the list of facts a lawyer knows
 about a retainer client, taken from the matter's own documents: a contract, a
 date, a power of attorney, an obligation, or anything else worth keeping. It
 lives in the same matter as the [requests](matter-requests.md) and follows the
-same access rules. This first layer is **manual capture only**: nothing here
-asks a model for anything, and nothing here computes a deadline.
+same access rules. Facts are captured by hand, or proposed by the space's AI on the lawyer's click
+(see "Assisted extraction"); nothing here computes a deadline.
 
 ## Rules
 
@@ -68,6 +68,8 @@ All under `/projects/:projectId/matters/:matterId/profile`:
 | `POST /facts` | owner, editor | `{ kind, label, data, source: { version_id, quote } }` → 201 |
 | `POST /facts/:factId/confirm` | owner, editor | optional `{ reason }` → the fact; 409 `fact_already_decided`, `fact_stale` |
 | `POST /facts/:factId/reject` | owner, editor | optional `{ reason }` (≤ 500) → the fact |
+| `GET /extraction` | member | `{ route }`: the provider and model the text of a version would go to, or `null` (no key or model, or the caller only reads): no button then |
+| `POST /versions/:versionId/extract` | owner, editor | assisted extraction → `{ proposed, discarded_quote_not_found, discarded_invalid, discarded_duplicate, fact_ids }` |
 
 Fields by kind (`data`, unknown keys refused): `contract` (`counterparty`,
 `object`), `date` (`date_kind`, `date_on`, `rule_text`, `notice_days`,
@@ -104,9 +106,77 @@ the add form (kind, fields, document version, pasted quote) and the confirm and
 reject actions. The app has no deep link that opens a document at a quote, so
 the quote is shown in place with its file and version.
 
+## Assisted extraction
+
+On the lawyer's click ("Proponer datos con IA"), the AI of the space reads **one
+version** and proposes facts, each with a quote. It is a synchronous request
+(the key never travels in a job) and the button never starts OCR or a split:
+a version without ready text is refused (422 `source_text_unavailable`).
+
+- **Same route as the chat.** The model is what the project chat would pick for
+  this person (`resolveUserChatSelection`), the key is what the chat's key
+  selector preselects for a new conversation (the person's own, then the firm's,
+  then the deployment's; `listChatCredentialOptions`), and the route is governed
+  like a chat's (`governChatRoute`): only that credential is in the key bag and
+  every other provider is switched off. No key or model fails closed with the
+  chat's own code (`model_required`, `missing_api_key`,
+  `chat_route_credential_required`, …) before anything is sent. There is no
+  fallback to another provider, key or model.
+- **What is sent, and only this**: the fixed system prompt (`EXTRACT_SYSTEM_PROMPT`)
+  and the version's text between two fence lines carrying a random code per call
+  (`buildExtractionPrompt`). Not the file name, the matter or client name, the
+  account, profile, instructions or memory, any chat, other documents or the facts
+  already in the profile. No tools. The call leaves the server; it never goes to
+  TypeSafe, LandingAI, a web search or Jev (a test reads the module's imports).
+  The egress is recorded in the audit log (`llm.egress`, surface
+  `profile_extraction`: provider, model, credential reference, host, matter and
+  version ids; never content) **before** the call, and if it cannot be recorded
+  nothing is sent.
+- **Size.** Up to 120,000 characters of text (`MAX_EXTRACT_TEXT_CHARS`); above
+  it the run is refused (422 `extraction_text_too_large`). At most 25 items are
+  read per run; the rest count as discarded.
+- **Closed output.** The model answers one JSON array of
+  `{ kind, field, label, value_raw, quote, page }` with `kind`/`field` from a short
+  list (`date`: `effective`, `expiry`, `renewal_notice`; `obligation`:
+  `description`; `other`: `note`). Anything else (other keys, other pairs, prose
+  around the array) is discarded and counted; an answer that is not an array is
+  refused (422 `extraction_output_invalid`) and saves nothing. The text of the
+  contract is data: whatever it says to the model changes nothing, because the
+  answer is only ever read through that schema.
+- **Citations verified.** Each `quote` is looked up in the version's text with
+  `locateQuote`, as the manual path does (case, spacing and line breaks may
+  differ). Found: saved with the passage as the document words it, offsets and
+  hash. Not found: discarded and counted (`discarded_quote_not_found`).
+- **Dates by code.** The model copies `value_raw`; `client-profile.dates.ts`
+  reads `2027-03-15`, `15/03/2027` (day first) and `15 de marzo de 2027`, and a
+  notice period written with digits. A date it cannot read with certainty (for
+  example `03/04/2027`) stays as the rule as the document words it, which the
+  radar flags for review.
+- **Pending, one by one.** A proposal is a normal fact (same insert as the manual
+  path) with its `created` event marked `reason = assisted_extraction`, so it
+  reads "proposed with AI" in its history. Nothing reaches the radar until a
+  lawyer confirms it; confirming and rejecting are the existing per-fact actions.
+  A passage already in the profile for the same fact (rejected or not) is not
+  proposed again (`discarded_duplicate`).
+- **Rate limit.** 10 runs per person per 15 minutes
+  (`RATE_LIMIT_PROFILE_EXTRACT_MAX`, `RATE_LIMIT_PROFILE_EXTRACT_WINDOW_MINUTES`), keyed by user.
+- **Failures.** 422 `extraction_provider_failed` (the provider could not answer),
+  `extraction_provider_refused` (it rejected the key or the request) and
+  `extraction_output_invalid`; nothing is saved by a failed run. They are 422 and
+  not 5xx on purpose: the API gateway rewrites every 5xx and drops the code.
+- **Kinds not proposed.** `contract` and `power_of_attorney` need two required
+  fields (counterparty and object, grantee and scope), so they stay manual.
+
+UI: under the profile's header, writers whose space has a route see a panel
+with the version picker, the button, the line "The text of this version will be
+sent to {provider}, with the key the chat uses in this space. Each suggestion
+stays awaiting confirmation until a lawyer reviews it." (the provider is the
+route's, named before the click), the result of the run and the proposals
+awaiting confirmation, each with Confirm and Reject.
+
 ## What builds on this
 
 The radar reads confirmed, non-stale facts (`status = confirmed` and no
 `stale_reason`) through `loadFacts` of the `client-profile` facade; the
-structured date fields above are its input. A later assisted extraction would
-propose facts into the same table with the same citation check.
+structured date fields above are its input. Assisted extraction proposes facts
+into the same table with the same citation check.
