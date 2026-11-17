@@ -41,3 +41,28 @@ export async function loadUserProfileFacts(
         events: sortRows(events.filter((row) => readable.has(row.matter_id as string))),
     };
 }
+
+/**
+ * The radar actions (acknowledged, dismissed, done) the holder recorded, in the
+ * matters they can still open. Matter work, like the facts they react to: it
+ * stays with the firm when the holder is no longer on the matter. Only an
+ * organization's export carries them.
+ */
+export async function loadUserRadarEvents(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: string | null,
+): Promise<Row[]> {
+    if (!orgId) return [];
+    const events = await selectAllByKey<Row>("export matter_radar_item_events", () =>
+        (db as any)
+            .from("matter_radar_item_events")
+            .select("id, fact_id, matter_id, item_type, action, due_on, reason, created_at")
+            .eq("actor_user_id", userId),
+    );
+    const matterIds = [...new Set(events.map((row) => row.matter_id as string))];
+    if (matterIds.length === 0) return [];
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    return sortRows(events.filter((row) => readable.has(row.matter_id as string)));
+}

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import {
     Brain,
+    CalendarClock,
     ClipboardList,
     CornerDownRight,
     FileText,
@@ -424,6 +425,7 @@ export function ProjectPageHeader({
     onOpenMemory,
     onOpenRequests,
     onOpenProfile,
+    onOpenRadar,
     onDeleteProject,
     onSearchChange,
     onOpenAccess,
@@ -454,6 +456,8 @@ export function ProjectPageHeader({
     onOpenRequests?: (() => void) | null;
     /** Present with `onOpenRequests`: opens the matter's client profile. */
     onOpenProfile?: (() => void) | null;
+    /** Present with `onOpenRequests`: opens the matter's deadline radar. */
+    onOpenRadar?: (() => void) | null;
     onDeleteProject: () => void;
     onSearchChange: (search: string) => void;
     onOpenAccess: () => void;
@@ -577,6 +581,16 @@ export function ProjectPageHeader({
                                                   label: t("clientProfile.title"),
                                                   icon: FileText,
                                                   onSelect: onOpenProfile,
+                                                  disabled: !roleKnown,
+                                              },
+                                          ]
+                                        : []),
+                                    ...(onOpenRadar
+                                        ? [
+                                              {
+                                                  label: t("radar.title"),
+                                                  icon: CalendarClock,
+                                                  onSelect: onOpenRadar,
                                                   disabled: !roleKnown,
                                               },
                                           ]

@@ -28,6 +28,7 @@ const INSERT_ONLY_TABLES = [
     "matter_request_events",
     "matter_profile_facts",
     "matter_profile_fact_events",
+    "matter_radar_item_events",
 ];
 
 describe("insert-only tables are insert-only in the backend", () => {

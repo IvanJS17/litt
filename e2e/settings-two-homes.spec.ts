@@ -128,6 +128,23 @@ async function signedIn(page: Page, s: Scenario) {
                 by_status: [],
             });
         }
+        if (p === `/orgs/${FIRM}/radar/today`) {
+            // The "Hoy" block of the firm workspace's home; the catch-all `[]` is not a radar.
+            return ok({
+                today: "2026-11-16",
+                time_zone: "America/Mexico_City",
+                truncated: false,
+                items: [
+                    {
+                        key: "11111111-1111-4111-8111-111111111111:notice", fact_id: "11111111-1111-4111-8111-111111111111", type: "notice",
+                        label: "Vigencia del arrendamiento", due_on: "2026-12-01", days_left: 15, bucket: "next_30", review_reason: null,
+                        base_on: "2026-12-31", notice_days: 30, rule_text: null, state: "open", acted_by: null, acted_at: null, reason: null,
+                        source: { document_id: "d1", version_id: "v1", version_number: 1, filename: "contrato.docx", start_char: 0, end_char: 5, quote: "cita", text_sha256: "a".repeat(64) },
+                        project_id: "p1", matter_id: "m1", matter_name: "Patito · Iguala 2026",
+                    },
+                ],
+            });
+        }
         if (p === `/orgs/${FIRM}/firm-criteria`) {
             return ok({ criteria: [], playbooks: [], limit: 50, can_write: true });
         }
@@ -439,6 +456,9 @@ test.describe("menú lateral y tamaño de letra", () => {
     test("el menú de la cuenta tiene «Ajustes del despacho» y la abre", async ({ page }) => {
         await signedIn(page, { role: "owner" });
         await page.goto("/projects");
+        // The home of the firm's workspace shows «Hoy» with the caller's deadlines.
+        await expect(page.getByRole("heading", { name: "Hoy" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Abrir el radar de Patito · Iguala 2026" })).toContainText("Vigencia del arrendamiento");
         await page.getByRole("button", { name: /Lucía Herrera|Cuenta|Menú de la cuenta/i }).first().click();
         const entry = page.getByRole("menuitem", { name: "Ajustes del despacho" });
         await expect(entry).toBeVisible();

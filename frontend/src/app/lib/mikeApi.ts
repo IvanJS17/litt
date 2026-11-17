@@ -6517,3 +6517,47 @@ export async function rejectProfileFact(
         ),
     );
 }
+
+// ---------------------------------------------------------------------------
+// Deadline radar of a retainer matter (docs/deadline-radar.md)
+// ---------------------------------------------------------------------------
+
+export async function getMatterRadar(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").MatterRadar> {
+    const radar = await apiRequest<import("@mike/contracts").MatterRadar>(
+        "matter.radar",
+        `${matterRequestsPath(projectId, matterId)}/radar`,
+    );
+    // A reply without its lists is a failed load, not an empty radar.
+    if (typeof radar?.today !== "string" || !Array.isArray(radar.items) || !Array.isArray(radar.people))
+        throw new Error("Malformed radar response");
+    return radar;
+}
+
+export async function actOnRadarItem(
+    projectId: string,
+    matterId: string,
+    itemKey: string,
+    action: import("@mike/contracts").RadarAction,
+    input: import("@mike/contracts").RadarActionInput = {},
+): Promise<import("@mike/contracts").RadarItem> {
+    const item = await apiRequest<import("@mike/contracts").RadarItem>(
+        "matter.radar",
+        `${matterRequestsPath(projectId, matterId)}/radar/items/${encodeURIComponent(itemKey)}/${action}`,
+        jsonInit("POST", input),
+    );
+    if (typeof item?.key !== "string" || !item.source) throw new Error("Malformed radar item response");
+    return item;
+}
+
+/** Open items of the matters where the caller is a member, in one organization. */
+export async function getRadarToday(orgId: string): Promise<import("@mike/contracts").RadarToday> {
+    const today = await apiRequest<import("@mike/contracts").RadarToday>(
+        "matter.radar",
+        `/orgs/${encodeURIComponent(orgId)}/radar/today`,
+    );
+    if (typeof today?.today !== "string" || !Array.isArray(today.items)) throw new Error("Malformed radar response");
+    return today;
+}

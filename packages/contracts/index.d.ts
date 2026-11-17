@@ -2497,3 +2497,94 @@ export type ProfileFactDecisionInput = {
   /** Optional note kept with the decision (up to 500 characters). */
   reason?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Deadline radar of a retainer matter (docs/deadline-radar.md)
+// ---------------------------------------------------------------------------
+
+/**
+ * `expiry`: a contract's end date. `notice`: the last day to give notice
+ * (the date minus the notice period, in calendar days). `power_expiry`: a
+ * power of attorney's expiration.
+ */
+export type RadarItemType = "expiry" | "notice" | "power_expiry";
+
+/** `open` and `acknowledged` are alive; `dismissed` and `done` are closed. */
+export type RadarItemState = "open" | "acknowledged" | "dismissed" | "done";
+
+/**
+ * Where the item sits relative to today (America/Mexico_City): `overdue`
+ * (before today), `next_30` (today to 30 days ahead), `later`, or `review`
+ * (no date was computed).
+ */
+export type RadarBucket = "overdue" | "next_30" | "later" | "review";
+
+/**
+ * Why an item has no computed date. `business_days`: the notice is in
+ * business days, which LiTT never computes. `missing_date`: the fact names a
+ * rule or a period but no date to count from.
+ */
+export type RadarReviewReason = "business_days" | "missing_date";
+
+export type RadarItem = {
+  /** Stable name of the item: `<fact_id>:<type>`. */
+  key: string;
+  fact_id: string;
+  type: RadarItemType;
+  /** The fact's label. */
+  label: string;
+  /** ISO date (YYYY-MM-DD), computed in code. Null for a `review` item. */
+  due_on: string | null;
+  /** Calendar days from today to `due_on` (negative when overdue); null without a date. */
+  days_left: number | null;
+  bucket: RadarBucket;
+  review_reason: RadarReviewReason | null;
+  /** Date and period the day was computed from, when it is a notice. */
+  base_on: string | null;
+  notice_days: number | null;
+  /** The rule as the document words it, when the fact has one. */
+  rule_text: string | null;
+  state: RadarItemState;
+  /** Who last acted and when; null while untouched. */
+  acted_by: string | null;
+  acted_at: string | null;
+  /** The reason given when it was dismissed. */
+  reason: string | null;
+  /** The cited passage of the fact the item comes from. */
+  source: ProfileFactSource;
+};
+
+export type MatterRadar = {
+  /** The matter is a private retainer; only then does it have a radar. */
+  retainer: boolean;
+  /** The caller may acknowledge, dismiss and complete items (owner or editor). */
+  can_write: boolean;
+  /** ISO date of today in America/Mexico_City. */
+  today: string;
+  time_zone: string;
+  items: RadarItem[];
+  /** Names of the people who acted on items. */
+  people: ProfilePerson[];
+};
+
+export type RadarTodayItem = RadarItem & {
+  project_id: string;
+  matter_id: string;
+  matter_name: string | null;
+};
+
+export type RadarToday = {
+  today: string;
+  time_zone: string;
+  /** Open items due today or before, within 30 days, and items to review. */
+  items: RadarTodayItem[];
+  /** True when more matters than the cap were left out. */
+  truncated: boolean;
+};
+
+export type RadarAction = "ack" | "dismiss" | "done";
+
+export type RadarActionInput = {
+  /** Required to dismiss (1 to 500 characters); optional otherwise. */
+  reason?: string;
+};

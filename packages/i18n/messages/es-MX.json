@@ -1211,6 +1211,7 @@
       "firm_profile_too_large": "El perfil del despacho es demasiado largo para guardarlo. Acorta la descripción o quita algunos elementos.",
       "invalid_json": "No se pudo leer la solicitud. Recarga la página e inténtalo de nuevo.",
       "invalid_profile_fact": "Revisa los campos del dato: falta información o algún valor no es válido.",
+      "invalid_radar_action": "Revisa el motivo: debe ser texto de hasta 500 caracteres.",
       "invitation_already_member": "Esa persona ya es miembro de este despacho.",
       "invitation_email_invalid": "Escribe una dirección de correo válida.",
       "matter_has_owner": "Este asunto ya tiene propietario.",
@@ -1237,6 +1238,8 @@
       "playbook_not_draft": "Solo un borrador puede recibir cambios propuestos. Usa este playbook como punto de partida para obtener una copia.",
       "playbook_proposals_running": "Se están calculando los cambios propuestos para este playbook. Espera a que terminen.",
       "profile_fact_limit": "Esta ficha llegó al máximo de datos permitidos.",
+      "radar_item_closed": "Este vencimiento ya se atendió. Recarga el radar para ver su estado.",
+      "radar_reason_required": "Escribe el motivo para descartar este vencimiento.",
       "quote_not_found": "Esa frase no aparece en la versión elegida del documento. Cópiala tal cual del documento.",
       "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
       "request_too_large": "La solicitud es demasiado grande.",
@@ -3399,6 +3402,97 @@
       }
     },
     "youDoNotHavePermission": "No tienes permiso para borrar este archivo."
+  },
+  "radar": {
+    "title": "Radar de vencimientos",
+    "nav": "Radar",
+    "subtitle": "Fechas calculadas por LiTT a partir de los datos confirmados de la ficha del cliente. Un dato pendiente, rechazado u obsoleto no aparece aquí.",
+    "disclaimer": "Ayuda de planeación. La fecha no es un término legal y LiTT no calcula términos procesales.",
+    "calendarNote": "Los días se cuentan como días naturales, con la fecha de hoy en la Ciudad de México.",
+    "todayIs": "Hoy es {date}",
+    "backToMatter": "Volver al asunto",
+    "couldNotLoad": "No se pudo cargar el radar de vencimientos.",
+    "retry": "Reintentar",
+    "loading": "Cargando el radar de vencimientos",
+    "retainer": {
+      "offTitle": "Este asunto no es una iguala",
+      "offDescription": "El radar de vencimientos vive en los asuntos de iguala."
+    },
+    "empty": {
+      "title": "Sin vencimientos confirmados",
+      "description": "Cuando un abogado confirme en la ficha del cliente un dato con fecha, aparecerá aquí."
+    },
+    "group": {
+      "overdue": "Vencidos",
+      "next_30": "Próximos 30 días",
+      "later": "Más adelante",
+      "review": "Por revisar",
+      "closed": "Atendidos"
+    },
+    "type": {
+      "expiry": "Vencimiento",
+      "notice": "Último día para avisar",
+      "power_expiry": "Vencimiento del poder"
+    },
+    "when": {
+      "onDate": "{date}",
+      "today": "Hoy",
+      "inDays": "{count, plural, one {En # día} other {En # días}}",
+      "overdueDays": "{count, plural, one {Venció hace # día} other {Venció hace # días}}"
+    },
+    "basis": "Calculado: {date} menos {days, plural, one {# día natural} other {# días naturales}}",
+    "noticeDays": "Aviso: {days, plural, one {# día natural} other {# días naturales}}",
+    "noticeBusinessDays": "Aviso: {days, plural, one {# día hábil} other {# días hábiles}}",
+    "rule": "Regla del documento: {rule}",
+    "review": {
+      "business_days": "El aviso es en días hábiles y LiTT no los calcula. Revisa la fecha con un abogado.",
+      "missing_date": "El dato no tiene una fecha desde la cual contar. Revísalo o vuelve a capturarlo en la ficha del cliente."
+    },
+    "state": {
+      "open": "Abierto",
+      "acknowledged": "Visto",
+      "dismissed": "Descartado",
+      "done": "Hecho"
+    },
+    "history": {
+      "ack": "Visto por {name} el {date}",
+      "dismiss": "Descartado por {name} el {date}",
+      "done": "Hecho por {name} el {date}",
+      "reason": "Motivo: {reason}",
+      "unknownPerson": "Usuario eliminado"
+    },
+    "source": {
+      "label": "Fuente",
+      "quote": "Cita",
+      "file": "{name}, versión {version}",
+      "gone": "Una versión que ya no existe",
+      "profile": "Ver en la ficha del cliente"
+    },
+    "actions": {
+      "ack": "Marcar como visto",
+      "acking": "Marcando…",
+      "done": "Marcar como hecho",
+      "doing": "Marcando…",
+      "dismiss": "Descartar",
+      "dismissConfirm": "Descartar el vencimiento",
+      "dismissing": "Descartando…",
+      "reasonLabel": "Motivo (obligatorio)",
+      "reasonRequired": "Escribe el motivo para descartarlo.",
+      "cancel": "Cancelar",
+      "couldNotAct": "No se pudo registrar la acción.",
+      "alreadyHandled": "Alguien más ya atendió este vencimiento. Se recargó el radar."
+    },
+    "today": {
+      "title": "Hoy",
+      "empty": "Sin vencimientos confirmados",
+      "loading": "Cargando los vencimientos de hoy",
+      "couldNotLoad": "No se pudieron cargar los vencimientos.",
+      "retry": "Reintentar",
+      "open": "Abrir el radar de {matter}",
+      "unnamedMatter": "Asunto sin nombre",
+      "truncated": "Hay asuntos que no se muestran aquí. Abre el radar de cada asunto para verlos.",
+      "note": "Tus asuntos de iguala: vencidos, próximos 30 días y por revisar."
+    }
   },
   "recovery": {
     "approvedReviewUnavailable": "La revisión aprobada no está disponible.",
