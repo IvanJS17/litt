@@ -12,7 +12,7 @@ import { mapWithConcurrency } from "../../lib/concurrency";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { isUuid } from "../../lib/uuid";
-import { selectInBatches } from "../../lib/batchedQuery";
+import { queryFailureCause, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import { authorizeMatterMember } from "../matters/matters.service";
 import { RADAR_TIME_ZONE, todayInMexicoCity } from "./radar.dates";
 import { loadRadarItems } from "./radar.items";
@@ -38,14 +38,14 @@ export async function getRadarToday(
     const today = todayInMexicoCity(input.now ?? new Date());
     const empty: RadarToday = { today, time_zone: RADAR_TIME_ZONE, items: [], truncated: false };
 
-    const { data: memberships, error } = await db
-      .from("matter_memberships")
-      .select("matter_id")
-      .eq("user_id", input.userId)
-      .eq("status", "active")
-      .limit(1000);
-    if (error) return internalFailure(error);
-    const matterIds = [...new Set(((memberships ?? []) as unknown as { matter_id: string }[]).map((row) => row.matter_id))];
+    // Paged: max_rows (1000) would otherwise drop the memberships past the
+    // first thousand without a trace, and "truncated" would be a lie.
+    const memberships = await selectAllByKey<{ matter_id: string }>(
+      "radar memberships",
+      () => db.from("matter_memberships").select("matter_id").eq("user_id", input.userId).eq("status", "active"),
+      "matter_id",
+    );
+    const matterIds = [...new Set(memberships.map((row) => row.matter_id))];
     if (matterIds.length === 0) return ok(empty);
 
     const matters = await selectInBatches<MatterRow>("radar matters", matterIds, (batch) =>
@@ -92,6 +92,6 @@ export async function getRadarToday(
     });
     return ok({ ...empty, items, truncated: candidates.length > chosen.length });
   } catch (error) {
-    return internalFailure(error);
+    return internalFailure(queryFailureCause(error));
   }
 }

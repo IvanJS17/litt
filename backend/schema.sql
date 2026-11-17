@@ -21579,8 +21579,10 @@ create policy matter_profile_fact_events_select_member on public.matter_profile_
 -- The actor column has no foreign key to auth.users, so erasing an account is
 -- never blocked by it. No column holds hours. Nothing here computes a date.
 --
--- Re-runnable: the table uses if not exists, constraints and triggers are
--- dropped before they are created, functions use create or replace.
+-- Re-runnable: the table uses if not exists (its CHECK and foreign-key
+-- constraints are part of the create, so they are NOT dropped and recreated on
+-- a re-run), triggers and policies are dropped before they are created,
+-- functions use create or replace.
 
 create table if not exists public.matter_radar_item_events (
   id uuid primary key default gen_random_uuid(),

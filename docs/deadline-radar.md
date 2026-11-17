@@ -65,6 +65,13 @@ item whose date changed starts over (a safeguard: with immutable facts it does
 not happen today). The actor has no foreign key to `auth.users`. RLS lets the
 matter's active roster read; every write is the backend's.
 
+Note on re-running that migration: its header comment says constraints and
+triggers are dropped before they are created. Only the trigger and the policy
+are; the table's CHECK and foreign-key constraints are part of `create table if
+not exists`, so a re-run leaves them as they are. The file shipped, so it is
+not edited; `backend/schema.sql` carries the corrected comment. Events and the
+"today" memberships are read in full, paged past PostgREST's `max_rows`.
+
 This is the "compute on read + small insert-only table" option: there is no
 materialized item table and no `superseded_by` column.
 

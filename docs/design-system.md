@@ -1056,7 +1056,7 @@ and the phone menu); what matters for the next change:
   which a band on a dark page must not inherit. The values are pinned to
   `DesignTokensUI.css` by a test.
 - **Departure Mono** only in `LANDING_PIXEL` (`landingStyles.ts`), for the
-  small details of the SPEC (CERRADA BETA, PRÓXIMAMENTE, the section markers).
+  small details of the SPEC (BETA CERRADA, PRÓXIMAMENTE, the section markers).
 - **White surfaces**: only the user's own documents, drawn white
   (`bg-surface-document`): the page of the Word example and the DOCX/PDF page
   glyphs of the examples (listed in `noWhiteSurfaces.test.ts`).

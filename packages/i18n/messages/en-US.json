@@ -1215,6 +1215,7 @@
       "invitation_already_member": "That person is already a member of this organization.",
       "invitation_email_invalid": "Enter a valid email address.",
       "matter_has_owner": "This matter already has an owner.",
+      "matter_not_retainer": "This matter is not a retainer matter, so it has no client profile, requests or deadline radar.",
       "matter_owner_target_invalid": "Choose a current member of the organization.",
       "matter_write_required": "Only the matter owner and editors can change this matter's requests.",
       "member_data_action_disabled": "This organization's owners haven't allowed members to do this.",

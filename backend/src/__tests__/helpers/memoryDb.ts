@@ -14,7 +14,12 @@ export type Row = Record<string, unknown>;
 
 export type RpcHandler = (args: Record<string, unknown>, tables: Record<string, Row[]>) => unknown;
 
-export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, RpcHandler> = {}) {
+export function memoryDb(
+    tables: Record<string, Row[]>,
+    rpcs: Record<string, RpcHandler> = {},
+    /** PostgREST's `max_rows`: a select returns at most this many rows, silently. */
+    options: { maxRows?: number } = {},
+) {
     const failures: { table: string; op: string; error: unknown }[] = [];
     const from = (table: string) => {
         const rows = (tables[table] ??= []);
@@ -60,7 +65,7 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
                       return 0;
                   })
                 : matches;
-            return { data: sorted.slice(skip, skip + limit).map(project), error: null };
+            return { data: sorted.slice(skip, skip + Math.min(limit, options.maxRows ?? Infinity)).map(project), error: null };
         };
         const builder: Record<string, unknown> = {
             select: (list?: string) => {

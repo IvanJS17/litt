@@ -1215,6 +1215,7 @@
       "invitation_already_member": "Esa persona ya es miembro de este despacho.",
       "invitation_email_invalid": "Escribe una dirección de correo válida.",
       "matter_has_owner": "Este asunto ya tiene propietario.",
+      "matter_not_retainer": "Este asunto no es una iguala, así que no tiene ficha del cliente, solicitudes ni radar de vencimientos.",
       "matter_owner_target_invalid": "Elige a un miembro actual del despacho.",
       "matter_write_required": "Solo quien lleva el asunto y los editores pueden cambiar sus solicitudes.",
       "member_data_action_disabled": "Los propietarios de este despacho no permiten que los miembros hagan esto.",

@@ -14,7 +14,6 @@ export type RadarActionName = (typeof RADAR_ACTIONS)[number];
 export const REASON_MAX = 500;
 /** Matters whose items the "today" list reads at most; the rest are reported as left out. */
 export const MAX_TODAY_MATTERS = 50;
-export const MAX_EVENTS_PER_MATTER = 6000;
 
 export const NOT_A_RETAINER_CODE = "matter_not_retainer";
 export const INVALID_ACTION_CODE = "invalid_radar_action";
