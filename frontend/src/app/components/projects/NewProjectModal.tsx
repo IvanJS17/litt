@@ -479,6 +479,10 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
         onClose(createdWithoutHandover);
     }
 
+    const notYetUploaded = pendingFiles.filter(
+        (file) => !uploadedFilesRef.current.has(file),
+    );
+
     return (
         <Modal
             open={open}
@@ -497,7 +501,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
             secondaryAction={
                 step === "documents"
                     ? {
-                          label: pendingFiles.length > 0 ? t("projects.uploadCount", { count: pendingFiles.length }) : t("projects.upload"),
+                          label: notYetUploaded.length > 0 ? t("projects.uploadCount", { count: notYetUploaded.length }) : t("projects.upload"),
                           icon: <Upload className="h-3.5 w-3.5" />,
                           onClick: () => fileInputRef.current?.click(),
                           disabled: loading,
@@ -703,7 +707,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                     className="text-sm font-medium text-gray-700"
                                 >
                                     {t("projects.pendingFilesHeading")} (
-                                    {pendingFiles.length})
+                                    {notYetUploaded.length})
                                 </h3>
                                 <ul className="mt-2 max-h-36 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-100">
                                     {pendingFiles.map((file, index) => (
@@ -717,25 +721,26 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                             <span className="shrink-0 text-gray-400">
                                                 {formatBytes(file.size)}
                                             </span>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    removePendingFile(file)
-                                                }
-                                                disabled={
-                                                    loading ||
-                                                    uploadedFilesRef.current.has(
-                                                        file,
-                                                    )
-                                                }
-                                                aria-label={t(
-                                                    "projects.removePendingFile",
-                                                    { filename: file.name },
-                                                )}
-                                                className="shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-40"
-                                            >
-                                                <X className="h-3.5 w-3.5" />
-                                            </button>
+                                            {uploadedFilesRef.current.has(file) ? (
+                                                <span className="shrink-0 text-gray-500">
+                                                    {t("projects.pendingFileUploaded")}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        removePendingFile(file)
+                                                    }
+                                                    disabled={loading}
+                                                    aria-label={t(
+                                                        "projects.removePendingFile",
+                                                        { filename: file.name },
+                                                    )}
+                                                    className="shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-40"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>

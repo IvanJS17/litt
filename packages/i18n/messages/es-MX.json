@@ -3437,7 +3437,8 @@
     "pendingFilesHeading": "Por subir",
     "pendingFilesNote": "Se suben al crear el proyecto.",
     "removePendingFile": "Quitar {filename} de la lista por subir",
-    "existingDocumentsHeading": "Agregar documentos que ya tienes en LiTT"
+    "existingDocumentsHeading": "Agregar documentos que ya tienes en LiTT",
+    "pendingFileUploaded": "Subido"
   },
   "radar": {
     "title": "Radar de vencimientos",
@@ -5411,8 +5412,6 @@
       "name": "Nombre",
       "noDocumentsYet": "Aún no hay documentos",
       "noMatchesFound": "No se encontraron coincidencias",
-      "noProjectsYet": "Aún no hay proyectos",
-      "noTemplatesYet": "Aún no hay plantillas",
       "projects": "Otros proyectos",
       "projectsDescription": "Documentos de tus proyectos.",
       "projectsDescriptionCopy": "Documentos de tus otros proyectos, para copiarlos aquí.",

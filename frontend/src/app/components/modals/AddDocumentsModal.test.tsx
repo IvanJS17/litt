@@ -46,11 +46,14 @@ vi.mock("../shared/FileDirectory", () => ({
     FileDirectory: ({
         documents,
         uploadingFilenames,
+        destination,
     }: {
         documents: Array<{ filename: string }>;
         uploadingFilenames: string[];
+        destination?: string;
     }) => (
         <div>
+            <div data-testid="directory-destination">{destination ?? "none"}</div>
             <div data-testid="loaded-files">
                 {documents.map((document) => document.filename).join(",")}
             </div>
@@ -507,5 +510,19 @@ describe("AddDocumentsModal directory loading", () => {
         fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
         await waitFor(() => expect(getProject).toHaveBeenCalledTimes(2));
+    });
+});
+
+describe("AddDocumentsModal directory wording", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it("speaks about a project only when it adds to one", async () => {
+        vi.mocked(getProject).mockResolvedValue({ documents: [], folders: [] } as never);
+        const { rerender } = render(
+            <AddDocumentsModal open projectId="project-1" onClose={vi.fn()} onSelect={vi.fn()} breadcrumb={["Documents"]} />,
+        );
+        expect(await screen.findByTestId("directory-destination")).toHaveTextContent("project");
+        rerender(<AddDocumentsModal open onClose={vi.fn()} onSelect={vi.fn()} breadcrumb={["Documents"]} />);
+        expect(screen.getByTestId("directory-destination")).toHaveTextContent("none");
     });
 });

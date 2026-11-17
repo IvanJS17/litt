@@ -3437,7 +3437,8 @@
     "pendingFilesHeading": "To upload",
     "pendingFilesNote": "They are uploaded when you create the project.",
     "removePendingFile": "Remove {filename} from the upload list",
-    "existingDocumentsHeading": "Add documents you already have in LiTT"
+    "existingDocumentsHeading": "Add documents you already have in LiTT",
+    "pendingFileUploaded": "Uploaded"
   },
   "radar": {
     "title": "Deadline radar",
@@ -5411,8 +5412,6 @@
       "name": "Name",
       "noDocumentsYet": "No documents yet",
       "noMatchesFound": "No matches found",
-      "noProjectsYet": "No projects yet",
-      "noTemplatesYet": "No templates yet",
       "projects": "Other projects",
       "projectsDescription": "Documents from your projects.",
       "projectsDescriptionCopy": "Documents from your other projects, to copy here.",
