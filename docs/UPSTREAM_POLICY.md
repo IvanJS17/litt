@@ -6,20 +6,18 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `366fa4e92e5734c31910df848d293899d98ebc50`
-(2026-11-06, the merge of #777), reached by cycle 10, the last of the
-2026-11-06 intake (receipt in
-[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §29).
-It was `upstream/main` when the cycle was cut, so with that cycle's merge
-into `main` LiTT is up to date with upstream. The pin takes effect on `main`
-with that merge.
+**Current pin:** upstream `3edd321ace14670e227eee57b103964afd702ac1`, reached by
+cycle 12 (2026-11-16; ledger [§32](UPSTREAM_COMPATIBILITY_LEDGER.md)). Merged into
+`main` by PR #205 (`725ce5bda`); groups 1 to 10 adopted, groups 11 (Sentry) and 12
+(CourtListener) rejected. Upstream may have moved past this pin since the cut; the
+next intake lists `origin/main..upstream/main` to show it.
 
 **Next intake:** the weekly read-only intake runs every Monday at 9:00
-(America/Mexico_City); the first after this sync is 2026-11-09. It lists
+(America/Mexico_City); the next one is Monday 2026-11-23. It lists
 `origin/main..upstream/main`, classifies what is new and asks the owner which
 topics to adapt; it merges nothing.
 
-The previous pins were `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05),
+The cycle 10 pin was `366fa4e92e5734c31910df848d293899d98ebc50` (2026-11-06, the merge of #777). The earlier pins were `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05),
 reached by cycle 9 of the same intake (ledger §28);
 `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` (2026-11-04),
 reached by cycle 8 of the same intake (ledger §27);
