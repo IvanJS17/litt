@@ -51,6 +51,7 @@ import type {
   UserApiKeys,
 } from "./types";
 import { REASONING_LEVELS } from "./types";
+import { withSseKeepAlive } from "./streamLiveness";
 import { vertexAuthClient } from "./vertexAuth";
 import { UserFacingError } from "../userFacingError";
 import { randomBytes } from "node:crypto";
@@ -245,7 +246,8 @@ async function createRouterAdapter(
       compatibility: "strict",
       appName: "LiTT",
       appUrl: process.env.FRONTEND_URL,
-      fetch: aiSdkFetch,
+      // `: OPENROUTER PROCESSING` comments keep the stream watchdog alive.
+      fetch: withSseKeepAlive(aiSdkFetch),
     });
     return {
       provider,
