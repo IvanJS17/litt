@@ -68,6 +68,11 @@ const hermesAsync = (...args: string[]) =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Escapes every regex metacharacter (including backslashes) in a literal string. */
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 describe.skipIf(!enabled)("LiTT MCP server with Hermes as the client", () => {
     beforeAll(async () => {
         expect(HERMES_HOME, "run through scripts/mcp-e2e-hermes.sh").not.toBe("");
@@ -130,7 +135,7 @@ describe.skipIf(!enabled)("LiTT MCP server with Hermes as the client", () => {
 
         let authorizeUrl = "";
         for (let i = 0; i < 90 && !authorizeUrl; i++) {
-            authorizeUrl = output.match(new RegExp(`${base.replace(/\./g, "\\.")}/oauth/authorize[^\\s"']*`))?.[0] ?? "";
+            authorizeUrl = output.match(new RegExp(`${escapeRegExp(base)}/oauth/authorize[^\\s"']*`))?.[0] ?? "";
             if (!authorizeUrl) await sleep(1000);
         }
         expect(authorizeUrl, `Hermes printed no authorization URL:\n${output}`).not.toBe("");
