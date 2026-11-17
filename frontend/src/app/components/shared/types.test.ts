@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPanelDocument, panelDocumentFromCitation, type DocumentCitation } from "./types";
-
-it("recognizes embedded legal research documents from the citation stream", () => {
-    expect(isPanelDocument({ document_id: "mcp:source", title: "Doctrine", type: "legal_research", metadata: [], quotes: [] })).toBe(true);
-});
+import { panelDocumentFromCitation, type DocumentCitation } from "./types";
 
 import { sourceTranslator } from "@mike/client";
 import type { AppTranslate } from "@/i18n/Translate";
