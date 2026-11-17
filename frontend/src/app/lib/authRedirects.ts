@@ -1,6 +1,8 @@
 import { clientTranslator } from "@mike/client";
 const AUTH_REDIRECT_PATHS = new Set([
     "/assistant",
+    // An app asking to connect to the account; the person signs in first.
+    "/connect/authorize",
     "/login",
     "/reset-password",
     "/settings",

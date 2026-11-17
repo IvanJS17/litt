@@ -52,6 +52,7 @@ import {
 } from "./modules/memory/memory.routes";
 import { playbooksRouter } from "./modules/playbooks/playbooks.routes";
 import { aiRecoveryRouter } from "./modules/ai-recovery/ai-recovery.routes";
+import { mcpConsentRouter, mcpPublicRouter } from "./modules/mcp/mcp.routes";
 import { matterSettingsRouter, mattersRouter } from "./modules/matters/matters.routes";
 import { requestsRouter, requestTypesRouter } from "./modules/requests/requests.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
@@ -206,6 +207,21 @@ const authMfaLimiter = makeLimiter({
   message: "Too many verification attempts. Please try again later.",
 });
 
+// The MCP server's public surface: /oauth/*, discovery and /mcp. Every MCP
+// client behind one vendor shares a few egress IPs, so the IP lanes are
+// generous; abuse is bounded by the registration lane below and by the
+// purge of unused clients, and per-grant limits come with the MCP gate.
+const mcpPublicLimiter = makeLimiter({
+  windowMs: minutes(envInt("RATE_LIMIT_MCP_PUBLIC_WINDOW_MINUTES", 15)),
+  max: envInt("RATE_LIMIT_MCP_PUBLIC_MAX", 3000),
+  message: "Too many requests. Please try again later.",
+});
+const mcpRegisterLimiter = makeLimiter({
+  windowMs: hours(envInt("RATE_LIMIT_MCP_REGISTER_WINDOW_HOURS", 1)),
+  max: envInt("RATE_LIMIT_MCP_REGISTER_MAX", 60),
+  message: "Too many client registrations. Please try again later.",
+});
+
 app.disable("x-powered-by");
 app.set("trust proxy", envInt("TRUST_PROXY_HOPS", 1));
 app.use(requestDiagnostics);
@@ -232,6 +248,14 @@ app.use(
 );
 
 export { configuredAllowedOrigins } from "./lib/origins";
+
+// MCP: before the app CORS, the general limiter and the global JSON parser,
+// because it has its own (open CORS for discovery and the token endpoints, an
+// Origin allowlist for /mcp, body parsers sized for each endpoint). Nothing
+// answers unless LITT_MCP_SERVER=enabled.
+app.post("/oauth/register", mcpRegisterLimiter);
+app.use(["/oauth", "/mcp", "/.well-known"], mcpPublicLimiter);
+app.use(mcpPublicRouter);
 
 const allowedOrigins = configuredAllowedOrigins();
 
@@ -347,6 +371,7 @@ app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.post("/auth/login", authLoginAccountLimiter);
 
 app.use("/auth", authRouter);
+app.use("/mcp-connect", mcpConsentRouter);
 app.use("/chat", chatRouter);
 app.use("/word-chat", wordChatRouter);
 app.use("/models", modelsRouter);

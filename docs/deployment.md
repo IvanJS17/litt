@@ -398,6 +398,8 @@ Optional platform settings (all off or unset by default):
   citation support check. The key is the platform's, not a person's or a
   firm's; every person can opt out in Settings. See
   [Citation support check](citation-support-check.md).
+- `LITT_MCP_SERVER=enabled` and `LITT_MCP_PUBLIC_URL` turn on the MCP server's
+  OAuth authorization server and `/mcp` endpoint. See [LiTT MCP server](mcp-server.md).
 - `GOOGLE_WORKSPACE_OAUTH_CLIENT_ID/_SECRET`, `GOOGLE_DRIVE_OAUTH_CLIENT_ID/_SECRET`,
   `GOOGLE_DRIVE_PICKER_API_KEY`, `GOOGLE_DRIVE_PICKER_APP_ID` and
   `GOOGLE_WORKSPACE_DISABLED_PROVIDERS` configure the Google connectors. With

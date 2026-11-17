@@ -18,6 +18,13 @@ describe("safeAuthNext", () => {
         expect(safeAuthNext("/onboarding/invitations")).toBe("/onboarding/invitations");
     });
 
+    it("lets an app's connection request come back after sign-in", () => {
+        expect(safeAuthNext("/connect/authorize?request=abc_-123")).toBe(
+            "/connect/authorize?request=abc_-123",
+        );
+        expect(safeAuthNext("/connect/other")).toBe("/assistant");
+    });
+
     it.each([
         "assistant",
         "https://evil.example",

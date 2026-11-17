@@ -16,6 +16,8 @@
 
 - [Organization offboarding](organization-offboarding.md) — member removal,
   account deletion, shared-work transfer and owner-only recovery
+- [LiTT MCP server](mcp-server.md) — the OAuth authorization server and `/mcp`
+  endpoint that let AI apps connect to LiTT: configuration, endpoints, tokens, audit
 - [MCP connectors](connectors.md) — hosted presets, custom servers, OAuth,
   redirect URIs, and Slack/Google deployment setup
 - [Document conversion](document-conversion.md) — Markdown, Word and PDF into a

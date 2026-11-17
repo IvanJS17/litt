@@ -287,6 +287,13 @@ services:
       # necesita la llave de la plataforma; sin ella no existe.
       LITT_CITATION_CHECK: ${LITT_CITATION_CHECK:-disabled}
       TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      # Servidor MCP de LiTT (docs/mcp-server.md): apagado salvo que el operador lo
+      # encienda. Encendido exige LITT_MCP_PUBLIC_URL (https, origen del host MCP,
+      # p. ej. https://mcp.litt.asteroitt.com). El proxy y el DNS de ese host son
+      # otra pieza: con la variable apagada, ninguna ruta MCP responde.
+      LITT_MCP_SERVER: ${LITT_MCP_SERVER:-disabled}
+      LITT_MCP_PUBLIC_URL: ${LITT_MCP_PUBLIC_URL:-}
+      LITT_MCP_ALLOWED_ORIGINS: ${LITT_MCP_ALLOWED_ORIGINS:-}
       # Complemento de Word (servicio litt-word). Con WORD_ADDIN_URL el backend
       # acepta ese origen, usa cookies particionadas para Word en la web y
       # exige AUTH_HANDOFF_ENCRYPTION_SECRET (>= 32 caracteres) al arrancar.

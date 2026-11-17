@@ -780,7 +780,33 @@
       "projects": "Proyectos",
       "settings": "Ajustes",
       "tabularReviews": "Revisiones tabulares",
-      "workflows": "Flujos de trabajo"
+      "workflows": "Flujos de trabajo",
+      "connectAuthorize": "Conectar una app"
+    }
+  },
+  "connect": {
+    "allow": "Permitir",
+    "allowAction": "permitir esta conexión",
+    "deny": "Rechazar",
+    "expired": "Esta solicitud de conexión venció. Vuelve a la app e intenta conectarla otra vez.",
+    "heading": "Conecta {client} con LiTT",
+    "intro": "{client} pide usar tu cuenta de LiTT. Elige a qué puede llegar y luego permite o rechaza.",
+    "loadAction": "cargar esta solicitud de conexión",
+    "loading": "Cargando la solicitud…",
+    "localApp": "Esta app corre en tu propia computadora. Permítela solo si la iniciaste tú.",
+    "returnTo": "Al decidir, regresas a {host}. Permítela solo si reconoces esa dirección.",
+    "scopes": {
+      "chat": "Usar el asistente de LiTT por ti.",
+      "read": "Leer tus asuntos, documentos y resultados.",
+      "run": "Correr revisiones y otras tareas que usan tus llaves de IA o tus créditos.",
+      "title": "Qué puede hacer",
+      "write": "Guardar resultados y crear o subir documentos."
+    },
+    "unknownFirm": "Despacho",
+    "workspaces": {
+      "none": "No tienes ningún espacio que esta conexión pueda usar.",
+      "personal": "Personal",
+      "title": "Dónde puede trabajar"
     }
   },
   "documents": {
