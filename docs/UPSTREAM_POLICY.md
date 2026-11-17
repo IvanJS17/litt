@@ -6,11 +6,13 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `3edd321ace14670e227eee57b103964afd702ac1`, reached by
-cycle 12 (2026-11-16; ledger [§32](UPSTREAM_COMPATIBILITY_LEDGER.md)). Merged into
-`main` by PR #205 (`725ce5bda`); groups 1 to 10 adopted, groups 11 (Sentry) and 12
-(CourtListener) rejected. Upstream may have moved past this pin since the cut; the
-next intake lists `origin/main..upstream/main` to show it.
+**Current pin:** upstream `4cbf434e9b0517dd94b6d37b23fd1dd959d5c919`, reached by
+cycle 13 (2026-11-17; ledger [§33](UPSTREAM_COMPATIBILITY_LEDGER.md)) once its PR is
+merged; the previous pin was cycle 12 (`3edd321a`, §32, PR #205). Legal Data Hunter
+is deferred (reverted in a separate commit, to be integrated later as its own topic),
+the upstream support e-mail is rejected, and dependency bumps are adopted without
+Sentry. Upstream may have moved past this pin since the cut; the next intake lists
+`origin/main..upstream/main` to show it.
 
 **Next intake:** the weekly read-only intake runs every Monday at 9:00
 (America/Mexico_City); the next one is Monday 2026-11-23. It lists
@@ -312,6 +314,7 @@ Kanban comments may link evidence but cannot supersede these documents.
 | 2026-11-07 (cycle 9/10) | `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` | `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` | 50 (10 first-parent merges) | #788 Dependabot groups; #797 startup hardening (template, whitespace-only and short secrets refused at boot, missing `mfa_on_login` named, 15 s model-catalog timeouts, least-privilege workflow permissions, local e2e secrets); #715 README anchor; #699 #755 #757 #704 #725 #798 chat, playbook, spreadsheet, audit-canary and abort-import fixes; #750 release follow-up | adopt, except the `mfa_on_login` report (adapt: LiTT stays fail-closed), the `@sentry/*` packages, `stack-script.yml` and #750 (reject, no net change) (ledger §28) | merge commit on `sync/upstream-c9-b91d1bdf`, one test adaptation in a separate commit; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §28) | ninth of ten cycles; Dependabot #50–#55 covered; no new debt |
 | 2026-11-07 (cycle 10/10) | `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` | `366fa4e92e5734c31910df848d293899d98ebc50` | 66 (7 first-parent merges) | #793 one failure, one report (GoTrue outage → 503 `upstream_unavailable`, schema drift reported once per route or operation, 42703/PGRST203 as drift); #779 session refresh without fan-out and `retry-after: 5`; #777 typed `find_documents` failure; #800 search in a new chat (e2e); #782 Sentry in development builds; #799 Electron parser mode; #801 packaged desktop smoke | #793/#779 adapt to the local report seam (login MFA stays fail-closed, now 503 `schema_out_of_date` for a missing column); #777 and #800 adopt; #782, #801 and the desktop half of #799 reject (no net change) (ledger §29) | merge commit on `sync/upstream-c10-366fa4e9`, adaptations and docs in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §29) | last of ten cycles: LiTT up to date with upstream at `366fa4e9`; open product questions listed in ledger §29.6; no new debt |
 | 2026-11-12 (cycle 11) | `54c2cb5943601d61016a1c37db6e15815c05ee09` | `366fa4e92e5734c31910df848d293899d98ebc50` | 54 (8 first-parent merges) | provider verdicts and key ownership (#843), unreadable documents not retried, memory scopes, request id and `reporting_owner`, queue listeners, storage endpoint warning, outside-Word notice, Node 22.19 floor, lean Supabase stack (#845), dependency bumps (#844), citation highlight (#840); Sentry reporting infrastructure and community keys (#842, #861), desktop macOS fix (#816) | #843 adapt to the local report seam and the governed pinned route; #844 adapt (no `@sentry/*`); #845, #840 adopt; Sentry and `desktop/` reject (invariant 11, no third-party telemetry) (ledger §31) | merge commit on `chore/upstream-cycle-11`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §31) | the backend image changes (Node floor): build `litt-backend-c11check` and check `deploy/prod/` before deploying; `ffe49226` and later go to the next intake |
+| 2026-11-17 (cycle 13) | `3edd321ace14670e227eee57b103964afd702ac1` | `4cbf434e9b0517dd94b6d37b23fd1dd959d5c919` | 31 (10 merges) | Legal Data Hunter MCP sources (#425), support e-mail (#900), Word add-in cleanup (#898), Dependabot bumps (#901–#905, #908, #909) | Legal Data Hunter defer (reverted in a separate commit, no net change; ledger §33); support e-mail reject; dependencies adapt without `@sentry`, lockfiles regenerated; add-in cleanup adapt | merge commit on `sync/upstream-c13-4cbf434e`, then the LDH revert and the docs |
 
 ## Release metadata
 
