@@ -1,5 +1,5 @@
-// The /mcp endpoint, minus HTTP framework: the MCP server (one `whoami`
-// tool for now) and the bearer-token gate. The Express glue is in
+// The /mcp endpoint, minus HTTP framework: the MCP server (its tools are in
+// mcp.catalog.ts) and the bearer-token gate. The Express glue is in
 // mcp.routes.ts.
 
 import {
@@ -13,15 +13,38 @@ import {
     type OAuthTokenVerifier,
 } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
-import { z } from "zod";
 import type { Db } from "../../lib/supabase";
+import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { MCP_SCOPES, mcpConfig } from "./mcp.config";
+import { MCP_TOOLS } from "./mcp.catalog";
+import { recordMcpToolCall } from "./mcp.calls";
+import { revalidatePrincipal, type McpPrincipal } from "./mcp.principal";
+import { preflightMcpRequest, registerMcpTools, type McpRefusal } from "./mcp.tools";
 import { verifyAccessToken } from "./mcp.tokens";
 
 /** Header values are ASCII: the SDK copies this text into WWW-Authenticate. */
 const INVALID_TOKEN_TEXT = "The access token is invalid, expired or revoked.";
 
+/** The caller is who the token says, but may not use any workspace of the grant now. */
+export class McpDenied extends Error {
+    constructor(
+        readonly status: 403,
+        readonly code: string,
+        readonly detail: string,
+        readonly who: { grantId: string; userId: string; clientId: string },
+    ) {
+        super(code);
+        this.name = "McpDenied";
+    }
+}
+
+/**
+ * Token → live principal. The token and its grant are read from the database
+ * (mcp.tokens.ts); then the person's standing is read again (mcp.principal.ts)
+ * so that every request is judged on today's membership, account state and
+ * training stage, not on what the grant said when it was consented to.
+ */
 export function tokenVerifier(db: Db): OAuthTokenVerifier {
     return {
         async verifyAccessToken(token: string): Promise<AuthInfo> {
@@ -31,25 +54,31 @@ export function tokenVerifier(db: Db): OAuthTokenVerifier {
             if (!access)
                 throw new OAuthError(OAuthErrorCode.InvalidToken, INVALID_TOKEN_TEXT);
             const { grant } = access;
+            const live = await revalidatePrincipal(db, grant.id);
+            if (!live.ok) {
+                if (live.status === 401)
+                    throw new OAuthError(OAuthErrorCode.InvalidToken, INVALID_TOKEN_TEXT);
+                throw new McpDenied(live.status, live.code, live.detail, {
+                    grantId: grant.id,
+                    userId: grant.user_id,
+                    clientId: grant.client_id,
+                });
+            }
+            const { principal } = live;
             return {
                 token,
-                clientId: grant.client_id,
-                scopes: grant.scopes,
+                clientId: principal.clientId,
+                scopes: principal.scopes,
                 expiresAt: access.expiresAt,
                 resource: new URL(grant.resource),
-                extra: {
-                    user_id: grant.user_id,
-                    grant_id: grant.id,
-                    workspaces: grant.workspaces,
-                    default_workspace: grant.default_workspace,
-                },
+                extra: { principal },
             };
         },
     };
 }
 
 export type GateResult =
-    | { ok: true; authInfo: AuthInfo }
+    | { ok: true; authInfo: AuthInfo; principal: McpPrincipal }
     | { ok: false; status: number; headers: Record<string, string>; body: string };
 
 /** The 401/403 a client needs: with `resource_metadata` so it can find the authorization server. */
@@ -66,8 +95,22 @@ export async function authenticateMcpRequest(
             resourceMetadataUrl,
             expectedResource: new URL(config.resource),
         });
-        return { ok: true, authInfo };
+        return { ok: true, authInfo, principal: principalOf(authInfo) };
     } catch (error) {
+        if (error instanceof McpDenied) {
+            await recordMcpToolCall(db, {
+                tool: "(protocol)",
+                ...error.who,
+                outcome: "denied",
+                errorCode: error.code,
+            });
+            return {
+                ok: false,
+                status: error.status,
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ error: error.code, error_description: error.detail }),
+            };
+        }
         if (!(error instanceof OAuthError)) {
             reportError(error, { tags: { component: "mcp", operation: "mcp.authenticate" } });
         }
@@ -87,50 +130,57 @@ export async function authenticateMcpRequest(
     }
 }
 
-function buildServer(): McpServer {
+/** Second half of the gate, once the body is read: scope per tool and the grant's budget. */
+export async function preflightMcp(
+    db: Db,
+    principal: McpPrincipal,
+    body: unknown,
+): Promise<McpRefusal | null> {
+    const refusal = preflightMcpRequest(
+        MCP_TOOLS,
+        principal,
+        body,
+        mcpConfig().protectedResourceMetadataUrl,
+    );
+    if (refusal)
+        await recordMcpToolCall(db, {
+            tool: refusal.tool,
+            grantId: principal.grantId,
+            userId: principal.userId,
+            clientId: principal.clientId,
+            outcome: refusal.outcome,
+            errorCode: refusal.errorCode,
+        });
+    return refusal;
+}
+
+function buildServer(principal: McpPrincipal): McpServer {
     const server = new McpServer(
         { name: "litt", version: "0.1.0" },
         { capabilities: { tools: {} } },
     );
-    server.registerTool(
-        "whoami",
-        {
-            title: "Who am I",
-            description:
-                "Shows which LiTT account, workspaces and permissions this connection is using.",
-            inputSchema: z.object({}),
-            annotations: { readOnlyHint: true },
-        },
-        async (_args, ctx) => {
-            const auth = ctx.http?.authInfo;
-            const extra = (auth?.extra ?? {}) as Record<string, unknown>;
-            return {
-                content: [
-                    {
-                        type: "text" as const,
-                        text: JSON.stringify({
-                            user_id: extra.user_id ?? null,
-                            client_id: auth?.clientId ?? null,
-                            scopes: auth?.scopes ?? [],
-                            workspaces: extra.workspaces ?? [],
-                            default_workspace: extra.default_workspace ?? null,
-                        }),
-                    },
-                ],
-            };
-        },
-    );
+    registerMcpTools(server, MCP_TOOLS, principal);
     return server;
+}
+
+/** The principal revalidate() put on the request; a request without one never reaches a tool. */
+function principalOf(authInfo: AuthInfo | undefined): McpPrincipal {
+    const principal = (authInfo?.extra as { principal?: McpPrincipal } | undefined)?.principal;
+    if (!principal) throw new AppError("mcp.no_principal", "[mcp] request reached /mcp without a principal");
+    return principal;
 }
 
 let nodeHandler: ReturnType<typeof toNodeHandler> | null = null;
 
-/** The factory runs per request (no state lives in the server object). */
+/** The factory runs per request, for that request's principal (no state lives in the server object). */
 export function mcpNodeHandler(): ReturnType<typeof toNodeHandler> {
     if (!nodeHandler) {
         const onerror = (error: unknown) =>
             reportError(error, { tags: { component: "mcp", operation: "mcp.transport" } });
-        nodeHandler = toNodeHandler(createMcpHandler(() => buildServer(), { onerror }), { onerror });
+        nodeHandler = toNodeHandler(
+            createMcpHandler((ctx) => buildServer(principalOf(ctx.authInfo)), { onerror }),
+            { onerror },
+        );
     }
     return nodeHandler;
 }
