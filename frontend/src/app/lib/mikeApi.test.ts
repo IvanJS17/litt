@@ -1,3 +1,4 @@
+import { listMcpGrants, revokeMcpGrant } from "./mikeApi";
 import { listOrgPrivateContent, setOrgPrivateContentPermission, openOrgPrivateContent, closeOrgPrivateContent } from "./mikeApi";
 import { setUserProfilePhoto, listDeletedOrganizations, restoreOrganization } from "./mikeApi";
 import { listOrgDepartures, reassignOrgDepartureArchives, deleteOrgDepartureArchives } from "./mikeApi";
@@ -4250,5 +4251,25 @@ describe("organization private content", () => {
         expect(lastFetchCall()).toMatchObject({ url: "/api/orgs/org-1/private-content/document/doc-1/open", init: { method: "POST" } });
         await closeOrgPrivateContent("org-1", "document", "doc-1");
         expect(lastFetchCall()).toMatchObject({ url: "/api/orgs/org-1/private-content/document/doc-1", init: { method: "DELETE" } });
+    });
+});
+
+describe("connected apps (MCP grants)", () => {
+    it("lists the person's live connections from the grants envelope", async () => {
+        const grants = [{ id: "g1", client_name: "Claude" }];
+        fetchMock.mockResolvedValue(jsonResponse({ grants }));
+        await expect(listMcpGrants()).resolves.toEqual(grants);
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/mcp-connect/grants");
+        expect(init.method ?? "GET").toBe("GET");
+        expect(init.credentials).toBe("include");
+    });
+
+    it("revokes a connection by id, escaping it", async () => {
+        fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+        await expect(revokeMcpGrant("a/b")).resolves.toBeUndefined();
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/mcp-connect/grants/a%2Fb");
+        expect(init.method).toBe("DELETE");
     });
 });

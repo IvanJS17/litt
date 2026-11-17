@@ -31,7 +31,7 @@ changes; the labels say who.
 Ajustes (lo mío)
   Mi cuenta ............... Cuenta · Seguridad · Privacidad y datos · Mi actividad
   Mi forma de trabajar .... Personalización · Memoria · Apariencia · Asistente · Preferencias de modelos
-  Mis llaves y servicios .. Mis llaves de IA · Búsqueda web · Lectura de escaneados · Conectores
+  Mis llaves y servicios .. Mis llaves de IA · Búsqueda web · Lectura de escaneados · Conectores · Aplicaciones conectadas
   Mi formación ............ Mi formación (+ aprendices y Panel del mentor, dentro, si soy mentor)
   Mis despachos ........... lista e invitaciones; cada despacho abre «Ajustes del despacho»
   Administración de la plataforma ... Invitaciones a la beta · Estadísticas de la beta (solo admin de plataforma; incluye los conteos de la verificación de citas por banda y por día)
@@ -55,6 +55,7 @@ Ajustes del despacho · <nombre>
 | Búsqueda web | personal | `/settings/web-search` | everyone |
 | Lectura de escaneados | personal | `/settings/scan-reading` | everyone (my LandingAI key; my document types, personal space only) |
 | Conectores | personal | `/settings/connectors` | everyone |
+| Aplicaciones conectadas | personal | `/settings/connected-apps` | everyone (the AI apps, like Claude, let into my LiTT account: workspaces, permissions, last use, remove access; where the server does not offer MCP connections the tab says so) |
 | Mi formación | personal | `/settings/training` (+ `/mentor`, `/contrast`, `/reading/:id`) | everyone; the mentor sections appear inside it |
 | Mis despachos | personal | `/settings/organizations` | everyone |
 | Invitaciones a la beta, Estadísticas de la beta | personal | `/settings/beta-invitations`, `/settings/beta-stats` | platform administrators |

@@ -4451,6 +4451,10 @@
         "betaStats": {
           "title": "Beta statistics",
           "help": "See how many people use the beta, and how."
+        },
+        "connectedApps": {
+          "title": "Connected apps",
+          "help": "The AI apps, like Claude, that you let into your LiTT account. See what they can do and cut their access."
         }
       },
       "firmTab": {
@@ -4521,6 +4525,34 @@
       "notVerified": "Not verified",
       "cannotUndo": "This cannot be undone.",
       "affectsInvitedAccounts": "Affects invited accounts"
+    },
+    "connectedApps": {
+      "cancel": "Cancel",
+      "confirmRevoke": "Remove {client}'s access?",
+      "confirmYes": "Yes, remove",
+      "connected": "Connected on {date}",
+      "empty": "You have not connected any app yet. When you add LiTT as a connector in an AI app and allow it, it appears here.",
+      "expires": "Access ends on {date}",
+      "heading": "Apps with access to your account",
+      "intro": "These apps can work in LiTT for you, only in the workspaces and with the permissions you gave them. Once you remove access, their next request is refused.",
+      "lastUsed": "Last used: {date}",
+      "loadAction": "load your connected apps",
+      "loading": "Loading…",
+      "neverUsed": "Not used yet",
+      "notEnabled": "This server does not have connections with AI apps turned on. Once they are, the apps you connect will appear here.",
+      "permissions": "Permissions",
+      "personal": "Personal",
+      "removed": "You removed {client}'s access.",
+      "revoke": "Remove access",
+      "revokeAction": "remove this app's access",
+      "scope": {
+        "read": "Read",
+        "run": "Run tasks",
+        "write": "Save and upload",
+        "chat": "Assistant"
+      },
+      "unknownFirm": "Firm",
+      "workspaces": "Workspaces"
     }
   },
   "shared": {

@@ -263,6 +263,18 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
             { icon: "user", key: "settings.signals.onlyYou" },
         ],
     },
+    {
+        id: "connected-apps",
+        home: "personal",
+        group: "keys",
+        path: "/settings/connected-apps",
+        audience: "everyone",
+        titleKey: "settings.map.tab.connectedApps.title",
+        helpKey: "settings.map.tab.connectedApps.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.onlyYou" },
+        ],
+    },
     // ---- Ajustes · Mi formación (a mentor's pupils and panel sit inside it)
     {
         id: "training",

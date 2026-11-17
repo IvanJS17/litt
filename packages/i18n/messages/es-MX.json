@@ -4451,6 +4451,10 @@
         "betaStats": {
           "title": "Estadísticas de la beta",
           "help": "Revisa cuánta gente usa la beta y cómo."
+        },
+        "connectedApps": {
+          "title": "Aplicaciones conectadas",
+          "help": "Las apps de IA, como Claude, a las que le diste acceso a tu cuenta de LiTT. Aquí ves qué pueden hacer y puedes cortar el acceso."
         }
       },
       "firmTab": {
@@ -4521,6 +4525,34 @@
       "notVerified": "Sin verificar",
       "cannotUndo": "No se puede deshacer.",
       "affectsInvitedAccounts": "Afecta a las cuentas invitadas"
+    },
+    "connectedApps": {
+      "cancel": "Cancelar",
+      "confirmRevoke": "¿Quitar el acceso a {client}?",
+      "confirmYes": "Sí, quitar",
+      "connected": "Conectada el {date}",
+      "empty": "Todavía no conectaste ninguna app. Cuando agregues LiTT como conector en una app de IA y lo permitas, aparecerá aquí.",
+      "expires": "El acceso termina el {date}",
+      "heading": "Apps con acceso a tu cuenta",
+      "intro": "Estas apps pueden trabajar en LiTT por ti, solo en los espacios y con los permisos que les diste. Al quitar el acceso, su siguiente petición se rechaza.",
+      "lastUsed": "Último uso: {date}",
+      "loadAction": "cargar tus apps conectadas",
+      "loading": "Cargando…",
+      "neverUsed": "Sin uso todavía",
+      "notEnabled": "Este servidor no tiene activadas las conexiones con apps de IA. Cuando se activen, las apps que conectes aparecerán aquí.",
+      "permissions": "Permisos",
+      "personal": "Personal",
+      "removed": "Quitaste el acceso a {client}.",
+      "revoke": "Quitar acceso",
+      "revokeAction": "quitar el acceso a esta app",
+      "scope": {
+        "read": "Leer",
+        "run": "Correr tareas",
+        "write": "Guardar y subir",
+        "chat": "Asistente"
+      },
+      "unknownFirm": "Despacho",
+      "workspaces": "Espacios"
     }
   },
   "shared": {

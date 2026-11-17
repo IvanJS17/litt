@@ -69,7 +69,10 @@ beforeEach(() => {
         mcp_oauth_tokens: [],
         mcp_oauth_audit: [],
         org_members: [{ org_id: "11111111-1111-4111-8111-111111111111", user_id: "user-1", role: "member" }],
-        organizations: [{ id: "11111111-1111-4111-8111-111111111111", name: "Firm A", kind: "firm", deleted_at: null }],
+        organizations: [{ id: "11111111-1111-4111-8111-111111111111", name: "Firm A", kind: "firm", deleted_at: null, authorization_epoch: 4 }],
+        training_stages: [],
+        mcp_tool_calls: [],
+        audit_events: [],
         user_profiles: [],
     };
     h.state = memoryDb(tables, { mcp_oauth_purge: () => null });
@@ -738,6 +741,8 @@ describe("/mcp", () => {
             scopes: ["litt.read", "litt.chat"],
             workspaces: ["personal", "11111111-1111-4111-8111-111111111111"],
             default_workspace: "personal",
+            mode: "B",
+            workspace_modes: { personal: "B", "11111111-1111-4111-8111-111111111111": "B" },
         });
     });
 
