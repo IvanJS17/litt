@@ -1,5 +1,7 @@
 # The map of Settings
 
+**Status:** Shipped in production (PRs #193, #195); no flag.
+
 Settings has **two homes**, and each thing lives in exactly one of them:
 
 - **Ajustes** (`personal`): what is mine. Only I see it and it applies to me.

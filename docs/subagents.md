@@ -1,5 +1,7 @@
 # Subagents
 
+**Status:** Shipped in production; flag `LITT_CHAT_SUBAGENTS` (compose default `enabled`).
+
 In chats and project chats, the assistant can hand a self-contained task to a
 subagent: reviewing a long document, researching case law or the web, or
 making a set of edits. Several subagents can work at once, up to 8 per answer,

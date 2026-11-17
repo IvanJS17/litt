@@ -1,5 +1,7 @@
 # LiTT MCP server — authorization server and `/mcp`
 
+**Status:** Code deployed in `20261117a`; `LITT_MCP_SERVER=disabled` in production. Being enabled, not yet on: the chat tools (PR #226) are on `main` after the deploy, and the public host (PR #227) is under review.
+
 LiTT can be connected to an AI app that speaks the Model Context Protocol
 (Claude, ChatGPT, Codex, Hermes). This page describes what the backend serves
 today: the OAuth authorization server and the `/mcp` endpoint with its

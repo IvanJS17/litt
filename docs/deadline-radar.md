@@ -1,5 +1,7 @@
 # Deadline radar of a retainer matter
 
+**Status:** Shipped in production (PR #223, fixes in #224); no flag.
+
 The radar ("radar de vencimientos") lists the dates that matter in a retainer
 client's life (a contract that expires, the last day to give notice of
 non-renewal, a power of attorney that lapses) **computed by code from the

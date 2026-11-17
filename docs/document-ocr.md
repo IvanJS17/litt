@@ -1,5 +1,7 @@
 # Scan reading (layer 6)
 
+**Status:** Shipped in production (layer 6); optional. Uses the person's or the firm's own LandingAI key; no platform key; no flag.
+
 A scanned PDF has pages that are images and no text layer, so LiTT cannot read
 them: the assistant, the text search and the Markdown conversion see nothing.
 **Scan reading** reads those pages with LandingAI and gives the result to all

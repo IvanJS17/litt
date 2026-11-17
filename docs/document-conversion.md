@@ -1,5 +1,7 @@
 # Document conversion
 
+**Status:** Shipped in production; no flag.
+
 A person can convert a document between Markdown, Word and PDF. The result is
 always a **new document**: the original keeps its bytes, its versions and its
 place. Nothing is created until the person has read what the conversion loses
