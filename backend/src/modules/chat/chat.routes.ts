@@ -161,8 +161,10 @@ chatRouter.get("/:chatId", requireAuth, asyncRoute(async (req, res) => {
     const messages = await getChatMessages(db, chatId);
     // access_role/is_owner mirror the project and review detail responses so
     // the client can render per-role affordances instead of re-deriving them.
+    // origin_grant_id links the chat to an MCP grant: not for chat readers.
+    const { origin_grant_id: _originGrantId, ...chatForReader } = access.chat as typeof access.chat & { origin_grant_id?: unknown };
     res.json({
-        chat: { ...access.chat, can_leave: leaveAccess.data[0].can_leave },
+        chat: { ...chatForReader, can_leave: leaveAccess.data[0].can_leave },
         is_owner: access.isCreator,
         access_role: access.projectRole,
         messages,

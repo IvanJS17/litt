@@ -17,6 +17,7 @@ import { can } from "../../lib/permissions";
 import { reportError } from "../../lib/observability/report";
 import {
     activeChatTurn,
+    assistantText,
     getAccessibleChat,
     getChatMessages,
     listChats,
@@ -29,7 +30,6 @@ import {
     type ChatTurnState,
     type StartChatTurnFailure,
 } from "../chat/chat.service";
-import { assistantText } from "../chat/chat.service";
 import { createMcpChatSink, turnErrorMessage } from "./mcp.chatSink";
 import { recordMcpChatEgress } from "./mcp.calls";
 import { clientNameOf } from "./mcp.grants";
@@ -122,7 +122,7 @@ function startRefusal(failure: StartChatTurnFailure): never {
     const suggestion =
         code === "turn_in_progress"
             ? "Wait for the current response (get_chat_turn) or stop it with stop_chat_turn."
-            : code === "missing_api_key" || code === "byok_not_configured"
+            : code === "missing_api_key"
               ? "Add a key for that provider in LiTT's settings. LiTT does not switch models by itself."
               : code === "chat_route_pinned"
                 ? "A conversation keeps the model it started with; start a new conversation to use another."
@@ -464,7 +464,8 @@ export const listChatsTool = defineMcpTool({
                 matter_name: row.project_name ? untrusted(row.project_name) : null,
                 model: row.model,
                 origin: row.origin,
-                origin_label: row.origin_label,
+                // The app's name is free text from client registration: data, not a request.
+                origin_label: row.origin_label ? untrusted(row.origin_label) : null,
                 is_owner: row.is_owner ?? null,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
@@ -524,7 +525,7 @@ export const getChatTool = defineMcpTool({
                 workspace: workspaceOf(chat.org_id),
                 model: chat.model,
                 origin: typeof chat.origin === "string" ? chat.origin : "web",
-                origin_label: typeof chat.origin_label === "string" ? chat.origin_label : null,
+                origin_label: typeof chat.origin_label === "string" && chat.origin_label ? untrusted(chat.origin_label) : null,
                 is_owner: access.isCreator,
                 created_at: chat.created_at ?? null,
                 updated_at: chat.updated_at ?? null,
