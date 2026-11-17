@@ -4,15 +4,15 @@ import { SourceCodeLink } from "@/app/components/shared/SourceCodeLink";
 import { AGPL_URL, ATTRIBUTION_ANCHOR, SOURCE_REPOSITORY_URL, SUPPORT_EMAIL } from "./landingConstants";
 import { LANDING_FOCUS } from "./landingStyles";
 import { LandingLanguage } from "./LandingLanguage";
-import { LandingThemeControl } from "./LandingThemeControl";
 
 const FOOTER_LINK = `inline-flex min-h-11 items-center rounded-sm text-foreground underline decoration-interactive-border underline-offset-4 ${LANDING_FOCUS}`;
 
 /**
  * The footer: the two links Google asks for (Aviso de privacidad, Términos y
  * condiciones), support, the source of the exact version running (AGPL-3.0 §13),
- * the license and the upstream credit in a sentence, and the theme and
- * language controls. The wordmark is not repeated here.
+ * the license and the upstream credit in a sentence, and the language
+ * control. The theme is the header's icon (and the phone menu's control); the
+ * wordmark is not repeated here.
  */
 export function LandingFooter() {
     const t = useTranslations();
@@ -64,10 +64,7 @@ export function LandingFooter() {
                         })}
                     </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <LandingThemeControl />
-                    <LandingLanguage />
-                </div>
+                <LandingLanguage />
             </div>
         </footer>
     );

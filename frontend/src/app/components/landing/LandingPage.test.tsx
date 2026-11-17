@@ -253,13 +253,30 @@ describe("the hero's example: the assistant at work", () => {
         expect(screen.getByText("2 pages · new in the project")).toBeInTheDocument();
     });
 
-    it("draws the composer with the model, hidden from a reader and from phones", () => {
+    it("draws the composer with the app's open model menu, hidden from a reader and inert", () => {
         render(<LandingPage signedIn={false} />);
-        const composer = screen.getByText("Ask about the matter…").parentElement!;
+        const composer = document.querySelector<HTMLElement>("[data-landing-composer]")!;
         expect(composer).toHaveAttribute("aria-hidden", "true");
-        expect(composer.className).toMatch(/\bhidden\b/);
-        expect(composer.className).toMatch(/min-\[600px\]:flex/);
-        expect(composer).toHaveTextContent("Claude Sonnet 5.5");
+        expect(composer).toHaveAttribute("inert");
+        // It follows the source in the DOM, so a phone keeps the source near the citation you tap.
+        expect(document.getElementById("landing-source")!.compareDocumentPosition(composer)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+        // The menu: Anthropic collapsed with its count, OpenRouter open with the firm's two models.
+        const menu = within(composer);
+        expect(menu.getByText("Anthropic").closest("[aria-expanded]")).toHaveAttribute("aria-expanded", "false");
+        expect(menu.getByText("OpenRouter").closest("[aria-expanded]")).toHaveAttribute("aria-expanded", "true");
+        expect(menu.getByText("Deepseek V4.1 Flash 1017")).toBeInTheDocument();
+        expect(menu.queryByText("Claude Sonnet 5.5")).toBeNull();
+        expect(composer.querySelector('[data-selected="true"]')).toHaveTextContent("Glm 5.3 Flashx Legal");
+        // The reasoning ladder: High, three steps of four, from None to Very high.
+        expect(menu.getByText("Reasoning")).toBeInTheDocument();
+        expect(menu.getAllByText("High").length).toBeGreaterThan(0);
+        expect(composer.querySelectorAll('.litt-ladder-step[data-on="true"]')).toHaveLength(3);
+        expect(composer.querySelectorAll(".litt-ladder-step")).toHaveLength(4);
+        // The chips under it: the model with its thumbnail, and the firm's key.
+        expect(composer.querySelector("[data-litt-ladder-mini]")).not.toBeNull();
+        expect(composer).toHaveTextContent("Firm key");
     });
 
     it("starts on the first source, verified", () => {
@@ -412,31 +429,33 @@ describe("the Word add-in example", () => {
 });
 
 describe("theme and language", () => {
-    it("switches theme from the header and the footer, with one preference on the device", async () => {
+    it("switches theme from the header icon, with one preference on the device", async () => {
         const user = userEvent.setup();
         render(<LandingPage signedIn={false} />);
         await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
         expect(document.documentElement).toHaveClass("dark");
         expect(window.localStorage.getItem("litt:theme")).toBe("dark");
-        // The same preference shows in the footer's group.
-        expect(screen.getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
         expect(screen.getByRole("button", { name: "Switch to light theme" })).toBeInTheDocument();
-
-        await user.click(screen.getByRole("radio", { name: "Light" }));
+        await user.click(screen.getByRole("button", { name: "Switch to light theme" }));
         expect(document.documentElement).not.toHaveClass("dark");
         expect(window.localStorage.getItem("litt:theme")).toBe("light");
-
-        await user.click(screen.getByRole("radio", { name: "Automatic" }));
-        expect(window.localStorage.getItem("litt:theme")).toBe("system");
     });
 
-    it("moves between the three themes with the arrow keys", async () => {
+    it("has no theme group in the footer; the phone menu keeps the only one", () => {
+        render(<LandingPage signedIn={false} />);
+        const footer = document.querySelector("footer")!;
+        expect(within(footer).queryByRole("radiogroup", { name: "Theme" })).toBeNull();
+        expect(within(footer).getByRole("radiogroup", { name: "Language" })).toBeInTheDocument();
+        expect(document.querySelectorAll("[role=radiogroup][aria-label=Theme]")).toHaveLength(1);
+    });
+
+    it("moves between the three themes with the arrow keys, in the phone menu", async () => {
         const user = userEvent.setup();
         render(<LandingPage signedIn={false} />);
-        screen.getByRole("radio", { name: "Automatic" }).focus();
+        await user.click(screen.getByRole("button", { name: "Menu" }));
+        within(document.getElementById("landing-menu")!).getByRole("radio", { name: "Automatic" }).focus();
         await user.keyboard("{ArrowLeft}");
         expect(window.localStorage.getItem("litt:theme")).toBe("dark");
-        expect(screen.getByRole("radiogroup", { name: "Theme" })).toBeInTheDocument();
     });
 
     it("changes the language through the same action as the sign-in screens", async () => {
@@ -653,7 +672,7 @@ describe("the phone menu", () => {
         expect(banner().querySelector("a[data-docked]")).toHaveAttribute("inert");
         expect(button()).not.toHaveAttribute("inert");
         expect(panel().closest("[inert]")).toBeNull();
-        // The panel carries every control the footer has, and the legal links.
+        // The panel carries the theme and language controls (the footer has only the language) and the legal links.
         const inside = within(panel());
         expect(inside.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
         expect(inside.getByRole("link", { name: "Request access" })).toBeInTheDocument();
@@ -797,8 +816,7 @@ describe("the phone menu", () => {
         await user.click(menu.getByRole("radio", { name: "English" }));
         expect(setLocale).toHaveBeenCalledWith("en-US");
         expect(screen.getByRole("button", { name: "Menú" })).toHaveAttribute("aria-expanded", "true");
-        // The footer's group shows the same preference.
-        expect(document.querySelector("footer [role=radio][aria-checked=true]")).not.toBeNull();
+        expect(window.localStorage.getItem("litt:theme")).toBe("dark");
     });
 
     it("closes when the window becomes 880 px wide, on history navigation and on pagehide", async () => {

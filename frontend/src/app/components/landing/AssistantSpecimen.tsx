@@ -2,9 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowUp, CircleCheck, FileText, KeyRound, PenLine, Workflow } from "lucide-react";
-import { CitationPillUI } from "@mike/ui";
-import { catalogModelName } from "./landingModels";
+import { ArrowUp, CircleCheck, FileText, PenLine, Workflow } from "lucide-react";
+import {
+    CitationPillUI,
+    KeyChipUI,
+    ModelChipPreviewUI,
+    ModelMenuPreviewUI,
+    reasoningLevelsForModel,
+} from "@mike/ui";
+import { PICKER_MODELS, PICKER_SELECTED_ID } from "./landingModels";
 import { LANDING_FOCUS } from "./landingStyles";
 
 /** The steps come in once per browser session (SPEC v2 §3.4). */
@@ -14,6 +20,12 @@ export const INTRO_SESSION_KEY = "litt:landing-intro";
 const INTRO_START_MS = 250;
 const INTRO_STEP_MS = 260;
 const INTRO_ITEMS = 6;
+
+/** The menu's chosen model and its reasoning: "Alto", three steps of four. */
+const PICKER_LEVELS = reasoningLevelsForModel(PICKER_SELECTED_ID);
+const PICKER_LEVEL = "high";
+const PICKER_CHOSEN = PICKER_MODELS.find((model) => model.id === PICKER_SELECTED_ID);
+const pickerLabel = PICKER_CHOSEN?.label ?? PICKER_SELECTED_ID;
 
 type Source = 1 | 2 | 3;
 const PAGES: Record<Source, number> = { 1: 2, 2: 7, 3: 9 };
@@ -155,7 +167,7 @@ export function AssistantSpecimen() {
                     </span>
                 </div>
                 <div className="grid gap-2 min-[960px]:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-                    <div className="flex min-w-0 flex-col rounded-xl bg-surface-desk p-[clamp(16px,3vw,28px)]">
+                    <div className="flex min-w-0 flex-col rounded-xl bg-surface-desk p-[clamp(16px,3vw,28px)] min-[960px]:row-span-2">
                         <p className="ml-auto w-fit max-w-[88%] rounded-[14px_14px_4px_14px] bg-interactive-soft-strong px-3.5 py-2.5 text-sm/[1.45] text-foreground">
                             {t("landing.specimen.question")}
                         </p>
@@ -210,25 +222,11 @@ export function AssistantSpecimen() {
                                 {t("landing.specimen.openWord")}
                             </span>
                         </div>
-                        {/* Drawn for the look of the product; a phone leaves it out so the source stays near the citation you tap. */}
-                        <div
-                            aria-hidden="true"
-                            className="mt-5 hidden min-h-12 items-center gap-2.5 rounded-2xl bg-surface-sheet py-1.5 pr-1.5 pl-3.5 text-sm/[1.3] text-muted-foreground shadow-elev-sheet min-[600px]:flex"
-                        >
-                            <span className="min-w-0 flex-1 truncate">{t("landing.specimen.composer")}</span>
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-interactive-soft px-2.5 py-[7px] text-xs/none font-medium whitespace-nowrap text-foreground">
-                                <KeyRound className="size-3" strokeWidth={1.5} />
-                                {catalogModelName("claude-sonnet-5-5")}
-                            </span>
-                            <span className="grid size-[34px] shrink-0 place-items-center rounded-full bg-interactive text-interactive-foreground">
-                                <ArrowUp className="size-4" strokeWidth={1.6} />
-                            </span>
-                        </div>
                     </div>
                     <div
                         id="landing-source"
                         aria-live="polite"
-                        className="min-w-0 self-stretch rounded-xl bg-surface-desk p-[clamp(16px,2.4vw,22px)]"
+                        className="min-w-0 self-stretch rounded-xl bg-surface-desk p-[clamp(16px,2.4vw,22px)] min-[960px]:col-start-2 min-[960px]:row-start-1"
                     >
                         <p className="mb-2.5 text-xs/[1.3] font-medium text-muted-foreground">
                             {t("landing.specimen.sourceLabel")}
@@ -255,6 +253,36 @@ export function AssistantSpecimen() {
                                 <CircleCheck aria-hidden="true" className="size-[18px] shrink-0" strokeWidth={1.5} />
                                 <span>{t("landing.specimen.verified", { page })}</span>
                             </p>
+                        </div>
+                    </div>
+                    {/* Drawn for the look of the product, with the app's own pieces (the model menu, its reasoning ladder and the key chip) in a still picture. After the source in the DOM, so a phone keeps the source next to the citation you tap; on a desktop it sits under the source, beside the chat. */}
+                    <div
+                        aria-hidden="true"
+                        inert
+                        data-landing-composer=""
+                        className="flex min-w-0 flex-col justify-end rounded-xl bg-surface-desk p-[clamp(16px,2.4vw,22px)] min-[960px]:col-start-2 min-[960px]:row-start-2"
+                    >
+                        <ModelMenuPreviewUI
+                            models={PICKER_MODELS}
+                            value={PICKER_SELECTED_ID}
+                            expandedGroup={PICKER_CHOSEN?.group ?? null}
+                            reasoningLevel={PICKER_LEVEL}
+                            reasoningLevels={PICKER_LEVELS}
+                            className="ml-auto max-w-full"
+                        />
+                        <div className="mt-2 rounded-2xl bg-surface-sheet py-2 pr-2 pl-3.5 text-sm/[1.3] text-muted-foreground shadow-elev-sheet">
+                            <p className="min-h-6 py-1">{t("landing.specimen.composer")}</p>
+                            <div className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1">
+                                <ModelChipPreviewUI
+                                    label={pickerLabel}
+                                    reasoningLevel={PICKER_LEVEL}
+                                    reasoningLevels={PICKER_LEVELS}
+                                />
+                                <KeyChipUI preview label={t("assistant.chatCredentialPicker.organizationKey")} />
+                                <span className="grid size-[34px] shrink-0 place-items-center rounded-full bg-interactive text-interactive-foreground">
+                                    <ArrowUp className="size-4" strokeWidth={1.6} />
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>

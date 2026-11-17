@@ -159,6 +159,45 @@ export const DropdownItem = React.forwardRef<
     );
 });
 
+/**
+ * A row drawn like `DropdownItem` but as a plain element, for a menu shown as
+ * a still picture: it needs no menu around it and offers nothing to press.
+ */
+export function DropdownStaticItem({
+  className,
+  selected = false,
+  ...props
+}: React.ComponentPropsWithoutRef<"div"> & {
+    selected?: boolean;
+}): React.ReactElement {
+    return (
+        <div
+            data-slot="dropdown-item"
+            data-selected={selected ? "true" : undefined}
+            className={mergeClasses(
+                DROPDOWN_ITEM_CLASS,
+                selected && "text-gray-900",
+                className,
+            )}
+            {...props}
+        />
+    );
+}
+
+/** `DropdownSeparator` for a still picture of a menu. */
+export function DropdownStaticSeparator({
+    className,
+    ...props
+}: React.ComponentPropsWithoutRef<"div">): React.ReactElement {
+    return (
+        <div
+            data-slot="dropdown-separator"
+            className={mergeClasses("mx-1 h-px shrink-0 bg-gray-200/70", className)}
+            {...props}
+        />
+    );
+}
+
 export const DropdownRadioItem = React.forwardRef<
     React.ElementRef<typeof DropdownPrimitive.RadioItem>,
     React.ComponentPropsWithoutRef<typeof DropdownPrimitive.RadioItem>
