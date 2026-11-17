@@ -18,7 +18,7 @@
     },
     {
         "ghsa": "GHSA-fc5q-39xc-vjpf",
-        "reason": "picomatch <=4.0.7 ReDoS through single-branch repeated extglobs; npm lists 4.0.7 as the latest release and no patched version exists on any line (2.x, 3.x, 4.x). Present only in devDependencies of backend (vitest/vite/tinyglobby -> fdir) and word-addin (ts-loader, tinyglobby/fdir, micromatch 2.3.2 under webpack-dev-server tooling); `npm ls --omit=dev picomatch` is empty in both. Those tools match glob patterns written in this repo config, not user or document input, and never run in the production image or bundle. NOT COVERED: frontend, where picomatch is reachable from production dependencies (next-intl -> @parcel/watcher, @opennextjs/cloudflare -> ... -> fast-glob -> micromatch@2.3.2); the gate only accepts dev:true scopes, so frontend stays blocked. REVIEW BY 2026-12-17 (30 days). REMOVE WHEN: a picomatch release > 4.0.7 exists and these chains resolve it.",
+        "reason": "picomatch <=4.0.7 ReDoS through single-branch repeated extglobs; npm lists 4.0.7 as the latest release and no patched version exists on any line (2.x, 3.x, 4.x). Dev copies: backend (vitest/vite/tinyglobby -> fdir), word-addin (ts-loader, tinyglobby/fdir, micromatch 2.3.2 under webpack-dev-server tooling) and frontend (micromatch 2.3.2 under the dev-only @opennextjs/cloudflare deploy CLI -> fast-glob, moved to devDependencies; vitest/vite/ladle). These tools match glob patterns written in this repo config, not user or document input, and never run in the production image or bundle. Frontend picomatch 4.0.7 stays classified as production by npm because next-intl -> @parcel/watcher (hard dependency used only by next-intl's message extractor/dev plugin; also in 4.15.1) reaches it; it is accepted with notInProductionImage: absent from the standalone image, verified in the running production container litt-litt-web-1 on 2026-11-17 (no @parcel/watcher, micromatch, opennextjs or lockfile picomatch; only next's vendored next/dist/compiled/picomatch and the Node base image's own npm copy), and the frontend Dockerfile ships only Next's standalone traced output. Re-verify this if the Dockerfile or next-intl's runtime use changes. REVIEW BY 2026-12-17 (30 days). REMOVE WHEN: a picomatch release > 4.0.7 exists and these chains resolve it.",
         "scopes": [
             {
                 "workspace": "backend",
@@ -53,6 +53,32 @@
                 "dev": true,
                 "dependents": [
                     "node_modules/micromatch"
+                ]
+            },
+            {
+                "workspace": "frontend",
+                "package": "picomatch",
+                "version": "2.3.2",
+                "path": "node_modules/micromatch/node_modules/picomatch",
+                "dev": true,
+                "dependents": [
+                    "node_modules/micromatch"
+                ]
+            },
+            {
+                "workspace": "frontend",
+                "package": "picomatch",
+                "version": "4.0.7",
+                "path": "node_modules/picomatch",
+                "dev": false,
+                "notInProductionImage": true,
+                "dependents": [
+                    "node_modules/@ladle/react/node_modules/vite",
+                    "node_modules/@parcel/watcher",
+                    "node_modules/fdir",
+                    "node_modules/tinyglobby",
+                    "node_modules/vite",
+                    "node_modules/vitest"
                 ]
             }
         ]
