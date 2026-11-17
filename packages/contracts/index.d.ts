@@ -2690,3 +2690,110 @@ export type RadarActionInput = {
   /** Required to dismiss (1 to 500 characters); optional otherwise. */
   reason?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Retainer report: the document a lawyer sends to a retainer client
+// (docs/retainer-report.md). LiTT sends nothing; it computes the report from
+// confirmed data and records, when the lawyer says so, that it was sent.
+// ---------------------------------------------------------------------------
+
+export type RetainerReportLocale = "es-MX" | "en-US";
+
+/** Length of the report's period, in calendar days. */
+export type RetainerReportDays = 30 | 60 | 90;
+
+export type RetainerReportTypeCount = {
+  type_id: string;
+  seed_key: MatterRequestTypeSeed | null;
+  name: string | null;
+  count: number;
+};
+
+/** A request the report lists: no hours and no estimate, only dates and rounds. */
+export type RetainerReportRequest = {
+  id: string;
+  title: string;
+  type_id: string;
+  seed_key: MatterRequestTypeSeed | null;
+  type_name: string | null;
+  complexity: MatterRequestComplexity;
+  level: MatterRequestLevel | null;
+  status: MatterRequestStatus;
+  received_on: string;
+  closed_on: string | null;
+  /** Calendar days from received to closed (closed requests); days open so far otherwise. */
+  calendar_days: number;
+  rounds: number;
+};
+
+export type RetainerReportFact = {
+  id: string;
+  kind: ProfileFactKind;
+  label: string;
+  confirmed_on: string;
+};
+
+export type RetainerReportRadarItem = {
+  key: string;
+  type: RadarItem["type"];
+  label: string;
+  due_on: string;
+  days_left: number;
+  state: RadarItemState;
+};
+
+export type RetainerReport = {
+  locale: RetainerReportLocale;
+  matter_name: string | null;
+  /** The period ends today (America/Mexico_City) and has `days` calendar days, both ends included. */
+  period: { days: RetainerReportDays; start: string; end: string; time_zone: string };
+  /** From today to `days` calendar days after it. */
+  horizon: { start: string; end: string };
+  requests: {
+    /** Requests received in the period, closed in it, or still open at its end. */
+    total: number;
+    by_type: RetainerReportTypeCount[];
+    by_complexity: Record<MatterRequestComplexity, number>;
+    /** `unassigned` counts requests nobody was assigned to. */
+    by_level: Record<MatterRequestLevel | "unassigned", number>;
+    by_status: Record<MatterRequestStatus, number>;
+    closed: RetainerReportRequest[];
+    open: RetainerReportRequest[];
+    closed_rounds_total: number;
+    /** Mean calendar days from received to closed, one decimal; null when nothing closed. */
+    closed_average_calendar_days: number | null;
+  };
+  profile: {
+    /** Confirmed facts whose cited text has not changed, today. */
+    confirmed_total: number;
+    by_kind: Record<ProfileFactKind, number>;
+    confirmed_in_period: RetainerReportFact[];
+  };
+  radar: { upcoming: RetainerReportRadarItem[] };
+  /** The fixed planning-aid text, in the report's language. */
+  disclaimer: string;
+  /** Said right after the disclaimer: only confirmed data is included, so some deadlines may be missing. */
+  scope_note: string;
+};
+
+export type RetainerReportSent = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  period_days: RetainerReportDays;
+  note: string | null;
+  sent_by: string | null;
+  sent_by_name: string | null;
+  created_at: string;
+};
+
+export type RetainerReportSentList = {
+  retainer: boolean;
+  can_write: boolean;
+  sent: RetainerReportSent[];
+};
+
+export type RetainerReportSentInput = {
+  /** At most 500 characters. */
+  note?: string;
+};

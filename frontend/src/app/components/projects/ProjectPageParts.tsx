@@ -6,6 +6,7 @@ import {
     CalendarClock,
     ClipboardList,
     CornerDownRight,
+    FileBarChart,
     FileText,
     Loader2,
     Pencil,
@@ -426,6 +427,7 @@ export function ProjectPageHeader({
     onOpenRequests,
     onOpenProfile,
     onOpenRadar,
+    onOpenReport,
     onDeleteProject,
     onSearchChange,
     onOpenAccess,
@@ -458,6 +460,8 @@ export function ProjectPageHeader({
     onOpenProfile?: (() => void) | null;
     /** Present with `onOpenRequests`: opens the matter's deadline radar. */
     onOpenRadar?: (() => void) | null;
+    /** Present with `onOpenRequests`: opens the matter's retainer report. */
+    onOpenReport?: (() => void) | null;
     onDeleteProject: () => void;
     onSearchChange: (search: string) => void;
     onOpenAccess: () => void;
@@ -591,6 +595,16 @@ export function ProjectPageHeader({
                                                   label: t("radar.title"),
                                                   icon: CalendarClock,
                                                   onSelect: onOpenRadar,
+                                                  disabled: !roleKnown,
+                                              },
+                                          ]
+                                        : []),
+                                    ...(onOpenReport
+                                        ? [
+                                              {
+                                                  label: t("retainerReport.title"),
+                                                  icon: FileBarChart,
+                                                  onSelect: onOpenReport,
                                                   disabled: !roleKnown,
                                               },
                                           ]

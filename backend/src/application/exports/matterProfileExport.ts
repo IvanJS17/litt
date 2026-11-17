@@ -101,3 +101,28 @@ export async function loadUserObligationEvents(
         items: sortRows(items.filter((row) => readable.has(row.matter_id as string))),
     };
 }
+
+/**
+ * The "retainer report sent" records the holder made, in the matters they can
+ * still open. Matter work, like the requests it summarizes: it stays with the
+ * firm when the holder is no longer on the matter. Only an organization's
+ * export carries them.
+ */
+export async function loadUserReportSentEvents(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: string | null,
+): Promise<Row[]> {
+    if (!orgId) return [];
+    const events = await selectAllByKey<Row>("export matter_report_sent_events", () =>
+        (db as any)
+            .from("matter_report_sent_events")
+            .select("id, matter_id, period_start, period_end, period_days, note, created_at")
+            .eq("actor_user_id", userId),
+    );
+    const matterIds = [...new Set(events.map((row) => row.matter_id as string))];
+    if (matterIds.length === 0) return [];
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    return sortRows(events.filter((row) => readable.has(row.matter_id as string)));
+}

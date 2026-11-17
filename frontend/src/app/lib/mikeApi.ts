@@ -6663,3 +6663,90 @@ export async function setMatterObligationRule(
     if (typeof rule?.key !== "string" || typeof rule.active !== "boolean") throw new Error("Malformed obligation rule response");
     return rule;
 }
+
+// ---------------------------------------------------------------------------
+// Retainer report of a matter (docs/retainer-report.md)
+// ---------------------------------------------------------------------------
+
+const reportPath = (projectId: string, matterId: string) => `${matterRequestsPath(projectId, matterId)}/report`;
+const reportQuery = (locale: import("@mike/contracts").RetainerReportLocale) =>
+    `?locale=${encodeURIComponent(locale)}`;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** The report as JSON (owner or editor). Nothing is sent anywhere: this only reads. */
+export async function getRetainerReport(
+    projectId: string,
+    matterId: string,
+    days: import("@mike/contracts").RetainerReportDays,
+    locale: import("@mike/contracts").RetainerReportLocale,
+): Promise<import("@mike/contracts").RetainerReport> {
+    const report = await apiRequest<import("@mike/contracts").RetainerReport>(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/${days}d${reportQuery(locale)}`,
+    );
+    // A reply without its parts is a failed load, not an empty report.
+    if (
+        !isPlainObject(report) ||
+        !isPlainObject(report.period) ||
+        typeof report.period.start !== "string" ||
+        typeof report.period.end !== "string" ||
+        !isPlainObject(report.horizon) ||
+        !isPlainObject(report.requests) ||
+        !Array.isArray(report.requests.by_type) ||
+        !Array.isArray(report.requests.closed) ||
+        !Array.isArray(report.requests.open) ||
+        !isPlainObject(report.profile) ||
+        !Array.isArray(report.profile.confirmed_in_period) ||
+        !isPlainObject(report.radar) ||
+        !Array.isArray(report.radar.upcoming) ||
+        typeof report.disclaimer !== "string" ||
+        typeof report.scope_note !== "string"
+    )
+        throw new Error("Malformed report response");
+    return report;
+}
+
+/** The report as a Word file, to hand to the browser's download. */
+export async function downloadRetainerReport(
+    projectId: string,
+    matterId: string,
+    days: import("@mike/contracts").RetainerReportDays,
+    locale: import("@mike/contracts").RetainerReportLocale,
+): Promise<{ blob: Blob; filename: string | null }> {
+    return apiBlobRequest(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/${days}d/docx${reportQuery(locale)}`,
+    );
+}
+
+export async function getReportSentHistory(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").RetainerReportSentList> {
+    const list = await apiRequest<import("@mike/contracts").RetainerReportSentList>(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/sent`,
+    );
+    if (!isPlainObject(list) || typeof list.retainer !== "boolean" || !Array.isArray(list.sent))
+        throw new Error("Malformed report history response");
+    return list;
+}
+
+/** The lawyer's record that they sent the report of the last `days` days. LiTT sends nothing. */
+export async function markReportSent(
+    projectId: string,
+    matterId: string,
+    days: import("@mike/contracts").RetainerReportDays,
+    input: import("@mike/contracts").RetainerReportSentInput = {},
+): Promise<import("@mike/contracts").RetainerReportSent> {
+    const sent = await apiRequest<import("@mike/contracts").RetainerReportSent>(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/${days}d/sent`,
+        jsonInit("POST", input.note ? { note: input.note } : {}),
+    );
+    if (!isPlainObject(sent) || typeof sent.id !== "string" || typeof sent.period_end !== "string")
+        throw new Error("Malformed report record response");
+    return sent;
+}
