@@ -1021,6 +1021,25 @@ and the phone menu); what matters for the next change:
   `#por-que` (own keys, model choice, self-hosting, and "Hecho para la práctica
   mexicana") · `#proximamente` · `#confianza` (three points) · `#acceso`. The
   old `#que-hace` is rewritten to `#funciones` (`LegacyAnchor`).
+- **Access and waitlist.** Every way into the beta goes to one Tally
+  questionnaire whose address is the single constant `ACCESS_FORM_URL`
+  (`landing/landingConstants.ts`); `accessFormHref(origen, lang)` adds
+  `?origen=<acceso|inhouse|soon-<feature>>&lang=<locale>`, which the form reads
+  as hidden fields. "Solicitar acceso" (header, hero, phone menu, QUINTO) sends
+  `acceso`; the in-house card sends `inhouse`; the small "Me interesa" links of
+  the coming-soon cards send `soon-contextlex`, `soon-mcp`, `soon-donna` and
+  `soon-conectores`. The links open in the same tab with `rel="noopener
+  noreferrer"`. `soporte@asteroitt.com` stays as a plain contact link in the
+  footer (and in the hero note). A visitor's choice of language and origin is
+  the only thing the page sends; it sends nothing else to Tally.
+- **Próximamente.** Five items: ContextLex MX (the lead, largest type), then
+  MCP, Donna and the connectors in a row from 960 px, then the in-house intake
+  as a card of its own (`bg-surface-sheet`, large title, its own button), which
+  is a track that opens when there is demand, not a feature. A card that needs
+  a footnote carries it inside itself (`landing.<item>.note`): the connectors
+  say which provider is in preparation and which in design, and the MCP card
+  defines «harness» for a lawyer. Copy rules: Donna is never described with
+  hours, and nothing here is presented as available.
 - **Tokens only.** Components use no hex color and no `blue`, `amber-`,
   `orange-` or `green-` class (`landing.styles.test.ts` checks it). The only hex
   values are in `landing/landing.css`: copies of the other theme's tokens for the

@@ -1,6 +1,12 @@
-import { useTranslations } from "next-intl";
-import { LANDING_RULE, LANDING_TAG } from "./landingStyles";
-import { SECTION_IDS } from "./landingConstants";
+import { useLocale, useTranslations } from "next-intl";
+import {
+    LANDING_BUTTON_SECONDARY,
+    LANDING_BUTTON_SIZE,
+    LANDING_FOCUS,
+    LANDING_RULE,
+    LANDING_TAG,
+} from "./landingStyles";
+import { accessFormHref, SECTION_IDS, type AccessOrigin } from "./landingConstants";
 import { SectionHead } from "./SectionHead";
 
 /** "Próximamente": the Departure detail with its ring, and the same words for a screen reader. */
@@ -16,7 +22,33 @@ export function SoonTag() {
     );
 }
 
-function SoonItem({ title, body }: { title: string; body: string }) {
+/** "Me interesa": a small link to the questionnaire that says which card sent the visitor. */
+function InterestLink({ origen, title }: { origen: AccessOrigin; title: string }) {
+    const t = useTranslations();
+    const locale = useLocale();
+    return (
+        <a
+            href={accessFormHref(origen, locale)}
+            rel="noopener noreferrer"
+            className={`inline-flex min-h-11 w-fit items-center rounded-sm text-base text-foreground underline decoration-interactive-border underline-offset-4 ${LANDING_FOCUS}`}
+        >
+            {t("landing.soon.interest")}
+            <span className="sr-only">: {title}</span>
+        </a>
+    );
+}
+
+function SoonItem({
+    title,
+    body,
+    note,
+    origen,
+}: {
+    title: string;
+    body: string;
+    note?: string;
+    origen: AccessOrigin;
+}) {
     return (
         <article
             className={`grid content-start gap-2.5 border-b py-7 last:border-b-0 min-[960px]:border-b-0 min-[960px]:pt-10 min-[960px]:pb-0 ${LANDING_RULE}`}
@@ -24,6 +56,45 @@ function SoonItem({ title, body }: { title: string; body: string }) {
             <SoonTag />
             <h3 className="landing-pretty text-2xl/[1.2] font-semibold text-balance">{title}</h3>
             <p className="landing-pretty text-muted-foreground">{body}</p>
+            {note ? (
+                <p className="landing-pretty text-[0.9375rem]/[1.5] text-muted-foreground">{note}</p>
+            ) : null}
+            <InterestLink origen={origen} title={title} />
+        </article>
+    );
+}
+
+/**
+ * The second spotlight: intake for in-house legal teams. It has its own
+ * surface (the sheet of the law citation) and its own button, because it is
+ * not a feature of the firm's product but a track that opens when there is
+ * demand: the button is the waitlist.
+ */
+function InhouseSpotlight() {
+    const t = useTranslations();
+    const locale = useLocale();
+    return (
+        <article
+            aria-labelledby="landing-inhouse-title"
+            className="mt-[clamp(32px,5vw,64px)] grid gap-6 rounded-2xl bg-surface-sheet p-[clamp(24px,4vw,48px)] shadow-elev-float min-[960px]:grid-cols-[minmax(0,1fr)_auto] min-[960px]:items-end"
+        >
+            <div className="grid content-start gap-3">
+                <SoonTag />
+                <h3
+                    id="landing-inhouse-title"
+                    className="landing-pretty max-w-[24ch] text-[clamp(1.75rem,1.3rem+1.6vw,2.75rem)]/[1.1] font-semibold text-balance"
+                >
+                    {t("landing.inhouse.title")}
+                </h3>
+                <p className="landing-pretty max-w-[52ch] text-muted-foreground">{t("landing.inhouse.body")}</p>
+            </div>
+            <a
+                href={accessFormHref("inhouse", locale)}
+                rel="noopener noreferrer"
+                className={`${LANDING_BUTTON_SECONDARY} ${LANDING_BUTTON_SIZE} w-full min-[960px]:w-auto`}
+            >
+                {t("landing.inhouse.join")}
+            </a>
         </article>
     );
 }
@@ -68,7 +139,8 @@ function LawCitationCard() {
  * own container (landing.css `.landing-band`), so it is tinta with papel
  * letters on the light page and papel with tinta letters on the dark one.
  * ContextLex MX is the lead: its name on one line, at the largest size of the
- * page. The other three follow in a row from 960 px.
+ * page. MCP, Donna and the connectors follow in a row from 960 px, and the
+ * in-house waitlist closes the band as its own card with its own button.
  */
 export function SoonBand() {
     const t = useTranslations();
@@ -105,15 +177,30 @@ export function SoonBand() {
                         <p className="landing-pretty mt-4 max-w-[46ch] text-muted-foreground">
                             {t("landing.cl.body")}
                         </p>
+                        <div className="mt-1">
+                            <InterestLink origen="soon-contextlex" title={t("landing.cl.name")} />
+                        </div>
                     </div>
                     <LawCitationCard />
                 </div>
 
                 <div className="mt-[clamp(8px,2vw,16px)] grid grid-cols-1 min-[960px]:grid-cols-3 min-[960px]:gap-x-10">
-                    <SoonItem title={t("landing.mcp.title")} body={t("landing.mcp.body")} />
-                    <SoonItem title={t("landing.donna.title")} body={t("landing.donna.body")} />
-                    <SoonItem title={t("landing.google.title")} body={t("landing.google.body")} />
+                    <SoonItem
+                        title={t("landing.mcp.title")}
+                        body={t("landing.mcp.body")}
+                        note={t("landing.mcp.note")}
+                        origen="soon-mcp"
+                    />
+                    <SoonItem title={t("landing.donna.title")} body={t("landing.donna.body")} origen="soon-donna" />
+                    <SoonItem
+                        title={t("landing.connectors.title")}
+                        body={t("landing.connectors.body")}
+                        note={t("landing.connectors.note")}
+                        origen="soon-conectores"
+                    />
                 </div>
+
+                <InhouseSpotlight />
             </div>
         </section>
     );

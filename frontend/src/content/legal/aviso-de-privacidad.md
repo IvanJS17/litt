@@ -24,7 +24,9 @@ cambia quién decide sobre los datos y ante quién ejerces tus derechos.
 
 **a) LiTT como responsable.** Somos responsables de los datos de las personas que usan LiTT:
 los de su cuenta y su perfil, y los registros de seguridad del servicio. Las secciones 3 a 12
-se refieren a estos datos.
+se refieren a estos datos. También somos responsables de los datos de quien llena el
+cuestionario para solicitar acceso o anotarse en una lista de espera, aunque no tenga cuenta; la
+sección 14 explica ese tratamiento.
 
 **b) LiTT como encargado.** Cuando un despacho, o una persona que trabaja por su cuenta, sube
 documentos, escribe en el chat o crea asuntos, revisiones, flujos de trabajo o playbooks, ese
@@ -328,3 +330,54 @@ personas) que un despacho o una persona usuaria sube o escribe en LiTT.
   datos que un despacho subió, la remitiremos al despacho y le ayudaremos a atenderla.
 - **Fin del servicio.** Cuando el despacho borra contenido o su organización, LiTT lo suprime
   conforme a los Términos y Condiciones, salvo las copias de respaldo, que vencen a los 30 días.
+
+## 14. Cuestionario de acceso y listas de espera
+
+Esta sección aplica a quien llena el cuestionario de https://litt.asteroitt.com para solicitar
+acceso a la beta o para anotarse en la lista de espera de una función que todavía no está
+disponible, tenga o no una cuenta en LiTT. El cuestionario es para profesionales mayores de edad.
+LiTT es el responsable de estos datos. Sobre ellos se aplican también las secciones 1, 8, 11 y
+12, con lo que aquí se precisa.
+
+- **Datos.** Tu nombre, tu correo de trabajo, el nombre de tu despacho o empresa, tu puesto, el
+  estado de la República, y tus respuestas sobre el tamaño del equipo, las áreas de práctica o el
+  giro de la empresa, las herramientas que usan, los proveedores de IA que ya pagan, el interés en
+  instalar LiTT en servidores propios, las funciones que más te interesan, incluidas las que aún
+  no están disponibles, y el presupuesto aproximado. Si respondes por un área jurídica interna,
+  también tus principales preocupaciones, el volumen de solicitudes que reciben al mes y los
+  canales por los que les llegan. Además, lo que escribas en el campo libre, que es opcional, la
+  fecha de envío y los identificadores que Tally asigna a cada respuesta. **No te pedimos datos
+  personales sensibles ni datos de tus clientes**; no los escribas en el campo libre.
+- **Finalidades.** Usamos esos datos para:
+  1. decidir a quién invitamos a la beta cerrada;
+  2. contactarte sobre tu solicitud: para invitarte, aclarar tus respuestas o avisarte cuando
+     esté disponible la función de la lista de espera en la que te anotaste; y
+  3. medir el interés por cada función y decidir prioridades, con estadísticas internas.
+
+  No hay finalidades secundarias. Si envías el cuestionario después de ver el aviso simplificado,
+  consientes estas finalidades; si no estás de acuerdo, no lo envíes. No usamos estos datos para publicidad ni
+  mercadotecnia, no los vendemos, no los compartimos con terceros para que te perfilen y no los
+  usamos para entrenar modelos de inteligencia artificial.
+- **Tally.** El cuestionario funciona en Tally, de Tally BV, con sede en Bélgica. Tally es
+  nuestro encargado: guarda las respuestas por nuestra cuenta en la Unión Europea (Bélgica), y
+  algunos de sus subencargados operan en otros países, como Estados Unidos. Al ser nuestro
+  encargado, esa comunicación no es una transferencia y no requiere tu consentimiento. Según sus
+  condiciones, Tally puede usar datos agregados, seudonimizados o anónimos sobre el uso de su
+  servicio para su seguridad y para mejorarlo. Tally también cuenta en conjunto las visitas al
+  cuestionario (por ejemplo, país, dispositivo y navegador); según Tally, sin cookies ni datos
+  que te identifiquen. Tally solo recibe lo que se escribe en el cuestionario: no recibe datos de
+  las cuentas de LiTT ni el contenido de los despachos, y no es uno de los proveedores de la
+  sección 5. El cuestionario no usa herramientas de analítica ni de publicidad de terceros.
+- **Conservación.** Conservamos tus respuestas mientras sean útiles para estas finalidades y
+  como máximo **24 meses** después de que las envías. Después las borramos, también de Tally,
+  que las elimina de su papelera y de sus copias de respaldo en un máximo de 90 días. Podemos
+  conservar sin plazo estadísticas que no te identifican. Si te invitamos y abres una cuenta,
+  los datos de tu cuenta se rigen por las secciones 3 a 12.
+- **Tus derechos.** Ejerce tus derechos ARCO o revoca tu consentimiento por correo a
+  soporte@asteroitt.com, con los requisitos y plazos de la sección 8; no necesitas tener cuenta.
+  Podremos pedirte que confirmes la solicitud desde el correo que diste en el cuestionario. Para
+  limitar el uso de tus datos, deja vacíos los campos opcionales o pídenos que no te contactemos
+  más. Si revocas tu consentimiento o pides que borremos tus respuestas, dejaremos de considerar
+  tu solicitud de acceso y te sacaremos de la lista de espera.
+- **Cambios.** Además de lo que dice la sección 12, si un cambio a esta sección es relevante te
+  avisaremos al correo que nos diste, mientras conservemos tus datos.

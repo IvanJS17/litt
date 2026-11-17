@@ -1,5 +1,22 @@
 export { SUPPORT_EMAIL, SOURCE_REPOSITORY_URL } from "@mike/client";
 
+/**
+ * The access request and waitlist questionnaire (Tally), the one place its
+ * address lives. `origen` says which button sent the visitor (`acceso`,
+ * `inhouse`, `soon-<feature>`) and `lang` the page's language; the form reads
+ * both as hidden fields.
+ */
+export const ACCESS_FORM_URL = "https://tally.so/r/2jAeGL";
+
+export type AccessOrigin = "acceso" | "inhouse" | `soon-${string}`;
+
+export function accessFormHref(origen: AccessOrigin, lang: string): string {
+    const url = new URL(ACCESS_FORM_URL);
+    url.searchParams.set("origen", origen);
+    url.searchParams.set("lang", lang);
+    return url.toString();
+}
+
 /** Anchors of the header navigation. */
 export const SECTION_IDS = {
     features: "funciones",
