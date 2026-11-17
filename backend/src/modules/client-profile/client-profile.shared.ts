@@ -59,6 +59,8 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function isIsoDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  // Years 0000-0999 are almost always a typo for a contract date.
+  if (Number(value.slice(0, 4)) < 1000) return false;
   const parsed = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }

@@ -12,6 +12,7 @@
 
 import crypto from "node:crypto";
 import { createServerSupabase } from "../../lib/supabase";
+import { findingOutcomeCounts, recordPlaybookAudit } from "./playbooks.audit";
 import { findingSchema } from "./playbooks.schemas";
 import { stripProvenance } from "./playbooks.starter";
 import type { PlaybookContent, PlaybookFinding } from "./playbooks.types";
@@ -117,7 +118,7 @@ export async function savePlaybookClientReview(
     findings: ClientFindingInput[];
   } & ClientReviewOptions,
 ) {
-  const { content, hash } = await readyPlaybook(db, args.userId, args.userEmail, args.playbookId);
+  const { playbook, content, hash } = await readyPlaybook(db, args.userId, args.userEmail, args.playbookId);
   if (hash !== args.expectedHash)
     throw new PlaybookRequestError(
       "The playbook changed after the review was prepared. Prepare the review again.",
@@ -185,5 +186,25 @@ export async function savePlaybookClientReview(
   };
   const inserted = await db.from("playbook_runs").insert(row);
   if (inserted.error) throw inserted.error;
+  // The same `playbook.run` row the engine's own reviews leave (recordAudit
+  // never throws), so the history shows a client-AI run too. Counts only.
+  await recordPlaybookAudit(db, {
+    userId: args.userId,
+    userEmail: args.userEmail,
+    orgId: playbook.orgId,
+    action: "playbook.run",
+    status: "completed",
+    title: content.name || playbook.name,
+    documentId: args.documentId,
+    model: CLIENT_AI_MODEL,
+    detail: {
+      playbook_id: args.playbookId,
+      run_id: id,
+      scope: args.reviewScope,
+      posture: args.reviewMode,
+      executor: CLIENT_AI_MODEL,
+      outcomes: findingOutcomeCounts(findings),
+    },
+  });
   return { run: publicRun(row, new Set()), verification, rejected, droppedUnknownRules };
 }

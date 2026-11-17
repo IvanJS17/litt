@@ -7,24 +7,31 @@
 import type { MatterRadar, RadarItem, ProfilePerson } from "@mike/contracts";
 import { loadCreatorProfiles } from "../../lib/userLookup";
 import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
+import { queryFailureCause, selectAllByKey } from "../../lib/batchedQuery";
 import type { Db } from "../../lib/supabase";
 import { loadFacts } from "../client-profile/client-profile.service";
 import type { MatterAccess } from "../matters/matters.service";
 import { RADAR_TIME_ZONE, todayInMexicoCity } from "./radar.dates";
 import { deriveItems } from "./radar.derive";
-import { EVENT_COLUMNS, MAX_EVENTS_PER_MATTER, toRadarItem, type EventRow } from "./radar.shared";
+import { EVENT_COLUMNS, toRadarItem, type EventRow } from "./radar.shared";
 
 type Scope = Pick<MatterAccess, "matterId" | "projectId">;
 
+/**
+ * Every event of the matter, paged by id: PostgREST caps a response at
+ * max_rows (1000), so one unpaged read returns a prefix, and the state machine
+ * needs the newest actions as much as the oldest. Order does not matter here
+ * (stateOf sorts by created_at, id).
+ */
 async function loadEvents(db: Db, matterId: string): Promise<ServiceResult<EventRow[]>> {
-  const { data, error } = await db
-    .from("matter_radar_item_events")
-    .select(EVENT_COLUMNS)
-    .eq("matter_id", matterId)
-    .order("created_at", { ascending: true })
-    .limit(MAX_EVENTS_PER_MATTER);
-  if (error) return internalFailure(error);
-  return ok((data ?? []) as unknown as EventRow[]);
+  try {
+    const rows = await selectAllByKey<EventRow>("radar events", () =>
+      db.from("matter_radar_item_events").select(EVENT_COLUMNS).eq("matter_id", matterId),
+    );
+    return ok(rows);
+  } catch (error) {
+    return internalFailure(queryFailureCause(error));
+  }
 }
 
 /** Every item of the matter, closed ones too, dated first. `today` is a Mexico City date. */

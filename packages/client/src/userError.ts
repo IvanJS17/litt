@@ -253,6 +253,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // owner and editors write.
     request_version_conflict: "conflict",
     matter_write_required: "forbidden",
+    // Requests, client profile and radar exist only on retainer matters (409).
+    matter_not_retainer: "conflict",
     // Client profile: a fact needs a citation that is in the cited text; a
     // decided or stale fact cannot be confirmed.
     citation_required: "validation",

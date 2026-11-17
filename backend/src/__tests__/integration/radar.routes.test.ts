@@ -200,7 +200,7 @@ beforeEach(() => {
         matter_profile_facts: [],
         matter_profile_fact_events: [],
         matter_radar_item_events: [],
-    });
+    }, {}, { maxRows: 1000 });
     const confirmed = ["confirmed"];
     seedFact(FACTS.expiry, MATTER, VERSION, "date", { date_kind: "expiry", date_on: "2026-12-31", notice_days: 30, notice_day_type: "calendar" }, { actions: confirmed, label: "Vigencia del arrendamiento" });
     seedFact(FACTS.overdue, MATTER, VERSION, "date", { date_kind: "renewal_notice", date_on: "2026-11-10" }, { actions: confirmed });
@@ -469,6 +469,23 @@ describe("ack, dismiss and done", () => {
         });
         expect(itemsOf(await request(app).get(base)).find((item) => item.key === key)!.state).toBe("open");
     });
+    it("reads every event past PostgREST's max_rows, so the newest action counts", async () => {
+        as(EDITOR);
+        // 1,100 earlier acknowledgements of another item fill the first page;
+        // the action that closes the expiry notice is the newest event.
+        for (let n = 0; n < 1100; n++)
+            tables().matter_radar_item_events.push({
+                id: id(20000 + n), matter_id: MATTER, fact_id: FACTS.overdue, item_type: "notice", action: "ack",
+                due_on: "2026-11-10", reason: null, actor_user_id: EDITOR, created_at: "2026-11-02T00:00:00Z",
+            });
+        tables().matter_radar_item_events.push({
+            id: id(8000), matter_id: MATTER, fact_id: FACTS.expiry, item_type: "notice", action: "done",
+            due_on: "2026-12-01", reason: null, actor_user_id: EDITOR, created_at: "2026-11-03T00:00:00Z",
+        });
+        const items = itemsOf(await request(app).get(base));
+        expect(items.find((item) => item.key === key)!.state).toBe("done");
+        expect(items.find((item) => item.key === keyOf(FACTS.overdue, "notice"))!.state).toBe("acknowledged");
+    });
 });
 
 describe("today", () => {
@@ -553,6 +570,24 @@ describe("today", () => {
         const res = await request(app).get(today);
         expect(res.status).toBe(200);
         expect(res.body.truncated).toBe(true);
+    });
+
+    it("reads memberships past max_rows and still reports the cap truthfully", async () => {
+        as(OWNER);
+        // 1,100 memberships whose matters sort before the real one fill the first page.
+        for (let n = 0; n < 1100; n++)
+            tables().matter_memberships.push({ matter_id: id(10000 + n), user_id: OWNER, status: "active", role: "matter_owner" });
+        const late = id(90000);
+        tables().matters.push({ id: late, project_id: id(90001), workspace_id: WORKSPACE, name: "Tardía", is_retainer: true, visibility: "private" });
+        tables().matter_memberships.push({ matter_id: late, user_id: OWNER, status: "active", role: "matter_owner" });
+        tables().documents.push({ id: id(90003), project_id: id(90001), archived_at: null });
+        tables().document_versions.push({ id: id(90004), document_id: id(90003), version_number: 1, filename: "tardio.docx", deleted_at: null });
+        h.texts[id(90004)] = TEXT;
+        seedFact(id(90002), late, id(90004), "date", { date_kind: "renewal_notice", date_on: "2026-11-18" }, { actions: ["confirmed"], label: "Dato tardío" });
+        const res = await request(app).get(today);
+        expect(res.status).toBe(200);
+        expect(res.body.truncated).toBe(false);
+        expect(res.body.items.some((item: { matter_id: string }) => item.matter_id === late)).toBe(true);
     });
 
     it("counts today from the Mexico City day", async () => {

@@ -755,6 +755,24 @@ describe("playbooks: mode B (the client's AI reviews)", () => {
         const read = await callTool(token, "get_playbook_run", { run_id: out.data.run_id });
         expect(read.data).toMatchObject({ executor: "client_ai", model: "client_ai" });
         expect(TOOL_AUDIT("submit_playbook_review")).toHaveLength(1);
+        // The same `playbook.run` history row the engine's own reviews leave,
+        // by the client's AI, with counts and no finding text.
+        const runAudit = audits().filter((row) => row.action === "playbook.run");
+        expect(runAudit).toHaveLength(1);
+        expect(runAudit[0]).toMatchObject({
+            surface: "playbooks",
+            status: "completed",
+            user_id: PEOPLE.owner.id,
+            document_id: DOC_PUBLIC,
+            model: "client_ai",
+        });
+        expect(runAudit[0].detail).toMatchObject({
+            playbook_id: PLAYBOOK_READY,
+            run_id: out.data.run_id,
+            executor: "client_ai",
+            outcomes: expect.any(Object),
+        });
+        expect(JSON.stringify(runAudit[0])).not.toContain("La renta es fija");
     });
 
     it("refuses a ticket that is forged, expired, someone else's or for a changed playbook or document", async () => {
