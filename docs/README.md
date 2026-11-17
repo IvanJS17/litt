@@ -48,6 +48,8 @@
 - [Obligation rules of a retainer matter](obligation-rules.md) — a catalog of
   verified legal obligations, kept in code, that a lawyer turns on per matter and
   that the radar counts from a confirmed date.
+- [Retainer report](retainer-report.md) — the 30/60/90-day document a lawyer sends
+  to a retainer client, from confirmed data only; the system sends nothing
 - [Managed accounts](managed-accounts.md) — firm-managed accounts without a
   personal space
 - [Settings map](settings-map.md) — which Settings tab lives where, and who sees it

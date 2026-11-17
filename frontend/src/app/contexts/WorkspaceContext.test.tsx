@@ -404,10 +404,10 @@ describe("a firm-managed account", () => {
         mocks.managed = true;
         window.localStorage.setItem(STORAGE_KEY, PERSONAL_WORKSPACE);
         renderProvider();
-        await waitFor(() =>
-            expect(screen.getByText(/org-acme\|org-acme\|loaded\|Acme LLP/)).toBeInTheDocument(),
-        );
-        expect(latest.personalWorkspaceDisabled).toBe(true);
+        await waitFor(() => {
+            expect(screen.getByText(/org-acme\|org-acme\|loaded\|Acme LLP/)).toBeInTheDocument();
+            expect(latest.personalWorkspaceDisabled).toBe(true);
+        });
     });
 
     it("keeps the firm it was in", async () => {

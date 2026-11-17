@@ -120,6 +120,10 @@ Do not open a public issue for security vulnerabilities. Use [GitHub's private v
 
 We will aim to respond promptly and coordinate a disclosure timeline with you.
 
+### Dependency audit exceptions
+
+`scripts/audit-gate.mjs` keeps the `dependency-audit` job in `security.yml` blocking; unfixable advisories need a scoped entry in `scripts/audit-allowlist.json` (exact workspace, package, version, lockfile path and full dependents, with a reason, review date and removal condition). Scopes normally require `"dev": true`. A copy that npm still classifies as production (`"dev": false`) is accepted only with `"notInProductionImage": true`, and its reason must state how absence from the shipped image was verified (for example, inspecting the running production container). A production copy without that flag still fails the gate.
+
 ## Local Development
 
 Backend:

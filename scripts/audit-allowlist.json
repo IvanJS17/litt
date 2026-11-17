@@ -1,31 +1,5 @@
 [
     {
-        "ghsa": "GHSA-vfj7-8cjw-p6xm",
-        "reason": "braces <=3.0.3 stack-exhaustion DoS through deeply nested brace patterns; published 2026-09-18 and no patched release exists (3.0.3 is the latest braces). Present only in devDependencies: frontend through @ladle/react -> globby -> fast-glob -> micromatch, and word-addin through webpack-dev-server -> http-proxy-middleware -> micromatch (`npm ls braces --omit=dev` is empty in every workspace). Those callers expand glob and proxy-path patterns written in this repo's own config, rather than user or document input. The frontend Docker image currently retains development dependencies, so this package is present in that image; the exception relies on these tooling call sites and controlled pattern inputs, not on image exclusion. The production Word add-in image contains only the static bundle and server.mjs. REMOVE WHEN: braces publishes a patched release (or micromatch drops braces) and these chains resolve it; reassess if braces gains a production caller.",
-        "scopes": [
-            {
-                "workspace": "frontend",
-                "package": "braces",
-                "version": "3.0.3",
-                "path": "node_modules/braces",
-                "dev": true,
-                "dependents": [
-                    "node_modules/micromatch"
-                ]
-            },
-            {
-                "workspace": "word-addin",
-                "package": "braces",
-                "version": "3.0.3",
-                "path": "node_modules/braces",
-                "dev": true,
-                "dependents": [
-                    "node_modules/micromatch"
-                ]
-            }
-        ]
-    },
-    {
         "ghsa": "GHSA-xcx6-jx8p-x3h5",
         "reason": "@azure/msal-node 5.0.0-beta.0 - 7.0.2 authorization-code flow may disclose parameters to an attacker-controlled endpoint; published after 2026-10-23's S6 audit. Present only in word-addin devDependencies through office-addin-debugging -> office-addin-dev-settings -> @microsoft/m365agentstoolkit-cli (and its @azure/identity), which pin ^6.0 while the fix exists only in 7.1.x (`npm ls @azure/msal-node --omit=dev` is empty). Those CLIs sideload the add-in on a developer machine; no CI job, test or production image runs them, and the production add-in image contains only the static bundle and server.mjs. REMOVE WHEN: the m365agentstoolkit-cli / @azure/identity chain inside office-addin-debugging's declared range accepts @azure/msal-node >=7.1; reassess if msal-node gains a production caller.",
         "scopes": [
@@ -38,6 +12,73 @@
                 "dependents": [
                     "node_modules/@azure/identity",
                     "node_modules/@microsoft/m365agentstoolkit-cli"
+                ]
+            }
+        ]
+    },
+    {
+        "ghsa": "GHSA-fc5q-39xc-vjpf",
+        "reason": "picomatch <=4.0.7 ReDoS through single-branch repeated extglobs; npm lists 4.0.7 as the latest release and no patched version exists on any line (2.x, 3.x, 4.x). Dev copies: backend (vitest/vite/tinyglobby -> fdir), word-addin (ts-loader, tinyglobby/fdir, micromatch 2.3.2 under webpack-dev-server tooling) and frontend (micromatch 2.3.2 under the dev-only @opennextjs/cloudflare deploy CLI -> fast-glob, moved to devDependencies; vitest/vite/ladle). These tools match glob patterns written in this repo config, not user or document input, and never run in the production image or bundle. Frontend picomatch 4.0.7 stays classified as production by npm because next-intl -> @parcel/watcher (hard dependency used only by next-intl's message extractor/dev plugin; also in 4.15.1) reaches it; it is accepted with notInProductionImage: absent from the standalone image, verified in the running production container litt-litt-web-1 on 2026-11-17 (no @parcel/watcher, micromatch, opennextjs or lockfile picomatch; only next's vendored next/dist/compiled/picomatch and the Node base image's own npm copy), and the frontend Dockerfile ships only Next's standalone traced output. Re-verify this if the Dockerfile or next-intl's runtime use changes. REVIEW BY 2026-12-17 (30 days). REMOVE WHEN: a picomatch release > 4.0.7 exists and these chains resolve it.",
+        "scopes": [
+            {
+                "workspace": "backend",
+                "package": "picomatch",
+                "version": "4.0.7",
+                "path": "node_modules/picomatch",
+                "dev": true,
+                "dependents": [
+                    "node_modules/fdir",
+                    "node_modules/tinyglobby",
+                    "node_modules/vite",
+                    "node_modules/vitest"
+                ]
+            },
+            {
+                "workspace": "word-addin",
+                "package": "picomatch",
+                "version": "4.0.4",
+                "path": "node_modules/picomatch",
+                "dev": true,
+                "dependents": [
+                    "node_modules/fdir",
+                    "node_modules/tinyglobby",
+                    "node_modules/ts-loader"
+                ]
+            },
+            {
+                "workspace": "word-addin",
+                "package": "picomatch",
+                "version": "2.3.2",
+                "path": "node_modules/micromatch/node_modules/picomatch",
+                "dev": true,
+                "dependents": [
+                    "node_modules/micromatch"
+                ]
+            },
+            {
+                "workspace": "frontend",
+                "package": "picomatch",
+                "version": "2.3.2",
+                "path": "node_modules/micromatch/node_modules/picomatch",
+                "dev": true,
+                "dependents": [
+                    "node_modules/micromatch"
+                ]
+            },
+            {
+                "workspace": "frontend",
+                "package": "picomatch",
+                "version": "4.0.7",
+                "path": "node_modules/picomatch",
+                "dev": false,
+                "notInProductionImage": true,
+                "dependents": [
+                    "node_modules/@ladle/react/node_modules/vite",
+                    "node_modules/@parcel/watcher",
+                    "node_modules/fdir",
+                    "node_modules/tinyglobby",
+                    "node_modules/vite",
+                    "node_modules/vitest"
                 ]
             }
         ]

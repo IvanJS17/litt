@@ -49,7 +49,7 @@ vi.mock("@/app/components/shared/DocumentUploadMenu", () => ({
     DocumentUploadMenu: () => <button>Upload</button>,
 }));
 
-function renderHeader(overrides: { roleKnown?: boolean; onOpenRadar?: (() => void) | null } = {}) {
+function renderHeader(overrides: { roleKnown?: boolean; onOpenRadar?: (() => void) | null; onOpenReport?: (() => void) | null } = {}) {
     render(
         <ProjectPageHeader
             project={{ id: "project-1", name: "Matter" } as never}
@@ -89,5 +89,25 @@ describe("ProjectPageHeader radar action", () => {
     it("offers nothing for a project without a matter", () => {
         renderHeader({ onOpenRadar: null });
         expect(screen.queryByRole("button", { name: "Deadline radar" })).not.toBeInTheDocument();
+    });
+});
+
+describe("ProjectPageHeader report action", () => {
+    it("opens the retainer report of a matter's project from the actions menu", async () => {
+        const user = userEvent.setup();
+        const onOpenReport = vi.fn();
+        renderHeader({ onOpenReport });
+        await user.click(screen.getByRole("button", { name: "Retainer report" }));
+        expect(onOpenReport).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for the caller's role, and offers nothing for a project without a matter", () => {
+        renderHeader({ roleKnown: false, onOpenReport: vi.fn() });
+        expect(screen.getByRole("button", { name: "Retainer report" })).toBeDisabled();
+    });
+
+    it("is absent without a matter", () => {
+        renderHeader({ onOpenReport: null });
+        expect(screen.queryByRole("button", { name: "Retainer report" })).not.toBeInTheDocument();
     });
 });
