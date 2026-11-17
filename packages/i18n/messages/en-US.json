@@ -3496,6 +3496,99 @@
       "note": "Your retainer matters: overdue, next 30 days and to review."
     }
   },
+  "retainerReport": {
+    "title": "Retainer report",
+    "nav": "Report",
+    "subtitle": "The document the lawyer sends to the retainer client: requests handled, confirmed facts of the profile and upcoming deadlines. It only uses confirmed data.",
+    "backToMatter": "Back to the matter",
+    "couldNotLoad": "The report could not be loaded.",
+    "retry": "Try again",
+    "loading": "Loading the report",
+    "retainer": {
+      "offTitle": "This matter is not a retainer",
+      "offDescription": "The report lives in retainer matters."
+    },
+    "readOnly": "Only matter owners and editors generate the report. Here you can see when it was marked as sent.",
+    "sendsNothing": "LiTT sends nothing. Download the document, send it by your own means, then mark it as sent.",
+    "period": {
+      "label": "Report period",
+      "option": "{days, plural, one {Last day} other {Last # days}}"
+    },
+    "range": "From {start} to {end} ({days, plural, one {# calendar day} other {# calendar days}})",
+    "disclaimer": "Planning aid. The date is not a legal deadline and LiTT does not calculate procedural deadlines.",
+    "scopeNote": "It only includes the facts the firm confirmed in the documents it reviewed; some deadlines may not appear.",
+    "requests": {
+      "title": "Requests handled",
+      "none": "There were no requests in this period.",
+      "total": "{count, plural, one {# request} other {# requests}} in the period (received, closed or still open at its end).",
+      "count": "Requests",
+      "byType": "By type",
+      "byComplexity": "By complexity",
+      "byLevel": "By level of who handled them",
+      "byStatus": "By state",
+      "unassigned": "Unassigned"
+    },
+    "closed": {
+      "title": "Requests closed in the period",
+      "none": "No request was closed in this period.",
+      "summary": "Closed: {count}. Negotiation rounds: {rounds}.",
+      "average": "Average calendar days to close: {days}."
+    },
+    "open": {
+      "title": "Open requests",
+      "none": "There are no open requests."
+    },
+    "profile": {
+      "title": "Client profile",
+      "total": "Confirmed facts currently in the profile: {count}.",
+      "changed": "Facts confirmed in the period",
+      "none": "No new facts were confirmed in this period."
+    },
+    "radar": {
+      "title": "Upcoming deadlines",
+      "intro": "Confirmed dates between {start} and {end}.",
+      "none": "There are no confirmed deadlines in this period."
+    },
+    "col": {
+      "request": "Request",
+      "type": "Type",
+      "complexity": "Complexity",
+      "status": "State",
+      "received": "Received",
+      "closed": "Closed",
+      "days": "Calendar days",
+      "daysOpen": "Days open",
+      "rounds": "Rounds",
+      "fact": "Fact",
+      "kind": "Kind",
+      "confirmed": "Confirmed on",
+      "date": "Date",
+      "deadline": "Deadline",
+      "in": "In"
+    },
+    "actions": {
+      "download": "Download Word",
+      "downloading": "Downloading…",
+      "couldNotDownload": "The report could not be downloaded.",
+      "markSent": "Mark as sent",
+      "noteLabel": "Note (optional)",
+      "noteHelp": "For example, who you sent it to and how.",
+      "confirmSent": "Record as sent",
+      "sending": "Recording…",
+      "cancel": "Cancel",
+      "couldNotMark": "The delivery could not be recorded.",
+      "marked": "Recorded as sent."
+    },
+    "sent": {
+      "title": "Reports sent",
+      "none": "Nobody has marked a report as sent yet.",
+      "entry": "{name} marked it as sent on {date}",
+      "period": "Period from {start} to {end}",
+      "note": "Note: {note}",
+      "unknownPerson": "A person who is no longer here",
+      "couldNotLoad": "The sent history could not be loaded."
+    }
+  },
   "recovery": {
     "approvedReviewUnavailable": "The approved review is not available.",
     "aprobada": "Approved",

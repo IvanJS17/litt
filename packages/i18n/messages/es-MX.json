@@ -3496,6 +3496,99 @@
       "note": "Tus asuntos de iguala: vencidos, próximos 30 días y por revisar."
     }
   },
+  "retainerReport": {
+    "title": "Reporte de la iguala",
+    "nav": "Reporte",
+    "subtitle": "El documento que el abogado envía al cliente de la iguala: solicitudes atendidas, datos confirmados de la ficha y próximos vencimientos. Solo usa datos confirmados.",
+    "backToMatter": "Volver al asunto",
+    "couldNotLoad": "No se pudo cargar el reporte.",
+    "retry": "Reintentar",
+    "loading": "Cargando el reporte",
+    "retainer": {
+      "offTitle": "Este asunto no es una iguala",
+      "offDescription": "El reporte vive en los asuntos de iguala."
+    },
+    "readOnly": "Solo propietarios y editores del asunto generan el reporte. Aquí puedes ver cuándo se marcó como enviado.",
+    "sendsNothing": "LiTT no envía nada. Descarga el documento, envíalo por tus propios medios y después márcalo como enviado.",
+    "period": {
+      "label": "Periodo del reporte",
+      "option": "{days, plural, one {Último día} other {Últimos # días}}"
+    },
+    "range": "Del {start} al {end} ({days, plural, one {# día natural} other {# días naturales}})",
+    "disclaimer": "Ayuda de planeación. La fecha no es un término legal y LiTT no calcula términos procesales.",
+    "scopeNote": "Solo incluye los datos que el despacho confirmó en los documentos revisados; puede haber vencimientos que no aparezcan.",
+    "requests": {
+      "title": "Solicitudes atendidas",
+      "none": "No hubo solicitudes en este periodo.",
+      "total": "{count, plural, one {# solicitud} other {# solicitudes}} en el periodo (recibidas, cerradas o abiertas al cierre).",
+      "count": "Solicitudes",
+      "byType": "Por tipo",
+      "byComplexity": "Por complejidad",
+      "byLevel": "Por nivel de quien atendió",
+      "byStatus": "Por estado",
+      "unassigned": "Sin asignar"
+    },
+    "closed": {
+      "title": "Solicitudes cerradas en el periodo",
+      "none": "Ninguna solicitud se cerró en este periodo.",
+      "summary": "Cerradas: {count}. Rondas de negociación: {rounds}.",
+      "average": "Promedio de días naturales hasta el cierre: {days}."
+    },
+    "open": {
+      "title": "Solicitudes abiertas",
+      "none": "No hay solicitudes abiertas."
+    },
+    "profile": {
+      "title": "Ficha del cliente",
+      "total": "Datos confirmados vigentes en la ficha: {count}.",
+      "changed": "Datos confirmados en el periodo",
+      "none": "No se confirmaron datos nuevos en este periodo."
+    },
+    "radar": {
+      "title": "Próximos vencimientos",
+      "intro": "Fechas confirmadas entre el {start} y el {end}.",
+      "none": "No hay vencimientos confirmados en este periodo."
+    },
+    "col": {
+      "request": "Solicitud",
+      "type": "Tipo",
+      "complexity": "Complejidad",
+      "status": "Estado",
+      "received": "Recibida",
+      "closed": "Cerrada",
+      "days": "Días naturales",
+      "daysOpen": "Días abierta",
+      "rounds": "Rondas",
+      "fact": "Dato",
+      "kind": "Clase",
+      "confirmed": "Confirmado el",
+      "date": "Fecha",
+      "deadline": "Vencimiento",
+      "in": "Faltan"
+    },
+    "actions": {
+      "download": "Descargar Word",
+      "downloading": "Descargando…",
+      "couldNotDownload": "No se pudo descargar el reporte.",
+      "markSent": "Marcar como enviado",
+      "noteLabel": "Nota (opcional)",
+      "noteHelp": "Por ejemplo, a quién y por qué medio lo enviaste.",
+      "confirmSent": "Registrar envío",
+      "sending": "Registrando…",
+      "cancel": "Cancelar",
+      "couldNotMark": "No se pudo registrar el envío.",
+      "marked": "Registrado como enviado."
+    },
+    "sent": {
+      "title": "Reportes enviados",
+      "none": "Todavía nadie ha marcado un reporte como enviado.",
+      "entry": "{name} lo marcó como enviado el {date}",
+      "period": "Periodo del {start} al {end}",
+      "note": "Nota: {note}",
+      "unknownPerson": "Una persona que ya no está",
+      "couldNotLoad": "No se pudo cargar el historial de envíos."
+    }
+  },
   "recovery": {
     "approvedReviewUnavailable": "La revisión aprobada no está disponible.",
     "aprobada": "Aprobada",

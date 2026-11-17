@@ -633,6 +633,14 @@ export function ProjectWorkspaceProvider({
                                       )
                                 : null
                         }
+                        onOpenReport={
+                            project?.matter_id
+                                ? () =>
+                                      router.push(
+                                          `/projects/${encodeURIComponent(projectId)}/matters/${encodeURIComponent(project.matter_id!)}/report`,
+                                      )
+                                : null
+                        }
                         onDeleteProject={requestProjectDelete}
                         onSearchChange={setSearch}
                         onOpenAccess={() => setAccessModalOpen(true)}
