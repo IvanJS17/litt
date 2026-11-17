@@ -4745,10 +4745,20 @@
       "affectsInvitedAccounts": "Affects invited accounts"
     },
     "connectedApps": {
+      "activityEmpty": "This app has not done anything yet.",
+      "activityHeading": "Recent activity",
+      "activityHide": "Hide activity",
+      "activityLine": "{tool} · {date} · {workspace} · {outcome}",
+      "activityLoadAction": "load this app's activity",
+      "activityLoading": "Loading activity…",
+      "activityNote": "Only what it did is listed (the tool, when, where and how it ended), never the content.",
+      "activityShow": "Show activity",
       "cancel": "Cancel",
       "confirmRevoke": "Remove {client}'s access?",
       "confirmYes": "Yes, remove",
       "connected": "Connected on {date}",
+      "conversationsEmpty": "It has not started any conversation with LiTT's assistant.",
+      "conversationsHeading": "Conversations it started",
       "empty": "You have not connected any app yet. When you add LiTT as a connector in an AI app and allow it, it appears here.",
       "expires": "Access ends on {date}",
       "heading": "Apps with access to your account",
@@ -4757,7 +4767,14 @@
       "loadAction": "load your connected apps",
       "loading": "Loading…",
       "neverUsed": "Not used yet",
+      "noWorkspace": "No workspace",
       "notEnabled": "This server does not have connections with AI apps turned on. Once they are, the apps you connect will appear here.",
+      "outcome": {
+        "ok": "Done",
+        "error": "Failed",
+        "denied": "Not allowed",
+        "rate_limited": "Too many requests"
+      },
       "permissions": "Permissions",
       "personal": "Personal",
       "removed": "You removed {client}'s access.",
@@ -4770,6 +4787,7 @@
         "chat": "Assistant"
       },
       "unknownFirm": "Firm",
+      "untitledChat": "Untitled conversation",
       "workspaces": "Workspaces"
     }
   },
@@ -5177,6 +5195,7 @@
       "chatTitle": "Chat title",
       "chattitleResponseLoading": "{chatTitle} response loading",
       "delete": "Delete",
+      "fromApp": "From {app}",
       "leave": "Leave",
       "openInSideChat": "Open in side chat",
       "rename": "Rename",

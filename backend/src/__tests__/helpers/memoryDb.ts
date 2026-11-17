@@ -74,6 +74,10 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
                 filters.push((row) => row[column] === value);
                 return builder;
             },
+            neq: (column: string, value: unknown) => {
+                filters.push((row) => row[column] !== value);
+                return builder;
+            },
             is: (column: string, value: unknown) => {
                 filters.push((row) => (row[column] ?? null) === value);
                 return builder;

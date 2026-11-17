@@ -20,13 +20,16 @@ import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
 import { bindRequestPrincipal } from "../../lib/managedAccounts";
+import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { mcpConfig, mcpConfigurationProblem } from "./mcp.config";
 import { startAuthorization } from "./mcp.authorize";
 import { registerDcrClient } from "./mcp.clients";
 import { decideConsent, getConsentView, hasMfaEnrolled } from "./mcp.consent";
-import { listGrantsForUser, revokeGrant } from "./mcp.grants";
+import { loadGrant, listGrantsForUser, revokeGrant } from "./mcp.grants";
+import { listRecentToolCalls } from "./mcp.calls";
+import { listChatsCreatedByGrant } from "../chat/chat.service";
 import { authorizationServerMetadata, protectedResourceMetadata } from "./mcp.metadata";
 import { authenticateMcpRequest, mcpNodeHandler, preflightMcp } from "./mcp.endpoint";
 import type { OAuthResult } from "./mcp.shared";
@@ -334,6 +337,42 @@ mcpConsentRouter.get(
     requireAuth,
     asyncRoute(async (_req, res) => {
         res.json({ grants: await listGrantsForUser(createServerSupabase(), res.locals.userId as string) });
+    }),
+);
+
+// What one connection did lately and the conversations it started (design
+// §5): tool, time, workspace and outcome of its calls, never their content.
+mcpConsentRouter.get(
+    "/grants/:grantId/activity",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        const grantId = String(req.params.grantId);
+        const userId = res.locals.userId as string;
+        const db = createServerSupabase();
+        const grant = UUID_PATTERN.test(grantId) ? await loadGrant(db, grantId) : null;
+        if (!grant || grant.user_id !== userId)
+            return void res.status(404).json({ code: "grant_not_found", detail: "Connection not found." });
+        const [calls, chats] = await Promise.all([
+            listRecentToolCalls(db, { grantId, userId, limit: 20 }),
+            listChatsCreatedByGrant(db, {
+                userId,
+                userEmail: (res.locals.userEmail as string | undefined) || undefined,
+                grantId,
+                limit: 20,
+            }),
+        ]);
+        if (!chats.ok) throw new AppError("mcp.db_failed", "[mcp] grant chats failed", { cause: chats.error });
+        res.setHeader("Cache-Control", "no-store");
+        res.json({
+            calls,
+            chats: chats.data.map((chat) => ({
+                id: chat.id,
+                title: chat.title,
+                project_id: chat.project_id,
+                workspace: chat.org_id ?? "personal",
+                created_at: chat.created_at,
+            })),
+        });
     }),
 );
 

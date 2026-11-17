@@ -76,9 +76,15 @@ export function SidebarChatItem({
     // One label for the row's tooltip and its accessible name, so the
     // "Shared" marker rendered beside the title is part of both.
     const chatTitle = chat.title ?? t("shared.sidebarChatItem.untitledChat");
+    // Started by a connected app (Claude, ChatGPT...): plain text, not a pill.
+    const fromApp =
+        chat.origin === "mcp" && chat.origin_label?.trim()
+            ? t("shared.sidebarChatItem.fromApp", { app: chat.origin_label.trim() })
+            : null;
     const rowLabel = [
         projectName ? `${projectName}: ${chatTitle}` : chatTitle,
         chat.is_owner === false ? "(Shared)" : null,
+        fromApp ? `(${fromApp})` : null,
         responseStatus === "loading"
             ? "(Response loading)"
             : responseStatus === "complete"
@@ -195,6 +201,11 @@ export function SidebarChatItem({
                 {chat.is_owner === false && (
                     <span className="mx-1 shrink-0 text-xs text-gray-400 font-normal">
                         {t("shared.sidebarChatItem.shared")}
+                    </span>
+                )}
+                {fromApp && (
+                    <span className="mx-1 shrink-0 text-xs text-gray-400 font-normal">
+                        {fromApp}
                     </span>
                 )}
 

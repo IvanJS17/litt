@@ -4745,10 +4745,20 @@
       "affectsInvitedAccounts": "Afecta a las cuentas invitadas"
     },
     "connectedApps": {
+      "activityEmpty": "Esta aplicación todavía no ha hecho nada.",
+      "activityHeading": "Actividad reciente",
+      "activityHide": "Ocultar actividad",
+      "activityLine": "{tool} · {date} · {workspace} · {outcome}",
+      "activityLoadAction": "cargar la actividad de esta aplicación",
+      "activityLoading": "Cargando actividad…",
+      "activityNote": "Solo se muestra lo que hizo (la herramienta, cuándo, dónde y cómo terminó), nunca el contenido.",
+      "activityShow": "Ver actividad",
       "cancel": "Cancelar",
       "confirmRevoke": "¿Quitar el acceso a {client}?",
       "confirmYes": "Sí, quitar",
       "connected": "Conectada el {date}",
+      "conversationsEmpty": "No ha iniciado ninguna conversación con el asistente de LiTT.",
+      "conversationsHeading": "Conversaciones que inició",
       "empty": "Todavía no conectaste ninguna app. Cuando agregues LiTT como conector en una app de IA y lo permitas, aparecerá aquí.",
       "expires": "El acceso termina el {date}",
       "heading": "Apps con acceso a tu cuenta",
@@ -4757,7 +4767,14 @@
       "loadAction": "cargar tus apps conectadas",
       "loading": "Cargando…",
       "neverUsed": "Sin uso todavía",
+      "noWorkspace": "Sin espacio de trabajo",
       "notEnabled": "Este servidor no tiene activadas las conexiones con apps de IA. Cuando se activen, las apps que conectes aparecerán aquí.",
+      "outcome": {
+        "ok": "Hecho",
+        "error": "Falló",
+        "denied": "No permitido",
+        "rate_limited": "Demasiadas solicitudes"
+      },
       "permissions": "Permisos",
       "personal": "Personal",
       "removed": "Quitaste el acceso a {client}.",
@@ -4770,6 +4787,7 @@
         "chat": "Asistente"
       },
       "unknownFirm": "Despacho",
+      "untitledChat": "Conversación sin título",
       "workspaces": "Espacios"
     }
   },
@@ -5177,6 +5195,7 @@
       "chatTitle": "Título del chat",
       "chattitleResponseLoading": "Cargando la respuesta de {chatTitle}",
       "delete": "Borrar",
+      "fromApp": "Desde {app}",
       "leave": "Salir",
       "openInSideChat": "Abrir en el chat lateral",
       "rename": "Renombrar",

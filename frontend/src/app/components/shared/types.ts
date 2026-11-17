@@ -204,6 +204,10 @@ export interface Chat {
    * Served by GET /chat/:chatId and by the project chat list.
    */
   access_role?: "owner" | "editor" | "viewer";
+  /** Where the conversation was started; a missing value is the web. */
+  origin?: "web" | "word" | "mcp";
+  /** For a conversation started by a connected app: that app's name. */
+  origin_label?: string | null;
 }
 
 export interface EditAnnotation {

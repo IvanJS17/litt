@@ -12,6 +12,7 @@
 // its ordering is delicate. Only the NON-streaming logic and the pre-stream
 // DB preparation live here. `prepareChatStream` returns the prepared data the
 // route needs to run the stream; it does not stream.
+import { chatOriginColumns, type ChatOrigin } from "./chat.origin";
 import { AppError } from "../../lib/appError";
 import { getActiveAssistantTurn } from "../../lib/assistantTurnRuns";
 import { reportError } from "../../lib/observability/report";
@@ -169,6 +170,8 @@ export async function prepareChatStream(
         trainingMode?: unknown;
         /** LiTT training: the routes and the explanation of a criteria contrast. */
         trainingCriteria?: { routes?: unknown; explanation?: unknown };
+        /** The connected app a NEW chat is started from (not used for an existing one). */
+        origin?: ChatOrigin;
     },
 ): Promise<
     | { ok: true; prepared: PreparedChatStream }
@@ -454,6 +457,7 @@ export async function prepareChatStream(
                 ...chatRouteColumns(route),
                 reasoning_level: selectedReasoningLevel,
                 org_id: contentOrgId,
+                ...chatOriginColumns(args.origin),
             })
             .select("id, title")
             .single();

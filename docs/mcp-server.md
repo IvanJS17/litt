@@ -4,9 +4,8 @@ LiTT can be connected to an AI app that speaks the Model Context Protocol
 (Claude, ChatGPT, Codex, Hermes). This page describes what the backend serves
 today: the OAuth authorization server and the `/mcp` endpoint with its
 per-call gate (live revalidation, scopes, per-connection limits, audit) and
-the first real tools: workspaces, matters, documents and uploads (see
-[Tools](#tools)). Playbooks, tabular review and the assistant's chat come in
-later changes.
+the real tools: workspaces, matters, documents, uploads, playbooks, tabular
+review and the assistant's chat (see [Tools](#tools)).
 
 Everything is behind `LITT_MCP_SERVER`. With the default (`disabled`) no MCP
 route answers: the requests fall through to the normal 404.
@@ -181,6 +180,12 @@ Names are at most 64 characters; reads and writes are separate tools.
 | `run_tabular_review` | `litt.run` | additive, strict audit | **Mode A.** `startTabularGeneration` (shared with `POST /tabular-review/:id/generate`) on the review's own model and the person's keys; waits ~45 s, else `running`. A second start answers `review_running`. |
 | `get_tabular_run_status` | `litt.read` | read-only | Cells done / failed / pending and whether a run is in progress. |
 | `stop_tabular_run` | `litt.run` | additive, strict audit | `stopTabularGeneration`, shared with `POST …/generate/stop`. |
+| `start_chat` | `litt.chat` | additive, strict audit | Starts a conversation with LiTT's own assistant (optionally in a matter, else in a workspace) and sends its first message. The model and key are governed BYOK and pinned for the conversation: no fallback, `missing_api_key` / `byok_not_configured` refuse the call before anything is created. The conversation is marked as coming from the app (`origin = 'mcp'`). Apprentices pass `attempt`/`confidence` ("Tu turno primero"). Waits ~45 s, else `status: generating`. |
+| `send_chat_message` | `litt.chat` | additive, strict audit | A message in an existing conversation, continuing from its stored history on its pinned route; `turn_in_progress` (409) while an answer is being written. Same waiting rule. |
+| `get_chat_turn` | `litt.chat` | read-only | Polls an answer: `status` (`generating`, `completed`, `needs_input`, `stopped`, `failed`, `interrupted`), the text a window at a time as untrusted data, citations (quotes as untrusted data) and a count of what the assistant did. `wait: true` waits a short while. |
+| `stop_chat_turn` | `litt.chat` | additive, strict audit | Stops an answer being written (same standing as sending); what was written is kept. |
+| `list_chats` | `litt.chat` | read-only | The person's conversations in a workspace (the web's list), with `origin` / `origin_label`; filter by matter or origin. |
+| `get_chat` | `litt.chat` | read-only | A conversation's details and a page of messages (newest page first, cursor for older), as untrusted data; `active_turn` when an answer is being written. |
 
 **Same permissions as the web.** A tool calls the service functions the web
 routes call (`getProjectsOverview`, `getProjectDetail`, `getProjectDirectoryLevel`,
@@ -250,12 +255,30 @@ document id, never a name or text) before running. Document text additionally
 writes `mcp.client_ai_egress` (document, version, characters, client) before it is
 returned; if that cannot be written the text is not returned.
 
+**Chat with the assistant (always mode A).** The reply is LiTT's assistant's, not the
+client's own reasoning. A tool starts the web's own turn (`startChatTurn` / `runChatTurn`
+in `modules/chat/chat.turn.ts`), so access, the pinned BYOK route, the citation checks,
+memory, training rules and audit are the web's. Nobody holds a socket: the turn runs on its
+server-owned run, writes its frames to an MCP sink (`mcp.chatSink.ts`, which only keeps the
+reason of an error that was not saved) and saves the answer to the conversation; the tools
+read the stored message. The answer and the quotes it cites are returned as untrusted data
+and recorded as `mcp.chat_egress` (chat, message, characters) before they go out.
+Conversations live in the person's history like any other; the web list shows "Desde <app>"
+from `chats.origin` / `origin_label` (migration `20261117_10_litt_chat_origin.sql`).
+A restart of the backend turns a running answer into `interrupted`.
+
+**Sessions.** `GET /mcp-connect/grants/:id/activity` (the «Aplicaciones conectadas» tab)
+lists a connection's recent calls (tool, time, workspace, outcome: `mcp_tool_calls` holds
+nothing else) and the conversations it started that the person can still open, with links.
+
 ## Tables
 
 `mcp_oauth_clients`, `mcp_oauth_requests`, `mcp_grants`, `mcp_oauth_codes`,
 `mcp_oauth_tokens`, `mcp_oauth_audit` (migration
 `20261116_20_litt_mcp_oauth.sql`), and `mcp_tool_calls` (migration
-`20261116_40_litt_mcp_tool_calls.sql`). Row-level security is on with no policy and
+`20261116_40_litt_mcp_tool_calls.sql`). `chats` gets `origin`, `origin_grant_id` and
+`origin_label` (migration `20261117_10_litt_chat_origin.sql`; the grant link is
+`on delete set null`, so conversations outlive the connection). Row-level security is on with no policy and
 anon/authenticated have no privileges: only the backend's service role reaches
 them. The audit table has no foreign key to `auth.users`, so deleting an account
 removes its connections and tokens and keeps the history.
@@ -272,6 +295,12 @@ removes its connections and tokens and keeps the history.
   and tabular tools through `/mcp`: the parity matrix against the playbook and tabular
   routes, mode A start + poll, BYOK fail-closed, mode B tickets and validation,
   apprentices, audit and egress rows.
+* `backend/src/__tests__/integration/mcp.tools.chat.routes.test.ts` — the chat tools
+  through `/mcp`: the parity matrix against `GET /chat`, `GET /chat/:id` and `POST /chat`,
+  start + poll, stop, BYOK fail-closed, untrusted answers, egress and audit rows, origin in
+  the web list, and the sessions endpoint. The model itself is stood in for at the
+  `startChatTurn` / `runChatTurn` seam; the real turn is pinned by the golden recordings
+  of the web route (`chatTurn.golden.routes.test.ts`).
 * `backend/src/modules/mcp/__tests__/mcp.toolkit.test.ts` — cursors, text
   windows, the untrusted wrapper, matter matching, and the rule that tool files
   do not query tables.
