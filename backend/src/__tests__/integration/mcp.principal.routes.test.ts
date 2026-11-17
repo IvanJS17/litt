@@ -315,7 +315,9 @@ describe("scopes", () => {
 
     it("does not list the tools the grant has no scope for", async () => {
         const narrow = await connect({ scopes: ["litt.read"] });
-        const names = (r: Awaited<ReturnType<typeof rpc>>) => bodyOf(r).result!.tools!.map((t) => t.name);
+        // Only the probes and whoami: the real tools have their own suite (mcp.tools.routes.test.ts).
+        const names = (r: Awaited<ReturnType<typeof rpc>>) =>
+            bodyOf(r).result!.tools!.map((t) => t.name).filter((n) => ["whoami", "probe_run", "probe_boom"].includes(n));
         expect(names(await rpc(narrow.access, "tools/list"))).toEqual(["whoami", "probe_boom"]);
         const wide = await connect();
         expect(names(await rpc(wide.access, "tools/list"))).toEqual(["whoami", "probe_run", "probe_boom"]);

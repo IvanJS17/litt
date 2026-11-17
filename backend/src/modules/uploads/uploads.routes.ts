@@ -9,7 +9,6 @@
 // storage against the signed URLs these endpoints hand out, so the JSON body
 // limit in app.ts stays small no matter how large the upload is.
 
-import { randomUUID } from "node:crypto";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { Router, type Response } from "express";
@@ -23,16 +22,10 @@ import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 // Sibling topic files are imported directly, as in every module; outside the
 // module, uploads.service.ts is the only door.
-import { validateDestinationAccess } from "./uploads.access";
-import {
-  parseUploadSessionRequest,
-  UploadSessionValidationError,
-  type ParsedUploadSessionRequest,
-} from "./uploads.manifest";
+import { openUploadSession } from "./uploads.open";
 import {
   cancelUploadSession,
   completeUploadSessionFile,
-  createUploadSession,
   getUploadSession,
   refreshUploadUrls,
 } from "./uploads.sessions";
@@ -111,32 +104,11 @@ uploadSessionsRouter.post(
 
     const userId = res.locals.userId as string;
     const userEmail = res.locals.userEmail as string | undefined;
-    const sessionId = randomUUID();
-    let manifest: ParsedUploadSessionRequest;
-    try {
-      manifest = parseUploadSessionRequest(req.body, userId, sessionId);
-    } catch (error) {
-      if (error instanceof UploadSessionValidationError) {
-        return void res
-          .status(error.status)
-          .json({ code: error.code, detail: error.message });
-      }
-      throw error;
-    }
-
     const db = createServerSupabase();
-    const access = await validateDestinationAccess(
-      manifest,
+    const created = await openUploadSession(db, {
       userId,
       userEmail,
-      db,
-    );
-    if (!access.ok) return void sendUploadFailure(res, access);
-
-    const created = await createUploadSession(db, {
-      sessionId,
-      userId,
-      manifest,
+      body: req.body,
       hourlySessionLimit: uploadRateLimits.sessionCreationMaxPerHour,
     });
     if (!created.ok) return void sendUploadFailure(res, created);

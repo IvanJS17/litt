@@ -56,18 +56,65 @@ export async function recordMcpToolCall(db: Db, call: McpCallRecord): Promise<vo
  */
 export async function recordMcpAuditEvent(
     db: Db,
-    args: { principal: McpPrincipal; tool: string; workspace: string | null },
+    args: {
+        principal: McpPrincipal;
+        tool: string;
+        workspace: string | null;
+        /** Ids of what the call touches (never names, text or arguments). */
+        refs?: McpAuditRefs;
+    },
 ): Promise<void> {
     await insertAuditEvent(db, {
         userId: args.principal.userId,
         orgId: args.workspace && args.workspace !== "personal" ? args.workspace : null,
         action: `mcp.${args.tool}`,
         surface: MCP_AUDIT_SURFACE,
+        projectId: args.refs?.projectId ?? null,
+        documentId: args.refs?.documentId ?? null,
         detail: {
             grant_id: args.principal.grantId,
             client_id: args.principal.clientId,
             workspace: args.workspace,
             mode: args.principal.mode,
+            ...(args.refs?.versionId ? { version_id: args.refs.versionId } : {}),
+        },
+    });
+}
+
+/** What a strict call refers to: ids only. */
+export type McpAuditRefs = {
+    projectId?: string | null;
+    documentId?: string | null;
+    versionId?: string | null;
+};
+
+/**
+ * Document text left LiTT for the client's AI (design §7.4): which document and
+ * version, how many characters, to which client. It THROWS, and the tool
+ * writes it before the text is returned, so text never leaves unrecorded.
+ */
+export async function recordMcpEgress(
+    db: Db,
+    args: {
+        principal: McpPrincipal;
+        workspace: string | null;
+        documentId: string;
+        versionId: string;
+        characters: number;
+    },
+): Promise<void> {
+    await insertAuditEvent(db, {
+        userId: args.principal.userId,
+        orgId: args.workspace && args.workspace !== "personal" ? args.workspace : null,
+        action: "mcp.client_ai_egress",
+        surface: MCP_AUDIT_SURFACE,
+        documentId: args.documentId,
+        detail: {
+            grant_id: args.principal.grantId,
+            client_id: args.principal.clientId,
+            workspace: args.workspace,
+            version_id: args.versionId,
+            characters: args.characters,
         },
     });
 }
