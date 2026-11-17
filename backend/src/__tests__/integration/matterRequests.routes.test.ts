@@ -9,7 +9,7 @@ import type { Row } from "../helpers/memoryDb";
 // PostgreSQL in matterRequests.postgres.test.ts.
 const h = vi.hoisted(() => ({
     caller: { id: "" },
-    state: null as null | { db: unknown; tables: Record<string, Row[]> },
+    state: null as null | { db: unknown; tables: Record<string, Row[]>; failNext: (table: string, op: string, error: unknown) => void },
 }));
 vi.mock("../../lib/supabase", () => ({
     createServerSupabase: vi.fn(() => h.state!.db),
@@ -387,6 +387,16 @@ describe("creating and changing a request", () => {
                 .matter_request_events.filter((row) => row.action === "status_changed")
                 .map((row) => (row.detail as { to: string }).to),
         ).toEqual(["in_review", "with_client", "with_counterparty", "closed", "in_review", "cancelled"]);
+    });
+
+    it("keeps an applied change when its history row cannot be written", async () => {
+        as(EDITOR);
+        const made = await create();
+        h.state!.failNext("matter_request_events", "insert", { message: "down" });
+        const res = await request(app).patch(`${base}/${made.body.id}`).send({ version: made.body.version, status: "in_review" });
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe("in_review");
+        expect(actions(made.body.id)).toEqual(["created"]);
     });
 
     it("refuses a closing date before the received date or on an open request", async () => {

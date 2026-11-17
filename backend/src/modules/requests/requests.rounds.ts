@@ -192,14 +192,13 @@ export async function linkRound(
     if (error && isRecord(error) && error.code === "23505")
       return failure("conflict", "That version is already a round of the request.", ROUND_ALREADY_LINKED_CODE);
     if (error || !inserted) return internalFailure(error);
-    const event = await recordRequestEvent(db, {
+    await recordRequestEvent(db, {
       requestId,
       matterId: access.matterId,
       actorUserId: actor.userId,
       action: "round_linked",
       detail: { round_number: roundNumber, document_id: found.document_id, version_id: versionId },
     });
-    if (!event.ok) return event;
     return ok({
       ...(inserted as unknown as RoundRow),
       version_number: found.version_number,
@@ -230,14 +229,13 @@ export async function unlinkRound(
     if (error) return internalFailure(error);
     if (!data) return failure("not_found", NOT_FOUND);
     const row = data as unknown as { round_number: number; document_id: string; version_id: string };
-    const event = await recordRequestEvent(db, {
+    await recordRequestEvent(db, {
       requestId,
       matterId: access.matterId,
       actorUserId: actor.userId,
       action: "round_unlinked",
       detail: { round_number: row.round_number, document_id: row.document_id, version_id: row.version_id },
     });
-    if (!event.ok) return event;
     return ok({ removed: true });
   } catch (error) {
     return internalFailure(error);

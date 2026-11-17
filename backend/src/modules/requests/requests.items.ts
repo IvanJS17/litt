@@ -219,23 +219,21 @@ export async function createMatterRequest(
       .single();
     if (error || !data) return internalFailure(error);
     const row = data as unknown as RequestRow;
-    const created = await recordRequestEvent(db, {
+    await recordRequestEvent(db, {
       requestId: row.id,
       matterId: row.matter_id,
       actorUserId: actor.userId,
       action: "created",
       detail: { type_id: row.type_id, complexity: row.complexity, status: row.status },
     });
-    if (!created.ok) return created;
     if (row.assignee_user_id) {
-      const assigned = await recordRequestEvent(db, {
+      await recordRequestEvent(db, {
         requestId: row.id,
         matterId: row.matter_id,
         actorUserId: actor.userId,
         action: "assigned",
         detail: { assignee_user_id: row.assignee_user_id, assignee_level: row.assignee_level },
       });
-      if (!assigned.ok) return assigned;
     }
     return detail(db, row);
   } catch (error) {
@@ -338,13 +336,12 @@ export async function updateMatterRequest(
       return failure("conflict", "The request changed since you read it.", VERSION_CONFLICT_CODE);
     const updated = data as unknown as RequestRow;
     for (const event of events) {
-      const recorded = await recordRequestEvent(db, {
+      await recordRequestEvent(db, {
         requestId: updated.id,
         matterId: updated.matter_id,
         actorUserId: actor.userId,
         ...event,
       });
-      if (!recorded.ok) return recorded;
     }
     return detail(db, updated);
   } catch (error) {
