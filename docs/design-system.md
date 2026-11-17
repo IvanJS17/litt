@@ -1049,6 +1049,21 @@ and the phone menu); what matters for the next change:
   an open one (Qwen). The page promises no price: only that you pay the AI
   provider for what you use, with no per-seat price. When the catalog
   changes, update `CATALOG_MODEL_IDS`.
+- **The hero's model menu** is the app's own, in a still picture: the
+  composer's `ModelMenuPreviewUI` (the same `ModelMenuBodyUI` the live picker
+  renders, with `DropdownStaticItem` rows and the real reasoning ladder), the
+  model chip (`ModelChipPreviewUI`) and the key chip (`KeyChipUI preview`, the
+  button `ChatCredentialPicker` also uses). It is `aria-hidden` and `inert` (no
+  focus, no handlers). Anthropic is collapsed with its count (four catalog
+  ids); under OpenRouter are two models a firm saves in Settings, named by
+  `routerModelOptions` the way the picker names any saved selection
+  (`PICKER_*` in `landingModels.ts`). They are not in the direct-provider
+  catalog, so `landingModels.test.ts` checks them against that naming and
+  asserts `docs/direct-provider-models.md` does *not* list them; the checks on
+  the catalog models stay as they were. On a desktop (960 px and up) the block
+  sits under the source, beside the chat; below that it follows the source in
+  one column, so a phone keeps the source next to the citation you tap and the
+  composer is no longer left out. The chips wrap onto two lines on a phone.
 - **The phone menu** (`LandingMobileMenu`, `useMobileMenu`; below 880 px). A
   disclosure, not a dialog: the button (`aria-expanded`, `aria-controls`,
   `aria-label`) stays outside the panel. While it is open the page behind
@@ -1067,9 +1082,11 @@ and the phone menu); what matters for the next change:
   and the menu are the only ones; every `animation` is inside
   `prefers-reduced-motion: no-preference` and the menu's transitions are
   switched off under `reduce`.
-- The theme control writes `litt:theme` on the device (a visitor has no
-  profile); the language control is the sign-in screens' `setLocale`. The
-  phone menu carries the same two controls as the footer.
+- The theme preference is written to `litt:theme` on the device (a visitor has
+  no profile) by the header's sun/moon icon on every width, and, on a phone,
+  by the Claro/Oscuro/Automático group in the phone menu (the icon is inert
+  while the menu is open). The footer has no theme control; it carries only
+  the language control, which is the sign-in screens' `setLocale`.
 
 ## Component catalog
 
