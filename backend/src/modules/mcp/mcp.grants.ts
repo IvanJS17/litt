@@ -2,7 +2,7 @@
 
 import type { Db } from "../../lib/supabase";
 import { AppError } from "../../lib/appError";
-import { recordMcpAudit } from "./mcp.audit";
+import { tryRecordMcpAudit } from "./mcp.audit";
 import { nowIso, type GrantRow } from "./mcp.shared";
 
 export const GRANT_COLUMNS =
@@ -51,7 +51,9 @@ export async function revokeGrant(
     if (tokens.error)
         throw new AppError("mcp.db_failed", "[mcp] token revoke failed", { cause: tokens.error });
 
-    await recordMcpAudit(db, {
+    // The revocation already happened: a lost audit row is reported, never
+    // turned into an error that would hide the revocation from the caller.
+    await tryRecordMcpAudit(db, {
         event: "grant_revoked",
         userId: revoked[0].user_id,
         clientId: revoked[0].client_id,

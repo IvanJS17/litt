@@ -558,6 +558,15 @@ describe("refresh token rotation", () => {
         expect((await refresh(clientId, token.body.refresh_token)).body.error).toBe("invalid_grant");
     });
 
+    it("reports the access token's real life when the grant ends sooner", async () => {
+        const { clientId, token } = await connect();
+        tables().mcp_grants[0].expires_at = new Date(Date.now() + 600_000).toISOString();
+        const res = await refresh(clientId, token.body.refresh_token);
+        expect(res.status).toBe(200);
+        expect(res.body.expires_in).toBeGreaterThan(590);
+        expect(res.body.expires_in).toBeLessThanOrEqual(600);
+    });
+
     it("stops at the grant's absolute lifetime", async () => {
         const { clientId, token } = await connect();
         tables().mcp_grants[0].expires_at = "2000-01-01T00:00:00.000Z";
@@ -573,6 +582,15 @@ describe("revocation", () => {
         expect((await rpc("tools/list", token.body.access_token)).status).toBe(401);
         expect((await request(app).post("/oauth/revoke").type("form").send({ token: "nothing-like-it" })).status).toBe(200);
         expect(tables().mcp_oauth_audit.filter((r) => r.event === "grant_revoked")).toHaveLength(1);
+    });
+
+    it("still answers 200 when the audit row of a done revocation cannot be written", async () => {
+        const { clientId, token } = await connect();
+        h.state!.failNext("mcp_oauth_audit", "insert", { message: "down" });
+        const res = await request(app).post("/oauth/revoke").type("form").send({ token: token.body.refresh_token, client_id: clientId });
+        expect(res.status).toBe(200);
+        expect(tables().mcp_grants[0].revoked_at).toBeTruthy();
+        expect((await rpc("tools/list", token.body.access_token)).status).toBe(401);
     });
 
     it("ignores a revocation sent in another client's name", async () => {

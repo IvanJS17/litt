@@ -52,12 +52,14 @@ export async function issueTokens(db: Db, grant: GrantRow): Promise<TokenRespons
         config.refreshTtlSeconds,
         Math.floor((Date.parse(grant.expires_at) - Date.now()) / 1000),
     );
+    // Both tokens end with the grant; `expires_in` reports the access token's real life.
+    const accessLifetime = Math.min(config.accessTtlSeconds, Math.max(refreshLifetime, 1));
     const { error } = await db.from("mcp_oauth_tokens").insert([
         {
             grant_id: grant.id,
             kind: "access",
             token_hash: sha256Hex(access),
-            expires_at: nowIso(Math.min(config.accessTtlSeconds, Math.max(refreshLifetime, 1))),
+            expires_at: nowIso(accessLifetime),
         },
         {
             grant_id: grant.id,
@@ -70,7 +72,7 @@ export async function issueTokens(db: Db, grant: GrantRow): Promise<TokenRespons
     return {
         access_token: access,
         token_type: "Bearer",
-        expires_in: config.accessTtlSeconds,
+        expires_in: accessLifetime,
         refresh_token: refresh,
         scope: grant.scopes.join(" "),
     };
