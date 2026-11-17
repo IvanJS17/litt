@@ -512,8 +512,12 @@ describe("the sent history", () => {
     it("is read by every member of the matter, newest first", async () => {
         as(EDITOR);
         await request(app).post(`${base}/90d/sent`).send({ note: "primero" });
+        // memoryDb applies no column defaults (prod: now()), so seed distinct created_at.
+        tables().matter_report_sent_events[0].created_at = "2026-11-17T18:00:00.000Z";
         vi.setSystemTime(new Date("2026-11-18T18:00:00Z"));
         await request(app).post(`${base}/60d/sent`).send({ note: "segundo" });
+        tables().matter_report_sent_events[1].created_at = "2026-11-18T18:00:00.000Z";
+        expect(tables().matter_report_sent_events.map((row: { note: string }) => row.note)).toEqual(["primero", "segundo"]);
         for (const [user, canWrite] of [[OWNER, true], [EDITOR, true], [VIEWER, false], [TECH, false]] as const) {
             as(user);
             const res = await request(app).get(`${base}/sent`);

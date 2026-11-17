@@ -73,7 +73,7 @@ describe.skipIf(!container)("retainer report sent records in PostgreSQL", () => 
     afterAll(() => {
         if (created)
             execFileSync("docker", ["exec", container!, "dropdb", "-U", "postgres", "--force", database]);
-    });
+    }, 60_000);
 
     beforeEach(() => {
         // Replica mode skips the guard triggers (insert-only) for the cleanup only.
