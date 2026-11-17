@@ -2134,6 +2134,73 @@ export async function revokeMcpGrant(grantId: string): Promise<void> {
     });
 }
 
+/** One thing a connection did lately: which tool, when, where and how it ended. Never its content. */
+export interface McpGrantCall {
+    tool: string;
+    at: string;
+    /** `personal`, an organization id, or null when the call named no workspace. */
+    workspace: string | null;
+    outcome: "ok" | "error" | "denied" | "rate_limited";
+}
+
+/** A conversation a connection started in the person's LiTT history. */
+export interface McpGrantChat {
+    id: string;
+    title: string | null;
+    /** The matter it belongs to, if any. */
+    project_id: string | null;
+    /** `personal` or an organization id. */
+    workspace: string;
+    created_at: string;
+}
+
+export interface McpGrantActivity {
+    calls: McpGrantCall[];
+    chats: McpGrantChat[];
+}
+
+const MCP_OUTCOMES = ["ok", "error", "denied", "rate_limited"] as const;
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * What one connection did lately and the conversations it started
+ * (GET /mcp-connect/grants/:id/activity). Anything in the answer that is not
+ * the shape promised is dropped rather than shown: a malformed row never
+ * reaches the screen, and a malformed answer reads as no activity.
+ */
+export async function getMcpGrantActivity(grantId: string): Promise<McpGrantActivity> {
+    const raw = await apiRequest<unknown>(
+        "mcp.grants",
+        `/mcp-connect/grants/${encodeURIComponent(grantId)}/activity`,
+    );
+    const body = isPlainRecord(raw) ? raw : {};
+    const calls: McpGrantCall[] = [];
+    for (const row of Array.isArray(body.calls) ? body.calls : []) {
+        if (!isPlainRecord(row) || typeof row.tool !== "string" || typeof row.at !== "string") continue;
+        calls.push({
+            tool: row.tool,
+            at: row.at,
+            workspace: typeof row.workspace === "string" ? row.workspace : null,
+            outcome: (MCP_OUTCOMES as readonly unknown[]).includes(row.outcome)
+                ? (row.outcome as McpGrantCall["outcome"])
+                : "error",
+        });
+    }
+    const chats: McpGrantChat[] = [];
+    for (const row of Array.isArray(body.chats) ? body.chats : []) {
+        if (!isPlainRecord(row) || typeof row.id !== "string" || typeof row.created_at !== "string") continue;
+        chats.push({
+            id: row.id,
+            title: typeof row.title === "string" ? row.title : null,
+            project_id: typeof row.project_id === "string" ? row.project_id : null,
+            workspace: typeof row.workspace === "string" ? row.workspace : "personal",
+            created_at: row.created_at,
+        });
+    }
+    return { calls, chats };
+}
+
 export type { DeletedOrganization } from "@mike/contracts";
 export type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
 

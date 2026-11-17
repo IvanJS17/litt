@@ -4,6 +4,21 @@ export {
 } from "./chat.access";
 export { getChatMessages } from "./chat.messages";
 export {
+  withChatOrigin,
+  listChatsCreatedByGrant,
+  type ChatOrigin,
+  type GrantChat,
+} from "./chat.origin";
+export {
+  assistantText,
+  activeChatTurn,
+  loadChatHistory,
+  readChatTurn,
+  stopChatTurn,
+  type ChatTurnState,
+  type ChatTurnStatus,
+} from "./chat.history";
+export {
   listChats,
   createChat,
   deleteChat,

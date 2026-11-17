@@ -110,3 +110,14 @@ export async function listGrantsForUser(db: Db, userId: string): Promise<GrantSu
         expires_at: g.expires_at,
     }));
 }
+
+/** The app's name for a client id, as shown to the person; the id itself when it has none. */
+export async function clientNameOf(db: Db, clientId: string): Promise<string> {
+    const { data, error } = await db
+        .from("mcp_oauth_clients")
+        .select("client_name")
+        .eq("client_id", clientId)
+        .maybeSingle();
+    if (error) throw new AppError("mcp.db_failed", "[mcp] client name failed", { cause: error });
+    return (data as { client_name?: string } | null)?.client_name?.trim() || clientId;
+}

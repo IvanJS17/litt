@@ -71,6 +71,7 @@ export async function recordMcpAuditEvent(
         surface: MCP_AUDIT_SURFACE,
         projectId: args.refs?.projectId ?? null,
         documentId: args.refs?.documentId ?? null,
+        chatId: args.refs?.chatId ?? null,
         detail: {
             grant_id: args.principal.grantId,
             client_id: args.principal.clientId,
@@ -87,6 +88,7 @@ export async function recordMcpAuditEvent(
 export type McpAuditRefs = {
     projectId?: string | null;
     documentId?: string | null;
+    chatId?: string | null;
     versionId?: string | null;
     playbookId?: string | null;
     reviewId?: string | null;
@@ -121,4 +123,63 @@ export async function recordMcpEgress(
             characters: args.characters,
         },
     });
+}
+
+/**
+ * A reply of LiTT's assistant left LiTT for the client's AI (design §7.4):
+ * which conversation and message, how many characters, to which client. It
+ * THROWS, and the tool writes it before the text is returned.
+ */
+export async function recordMcpChatEgress(
+    db: Db,
+    args: {
+        principal: McpPrincipal;
+        workspace: string | null;
+        chatId: string;
+        messageId: string;
+        characters: number;
+    },
+): Promise<void> {
+    await insertAuditEvent(db, {
+        userId: args.principal.userId,
+        orgId: args.workspace && args.workspace !== "personal" ? args.workspace : null,
+        action: "mcp.chat_egress",
+        surface: MCP_AUDIT_SURFACE,
+        chatId: args.chatId,
+        detail: {
+            grant_id: args.principal.grantId,
+            client_id: args.principal.clientId,
+            workspace: args.workspace,
+            message_id: args.messageId,
+            characters: args.characters,
+        },
+    });
+}
+
+export type RecentToolCall = {
+    tool: string;
+    at: string;
+    workspace: string | null;
+    outcome: McpCallOutcome;
+};
+
+/**
+ * What a connection did lately, newest first: tool, time, workspace and how it
+ * ended. The table holds nothing else, so there is no content to leave out.
+ */
+export async function listRecentToolCalls(
+    db: Db,
+    args: { grantId: string; userId: string; limit: number },
+): Promise<RecentToolCall[]> {
+    const { data, error } = await db
+        .from("mcp_tool_calls")
+        .select("tool, created_at, workspace, outcome")
+        .eq("grant_id", args.grantId)
+        .eq("user_id", args.userId)
+        .order("created_at", { ascending: false })
+        .limit(args.limit);
+    if (error) throw new AppError("mcp.db_failed", "[mcp] recent calls failed", { cause: error });
+    return ((data ?? []) as { tool: string; created_at: string; workspace: string | null; outcome: McpCallOutcome }[]).map(
+        (row) => ({ tool: row.tool, at: row.created_at, workspace: row.workspace, outcome: row.outcome }),
+    );
 }

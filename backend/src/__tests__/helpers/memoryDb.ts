@@ -79,6 +79,10 @@ export function memoryDb(
                 filters.push((row) => row[column] === value);
                 return builder;
             },
+            neq: (column: string, value: unknown) => {
+                filters.push((row) => row[column] !== value);
+                return builder;
+            },
             is: (column: string, value: unknown) => {
                 filters.push((row) => (row[column] ?? null) === value);
                 return builder;

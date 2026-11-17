@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { GlassCardUI, PillButtonUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
@@ -8,9 +9,11 @@ import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import {
   MikeApiError,
+  getMcpGrantActivity,
   listMcpGrants,
   revokeMcpGrant,
   type McpGrant,
+  type McpGrantActivity,
 } from "@/app/lib/mikeApi";
 import { reportFault, type UserFacingError } from "@/app/lib/userFacingError";
 
@@ -20,6 +23,93 @@ const knownScope = (scope: string): KnownScope | null => {
   const name = scope.startsWith("litt.") ? scope.slice("litt.".length) : scope;
   return (KNOWN_SCOPES as readonly string[]).includes(name) ? (name as KnownScope) : null;
 };
+
+/**
+ * What one connection did lately (tool, time, workspace, outcome: never
+ * content) and the conversations it started, which open in LiTT's history.
+ * Loaded when the person asks for it.
+ */
+function GrantActivity({
+  grantId,
+  workspaceName,
+  onError,
+}: {
+  grantId: string;
+  workspaceName: (id: string) => string;
+  onError: (error: UserFacingError) => void;
+}) {
+  const t = useTranslations("settings.connectedApps");
+  const format = useFormatter();
+  const [activity, setActivity] = useState<McpGrantActivity | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    getMcpGrantActivity(grantId).then(
+      (loaded) => live && setActivity(loaded),
+      (caught) => {
+        if (!live) return;
+        setActivity({ calls: [], chats: [] });
+        onError(reportFault(caught, { action: t("activityLoadAction"), operation: "mcp.grants" }));
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [grantId, onError, t]);
+
+  if (!activity) return <p className="text-sm text-gray-500">{t("activityLoading")}</p>;
+  const when = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short" });
+  return (
+    <div className="space-y-3 border-t border-gray-200 pt-3">
+      <div className="space-y-1">
+        <h3 className="text-sm font-medium text-gray-900">{t("activityHeading")}</h3>
+        <p className="text-xs text-gray-500">{t("activityNote")}</p>
+        {activity.calls.length === 0 ? (
+          <p className="text-sm text-gray-600">{t("activityEmpty")}</p>
+        ) : (
+          <ul className="space-y-0.5 text-sm text-gray-700">
+            {activity.calls.map((call, index) => (
+              <li key={`${call.at}-${index}`} className="break-words">
+                {t("activityLine", {
+                  tool: call.tool,
+                  date: when(call.at),
+                  workspace: call.workspace ? workspaceName(call.workspace) : t("noWorkspace"),
+                  outcome: t(`outcome.${call.outcome}`),
+                })}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="space-y-1">
+        <h3 className="text-sm font-medium text-gray-900">{t("conversationsHeading")}</h3>
+        {activity.chats.length === 0 ? (
+          <p className="text-sm text-gray-600">{t("conversationsEmpty")}</p>
+        ) : (
+          <ul className="space-y-0.5 text-sm text-gray-700">
+            {activity.chats.map((chat) => (
+              <li key={chat.id} className="break-words">
+                <Link
+                  className="text-interactive underline"
+                  href={
+                    chat.project_id
+                      ? `/projects/${chat.project_id}/assistant/chat/${chat.id}`
+                      : `/assistant/chat/${chat.id}`
+                  }
+                >
+                  {chat.title?.trim() || t("untitledChat")}
+                </Link>{" "}
+                <span className="text-xs text-gray-500">
+                  {workspaceName(chat.workspace)} · {when(chat.created_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * The apps (Claude, ChatGPT, Hermes…) the person let into their account:
@@ -34,6 +124,7 @@ export function ConnectedAppsSection() {
   const [grants, setGrants] = useState<McpGrant[] | null>(null);
   const [notEnabled, setNotEnabled] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [showing, setShowing] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<UserFacingError | null>(null);
 
@@ -62,6 +153,7 @@ export function ConnectedAppsSection() {
       await revokeMcpGrant(grant.id);
       setGrants((current) => (current ?? []).filter((g) => g.id !== grant.id));
       setConfirming(null);
+      setShowing(null);
     } catch (caught) {
       if (caught instanceof MikeApiError && caught.status === 404) {
         // Already gone (revoked elsewhere): the list was stale.
@@ -75,6 +167,7 @@ export function ConnectedAppsSection() {
     }
   }
 
+  const reportActivityError = useCallback((failure: UserFacingError) => setError(failure), []);
   const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
   const workspaceName = (id: string) =>
     id === "personal"
@@ -150,15 +243,34 @@ export function ConnectedAppsSection() {
                       </div>
                     </div>
                   ) : (
-                    <PillButtonUI
-                      tone="whiteDanger"
-                      type="button"
-                      onClick={() => setConfirming(grant.id)}
-                    >
-                      {t("revoke")}
-                    </PillButtonUI>
+                    <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                      <PillButtonUI
+                        tone="white"
+                        type="button"
+                        aria-expanded={showing === grant.id}
+                        onClick={() => setShowing(showing === grant.id ? null : grant.id)}
+                      >
+                        {showing === grant.id ? t("activityHide") : t("activityShow")}
+                      </PillButtonUI>
+                      <PillButtonUI
+                        tone="whiteDanger"
+                        type="button"
+                        onClick={() => setConfirming(grant.id)}
+                      >
+                        {t("revoke")}
+                      </PillButtonUI>
+                    </div>
                   )}
                 </div>
+                {showing === grant.id && (
+                  <div className="mt-3">
+                    <GrantActivity
+                      grantId={grant.id}
+                      workspaceName={workspaceName}
+                      onError={reportActivityError}
+                    />
+                  </div>
+                )}
               </GlassCardUI>
             </li>
           ))}

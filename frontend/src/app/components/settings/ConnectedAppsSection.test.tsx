@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConnectedAppsSection } from "./ConnectedAppsSection";
-import { MikeApiError, listMcpGrants, revokeMcpGrant, type McpGrant } from "@/app/lib/mikeApi";
+import { MikeApiError, getMcpGrantActivity, listMcpGrants, revokeMcpGrant, type McpGrant, type McpGrantActivity } from "@/app/lib/mikeApi";
 
 vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
@@ -11,6 +11,7 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
     listMcpGrants: vi.fn(),
     revokeMcpGrant: vi.fn(),
+    getMcpGrantActivity: vi.fn(),
 }));
 
 const grant = (over: Partial<McpGrant> = {}): McpGrant => ({
@@ -31,6 +32,7 @@ const apiError = (status: number) => new MikeApiError({ message: "x", status, co
 beforeEach(() => {
     vi.mocked(listMcpGrants).mockReset();
     vi.mocked(revokeMcpGrant).mockReset();
+    vi.mocked(getMcpGrantActivity).mockReset();
 });
 afterEach(cleanup);
 
@@ -107,5 +109,90 @@ describe("ConnectedAppsSection", () => {
         fireEvent.click(screen.getByRole("button", { name: "Yes, remove" }));
         expect(await screen.findByRole("alert")).toBeTruthy();
         expect(screen.getByText("Claude")).toBeTruthy();
+    });
+});
+
+describe("ConnectedAppsSection activity", () => {
+    const activity = (over: Partial<McpGrantActivity> = {}): McpGrantActivity => ({
+        calls: [
+            { tool: "start_chat", at: "2026-11-16T10:00:00.000Z", workspace: "org-1", outcome: "ok" },
+            { tool: "get_chat", at: "2026-11-16T09:00:00.000Z", workspace: null, outcome: "denied" },
+            { tool: "list_chats", at: "2026-11-16T08:00:00.000Z", workspace: "personal", outcome: "rate_limited" },
+        ],
+        chats: [
+            { id: "c1", title: "Renta del contrato", project_id: null, workspace: "personal", created_at: "2026-11-16T10:00:01.000Z" },
+            { id: "c2", title: "  ", project_id: "p1", workspace: "org-1", created_at: "2026-11-16T10:05:00.000Z" },
+        ],
+        ...over,
+    });
+
+    it("shows what the app did and the conversations it started, with links, only when asked", async () => {
+        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        vi.mocked(getMcpGrantActivity).mockResolvedValue(activity());
+        render(<ConnectedAppsSection />);
+        const toggle = await screen.findByRole("button", { name: "Show activity" });
+        expect(getMcpGrantActivity).not.toHaveBeenCalled();
+        fireEvent.click(toggle);
+        expect(screen.getByText("Loading activity…")).toBeTruthy();
+        expect(await screen.findByText("Recent activity")).toBeTruthy();
+        expect(getMcpGrantActivity).toHaveBeenCalledWith("g1");
+        expect(screen.getByText(/^start_chat · .* · Firm A · Done$/)).toBeTruthy();
+        expect(screen.getByText(/^get_chat · .* · No workspace · Not allowed$/)).toBeTruthy();
+        expect(screen.getByText(/^list_chats · .* · Personal · Too many requests$/)).toBeTruthy();
+        expect(screen.getByText(/never the content/)).toBeTruthy();
+        expect(screen.getByRole("link", { name: "Renta del contrato" }).getAttribute("href")).toBe("/assistant/chat/c1");
+        expect(screen.getByRole("link", { name: "Untitled conversation" }).getAttribute("href")).toBe("/projects/p1/assistant/chat/c2");
+        fireEvent.click(screen.getByRole("button", { name: "Hide activity" }));
+        expect(screen.queryByText("Recent activity")).toBeNull();
+    });
+
+    it("says so when the app has done nothing and started nothing", async () => {
+        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        vi.mocked(getMcpGrantActivity).mockResolvedValue(activity({ calls: [], chats: [] }));
+        render(<ConnectedAppsSection />);
+        fireEvent.click(await screen.findByRole("button", { name: "Show activity" }));
+        expect(await screen.findByText("This app has not done anything yet.")).toBeTruthy();
+        expect(screen.getByText(/has not started any conversation/)).toBeTruthy();
+    });
+
+    it("reports a failure to load and shows an empty record", async () => {
+        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        vi.mocked(getMcpGrantActivity).mockImplementation(() => Promise.reject(apiError(500)));
+        render(<ConnectedAppsSection />);
+        fireEvent.click(await screen.findByRole("button", { name: "Show activity" }));
+        expect(await screen.findByRole("alert")).toBeTruthy();
+        expect(await screen.findByText("This app has not done anything yet.")).toBeTruthy();
+    });
+
+    it("ignores an answer that arrives after the panel was closed", async () => {
+        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        let finish!: (value: McpGrantActivity) => void;
+        let fail!: (reason: unknown) => void;
+        vi.mocked(getMcpGrantActivity)
+            .mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+            .mockImplementationOnce(() => new Promise((_resolve, reject) => (fail = reject)));
+        render(<ConnectedAppsSection />);
+        fireEvent.click(await screen.findByRole("button", { name: "Show activity" }));
+        fireEvent.click(screen.getByRole("button", { name: "Hide activity" }));
+        finish(activity());
+        fireEvent.click(screen.getByRole("button", { name: "Show activity" }));
+        fireEvent.click(screen.getByRole("button", { name: "Hide activity" }));
+        fail(apiError(500));
+        await Promise.resolve();
+        expect(screen.queryByText("Recent activity")).toBeNull();
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("closes the panel when the connection is removed", async () => {
+        vi.mocked(listMcpGrants).mockResolvedValue([grant(), grant({ id: "g2", client_name: "Hermes" })]);
+        vi.mocked(getMcpGrantActivity).mockResolvedValue(activity());
+        vi.mocked(revokeMcpGrant).mockResolvedValue(undefined);
+        render(<ConnectedAppsSection />);
+        fireEvent.click((await screen.findAllByRole("button", { name: "Show activity" }))[0]);
+        await screen.findByText("Recent activity");
+        fireEvent.click(screen.getAllByRole("button", { name: "Remove access" })[0]);
+        fireEvent.click(screen.getByRole("button", { name: "Yes, remove" }));
+        await waitFor(() => expect(screen.queryByText("Recent activity")).toBeNull());
+        expect(screen.getByText("Hermes")).toBeTruthy();
     });
 });

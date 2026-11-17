@@ -4,7 +4,7 @@
 // access rules from lib/access to these tables). Synthetic data only.
 
 import { randomUUID } from "node:crypto";
-import { checkProjectAccess, ensureDocAccess } from "../../lib/access";
+import { checkProjectAccess, ensureChatAccess, ensureDocAccess } from "../../lib/access";
 import type { Db } from "../../lib/supabase";
 import { memoryDb, type Row } from "./memoryDb";
 
@@ -138,6 +138,10 @@ export function buildWorld() {
             { id: "77777777-0000-4000-8000-000000000001", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 0, content: JSON.stringify({ summary: "$10,000 MXN mensuales", flag: "green", reasoning: "Cláusula primera" }), citations: [{ document_id: DOC_PUBLIC, quote: "renta mensual de $10,000 MXN" }], status: "done", generation_id: null },
             { id: "77777777-0000-4000-8000-000000000002", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 1, content: null, citations: null, status: "pending", generation_id: null },
         ],
+        chats: [],
+        chat_messages: [],
+        chat_access_grants: [],
+        citation_support_checks: [],
         project_access_grants: [],
         memory_files: [],
         matters: [],
@@ -157,6 +161,25 @@ export function buildWorld() {
                     !tables.private_matter_team.some((t) => t.project_id === id && t.user_id === p_user_id),
             ),
         mcp_oauth_purge: () => null,
+        // The chats the person could open (lib/access's own rule per row), newest first.
+        get_chats_overview: async (args) => {
+            const rows: Row[] = [];
+            for (const chat of tables.chats) {
+                const workspace = args.p_workspace as string | undefined;
+                if (workspace && workspace !== (chat.org_id ?? "personal")) continue;
+                const access = await ensureChatAccess(chat as never, String(args.p_user_id), String(args.p_user_email ?? ""), db);
+                if (!access.ok) continue;
+                const project = tables.projects.find((p) => p.id === chat.project_id);
+                rows.push({
+                    id: chat.id, project_id: chat.project_id ?? null, user_id: chat.user_id, title: chat.title ?? null,
+                    model: chat.model ?? null, created_at: chat.created_at, updated_at: chat.updated_at,
+                    project_name: project?.name ?? null, is_owner: chat.user_id === args.p_user_id, access_role: access.projectRole,
+                });
+            }
+            rows.sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+            const offset = Number(args.p_offset ?? 0);
+            return rows.slice(offset, offset + (args.p_limit == null ? rows.length : Number(args.p_limit)));
+        },
         org_item_is_ownerless: () => false,
         get_projects_overview: async (args) => {
             const user = String(args.p_user_id);

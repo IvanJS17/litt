@@ -17,6 +17,7 @@ import { resolveContentOrgId, resolveStandaloneOrgId } from "../../lib/access";
 import { workspaceRpcArg, type WorkspaceFilter } from "../../lib/workspace";
 import { validateAccessibleProjectId } from "./chat.access";
 import { withChatLeaveAccess } from "./chat.sharing";
+import { withChatOrigin } from "./chat.origin";
 
 // ---------------------------------------------------------------------------
 // Non-streaming endpoints
@@ -53,7 +54,9 @@ export async function listChats(
     const result = await withChatLeaveAccess(db, data ?? [], args.userEmail);
     if (!result.ok)
         return { ok: false, error: result.kind === "error" ? result.error : result.detail };
-    return { ok: true, data: result.data };
+    const withOrigin = await withChatOrigin(db, result.data);
+    if (!withOrigin.ok) return { ok: false, error: withOrigin.error };
+    return { ok: true, data: withOrigin.data };
 }
 
 // POST /chat/create

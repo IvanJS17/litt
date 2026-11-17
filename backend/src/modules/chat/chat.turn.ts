@@ -72,6 +72,7 @@ import {
 import type { Db } from "../../lib/supabase";
 import { discardRejectedChatInput } from "./chat.crud";
 import { prepareChatStream, type PreparedChatStream } from "./chat.prepare";
+import type { ChatOrigin } from "./chat.origin";
 import { updateChatTitle } from "./chat.titles";
 
 
@@ -223,6 +224,8 @@ export async function startChatTurn(
         userEmail: string | undefined;
         requestId: string | undefined;
         parsed: ParsedChatTurnRequest;
+        /** The connected app a NEW chat is started from; the web passes none. */
+        origin?: ChatOrigin;
     },
 ): Promise<{ ok: true; started: StartedChatTurn } | StartChatTurnFailure> {
     const { userId, userEmail, requestId, parsed } = args;
@@ -264,6 +267,7 @@ export async function startChatTurn(
             routes: parsed.training.criteriaRoutes,
             explanation: parsed.training.criteriaExplanation,
         },
+        ...(args.origin ? { origin: args.origin } : {}),
     });
     if (!prep.ok) {
         if ("internal" in prep) {
