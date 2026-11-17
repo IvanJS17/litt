@@ -9,6 +9,7 @@ import {
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import { type Db } from "../../lib/supabase";
+import { loadUserMatterRequests } from "./matterRequestsExport";
 import {
     resolvePlaybookRoles,
     type PlaybookAccessRow,
@@ -806,6 +807,9 @@ export async function buildUserAccountExport(
         }),
     ]);
 
+    // Retainer requests that name the holder, in matters they can still open.
+    const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId);
+
     const playbooks = await loadUserPlaybooks(
         db,
         userId,
@@ -893,6 +897,8 @@ export async function buildUserAccountExport(
             [TRAINING_EXPORT_KEYS.training_gym_attempts]: trainingGymAttempts,
             [TRAINING_EXPORT_KEYS.training_gym_cases]: trainingGymCases,
         },
+        matter_requests: matterRequests.requests,
+        matter_request_events: matterRequests.events,
         audit_events: auditEvents,
     };
 }

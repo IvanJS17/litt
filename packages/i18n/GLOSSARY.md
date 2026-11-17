@@ -31,6 +31,10 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | Inglés | Español (es-MX) | Nota |
 |---|---|---|
 | matter | asunto | Plural: asuntos. |
+| request (of a retainer matter) | solicitud | Lo que el cliente pide dentro de una iguala. Plural: solicitudes. |
+| retainer (matter) | iguala | El asunto de servicio continuo de un cliente; solo estos asuntos reciben solicitudes. |
+| negotiation round | ronda de negociación | Una versión de documento ligada a una solicitud; el número de rondas mide el esfuerzo, nunca horas. |
+| request type | tipo de solicitud | Catálogo editable por despacho. |
 | workspace | espacio de trabajo | |
 | tabular review | revisión tabular | |
 | playbook | playbook | Se queda en inglés; plural: playbooks. |

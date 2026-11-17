@@ -9,6 +9,7 @@ import {
   DRIVE_FOLDER_ID_PATTERN,
   listMattersWithoutOwner,
   readMatterDriveFolder,
+  setMatterRetainer,
   updateMatterDriveFolder,
 } from "./matters.service";
 
@@ -93,6 +94,28 @@ matterSettingsRouter.patch(
       matter_id: ids.matterId,
       identity,
       drive_folder_id: folder.value,
+    });
+    if (!result.ok) return sendServiceFailure(res, result);
+    return res.json(result.data);
+  },
+);
+
+/** Mark or unmark a matter as a retainer (the matter owner; docs/matter-requests.md). */
+matterSettingsRouter.put(
+  "/:matterId/retainer",
+  requireAuth,
+  requireMfaIfEnrolled,
+  async (req, res) => {
+    const body: unknown = req.body;
+    const result = await setMatterRetainer(createServerSupabase(), {
+      userId: res.locals.userId as string,
+      userEmail: (res.locals.userEmail as string | undefined) ?? null,
+      projectId: req.params.projectId,
+      matterId: req.params.matterId,
+      isRetainer:
+        typeof body === "object" && body !== null && !Array.isArray(body)
+          ? (body as { is_retainer?: unknown }).is_retainer
+          : undefined,
     });
     if (!result.ok) return sendServiceFailure(res, result);
     return res.json(result.data);

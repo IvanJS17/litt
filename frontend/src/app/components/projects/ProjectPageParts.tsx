@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import {
     Brain,
+    ClipboardList,
     CornerDownRight,
     Loader2,
     Pencil,
@@ -420,6 +421,7 @@ export function ProjectPageHeader({
     onProjectRoot,
     onOpenDetails,
     onOpenMemory,
+    onOpenRequests,
     onDeleteProject,
     onSearchChange,
     onOpenAccess,
@@ -446,6 +448,8 @@ export function ProjectPageHeader({
     onProjectRoot: () => void;
     onOpenDetails: () => void;
     onOpenMemory: () => void;
+    /** Present when the project belongs to a private matter: opens its requests. */
+    onOpenRequests?: (() => void) | null;
     onDeleteProject: () => void;
     onSearchChange: (search: string) => void;
     onOpenAccess: () => void;
@@ -553,6 +557,16 @@ export function ProjectPageHeader({
                                         onSelect: onOpenMemory,
                                         disabled: !roleKnown,
                                     },
+                                    ...(onOpenRequests
+                                        ? [
+                                              {
+                                                  label: t("requests.title"),
+                                                  icon: ClipboardList,
+                                                  onSelect: onOpenRequests,
+                                                  disabled: !roleKnown,
+                                              },
+                                          ]
+                                        : []),
                                     {
                                         // Kept visible below admin so the
                                         // refusal can name someone who can

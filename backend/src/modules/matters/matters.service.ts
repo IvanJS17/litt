@@ -40,6 +40,19 @@ import {
 } from "../../lib/serviceResult";
 
 export {
+  authorizeMatterMember,
+  MATTER_WRITE_REQUIRED_CODE,
+  type MatterAccess,
+  type MatterMemberRole,
+} from "./matters.access";
+export {
+  MATTER_NOT_PRIVATE_CODE,
+  RETAINER_HAS_REQUESTS_CODE,
+  setMatterRetainer,
+  type MatterRetainerState,
+} from "./matters.retainer";
+
+export {
   assignMatterOwner,
   listMattersWithoutOwner,
   type MatterOwnerAssignment,

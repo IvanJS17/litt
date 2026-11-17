@@ -6273,3 +6273,132 @@ export async function deletePlaybook(playbookId: string): Promise<void> {
         method: "DELETE",
     });
 }
+
+// ---------------------------------------------------------------------------
+// Requests inside a retainer matter (docs/matter-requests.md)
+// ---------------------------------------------------------------------------
+
+const matterRequestsPath = (projectId: string, matterId: string) =>
+    `/projects/${encodeURIComponent(projectId)}/matters/${encodeURIComponent(matterId)}`;
+const jsonInit = (method: string, body: unknown): RequestInit => ({
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+});
+
+export async function listMatterRequests(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").MatterRequestList> {
+    return apiRequest("matter.requests", `${matterRequestsPath(projectId, matterId)}/requests`);
+}
+
+export async function getMatterRequest(
+    projectId: string,
+    matterId: string,
+    requestId: string,
+): Promise<import("@mike/contracts").MatterRequestDetail> {
+    return apiRequest(
+        "matter.requests",
+        `${matterRequestsPath(projectId, matterId)}/requests/${encodeURIComponent(requestId)}`,
+    );
+}
+
+export async function createMatterRequest(
+    projectId: string,
+    matterId: string,
+    input: import("@mike/contracts").MatterRequestInput,
+): Promise<import("@mike/contracts").MatterRequestDetail> {
+    return apiRequest(
+        "matter.requests",
+        `${matterRequestsPath(projectId, matterId)}/requests`,
+        jsonInit("POST", input),
+    );
+}
+
+export async function updateMatterRequest(
+    projectId: string,
+    matterId: string,
+    requestId: string,
+    patch: import("@mike/contracts").MatterRequestPatch,
+): Promise<import("@mike/contracts").MatterRequestDetail> {
+    return apiRequest(
+        "matter.requests",
+        `${matterRequestsPath(projectId, matterId)}/requests/${encodeURIComponent(requestId)}`,
+        jsonInit("PATCH", patch),
+    );
+}
+
+export async function linkMatterRequestRound(
+    projectId: string,
+    matterId: string,
+    requestId: string,
+    input: import("@mike/contracts").MatterRequestRoundInput,
+): Promise<import("@mike/contracts").MatterRequestRound> {
+    return apiRequest(
+        "matter.requests",
+        `${matterRequestsPath(projectId, matterId)}/requests/${encodeURIComponent(requestId)}/rounds`,
+        jsonInit("POST", input),
+    );
+}
+
+export async function unlinkMatterRequestRound(
+    projectId: string,
+    matterId: string,
+    requestId: string,
+    roundId: string,
+): Promise<{ removed: true }> {
+    return apiRequest(
+        "matter.requests",
+        `${matterRequestsPath(projectId, matterId)}/requests/${encodeURIComponent(requestId)}/rounds/${encodeURIComponent(roundId)}`,
+        { method: "DELETE" },
+    );
+}
+
+/** Mark or unmark the matter as a retainer (the matter owner). */
+export async function setMatterRetainer(
+    projectId: string,
+    matterId: string,
+    isRetainer: boolean,
+): Promise<{ matter_id: string; is_retainer: boolean }> {
+    return apiRequest(
+        "matter.requests",
+        `${matterRequestsPath(projectId, matterId)}/retainer`,
+        jsonInit("PUT", { is_retainer: isRetainer }),
+    );
+}
+
+export async function listRequestTypes(
+    orgId: string,
+): Promise<import("@mike/contracts").MatterRequestTypeList> {
+    const list = await apiRequest<import("@mike/contracts").MatterRequestTypeList>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/request-types`,
+    );
+    // A reply without the catalog is a failed load, not an empty catalog.
+    if (!Array.isArray(list?.types)) throw new Error("Malformed request types response");
+    return list;
+}
+
+export async function createRequestType(
+    orgId: string,
+    name: string,
+): Promise<import("@mike/contracts").MatterRequestType> {
+    return apiRequest(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/request-types`,
+        jsonInit("POST", { name }),
+    );
+}
+
+export async function updateRequestType(
+    orgId: string,
+    typeId: string,
+    patch: { name?: string; archived?: boolean; sort_order?: number },
+): Promise<import("@mike/contracts").MatterRequestType> {
+    return apiRequest(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/request-types/${encodeURIComponent(typeId)}`,
+        jsonInit("PATCH", patch),
+    );
+}
