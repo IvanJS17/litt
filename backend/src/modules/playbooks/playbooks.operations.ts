@@ -2697,6 +2697,29 @@ export async function getPlaybookRun(
 }
 
 /**
+ * The newest live version of a run's document that already existed when the
+ * run started: the version the run reviewed. Runs do not store it, so it is
+ * derived from the version timeline.
+ */
+export async function findReviewedVersionId(
+  db: Db,
+  documentId: string,
+  startedAt: string,
+): Promise<string | null> {
+  const { data, error } = await db
+    .from("document_versions")
+    .select("id")
+    .eq("document_id", documentId)
+    .is("deleted_at", null)
+    .lte("created_at", startedAt)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.id as string | undefined) ?? null;
+}
+
+/**
  * A run stores each tracked change as it was made; accepting or rejecting it
  * later is recorded on the document, so read its current status back.
  */

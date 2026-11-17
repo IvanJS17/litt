@@ -223,7 +223,7 @@ workspace, playbook hash, document version and its content hash) derived from
 `DOWNLOAD_SIGNING_SECRET`; `submit_*` re-checks every permission as a new request, and a
 changed playbook (`playbook_changed`) refuses it. A document is refused with
 `document_changed` only when the prepared version's `content_sha256` changed; a newer
-version does not refuse it, and the review is saved against the ticket's version.
+version does not refuse it, and the findings are checked against the ticket's version (the run does not store which version it reviewed).
 Long work is start + poll: `run_*` waits `LITT_MCP_RUN_WAIT_MS` (default 45 000),
 then answers `running`; `get_playbook_run` / `get_tabular_run_status` follow it.
 Findings and cells are paged by cursor with a text budget per page.

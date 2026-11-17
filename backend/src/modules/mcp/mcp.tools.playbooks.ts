@@ -18,6 +18,7 @@ import { readStoredDocumentText } from "../documents/documents.service";
 import {
     getPlaybook,
     getPlaybookRun,
+    findReviewedVersionId,
     listAllPlaybookRuns,
     listPlaybooks,
     playbookConfiguration,
@@ -258,21 +259,6 @@ type RunView = {
     completedAt: string | null;
 };
 
-/** The newest live version of the run's document that already existed when the run started: what was reviewed. */
-async function reviewedVersionId(call: McpCall, run: RunView): Promise<string | null> {
-    const { data, error } = await call.db
-        .from("document_versions")
-        .select("id")
-        .eq("document_id", run.documentId)
-        .is("deleted_at", null)
-        .lte("created_at", run.startedAt)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-    if (error) throw serviceFailure("find the reviewed version", error);
-    return (data?.id as string | undefined) ?? null;
-}
-
 /**
  * A run as the client gets it. The findings quote the reviewed document, so
  * their text is returned as untrusted data, a page at a time, and recorded as
@@ -321,7 +307,9 @@ async function presentRun(
     try {
         const { doc } = await loadDocument(call, run.documentId);
         // The egress names the version the findings were written against, not the one the document has now.
-        versionId = (await reviewedVersionId(call, run)) ?? (doc.current_version_id as string | null) ?? run.documentId;
+        versionId = (await findReviewedVersionId(call.db, run.documentId, run.startedAt).catch((cause: unknown) => {
+            throw serviceFailure("find the reviewed version", cause);
+        })) ?? (doc.current_version_id as string | null) ?? run.documentId;
     } catch (error) {
         if (error instanceof McpToolError && error.code === "not_found")
             return { ...summary, findings: [], details_withheld: true };
