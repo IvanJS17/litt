@@ -22,6 +22,7 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
         let op: "select" | "insert" | "update" | "delete" = "select";
         let payload: Row | Row[] | undefined;
         let limit = Infinity;
+        let skip = 0;
         const orders: [string, boolean][] = [];
         let columns: string[] | null = null;
         // Copies, projected to the selected columns, as PostgREST returns them.
@@ -59,7 +60,7 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
                       return 0;
                   })
                 : matches;
-            return { data: sorted.slice(0, limit).map(project), error: null };
+            return { data: sorted.slice(skip, skip + limit).map(project), error: null };
         };
         const builder: Record<string, unknown> = {
             select: (list?: string) => {
@@ -105,6 +106,12 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
             },
             limit: (n: number) => {
                 limit = n;
+                return builder;
+            },
+            // Inclusive on both ends, as PostgREST's range().
+            range: (first: number, last: number) => {
+                skip = first;
+                limit = last - first + 1;
                 return builder;
             },
             insert: (value: Row | Row[]) => {

@@ -1,9 +1,19 @@
-// The tools /mcp offers. Real tools (matters, documents, playbooks, tabular,
-// chat) are declared here with defineMcpTool and get scope enforcement, the
+// The tools /mcp offers. Each one is declared with defineMcpTool in a
+// mcp.tools.<topic>.ts file (context, matters, documents, uploads; playbooks,
+// tabular and chat come later) and listed here. They get scope enforcement, the
 // per-grant budget, the live workspace check and the audit from mcp.tools.ts.
 
 import { z } from "zod";
 import { defineMcpTool, mcpText, type AnyMcpTool } from "./mcp.tools";
+import { listWorkspaces } from "./mcp.tools.context";
+import { findMatters, getMatter } from "./mcp.tools.matters";
+import {
+    listDocumentVersions,
+    listMatterDocuments,
+    readDocument,
+    searchDocuments,
+} from "./mcp.tools.documents";
+import { completeDocumentUpload, getUploadStatus, requestDocumentUpload } from "./mcp.tools.uploads";
 
 export const whoami = defineMcpTool({
     name: "whoami",
@@ -27,4 +37,16 @@ export const whoami = defineMcpTool({
         }),
 });
 
-export const MCP_TOOLS: readonly AnyMcpTool[] = [whoami];
+export const MCP_TOOLS: readonly AnyMcpTool[] = [
+    whoami,
+    listWorkspaces,
+    findMatters,
+    getMatter,
+    listMatterDocuments,
+    searchDocuments,
+    readDocument,
+    listDocumentVersions,
+    requestDocumentUpload,
+    completeDocumentUpload,
+    getUploadStatus,
+];

@@ -722,12 +722,16 @@ describe("/mcp", () => {
         expect((await rpc("tools/list", token.body.access_token)).status).toBe(401);
     });
 
-    it("lists the whoami tool with a valid token", async () => {
+    it("lists the tools of the read scope with a valid token, and none that write", async () => {
         const { token } = await connect();
         const res = await rpc("tools/list", token.body.access_token);
         expect(res.status).toBe(200);
         const body = res.body.result ? res.body : JSON.parse(String(res.text).match(/data: (.*)/)![1]);
-        expect(body.result.tools.map((t: { name: string }) => t.name)).toEqual(["whoami"]);
+        const names = body.result.tools.map((t: { name: string }) => t.name);
+        expect(names).toContain("whoami");
+        expect(names).toContain("find_matters");
+        // The default connection holds litt.read only: no tool that adds a document is offered.
+        expect(names).not.toContain("request_document_upload");
     });
 
     it("answers whoami with the grant's principal", async () => {
