@@ -1,77 +1,67 @@
 # LiTT Project Status
 
 > Canonical operational status for this fork. Kanban cards are execution receipts,
-> not the project roadmap or source of truth. Dated history up to 2026-11-13 is in
+> not the project roadmap or source of truth. Dated history up to 2026-11-16 is in
 > [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md).
 
-**Last reconciled:** 2026-11-16<br>
+**Last reconciled:** 2026-11-17<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
-**Upstream:** `Open-Legal-Products/mike` (fetch-only; policy in [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md))
+**Upstream:** `Open-Legal-Products/mike` (fetch-only; pin and intake in [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md))
 
 ## In production
 
-- **Service:** <https://litt.asteroitt.com>, closed beta by invitation. Deploy
-  `20261116a` (release `prod-20261116a`), `RELEASE_SHA` `a0b6e6d38`, with every
-  pull request up to #200. Each deploy is published as a GitHub release.
-- **Access:** invitations are issued by platform administrators
-  (`PLATFORM_ADMIN_EMAILS`); only they create firms. Beta statistics are for
-  platform administrators only, counts only, audited ([`beta-stats.md`](beta-stats.md)).
-- **Managed accounts:** a firm setting; accounts created by the firm's
-  invitation have no personal space, existing accounts keep theirs
-  ([`managed-accounts.md`](managed-accounts.md)).
-- **Layers 1 to 7:** firm tenancy and private matters, training, playbooks,
-  document conversion and comparison, scanned-PDF reading with LandingAI
-  (optional; the person's or the firm's own key, never a platform key,
-  [`document-ocr.md`](document-ocr.md)) and «Separar expediente»
-  ([`document-split.md`](document-split.md)). See
-  [`training.md`](training.md), [`playbooks.md`](playbooks.md),
-  [`document-conversion.md`](document-conversion.md),
-  [`document-compare.md`](document-compare.md).
-- **Firm profile** (#191): a description the assistant reads in the firm's chats
-  ([`firm-profile.md`](firm-profile.md)).
-- **Settings** (#193, #195): two homes (personal and firm), a granular key
-  policy, training with mentors and pupils (one mentor per pupil per firm), text
-  size. See [`settings-map.md`](settings-map.md).
-- **Interface** (#194, #195): composer sheet; Newsreader and Departure Mono
-  typography; Light, Dark or Auto theme (`user_profiles.theme`, migration
-  `20261114_10`, replaces `dark_mode`); surface tokens `--surface-desk`, `-sheet`,
-  `-float`, `-field`, `-document`; sticky Settings sidebar. See
-  [`design-system.md`](design-system.md).
-- **Connectors** (#198): Notion and Airtable are suggested one-click MCP
-  presets, per person and per workspace; there is no firm-shared MCP connector
-  ([`connectors.md`](connectors.md)).
-- **Citation support check** (#199): TypeSafe Jev in **silent** mode, a
-  platform service with the platform's `TYPESAFE_API_KEY`, on in production
-  (`LITT_CITATION_CHECK=enabled`). Covers the web chat, project chats and cloud
-  Word chat; each person can opt out in Settings → Privacy and data; results go
-  to `citation_support_checks` for the beta statistics and the lawyer sees
-  nothing. `LEGAL_VERSION` is `2026-11-15`. Tabular review (cells and chat) and
-  playbook drafts are connected in code, pending the owner's confirmation of the
-  legal wording and the migration `20261116_10`
-  ([`citation-support-check.md`](citation-support-check.md)).
-- **Google connectors** (#200): the Google variables are passed to the backend
-  in `deploy/prod/compose.yaml` and Drive is off by default, but there is **no
-  OAuth client yet**, so nobody can connect Google. The owner postponed Google
-  work ([`google-workspace.md`](google-workspace.md)).
-- **Operations** (#196, #197): test-stability fixes; small reservations;
-  PostgREST limited to 256 MiB with no swap. Deploy and backup procedure:
-  [`deploy/prod/README.md`](../deploy/prod/README.md).
+- **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
+- **Deploy:** `20261117a`, tag `prod-20261117a`, `RELEASE_SHA` `eb39f0d98` (full SHA
+  `eb39f0d987c9c8eb1cf0aaf879b94edfb8a85f61`). Earlier deploys: tags `prod-20261116a`
+  to `prod-20261116i`. Each deploy is a GitHub release.
+- **Contents:** every pull request up to #225, merged and deployed 2026-11-16/17.
+- **Migrations:** applied through `20261117_10_litt_chat_origin.sql`.
+- **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
+  Beta statistics are for platform administrators only, counts only, audited
+  ([`beta-stats.md`](beta-stats.md)).
+- **Deploy and backup procedure:** [`deploy/prod/README.md`](../deploy/prod/README.md).
+
+## What is on and off
+
+| Capability | Production state | Notes |
+| --- | --- | --- |
+| Firm tenancy, matters, training, playbooks, document conversion and comparison | on | Layers 1 to 4. See [`training.md`](training.md), [`playbooks.md`](playbooks.md), [`document-conversion.md`](document-conversion.md), [`document-compare.md`](document-compare.md). |
+| Scan reading (OCR) | on, optional | LandingAI with the person's or the firm's own key; no platform key. [`document-ocr.md`](document-ocr.md) |
+| Split a case file | on | Layer 7. A browser run with a real case file is not done. [`document-split.md`](document-split.md) |
+| Citation support check (TypeSafe Jev, silent) | on (`LITT_CITATION_CHECK=enabled`) | Web chat, project chats, Word cloud chat, tabular cells and tabular chat, playbook drafts. Each person can opt out. The lawyer sees no result. Legal wording for cells and drafts is not yet confirmed (TD-047). [`citation-support-check.md`](citation-support-check.md) |
+| Client profile, matter requests, deadline radar | on (no flag) | Deployed with the 2026-11-16 release. [`client-profile.md`](client-profile.md), [`matter-requests.md`](matter-requests.md), [`deadline-radar.md`](deadline-radar.md) |
+| Firm profile, settings map, managed accounts, text size, Light/Dark/Auto theme | on | [`firm-profile.md`](firm-profile.md), [`settings-map.md`](settings-map.md), [`managed-accounts.md`](managed-accounts.md), [`design-system.md`](design-system.md) |
+| Notion and Airtable connectors (per person and per workspace) | on | Suggested one-click MCP presets. No firm-shared connector. [`connectors.md`](connectors.md) |
+| LiTT MCP server (`/mcp`, OAuth) | **off** (`LITT_MCP_SERVER=disabled`) | Code is deployed; the chat tools (PR #226) are merged to `main` after this deploy. Being enabled, not yet on; the public host `mcp.litt.asteroitt.com` (PR #227) is under review. [`mcp-server.md`](mcp-server.md) |
+| Chat subagents, web search | on (compose default `enabled`) | [`subagents.md`](subagents.md), [`web-search.md`](web-search.md) |
+| Google Drive, Gmail, Calendar | **off** | No Google OAuth client exists; the owner postponed Google work. [`google-workspace.md`](google-workspace.md) |
+| Microsoft 365 and Dropbox connectors | not built | Announced as in design. No code. |
+
+The repository defaults are `disabled` for `LITT_CITATION_CHECK` and `LITT_MCP_SERVER`
+in `deploy/prod/.env.example` and `deploy/prod/compose.yaml`; production sets them
+through its own `.env`.
 
 ## Open items
 
-Tracked in [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md) and [`followups.md`](followups.md).
-The ones that matter now:
+The authoritative list is [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md) (debt with exit
+criteria) and [`followups.md`](followups.md) (technical follow-ups). The ones that
+matter now:
 
-- Confirm that the legal wording covers the tabular and playbook citation
-  checks before deploying them (TD-047); showing the result to the lawyer needs
-  its own legal text.
-- Two frontend tests are flaky under load (TD-046).
-- PostgREST memory growth is contained, not fixed; root cause is upstream (TD-048).
-- Google: create the OAuth client and verify scopes before enabling any service.
-- Not yet done: a browser flow of «Separar expediente» with a real case file.
+- Owner confirmation of the legal wording that covers citation checks on tabular
+  cells and playbook drafts (TD-047). Those checks are already live.
+- MCP: enable the public host after PR #227 is merged. Mode B does not store the
+  reviewed version (TD-049).
+- PostgREST memory grows slowly; contained by a 256 MiB limit with no swap. Re-measure
+  by 2026-11-22 (TD-048).
+- Flaky backend and frontend tests seen in CI on 2026-11-14 (TD-050).
+- Google: create the OAuth client and verify scopes before enabling any Google service.
+- Not run yet: a browser flow of «Separar expediente» with a real case file.
+- Owner-only checks: real iPhone test of the mobile menu; Word add-in install on
+  Microsoft 365.
 
 ## Governance
 
-Release gates: [`RELEASE_GATES.md`](RELEASE_GATES.md). Upstream sync rules:
-[`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md). Update this file when integration or
-production state changes.
+Release gates: [`RELEASE_GATES.md`](RELEASE_GATES.md). Upstream rules and pin:
+[`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md). Upstream cycle 12 (PR #205) is merged;
+the next weekly intake is Monday 2026-11-23, 09:00 (America/Mexico_City). Update this
+file when integration or production state changes.
