@@ -18,17 +18,50 @@ function sourceFiles(dir: string): string[] {
     });
 }
 
+// The MCP server's own records are insert-only too (design §7.4).
+const INSERT_ONLY_TABLES = ["audit_events", "mcp_tool_calls", "mcp_oauth_audit"];
+
 describe("audit_events is insert-only in the backend", () => {
     it("no source file updates, upserts or deletes audit rows", () => {
         const offenders: string[] = [];
         for (const file of sourceFiles(SRC)) {
             const text = readFileSync(file, "utf8");
-            for (const match of text.matchAll(/from\(\s*["']audit_events["']\s*\)/g)) {
+            for (const match of text.matchAll(
+                new RegExp(`from\\(\\s*["'](?:${INSERT_ONLY_TABLES.join("|")})["']\\s*\\)`, "g"),
+            )) {
                 const chain = text.slice(match.index, text.indexOf(";", match.index));
                 if (/\.(update|upsert|delete)\s*\(/.test(chain))
                     offenders.push(relative(SRC, file));
             }
         }
         expect(offenders).toEqual([]);
+    });
+});
+
+describe("mcp_tool_calls is insert-only in the database", () => {
+    const root = resolve(SRC, "../..");
+    const migration = readFileSync(
+        join(root, "backend/migrations/20261116_40_litt_mcp_tool_calls.sql"),
+        "utf8",
+    );
+    const schema = readFileSync(join(root, "backend/schema.sql"), "utf8");
+
+    it.each([
+        ["the migration", migration],
+        ["schema.sql", schema],
+    ])("%s refuses UPDATE and DELETE and closes the table to clients", (_name, sql) => {
+        expect(sql).toMatch(
+            /create trigger mcp_tool_calls_insert_only_trigger\s+before update or delete on public\.mcp_tool_calls/,
+        );
+        expect(sql).toContain("alter table public.mcp_tool_calls enable row level security;");
+        expect(sql).toContain("revoke all on public.mcp_tool_calls from anon, authenticated;");
+    });
+
+    it("keeps no argument, result or text column", () => {
+        const table = migration.slice(
+            migration.indexOf("create table if not exists public.mcp_tool_calls"),
+            migration.indexOf(");", migration.indexOf("create table if not exists public.mcp_tool_calls")),
+        );
+        expect(table).not.toMatch(/\b(args|arguments|result|content|text_body|payload|detail)\b/);
     });
 });
