@@ -1,5 +1,7 @@
 # Firm profile
 
+**Status:** Shipped in production (PR #191); no flag. Owners and admins write it; members read it.
+
 A short, optional description of the firm (not of people) that the assistant reads
 in every chat of the firm's workspace, so answers fit its jurisdiction and practice.
 

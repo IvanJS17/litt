@@ -4,6 +4,56 @@ Technical follow-ups that are not yet done, grouped by area. Each item names the
 pull request where it was found. Items marked **(unverified)** were not confirmed
 against the current code and need checking before they are scheduled.
 
+**Authority:** the debt with exit criteria is in [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md).
+This file lists follow-ups by area. Where it and the debt ledger disagree, the ledger wins.
+Sections below that say a PR is pending or a test is flaky were written before the
+2026-11-16 and 2026-11-17 fixes; the «Current open items» section is the up-to-date part.
+
+## Current open items (2026-11-17)
+
+Checked against `origin/main` at `1e11b983b` (production deploy `20261117d`), 2026-11-17, from the
+reviewer notes of PRs #193 to #233.
+
+- **Closed since the last list:** MCP tables missing `service_role` grants (PR #229; the
+  two MCP migrations had no grant and production's `public` schema has no default
+  privileges, so registration failed with `42501` right after the flag was enabled;
+  guard test `littTableGrants.test.ts`; lesson: every new table needs its grants in the
+  same migration); radar paging and item order (#224, `ad7f318df`);
+  MCP `origin_label` fencing and test doubles (#226); tabular review and playbook
+  drafts are connected to the citation support check (#202); the flaky frontend tests
+  named in TD-046 (`17edecc62`).
+- **Open: real Claude/ChatGPT test pending.** MCP is on in production (`20261117c`) and
+  the live checks pass, but no owner account has yet logged in from Claude or ChatGPT and
+  run a tool call. Close it when that works and is recorded here.
+- **Open, in the debt ledger:** TD-047 (legal wording of the citation checks), TD-048
+  (PostgREST memory, re-measure by 2026-11-22), TD-049 (MCP mode B run record), TD-050
+  (flaky backend and frontend tests from the 2026-11-14 CI runs).
+- **Open, not yet in the ledger** (reviewer reservations; fix status **(unverified)**):
+  - Scan reading (#175): a reading can stay `processing` if the enqueue fails; a
+    re-read clears the stored pages before the new call; the cost estimate after a
+    partial reading counts fewer pages than it resends; a LibreOffice failure after the
+    deadline is labelled a timeout.
+  - Split (#182): the Split button shows on documents of the flow and library, where
+    the server answers `split_not_supported`; `document.split_sent` is recorded only on success.
+  - Markdown diff (#187): `splitMarkdownBlocks` is quadratic on long runs of blank
+    lines (16k lines took 1.4 s); the one-line fix is `i = next - 1`.
+  - Settings and i18n (#193, #194, #197): an unescaped RegExp in `tabForPath`; a
+    prototype walk in `field in PROFILE_FIELD_KEYS` (use `Object.hasOwn`); the live
+    region for labels remounts instead of staying mounted; the audit label for
+    `training.pupil_ended_by_role` is missing.
+  - Theme (#195, #204): «Automático» does not follow the Office theme live in Word;
+    the saved theme is not applied before the first paint, so the footer pill animates
+    for about 0.3 s.
+  - Radar (#223): `isIsoDate` accepts years 0000 to 0999.
+  - Tabular (#202, #203): clearing cells does not delete their verifications; citation
+    references for tabular need a lighter endpoint (the tabular chat loads them whole).
+- **Owner-only checks:** a real iPhone test of the mobile menu (Safari and Chrome iOS);
+  a Word desktop and web host matrix; Word add-in install on Microsoft 365.
+- **Not built:** Google connectors (no OAuth client; postponed by the owner);
+  Microsoft 365 and Dropbox connectors (in design).
+
+## Reviewer reservations and older items
+
 Checked against `main` at `cf84ddd1`, 2026-11-08; the section «Markdown, version compare and web search (#150–#155)» against `3752c539`, 2026-11-11. Items closed by later pull
 requests (including #132–#134 and the legal-reference rewrite in #134, which
 removed the `lawReferences`/`lawNamedAt` logic) are not listed.
@@ -271,14 +321,13 @@ Also: the plural guard covers only «times», «veces» and «marked turns» (#1
 
 ## Citation support check (Jev) and tests (2026-11-16)
 
-- Tabular review and playbooks are not connected to the citation support check:
-  tabular builds citations with `buildCitations`, which bypasses
-  `verifyCitations`. Decide whether to connect them. See
-  [`citation-support-check.md`](citation-support-check.md). (#199)
-- Showing the check's result to the lawyer needs its own text from the legal
-  counsel; until then it is stored for the beta statistics only. (#199)
-- Flaky tests under load: the `ApiKeyField` 2 s timer in
-  `frontend/src/app/settings/byok/page.test.tsx`, and a timeout in
-  `i18nLiterals.test.ts`. (#196)
-- PostgREST memory growth is contained by the 256 MiB limit with no swap; the
-  root cause is upstream. (#197)
+- Live in production for chat, project chat, Word cloud chat, tabular cells and tabular
+  chat, and playbook drafts (`#199`, `#202`). Still outside it: playbook rules built from
+  corrections or proposals, Word chats kept only on the device, and quotes the server
+  cannot place in a text. See [`citation-support-check.md`](citation-support-check.md).
+- Showing the check's result to the lawyer needs its own legal text; until then it is
+  stored for the beta statistics only (TD-047).
+- Flaky tests under load: the `ApiKeyField` timer and the `i18nLiterals` timeout are
+  closed (TD-046); later flaky tests are TD-050.
+- PostgREST memory growth is contained by the 256 MiB limit with no swap; the root cause
+  is upstream (TD-048).

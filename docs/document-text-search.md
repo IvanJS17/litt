@@ -1,5 +1,7 @@
 # Stored document text and agent search
 
+**Status:** Shipped in production (no flag).
+
 Every live document version has a derived text record in `document_version_texts`.
 Uploading a version or changing its source path, content hash, or file type queues
 `document.extract_text` in the same transaction. A two-second delay coalesces rapid

@@ -1,5 +1,7 @@
 # Playbooks
 
+**Status:** Shipped in production; no flag.
+
 LiTT playbooks convert a human-authored Word or PDF negotiation guide into
 structured rules that can review contracts.
 

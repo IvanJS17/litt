@@ -1,5 +1,7 @@
 # Requests inside a retainer matter
 
+**Status:** Shipped in production (shipped by deploy `20261117a`); no flag.
+
 A retainer matter (an *iguala*) is a matter whose client sends the firm a
 stream of small requests. LiTT keeps those requests inside the matter: what each
 one is, its type, complexity, who has it and at what cost level, where it stands,

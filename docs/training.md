@@ -1,5 +1,7 @@
 # Training: mentors, pupils, stages, supervision and criterion (layers 1 to 3)
 
+**Status:** Shipped in production; no flag.
+
 LiTT lets a firm mark the people it is training and change, for them only, how
 the assistant answers. This document describes the behavior and the rules as
 implemented. Nothing here changes anything for a person without a stage.

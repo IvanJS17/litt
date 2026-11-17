@@ -1,5 +1,7 @@
 # Preset contract templates
 
+**Status:** Shipped, empty: the preset catalog ships with no entries in LiTT.
+
 **In LiTT the catalog ships empty.** The upstream collection (General Legal,
 Common Paper and Bonterms) is US practice material and is not offered as a base
 for Mexican work. The Presets page, import flow and integrity checks stay; a

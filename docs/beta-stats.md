@@ -1,5 +1,7 @@
 # Beta statistics (platform administrators)
 
+**Status:** Shipped in production; platform administrators only; no flag.
+
 Settings > «Estadísticas de la beta» (`/settings/beta-stats`), backed by
 `GET /platform/stats`. Only emails in `PLATFORM_ADMIN_EMAILS` get it (the same
 check as the beta invitations); anyone else receives 403 `platform_admin_required`.
