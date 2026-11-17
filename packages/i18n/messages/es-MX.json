@@ -1221,6 +1221,9 @@
       "member_data_action_disabled": "Los propietarios de este despacho no permiten que los miembros hagan esto.",
       "memory_revision_conflict": "La memoria cambió desde que se cargó. Revisa lo que está guardado ahora e inténtalo de nuevo.",
       "mfa_verification_required": "Completa la verificación en dos pasos para continuar.",
+      "obligation_anchor_required": "Elige la fecha confirmada desde la que cuenta la regla.",
+      "obligation_anchor_unavailable": "Esa fecha ya no es un dato confirmado de este asunto. Elige otra.",
+      "obligation_rule_unverified": "Esta regla aún no la verifica un abogado contra su fuente oficial, así que no se puede activar.",
       "ocr_key_invalid": "LandingAI no aceptó la llave de API. Revísala en Ajustes.",
       "ocr_key_missing": "Agrega una llave de LandingAI en Ajustes para leer escaneados.",
       "ocr_no_credits": "Tu cuenta de LandingAI no tiene créditos.",
@@ -1239,9 +1242,9 @@
       "playbook_not_draft": "Solo un borrador puede recibir cambios propuestos. Usa este playbook como punto de partida para obtener una copia.",
       "playbook_proposals_running": "Se están calculando los cambios propuestos para este playbook. Espera a que terminen.",
       "profile_fact_limit": "Esta ficha llegó al máximo de datos permitidos.",
+      "quote_not_found": "Esa frase no aparece en la versión elegida del documento. Cópiala tal cual del documento.",
       "radar_item_closed": "Este vencimiento ya se atendió. Recarga el radar para ver su estado.",
       "radar_reason_required": "Escribe el motivo para descartar este vencimiento.",
-      "quote_not_found": "Esa frase no aparece en la versión elegida del documento. Cópiala tal cual del documento.",
       "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
       "request_too_large": "La solicitud es demasiado grande.",
       "request_version_conflict": "Esta solicitud cambió desde que la abriste. Recárgala para continuar.",
@@ -3434,7 +3437,8 @@
     "type": {
       "expiry": "Vencimiento",
       "notice": "Último día para avisar",
-      "power_expiry": "Vencimiento del poder"
+      "power_expiry": "Vencimiento del poder",
+      "obligation_due": "Regla de obligación"
     },
     "when": {
       "onDate": "{date}",
@@ -3448,7 +3452,8 @@
     "rule": "Regla del documento: {rule}",
     "review": {
       "business_days": "El aviso es en días hábiles y LiTT no los calcula. Revisa la fecha con un abogado.",
-      "missing_date": "El dato no tiene una fecha desde la cual contar. Revísalo o vuelve a capturarlo en la ficha del cliente."
+      "missing_date": "El dato no tiene una fecha desde la cual contar. Revísalo o vuelve a capturarlo en la ficha del cliente.",
+      "anchor_unavailable": "La fecha desde la que cuenta esta regla ya no está confirmada. Elige otra en Reglas o vuelve a confirmarla en la ficha del cliente."
     },
     "state": {
       "open": "Abierto",
@@ -3494,6 +3499,182 @@
       "unnamedMatter": "Asunto sin nombre",
       "truncated": "Hay asuntos que no se muestran aquí. Abre el radar de cada asunto para verlos.",
       "note": "Tus asuntos de iguala: vencidos, próximos 30 días y por revisar."
+    },
+    "rules": {
+      "title": "Reglas",
+      "description": "Obligaciones cuyas fechas LiTT cuenta a partir de una fecha confirmada de la ficha del cliente. Un abogado activa cada una en este asunto y elige esa fecha. Solo se pueden activar las reglas verificadas contra su fuente oficial.",
+      "loading": "Cargando las reglas",
+      "couldNotLoad": "No se pudieron cargar las reglas.",
+      "couldNotChange": "No se pudo cambiar la regla.",
+      "empty": "Todavía no hay reglas disponibles.",
+      "status": {
+        "active": "Activa",
+        "off": "Apagada",
+        "unverified": "Sin verificar"
+      },
+      "verified": "Verificada por el equipo legal de LiTT. Fuentes consultadas el {date}.",
+      "unverifiedWhy": "Un abogado aún no verifica esta regla contra su fuente oficial, así que no se puede activar.",
+      "appliesWhen": "Cuándo aplica",
+      "countsFrom": "Cuenta desde",
+      "kind": {
+        "deadline": "Plazo",
+        "window": "Ventana",
+        "expiry": "Vencimiento"
+      },
+      "milestone": {
+        "due": "Vence",
+        "opens": "Abre",
+        "closes": "Cierra"
+      },
+      "op": {
+        "days": "{count, plural, one {# día natural} other {# días naturales}} {direction, select, before {antes} other {después}}",
+        "months": "{count, plural, one {# mes calendario} other {# meses calendario}} {direction, select, before {antes} other {después}}",
+        "years": "{count, plural, one {# año calendario} other {# años calendario}} {direction, select, before {antes} other {después}}",
+        "business_days": "{count, plural, one {# día hábil} other {# días hábiles}} (LiTT no calcula días hábiles)",
+        "month_start": "el primer día de ese mes",
+        "month_end": "el último día de ese mes",
+        "none": "la fecha misma",
+        "then": "y luego",
+        "line": "{milestone}: {steps}"
+      },
+      "businessDays": "Esta regla cuenta días hábiles. LiTT no los calcula: el vencimiento queda por revisar.",
+      "notes": "Notas del equipo legal",
+      "source": "Fuente: {law}, {location}",
+      "lastReform": "Última reforma: {value}",
+      "openSource": "Abrir la fuente oficial",
+      "quote": "Cita",
+      "turnOn": "Activar",
+      "turnOff": "Desactivar",
+      "working": "Guardando…",
+      "readOnly": "Solo los propietarios y editores del asunto pueden activar o desactivar reglas.",
+      "anchor": {
+        "label": "Fecha desde la que cuenta",
+        "choose": "Elige una fecha confirmada",
+        "option": "{label} · {date}",
+        "none": "Todavía no hay una fecha confirmada en la ficha del cliente. Confirma una primero.",
+        "confirm": "Activar con esta fecha",
+        "change": "Cambiar la fecha",
+        "cancel": "Cancelar",
+        "chosen": "Cuenta desde: {label} ({date})",
+        "gone": "La fecha elegida ya no está entre las fechas confirmadas.",
+        "firstCycle": "La fecha que elegí es la {from}: calcular desde ella el primer vencimiento",
+        "onlyIf": "Aplica solo si: {condition}. Revísalo tú.",
+        "cap": "Revisa tú el tope: máximo {years} años desde esa fecha.",
+        "modeFirstCycle": "primer vencimiento calculado desde la {from}"
+      },
+      "firstCycleFrom": {
+        "fecha_otorgamiento_registro": "fecha de otorgamiento del registro",
+        "fecha_presentacion_solicitud": "fecha de presentación de la solicitud",
+        "fecha_expedicion_certificado": "fecha de expedición del certificado"
+      },
+      "catalog": {
+        "lgsm_asamblea_ordinaria_anual": {
+          "name": "Asamblea general ordinaria anual de accionistas",
+          "appliesWhen": "Sociedad anónima, incluida S.A. de C.V. y S. en C. por A. (S.A.P.I.: confirmar estatutos); no SAS",
+          "anchor": "Fecha de cierre del ejercicio social (por regla general, 31 de diciembre)"
+        },
+        "lgsm_convocatoria_asamblea": {
+          "name": "Publicación de la convocatoria a asamblea general en el PSM",
+          "appliesWhen": "Sociedad anónima con asamblea general programada (no SAS)",
+          "anchor": "Fecha programada de la asamblea"
+        },
+        "lgsm_informe_administradores_disposicion": {
+          "name": "Informe anual de administradores (y de comisarios) a disposición de los accionistas",
+          "appliesWhen": "Sociedad anónima (no SAS)",
+          "anchor": "Fecha programada de la asamblea que discutirá el informe (normalmente, la ordinaria anual)"
+        },
+        "lgsm_sas_informe_financiero_anual": {
+          "name": "Publicación del informe anual de situación financiera de la SAS en el PSM",
+          "appliesWhen": "Sociedad por acciones simplificada (SAS)",
+          "anchor": "Fecha de cierre del ejercicio (31 de diciembre)"
+        },
+        "lgsm_sas_convocatoria_asamblea": {
+          "name": "Convocatoria a asamblea de accionistas de la SAS en el PSM",
+          "appliesWhen": "SAS con más de un accionista y asamblea programada",
+          "anchor": "Fecha programada de la asamblea (o fecha señalada para emitir el voto)"
+        },
+        "lisr_declaracion_anual_pm": {
+          "name": "Declaración anual del ISR de personas morales (régimen general)",
+          "appliesWhen": "Persona moral del régimen general de ley (Título II LISR)",
+          "anchor": "Fecha de terminación del ejercicio fiscal (por regla general, 31 de diciembre)"
+        },
+        "lft_ptu_reparto": {
+          "name": "Pago de la participación de los trabajadores en las utilidades (PTU)",
+          "appliesWhen": "Patrón persona moral con trabajadores, no exceptuado (LFT art. 126)",
+          "anchor": "Fecha en que vence la declaración anual del ISR (resultado de `lisr.declaracion_anual_pm`)"
+        },
+        "lft_ptu_copia_declaracion": {
+          "name": "Entrega a los trabajadores de copia de la declaración anual (base de la PTU)",
+          "appliesWhen": "Patrón obligado a repartir PTU",
+          "anchor": "Fecha de presentación real de la declaración anual"
+        },
+        "lft_cct_revision_salarial": {
+          "name": "Fecha límite para solicitar la revisión salarial anual del contrato colectivo",
+          "appliesWhen": "Patrón con contrato colectivo de trabajo (CCT) vigente",
+          "anchor": "Fecha de celebración, última revisión o prórroga del CCT"
+        },
+        "lft_cct_revision_integral": {
+          "name": "Fecha límite para solicitar la revisión integral (bienal) del contrato colectivo",
+          "appliesWhen": "Patrón con CCT por tiempo indeterminado, por obra determinada o por tiempo determinado mayor de 2 años",
+          "anchor": "Fecha de inicio del periodo de 2 años: la que establezca el CCT; en su defecto, la fecha de depósito (o de la última revisión integral)"
+        },
+        "lft_repse_renovacion": {
+          "name": "Renovación del registro REPSE (prestadoras de servicios u obras especializadas)",
+          "appliesWhen": "Persona inscrita en el Padrón REPSE de la STPS",
+          "anchor": "Fecha de inscripción en el Padrón (fecha del aviso de registro original o del nuevo registro tras una cancelación)"
+        },
+        "lfppi_marca_declaracion_uso": {
+          "name": "Declaración de uso real y efectivo de marca (al 3er año)",
+          "appliesWhen": "Titular de marca, aviso comercial o nombre comercial otorgado a partir del 10-08-2018",
+          "anchor": "Fecha de otorgamiento del registro (o de la publicación, para nombre comercial)"
+        },
+        "lfppi_marca_renovacion": {
+          "name": "Renovación de registro de marca (plazo ordinario)",
+          "appliesWhen": "Titular de marca registrada",
+          "anchor": "Fecha de vencimiento de la vigencia vigente. Primer ciclo, para registros otorgados desde el 10-08-2018: otorgamiento + 10 años"
+        },
+        "lfppi_signo_renovacion_gracia": {
+          "name": "Plazo de gracia para renovar marca, aviso comercial o nombre comercial",
+          "appliesWhen": "Titular de marca, aviso comercial o nombre comercial que no renovó en el plazo ordinario",
+          "anchor": "Fecha de vencimiento de la vigencia"
+        },
+        "lfppi_aviso_comercial_renovacion": {
+          "name": "Renovación de registro de aviso comercial",
+          "appliesWhen": "Titular de aviso comercial registrado",
+          "anchor": "Fecha de vencimiento de la vigencia (primer ciclo: otorgamiento + 10 años)"
+        },
+        "lfppi_nombre_comercial_renovacion": {
+          "name": "Renovación de la publicación de nombre comercial",
+          "appliesWhen": "Titular de nombre comercial publicado",
+          "anchor": "Fecha de vencimiento de los efectos de la publicación (primer ciclo: otorgamiento + 10 años)"
+        },
+        "lfppi_diseno_industrial_renovacion": {
+          "name": "Renovación de registro de diseño industrial (quinquenal)",
+          "appliesWhen": "Titular de diseño industrial registrado",
+          "anchor": "Fecha de vencimiento del quinquenio vigente (primer ciclo: fecha de presentación de la solicitud + 5 años)"
+        },
+        "lfda_reserva_derechos_renovacion_anual": {
+          "name": "Renovación de reserva de derechos (publicaciones y difusiones periódicas, eventos)",
+          "appliesWhen": "Titular de reserva de derechos sobre título de publicación o difusión periódica, o de evento artístico o cultural",
+          "anchor": "Fecha de vencimiento del certificado vigente (primer ciclo: expedición + 1 año)"
+        },
+        "lfda_reserva_derechos_renovacion_quinquenal": {
+          "name": "Renovación de reserva de derechos (personajes y nombres artísticos)",
+          "appliesWhen": "Titular de reserva sobre nombre o características de personaje, o sobre nombre o denominación de persona o grupo artístico",
+          "anchor": "Fecha de vencimiento del certificado vigente (primer ciclo: expedición + 5 años)"
+        },
+        "cff_efirma_vencimiento": {
+          "name": "Vencimiento del certificado de e.firma (FIEL) del cliente o de su representante",
+          "appliesWhen": "Persona moral o física con e.firma del SAT",
+          "anchor": "Fecha de expedición del certificado, o mejor aún, la fecha de vencimiento que aparece en el certificado"
+        }
+      }
+    },
+    "obligation": {
+      "source": "Fuente: {law}, {location}",
+      "quote": "Cita de la ley",
+      "opens": "La ventana abre el {date}",
+      "anchorFact": "Se cuenta desde: {fact}"
     }
   },
   "recovery": {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, bucketOf, daysBetween, isIsoDate, NEXT_WINDOW_DAYS, RADAR_TIME_ZONE, todayInMexicoCity } from "../radar.dates";
+import { addCalendar, addDays, addMonths, addYears, bucketOf, daysBetween, isIsoDate, NEXT_WINDOW_DAYS, RADAR_TIME_ZONE, todayInMexicoCity } from "../radar.dates";
 
 describe("calendar-day arithmetic", () => {
   it("moves by exact days", () => {
@@ -100,5 +100,79 @@ describe("buckets", () => {
 
   it("sends a day without a date to review", () => {
     expect(bucketOf(null, today)).toBe("review");
+  });
+});
+
+describe("calendar months and years: the end-of-month rule", () => {
+  it("keeps the day of the month when the target month has it", () => {
+    expect(addMonths("2026-11-16", 1)).toBe("2026-12-16");
+    expect(addMonths("2026-11-16", 0)).toBe("2026-11-16");
+    expect(addMonths("2026-11-16", -2)).toBe("2026-09-16");
+    expect(addMonths("2026-01-31", 2)).toBe("2026-03-31");
+  });
+
+  it("clamps to the last day of a shorter month (31 January + 1 month is the end of February)", () => {
+    expect(addMonths("2026-01-31", 1)).toBe("2026-02-28");
+    expect(addMonths("2028-01-31", 1)).toBe("2028-02-29");
+    expect(addMonths("2026-01-30", 1)).toBe("2026-02-28");
+    expect(addMonths("2028-01-30", 1)).toBe("2028-02-29");
+    expect(addMonths("2026-01-29", 1)).toBe("2026-02-28");
+    expect(addMonths("2028-01-29", 1)).toBe("2028-02-29");
+    expect(addMonths("2026-08-31", 1)).toBe("2026-09-30");
+    expect(addMonths("2026-03-31", 1)).toBe("2026-04-30");
+    expect(addMonths("2026-05-31", -1)).toBe("2026-04-30");
+    expect(addMonths("2026-03-31", -1)).toBe("2026-02-28");
+    expect(addMonths("2028-03-31", -1)).toBe("2028-02-29");
+  });
+
+  it("is not reversible by design: a clamped day does not come back", () => {
+    expect(addMonths(addMonths("2026-01-31", 1)!, 1)).toBe("2026-03-28");
+    expect(addMonths("2026-01-31", 2)).toBe("2026-03-31");
+  });
+
+  it("knows the leap years (2000 and 2028 are, 1900 and 2100 are not)", () => {
+    expect(addMonths("2000-01-31", 1)).toBe("2000-02-29");
+    expect(addMonths("2100-01-31", 1)).toBe("2100-02-28");
+    expect(addMonths("1900-01-31", 1)).toBe("1900-02-28");
+    expect(addMonths("2028-02-29", 12)).toBe("2029-02-28");
+    expect(addMonths("2028-02-29", 48)).toBe("2032-02-29");
+    expect(addMonths("2028-02-29", -12)).toBe("2027-02-28");
+  });
+
+  it("changes the year both ways", () => {
+    expect(addMonths("2026-12-15", 1)).toBe("2027-01-15");
+    expect(addMonths("2027-01-15", -1)).toBe("2026-12-15");
+    expect(addMonths("2026-11-30", 3)).toBe("2027-02-28");
+    expect(addMonths("2026-01-31", -2)).toBe("2025-11-30");
+    expect(addMonths("2026-06-15", 30)).toBe("2028-12-15");
+    expect(addMonths("2026-06-15", -30)).toBe("2023-12-15");
+    expect(addMonths("2026-12-31", 12)).toBe("2027-12-31");
+  });
+
+  it("adds years as twelve months, with the same rule for 29 February", () => {
+    expect(addYears("2026-11-16", 1)).toBe("2027-11-16");
+    expect(addYears("2028-02-29", 1)).toBe("2029-02-28");
+    expect(addYears("2028-02-29", 4)).toBe("2032-02-29");
+    expect(addYears("2028-02-29", -1)).toBe("2027-02-28");
+    expect(addYears("2026-11-16", 0)).toBe("2026-11-16");
+  });
+
+  it("answers null for anything that is not a date, a whole number, or that leaves the supported years", () => {
+    expect(addMonths("2026-02-30", 1)).toBeNull();
+    expect(addMonths("ayer", 1)).toBeNull();
+    expect(addMonths("2026-01-01", 1.5)).toBeNull();
+    expect(addMonths("2026-01-01", Number.NaN)).toBeNull();
+    expect(addMonths("9999-12-31", 1)).toBeNull();
+    expect(addMonths("1000-01-31", -1)).toBeNull();
+    expect(addMonths("9999-11-30", 1)).toBe("9999-12-30");
+    expect(addYears("2026-01-01", 0.5)).toBeNull();
+    expect(addYears("9999-06-01", 1)).toBeNull();
+  });
+
+  it("dispatches on the unit, and refuses a unit it does not know", () => {
+    expect(addCalendar("2026-01-31", "days", 1)).toBe("2026-02-01");
+    expect(addCalendar("2026-01-31", "months", 1)).toBe("2026-02-28");
+    expect(addCalendar("2026-01-31", "years", 1)).toBe("2027-01-31");
+    expect(addCalendar("2026-01-31", "weeks" as never, 1)).toBeNull();
   });
 });

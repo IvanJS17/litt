@@ -269,6 +269,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     radar_reason_required: "validation",
     invalid_radar_action: "validation",
     radar_item_closed: "conflict",
+    // Obligation rules: only a rule a lawyer verified can be turned on.
+    obligation_rule_unverified: "conflict",
+    obligation_anchor_required: "validation",
+    obligation_anchor_unavailable: "conflict",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
     // LiTT governed BYOK: a conversation keeps the route it was started on.

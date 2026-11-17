@@ -1221,6 +1221,9 @@
       "member_data_action_disabled": "This organization's owners haven't allowed members to do this.",
       "memory_revision_conflict": "Memory changed since it was loaded. Review what is saved now and try again.",
       "mfa_verification_required": "Finish two-factor verification to continue.",
+      "obligation_anchor_required": "Choose the confirmed date the rule counts from.",
+      "obligation_anchor_unavailable": "That date is no longer a confirmed fact of this matter. Choose another one.",
+      "obligation_rule_unverified": "This rule has not been verified by a lawyer against its official source, so it cannot be turned on.",
       "ocr_key_invalid": "LandingAI did not accept the API key. Check it in Settings.",
       "ocr_key_missing": "Add a LandingAI key in Settings to read scanned documents.",
       "ocr_no_credits": "Your LandingAI account has no credits.",
@@ -1239,9 +1242,9 @@
       "playbook_not_draft": "Only a draft can receive proposed changes. Use this playbook as a starting point to get a copy.",
       "playbook_proposals_running": "Proposed changes are being computed for this playbook. Wait for them to finish.",
       "profile_fact_limit": "This profile has reached the maximum number of facts.",
+      "quote_not_found": "That sentence does not appear in the chosen version of the document. Copy it exactly from the document.",
       "radar_item_closed": "This deadline was already handled. Reload the radar to see its state.",
       "radar_reason_required": "Write the reason for dismissing this deadline.",
-      "quote_not_found": "That sentence does not appear in the chosen version of the document. Copy it exactly from the document.",
       "rate_limited": "Too many requests. Wait a moment and try again.",
       "request_too_large": "The request is too large.",
       "request_version_conflict": "This request changed since you opened it. Reload it to continue.",
@@ -3434,7 +3437,8 @@
     "type": {
       "expiry": "Expiry",
       "notice": "Last day to give notice",
-      "power_expiry": "Power of attorney expiry"
+      "power_expiry": "Power of attorney expiry",
+      "obligation_due": "Obligation rule"
     },
     "when": {
       "onDate": "{date}",
@@ -3448,7 +3452,8 @@
     "rule": "Rule in the document: {rule}",
     "review": {
       "business_days": "The notice is in business days and LiTT does not calculate them. Have a lawyer review the date.",
-      "missing_date": "The fact has no date to count from. Review it or capture it again in the client profile."
+      "missing_date": "The fact has no date to count from. Review it or capture it again in the client profile.",
+      "anchor_unavailable": "The date this rule counts from is no longer confirmed. Choose another one in Rules, or confirm it again in the client profile."
     },
     "state": {
       "open": "Open",
@@ -3494,6 +3499,182 @@
       "unnamedMatter": "Unnamed matter",
       "truncated": "Some matters are not shown here. Open each matter's radar to see them.",
       "note": "Your retainer matters: overdue, next 30 days and to review."
+    },
+    "rules": {
+      "title": "Rules",
+      "description": "Obligations whose dates LiTT counts from a confirmed date of the client profile. A lawyer turns each one on for this matter and chooses that date. Only rules verified against their official source can be turned on.",
+      "loading": "Loading the rules",
+      "couldNotLoad": "The rules could not be loaded.",
+      "couldNotChange": "The rule could not be changed.",
+      "empty": "There are no rules available yet.",
+      "status": {
+        "active": "On",
+        "off": "Off",
+        "unverified": "Not verified"
+      },
+      "verified": "Verified by the LiTT legal team. Sources consulted on {date}.",
+      "unverifiedWhy": "A lawyer has not verified this rule against its official source yet, so it cannot be turned on.",
+      "appliesWhen": "When it applies",
+      "countsFrom": "Counts from",
+      "kind": {
+        "deadline": "Deadline",
+        "window": "Window",
+        "expiry": "Expiry"
+      },
+      "milestone": {
+        "due": "Due",
+        "opens": "Opens",
+        "closes": "Closes"
+      },
+      "op": {
+        "days": "{count, plural, one {# calendar day} other {# calendar days}} {direction, select, before {before} other {after}}",
+        "months": "{count, plural, one {# calendar month} other {# calendar months}} {direction, select, before {before} other {after}}",
+        "years": "{count, plural, one {# calendar year} other {# calendar years}} {direction, select, before {before} other {after}}",
+        "business_days": "{count, plural, one {# business day} other {# business days}} (LiTT does not calculate business days)",
+        "month_start": "the first day of that month",
+        "month_end": "the last day of that month",
+        "none": "the date itself",
+        "then": "then",
+        "line": "{milestone}: {steps}"
+      },
+      "businessDays": "This rule counts business days. LiTT does not calculate them: the item is left to review.",
+      "notes": "Notes from the legal team",
+      "source": "Source: {law}, {location}",
+      "lastReform": "Last reform: {value}",
+      "openSource": "Open the official source",
+      "quote": "Quote",
+      "turnOn": "Turn on",
+      "turnOff": "Turn off",
+      "working": "Saving…",
+      "readOnly": "Only owners and editors of the matter can turn rules on or off.",
+      "anchor": {
+        "label": "Date to count from",
+        "choose": "Choose a confirmed date",
+        "option": "{label} · {date}",
+        "none": "There is no confirmed date in the client profile yet. Confirm one first.",
+        "confirm": "Turn on with this date",
+        "change": "Change the date",
+        "cancel": "Cancel",
+        "chosen": "Counting from: {label} ({date})",
+        "gone": "The chosen date is not among the confirmed dates any more.",
+        "firstCycle": "The date I chose is the {from}: work out the first expiry from it",
+        "onlyIf": "Applies only if: {condition}. Check it yourself.",
+        "cap": "Check the cap yourself: at most {years} years from that date.",
+        "modeFirstCycle": "first expiry worked out from the {from}"
+      },
+      "firstCycleFrom": {
+        "fecha_otorgamiento_registro": "grant date of the registration",
+        "fecha_presentacion_solicitud": "filing date of the application",
+        "fecha_expedicion_certificado": "issue date of the certificate"
+      },
+      "catalog": {
+        "lgsm_asamblea_ordinaria_anual": {
+          "name": "Annual ordinary general shareholders' meeting",
+          "appliesWhen": "Corporation (sociedad anónima), including S.A. de C.V. and S. en C. por A. (S.A.P.I.: check the bylaws); not an SAS",
+          "anchor": "Closing date of the fiscal year of the company (as a rule, 31 December)"
+        },
+        "lgsm_convocatoria_asamblea": {
+          "name": "Publication of the notice of a general meeting in the PSM",
+          "appliesWhen": "Corporation (sociedad anónima) with a general meeting scheduled (not an SAS)",
+          "anchor": "Scheduled date of the meeting"
+        },
+        "lgsm_informe_administradores_disposicion": {
+          "name": "Annual report of the directors (and statutory auditors) made available to the shareholders",
+          "appliesWhen": "Corporation (sociedad anónima) (not an SAS)",
+          "anchor": "Scheduled date of the meeting that will discuss the report (normally, the annual ordinary one)"
+        },
+        "lgsm_sas_informe_financiero_anual": {
+          "name": "Publication of the SAS annual financial report in the PSM",
+          "appliesWhen": "Simplified stock company (SAS)",
+          "anchor": "Closing date of the fiscal year (31 December)"
+        },
+        "lgsm_sas_convocatoria_asamblea": {
+          "name": "Notice of a shareholders' meeting of the SAS in the PSM",
+          "appliesWhen": "SAS with more than one shareholder and a meeting scheduled",
+          "anchor": "Scheduled date of the meeting (or the date set for casting the vote)"
+        },
+        "lisr_declaracion_anual_pm": {
+          "name": "Annual income tax return of legal entities (general regime)",
+          "appliesWhen": "Legal entity under the general regime (Title II of the income tax law)",
+          "anchor": "End date of the tax year (as a rule, 31 December)"
+        },
+        "lft_ptu_reparto": {
+          "name": "Payment of the employees' profit sharing (PTU)",
+          "appliesWhen": "Employer that is a legal entity with employees, not exempt (Federal Labor Law art. 126)",
+          "anchor": "Date the annual income tax return is due (the result of `lisr.declaracion_anual_pm`)"
+        },
+        "lft_ptu_copia_declaracion": {
+          "name": "Delivery to the employees of a copy of the annual return (basis of the PTU)",
+          "appliesWhen": "Employer obliged to share profits",
+          "anchor": "Actual filing date of the annual return"
+        },
+        "lft_cct_revision_salarial": {
+          "name": "Deadline to request the annual salary review of the collective bargaining agreement",
+          "appliesWhen": "Employer with a collective bargaining agreement (CCT) in force",
+          "anchor": "Date the CCT was signed, last reviewed or extended"
+        },
+        "lft_cct_revision_integral": {
+          "name": "Deadline to request the full (two-year) review of the collective bargaining agreement",
+          "appliesWhen": "Employer with a CCT for an indefinite term, for a specific job, or for a fixed term longer than 2 years",
+          "anchor": "Start date of the 2-year period: the one the CCT sets; failing that, the filing date (or that of the last full review)"
+        },
+        "lft_repse_renovacion": {
+          "name": "Renewal of the REPSE registration (providers of specialized services or works)",
+          "appliesWhen": "Person registered in the STPS REPSE register",
+          "anchor": "Registration date in the register (the date of the original registration notice or of the new one after a cancellation)"
+        },
+        "lfppi_marca_declaracion_uso": {
+          "name": "Declaration of real and effective use of a trademark (in the 3rd year)",
+          "appliesWhen": "Owner of a trademark, slogan or trade name granted from 10-08-2018",
+          "anchor": "Date the registration was granted (or published, for a trade name)"
+        },
+        "lfppi_marca_renovacion": {
+          "name": "Renewal of a trademark registration (ordinary period)",
+          "appliesWhen": "Owner of a registered trademark",
+          "anchor": "Expiry date of the current term. First cycle, for registrations granted from 10-08-2018: grant date + 10 years"
+        },
+        "lfppi_signo_renovacion_gracia": {
+          "name": "Grace period to renew a trademark, slogan or trade name",
+          "appliesWhen": "Owner of a trademark, slogan or trade name that was not renewed in the ordinary period",
+          "anchor": "Expiry date of the term"
+        },
+        "lfppi_aviso_comercial_renovacion": {
+          "name": "Renewal of a slogan (aviso comercial) registration",
+          "appliesWhen": "Owner of a registered slogan",
+          "anchor": "Expiry date of the term (first cycle: grant date + 10 years)"
+        },
+        "lfppi_nombre_comercial_renovacion": {
+          "name": "Renewal of the publication of a trade name",
+          "appliesWhen": "Owner of a published trade name",
+          "anchor": "Expiry date of the effects of the publication (first cycle: grant date + 10 years)"
+        },
+        "lfppi_diseno_industrial_renovacion": {
+          "name": "Renewal of an industrial design registration (five-year)",
+          "appliesWhen": "Owner of a registered industrial design",
+          "anchor": "Expiry date of the current five-year term (first cycle: filing date of the application + 5 years)"
+        },
+        "lfda_reserva_derechos_renovacion_anual": {
+          "name": "Renewal of a reservation of rights (periodical publications and broadcasts, events)",
+          "appliesWhen": "Owner of a reservation of rights over the title of a periodical publication or broadcast, or of an artistic or cultural event",
+          "anchor": "Expiry date of the current certificate (first cycle: issue date + 1 year)"
+        },
+        "lfda_reserva_derechos_renovacion_quinquenal": {
+          "name": "Renewal of a reservation of rights (characters and artistic names)",
+          "appliesWhen": "Owner of a reservation over the name or characteristics of a character, or over the name of a person or artistic group",
+          "anchor": "Expiry date of the current certificate (first cycle: issue date + 5 years)"
+        },
+        "cff_efirma_vencimiento": {
+          "name": "Expiry of the e.firma (FIEL) certificate of the client or its representative",
+          "appliesWhen": "Legal entity or individual with an SAT e.firma",
+          "anchor": "Issue date of the certificate, or better, the expiry date shown on the certificate"
+        }
+      }
+    },
+    "obligation": {
+      "source": "Source: {law}, {location}",
+      "quote": "Quote of the law",
+      "opens": "The window opens on {date}",
+      "anchorFact": "Counted from: {fact}"
     }
   },
   "recovery": {

@@ -1,0 +1,967 @@
+{
+  "version": "s5-lote1",
+  "fecha_corte": "2026-11-17",
+  "reglas": [
+    {
+      "codigo": "lgsm.asamblea_ordinaria_anual",
+      "nombre": "Asamblea general ordinaria anual de accionistas",
+      "aplica": "Sociedad anónima, incluida S.A. de C.V. y S. en C. por A. (S.A.P.I.: confirmar estatutos); no SAS",
+      "dato_partida": "Fecha de cierre del ejercicio social (por regla general, 31 de diciembre)",
+      "ancla": "cierre_ejercicio_social",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "meses": 4
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LGSM",
+          "ley": "Ley General de Sociedades Mercantiles",
+          "ubicacion": "Art. 181, párrafo primero",
+          "texto": "La Asamblea Ordinaria se reunirá por lo menos una vez al año dentro de los cuatro meses que sigan a la clausura del ejercicio social y se ocupará, además de los asuntos incluidos en la orden del día, de los siguientes:",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSM.pdf",
+          "ultima_reforma": "DOF 20-10-2023"
+        },
+        {
+          "fuente": "LGSM",
+          "ley": "Ley General de Sociedades Mercantiles",
+          "ubicacion": "Art. 8o.-A, párrafo primero",
+          "texto": "El ejercicio social de las sociedades mercantiles coincidirá con el año de calendario, salvo que las mismas queden legalmente constituidas con posterioridad al 1o. de enero del año que corresponda, en cuyo caso el primer ejercicio se iniciará en la fecha de su constitución y concluirá el 31 de diciembre del mismo año.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSM.pdf",
+          "ultima_reforma": "DOF 20-10-2023"
+        }
+      ],
+      "notas": "Debe resolver, entre otros, sobre el informe del art. 172 (fr. I). S. en C. por A.: art. 208 remite a las reglas de la S.A. SAS: no encender; sus asambleas se rigen «únicamente» por el art. 268 (ver `lgsm.sas_convocatoria_asamblea`). Liquidación o fusión terminan el ejercicio anticipadamente (art. 8o.-A, párr. segundo): en ese caso el dato es la fecha de terminación real. Interpretación: los estatutos no pueden alargar el plazo legal, pero sí acortarlo. Si lo acortan, el abogado debe ajustar la fecha.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lgsm.convocatoria_asamblea",
+      "nombre": "Publicación de la convocatoria a asamblea general en el PSM",
+      "aplica": "Sociedad anónima con asamblea general programada (no SAS)",
+      "dato_partida": "Fecha programada de la asamblea",
+      "ancla": "fecha_asamblea",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "dias": -15
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LGSM",
+          "ley": "Ley General de Sociedades Mercantiles",
+          "ubicacion": "Art. 186",
+          "texto": "La convocatoria para las asambleas generales deberá hacerse por medio de la publicación de un aviso en el sistema electrónico establecido por la Secretaría de Economía con la anticipación que fijen los estatutos, o en su defecto, quince días antes de la fecha señalada para la reunión.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSM.pdf",
+          "ultima_reforma": "DOF 20-10-2023"
+        }
+      ],
+      "notas": "La regla legal es supletoria: primero se aplica la anticipación de los estatutos. Por eso el abogado debe confirmar que el estatuto no fija un plazo mayor. Criterio dudoso: la ley no dice si cuentan el día de publicación y el de la asamblea. Como margen conservador, conviene publicar un día antes de la fecha calculada. La S. de R.L. tiene su propio régimen de convocatoria y no queda cubierta. Según el art. 188, las resoluciones tomadas en infracción de los arts. 186 y 187 son nulas, salvo que en la votación haya estado representada la totalidad de las acciones. El sistema no debe suponer que habrá asamblea totalitaria.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lgsm.informe_administradores_disposicion",
+      "nombre": "Informe anual de administradores (y de comisarios) a disposición de los accionistas",
+      "aplica": "Sociedad anónima (no SAS)",
+      "dato_partida": "Fecha programada de la asamblea que discutirá el informe (normalmente, la ordinaria anual)",
+      "ancla": "fecha_asamblea",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "dias": -15
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LGSM",
+          "ley": "Ley General de Sociedades Mercantiles",
+          "ubicacion": "Art. 173",
+          "texto": "El informe del que habla el enunciado general del artículo anterior, incluido el informe de los comisarios, deberá quedar terminado y ponerse a disposición de los accionistas por lo menos quince días antes de la fecha de la asamblea que haya de discutirlo.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSM.pdf",
+          "ultima_reforma": "DOF 20-10-2023"
+        },
+        {
+          "fuente": "LGSM",
+          "ley": "Ley General de Sociedades Mercantiles",
+          "ubicacion": "Art. 172, enunciado general",
+          "texto": "Las sociedades anónimas, bajo la responsabilidad de sus administradores, presentarán a la Asamblea de Accionistas, anualmente, un informe que incluya por lo menos:",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSM.pdf",
+          "ultima_reforma": "DOF 20-10-2023"
+        }
+      ],
+      "notas": "Coincide en fecha con la convocatoria legal supletoria. El art. 186 exige además que el informe esté disponible durante todo el periodo de la convocatoria. El mismo criterio dudoso sobre el cómputo aplica aquí.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lgsm.sas_informe_financiero_anual",
+      "nombre": "Publicación del informe anual de situación financiera de la SAS en el PSM",
+      "aplica": "Sociedad por acciones simplificada (SAS)",
+      "dato_partida": "Fecha de cierre del ejercicio (31 de diciembre)",
+      "ancla": "cierre_ejercicio_social",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "dias": 1
+            },
+            {
+              "meses": 2
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": [
+            {
+              "meses": 3
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LGSM",
+          "ley": "Ley General de Sociedades Mercantiles",
+          "ubicacion": "Art. 272, párrafo primero y primer enunciado del segundo",
+          "texto": "El administrador publicará en el sistema electrónico de la Secretaría de Economía, el informe anual sobre la situación financiera de la sociedad conforme a las reglas que emita la Secretaría de Economía de acuerdo con lo dispuesto en el artículo 263 de esta Ley. La falta de presentación de la situación financiera durante dos ejercicios consecutivos dará lugar a la disolución de la sociedad, sin perjuicio de las responsabilidades en que incurran los accionistas de manera individual.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSM.pdf",
+          "ultima_reforma": "DOF 20-10-2023"
+        },
+        {
+          "fuente": "REGLAS_SAS",
+          "ley": "Reglas de Carácter General para el funcionamiento y operación del Sistema Electrónico de SAS (SE)",
+          "ubicacion": "Regla Décima Octava, párrafo segundo",
+          "texto": "El administrador de la SAS deberá publicar la información durante el mes de marzo siguiente al ejercicio inmediato anterior;",
+          "url": "https://sidof.segob.gob.mx/notas/docFuente/5452591",
+          "ultima_reforma": "DOF 14-09-2016 (sin modificaciones localizadas)"
+        }
+      ],
+      "notas": "El mes de marzo no lo fija la ley, sino una disposición administrativa de la SE (Reglas, DOF 14-09-2016). No localicé modificaciones, pero esa búsqueda no es exhaustiva. Se omite el cierre anticipado por liquidación o fusión. Dos ejercicios sin publicar dan lugar a la disolución, previa declaratoria de la SE.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lgsm.sas_convocatoria_asamblea",
+      "nombre": "Convocatoria a asamblea de accionistas de la SAS en el PSM",
+      "aplica": "SAS con más de un accionista y asamblea programada",
+      "dato_partida": "Fecha programada de la asamblea (o fecha señalada para emitir el voto)",
+      "ancla": "fecha_asamblea",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "dias_habiles": -5
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": true,
+      "citas": [
+        {
+          "fuente": "LGSM",
+          "ley": "Ley General de Sociedades Mercantiles",
+          "ubicacion": "Art. 268, párrafo siguiente a la fr. V (primer enunciado)",
+          "texto": "La Asamblea de Accionistas será convocada por el administrador de la sociedad, mediante la publicación de un aviso en el sistema electrónico establecido por la Secretaría de Economía con una antelación mínima de cinco días hábiles.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSM.pdf",
+          "ultima_reforma": "DOF 20-10-2023"
+        }
+      ],
+      "notas": "Plazo en días hábiles: por revisar. La LGSM no define qué días son hábiles para este fin. SAS de accionista único: no aplica, porque el accionista es el órgano supremo (art. 266).",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lisr.declaracion_anual_pm",
+      "nombre": "Declaración anual del ISR de personas morales (régimen general)",
+      "aplica": "Persona moral del régimen general de ley (Título II LISR)",
+      "dato_partida": "Fecha de terminación del ejercicio fiscal (por regla general, 31 de diciembre)",
+      "ancla": "cierre_ejercicio_fiscal",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "meses": 3
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LISR",
+          "ley": "Ley del Impuesto sobre la Renta",
+          "ubicacion": "Art. 76, fr. V",
+          "texto": "Presentar declaración en la que se determine el resultado fiscal del ejercicio o la utilidad gravable del mismo y el monto del impuesto correspondiente, ante las oficinas autorizadas, dentro de los tres meses siguientes a la fecha en que termine dicho ejercicio.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LISR.pdf",
+          "ultima_reforma": "DOF 01-04-2024"
+        },
+        {
+          "fuente": "LISR",
+          "ley": "Ley del Impuesto sobre la Renta",
+          "ubicacion": "Art. 9, párrafo tercero",
+          "texto": "El impuesto del ejercicio se pagará mediante declaración que presentarán ante las oficinas autorizadas, dentro de los tres meses siguientes a la fecha en la que termine el ejercicio fiscal.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LISR.pdf",
+          "ultima_reforma": "DOF 01-04-2024"
+        },
+        {
+          "fuente": "CFF",
+          "ley": "Código Fiscal de la Federación",
+          "ubicacion": "Art. 11, párrafo primero (primer enunciado)",
+          "texto": "Cuando las leyes fiscales establezcan que las contribuciones se calcularán por ejercicios fiscales, éstos coincidirán con el año de calendario.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/CFF.pdf",
+          "ultima_reforma": "DOF 09-04-2026"
+        }
+      ],
+      "notas": "Si el último día es inhábil, el plazo se prorroga al siguiente día hábil (CFF art. 12, último párrafo citado). El Radar muestra la fecha natural, que es el criterio conservador. Liquidación, fusión o escisión terminan el ejercicio anticipadamente (CFF art. 11): el dato es esa fecha. Quedan fuera los regímenes de otros títulos (p. ej. RESICO de personas morales, personas no lucrativas). Es materia fiscal: confirmar con el contador del cliente.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lft.ptu_reparto",
+      "nombre": "Pago de la participación de los trabajadores en las utilidades (PTU)",
+      "aplica": "Patrón persona moral con trabajadores, no exceptuado (LFT art. 126)",
+      "dato_partida": "Fecha en que vence la declaración anual del ISR (resultado de `lisr.declaracion_anual_pm`)",
+      "ancla": "cierre_ejercicio_fiscal",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "meses": 3
+            },
+            {
+              "dias": 60
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFT",
+          "ley": "Ley Federal del Trabajo",
+          "ubicacion": "Art. 122, párrafo primero",
+          "texto": "El reparto de utilidades entre los trabajadores deberá efectuarse dentro de los sesenta días siguientes a la fecha en que deba pagarse el impuesto anual, aun cuando esté en trámite objeción de los trabajadores.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        },
+        {
+          "fuente": "LFT",
+          "ley": "Ley Federal del Trabajo",
+          "ubicacion": "Art. 126, fr. I",
+          "texto": "Las empresas de nueva creación, durante el primer año de funcionamiento;",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        }
+      ],
+      "notas": "Se cuenta desde la fecha en que el impuesto «deba pagarse» (el vencimiento legal), no desde la presentación real. La LFT no dice si son naturales. Se calculan como naturales, que es el criterio conservador y el de la práctica. No aplica a los exceptuados del art. 126: empresas de nueva creación en su primer año, IAP y demás supuestos. Si la SHCP aumenta la utilidad, el reparto adicional se cuenta desde la notificación (art. 122, párr. segundo); ese supuesto queda fuera de esta regla. Personas físicas patronas: no encender esta regla, porque su declaración anual tiene otra fecha (no verificada en este lote).",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lft.ptu_copia_declaracion",
+      "nombre": "Entrega a los trabajadores de copia de la declaración anual (base de la PTU)",
+      "aplica": "Patrón obligado a repartir PTU",
+      "dato_partida": "Fecha de presentación real de la declaración anual",
+      "ancla": "fecha_presentacion_declaracion_anual",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "dias": 10
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFT",
+          "ley": "Ley Federal del Trabajo",
+          "ubicacion": "Art. 121, fr. I, párrafo primero (primer enunciado)",
+          "texto": "El patrón, dentro de un término de diez días contado a partir de la fecha de la presentación de su declaración anual, entregará a los trabajadores copia de la misma.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        }
+      ],
+      "notas": "Criterio dudoso: la LFT no dice si los 10 días son naturales o hábiles. Se calculan como naturales, que es lo conservador, y conviene marcarlo «por confirmar». Depende de un dato real (la fecha de presentación), no del vencimiento: sin ese dato no se calcula.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lft.cct_revision_salarial",
+      "nombre": "Fecha límite para solicitar la revisión salarial anual del contrato colectivo",
+      "aplica": "Patrón con contrato colectivo de trabajo (CCT) vigente",
+      "dato_partida": "Fecha de celebración, última revisión o prórroga del CCT",
+      "ancla": "fecha_celebracion_revision_o_prorroga_cct",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "anios": 1
+            },
+            {
+              "dias": -30
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFT",
+          "ley": "Ley Federal del Trabajo",
+          "ubicacion": "Art. 399 Bis",
+          "texto": "Sin perjuicio de lo que establece el Artículo 399, los contratos colectivos serán revisables cada año en lo que se refiere a los salarios en efectivo por cuota diaria. La solicitud de esta revisión deberá hacerse por lo menos treinta días naturales antes del cumplimiento de un año transcurrido desde la celebración, revisión o prórroga del contrato colectivo.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        }
+      ],
+      "notas": "La solicitud la hace cualquiera de las partes, típicamente el sindicato. Para la empresa sirve como alerta de planeación. El convenio de revisión se celebra ante la autoridad (art. 399 Ter). Si nadie solicita la revisión ni se ejerce el derecho de huelga, el CCT se prorroga (art. 400). Esta regla no cubre la revisión integral.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lft.cct_revision_integral",
+      "nombre": "Fecha límite para solicitar la revisión integral (bienal) del contrato colectivo",
+      "aplica": "Patrón con CCT por tiempo indeterminado, por obra determinada o por tiempo determinado mayor de 2 años",
+      "dato_partida": "Fecha de inicio del periodo de 2 años: la que establezca el CCT; en su defecto, la fecha de depósito (o de la última revisión integral)",
+      "ancla": "fecha_inicio_bienio_cct",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "plazo",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "anios": 2
+            },
+            {
+              "dias": -60
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFT",
+          "ley": "Ley Federal del Trabajo",
+          "ubicacion": "Art. 399, párrafo primero y fr. III",
+          "texto": "La solicitud de revisión deberá hacerse, por lo menos, sesenta días naturales antes: […] III. Del transcurso de dos años, en los casos de contrato por tiempo indeterminado o por obra determinada.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        },
+        {
+          "fuente": "LFT",
+          "ley": "Ley Federal del Trabajo",
+          "ubicacion": "Art. 399, párrafo final",
+          "texto": "Para el cómputo de este término se atenderá a lo establecido en el contrato y, en su defecto, a la fecha del depósito.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        }
+      ],
+      "notas": "La cita une el encabezado del art. 399 con su fr. III (la fr. II dice lo mismo para el CCT determinado mayor de 2 años). CCT por tiempo determinado no mayor de 2 años: el dato es la fecha de vencimiento del CCT y el cálculo es «vencimiento − 60 días» (fr. I). Esa variante no está modelada aquí. Desde 2019 la revisión debe someterse al voto de los trabajadores (art. 400 Bis), lo que exige programarla con antelación.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lft.repse_renovacion",
+      "nombre": "Renovación del registro REPSE (prestadoras de servicios u obras especializadas)",
+      "aplica": "Persona inscrita en el Padrón REPSE de la STPS",
+      "dato_partida": "Fecha de inscripción en el Padrón (fecha del aviso de registro original o del nuevo registro tras una cancelación)",
+      "ancla": "fecha_inscripcion_padron_repse",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "meses": 33
+            },
+            {
+              "ajuste": "inicio_mes"
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": [
+            {
+              "meses": 35
+            },
+            {
+              "ajuste": "fin_mes"
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFT",
+          "ley": "Ley Federal del Trabajo",
+          "ubicacion": "Art. 15, párrafo segundo",
+          "texto": "El registro a que hace mención este artículo deberá ser renovado cada tres años.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        },
+        {
+          "fuente": "REPSE2021",
+          "ley": "Acuerdo STPS de disposiciones generales para el registro de prestadoras de servicios u obras especializadas (art. 15 LFT)",
+          "ubicacion": "Art. Décimo Sexto, párrafo primero",
+          "texto": "La persona física o moral que se encuentre registrada en el Padrón deberá de tramitar cada tres años la renovación de su registro a través de plataforma informática. Este trámite deberán iniciarlo dentro del plazo de tres meses anteriores a la fecha en que concluya la vigencia de su registro.",
+          "url": "https://sidof.segob.gob.mx/notas/docFuente/5619148",
+          "ultima_reforma": "DOF 24-05-2021 (texto original)"
+        },
+        {
+          "fuente": "REPSE2024",
+          "ley": "Acuerdo STPS que modifica el diverso de registro REPSE",
+          "ubicacion": "Art. Décimo Tercero, párrafo segundo",
+          "texto": "Los 3 años de vigencia de los avisos de registro, serán contados a partir de la fecha en la que las personas físicas o morales hayan quedado inscritas en el Padrón, sin importar que hayan realizado una actualización o modificación en su registro.",
+          "url": "https://sidof.segob.gob.mx/notas/docFuente/5717562",
+          "ultima_reforma": "DOF 21-02-2024 (última modificación localizada; la de DOF 03-02-2023 no toca los arts. Décimo Tercero ni Décimo Sexto)"
+        },
+        {
+          "fuente": "REPSE2024",
+          "ley": "Acuerdo STPS que modifica el diverso de registro REPSE",
+          "ubicacion": "Art. Décimo Sexto, párrafo tercero",
+          "texto": "Las personas físicas o morales inscritas en el Padrón únicamente podrán llevar a cabo su proceso de renovación en las fechas establecidas con antelación, una vez agotado dicho plazo, la plataforma de manera automática, deshabilitará el módulo de renovación.",
+          "url": "https://sidof.segob.gob.mx/notas/docFuente/5717562",
+          "ultima_reforma": "DOF 21-02-2024 (última modificación localizada; la de DOF 03-02-2023 no toca los arts. Décimo Tercero ni Décimo Sexto)"
+        },
+        {
+          "fuente": "REPSE2024",
+          "ley": "Acuerdo STPS que modifica el diverso de registro REPSE",
+          "ubicacion": "Transitorio Primero",
+          "texto": "Los registros que hayan sido emitidos a partir del 1 de enero de 2024 en adelante deberán de considerar para su renovación los mismos meses asignados para los años 2022 y 2023, precisados en el artículo Décimo Sexto del presente Acuerdo.",
+          "url": "https://sidof.segob.gob.mx/notas/docFuente/5717562",
+          "ultima_reforma": "DOF 21-02-2024 (última modificación localizada; la de DOF 03-02-2023 no toca los arts. Décimo Tercero ni Décimo Sexto)"
+        }
+      ],
+      "notas": "La ventana sigue el calendario por meses completos del Acuerdo de 2024 (p. ej., registro de junio → renovación de marzo a mayo), no el «tres meses antes» literal de 2021. Los dos no coinciden en los días de borde, y la plataforma solo abre en los meses del calendario. Fuera de la ventana el módulo se cierra y el registro se cancela. Criterio dudoso: para la segunda renovación y las siguientes, el Acuerdo no dice si el ciclo se cuenta desde la inscripción original o desde la renovación. Sugiero usar la inscripción original + 6, 9… años y marcarlo «por confirmar» con el aviso de renovación. Las fechas del calendario de 2024 son de un acuerdo administrativo y pueden cambiar.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfppi.marca_declaracion_uso",
+      "nombre": "Declaración de uso real y efectivo de marca (al 3er año)",
+      "aplica": "Titular de marca, aviso comercial o nombre comercial otorgado a partir del 10-08-2018",
+      "dato_partida": "Fecha de otorgamiento del registro (o de la publicación, para nombre comercial)",
+      "ancla": "fecha_otorgamiento_registro",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "anios": 3
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": [
+            {
+              "anios": 3
+            },
+            {
+              "meses": 3
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 233, párrafos tercero a quinto",
+          "texto": "La declaración se presentará ante el Instituto durante los tres meses posteriores, contados a partir de que se cumpla el tercer año de haberse otorgado el registro. El alcance de la protección del registro continuará sólo en aquellos productos o servicios sobre los cuales se haya declarado el uso. Si la persona titular no declara el uso, el registro caducará de pleno derecho, sin que se requiera de declaración por parte del Instituto.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        },
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Transitorio Décimo Primero (Decreto DOF 01-07-2020), párrafo tercero",
+          "texto": "Los registros de marcas o avisos comerciales y los efectos de publicación de los nombres comerciales, otorgados con anterioridad al 10 de agosto de 2018, conservarán su vigencia y, en su oportunidad, deberán renovar el título conforme a lo dispuesto en su artículo 237. Dichos registros y publicaciones quedarán sujetos en todo lo demás al presente Decreto, exceptuando la obligación de presentar la declaración de uso real y efectivo, prevista en su artículo 233.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        }
+      ],
+      "notas": "Es un hito único por registro, no se repite. No encender para registros otorgados antes del 10-08-2018. Si no se declara, la caducidad opera de pleno derecho. Al renovar se vuelve a declarar el uso, pero eso es parte de la renovación (art. 237, párr. segundo).",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfppi.marca_renovacion",
+      "nombre": "Renovación de registro de marca (plazo ordinario)",
+      "aplica": "Titular de marca registrada",
+      "dato_partida": "Fecha de vencimiento de la vigencia vigente. Primer ciclo, para registros otorgados desde el 10-08-2018: otorgamiento + 10 años",
+      "ancla": "fecha_vencimiento_vigencia",
+      "derivar_ancla_primer_ciclo": {
+        "desde": "fecha_otorgamiento_registro",
+        "ops": [
+          {
+            "anios": 10
+          }
+        ],
+        "solo_si": "otorgado desde 2018-08-10"
+      },
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "meses": -6
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": []
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 178, párrafo primero",
+          "texto": "El registro de marca tendrá una vigencia de diez años contados a partir de la fecha de su otorgamiento y podrá renovarse por períodos de la misma duración.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        },
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 237, párrafo primero (primer enunciado)",
+          "texto": "La renovación del registro de una marca deberá solicitarse por la persona titular, dentro de los seis meses anteriores al vencimiento de su vigencia.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        }
+      ],
+      "notas": "Registros otorgados antes del 10-08-2018 «conservarán su vigencia» (Transitorio Décimo Primero). Bajo la ley anterior la vigencia podía contarse desde otra fecha; no verifiqué ese texto. Para esos registros, el dato debe ser la fecha de vencimiento que conste en el título o en el IMPI, no un cálculo. Para el ciclo siguiente: dato = vencimiento anterior + 10 años, y conviene confirmarlo con el título de renovación. Al renovar hay que declarar el uso (art. 237, párr. segundo). Ver también `lfppi.signo_renovacion_gracia`.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfppi.signo_renovacion_gracia",
+      "nombre": "Plazo de gracia para renovar marca, aviso comercial o nombre comercial",
+      "aplica": "Titular de marca, aviso comercial o nombre comercial que no renovó en el plazo ordinario",
+      "dato_partida": "Fecha de vencimiento de la vigencia",
+      "ancla": "fecha_vencimiento_vigencia",
+      "derivar_ancla_primer_ciclo": {
+        "desde": "fecha_otorgamiento_registro",
+        "ops": [
+          {
+            "anios": 10
+          }
+        ],
+        "solo_si": "otorgado desde 2018-08-10"
+      },
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "dias": 1
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": [
+            {
+              "meses": 6
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 237, párrafo primero (segundo enunciado)",
+          "texto": "Sin embargo, el Instituto dará trámite a aquellas solicitudes que se presenten dentro de un plazo de seis meses posteriores a la terminación de la vigencia del registro.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        },
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 238",
+          "texto": "Vencido el plazo al que se refiere el artículo 237 de esta Ley, sin que se presente la solicitud de renovación, el registro caducará de pleno derecho, sin que se requiera de declaración por parte del Instituto.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        }
+      ],
+      "notas": "Solo se activa si no se renovó en la ventana ordinaria; mostrarlo como alerta de riesgo, no como plazo normal. La tarifa del IMPI por renovar en gracia puede ser distinta; no la verifiqué. Se extiende a avisos y nombres comerciales por remisión (arts. 205 y 213).",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfppi.aviso_comercial_renovacion",
+      "nombre": "Renovación de registro de aviso comercial",
+      "aplica": "Titular de aviso comercial registrado",
+      "dato_partida": "Fecha de vencimiento de la vigencia (primer ciclo: otorgamiento + 10 años)",
+      "ancla": "fecha_vencimiento_vigencia",
+      "derivar_ancla_primer_ciclo": {
+        "desde": "fecha_otorgamiento_registro",
+        "ops": [
+          {
+            "anios": 10
+          }
+        ],
+        "solo_si": "otorgado desde 2018-08-10"
+      },
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "meses": -6
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": []
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 204",
+          "texto": "El registro de un aviso comercial tendrá una vigencia de diez años a partir de su otorgamiento y podrá renovarse por periodos de la misma duración.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        },
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 205",
+          "texto": "Los avisos comerciales se regirán, en lo que no haya disposición especial, por lo establecido en esta Ley para las marcas.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        }
+      ],
+      "notas": "El plazo de renovación (6 meses antes) aplica por remisión del art. 205 al art. 237. El art. 237, párrafo séptimo (adicionado en DOF 03-04-2026), menciona expresamente avisos y nombres comerciales, pero solo para los plazos de resolución del IMPI. Para registros anteriores al 10-08-2018, usar la fecha de vencimiento del título (igual que en la marca).",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfppi.nombre_comercial_renovacion",
+      "nombre": "Renovación de la publicación de nombre comercial",
+      "aplica": "Titular de nombre comercial publicado",
+      "dato_partida": "Fecha de vencimiento de los efectos de la publicación (primer ciclo: otorgamiento + 10 años)",
+      "ancla": "fecha_vencimiento_vigencia",
+      "derivar_ancla_primer_ciclo": {
+        "desde": "fecha_otorgamiento_registro",
+        "ops": [
+          {
+            "anios": 10
+          }
+        ],
+        "solo_si": "otorgado desde 2018-08-10"
+      },
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "meses": -6
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": []
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 211",
+          "texto": "Los efectos de la publicación de un nombre comercial durarán diez años, a partir de su otorgamiento y podrán renovarse por periodos de la misma duración. De no renovarse, cesarán sus efectos.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        },
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 213",
+          "texto": "El nombre comercial se regirá en lo que sea aplicable y no haya disposición especial, por lo establecido en esta Ley para las marcas.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        }
+      ],
+      "notas": "El plazo de 6 meses aplica por remisión «en lo que sea aplicable» (art. 213), pero el art. 251 confirma indirectamente que el art. 237 se aplica a la renovación de nombres comerciales. Riesgo bajo.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfppi.diseno_industrial_renovacion",
+      "nombre": "Renovación de registro de diseño industrial (quinquenal)",
+      "aplica": "Titular de diseño industrial registrado",
+      "dato_partida": "Fecha de vencimiento del quinquenio vigente (primer ciclo: fecha de presentación de la solicitud + 5 años)",
+      "ancla": "fecha_vencimiento_vigencia",
+      "derivar_ancla_primer_ciclo": {
+        "desde": "fecha_presentacion_solicitud",
+        "ops": [
+          {
+            "anios": 5
+          }
+        ],
+        "tope": {
+          "anios": 25
+        }
+      },
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "meses": -6
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": []
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 78, párrafo primero",
+          "texto": "El registro de los diseños industriales tendrá una vigencia de cinco años, a partir de la fecha de presentación de la solicitud, renovable por períodos sucesivos de la misma duración hasta un máximo de veinticinco años, sujeto al pago de las tarifas correspondientes.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        },
+        {
+          "fuente": "LFPPI",
+          "ley": "Ley Federal de Protección a la Propiedad Industrial",
+          "ubicacion": "Art. 79, párrafo primero",
+          "texto": "La renovación del registro de un diseño industrial deberá solicitarse por la persona titular dentro de los seis meses anteriores al vencimiento de su vigencia. Sin embargo, el Instituto dará trámite a aquellas solicitudes que se presenten dentro del plazo de gracia al que hace referencia la fracción II del artículo 160 de esta Ley.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPPI.pdf",
+          "ultima_reforma": "DOF 03-04-2026"
+        }
+      ],
+      "notas": "A diferencia de la marca, el cómputo arranca en la fecha de presentación, no en la de otorgamiento. Criterio dudoso: el art. 79 remite al «plazo de gracia» del art. 160, fr. II, que habla de seis meses siguientes al pago de la tarifa. Lo razonable es leerlo como 6 meses posteriores al vencimiento, pero no lo modelo como regla. No generar renovación después de presentación + 20 años, porque el último quinquenio termina en +25. Para diseños solicitados bajo la Ley de la Propiedad Industrial abrogada, la vigencia puede seguir la ley anterior; no lo verifiqué.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfda.reserva_derechos_renovacion_anual",
+      "nombre": "Renovación de reserva de derechos (publicaciones y difusiones periódicas, eventos)",
+      "aplica": "Titular de reserva de derechos sobre título de publicación o difusión periódica, o de evento artístico o cultural",
+      "dato_partida": "Fecha de vencimiento del certificado vigente (primer ciclo: expedición + 1 año)",
+      "ancla": "fecha_vencimiento_vigencia",
+      "derivar_ancla_primer_ciclo": {
+        "desde": "fecha_expedicion_certificado",
+        "ops": [
+          {
+            "anios": 1
+          }
+        ]
+      },
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "meses": -1
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": [
+            {
+              "meses": 1
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFDA",
+          "ley": "Ley Federal del Derecho de Autor",
+          "ubicacion": "Art. 189, párrafo primero",
+          "texto": "La vigencia del certificado de la reserva de derechos otorgada a títulos de publicaciones y difusiones periódicas, así como eventos artísticos y culturales, será de un año, contado a partir de la fecha de su expedición.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFDA.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        },
+        {
+          "fuente": "LFDA",
+          "ley": "Ley Federal del Derecho de Autor",
+          "ubicacion": "Art. 191, párrafo segundo",
+          "texto": "La renovación a que se refiere el párrafo anterior, se otorgará previa comprobación fehaciente del uso de la reserva de derechos, que el interesado presente al Instituto dentro del plazo comprendido desde un mes antes, hasta un mes posterior al día del vencimiento de la reserva de derechos correspondiente.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFDA.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        }
+      ],
+      "notas": "El párrafo primero del art. 189 fue reformado el 14-05-2026, y esta es la redacción vigente consultada. Requiere comprobar el uso. Para el ciclo siguiente, el vencimiento nuevo debe tomarse del certificado de renovación.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "lfda.reserva_derechos_renovacion_quinquenal",
+      "nombre": "Renovación de reserva de derechos (personajes y nombres artísticos)",
+      "aplica": "Titular de reserva sobre nombre o características de personaje, o sobre nombre o denominación de persona o grupo artístico",
+      "dato_partida": "Fecha de vencimiento del certificado vigente (primer ciclo: expedición + 5 años)",
+      "ancla": "fecha_vencimiento_vigencia",
+      "derivar_ancla_primer_ciclo": {
+        "desde": "fecha_expedicion_certificado",
+        "ops": [
+          {
+            "anios": 5
+          }
+        ]
+      },
+      "tipo": "ventana",
+      "calculo": [
+        {
+          "hito": "apertura",
+          "ops": [
+            {
+              "meses": -1
+            }
+          ]
+        },
+        {
+          "hito": "cierre",
+          "ops": [
+            {
+              "meses": 1
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "LFDA",
+          "ley": "Ley Federal del Derecho de Autor",
+          "ubicacion": "Art. 190, párrafo primero",
+          "texto": "La vigencia del certificado de la reserva de derechos será de cinco años contados a partir de la fecha de su expedición cuando se otorgue a:",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFDA.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        },
+        {
+          "fuente": "LFDA",
+          "ley": "Ley Federal del Derecho de Autor",
+          "ubicacion": "Art. 191, párrafo primero",
+          "texto": "Los plazos de protección que amparan los certificados de reserva de derechos correspondientes, podrán ser renovados por periodos sucesivos iguales. Se exceptúa de este supuesto a las promociones publicitarias, las que al término de su vigencia pasaran a formar parte del dominio público.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFDA.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        },
+        {
+          "fuente": "LFDA",
+          "ley": "Ley Federal del Derecho de Autor",
+          "ubicacion": "Art. 191, párrafo segundo",
+          "texto": "La renovación a que se refiere el párrafo anterior, se otorgará previa comprobación fehaciente del uso de la reserva de derechos, que el interesado presente al Instituto dentro del plazo comprendido desde un mes antes, hasta un mes posterior al día del vencimiento de la reserva de derechos correspondiente.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFDA.pdf",
+          "ultima_reforma": "DOF 14-05-2026"
+        }
+      ],
+      "notas": "No encender para promociones publicitarias (art. 190, fr. III): no son renovables y pasan al dominio público. Aplica solo a las frs. I y II del art. 190.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    },
+    {
+      "codigo": "cff.efirma_vencimiento",
+      "nombre": "Vencimiento del certificado de e.firma (FIEL) del cliente o de su representante",
+      "aplica": "Persona moral o física con e.firma del SAT",
+      "dato_partida": "Fecha de expedición del certificado, o mejor aún, la fecha de vencimiento que aparece en el certificado",
+      "ancla": "fecha_expedicion_certificado",
+      "derivar_ancla_primer_ciclo": null,
+      "tipo": "vencimiento",
+      "calculo": [
+        {
+          "hito": "vence",
+          "ops": [
+            {
+              "anios": 4
+            }
+          ]
+        }
+      ],
+      "requiere_habiles": false,
+      "citas": [
+        {
+          "fuente": "CFF",
+          "ley": "Código Fiscal de la Federación",
+          "ubicacion": "Art. 17-D, párrafo relativo a la vigencia de los certificados (primeros dos enunciados)",
+          "texto": "Para los efectos fiscales, los certificados tendrán una vigencia máxima de cuatro años, contados a partir de la fecha en que se hayan expedido. Antes de que concluya el periodo de vigencia de un certificado, su titular podrá solicitar uno nuevo.",
+          "url": "https://www.diputados.gob.mx/LeyesBiblio/pdf/CFF.pdf",
+          "ultima_reforma": "DOF 09-04-2026"
+        }
+      ],
+      "notas": "No es una obligación con sanción propia, sino un vencimiento operativo: sin e.firma vigente no se presentan declaraciones ni avisos, y no se obtiene el REPSE (Acuerdo REPSE, art. Octavo, num. 1, inciso a). Cuatro años es la vigencia máxima: el certificado concreto puede vencer antes, por eso conviene capturar su fecha real. Si vence, la renovación puede exigir cita presencial según las reglas del SAT, que no revisé. Los CSD tienen su propia vigencia y no están cubiertos.",
+      "estado": "verificada",
+      "fecha_consulta": "2026-11-17"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import type { Db } from "../../lib/supabase";
 import { authorizeMatterMember } from "../matters/matters.service";
 import { todayInMexicoCity } from "./radar.dates";
 import { parseItemKey } from "./radar.derive";
+import { parseObligationKey } from "./radar.obligations";
 import { loadRadarItems } from "./radar.items";
 import {
   INVALID_ACTION_CODE,
@@ -43,8 +44,10 @@ export async function actOnRadarItem(
     const access = await authorizeMatterMember(db, { ...actor, write: true });
     if (!access.ok) return access;
     if (!access.data.isRetainer) return failure("conflict", "The matter is not a retainer.", NOT_A_RETAINER_CODE);
-    const key = parseItemKey(actor.itemKey);
-    if (!key) return failure("not_found", NOT_FOUND);
+    const factKey = parseItemKey(actor.itemKey);
+    const obligationKey = factKey ? null : parseObligationKey(actor.itemKey);
+    if (!factKey && !obligationKey) return failure("not_found", NOT_FOUND);
+    const wanted = factKey ? `${factKey.factId}:${factKey.type}` : `${obligationKey!.ruleKey}:${obligationKey!.anchor}`;
 
     let reason: string | null = null;
     if (actor.body != null && !isRecord(actor.body))
@@ -61,20 +64,29 @@ export async function actOnRadarItem(
     const today = todayInMexicoCity(actor.now ?? new Date());
     const before = await loadRadarItems(db, access.data, today);
     if (!before.ok) return before;
-    const item = before.data.find((entry) => entry.key === `${key.factId}:${key.type}`);
+    const item = before.data.find((entry) => entry.key === wanted);
     if (!item) return failure("not_found", NOT_FOUND);
     const alive = item.state === "open" || (item.state === "acknowledged" && action !== "ack");
     if (!alive) return failure("conflict", "That item was already handled.", ITEM_CLOSED_CODE);
 
-    const { error } = await db.from("matter_radar_item_events").insert({
-      matter_id: access.data.matterId,
-      fact_id: item.fact_id,
-      item_type: item.type,
-      action,
-      due_on: item.due_on,
-      reason,
-      actor_user_id: actor.userId,
-    });
+    const { error } = obligationKey
+      ? await db.from("matter_obligation_item_events").insert({
+          matter_id: access.data.matterId,
+          item_key: item.key,
+          action,
+          due_on: item.due_on,
+          reason,
+          actor_user_id: actor.userId,
+        })
+      : await db.from("matter_radar_item_events").insert({
+          matter_id: access.data.matterId,
+          fact_id: item.fact_id,
+          item_type: item.type,
+          action,
+          due_on: item.due_on,
+          reason,
+          actor_user_id: actor.userId,
+        });
     // Two actions at once: the database refuses the second.
     if (error && isRecord(error) && error.code === "23514")
       return failure("conflict", "That item was already handled.", ITEM_CLOSED_CODE);
