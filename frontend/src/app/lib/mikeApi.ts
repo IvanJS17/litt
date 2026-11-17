@@ -2107,6 +2107,33 @@ export async function decideMcpConsent(
     );
 }
 
+/** One app connected to the person's account (GET /mcp-connect/grants). */
+export interface McpGrant {
+    id: string;
+    client_id: string;
+    client_name: string;
+    scopes: string[];
+    /** `personal` and/or organization ids. */
+    workspaces: string[];
+    default_workspace: string;
+    created_at: string;
+    last_used_at: string | null;
+    expires_at: string;
+}
+
+/** The person's live connections. A 404 means the server does not offer MCP connections. */
+export async function listMcpGrants(): Promise<McpGrant[]> {
+    const result = await apiRequest<{ grants: McpGrant[] }>("mcp.grants", "/mcp-connect/grants");
+    return result.grants;
+}
+
+/** Ends the connection; the app's next call is refused. */
+export async function revokeMcpGrant(grantId: string): Promise<void> {
+    return apiRequest<void>("mcp.grants", `/mcp-connect/grants/${encodeURIComponent(grantId)}`, {
+        method: "DELETE",
+    });
+}
+
 export type { DeletedOrganization } from "@mike/contracts";
 export type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
 

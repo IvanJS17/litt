@@ -29,6 +29,15 @@ export type McpConfig = {
     grantMaxAgeSeconds: number;
     codeTtlSeconds: number;
     requestTtlSeconds: number;
+    rateLimits: McpRateLimits;
+};
+
+/** Per-grant call budgets (design §7.3): reads, and everything that writes, runs or chats. */
+export type McpRateLimits = {
+    readMax: number;
+    readWindowMs: number;
+    writeMax: number;
+    writeWindowMs: number;
 };
 
 function positiveInt(raw: string | undefined, fallback: number): number {
@@ -90,5 +99,12 @@ export function mcpConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
         grantMaxAgeSeconds: positiveInt(env.LITT_MCP_GRANT_MAX_DAYS, 90) * 86_400,
         codeTtlSeconds: 60,
         requestTtlSeconds: 600,
+        rateLimits: {
+            readMax: positiveInt(env.RATE_LIMIT_MCP_GRANT_READ_MAX, 120),
+            readWindowMs: positiveInt(env.RATE_LIMIT_MCP_GRANT_READ_WINDOW_SECONDS, 60) * 1000,
+            writeMax: positiveInt(env.RATE_LIMIT_MCP_GRANT_WRITE_MAX, 30),
+            writeWindowMs:
+                positiveInt(env.RATE_LIMIT_MCP_GRANT_WRITE_WINDOW_MINUTES, 15) * 60_000,
+        },
     };
 }

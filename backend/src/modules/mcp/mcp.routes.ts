@@ -19,6 +19,7 @@ import express, {
 import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
+import { bindRequestPrincipal } from "../../lib/managedAccounts";
 import { reportError } from "../../lib/observability/report";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { mcpConfig, mcpConfigurationProblem } from "./mcp.config";
@@ -27,7 +28,7 @@ import { registerDcrClient } from "./mcp.clients";
 import { decideConsent, getConsentView, hasMfaEnrolled } from "./mcp.consent";
 import { listGrantsForUser, revokeGrant } from "./mcp.grants";
 import { authorizationServerMetadata, protectedResourceMetadata } from "./mcp.metadata";
-import { authenticateMcpRequest, mcpNodeHandler } from "./mcp.endpoint";
+import { authenticateMcpRequest, mcpNodeHandler, preflightMcp } from "./mcp.endpoint";
 import type { OAuthResult } from "./mcp.shared";
 import { exchangeAuthorizationCode, refreshTokens, revokeByToken } from "./mcp.tokens";
 
@@ -229,7 +230,8 @@ mcpPublicRouter.all(
     "/mcp",
     mcpOrigin,
     oauthRoute(async (req, res) => {
-        const gate = await authenticateMcpRequest(createServerSupabase(), req.headers.authorization);
+        const db = createServerSupabase();
+        const gate = await authenticateMcpRequest(db, req.headers.authorization);
         if (!gate.ok) {
             for (const [name, value] of Object.entries(gate.headers)) {
                 // The body is rewritten below: its length and type are ours.
@@ -245,6 +247,18 @@ mcpPublicRouter.all(
                 error ? reject(error) : resolve(),
             ),
         );
+        // Whatever the person may do is judged per request, on the live
+        // principal: the same lookups every web request makes.
+        bindRequestPrincipal({
+            userId: gate.principal.userId,
+            personalWorkspaceDisabled: gate.principal.personalWorkspaceDisabled,
+        });
+        const refusal = await preflightMcp(db, gate.principal, req.body);
+        if (refusal) {
+            for (const [name, value] of Object.entries(refusal.headers)) res.setHeader(name, value);
+            res.setHeader("Cache-Control", "no-store");
+            return res.status(refusal.status).json(refusal.body);
+        }
         await mcpNodeHandler()(req, res, req.body);
     }),
 );

@@ -19,9 +19,12 @@ function sourceFiles(dir: string): string[] {
 }
 
 // The other insert-only tables: the same refusal in the database (a trigger),
-// the same guard here. A fact of the client profile is also never changed.
+// the same guard here (the MCP server's own records, design §7.4; a fact of
+// the client profile is also never changed).
 const INSERT_ONLY_TABLES = [
     "audit_events",
+    "mcp_tool_calls",
+    "mcp_oauth_audit",
     "matter_request_events",
     "matter_profile_facts",
     "matter_profile_fact_events",
@@ -47,5 +50,33 @@ describe("insert-only tables are insert-only in the backend", () => {
     it("finds the tables it guards (a renamed table would make the scan vacuous)", () => {
         const all = sourceFiles(SRC).map((file) => readFileSync(file, "utf8")).join("\n");
         for (const table of INSERT_ONLY_TABLES) expect(all).toContain(`"${table}"`);
+    });
+});
+
+describe("mcp_tool_calls is insert-only in the database", () => {
+    const root = resolve(SRC, "../..");
+    const migration = readFileSync(
+        join(root, "backend/migrations/20261116_40_litt_mcp_tool_calls.sql"),
+        "utf8",
+    );
+    const schema = readFileSync(join(root, "backend/schema.sql"), "utf8");
+
+    it.each([
+        ["the migration", migration],
+        ["schema.sql", schema],
+    ])("%s refuses UPDATE and DELETE and closes the table to clients", (_name, sql) => {
+        expect(sql).toMatch(
+            /create trigger mcp_tool_calls_insert_only_trigger\s+before update or delete on public\.mcp_tool_calls/,
+        );
+        expect(sql).toContain("alter table public.mcp_tool_calls enable row level security;");
+        expect(sql).toContain("revoke all on public.mcp_tool_calls from anon, authenticated;");
+    });
+
+    it("keeps no argument, result or text column", () => {
+        const table = migration.slice(
+            migration.indexOf("create table if not exists public.mcp_tool_calls"),
+            migration.indexOf(");", migration.indexOf("create table if not exists public.mcp_tool_calls")),
+        );
+        expect(table).not.toMatch(/\b(args|arguments|result|content|text_body|payload|detail)\b/);
     });
 });
