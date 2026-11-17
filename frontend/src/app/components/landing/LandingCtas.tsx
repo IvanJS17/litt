@@ -47,13 +47,20 @@ export function PrimaryButton({
 }
 
 /** "Solicitar acceso": the beta is by invitation, so access is asked for by email. */
-export function RequestAccessButton() {
+export function RequestAccessButton({
+    className,
+    onClick,
+}: {
+    className?: string;
+    onClick?: React.MouseEventHandler<HTMLAnchorElement>;
+}) {
     const t = useTranslations();
     const subject = encodeURIComponent(t("landing.cta.requestSubject"));
     return (
         <a
             href={`mailto:${SUPPORT_EMAIL}?subject=${subject}`}
-            className={`${LANDING_BUTTON_SECONDARY} ${LANDING_BUTTON_SIZE}`}
+            onClick={onClick}
+            className={[LANDING_BUTTON_SECONDARY, LANDING_BUTTON_SIZE, className].filter(Boolean).join(" ")}
         >
             {t("landing.cta.request")}
         </a>

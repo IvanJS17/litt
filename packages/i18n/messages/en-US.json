@@ -1544,6 +1544,12 @@
     "openProject": "Open project"
   },
   "landing": {
+    "access": {
+      "body": "Write to <mail>soporte@asteroitt.com</mail> with your firm’s name and how many people would use LiTT. We’ll reply by email.",
+      "marker": "Fifth",
+      "self": "Would you rather install it yourself? The code and the installation guide are on <github>GitHub</github>.",
+      "title": "We’re opening beta seats a few at a time."
+    },
     "cl": {
       "article": "Article 2398",
       "body": "When an answer relies on the law, LiTT will cite the article in force by name and source, the same way it cites the documents in a matter today. Built for Mexican jurisdiction, not another country’s.",
@@ -1563,6 +1569,45 @@
       "body": "A living file for each client, where every fact has its source and is confirmed by a lawyer. And a radar that gets ahead of deadlines and changes in the law.",
       "title": "Donna, the firm’s assistant"
     },
+    "features": {
+      "assistant": {
+        "also": "<b>Inside Word, too.</b> Ask, draft and review without leaving the document, with tracked changes and your firm’s playbooks.",
+        "body": "A chat that reads the documents in the matter, cites the source of every answer, runs multi-step workflows, and drafts and edits contracts end to end.",
+        "title": "Assistant"
+      },
+      "flows": {
+        "body": "Save what your firm does over and over as a workflow and run it in one click, in the chat or in a table. Playbooks turn your firm’s positions into rules that review every contract the same way.",
+        "title": "Workflows and playbooks"
+      },
+      "intro": "Four features that work together and are already in the beta. Every answer and every cell points to the document and page it comes from.",
+      "marker": "First",
+      "projects": {
+        "body": "One project per matter. Upload contracts, deeds and case files, and the assistant keeps the context across every conversation and every document. Private projects are visible to their members only.",
+        "title": "Projects"
+      },
+      "tabular": {
+        "body": "Ask hundreds of documents the same questions and get one table back. Every cell cites the page and the text it comes from.",
+        "title": "Tabular review"
+      },
+      "title": "One assistant, and everything the matter needs around it."
+    },
+    "flows": {
+      "aria": "Example: five of the firm’s workflows and playbooks, for the assistant, for tables and for review.",
+      "run": "Run “Payment demand” on Tlalnepantla Warehouse",
+      "tagAssistant": "Assistant",
+      "tagPlaybook": "Playbook",
+      "tagTable": "Table",
+      "w1": "Payment demand",
+      "w1p": "Real estate",
+      "w2": "Lease summary",
+      "w2p": "Real estate",
+      "w3": "Confidentiality, receiving party",
+      "w3p": "Corporate",
+      "w4": "Case file chronology",
+      "w4p": "Litigation",
+      "w5": "Corporate audit",
+      "w5p": "Corporate"
+    },
     "footer": {
       "legal": "LiTT is free software under the <agpl>GNU AGPL-3.0</agpl> license and is derived from an open-source project. Copyright notices and credits are in the <credits>source code</credits>. LiTT can make mistakes; its answers are not legal advice.",
       "nav": "Legal and support",
@@ -1580,6 +1625,7 @@
     },
     "header": {
       "home": "LiTT, home",
+      "menu": "Menu",
       "nav": "Sections",
       "toDark": "Switch to dark theme",
       "toLight": "Switch to light theme"
@@ -1587,139 +1633,132 @@
     "hero": {
       "badge": "Closed beta",
       "caption": "Example with fictitious data. Tap a citation to see its source.",
-      "eyebrow": "For law firms and legal teams in Mexico",
-      "lede": "LiTT is an AI legal assistant for Mexican law firms. It works on the documents in the matter, drafts with you in Word, and checks every citation against the cited text before you rely on it.",
-      "lede2": "With your firm’s own AI keys, in Mexican Spanish, and open source.",
+      "eyebrow": "For small and mid-sized law firms in Mexico",
+      "lede": "LiTT is an AI legal assistant for Mexican law firms. It reads the documents in the matter and answers with the source; it drafts and edits in Word, runs multi-step workflows and reviews hundreds of documents in a single table.",
+      "lede2": "With your firm’s own AI keys, the model you choose, and open-source code you can install on your own servers.",
       "note": "Invitation-only beta. Write to us at <mail>soporte@asteroitt.com</mail>.",
-      "title": "What LiTT tells you, you can check."
-    },
-    "index": {
-      "i1": {
-        "body": "Ask about the documents in a matter and get answers that cite their source.",
-        "title": "An assistant for the matter"
-      },
-      "i10": {
-        "body": "The interface, notices and legal texts are written for Mexican practice. Also available in English.",
-        "title": "In Mexican Spanish"
-      },
-      "i11": {
-        "body": "LiTT is free software under AGPL-3.0. Every release links to the exact code it runs.",
-        "title": "Open source"
-      },
-      "i2": {
-        "body": "Every citation is checked against the cited text automatically. If it doesn’t match, LiTT tells you.",
-        "title": "Citation check"
-      },
-      "i3": {
-        "body": "Your firm’s positions for each kind of contract, applied the same way by the whole team.",
-        "title": "Firm playbooks"
-      },
-      "i4": {
-        "body": "Reads scanned PDFs and splits a case file into one file per document.",
-        "title": "Scans and “Split case file”"
-      },
-      "i5": {
-        "body": "Compare two versions and get a new document with the changes marked.",
-        "title": "Compare Word versions"
-      },
-      "i6": {
-        "body": "Each firm with its own matters and permissions. Private matters are visible to their members only.",
-        "title": "Firm workspaces with roles"
-      },
-      "i7": {
-        "body": "Juniors practice with LiTT while their mentor reviews, corrects and follows up.",
-        "title": "Training for juniors"
-      },
-      "i8": {
-        "body": "Connect Notion or Airtable so the assistant can look up your firm’s information.",
-        "title": "MCP connectors"
-      },
-      "i9": {
-        "body": "The firm picks the model and uses its own key. LiTT never switches models without telling you.",
-        "title": "Your own AI keys"
-      },
-      "label": "Available features"
+      "title": "The legal assistant that works the matter with you."
     },
     "mcp": {
       "body": "Use every LiTT feature from the AI you already work with, under the same permissions. Each session is recorded in LiTT.",
       "title": "LiTT from Claude, ChatGPT or another AI"
     },
     "meta": {
-      "description": "LiTT is an AI legal assistant for Mexican law firms: it works on the documents in the matter, drafts in Word and checks every citation against the cited text.",
+      "description": "LiTT is an AI legal assistant for small and mid-sized Mexican law firms: it reads the documents in the matter, answers with the source, drafts in Word and reviews hundreds of documents in a table. With your keys, your model and, if you want, on your own servers.",
       "title": "LiTT · AI legal assistant for law firms in Mexico"
     },
     "nav": {
+      "features": "Features",
       "soon": "Coming soon",
       "trust": "Trust",
-      "what": "What it does"
+      "why": "Why LiTT"
     },
-    "s1": {
-      "intro": "Everything below works today in the beta. Every answer points to the document and page it comes from.",
-      "marker": "First",
-      "title": "What it already does for your firm."
+    "own": {
+      "intro": "What LiTT adds for the work of a law firm in Mexico.",
+      "o1": {
+        "body": "The interface, notices and legal texts are written for Mexican practice. No templates from another country. Also available in English.",
+        "title": "In Mexican Spanish, for Mexican law"
+      },
+      "o2": {
+        "body": "Ask, draft and review inside Word. Compare two versions and get a new document with the changes marked.",
+        "title": "Word add-in"
+      },
+      "o3": {
+        "body": "Every citation is checked against the cited text automatically. If it isn’t in the document, LiTT tells you.",
+        "title": "Automatic citation check"
+      },
+      "o4": {
+        "body": "The junior tries first and LiTT guides them; their mentor reviews, corrects and decides when they move to the next stage.",
+        "title": "Training for juniors, with a mentor"
+      },
+      "o5": {
+        "body": "Reads scanned PDFs and splits a case file into one file per document: deed, annexes, IDs.",
+        "title": "Scans and “Split case file”"
+      },
+      "o6": {
+        "body": "Tell LiTT which states, practice areas and industries your firm works in, and the assistant takes it into account in every conversation.",
+        "title": "Firm profile"
+      },
+      "o7": {
+        "body": "Each firm with its own projects, members and permissions. Private matters are visible to their members only.",
+        "title": "Firm workspaces with roles"
+      },
+      "o8": {
+        "body": "Connect Notion, Airtable or another MCP server so the assistant can look up your firm’s information.",
+        "title": "MCP connectors"
+      },
+      "title": "Built for Mexican practice."
     },
-    "s2": {
+    "project": {
+      "aria": "Example: the Tlalnepantla Warehouse project with six documents, three conversations and one table.",
+      "p1": "Lease — Tlalnepantla Warehouse.pdf",
+      "p1m": "14 pp.",
+      "p2": "Account statement — October 2026.pdf",
+      "p2m": "2 pp.",
+      "p3": "Articles of incorporation — Inmobiliaria del Valle.pdf",
+      "p3m": "Scanned · read",
+      "p4": "Power of attorney — landlord.pdf",
+      "p4m": "6 pp.",
+      "p5": "Payment agreement — draft.docx",
+      "p5m": "Version 3",
+      "p6": "Demand letter.docx",
+      "p6m": "New",
+      "tabChats": "Conversations · 3",
+      "tabTables": "Tables · 1"
+    },
+    "soon": {
       "intro": "Four features on the way. Beta firms get them first.",
-      "marker": "Second",
+      "marker": "Third",
       "tag": "Coming soon",
       "title": "What we’re working on."
     },
-    "s3": {
-      "intro": "How LiTT is built, with no fine print. You can check all of it in the code.",
-      "marker": "Third",
-      "t1": {
-        "body": "Each firm uses its own AI key. If a key fails, LiTT tells you instead of quietly using another.",
-        "title": "You choose the model"
-      },
-      "t2": {
-        "body": "Firms, workspaces and matters are separated in the database. A private matter is visible to its members only.",
-        "title": "Each firm kept apart"
-      },
-      "t3": {
-        "body": "We don’t send error reports or usage data to other companies.",
-        "title": "No third-party telemetry"
-      },
-      "t4": {
-        "body": "The audit log and the evidence of what the AI did only accept new entries.",
-        "title": "A record that can’t be rewritten"
-      },
-      "t5": {
-        "body": "Every published release links to its <source>source code</source>, so anyone can review it.",
-        "title": "The code, in the open"
-      },
-      "title": "Your documents and your keys stay yours."
-    },
-    "s4": {
-      "body": "Write to <mail>soporte@asteroitt.com</mail> with your firm’s name and how many people would use LiTT. We’ll reply by email.",
-      "marker": "Fourth",
-      "title": "We’re opening beta seats a few at a time."
-    },
     "specimen": {
-      "answer1": "Overdue rent accrues default interest of 3 % per month",
-      "answer2": "With two monthly payments unpaid, the landlord may terminate the lease without a court ruling",
-      "checking": "Checking the citation against the document…",
+      "answer1": "The tenant owes the September and October rent",
+      "answer2": "Overdue amounts accrue default interest of 3% per month",
+      "answer3": "and, with two payments missed, the lease allows termination without a court ruling",
+      "answer4": "I drafted the letter with those figures for you to review.",
       "cite": "Citation {n}",
-      "doc": "Lease — Tlalnepantla Warehouse.pdf",
+      "composer": "Ask about the matter…",
+      "crumbDocs": "6 documents",
+      "crumbProject": "Tlalnepantla Warehouse",
+      "crumbRoot": "Projects",
+      "docMeta": "2 pages · new in the project",
+      "docName": "Demand letter.docx",
+      "openWord": "Open in Word",
       "page": "p. {page}",
-      "question": "What happens if the tenant is late with the rent?",
+      "question": "Review the lease and the account statement, and draft the payment demand letter to the tenant.",
+      "sourceLabel": "Citation source",
       "src1": {
-        "clause": "Clause Twelve",
-        "quote": "«…el Arrendatario pagará <mark>un interés moratorio del 3% (tres por ciento) mensual</mark> sobre las cantidades vencidas, desde la fecha de su vencimiento y hasta su pago total.»"
+        "quote": "«Septiembre 2026 · Renta mensual · $48,500.00 · <mark>Sin pago</mark>. Octubre 2026 · Renta mensual · $48,500.00 · <mark>Sin pago</mark>.»",
+        "where": "Account statement — October 2026.pdf"
       },
       "src2": {
-        "clause": "Clause Fifteen",
-        "quote": "«<mark>La falta de pago de dos o más mensualidades</mark> de renta será causa de rescisión del presente contrato, <mark>sin necesidad de declaración judicial</mark>.»"
+        "quote": "«…el Arrendatario pagará <mark>un interés moratorio del 3% (tres por ciento) mensual</mark> sobre las cantidades vencidas, desde la fecha de su vencimiento y hasta su pago total.»",
+        "where": "Clause Twelve · Lease — Tlalnepantla Warehouse.pdf"
       },
+      "src3": {
+        "quote": "«<mark>La falta de pago de dos o más mensualidades</mark> de renta será causa de rescisión del presente contrato, <mark>sin necesidad de declaración judicial</mark>.»",
+        "where": "Clause Fifteen · Lease — Tlalnepantla Warehouse.pdf"
+      },
+      "step1": "Read <name>Lease — Tlalnepantla Warehouse.pdf</name>",
+      "step2": "Read <name>Account statement — October 2026.pdf</name>",
+      "step3": "Used the <name>“Payment demand”</name> workflow",
+      "step4": "Drafted <name>Demand letter.docx</name>",
+      "stepsHead": "Finished in 4 steps",
+      "tabChat": "Assistant",
+      "tabDocs": "Documents",
+      "tabTables": "Tables",
       "verified": "Citation verified: the text appears on page {page}."
     },
     "tab": {
-      "body": "Ask many documents the same questions and get one table back. Every cell carries its citation.",
+      "count": "4 of 186 contracts",
       "doc": {
         "0": "Bodega Tlalnepantla.pdf",
         "1": "Local Polanco.pdf",
         "2": "Nave Querétaro.pdf",
         "3": "Oficinas Monterrey.pdf"
       },
+      "name": "Leases 2026",
       "q": {
         "0": "«El presente contrato tendrá una vigencia de 36 (treinta y seis) meses…»",
         "1": "«…un interés moratorio del 3% (tres por ciento) mensual…»",
@@ -1739,7 +1778,6 @@
       "thDoc": "Document",
       "thInterest": "Late interest",
       "thTerm": "Term",
-      "title": "Tabular review",
       "v": {
         "0": "36 months",
         "1": "3 % per month",
@@ -1755,8 +1793,75 @@
         "9": "12 months"
       }
     },
+    "trust": {
+      "i1": {
+        "body": "Firms, workspaces and matters are separated in the database. A private matter is visible to its members only.",
+        "title": "Each firm kept apart"
+      },
+      "i2": {
+        "body": "We don’t send error reports or usage data to other companies.",
+        "title": "No third-party telemetry"
+      },
+      "i3": {
+        "body": "The audit log and the evidence of what the AI did only accept new entries.",
+        "title": "A record that can’t be rewritten"
+      },
+      "intro": "How LiTT is built, with no fine print. You can check all of it in the code.",
+      "marker": "Fourth",
+      "title": "Your documents stay yours."
+    },
+    "why": {
+      "byok": {
+        "body": "Connect your firm’s account with Anthropic, OpenAI, Google or another provider. You pay the provider only for what you use, with no per-seat price. If a key fails, LiTT tells you instead of using another.",
+        "title": "Bring your own keys"
+      },
+      "host": {
+        "body": "LiTT is open source under AGPL-3.0. You can install it on your firm’s infrastructure and, with a model installed there too, your documents never leave your network.",
+        "title": "Install it on your servers"
+      },
+      "intro": "The large legal AI platforms are usually sold per seat, on annual contracts. LiTT is built for small and mid-sized firms: it uses your keys, the model you prefer and, if you want, your own servers.",
+      "keys": {
+        "aria": "Example: Anthropic, OpenAI and OpenRouter keys saved; no Google key.",
+        "foot": "Usage is billed to your firm’s account with each provider.",
+        "heading": "Settings › My AI keys",
+        "none": "No key",
+        "saved": "Saved"
+      },
+      "marker": "Second",
+      "model": {
+        "body": "Claude, GPT, Gemini or Mistral; GLM-Legal, Z.ai’s legal model, through OpenRouter; or an open model such as GLM, Qwen or DeepSeek that your firm installs itself. You choose it for each conversation and each table.",
+        "title": "Choose your model"
+      },
+      "names": {
+        "anthropic": "Anthropic",
+        "glmlegal": "GLM-Legal",
+        "google": "Google",
+        "openai": "OpenAI",
+        "openrouter": "OpenRouter",
+        "qwen": "Qwen 3",
+        "zai": "Z.ai"
+      },
+      "perimeter": {
+        "appName": "LiTT",
+        "appSub": "the app",
+        "aria": "Diagram: LiTT, the database and the model sit inside the firm’s network; the documents stay inside.",
+        "dataName": "Data",
+        "dataSub": "your documents",
+        "label": "Firm network",
+        "modelName": "Model",
+        "modelSub": "open",
+        "note": "Nothing leaves the network."
+      },
+      "picker": {
+        "aria": "Example model picker: Claude, GPT, Gemini and Mistral with your own key; GLM-Legal through OpenRouter; Qwen 3 on the firm’s server.",
+        "groupKeys": "With your key",
+        "groupLocal": "On the firm’s server",
+        "groupRouter": "Through OpenRouter",
+        "local": "Local"
+      },
+      "title": "The legal AI of large firms, within reach of yours."
+    },
     "word": {
-      "body": "Review and draft inside the document, with tracked changes and your firm’s playbooks.",
       "change": "Suggested change: shows or hides the comment.",
       "clause0": "ELEVENTH. Payment of rent.",
       "clause1": "TWELFTH. Default interest.",
@@ -1766,7 +1871,6 @@
       "text0": "Rent shall be paid monthly in advance, within the first five calendar days of each month, by transfer to the account the Landlord designates.",
       "text1a": "In case of late payment, the Tenant shall pay default interest of",
       "text1b": "per month on overdue amounts.",
-      "title": "Word add-in",
       "who": "Suggested change"
     }
   },

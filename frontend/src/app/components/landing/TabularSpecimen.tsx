@@ -22,8 +22,8 @@ const ROWS: ReadonlyArray<{
     { row: 3, cells: [{ index: 9, page: 2, n: 10 }, { index: 10, page: null, n: null }, { index: 11, page: 9, n: 11 }] },
 ];
 
-/** The first data column, so a phone (which shows it without scrolling) starts on a real source. */
-const FIRST_ACTIVE: Index = 6;
+/** Term of the first row: the first data cell, so a phone (which shows it without scrolling) starts on a real source. */
+const FIRST_ACTIVE: Index = 0;
 
 /**
  * The tabular review's example: the same questions asked of four contracts, one
@@ -43,6 +43,10 @@ export function TabularSpecimen() {
 
     return (
         <div>
+            <p className="flex justify-between gap-3 px-0.5 pb-2.5 font-sans text-xs/[1.3] font-medium text-muted-foreground">
+                <b className="font-semibold text-foreground">{t("landing.tab.name")}</b>
+                <span>{t("landing.tab.count")}</span>
+            </p>
             <div
                 role="region"
                 tabIndex={0}
