@@ -6,11 +6,13 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `3edd321ace14670e227eee57b103964afd702ac1`, reached by
-cycle 12 (2026-11-16; ledger [§32](UPSTREAM_COMPATIBILITY_LEDGER.md)). Merged into
-`main` by PR #205 (`725ce5bda`); groups 1 to 10 adopted, groups 11 (Sentry) and 12
-(CourtListener) rejected. Upstream may have moved past this pin since the cut; the
-next intake lists `origin/main..upstream/main` to show it.
+**Current pin:** upstream `4cbf434e9b0517dd94b6d37b23fd1dd959d5c919`, reached by
+cycle 13 (2026-11-17; ledger [§33](UPSTREAM_COMPATIBILITY_LEDGER.md)) once its PR is
+merged; the previous pin was cycle 12 (`3edd321a`, §32, PR #205). Legal Data Hunter
+is deferred (reverted in a separate commit, to be integrated later as its own topic),
+the upstream support e-mail is rejected, and dependency bumps are adopted without
+Sentry. Upstream may have moved past this pin since the cut; the next intake lists
+`origin/main..upstream/main` to show it.
 
 **Next intake:** the weekly read-only intake runs every Monday at 9:00
 (America/Mexico_City); the next one is Monday 2026-11-23. It lists
