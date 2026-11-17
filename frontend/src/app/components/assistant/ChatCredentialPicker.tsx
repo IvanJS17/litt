@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, KeyRound } from "lucide-react";
 import {
     Dropdown,
     DropdownContent,
@@ -9,14 +8,8 @@ import {
     DropdownRadioGroup,
     DropdownRadioItem,
     DropdownTrigger,
+    KeyChipUI,
 } from "@mike/ui";
-import {
-    COMPOSER_GHOST_BUTTON_CLASS,
-    COMPOSER_GHOST_WEB_ICON_CLASS,
-    COMPOSER_GHOST_WEB_SIZE_CLASS,
-    TOUCH_TARGET_CLASS,
-} from "@mike/ui";
-import { cn } from "@/app/lib/utils";
 import {
     getChatCredentialOptions,
     type ChatCredentialOptions,
@@ -114,23 +107,11 @@ export function ChatCredentialPicker({
     return (
         <Dropdown>
             <DropdownTrigger asChild>
-                <button
-                    type="button"
+                <KeyChipUI
+                    label={label}
+                    compact={compact}
                     aria-label={t("assistant.chatCredentialPicker.keyForThisConversationLabel", { label })}
-                    className={cn(
-                        TOUCH_TARGET_CLASS,
-                        COMPOSER_GHOST_BUTTON_CLASS,
-                        COMPOSER_GHOST_WEB_SIZE_CLASS,
-                        compact && COMPOSER_GHOST_WEB_ICON_CLASS,
-                        "text-[0.78125rem]",
-                    )}
-                >
-                    <KeyRound aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-                    {!compact && <span className="whitespace-nowrap">{label}</span>}
-                    {!compact && (
-                        <ChevronDown aria-hidden="true" className="h-3 w-3 shrink-0" />
-                    )}
-                </button>
+                />
             </DropdownTrigger>
             <DropdownContent align="end" className="w-64">
                 <DropdownLabel>{t("assistant.chatCredentialPicker.key")}</DropdownLabel>

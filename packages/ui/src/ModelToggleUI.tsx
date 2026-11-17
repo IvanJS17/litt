@@ -25,9 +25,13 @@ import {
   DropdownContent,
   DropdownItem,
   DropdownSeparator,
+  DropdownStaticItem,
+  DropdownStaticSeparator,
+  DropdownSurface,
   DropdownTrigger,
 } from "./dropdown";
 import {
+  type LadderChangeSource,
   ReasoningLadderUI,
   ReasoningMiniUI,
   ladderStepCount,
@@ -198,6 +202,282 @@ export function shortModelLabel(label: string): string {
   return short || label;
 }
 
+/** The menu's own classes, shared by the live menu and its still picture. */
+const MODEL_MENU_CLASS = `${COMPOSER_MENU_CLASS} flex max-h-[min(360px,60vh)] flex-col overflow-hidden rounded-[14px] p-1.5 text-gray-700 w-66 max-w-[calc(100vw-24px)]`;
+
+/**
+ * The composer's own trigger: a ghost button that names the model and, with a
+ * reasoning level, wears its thumbnail. One class string for the live button
+ * and for `ModelChipPreviewUI`.
+ */
+function composerTriggerClassName({
+  controlSize,
+  compact,
+  compactShowsName,
+  selected,
+  tone,
+  triggerClassName,
+}: {
+  controlSize: "web" | "word";
+  compact: boolean;
+  compactShowsName: boolean;
+  selected: boolean;
+  tone: "muted" | "default";
+  triggerClassName?: string;
+}): string {
+  return twMerge(
+    COMPOSER_GHOST_BUTTON_CLASS,
+    controlSize === "word"
+      ? COMPOSER_GHOST_WORD_SIZE_CLASS
+      : COMPOSER_GHOST_WEB_SIZE_CLASS,
+    compact && !compactShowsName
+      ? controlSize === "word"
+        ? COMPOSER_GHOST_WORD_ICON_CLASS
+        : COMPOSER_GHOST_WEB_ICON_CLASS
+      : "",
+    tone === "default" || selected ? "text-gray-700" : "text-gray-500",
+    triggerClassName,
+  );
+}
+
+export interface ModelMenuBodyProps {
+  models: readonly ModelToggleOption[];
+  value: string;
+  expandedGroup: ModelToggleGroup | null;
+  onExpandedGroupChange?: (group: ModelToggleGroup | null) => void;
+  onModelSelect?: (id: string) => void;
+  reasoningLevel?: ReasoningLevel;
+  reasoningLevels?: readonly ReasoningLevel[];
+  onReasoningChange?: (level: ReasoningLevel, source: LadderChangeSource) => void;
+  /**
+   * `false` draws the rows as plain elements, with no menu around them and
+   * no handlers: the still picture of the menu (`ModelMenuPreviewUI`).
+   */
+  interactive?: boolean;
+}
+
+/**
+ * What is inside the model menu: the provider groups with their models, a
+ * rule, and the reasoning ladder. It is the live menu's content and, drawn
+ * `interactive={false}`, the content of its still picture.
+ */
+export function ModelMenuBodyUI({
+  models,
+  value,
+  expandedGroup,
+  onExpandedGroupChange,
+  onModelSelect,
+  reasoningLevel,
+  reasoningLevels = REASONING_LEVELS,
+  onReasoningChange,
+  interactive = true,
+}: ModelMenuBodyProps) {
+  const t = useTranslations();
+  const ladderRef = React.useRef<HTMLDivElement>(null);
+  // The level the pointer would choose, shown in grey beside the real one.
+  const [previewLevel, setPreviewLevel] = React.useState<ReasoningLevel | null>(
+    null,
+  );
+  const Item = (interactive ? DropdownItem : DropdownStaticItem) as typeof DropdownItem;
+  const Separator = (
+    interactive ? DropdownSeparator : DropdownStaticSeparator
+  ) as typeof DropdownSeparator;
+  const availableGroups = orderedModelGroups(models).flatMap((group) => {
+    const items = models.filter((model) => model.group === group);
+    return items.length ? [{ group, items }] : [];
+  });
+  const routeCounts = models.reduce((counts, model) => {
+    const key = `${model.group}\u0000${model.label.toLocaleLowerCase()}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const reasoningName = (level: ReasoningLevel): string =>
+    t(REASONING_LEVEL_LABEL_KEYS[level]);
+
+  return (
+    <>
+        <div
+          className={`-mr-1.5 min-h-0 flex-1 overflow-y-auto pr-1.5 ${MODEL_ROWS_CLASS}`}
+        >
+          {availableGroups.map(({ group, items }) => {
+            const expanded = expandedGroup === group;
+            return (
+              <React.Fragment key={group}>
+                <Item
+                  aria-expanded={expanded}
+                  className={`${itemClassName} font-semibold text-gray-900`}
+                  {...(interactive && {
+                    onSelect: (event: Event) => {
+                      event.preventDefault();
+                      onExpandedGroupChange?.(expanded ? null : group);
+                    },
+                  })}
+                >
+                  <span className="min-w-0 flex-1 truncate text-xs">
+                    {routeLabel(t, group)}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`${PIXEL_TEXT_CLASS} font-normal tabular-nums text-gray-500`}
+                  >
+                    {items.length}
+                  </span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
+                  />
+                </Item>
+                {expanded &&
+                  items.map((model) => (
+                    <Item
+                      key={model.id}
+                      selected={model.id === value}
+                      className={`${itemClassName} litt-model-row pl-[18px] ${model.id === value ? "font-medium text-gray-900" : ""}`}
+                      {...(interactive && {
+                        onSelect: () => onModelSelect?.(model.id),
+                      })}
+                    >
+                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                        {model.label}
+                      </span>
+                      {model.source &&
+                        (!["Direct", "Local", "Configured"].includes(model.source) ||
+                          (routeCounts.get(
+                            `${model.group}\u0000${model.label.toLocaleLowerCase()}`,
+                          ) ?? 0) > 1) && (
+                          <span
+                            className={`shrink-0 text-right font-normal text-gray-500 ${pixelTextClass(routeLabel(t, model.source), "text-2xs")}`}
+                          >
+                            {routeLabel(t, model.source)}
+                          </span>
+                        )}
+                      {model.id === value && (
+                        <Check
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5 shrink-0 text-gray-900"
+                        />
+                      )}
+                    </Item>
+                  ))}
+              </React.Fragment>
+            );
+          })}
+        </div>
+        {reasoningLevel !== undefined &&
+          onReasoningChange &&
+          ladderStepCount(reasoningLevels) > 0 && (
+          <div className="shrink-0">
+            <Separator className="mx-1 my-1.5 bg-[var(--litt-composer-ring)]" />
+            <Item
+              aria-label={t("ui.modelToggle.reasoningLevelValue", {
+                level: reasoningName(reasoningLevel),
+              })}
+              {...(interactive && {
+                onSelect: (event: Event) => event.preventDefault(),
+                onFocus: (event: React.FocusEvent<HTMLDivElement>) => {
+                  if (event.target === event.currentTarget) {
+                    ladderRef.current?.focus();
+                  }
+                },
+              })}
+              className="block cursor-default rounded-lg px-2.5 pb-2.5 pt-2 [&>*]:pointer-events-auto"
+            >
+              <div>
+                <div className="mb-2 flex items-baseline gap-2 text-xs">
+                  <span className="font-semibold text-gray-900">
+                    {t("ui.modelToggle.reasoning")}
+                  </span>
+                  <span
+                    className={`ml-auto font-medium ${previewLevel ? "text-gray-500" : "text-gray-900"}`}
+                  >
+                    {reasoningName(previewLevel ?? reasoningLevel)}
+                  </span>
+                </div>
+                <ReasoningLadderUI
+                  ref={ladderRef}
+                  levels={reasoningLevels}
+                  level={reasoningLevel}
+                  label={t("ui.modelToggle.reasoningLevel")}
+                  valueText={reasoningName(reasoningLevel)}
+                  onPreview={setPreviewLevel}
+                  onChange={(next, source) => {
+                    setPreviewLevel(null);
+                    onReasoningChange(next, source);
+                  }}
+                />
+                <div
+                  aria-hidden="true"
+                  className="mt-1 flex justify-between text-2xs text-gray-500"
+                >
+                  <span>{reasoningName(reasoningLevels[0] ?? "none")}</span>
+                  <span>
+                    {reasoningName(reasoningLevels.at(-1) ?? reasoningLevel)}
+                  </span>
+                </div>
+              </div>
+            </Item>
+          </div>
+        )}
+    </>
+  );
+}
+
+/** The still picture of the open menu: no portal, no focus, no handlers. */
+export function ModelMenuPreviewUI({
+  className,
+  ...props
+}: Omit<ModelMenuBodyProps, "interactive"> & { className?: string }) {
+  return (
+    <DropdownSurface
+      inert
+      className={twMerge(MODEL_MENU_CLASS, "z-auto", className)}
+    >
+      <ModelMenuBodyUI
+        {...props}
+        onReasoningChange={props.onReasoningChange ?? (() => {})}
+        interactive={false}
+      />
+    </DropdownSurface>
+  );
+}
+
+/**
+ * The composer's model button as a picture: the name and the reasoning
+ * thumbnail, with the look of the live trigger and none of its behavior.
+ */
+export function ModelChipPreviewUI({
+  label,
+  reasoningLevel,
+  reasoningLevels = REASONING_LEVELS,
+  className,
+}: {
+  label: string;
+  reasoningLevel: ReasoningLevel;
+  reasoningLevels?: readonly ReasoningLevel[];
+  className?: string;
+}) {
+  return (
+    <span
+      aria-expanded="true"
+      className={composerTriggerClassName({
+        controlSize: "web",
+        compact: false,
+        compactShowsName: false,
+        selected: true,
+        tone: "muted",
+        triggerClassName: className,
+      })}
+    >
+      <span className="min-w-0 max-w-[200px] truncate">{label}</span>
+      <ReasoningMiniUI
+        levels={reasoningLevels}
+        level={reasoningLevel}
+        instant
+      />
+    </span>
+  );
+}
+
 export interface ModelToggleUIProps {
   value: string;
   onChange: (id: string) => void;
@@ -282,7 +562,6 @@ export function ModelToggleUI({
   const TriggerButton = toolbar ? TabPillButtonUI : "button";
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const open = openProp ?? uncontrolledOpen;
-  const ladderRef = React.useRef<HTMLDivElement>(null);
   const selected = models.find((model) => model.id === value);
   const [expandedGroup, setExpandedGroup] =
     React.useState<ModelToggleGroup | null>(null);
@@ -290,11 +569,6 @@ export function ModelToggleUI({
     const items = models.filter((model) => model.group === group);
     return items.length ? [{ group, items }] : [];
   });
-  const routeCounts = models.reduce((counts, model) => {
-    const key = `${model.group}\u0000${model.label.toLocaleLowerCase()}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-    return counts;
-  }, new Map<string, number>());
   const label =
     selectedLabel ??
     selected?.label ??
@@ -316,10 +590,6 @@ export function ModelToggleUI({
   // tap on the ladder, or another model, animates it. The keyboard and a drag
   // do not.
   const [levelChangeInstant, setLevelChangeInstant] = React.useState(false);
-  // The level the pointer would choose, shown in grey beside the real one.
-  const [previewLevel, setPreviewLevel] = React.useState<ReasoningLevel | null>(
-    null,
-  );
 
   // Every opening, by the trigger or by the host, starts on the selected
   // model's group. Set while rendering, so the menu never paints collapsed.
@@ -395,21 +665,14 @@ export function ModelToggleUI({
               ? FLAT_INPUT_CLASS
               : modalInput
               ? `keyboard-focus-ring flex h-10 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm text-gray-700 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${open ? LIQUID_GLASS_SELECTED_CLASS : ""}`
-              : twMerge(
-                  COMPOSER_GHOST_BUTTON_CLASS,
-                  controlSize === "word"
-                    ? COMPOSER_GHOST_WORD_SIZE_CLASS
-                    : COMPOSER_GHOST_WEB_SIZE_CLASS,
-                  compact && !compactShowsName
-                    ? controlSize === "word"
-                      ? COMPOSER_GHOST_WORD_ICON_CLASS
-                      : COMPOSER_GHOST_WEB_ICON_CLASS
-                    : "",
-                  tone === "default" || selected
-                    ? "text-gray-700"
-                    : "text-gray-500",
+              : composerTriggerClassName({
+                  controlSize,
+                  compact,
+                  compactShowsName,
+                  selected: !!selected,
+                  tone,
                   triggerClassName,
-                )
+                })
           }
         >
           {compact && !compactShowsName ? (
@@ -451,130 +714,33 @@ export function ModelToggleUI({
         side={modalInput || toolbar ? "bottom" : "top"}
         align={modalInput || toolbar ? "start" : "end"}
         sideOffset={modalInput ? 4 : 8}
-        className={`${COMPOSER_MENU_CLASS} flex max-h-[min(360px,60vh)] flex-col overflow-hidden rounded-[14px] p-1.5 text-gray-700 ${modalInput ? "w-[var(--radix-dropdown-menu-trigger-width)]" : "w-66 max-w-[calc(100vw-24px)]"}`}
-      >
-        <div
-          className={`-mr-1.5 min-h-0 flex-1 overflow-y-auto pr-1.5 ${MODEL_ROWS_CLASS}`}
-        >
-          {availableGroups.map(({ group, items }) => {
-            const expanded = expandedGroup === group;
-            return (
-              <React.Fragment key={group}>
-                <DropdownItem
-                  aria-expanded={expanded}
-                  className={`${itemClassName} font-semibold text-gray-900`}
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setExpandedGroup(expanded ? null : group);
-                  }}
-                >
-                  <span className="min-w-0 flex-1 truncate text-xs">
-                    {routeLabel(t, group)}
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={`${PIXEL_TEXT_CLASS} font-normal tabular-nums text-gray-500`}
-                  >
-                    {items.length}
-                  </span>
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
-                  />
-                </DropdownItem>
-                {expanded &&
-                  items.map((model) => (
-                    <DropdownItem
-                      key={model.id}
-                      selected={model.id === value}
-                      className={`${itemClassName} litt-model-row pl-[18px] ${model.id === value ? "font-medium text-gray-900" : ""}`}
-                      onSelect={() => {
-                        // Another model may move the level to the nearest
-                        // one it offers; that change animates.
-                        setLevelChangeInstant(false);
-                        onChange(model.id);
-                      }}
-                    >
-                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-                        {model.label}
-                      </span>
-                      {model.source &&
-                        (!["Direct", "Local", "Configured"].includes(model.source) ||
-                          (routeCounts.get(
-                            `${model.group}\u0000${model.label.toLocaleLowerCase()}`,
-                          ) ?? 0) > 1) && (
-                          <span
-                            className={`shrink-0 text-right font-normal text-gray-500 ${pixelTextClass(routeLabel(t, model.source), "text-2xs")}`}
-                          >
-                            {routeLabel(t, model.source)}
-                          </span>
-                        )}
-                      {model.id === value && (
-                        <Check
-                          aria-hidden="true"
-                          className="h-3.5 w-3.5 shrink-0 text-gray-900"
-                        />
-                      )}
-                    </DropdownItem>
-                  ))}
-              </React.Fragment>
-            );
-          })}
-        </div>
-        {reasoningLevel !== undefined &&
-          onReasoningChange &&
-          ladderStepCount(reasoningLevels) > 0 && (
-          <div className="shrink-0">
-            <DropdownSeparator className="mx-1 my-1.5 bg-[var(--litt-composer-ring)]" />
-            <DropdownItem
-              aria-label={t("ui.modelToggle.reasoningLevelValue", {
-                level: reasoningName(reasoningLevel),
-              })}
-              onSelect={(event) => event.preventDefault()}
-              onFocus={(event) => {
-                if (event.target === event.currentTarget) {
-                  ladderRef.current?.focus();
-                }
-              }}
-              className="block cursor-default rounded-lg px-2.5 pb-2.5 pt-2 [&>*]:pointer-events-auto"
-            >
-              <div>
-                <div className="mb-2 flex items-baseline gap-2 text-xs">
-                  <span className="font-semibold text-gray-900">
-                    {t("ui.modelToggle.reasoning")}
-                  </span>
-                  <span
-                    className={`ml-auto font-medium ${previewLevel ? "text-gray-500" : "text-gray-900"}`}
-                  >
-                    {reasoningName(previewLevel ?? reasoningLevel)}
-                  </span>
-                </div>
-                <ReasoningLadderUI
-                  ref={ladderRef}
-                  levels={reasoningLevels}
-                  level={reasoningLevel}
-                  label={t("ui.modelToggle.reasoningLevel")}
-                  valueText={reasoningName(reasoningLevel)}
-                  onPreview={setPreviewLevel}
-                  onChange={(next, source) => {
-                    setLevelChangeInstant(source !== "pointer");
-                    setPreviewLevel(null);
-                    onReasoningChange(next);
-                  }}
-                />
-                <div
-                  aria-hidden="true"
-                  className="mt-1 flex justify-between text-2xs text-gray-500"
-                >
-                  <span>{reasoningName(reasoningLevels[0] ?? "none")}</span>
-                  <span>
-                    {reasoningName(reasoningLevels.at(-1) ?? reasoningLevel)}
-                  </span>
-                </div>
-              </div>
-            </DropdownItem>
-          </div>
+        className={twMerge(
+          MODEL_MENU_CLASS,
+          modalInput && "w-[var(--radix-dropdown-menu-trigger-width)]",
         )}
+      >
+        <ModelMenuBodyUI
+          models={models}
+          value={value}
+          expandedGroup={expandedGroup}
+          onExpandedGroupChange={setExpandedGroup}
+          onModelSelect={(id) => {
+            // Another model may move the level to the nearest one it
+            // offers; that change animates.
+            setLevelChangeInstant(false);
+            onChange(id);
+          }}
+          reasoningLevel={reasoningLevel}
+          reasoningLevels={reasoningLevels}
+          onReasoningChange={
+            onReasoningChange
+              ? (next, source) => {
+                  setLevelChangeInstant(source !== "pointer");
+                  onReasoningChange(next);
+                }
+              : undefined
+          }
+        />
       </DropdownContent>
     </Dropdown>
   );

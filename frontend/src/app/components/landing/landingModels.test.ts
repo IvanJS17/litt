@@ -8,6 +8,10 @@ import {
     CATALOG_MODEL_IDS,
     LOCAL_MODEL,
     OPENROUTER_MODEL,
+    PICKER_ANTHROPIC_IDS,
+    PICKER_MODELS,
+    PICKER_OPENROUTER_IDS,
+    PICKER_SELECTED_ID,
     catalogModelName,
 } from "./landingModels";
 
@@ -43,3 +47,32 @@ describe("the models the page names", () => {
         }
     });
 });
+
+// The hero's open model menu. Its Anthropic rows are the catalog's. Its
+// OpenRouter rows are models a firm configures itself, so they are rightly not
+// in docs/direct-provider-models.md; they are checked against the app's own
+// naming of a saved selection instead.
+describe("the model menu of the hero", () => {
+    it("counts four Anthropic models, all in the app's catalog", () => {
+        for (const id of PICKER_ANTHROPIC_IDS) {
+            expect(MODELS.some((model) => model.id === id), id).toBe(true);
+        }
+        expect(PICKER_MODELS.filter((model) => model.group === "Anthropic")).toHaveLength(4);
+    });
+
+    it("offers two firm-configured OpenRouter models, named as the picker names them", () => {
+        const rows = PICKER_MODELS.filter((model) => model.group === "OpenRouter");
+        expect(rows.map((model) => model.label)).toEqual(["Deepseek V4.1 Flash 1017", "Glm 5.3 Flashx Legal"]);
+        expect(rows.map((model) => model.id)).toEqual(PICKER_OPENROUTER_IDS.map((id) => `openrouter/${id}`));
+        for (const row of rows) {
+            // Not a built-in direct-provider model: the docs must not list it.
+            expect(MODELS.some((model) => model.id === row.id), row.id).toBe(false);
+            expect(docs).not.toContain(row.label);
+        }
+    });
+
+    it("shows the second OpenRouter model as the chosen one", () => {
+        expect(PICKER_MODELS.find((model) => model.id === PICKER_SELECTED_ID)?.label).toBe("Glm 5.3 Flashx Legal");
+    });
+});
+

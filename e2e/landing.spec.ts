@@ -23,7 +23,7 @@ async function setUp(page: Page, opts: { locale: "es-MX" | "en-US"; theme: "ligh
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     // The stored theme is applied after hydration and its pill animates for
     // 150 ms; wait for it to settle so contrast checks never read a mid-transition color.
-    // (The footer's group and the phone menu's group both carry the attribute.)
+    // (The phone menu's group carries the attribute, hidden or not.)
     await expect(page.locator(`[data-theme-option="${opts.theme}"][aria-checked="true"]`).first()).toBeAttached();
     await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
     // The assistant's steps come in once per session, over about two seconds, with
@@ -118,11 +118,12 @@ test("the assistant's steps come in once per browser session, and all of them st
     await expect(page.getByText("2 pages · new in the project")).toBeVisible();
 });
 
-test("the language and the theme can be changed from the footer", async ({ page }) => {
+test("the theme changes from the header icon and the language from the footer, which has no theme group", async ({ page }) => {
     await setUp(page, { locale: "es-MX", theme: "light" });
-    await page.getByRole("radio", { name: "Oscuro" }).click();
+    await expect(page.locator("footer").getByRole("radiogroup", { name: "Tema" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Cambiar a tema oscuro" }).click();
     await expect(page.locator("html")).toHaveClass(/dark/);
-    await page.getByRole("radio", { name: "English" }).click();
+    await page.locator("footer").getByRole("radio", { name: "English" }).click();
     await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("The legal assistant that works the matter with you.");
 });
