@@ -20,6 +20,7 @@ route answers: the requests fall through to the normal 404.
 | `LITT_MCP_CONSENT_URL` | `FRONTEND_URL` | Origin of the web app whose `/connect/authorize` page asks the person to approve. |
 | `LITT_MCP_ALLOWED_ORIGINS` | none | Browser origins that may call `/mcp` (comma separated). Callers without an `Origin` header (Claude, ChatGPT, Hermes) need nothing. |
 | `LITT_MCP_CIMD` | enabled | `disabled` stops advertising and fetching client metadata documents, so clients register dynamically. |
+| `LITT_MCP_RUN_WAIT_MS` / `LITT_MCP_RUN_POLL_MS` | 45000 / 1000 | How long `run_*` tools wait for their work before answering `running`, and how often they look (wait is capped at 120 000). |
 | `LITT_MCP_ACCESS_TTL_SECONDS` | 3600 | Access-token lifetime. |
 | `LITT_MCP_REFRESH_TTL_DAYS` | 30 | Refresh-token lifetime (each refresh issues a new one). |
 | `LITT_MCP_GRANT_MAX_DAYS` | 90 | Absolute life of a connection; after it the person connects again. |
@@ -166,6 +167,20 @@ Names are at most 64 characters; reads and writes are separate tools.
 | `get_upload_status` | `litt.read` | read-only | State of an upload, and the new document's id once it is done. |
 | `request_document_upload` | `litt.write` | additive (`destructiveHint: false`), strict audit | Opens the web's upload session for one file in a matter and returns a one-time signed `PUT` URL. |
 | `complete_document_upload` | `litt.write` | additive, strict audit | After the `PUT`, asks LiTT to seal, verify and process the file. Safe to repeat. |
+| `find_playbooks` | `litt.read` | read-only | Ready playbooks the person can use in one workspace (drafts are left out), with `match_score` and `ambiguous`. Cursor pagination. |
+| `get_playbook` | `litt.read` | read-only, strict audit | A playbook's rules (ids and names) and its content, a window at a time, as untrusted data. |
+| `run_playbook_review` | `litt.run` | additive, strict audit | **Mode A.** LiTT reviews one document against one ready playbook with the person's own governed AI route (`queuePlaybookReview`, the web's engine). Waits up to ~45 s (`LITT_MCP_RUN_WAIT_MS`), else answers `status: running` + `poll_after_s`. Tracked changes only with `apply_tracked_changes: true` (Word files). |
+| `get_playbook_run` | `litt.read` | read-only, strict audit | Status, summary and findings of one of the person's runs, a page at a time; the quote, analysis and suggested wording come as untrusted data. |
+| `list_playbook_runs` | `litt.read` | read-only | The person's runs in a workspace (optionally one playbook), without findings. |
+| `prepare_playbook_review` | `litt.read` | read-only, strict audit, mode B | **Mode B.** The engine's review instructions with the playbook, the rule ids, a window of the document's text (untrusted, egress recorded) and a signed ticket valid for 2 h. Refused with `mode_not_available` in an apprentice's firm. |
+| `submit_playbook_review` | `litt.write` | additive, strict audit, mode B | **Mode B.** Takes the client's findings with the ticket, checks rule ids and looks each quote up in the document text (`quote_verified`), and records a completed run with `model = "client_ai"`. Changes no document. |
+| `list_tabular_reviews` | `litt.read` | read-only | Tabular reviews of a workspace or matter with columns, document count, `is_running`. Cursor pagination. |
+| `create_tabular_review` | `litt.write` | additive, strict audit | `createTabularReview`, the web's service: title, documents, columns `{name, prompt, format?}`, optional matter. Model: the one named or the person's saved tabular model; with neither, `model_required` (nothing picks one). Fills nothing. |
+| `get_tabular_review` | `litt.read` | read-only | Columns, rows (a page), progress, `is_running`, `active_generation`. |
+| `read_tabular_cells` | `litt.read` | read-only, strict audit | Cells a page at a time with answer, reasoning, citations and their checks as untrusted data; egress recorded per document. |
+| `run_tabular_review` | `litt.run` | additive, strict audit | **Mode A.** `startTabularGeneration` (shared with `POST /tabular-review/:id/generate`) on the review's own model and the person's keys; waits ~45 s, else `running`. A second start answers `review_running`. |
+| `get_tabular_run_status` | `litt.read` | read-only | Cells done / failed / pending and whether a run is in progress. |
+| `stop_tabular_run` | `litt.run` | additive, strict audit | `stopTabularGeneration`, shared with `POST …/generate/stop`. |
 
 **Same permissions as the web.** A tool calls the service functions the web
 routes call (`getProjectsOverview`, `getProjectDetail`, `getProjectDirectoryLevel`,
@@ -192,6 +207,33 @@ passage is cited as `version_id` + `start_char`/`end_char`.
 **Size.** Listings page by cursor (≤ 50 rows; opaque `next_cursor`). No result may
 exceed 100 000 characters (`result_too_large` otherwise), under Claude Code's
 25 000-token ceiling.
+
+**Playbooks and tabular: who runs the work.** *Mode A* (`run_*`) is LiTT's engine
+with the person's governed BYOK route: the model is the one named or the person's
+default, the route is pinned when the run is recorded, and a missing key or default
+refuses the call (`byok_not_configured`, `missing_api_key`; the answer says LiTT does
+not switch models). Apprentices (Formación) may use mode A only: `prepare_playbook_review` and
+`submit_playbook_review` answer `mode_not_available` in their firm. *Mode B*
+(`prepare_*` + `submit_*`) lets the client's AI reason: the document text and the
+playbook leave LiTT as untrusted data with an egress record, and what comes back is
+validated with the engine's own rules (`normalizeFindings`: rule ids must exist,
+quotes must be found in the text; a quote that is not found is dropped and reported as
+`quote_verified: false`). A ticket is an HMAC-signed claim (user, connection,
+workspace, playbook hash, document version and its content hash) derived from
+`DOWNLOAD_SIGNING_SECRET`; `submit_*` re-checks every permission as a new request, and a
+changed playbook (`playbook_changed`) refuses it. A document is refused with
+`document_changed` only when the prepared version's `content_sha256` changed; a newer
+version does not refuse it, and the review is saved against the ticket's version.
+Long work is start + poll: `run_*` waits `LITT_MCP_RUN_WAIT_MS` (default 45 000),
+then answers `running`; `get_playbook_run` / `get_tabular_run_status` follow it.
+Findings and cells are paged by cursor with a text budget per page.
+
+**Shared services.** `startTabularGeneration` / `runTabularGeneration` /
+`stopTabularGeneration` (`modules/tabular/tabular.generation.ts`) were extracted
+from the generate route, which now calls them for the synchronous path (the async
+queue path keeps its handler); `getPlaybookRun`, `preparePlaybookClientReview` and
+`savePlaybookClientReview` are new playbook services; `PlaybookReviewRequest.applyEdits`
+(default true, the web's behaviour) lets a caller review without tracked changes.
 
 **Uploads.** An MCP call cannot carry file bytes. `request_document_upload` runs the
 web's own manifest validation (types, 100 MB, destination authorization) and returns
@@ -226,6 +268,10 @@ removes its connections and tokens and keeps the history.
   through `/mcp` JSON-RPC against an in-memory firm (`helpers/mcpToolsWorld.ts`):
   the parity matrix with the web routes, tools/list per scope and annotations,
   pagination, size caps, untrusted wrapping, training locks, audit rows, uploads.
+* `backend/src/__tests__/integration/mcp.tools.playbooksTabular.routes.test.ts` — the playbook
+  and tabular tools through `/mcp`: the parity matrix against the playbook and tabular
+  routes, mode A start + poll, BYOK fail-closed, mode B tickets and validation,
+  apprentices, audit and egress rows.
 * `backend/src/modules/mcp/__tests__/mcp.toolkit.test.ts` — cursors, text
   windows, the untrusted wrapper, matter matching, and the rule that tool files
   do not query tables.

@@ -33,6 +33,30 @@ export const VERSION_PUBLIC = "cccccccc-0000-4000-8000-000000000001";
 export const VERSION_PRIVATE = "cccccccc-0000-4000-8000-000000000002";
 export const VERSION_HELD = "cccccccc-0000-4000-8000-000000000003";
 export const FOLDER = "dddddddd-0000-4000-8000-000000000001";
+// Playbooks: one the whole firm may use, a draft, and one only its creator may open.
+export const PLAYBOOK_READY = "eeeeeeee-0000-4000-8000-000000000001";
+export const PLAYBOOK_DRAFT = "eeeeeeee-0000-4000-8000-000000000002";
+export const PLAYBOOK_PRIVATE = "eeeeeeee-0000-4000-8000-000000000003";
+export const RULE_RENT = "rule-renta";
+export const RULE_TERM = "rule-plazo";
+// Tabular reviews: one in each matter, with a filled and a waiting cell.
+export const REVIEW_PUBLIC = "99999999-0000-4000-8000-000000000001";
+export const REVIEW_PRIVATE = "99999999-0000-4000-8000-000000000002";
+export const ROW_PUBLIC = "88888888-0000-4000-8000-000000000001";
+export const ROW_PRIVATE = "88888888-0000-4000-8000-000000000002";
+
+const playbookContent = (name: string) => ({
+    name,
+    description: "Reglas de arrendamiento",
+    representedParty: "Arrendador",
+    documentTypes: ["arrendamiento"],
+    jurisdictions: ["CDMX"],
+    rules: [
+        { id: RULE_RENT, name: "Renta", concept: "La renta es mensual y fija.", scope: "clause", required: true, guidance: "", standard: { name: "Estándar", criteria: "Renta mensual fija en pesos" }, fallbacks: [], unacceptable: [], conditions: [], actions: [], sourceRefs: [] },
+        { id: RULE_TERM, name: "Plazo", concept: "Plazo de un año.", scope: "clause", required: false, guidance: "", standard: null, fallbacks: [], unacceptable: [], conditions: [], actions: [], sourceRefs: [] },
+    ],
+    topics: [],
+});
 
 export const SECRET_TEXT = "Cláusula primera: el arrendatario pagará una renta mensual de $10,000 MXN.";
 
@@ -94,6 +118,26 @@ export function buildWorld() {
             { version_id: VERSION_HELD, source_revision: "rev-3", extractor_version: 1, status: "ready", text_content: "Borrador del pasante: cláusula primera.", textless_page_count: 0 },
         ],
         training_version_approvals: [],
+        playbooks: [
+            { id: PLAYBOOK_READY, user_id: PEOPLE.owner.id, org_id: ORG, visibility: "organization", name: "Arrendamientos", description: "Reglas de arrendamiento", content_json: playbookContent("Arrendamientos"), source_filename: null, import_model: null, status: "ready", is_model: false, derived_from_playbook_id: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-10T10:00:00Z" },
+            { id: PLAYBOOK_DRAFT, user_id: PEOPLE.owner.id, org_id: ORG, visibility: "organization", name: "Borrador de reglas", description: "", content_json: playbookContent("Borrador de reglas"), source_filename: null, import_model: null, status: "draft", is_model: false, derived_from_playbook_id: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-09T10:00:00Z" },
+            { id: PLAYBOOK_PRIVATE, user_id: PEOPLE.owner.id, org_id: ORG, visibility: "private", name: "Reglas reservadas", description: "", content_json: playbookContent("Reglas reservadas"), source_filename: null, import_model: null, status: "ready", is_model: false, derived_from_playbook_id: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-08T10:00:00Z" },
+        ],
+        playbook_runs: [],
+        playbook_org_access_overrides: [],
+        playbook_shares: [],
+        tabular_reviews: [
+            { id: REVIEW_PUBLIC, user_id: PEOPLE.owner.id, project_id: PROJECT_PUBLIC, org_id: ORG, title: "Rentas", model: "claude-sonnet-4-5", columns_config: [{ index: 0, name: "Renta", prompt: "¿Cuál es la renta?" }, { index: 1, name: "Plazo", prompt: "¿Cuál es el plazo?" }], document_ids: [DOC_PUBLIC], document_grouping: "document", active_generation_id: null, generation_lease_expires_at: null, created_at: "2026-11-05T10:00:00Z", updated_at: "2026-11-06T10:00:00Z" },
+            { id: REVIEW_PRIVATE, user_id: PEOPLE.owner.id, project_id: PROJECT_PRIVATE, org_id: ORG, title: "Demanda", model: "claude-sonnet-4-5", columns_config: [{ index: 0, name: "Hechos", prompt: "Hechos" }], document_ids: [DOC_PRIVATE], document_grouping: "document", active_generation_id: null, generation_lease_expires_at: null, created_at: "2026-11-05T10:00:00Z", updated_at: "2026-11-06T10:00:00Z" },
+        ],
+        tabular_review_rows: [
+            { id: ROW_PUBLIC, review_id: REVIEW_PUBLIC, label: "contrato.docx", row_type: "document", document_id: DOC_PUBLIC, source_document_ids: [DOC_PUBLIC], sort_index: 0 },
+            { id: ROW_PRIVATE, review_id: REVIEW_PRIVATE, label: "demanda.pdf", row_type: "document", document_id: DOC_PRIVATE, source_document_ids: [DOC_PRIVATE], sort_index: 0 },
+        ],
+        tabular_cells: [
+            { id: "77777777-0000-4000-8000-000000000001", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 0, content: JSON.stringify({ summary: "$10,000 MXN mensuales", flag: "green", reasoning: "Cláusula primera" }), citations: [{ document_id: DOC_PUBLIC, quote: "renta mensual de $10,000 MXN" }], status: "done", generation_id: null },
+            { id: "77777777-0000-4000-8000-000000000002", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 1, content: null, citations: null, status: "pending", generation_id: null },
+        ],
         project_access_grants: [],
         memory_files: [],
         matters: [],

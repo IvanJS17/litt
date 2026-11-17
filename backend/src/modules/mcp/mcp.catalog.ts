@@ -1,6 +1,6 @@
 // The tools /mcp offers. Each one is declared with defineMcpTool in a
-// mcp.tools.<topic>.ts file (context, matters, documents, uploads; playbooks,
-// tabular and chat come later) and listed here. They get scope enforcement, the
+// mcp.tools.<topic>.ts file (context, matters, documents, uploads, playbooks,
+// tabular; chat comes later) and listed here. They get scope enforcement, the
 // per-grant budget, the live workspace check and the audit from mcp.tools.ts.
 
 import { z } from "zod";
@@ -13,6 +13,24 @@ import {
     readDocument,
     searchDocuments,
 } from "./mcp.tools.documents";
+import {
+    findPlaybooks,
+    getPlaybookRunTool,
+    getPlaybookTool,
+    listPlaybookRuns,
+    preparePlaybookReview,
+    runPlaybookReview,
+    submitPlaybookReview,
+} from "./mcp.tools.playbooks";
+import {
+    createTabularReviewTool,
+    getTabularReviewTool,
+    getTabularRunStatus,
+    listTabularReviewsTool,
+    readTabularCells,
+    runTabularReview,
+    stopTabularRun,
+} from "./mcp.tools.tabular";
 import { completeDocumentUpload, getUploadStatus, requestDocumentUpload } from "./mcp.tools.uploads";
 
 export const whoami = defineMcpTool({
@@ -49,4 +67,18 @@ export const MCP_TOOLS: readonly AnyMcpTool[] = [
     requestDocumentUpload,
     completeDocumentUpload,
     getUploadStatus,
+    findPlaybooks,
+    getPlaybookTool,
+    runPlaybookReview,
+    getPlaybookRunTool,
+    listPlaybookRuns,
+    preparePlaybookReview,
+    submitPlaybookReview,
+    listTabularReviewsTool,
+    createTabularReviewTool,
+    getTabularReviewTool,
+    readTabularCells,
+    runTabularReview,
+    getTabularRunStatus,
+    stopTabularRun,
 ];

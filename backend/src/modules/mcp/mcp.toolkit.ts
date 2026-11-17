@@ -173,3 +173,37 @@ export const documentWorkspace = async (call: McpCall, documentId: string): Prom
 export function serviceFailure(operation: string, cause?: unknown): AppError {
     return new AppError("mcp.service_failed", `[mcp] ${operation} failed`, { cause });
 }
+
+// ---------------------------------------------------------------------------
+// Long runs: start, wait a little, then poll (design §8).
+// ---------------------------------------------------------------------------
+
+/**
+ * How long a `run_*` tool waits for its work before answering `running`.
+ * Clients cut a call off at ~240 s, so the default is well under that.
+ */
+export function runWait(env: NodeJS.ProcessEnv = process.env): { maxMs: number; intervalMs: number } {
+    const read = (raw: string | undefined, fallback: number) => {
+        const parsed = Number.parseInt(raw ?? "", 10);
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+    };
+    return {
+        maxMs: Math.min(read(env.LITT_MCP_RUN_WAIT_MS, 45_000), 120_000),
+        intervalMs: Math.max(read(env.LITT_MCP_RUN_POLL_MS, 1_000), 10),
+    };
+}
+
+/** Polls `check` until it returns a value or the wait is over (null). */
+export async function waitFor<T>(check: () => Promise<T | null>): Promise<T | null> {
+    const { maxMs, intervalMs } = runWait();
+    const deadline = Date.now() + maxMs;
+    for (;;) {
+        const found = await check();
+        if (found !== null) return found;
+        if (Date.now() + intervalMs > deadline) return null;
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+}
+
+/** Seconds a client should wait before asking again. */
+export const POLL_AFTER_SECONDS = 10;

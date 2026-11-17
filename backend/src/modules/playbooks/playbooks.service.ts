@@ -37,7 +37,14 @@ export {
     deletePlaybook,
     playbookConfiguration,
     assertPlaybookReady,
+    getPlaybookRun,
 } from "./playbooks.operations";
+export {
+    preparePlaybookClientReview,
+    savePlaybookClientReview,
+    CLIENT_AI_MODEL,
+    type ClientFindingInput,
+} from "./playbooks.clientReview";
 export { getPlaybookWithIntake, setPlaybookState } from "./playbooks.state";
 export { copyPlaybook } from "./playbooks.copy";
 export { listPlaybookChanges, decidePlaybookChange } from "./playbooks.changes";

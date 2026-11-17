@@ -2780,6 +2780,7 @@
     "clausesThatOnlyMeetAFallback": "Clauses that only meet a fallback position are flagged for review.",
     "clearFilters": "Clear filters",
     "clearSelection": "Clear selection",
+    "clientAiModel": "Client AI (MCP)",
     "close": "Close",
     "closeDocument": "Close document",
     "collapseTopic": "Collapse topic {name}",

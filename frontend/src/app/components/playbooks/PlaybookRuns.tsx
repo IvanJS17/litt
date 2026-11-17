@@ -586,7 +586,9 @@ function RunDetails({ run }: { run: PlaybookRun }) {
         <div className="min-w-0">
           <dt className="text-xs text-gray-500">{t("playbooks.model2")}</dt>
           <dd className="mt-0.5 text-sm text-gray-900">
-            {modelDisplayName(run.model)}
+            {run.model === "client_ai"
+              ? t("playbooks.clientAiModel")
+              : modelDisplayName(run.model)}
           </dd>
         </div>
         <div className="min-w-0">

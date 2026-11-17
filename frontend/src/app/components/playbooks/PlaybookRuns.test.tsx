@@ -534,4 +534,15 @@ describe("playbook runs", () => {
     ).toBeVisible();
     expect(screen.getByText("The model timed out.")).toBeVisible();
   });
+
+  it("labels a run done by the client's own AI instead of a model name", async () => {
+    api.listPlaybookRuns.mockResolvedValue([run({ model: "client_ai" })]);
+    render(
+      <PlaybookRuns playbookId="pb" latestRun={null} {...resultsProps()} />,
+    );
+
+    await screen.findByRole("button", { name: /Supply agreement/ });
+    expect(screen.getByText("Client AI (MCP)")).toBeVisible();
+    expect(screen.queryByText("Client AI")).toBeNull();
+  });
 });
