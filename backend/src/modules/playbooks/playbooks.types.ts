@@ -126,6 +126,11 @@ export type PlaybookReviewRequest = {
   reviewMode: "strict" | "permissive";
   /** "issues" reports only what needs attention; the run records which. */
   reviewScope?: "full" | "issues";
+  /**
+   * False reviews the document's text and leaves its versions alone (no
+   * tracked changes). Absent or true is the web's behaviour.
+   */
+  applyEdits?: boolean;
   db?: Db;
   /**
    * The assistant turn that asked for the review, when one did. Its Stop or

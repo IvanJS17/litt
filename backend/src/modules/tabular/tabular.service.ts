@@ -20,3 +20,17 @@ export { handleExtractionExtract, markExtractionJobFailed } from "./tabular.extr
 export { sweepStaleGeneratingCells } from "./tabular.maintenance";
 
 export { runExtractionJob, markExtractionFailed, extractionJobOperation, isRefusalShownToUser } from "./tabular.extraction";
+
+// What the MCP tools (modules/mcp) use: the same services the routes call.
+export { listTabularReviews, createTabularReview, getTabularReviewDetail } from "./tabular.reviews";
+export { parseTabularReviewScope } from "./tabular.overview";
+export { prepareTabularGenerate, preparedGenerateFailure } from "./tabular.generate";
+export {
+    startTabularGeneration,
+    runTabularGeneration,
+    stopTabularGeneration,
+    savedTabularModel,
+    reviewRunKey,
+    type StartedTabularGeneration,
+} from "./tabular.generation";
+export { isReviewGenerationRunning, parseCellContent, type TabularFailure } from "./tabular.shared";

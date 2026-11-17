@@ -1963,7 +1963,7 @@ const READ_SOURCE_TOOL: OpenAIToolSchema = {
   },
 };
 
-const REVIEW_SYSTEM_PROMPT =
+export const REVIEW_SYSTEM_PROMPT =
   "You are a cautious contract review system. Apply only the supplied playbook and return auditable JSON.";
 
 /** The documents a review can read on request; their text is not included. */
@@ -1982,13 +1982,13 @@ ${sources
 }
 
 /** Statuses a review reports when its scope is issues only. */
-const ISSUE_STATUSES = new Set<PlaybookFinding["status"]>([
+export const ISSUE_STATUSES = new Set<PlaybookFinding["status"]>([
   "unacceptable",
   "missing_required",
   "needs_review",
 ]);
 
-function reviewPrompt(
+export function reviewPrompt(
   content: PlaybookContent,
   documentText: string,
   mode: "strict" | "permissive",
@@ -2331,7 +2331,9 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     documentText,
     instructions: args.instructions ?? null,
     userEmail: args.userEmail ?? null,
-    expectedVersion: stored?.version ?? null,
+    // A caller that does not want tracked changes (the MCP tool's default)
+    // reviews the text and leaves the document's versions alone.
+    expectedVersion: args.applyEdits === false ? null : (stored?.version ?? null),
     authorization,
   };
   return {
@@ -2663,6 +2665,61 @@ export async function listPlaybookRuns(
 }
 
 /**
+ * One of the caller's own runs with its findings, once the playbook it ran can
+ * still be opened (the rule `listAllPlaybookRuns` applies to the History list).
+ * A run of someone else's, or of a playbook the caller lost, is "not found".
+ */
+export async function getPlaybookRun(
+  userId: string,
+  runId: string,
+  db: Db = createServerSupabase(),
+  email?: string | null,
+) {
+  const { data, error } = await db
+    .from("playbook_runs")
+    .select("*")
+    .eq("id", runId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new PlaybookRequestError("Run not found.", 404);
+  const row = data as Record<string, unknown>;
+  const playbook = await getPlaybook(userId, String(row.playbook_id), db, email).catch(
+    (cause: unknown) => {
+      if (cause instanceof PlaybookRequestError && cause.status === 404)
+        throw new PlaybookRequestError("Run not found.", 404);
+      throw cause;
+    },
+  );
+  const interrupted = await interruptedRuns(db, [row]);
+  const [run] = await withCurrentEditStatus(db, [publicRun(row, interrupted)]);
+  return { run, playbookName: playbook.name, orgId: playbook.orgId };
+}
+
+/**
+ * The newest live version of a run's document that already existed when the
+ * run started: the version the run reviewed. Runs do not store it, so it is
+ * derived from the version timeline.
+ */
+export async function findReviewedVersionId(
+  db: Db,
+  documentId: string,
+  startedAt: string,
+): Promise<string | null> {
+  const { data, error } = await db
+    .from("document_versions")
+    .select("id")
+    .eq("document_id", documentId)
+    .is("deleted_at", null)
+    .lte("created_at", startedAt)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.id as string | undefined) ?? null;
+}
+
+/**
  * A run stores each tracked change as it was made; accepting or rejecting it
  * later is recorded on the document, so read its current status back.
  */
@@ -2696,7 +2753,7 @@ async function withCurrentEditStatus<
   }));
 }
 
-function publicRun(
+export function publicRun(
   row: Record<string, unknown>,
   interrupted: ReadonlySet<string>,
 ) {

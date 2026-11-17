@@ -2783,6 +2783,7 @@
     "clausesThatOnlyMeetAFallback": "Las cláusulas que solo cumplen una posición alternativa se marcan para revisión.",
     "clearFilters": "Limpiar filtros",
     "clearSelection": "Limpiar selección",
+    "clientAiModel": "IA del cliente (MCP)",
     "close": "Cerrar",
     "closeDocument": "Cerrar documento",
     "collapseTopic": "Contraer tema {name}",

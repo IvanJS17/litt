@@ -56,6 +56,56 @@ type DocRow = {
     updated_at?: string | null;
 };
 
+/**
+ * The stored text of a document version the person can open and that may leave
+ * LiTT: the live version (the current one unless named), not a pasante's draft
+ * still waiting for a mentor, with its text ready. Shared by every tool that
+ * hands document text to the client's AI.
+ */
+export async function loadReleasableText(call: McpCall, documentId: string, versionIdArg?: string) {
+    const userId = call.principal.userId;
+    const userEmail = await call.userEmail();
+    const { doc } = await loadDocument(call, documentId);
+    const versionId = versionIdArg ?? doc.current_version_id ?? null;
+    if (!versionId) throw new McpToolError("no_version", "This document has no version to read yet.");
+    // The version must be live and belong to this document.
+    const version = await loadActiveVersion(documentId, call.db, versionId);
+    if (!version) throw notFound("That version");
+
+    // A pasante's draft stays inside LiTT until a mentor approves it.
+    const releasable = await assertVersionReleasable(call.db, {
+        id: version.id,
+        training_stage: version.training_stage,
+        content_sha256: version.content_sha256,
+    });
+    if (!releasable.ok) {
+        if (releasable.kind === "conflict")
+            throw new McpToolError(releasable.code ?? TRAINING_APPROVAL_REQUIRED_CODE, releasable.detail);
+        throw serviceFailure("check training release", releasable.kind === "error" ? releasable.error : releasable.detail);
+    }
+
+    const stored = await readStoredDocumentText(call.db, {
+        userId,
+        userEmail,
+        documentId: documentId,
+        versionId: version.id,
+    });
+    if (!stored) throw notFound("That version");
+    if (stored.status === "pending" || stored.status === "processing")
+        throw new McpToolError(
+            "text_not_ready",
+            "The text of this document is still being prepared.",
+            "Try again in a minute.",
+        );
+    if (stored.status !== "ready")
+        throw new McpToolError(
+            "text_unavailable",
+            "The text of this version could not be extracted.",
+            "Open the document in LiTT; a scanned file may need to be read there first.",
+        );
+    return { doc, version, stored };
+}
+
 export const listMatterDocuments = defineMcpTool({
     name: "list_matter_documents",
     title: "List a matter's documents",
@@ -210,7 +260,7 @@ function missing(field: string, scope: string): McpToolError {
     return new McpToolError("invalid_arguments", `${field} is required when scope is ${scope}.`);
 }
 
-async function recordEgressOrFail(
+export async function recordEgressOrFail(
     call: McpCall,
     documentId: string,
     versionId: string,
@@ -254,48 +304,7 @@ export const readDocument = defineMcpTool({
     auditRefs: (args) => ({ documentId: args.document_id, versionId: args.version_id ?? null }),
     resolveWorkspace: (args, call) => documentWorkspace(call, args.document_id),
     handler: async (args, call) => {
-        const userId = call.principal.userId;
-        const userEmail = await call.userEmail();
-        const { doc } = await loadDocument(call, args.document_id);
-        const versionId = args.version_id ?? doc.current_version_id ?? null;
-        if (!versionId) throw new McpToolError("no_version", "This document has no version to read yet.");
-
-        // The version must be live and belong to this document.
-        const version = await loadActiveVersion(args.document_id, call.db, versionId);
-        if (!version) throw notFound("That version");
-
-        // A pasante's draft stays inside LiTT until a mentor approves it.
-        const releasable = await assertVersionReleasable(call.db, {
-            id: version.id,
-            training_stage: version.training_stage,
-            content_sha256: version.content_sha256,
-        });
-        if (!releasable.ok) {
-            if (releasable.kind === "conflict")
-                throw new McpToolError(releasable.code ?? TRAINING_APPROVAL_REQUIRED_CODE, releasable.detail);
-            throw serviceFailure("check training release", releasable.kind === "error" ? releasable.error : releasable.detail);
-        }
-
-        const stored = await readStoredDocumentText(call.db, {
-            userId,
-            userEmail,
-            documentId: args.document_id,
-            versionId: version.id,
-        });
-        if (!stored) throw notFound("That version");
-        if (stored.status === "pending" || stored.status === "processing")
-            throw new McpToolError(
-                "text_not_ready",
-                "The text of this document is still being prepared.",
-                "Try again in a minute.",
-            );
-        if (stored.status !== "ready")
-            throw new McpToolError(
-                "text_unavailable",
-                "The text of this version could not be extracted.",
-                "Open the document in LiTT; a scanned file may need to be read there first.",
-            );
-
+        const { version, stored } = await loadReleasableText(call, args.document_id, args.version_id);
         const text = stored.text ?? "";
         const window = windowOf(text, args.offset ?? 0, args.limit_chars ?? READ_DEFAULT_CHARS);
         // Record what leaves before it leaves.
