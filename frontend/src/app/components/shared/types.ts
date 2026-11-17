@@ -73,6 +73,10 @@ export interface Project {
    * matter's team can open it and it is never offered to the organization.
    */
   private_matter?: boolean;
+  /** Detail payload: the id of the private matter the project belongs to. */
+  matter_id?: string;
+  /** Detail payload: that matter is marked as a retainer (it takes requests). */
+  matter_retainer?: boolean;
   organization_name?: string | null;
   direct_grant_count?: number;
   owner_display_name?: string | null;

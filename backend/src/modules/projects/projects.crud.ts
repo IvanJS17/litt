@@ -518,15 +518,24 @@ export type ProjectDetailResult =
 async function loadPrivateMatter(
   db: Db,
   projectId: string,
-): Promise<{ ok: true; value: boolean } | { ok: false; error: unknown }> {
+): Promise<
+  | { ok: true; value: boolean; matterId: string | null; retainer: boolean }
+  | { ok: false; error: unknown }
+> {
   const { data, error } = await db
     .from("matters")
-    .select("id")
+    .select("id, is_retainer")
     .eq("project_id", projectId)
     .eq("visibility", "private")
     .maybeSingle();
   if (error) return { ok: false, error };
-  return { ok: true, value: !!data };
+  const matter = data as { id?: string; is_retainer?: boolean } | null;
+  return {
+    ok: true,
+    value: !!data,
+    matterId: typeof matter?.id === "string" ? matter.id : null,
+    retainer: matter?.is_retainer === true,
+  };
 }
 
 export async function getProjectDetail(
@@ -580,6 +589,13 @@ export async function getProjectDetail(
       ...withMemory.rows[0],
       ...(privateMatter.value ? { visibility: "private" } : {}),
       private_matter: privateMatter.value,
+      // The matter's id and retainer mark (requests live in a retainer matter).
+      ...(privateMatter.matterId
+        ? {
+            matter_id: privateMatter.matterId,
+            matter_retainer: privateMatter.retainer,
+          }
+        : {}),
       is_owner: access.isCreator,
       access_role: access.projectRole,
       org_role: access.orgRole,

@@ -2182,3 +2182,147 @@ export interface PlatformInvitation {
      *  (false: the person has an account, or sending failed). */
     email_sent?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Requests inside a retainer matter (docs/matter-requests.md)
+// ---------------------------------------------------------------------------
+
+export type MatterRequestStatus =
+  | "received"
+  | "in_review"
+  | "with_client"
+  | "with_counterparty"
+  | "closed"
+  | "cancelled";
+
+export type MatterRequestComplexity = "routine" | "standard" | "complex";
+
+/** The cost level of the person a request is assigned to. */
+export type MatterRequestLevel = "apprentice" | "junior" | "senior" | "partner";
+
+export type MatterRequestTypeSeed =
+  | "contracts_clients"
+  | "contracts_suppliers"
+  | "intellectual_property"
+  | "shareholder_meetings"
+  | "corporate_books"
+  | "other";
+
+/** One entry of the firm's catalog. A default entry has `seed_key` and, until
+ *  it is renamed, no `name`: the app words it in the reader's language. */
+export type MatterRequestType = {
+  id: string;
+  seed_key: MatterRequestTypeSeed | null;
+  name: string | null;
+  sort_order: number;
+  archived: boolean;
+};
+
+export type MatterRequestTypeList = {
+  types: MatterRequestType[];
+  /** The caller may edit the catalog (owner or admin of the firm). */
+  can_manage: boolean;
+};
+
+export type MatterRequestRound = {
+  id: string;
+  round_number: number;
+  /** ISO date (YYYY-MM-DD). */
+  round_date: string;
+  document_id: string;
+  version_id: string;
+  version_number: number | null;
+  filename: string | null;
+};
+
+export type MatterRequest = {
+  id: string;
+  matter_id: string;
+  type_id: string;
+  title: string;
+  complexity: MatterRequestComplexity;
+  status: MatterRequestStatus;
+  assignee_user_id: string | null;
+  assignee_level: MatterRequestLevel | null;
+  /** ISO dates (YYYY-MM-DD). */
+  received_on: string;
+  closed_on: string | null;
+  /** Distinct round numbers linked to the request: the effort measure. */
+  round_count: number;
+  version: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MatterRequestEvent = {
+  id: string;
+  actor_user_id: string | null;
+  action:
+    | "created"
+    | "edited"
+    | "status_changed"
+    | "assigned"
+    | "unassigned"
+    | "round_linked"
+    | "round_unlinked";
+  detail: Record<string, unknown>;
+  created_at: string;
+};
+
+export type MatterRequestDetail = MatterRequest & {
+  rounds: MatterRequestRound[];
+  events: MatterRequestEvent[];
+};
+
+/** A matter member a request can be assigned to. */
+export type MatterRequestAssignee = {
+  user_id: string;
+  display_name: string | null;
+  email: string | null;
+  role: "matter_owner" | "editor";
+  /** The level the firm's roles suggest; null when they do not say. */
+  suggested_level: MatterRequestLevel | null;
+};
+
+export type MatterRequestList = {
+  /** The matter is marked as a retainer; only then does it take requests. */
+  retainer: boolean;
+  /** The caller may mark or unmark the retainer (matter owner). */
+  can_manage_retainer: boolean;
+  requests: MatterRequest[];
+  types: MatterRequestType[];
+  assignees: MatterRequestAssignee[];
+  /** The caller may create and change requests (matter owner or editor). */
+  can_write: boolean;
+};
+
+export type MatterRequestInput = {
+  title: string;
+  type_id: string;
+  complexity: MatterRequestComplexity;
+  /** ISO date; defaults to today. */
+  received_on?: string;
+  assignee_user_id?: string | null;
+  assignee_level?: MatterRequestLevel | null;
+};
+
+export type MatterRequestPatch = {
+  /** The version the caller read; a stale one answers 409. */
+  version: number;
+  title?: string;
+  type_id?: string;
+  complexity?: MatterRequestComplexity;
+  status?: MatterRequestStatus;
+  received_on?: string;
+  closed_on?: string;
+  assignee_user_id?: string | null;
+  assignee_level?: MatterRequestLevel | null;
+};
+
+export type MatterRequestRoundInput = {
+  version_id: string;
+  /** Defaults to the next number of the request. */
+  round_number?: number;
+  /** ISO date; defaults to today. */
+  round_date?: string;
+};

@@ -105,6 +105,15 @@ async function signedIn(page: Page, s: Scenario) {
         if (p === `/orgs/${FIRM}/training/mentors` || p === `/orgs/${FIRM}/training`) {
             return ok({ mentors: [ME.admin], pupils: [{ trainee_user_id: ME.member, mentor_user_id: ME.admin }] });
         }
+        if (p === `/orgs/${FIRM}/request-types`) {
+            return ok({
+                types: [
+                    { id: "rt-1", seed_key: "contracts_clients", name: null, sort_order: 10, archived: false },
+                    { id: "rt-2", seed_key: "other", name: null, sort_order: 20, archived: false },
+                ],
+                can_manage: manages,
+            });
+        }
         if (p === `/orgs/${FIRM}/firm-criteria`) {
             return ok({ criteria: [], playbooks: [], limit: 50, can_write: true });
         }

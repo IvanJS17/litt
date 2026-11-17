@@ -1095,6 +1095,7 @@
       "invitation_email_invalid": "Enter a valid email address.",
       "matter_has_owner": "This matter already has an owner.",
       "matter_owner_target_invalid": "Choose a current member of the organization.",
+      "matter_write_required": "Only the matter owner and editors can change this matter's requests.",
       "member_data_action_disabled": "This organization's owners haven't allowed members to do this.",
       "memory_revision_conflict": "Memory changed since it was loaded. Review what is saved now and try again.",
       "mfa_verification_required": "Finish two-factor verification to continue.",
@@ -1117,6 +1118,7 @@
       "playbook_proposals_running": "Proposed changes are being computed for this playbook. Wait for them to finish.",
       "rate_limited": "Too many requests. Wait a moment and try again.",
       "request_too_large": "The request is too large.",
+      "request_version_conflict": "This request changed since you opened it. Reload it to continue.",
       "review_running": "This tabular review is already running.",
       "review_stale": "A newer version of this tabular review is available.",
       "session_expired": "Your session has expired. Sign in again to continue.",
@@ -3315,6 +3317,141 @@
     "savedSuccessfully": "Saved successfully",
     "sinCarpetaConfigurada": "No folder set",
     "usaElIdExactoLetrasNumeros": "Use the exact ID (letters, numbers, hyphen and underscore). URLs are not accepted."
+  },
+  "requests": {
+    "title": "Requests",
+    "subtitle": "What your client asks of you in this retainer, who has it and where it stands.",
+    "new": "New request",
+    "backToMatter": "Back to the matter",
+    "couldNotLoad": "Could not load the requests.",
+    "couldNotOpen": "Could not open the request.",
+    "couldNotCreate": "Could not create the request.",
+    "retry": "Try again",
+    "loading": "Loading requests",
+    "retainer": {
+      "offTitle": "This matter is not a retainer",
+      "offOwner": "Mark it as a retainer to keep your client's requests here. Only retainer matters take requests.",
+      "offMember": "Ask the matter owner to mark it as a retainer. Only retainer matters take requests.",
+      "mark": "Mark as retainer",
+      "unmark": "Stop treating this matter as a retainer",
+      "hasRequests": "This matter already has requests, so it stays a retainer.",
+      "couldNotChange": "Could not change the retainer mark."
+    },
+    "list": {
+      "label": "Requests of this matter",
+      "show": "Show",
+      "all": "All requests",
+      "open": "Open",
+      "finished": "Closed or cancelled",
+      "emptyTitle": "No requests here",
+      "emptyWrite": "Create the first request of this retainer.",
+      "emptyRead": "Nobody has created a request in this matter yet.",
+      "assignedTo": "{name} ({level})"
+    },
+    "fields": {
+      "title": "Title",
+      "type": "Type",
+      "complexity": "Complexity",
+      "status": "State",
+      "assignee": "Assigned to",
+      "unassigned": "Unassigned",
+      "level": "Cost level",
+      "chooseLevel": "Choose a level"
+    },
+    "status": {
+      "received": "Received",
+      "in_review": "In review",
+      "with_client": "With the client",
+      "with_counterparty": "With the counterparty",
+      "closed": "Signed or closed",
+      "cancelled": "Cancelled"
+    },
+    "complexity": {
+      "routine": "Routine",
+      "standard": "Standard",
+      "complex": "Complex"
+    },
+    "level": {
+      "apprentice": "Apprentice",
+      "junior": "Junior",
+      "senior": "Senior",
+      "partner": "Partner"
+    },
+    "typeSeed": {
+      "contracts_clients": "Contracts with clients",
+      "contracts_suppliers": "Contracts with suppliers",
+      "intellectual_property": "Intellectual property",
+      "shareholder_meetings": "Shareholder meetings",
+      "corporate_books": "Corporate books",
+      "other": "Other"
+    },
+    "person": {
+      "unknown": "Former member"
+    },
+    "form": {
+      "title": "New request",
+      "cancel": "Cancel",
+      "create": "Create request",
+      "creating": "Creating…"
+    },
+    "detail": {
+      "pick": "Choose a request to see its details, or create a new one.",
+      "readOnly": "You can read this request. Only the matter owner and editors change it.",
+      "changedMeanwhile": "Someone changed this request while you were editing. Its latest version is shown; make your change again.",
+      "couldNotSave": "Could not save the request.",
+      "saving": "Saving…",
+      "save": "Save changes",
+      "datesOpen": "Received on {received}.",
+      "datesClosed": "Received on {received} and closed on {closed}."
+    },
+    "rounds": {
+      "title": "Negotiation rounds",
+      "count": "{count, plural, one {# round} other {# rounds}}",
+      "none": "No document version is linked to this request yet.",
+      "row": "Round {number}, {date}: {name} (version {version})",
+      "unnamed": "Untitled",
+      "unlink": "Unlink",
+      "document": "Document",
+      "chooseDocument": "Choose a document",
+      "version": "Version",
+      "chooseVersion": "Choose a version",
+      "versionOption": "Version {version}: {name}",
+      "number": "Round number",
+      "numberNext": "The next one",
+      "date": "Round date",
+      "alreadyLinked": "That version is already a round of this request.",
+      "link": "Link as a round",
+      "couldNotLoadDocuments": "Could not load the matter's documents.",
+      "couldNotLoadVersions": "Could not load the document's versions.",
+      "couldNotSave": "Could not change the rounds."
+    },
+    "history": {
+      "title": "History"
+    },
+    "event": {
+      "created": "Request created",
+      "edited": "Details changed",
+      "status_changed": "State changed",
+      "assigned": "Assigned",
+      "unassigned": "Unassigned",
+      "round_linked": "Round linked",
+      "round_unlinked": "Round unlinked"
+    },
+    "types": {
+      "title": "Request types",
+      "help": "Choose the types of request your firm sorts a client's requests into.",
+      "readOnly": "Only owners and administrators change the types.",
+      "nameOf": "Name of the type {name}",
+      "rename": "Rename",
+      "restore": "Restore",
+      "archive": "Archive",
+      "archivedNote": "Archived. Requests that already use it keep it; new requests cannot.",
+      "nameTaken": "Another type already has that name.",
+      "newLabel": "New type",
+      "add": "Add type",
+      "couldNotLoad": "Could not load the request types.",
+      "couldNotSave": "Could not save the request types."
+    }
   },
   "settings": {
     "apiKeyField": {

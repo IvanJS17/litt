@@ -39,6 +39,8 @@
 - [Word add-in development and deployment](word-addin-development.md) — manual
   setup, sideloading, builds, storage behavior, testing, and troubleshooting
 - [Firm profile](firm-profile.md) — the firm description the assistant reads
+- [Requests inside a retainer matter](matter-requests.md) — type, complexity,
+  assignee, state and negotiation rounds of a retainer client's requests
 - [Managed accounts](managed-accounts.md) — firm-managed accounts without a
   personal space
 - [Settings map](settings-map.md) — which Settings tab lives where, and who sees it
