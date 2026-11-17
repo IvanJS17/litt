@@ -4,9 +4,10 @@
  *
  *  - the type scale of the page (clamp() sizes with their line height,
  *    tracking and measure, SPEC §4);
- *  - the inverted band (SEGUNDO · Próximamente), which takes the tokens of
+ *  - the inverted band (TERCERO · Próximamente), which takes the tokens of
  *    the OTHER theme on its own container, so no component needs `dark:`;
- *  - the three small motions (verification, source swap, theme change).
+ *  - the phone menu (panel, backdrop, button icon, scroll lock);
+ *  - the small motions (steps coming in, source swap, theme change, menu).
  *
  * The only colors declared here are copies of the other theme's tokens from
  * DesignTokensUI.css, reassigned in one scope for the inverted band.
@@ -32,8 +33,13 @@ html:has(.landing-root) {
     }
 }
 
+.landing-root {
+    --landing-gutter: clamp(20px, 5vw, 48px);
+    --landing-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 .landing-wrap {
-    width: min(1200px, 100% - 2 * clamp(20px, 5vw, 48px));
+    width: min(1200px, 100% - 2 * var(--landing-gutter));
     margin-inline: auto;
 }
 
@@ -46,11 +52,11 @@ html:has(.landing-root) {
 
 .landing-h1 {
     font-weight: 500;
-    font-size: clamp(2.5rem, 1.55rem + 3.9vw, 4.5rem);
-    line-height: 1.03;
-    letter-spacing: -0.018em;
+    font-size: clamp(2.5rem, 1.45rem + 4.1vw, 4.75rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
     text-wrap: balance;
-    max-width: 13ch;
+    max-width: 14ch;
 }
 
 .landing-h2 {
@@ -59,7 +65,29 @@ html:has(.landing-root) {
     line-height: 1.08;
     letter-spacing: -0.012em;
     text-wrap: balance;
-    max-width: 18ch;
+    max-width: 20ch;
+}
+
+/* The menu moves the focus to a section's h2 (tabindex -1): no ring on a heading. */
+.landing-h2:focus {
+    outline: none;
+}
+
+/* A feature's title (PRIMERO) and a column's title (SEGUNDO). */
+.landing-h3 {
+    font-weight: 500;
+    font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2.25rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+.landing-h3-sm {
+    font-weight: 500;
+    font-size: clamp(1.5rem, 1.3rem + 0.8vw, 2rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
 }
 
 .landing-lede {
@@ -120,8 +148,140 @@ html:has(.landing-root) {
     --litt-interactive-soft-strong: rgb(21 26 38 / 11%);
 }
 
+/* ───────── Phone menu (SPEC v2 §2.3) ─────────
+ * `html.menu-open` is put on once the panel has been drawn closed, so the
+ * panel and the backdrop travel (transitions, not keyframes: a close in the
+ * middle reverses from where it is). In 220 ms, out 160 ms, same curve for
+ * both. The panel is a child of the sticky header: it starts right under it,
+ * safe area included, and `100%` in `max-height` is the header's own height.
+ */
+
+.landing-menu {
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    max-height: calc(100dvh - 100%);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--surface-desk);
+    box-shadow:
+        0 1px 0 0 color-mix(in srgb, var(--foreground) 14%, transparent),
+        0 24px 40px -24px rgb(0 0 0 / 35%);
+    padding-block: 8px calc(24px + env(safe-area-inset-bottom));
+    /* Wider than the box on the sides and below so the shadow is not cut off. */
+    clip-path: inset(0 -50px 100% -50px);
+    opacity: 0;
+    transition:
+        clip-path 160ms var(--landing-ease),
+        opacity 160ms var(--landing-ease);
+}
+
+.landing-menu[hidden] {
+    display: none;
+}
+
+html.menu-open .landing-menu {
+    clip-path: inset(0 -50px -50px -50px);
+    opacity: 1;
+    transition-duration: 220ms;
+}
+
+.landing-menu-link {
+    display: flex;
+    align-items: center;
+    min-height: 56px;
+    padding-inline: var(--landing-gutter);
+    font-weight: 500;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    color: var(--foreground);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+    transition: background-color 150ms var(--landing-ease);
+}
+
+.landing-menu-link:active {
+    background: var(--litt-interactive-soft-strong);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .landing-menu-link:hover {
+        background: var(--litt-interactive-soft);
+    }
+}
+
+.landing-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    background: color-mix(in srgb, var(--litt-tinta) 32%, transparent);
+    opacity: 0;
+    touch-action: none;
+    transition: opacity 160ms var(--landing-ease);
+}
+
+:root.dark .landing-scrim {
+    background: rgb(0 0 0 / 50%);
+}
+
+.landing-scrim[hidden] {
+    display: none;
+}
+
+html.menu-open .landing-scrim {
+    opacity: 1;
+    transition-duration: 220ms;
+}
+
+/* Safari on iOS needs more than `overflow: hidden` (the panel also locks, with react-remove-scroll), but this is the first layer. */
+html.menu-open,
+html.menu-open body {
+    overflow: hidden;
+}
+
+/* The button's two strokes become an X while the menu is open. */
+.landing-menu-bars {
+    position: relative;
+    width: 18px;
+    height: 12px;
+}
+
+.landing-menu-bars span {
+    position: absolute;
+    left: 0;
+    width: 18px;
+    height: 1.6px;
+    border-radius: 2px;
+    background: currentColor;
+    transition: transform 200ms var(--landing-ease);
+}
+
+.landing-menu-bars span:first-child {
+    top: 2px;
+}
+
+.landing-menu-bars span:last-child {
+    top: 8.4px;
+}
+
+.landing-menu-button[aria-expanded="true"] .landing-menu-bars span:first-child {
+    transform: translateY(3.2px) rotate(45deg);
+}
+
+.landing-menu-button[aria-expanded="true"] .landing-menu-bars span:last-child {
+    transform: translateY(-3.2px) rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-menu,
+    .landing-scrim,
+    .landing-menu-bars span {
+        transition: none !important;
+    }
+}
+
 /* ───────── Motion ─────────
- * Nothing moves on scroll. The three things below are small and each is off
+ * Nothing moves on scroll. The two things below are small and each is off
  * under `prefers-reduced-motion: reduce`: the page then shows the finished
  * state straight away.
  */
@@ -133,40 +293,22 @@ html:has(.landing-root) {
     transition: none !important;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    /* The first verification of the session: a spinner, then the tick drawn. */
-    .landing-spinner circle {
-        animation: landing-spin 900ms linear infinite;
-        transform-origin: 50% 50%;
-    }
+/* The assistant's steps, the answer and the document come in one after another, once per session. */
+.landing-intro-item[data-intro="out"] {
+    opacity: 0;
+    transform: translateY(4px);
+}
 
-    .landing-tick-draw path {
-        animation: landing-draw 260ms cubic-bezier(0, 0, 0.2, 1) both;
+@media (prefers-reduced-motion: no-preference) {
+    .landing-intro-item {
+        transition:
+            opacity 200ms cubic-bezier(0, 0, 0.2, 1),
+            transform 200ms cubic-bezier(0, 0, 0.2, 1);
     }
 
     /* A new source fades from 0.2 to 1 in 160 ms. */
     .landing-swap {
-        animation: landing-swap 160ms cubic-bezier(0.32, 0.72, 0, 1);
-    }
-}
-
-.landing-tick path {
-    stroke-dasharray: 24;
-    stroke-dashoffset: 0;
-}
-
-@keyframes landing-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes landing-draw {
-    from {
-        stroke-dashoffset: 24;
-    }
-    to {
-        stroke-dashoffset: 0;
+        animation: landing-swap 160ms var(--landing-ease);
     }
 }
 

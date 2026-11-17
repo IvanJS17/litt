@@ -1012,17 +1012,23 @@ rest).
 page with or without a session, with no API call. Only the main button
 changes (`Iniciar sesión` → `/login`, `Abrir LiTT` → `/assistant`), and the
 server decides it from the session cookie (`lib/sessionHint.ts`), so the HTML
-already has the right one. The design is the owner-approved SPEC of
-2026-11-16; what matters for the next change:
+already has the right one. The design is the owner-approved SPEC v2 of
+2026-11-16 (v1 plus the assistant as the hero, four features, "Por qué LiTT"
+and the phone menu); what matters for the next change:
 
+- **Order and anchors.** Portada (the assistant at work) · `#funciones` (the
+  four features: Asistente, Proyectos, Revisión tabular, Flujos y playbooks) ·
+  `#por-que` (own keys, model choice, self-hosting, and "Hecho para la práctica
+  mexicana") · `#proximamente` · `#confianza` (three points) · `#acceso`. The
+  old `#que-hace` is rewritten to `#funciones` (`LegacyAnchor`).
 - **Tokens only.** Components use no hex color and no `blue`, `amber-`,
   `orange-` or `green-` class (`landing.styles.test.ts` checks it). The only hex
   values are in `landing/landing.css`: copies of the other theme's tokens for the
   inverted band, pinned value by value by the same test. `dark:` appears only in
-  the header's sun/moon swap and in `CitationSpecimen` (to override
+  the header's sun/moon swap and in `AssistantSpecimen` (to override
   `CitationPillUI`'s own `dark:` classes). The one amber outside the wordmark is
   the focus ring (`--litt-accent`).
-- **The inverted band** (SEGUNDO · Próximamente) takes the tokens of the other
+- **The inverted band** (TERCERO · Próximamente) takes the tokens of the other
   theme on its own container: `.landing-band` in `landing/landing.css`
   reassigns `--surface-*`, `--foreground`, `--muted-foreground`,
   `--litt-accent` and the interactive tints. Inside it use the semantic
@@ -1030,16 +1036,40 @@ already has the right one. The design is the owner-approved SPEC of
   never `text-gray-*`: `DarkPaletteUI.css` remaps those from `.dark` on `<html>`,
   which a band on a dark page must not inherit. The values are pinned to
   `DesignTokensUI.css` by a test.
-- **Departure Mono** only in `LANDING_PIXEL` (`landingStyles.ts`), for the five
-  details of the SPEC (BETA CERRADA, PRÓXIMAMENTE, PRIMERO…CUARTO).
-- **One white surface**: the page of the Word example (`bg-surface-document`,
-  listed in `noWhiteSurfaces.test.ts`).
-- **Motion**: no animation on scroll. The verification of the hero example
-  (once per session, `sessionStorage` key `litt:landing-intro`), the fade of a
-  new source and the header button's docking are the only ones, and every
-  `animation` is inside `prefers-reduced-motion: no-preference`.
+- **Departure Mono** only in `LANDING_PIXEL` (`landingStyles.ts`), for the
+  small details of the SPEC (CERRADA BETA, PRÓXIMAMENTE, the section markers).
+- **White surfaces**: only the user's own documents, drawn white
+  (`bg-surface-document`): the page of the Word example and the DOCX/PDF page
+  glyphs of the examples (listed in `noWhiteSurfaces.test.ts`).
+- **Model names** in the examples (`landingModels.ts`): the ones offered with the
+  firm's own key are read from the app's catalog (`@mike/client`
+  `MODELS`), and `landingModels.test.ts` checks them against
+  `docs/direct-provider-models.md`. GLM-Legal (Z.ai, closed weights) is only
+  ever under "Por OpenRouter"; the model installed on the firm's own server is
+  an open one (Qwen). The page promises no price: only that you pay the AI
+  provider for what you use, with no per-seat price. When the catalog
+  changes, update `CATALOG_MODEL_IDS`.
+- **The phone menu** (`LandingMobileMenu`, `useMobileMenu`; below 880 px). A
+  disclosure, not a dialog: the button (`aria-expanded`, `aria-controls`,
+  `aria-label`) stays outside the panel. While it is open the page behind
+  (skip link, `<main>`, footer, the header's wordmark, theme button and docked
+  button) is `inert`, the page does not scroll (`react-remove-scroll` on the
+  panel, plus `overflow: hidden` on `<html>` through the `menu-open` class),
+  Tab cycles between the button and the panel, and the focus goes to the first
+  link. Esc, the button, the backdrop, a link, a wider window, history and
+  `pagehide` close it; a section link closes it at once and moves the focus to
+  the section's `h2`. The panel is in the DOM when closed (`hidden`); the
+  button only exists after hydration. Panel and backdrop move with transitions
+  (220 ms in, 160 ms out), none under reduced motion.
+- **Motion**: no animation on scroll. The steps of the hero example coming in
+  one after another (once per session, `sessionStorage` key
+  `litt:landing-intro`), the fade of a new source, the header button's docking
+  and the menu are the only ones; every `animation` is inside
+  `prefers-reduced-motion: no-preference` and the menu's transitions are
+  switched off under `reduce`.
 - The theme control writes `litt:theme` on the device (a visitor has no
-  profile); the language control is the sign-in screens' `setLocale`.
+  profile); the language control is the sign-in screens' `setLocale`. The
+  phone menu carries the same two controls as the footer.
 
 ## Component catalog
 

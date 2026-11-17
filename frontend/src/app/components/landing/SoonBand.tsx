@@ -9,9 +9,9 @@ export function SoonTag() {
     return (
         <span className="inline-flex w-fit">
             <span aria-hidden="true" className={LANDING_TAG}>
-                {t("landing.s2.tag")}
+                {t("landing.soon.tag")}
             </span>
-            <span className="sr-only">{t("landing.s2.tag")}</span>
+            <span className="sr-only">{t("landing.soon.tag")}</span>
         </span>
     );
 }
@@ -64,7 +64,7 @@ function LawCitationCard() {
 }
 
 /**
- * SEGUNDO · Próximamente. The band takes the tokens of the other theme on its
+ * TERCERO · Próximamente. The band takes the tokens of the other theme on its
  * own container (landing.css `.landing-band`), so it is tinta with papel
  * letters on the light page and papel with tinta letters on the dark one.
  * ContextLex MX is the lead: its name on one line, at the largest size of the
@@ -80,12 +80,12 @@ export function SoonBand() {
         >
             <div className="landing-wrap">
                 <SectionHead
-                    marker={t("landing.s2.marker")}
+                    marker={t("landing.soon.marker")}
                     id="landing-soon-title"
-                    title={t("landing.s2.title")}
+                    title={t("landing.soon.title")}
                 >
                     <p className="landing-pretty mt-4 max-w-[62ch] text-muted-foreground">
-                        {t("landing.s2.intro")}
+                        {t("landing.soon.intro")}
                     </p>
                 </SectionHead>
 

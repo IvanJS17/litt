@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { LANDING_PIXEL } from "./landingStyles";
 
 /**
- * The head every section shares: the marker (PRIMERO … CUARTO, Departure Mono,
+ * The head every section shares: the marker (PRIMERO … QUINTO, Departure Mono,
  * decorative) in the left margin from 960 px, above the title on a phone, and
  * the title with its lede on the right, aligned on their first baseline.
  */
@@ -25,7 +25,7 @@ export function SectionHead({
                 </span>
             </p>
             <div>
-                <h2 id={id} className="landing-h2">
+                <h2 id={id} tabIndex={-1} className="landing-h2">
                     {title}
                 </h2>
                 {children}
