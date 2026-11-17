@@ -228,6 +228,7 @@
     "frontend/src/app/components/ui",
     "frontend/src/app/components/versions",
     "frontend/src/app/components/workflows",
+    "frontend/src/app/connect",
     "frontend/src/app/error.tsx",
     "frontend/src/app/forgot-password/page.tsx",
     "frontend/src/app/hooks/useAssistantChat.ts",

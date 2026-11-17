@@ -179,6 +179,14 @@ plataforma** (verificación de citas; con `LITT_CITATION_CHECK=enabled`, ver
 de Google (`docs/google-workspace.md`); sin cliente OAuth ninguno se puede conectar, y
 sin `GOOGLE_WORKSPACE_DISABLED_PROVIDERS` Drive queda apagado.
 
+`LITT_MCP_SERVER` (`disabled` por defecto) enciende el servidor de autorización OAuth y el
+endpoint `/mcp` del backend (`docs/mcp-server.md`). Con `enabled` hace falta
+`LITT_MCP_PUBLIC_URL`, el origen https del host MCP (el emisor de los tokens y la URL del
+recurso son `<origen>` y `<origen>/mcp`); sin él, en producción el servidor queda apagado y el
+arranque lo avisa en el log. `LITT_MCP_ALLOWED_ORIGINS` lista los orígenes de navegador que
+pueden llamar a `/mcp` (vacío: ninguno; Claude, ChatGPT y Hermes llaman sin `Origin`). El
+proxy hacia el backend, el DNS y Caddy de ese host **no** forman parte de este cambio.
+
 Los demás valores del `.env` no son secretos y ya vienen en `.env.example`:
 el bucket, el host, el puerto y el usuario SMTP y el remitente.
 

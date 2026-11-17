@@ -780,7 +780,33 @@
       "projects": "Projects",
       "settings": "Settings",
       "tabularReviews": "Tabular reviews",
-      "workflows": "Workflows"
+      "workflows": "Workflows",
+      "connectAuthorize": "Connect an app"
+    }
+  },
+  "connect": {
+    "allow": "Allow",
+    "allowAction": "allow this connection",
+    "deny": "Deny",
+    "expired": "This connection request has expired. Go back to the app and try connecting again.",
+    "heading": "Connect {client} to LiTT",
+    "intro": "{client} is asking to use your LiTT account. Choose what it can reach, then allow or deny.",
+    "loadAction": "load this connection request",
+    "loading": "Loading the request…",
+    "localApp": "This app runs on your own computer. Only allow it if you started it yourself.",
+    "returnTo": "After you decide, you go back to {host}. Allow it only if you recognize that address.",
+    "scopes": {
+      "chat": "Use the LiTT assistant for you.",
+      "read": "Read your matters, documents and results.",
+      "run": "Run reviews and other tasks that use your AI keys or credits.",
+      "title": "What it can do",
+      "write": "Save results and create or upload documents."
+    },
+    "unknownFirm": "Firm",
+    "workspaces": {
+      "none": "You have no workspace this connection can use.",
+      "personal": "Personal",
+      "title": "Where it can work"
     }
   },
   "documents": {
