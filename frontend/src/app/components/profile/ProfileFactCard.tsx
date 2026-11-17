@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { PillButtonUI, TextButtonUI } from "@mike/ui";
 import type { ProfileFact, ProfileFactEvent } from "@mike/contracts";
 import { FormTextInput } from "@/app/components/ui/form-field";
-import { FIELDS, fieldWord, REASON_MAX } from "./profileOptions";
+import { ASSISTED_EXTRACTION_REASON, FIELDS, fieldWord, REASON_MAX } from "./profileOptions";
 
 /** The fields a fact states, as label and value pairs in the order of the form. */
 function useFactRows(fact: ProfileFact): [string, string][] {
@@ -67,10 +67,15 @@ export function ProfileFactCard({
   const person = (userId: string | null) =>
     (userId ? names.get(userId) : null) ?? t("clientProfile.history.unknownPerson");
   const when = (value: string) => format.dateTime(new Date(value), { dateStyle: "medium", timeStyle: "short" });
+  // The creation of a fact the AI proposed says so; its marker is not a reason to print.
+  const proposed = (event: ProfileFactEvent) => event.action === "created" && event.reason === ASSISTED_EXTRACTION_REASON;
   const line = (event: ProfileFactEvent) =>
     [
-      t(`clientProfile.history.${event.action}`, { name: person(event.actor_user_id), date: when(event.created_at) }),
-      event.reason ? t("clientProfile.history.reason", { reason: event.reason }) : null,
+      t(proposed(event) ? "clientProfile.history.proposed" : `clientProfile.history.${event.action}`, {
+        name: person(event.actor_user_id),
+        date: when(event.created_at),
+      }),
+      event.reason && !proposed(event) ? t("clientProfile.history.reason", { reason: event.reason }) : null,
     ]
       .filter(Boolean)
       .join(" · ");

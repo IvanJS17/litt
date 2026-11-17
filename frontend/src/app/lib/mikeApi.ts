@@ -6585,6 +6585,57 @@ export async function rejectProfileFact(
     );
 }
 
+/**
+ * Where the text of a version would go if the AI is asked to propose facts: the
+ * provider and model the project chat uses for this person. null when there is
+ * no such route (no key, no model, or the person only reads): no button then.
+ */
+export async function getProfileExtractionRoute(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").ProfileExtractionRoute | null> {
+    const body = await apiRequest<{ route?: import("@mike/contracts").ProfileExtractionRoute | null }>(
+        "matter.profile",
+        `${clientProfilePath(projectId, matterId)}/extraction`,
+    );
+    const route = body?.route;
+    if (route === null) return null;
+    if (typeof route?.provider !== "string" || typeof route.model !== "string")
+        throw new Error("Malformed extraction route response");
+    return route;
+}
+
+/**
+ * Asks the space's AI to propose facts from ONE version's text (synchronous:
+ * it answers when the model has). The proposals are pending facts; the counts
+ * say what was kept and what was discarded.
+ */
+export async function extractProfileFacts(
+    projectId: string,
+    matterId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").ProfileExtraction> {
+    const result = await apiRequest<import("@mike/contracts").ProfileExtraction>(
+        "matter.profile",
+        `${clientProfilePath(projectId, matterId)}/versions/${encodeURIComponent(versionId)}/extract`,
+        jsonInit("POST", {}),
+    );
+    const counts = [
+        result?.proposed,
+        result?.discarded_quote_not_found,
+        result?.discarded_invalid,
+        result?.discarded_duplicate,
+    ];
+    // A reply without its counts is a failed run, not "nothing was proposed".
+    if (
+        !counts.every((count) => typeof count === "number" && Number.isInteger(count) && count >= 0) ||
+        !Array.isArray(result.fact_ids) ||
+        !result.fact_ids.every((id) => typeof id === "string")
+    )
+        throw new Error("Malformed extraction response");
+    return result;
+}
+
 // ---------------------------------------------------------------------------
 // Deadline radar of a retainer matter (docs/deadline-radar.md)
 // ---------------------------------------------------------------------------
@@ -6615,7 +6666,8 @@ export async function actOnRadarItem(
         `${matterRequestsPath(projectId, matterId)}/radar/items/${encodeURIComponent(itemKey)}/${action}`,
         jsonInit("POST", input),
     );
-    if (typeof item?.key !== "string" || !item.source) throw new Error("Malformed radar item response");
+    // An obligation item with no anchor fact has no source passage, but always names its rule.
+    if (typeof item?.key !== "string" || (!item.source && !item.obligation)) throw new Error("Malformed radar item response");
     return item;
 }
 
@@ -6627,4 +6679,125 @@ export async function getRadarToday(orgId: string): Promise<import("@mike/contra
     );
     if (typeof today?.today !== "string" || !Array.isArray(today.items)) throw new Error("Malformed radar response");
     return today;
+}
+
+// ---------------------------------------------------------------------------
+// Obligation rules of a retainer matter (docs/obligation-rules.md)
+// ---------------------------------------------------------------------------
+
+export async function getMatterObligationRules(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").MatterObligationRules> {
+    const rules = await apiRequest<import("@mike/contracts").MatterObligationRules>(
+        "matter.radar",
+        `${matterRequestsPath(projectId, matterId)}/radar/rules`,
+    );
+    // A reply without its lists is a failed load, not an empty catalog.
+    if (typeof rules?.retainer !== "boolean" || !Array.isArray(rules.rules) || !Array.isArray(rules.anchor_choices) || !Array.isArray(rules.people))
+        throw new Error("Malformed obligation rules response");
+    return rules;
+}
+
+export async function setMatterObligationRule(
+    projectId: string,
+    matterId: string,
+    ruleKey: string,
+    on: boolean,
+    input: import("@mike/contracts").ObligationRuleActivationInput | Record<string, never> = {},
+): Promise<import("@mike/contracts").ObligationRule> {
+    const rule = await apiRequest<import("@mike/contracts").ObligationRule>(
+        "matter.radar",
+        `${matterRequestsPath(projectId, matterId)}/radar/rules/${encodeURIComponent(ruleKey)}/${on ? "activate" : "deactivate"}`,
+        jsonInit("POST", on ? input : {}),
+    );
+    if (typeof rule?.key !== "string" || typeof rule.active !== "boolean") throw new Error("Malformed obligation rule response");
+    return rule;
+}
+
+// ---------------------------------------------------------------------------
+// Retainer report of a matter (docs/retainer-report.md)
+// ---------------------------------------------------------------------------
+
+const reportPath = (projectId: string, matterId: string) => `${matterRequestsPath(projectId, matterId)}/report`;
+const reportQuery = (locale: import("@mike/contracts").RetainerReportLocale) =>
+    `?locale=${encodeURIComponent(locale)}`;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** The report as JSON (owner or editor). Nothing is sent anywhere: this only reads. */
+export async function getRetainerReport(
+    projectId: string,
+    matterId: string,
+    days: import("@mike/contracts").RetainerReportDays,
+    locale: import("@mike/contracts").RetainerReportLocale,
+): Promise<import("@mike/contracts").RetainerReport> {
+    const report = await apiRequest<import("@mike/contracts").RetainerReport>(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/${days}d${reportQuery(locale)}`,
+    );
+    // A reply without its parts is a failed load, not an empty report.
+    if (
+        !isPlainObject(report) ||
+        !isPlainObject(report.period) ||
+        typeof report.period.start !== "string" ||
+        typeof report.period.end !== "string" ||
+        !isPlainObject(report.horizon) ||
+        !isPlainObject(report.requests) ||
+        !Array.isArray(report.requests.by_type) ||
+        !Array.isArray(report.requests.closed) ||
+        !Array.isArray(report.requests.open) ||
+        !isPlainObject(report.profile) ||
+        !Array.isArray(report.profile.confirmed_in_period) ||
+        !isPlainObject(report.radar) ||
+        !Array.isArray(report.radar.upcoming) ||
+        typeof report.disclaimer !== "string" ||
+        typeof report.scope_note !== "string"
+    )
+        throw new Error("Malformed report response");
+    return report;
+}
+
+/** The report as a Word file, to hand to the browser's download. */
+export async function downloadRetainerReport(
+    projectId: string,
+    matterId: string,
+    days: import("@mike/contracts").RetainerReportDays,
+    locale: import("@mike/contracts").RetainerReportLocale,
+): Promise<{ blob: Blob; filename: string | null }> {
+    return apiBlobRequest(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/${days}d/docx${reportQuery(locale)}`,
+    );
+}
+
+export async function getReportSentHistory(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").RetainerReportSentList> {
+    const list = await apiRequest<import("@mike/contracts").RetainerReportSentList>(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/sent`,
+    );
+    if (!isPlainObject(list) || typeof list.retainer !== "boolean" || !Array.isArray(list.sent))
+        throw new Error("Malformed report history response");
+    return list;
+}
+
+/** The lawyer's record that they sent the report of the last `days` days. LiTT sends nothing. */
+export async function markReportSent(
+    projectId: string,
+    matterId: string,
+    days: import("@mike/contracts").RetainerReportDays,
+    input: import("@mike/contracts").RetainerReportSentInput = {},
+): Promise<import("@mike/contracts").RetainerReportSent> {
+    const sent = await apiRequest<import("@mike/contracts").RetainerReportSent>(
+        "matter.report",
+        `${reportPath(projectId, matterId)}/${days}d/sent`,
+        jsonInit("POST", input.note ? { note: input.note } : {}),
+    );
+    if (!isPlainObject(sent) || typeof sent.id !== "string" || typeof sent.period_end !== "string")
+        throw new Error("Malformed report record response");
+    return sent;
 }

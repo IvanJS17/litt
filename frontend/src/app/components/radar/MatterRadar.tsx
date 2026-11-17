@@ -11,6 +11,7 @@ import { LIQUID_SUBTLE_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-su
 import { actOnRadarItem, getMatterRadar } from "@/app/lib/mikeApi";
 import { errorCode, notifyError } from "@/app/lib/userFacingError";
 import { MatterSectionNav } from "@/app/components/profile/MatterSectionNav";
+import { ObligationRules } from "./ObligationRules";
 import { RadarItemCard } from "./RadarItemCard";
 import { groupItems, profileHref } from "./radarOptions";
 import { useRadarWords } from "./radarText";
@@ -154,6 +155,10 @@ export function MatterRadar({ projectId, matterId }: { projectId: string; matter
             ))}
           </div>
         )}
+
+        {data?.retainer ? (
+          <ObligationRules projectId={projectId} matterId={matterId} onChanged={() => void refresh()} />
+        ) : null}
       </div>
     </main>
   );

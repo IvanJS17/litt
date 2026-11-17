@@ -9,7 +9,7 @@ import {
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import { type Db } from "../../lib/supabase";
-import { loadUserProfileFacts, loadUserRadarEvents } from "./matterProfileExport";
+import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents } from "./matterProfileExport";
 import { loadUserMatterRequests } from "./matterRequestsExport";
 import {
     resolvePlaybookRoles,
@@ -812,6 +812,8 @@ export async function buildUserAccountExport(
     const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId);
     const profileFacts = await loadUserProfileFacts(db, userId, userEmail, orgId);
     const radarEvents = await loadUserRadarEvents(db, userId, userEmail, orgId);
+    const obligationEvents = await loadUserObligationEvents(db, userId, userEmail, orgId);
+    const reportSentEvents = await loadUserReportSentEvents(db, userId, userEmail, orgId);
 
     const playbooks = await loadUserPlaybooks(
         db,
@@ -905,6 +907,9 @@ export async function buildUserAccountExport(
         matter_profile_facts: profileFacts.facts,
         matter_profile_fact_events: profileFacts.events,
         matter_radar_item_events: radarEvents,
+        matter_obligation_rule_events: obligationEvents.rules,
+        matter_obligation_item_events: obligationEvents.items,
+        matter_report_sent_events: reportSentEvents,
         audit_events: auditEvents,
     };
 }

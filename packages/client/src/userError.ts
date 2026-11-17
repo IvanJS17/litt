@@ -264,11 +264,22 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     fact_already_decided: "conflict",
     fact_stale: "conflict",
     profile_fact_limit: "conflict",
+    // Assisted extraction: the text is longer than one call takes; the model or
+    // its provider failed (nothing was saved, trying again may help); the
+    // provider refused the key or the request (the fix is in Settings).
+    extraction_text_too_large: "payload_too_large",
+    extraction_output_invalid: "unavailable",
+    extraction_provider_failed: "unavailable",
+    extraction_provider_refused: "validation",
     // Deadline radar: dismissing needs a reason; an item already handled
     // cannot be handled again.
     radar_reason_required: "validation",
     invalid_radar_action: "validation",
     radar_item_closed: "conflict",
+    // Obligation rules: only a rule a lawyer verified can be turned on.
+    obligation_rule_unverified: "conflict",
+    obligation_anchor_required: "validation",
+    obligation_anchor_unavailable: "conflict",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
     // LiTT governed BYOK: a conversation keeps the route it was started on.

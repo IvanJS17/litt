@@ -7,7 +7,7 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
 }));
 
 import { buildUserAccountExport } from "../buildJsonExport";
-import { loadUserProfileFacts, loadUserRadarEvents } from "../matterProfileExport";
+import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents } from "../matterProfileExport";
 import { makeExportDb, type Row } from "./exportDb.fixture";
 
 // The account export of a firm's workspace carries the profile facts the holder
@@ -73,6 +73,20 @@ function tables(): Record<string, Row[]> {
             { id: "r3", fact_id: "f333", matter_id: "m-left", item_type: "expiry", action: "done", due_on: "2026-12-31", reason: null, actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
             { id: "r4", fact_id: "f4444", matter_id: "m-closed", item_type: "expiry", action: "done", due_on: "2026-12-31", reason: null, actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
         ],
+        matter_obligation_rule_events: [
+            { id: "o1", matter_id: "m-open", rule_code: "contract.notice", rule_version: 1, action: "activate", actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
+            { id: "o2", matter_id: "m-open", rule_code: "contract.notice", rule_version: 1, action: "deactivate", actor_user_id: "someone", created_at: "2026-11-04T00:00:00Z" },
+            { id: "o3", matter_id: "m-left", rule_code: "contract.notice", rule_version: 1, action: "activate", actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
+        ],
+        matter_obligation_item_events: [
+            { id: "i1", matter_id: "m-open", item_key: "contract.notice@1:matter", action: "ack", due_on: null, reason: null, actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
+            { id: "i2", matter_id: "m-closed", item_key: "contract.notice@1:matter", action: "done", due_on: null, reason: null, actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
+        ],
+        matter_report_sent_events: [
+            { id: "s1", matter_id: "m-open", period_start: "2026-08-19", period_end: "2026-11-16", period_days: 90, note: null, actor_user_id: user, created_at: "2026-11-17T00:00:00Z" },
+            { id: "s2", matter_id: "m-open", period_start: "2026-08-19", period_end: "2026-11-16", period_days: 90, note: null, actor_user_id: "someone", created_at: "2026-11-17T00:00:00Z" },
+            { id: "s3", matter_id: "m-left", period_start: "2026-08-19", period_end: "2026-11-16", period_days: 90, note: "x", actor_user_id: user, created_at: "2026-11-17T00:00:00Z" },
+        ],
         matter_profile_fact_events: [
             event("e1", "f1", "m-open", user),
             event("e2", "f22", "m-open", user),
@@ -118,5 +132,29 @@ describe("account export: profile facts", () => {
         expect((firm.matter_radar_item_events as Row[]).map((row) => row.id)).toEqual(["r1"]);
         const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
         expect(personal.matter_radar_item_events).toEqual([]);
+    });
+
+    it("carries the obligation rule decisions and item actions the holder recorded, in matters they can still open", async () => {
+        const mine = await loadUserObligationEvents(db, user, "holder@example.test", "org-current");
+        expect(mine.rules.map((row) => row.id)).toEqual(["o1"]);
+        expect(mine.items.map((row) => row.id)).toEqual(["i1"]);
+        expect(await loadUserObligationEvents(db, user, null, null)).toEqual({ rules: [], items: [] });
+        expect(await loadUserObligationEvents(db, "nobody", null, "org-current")).toEqual({ rules: [], items: [] });
+        const firm = await buildUserAccountExport(db, user, "holder@example.test", "org-current");
+        expect((firm.matter_obligation_rule_events as Row[]).map((row) => row.id)).toEqual(["o1"]);
+        expect((firm.matter_obligation_item_events as Row[]).map((row) => row.id)).toEqual(["i1"]);
+        const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
+        expect(personal.matter_obligation_rule_events).toEqual([]);
+        expect(personal.matter_obligation_item_events).toEqual([]);
+    });
+
+    it("carries the sent-report records the holder made, in matters they can still open", async () => {
+        expect((await loadUserReportSentEvents(db, user, "holder@example.test", "org-current")).map((row) => row.id)).toEqual(["s1"]);
+        expect(await loadUserReportSentEvents(db, user, null, null)).toEqual([]);
+        expect(await loadUserReportSentEvents(db, "nobody", null, "org-current")).toEqual([]);
+        const firm = await buildUserAccountExport(db, user, "holder@example.test", "org-current");
+        expect((firm.matter_report_sent_events as Row[]).map((row) => row.id)).toEqual(["s1"]);
+        const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
+        expect(personal.matter_report_sent_events).toEqual([]);
     });
 });

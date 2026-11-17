@@ -4,6 +4,8 @@
 
 Repository: https://github.com/IvanJS17/litt (issues are disabled; code proposals go through pull requests). Production deploys are tagged `prod-YYYYMMDDx` in Git, each pointing to the commit that runs; most are also published as a GitHub release. Every build embeds its commit; the app links to that source (AGPL-3.0 section 13).
 
+Current production deploy: `20261117d` (commit `1e11b983b`, tag `prod-20261117d`).
+
 Read first: the repository's agent rules and the current state. Local setup uses synthetic data only. Production state and open items change; check PROJECT_STATUS.md before relying on them.
 
 ## Start here
@@ -23,7 +25,7 @@ Read first: the repository's agent rules and the current state. Local setup uses
 - [Document comparison](https://github.com/IvanJS17/litt/blob/main/docs/document-compare.md): two Word files into a new one with tracked changes
 - [Scan reading (OCR)](https://github.com/IvanJS17/litt/blob/main/docs/document-ocr.md): optional, with the person's or firm's own key
 - [Split a case file](https://github.com/IvanJS17/litt/blob/main/docs/document-split.md): one PDF into one file per document
-- [Client profile](https://github.com/IvanJS17/litt/blob/main/docs/client-profile.md), [matter requests](https://github.com/IvanJS17/litt/blob/main/docs/matter-requests.md), [deadline radar](https://github.com/IvanJS17/litt/blob/main/docs/deadline-radar.md): retainer-matter features
+- [Client profile](https://github.com/IvanJS17/litt/blob/main/docs/client-profile.md), [matter requests](https://github.com/IvanJS17/litt/blob/main/docs/matter-requests.md), [deadline radar](https://github.com/IvanJS17/litt/blob/main/docs/deadline-radar.md), [obligation rules](https://github.com/IvanJS17/litt/blob/main/docs/obligation-rules.md), [retainer report](https://github.com/IvanJS17/litt/blob/main/docs/retainer-report.md): retainer-matter features
 - [Citation support check](https://github.com/IvanJS17/litt/blob/main/docs/citation-support-check.md): silent second check of citations, per-person opt-out
 - [Connectors (MCP)](https://github.com/IvanJS17/litt/blob/main/docs/connectors.md): hosted presets and custom servers
 - [LiTT MCP server](https://github.com/IvanJS17/litt/blob/main/docs/mcp-server.md): OAuth authorization server and `/mcp` for AI apps (on in production since 2026-11-17, release `20261117c`)

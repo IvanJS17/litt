@@ -28,9 +28,11 @@ Each line gives the feature and its state. "Flag" names the environment switch.
 - [Organization offboarding](organization-offboarding.md) — member removal, account deletion, shared-work transfer. Shipped (no flag).
 - [Training](training.md) — mentors, pupils, supervision and criterion. Shipped.
 - [Playbooks](playbooks.md) — negotiation guides turned into reviewable rules. Shipped.
-- [Client profile](client-profile.md) — facts of a retainer matter with a verified citation and lawyer confirmation. Shipped.
+- [Client profile](client-profile.md) — facts of a retainer matter with a verified citation and lawyer confirmation; assisted extraction with the person's or firm's own key. Shipped.
 - [Matter requests](matter-requests.md) — a retainer client's requests: type, state, rounds. Shipped.
 - [Deadline radar](deadline-radar.md) — dates computed in code from confirmed profile facts. Shipped.
+- [Obligation rules](obligation-rules.md) — catalog of 20 verified legal obligations counted in code from a confirmed date; the lawyer turns each on per matter. Shipped.
+- [Retainer report](retainer-report.md) — 30/60/90-day Word report for the retainer client; LiTT sends nothing, the lawyer records the send by hand. Shipped.
 - [Document conversion](document-conversion.md) — Markdown, Word and PDF into a new document. Shipped.
 - [Document comparison](document-compare.md) — two Word files into a new one with tracked changes. Shipped.
 - [DOCX upload validation](docx-validation.md) — checks on DOCX uploads before storage and conversion. Shipped (no flag).

@@ -66,3 +66,63 @@ export async function loadUserRadarEvents(
     const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
     return sortRows(events.filter((row) => readable.has(row.matter_id as string)));
 }
+
+/**
+ * What the holder decided about obligation rules, in the matters they can
+ * still open: the rules they turned on or off and the actions (acknowledged,
+ * dismissed, done) they recorded on the items of those rules. Matter work, like
+ * the radar actions: it stays with the firm when the holder leaves the matter.
+ * Only an organization's export carries them.
+ */
+export async function loadUserObligationEvents(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: string | null,
+): Promise<{ rules: Row[]; items: Row[] }> {
+    if (!orgId) return { rules: [], items: [] };
+    const rules = await selectAllByKey<Row>("export matter_obligation_rule_events", () =>
+        (db as any)
+            .from("matter_obligation_rule_events")
+            .select("id, matter_id, rule_code, rule_version, action, anchor_fact_id, anchor_mode, created_at")
+            .eq("actor_user_id", userId),
+    );
+    const items = await selectAllByKey<Row>("export matter_obligation_item_events", () =>
+        (db as any)
+            .from("matter_obligation_item_events")
+            .select("id, matter_id, item_key, action, due_on, reason, created_at")
+            .eq("actor_user_id", userId),
+    );
+    const matterIds = [...new Set([...rules, ...items].map((row) => row.matter_id as string))];
+    if (matterIds.length === 0) return { rules: [], items: [] };
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    return {
+        rules: sortRows(rules.filter((row) => readable.has(row.matter_id as string))),
+        items: sortRows(items.filter((row) => readable.has(row.matter_id as string))),
+    };
+}
+
+/**
+ * The "retainer report sent" records the holder made, in the matters they can
+ * still open. Matter work, like the requests it summarizes: it stays with the
+ * firm when the holder is no longer on the matter. Only an organization's
+ * export carries them.
+ */
+export async function loadUserReportSentEvents(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: string | null,
+): Promise<Row[]> {
+    if (!orgId) return [];
+    const events = await selectAllByKey<Row>("export matter_report_sent_events", () =>
+        (db as any)
+            .from("matter_report_sent_events")
+            .select("id, matter_id, period_start, period_end, period_days, note, created_at")
+            .eq("actor_user_id", userId),
+    );
+    const matterIds = [...new Set(events.map((row) => row.matter_id as string))];
+    if (matterIds.length === 0) return [];
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    return sortRows(events.filter((row) => readable.has(row.matter_id as string)));
+}

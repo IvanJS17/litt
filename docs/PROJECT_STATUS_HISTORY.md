@@ -726,3 +726,40 @@ upstream pin is unchanged. No cron or external automation is authorized here.
 
 See [`RELEASE_GATES.md`](RELEASE_GATES.md) for what each PASS does and does not
 authorize, and [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md) for the steady-state rule.
+
+## Snapshot to 2026-11-17 (deploy 20261117c, superseded)
+
+Moved from `PROJECT_STATUS.md` on 2026-11-17 when deploy `20261117d` (`1e11b983b`) went live. Historical: the current state is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+
+### In production (2026-11-17, deploy 20261117c)
+
+- **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
+- **Deploy:** `20261117c`, tag `prod-20261117c`, `RELEASE_SHA` `dbd70f908` (full SHA
+  `dbd70f9082f0671695d9dd9ebf43de65d25397dd`). Earlier deploys: tags `prod-20261116a`
+  to `prod-20261116i`, `prod-20261117a`, `prod-20261117b`. Each deploy is tagged
+  `prod-YYYYMMDDx`; not every tag has a published GitHub release yet.
+- **Contents:** every pull request up to #229, merged and deployed 2026-11-16/17.
+- **Migrations:** applied through `20261117_20_litt_mcp_service_role_grants.sql`.
+- **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
+  Beta statistics are for platform administrators only, counts only, audited
+  ([`beta-stats.md`](beta-stats.md)).
+- **Deploy and backup procedure:** [`deploy/prod/README.md`](../deploy/prod/README.md).
+
+### Open items (2026-11-17)
+
+The authoritative list is [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md) (debt with exit
+criteria) and [`followups.md`](followups.md) (technical follow-ups). The ones that
+matter now:
+
+- Owner confirmation of the legal wording that covers citation checks on tabular
+  cells and playbook drafts (TD-047). Those checks are already live.
+- MCP: on in production since 2026-11-17 (`LITT_MCP_SERVER=enabled`, public host
+  `https://mcp.litt.asteroitt.com`). Real Claude/ChatGPT login and tool call with an owner
+  account still pending. Mode B's run record does not name the reviewed version (TD-049).
+- PostgREST memory grows slowly; contained by a 256 MiB limit with no swap. Re-measure
+  by 2026-11-22 (TD-048).
+- Flaky backend and frontend tests seen in CI on 2026-11-14 (TD-050).
+- Google: create the OAuth client and verify scopes before enabling any Google service.
+- Not run yet: a browser flow of «Separar expediente» with a real case file.
+- Owner-only checks: real iPhone test of the mobile menu; Word add-in install on
+  Microsoft 365.

@@ -7,6 +7,7 @@ import { PillButtonUI, TextButtonUI } from "@mike/ui";
 import type { RadarAction, RadarItem } from "@mike/contracts";
 import { FormTextInput } from "@/app/components/ui/form-field";
 import { REASON_MAX } from "./radarOptions";
+import { useObligationWords } from "./obligationText";
 import { useRadarWords } from "./radarText";
 
 const ACTION_OF_STATE = { acknowledged: "ack", dismissed: "dismiss", done: "done" } as const;
@@ -38,11 +39,13 @@ export function RadarItemCard({
   const format = useFormatter();
   const id = useId();
   const { day, distance } = useRadarWords();
+  const { ruleName, milestoneText } = useObligationWords();
   const [dismissing, setDismissing] = useState(false);
   const [reason, setReason] = useState("");
   const [missingReason, setMissingReason] = useState(false);
   const alive = item.state === "open" || item.state === "acknowledged";
   const source = item.source;
+  const obligation = item.obligation;
   const when = distance(item);
   const tone =
     item.bucket === "overdue"
@@ -76,8 +79,11 @@ export function RadarItemCard({
       <header className="space-y-1">
         <p className="text-xs text-gray-500">{t(`radar.type.${item.type}`)}</p>
         <h3 id={`${id}-label`} className="min-w-0 break-words text-sm font-medium text-gray-900">
-          {item.label}
+          {obligation ? ruleName(obligation.name_key, item.label) : item.label}
         </h3>
+        {obligation && item.fact_id ? (
+          <p className="min-w-0 break-words text-xs text-gray-600">{t("radar.obligation.anchorFact", { fact: item.label })}</p>
+        ) : null}
         {item.due_on ? (
           <p className={`text-sm font-medium ${tone}`}>
             {t("radar.when.onDate", { date: day(item.due_on) })}
@@ -100,6 +106,43 @@ export function RadarItemCard({
         ) : null}
         {item.rule_text ? <p className="break-words">{t("radar.rule", { rule: item.rule_text })}</p> : null}
       </div>
+      {obligation ? (
+        <div className="space-y-2">
+          {obligation.starts_on ? <p className="text-xs text-gray-600">{t("radar.obligation.opens", { date: day(obligation.starts_on) })}</p> : null}
+          <ul className="space-y-0.5 text-xs text-gray-700">
+            {obligation.milestones.map((milestone) => (
+              <li key={milestone.kind} className="break-words">
+                {milestoneText(milestone)}
+              </li>
+            ))}
+          </ul>
+          {obligation.citations.map((citation, index) => (
+            <figure key={`${citation.law}:${citation.location}:${index}`} className="space-y-1 border-l-2 border-gray-300 pl-3">
+              <figcaption className="text-xs text-gray-500">
+                {t("radar.obligation.source", { law: citation.law, location: citation.location })}
+                {citation.url ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={citation.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded underline hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                      {t("radar.rules.openSource")}
+                    </a>
+                  </>
+                ) : null}
+              </figcaption>
+              <blockquote className="break-words whitespace-pre-wrap text-sm text-gray-700" aria-label={t("radar.obligation.quote")}>
+                {citation.text}
+              </blockquote>
+            </figure>
+          ))}
+          {obligation.notes ? <p className="break-words whitespace-pre-wrap text-xs text-gray-600">{obligation.notes}</p> : null}
+        </div>
+      ) : null}
+      {source ? (
       <figure className="space-y-1 border-l-2 border-gray-300 pl-3">
         <figcaption className="text-xs text-gray-500">
           {t("radar.source.label")}
@@ -112,6 +155,7 @@ export function RadarItemCard({
           {source.quote}
         </blockquote>
       </figure>
+      ) : null}
       {profileHref ? (
         <Link
           href={profileHref}

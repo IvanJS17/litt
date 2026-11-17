@@ -2493,6 +2493,29 @@ export type ProfileFactInput = {
   };
 };
 
+/**
+ * Where the text of a version would go if the lawyer asks the space's AI to
+ * propose facts: the provider and model the project chat uses for this person.
+ * `null` when there is no such route (no key, no model) or the caller only reads.
+ */
+export type ProfileExtractionRoute = {
+  provider: string;
+  model: string;
+};
+
+/** What one assisted-extraction run did. Proposals are pending facts, to be confirmed one by one. */
+export type ProfileExtraction = {
+  proposed: number;
+  /** The model's quote is not in the version's text: discarded, never saved. */
+  discarded_quote_not_found: number;
+  /** Beyond the cap of 25, outside the closed schema, or refused by the profile's own rules. */
+  discarded_invalid: number;
+  /** The same fact from the same passage already exists in the profile. */
+  discarded_duplicate: number;
+  /** The facts this run saved, in order. */
+  fact_ids: string[];
+};
+
 export type ProfileFactDecisionInput = {
   /** Optional note kept with the decision (up to 500 characters). */
   reason?: string;
@@ -2507,7 +2530,7 @@ export type ProfileFactDecisionInput = {
  * (the date minus the notice period, in calendar days). `power_expiry`: a
  * power of attorney's expiration.
  */
-export type RadarItemType = "expiry" | "notice" | "power_expiry";
+export type RadarItemType = "expiry" | "notice" | "power_expiry" | "obligation_due";
 
 /** `open` and `acknowledged` are alive; `dismissed` and `done` are closed. */
 export type RadarItemState = "open" | "acknowledged" | "dismissed" | "done";
@@ -2524,14 +2547,18 @@ export type RadarBucket = "overdue" | "next_30" | "later" | "review";
  * business days, which LiTT never computes. `missing_date`: the fact names a
  * rule or a period but no date to count from.
  */
-export type RadarReviewReason = "business_days" | "missing_date";
+export type RadarReviewReason = "business_days" | "missing_date" | "anchor_unavailable";
 
 export type RadarItem = {
-  /** Stable name of the item: `<fact_id>:<type>`. */
+  /**
+   * Stable name of the item: `<fact_id>:<type>`, or, for an obligation rule,
+   * `<rule_code>@<version>:<anchor fact id>`.
+   */
   key: string;
+  /** The fact the item comes from (for an obligation item, the anchor the lawyer chose). */
   fact_id: string;
   type: RadarItemType;
-  /** The fact's label. */
+  /** The fact's label; for an obligation item, the rule's code (the page words the name). */
   label: string;
   /** ISO date (YYYY-MM-DD), computed in code. Null for a `review` item. */
   due_on: string | null;
@@ -2550,8 +2577,106 @@ export type RadarItem = {
   acted_at: string | null;
   /** The reason given when it was dismissed. */
   reason: string | null;
-  /** The cited passage of the fact the item comes from. */
-  source: ProfileFactSource;
+  /** The cited passage of the fact the item comes from; null when the anchor fact no longer counts. */
+  source: ProfileFactSource | null;
+  /** The rule behind an `obligation_due` item; null for the rest. */
+  obligation: RadarItemObligation | null;
+};
+
+/** What an obligation item says about its rule (docs/obligation-rules.md). */
+export type RadarItemObligation = {
+  rule_key: string;
+  name_key: string;
+  kind: ObligationRuleKind;
+  /** First day of a `window` rule; null otherwise or when it has no date. */
+  starts_on: string | null;
+  milestones: ObligationRuleMilestone[];
+  requires_business_days: boolean;
+  citations: ObligationRuleCitation[];
+  /** Legal's notes, plain text. */
+  notes: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// Obligation rules of a retainer matter (docs/obligation-rules.md)
+// ---------------------------------------------------------------------------
+
+/** `deadline`: one last day. `window`: opens and closes. `expiry`: a validity that ends. */
+export type ObligationRuleKind = "deadline" | "window" | "expiry";
+/** One step of a count, applied in order: calendar days, months, years (negative counts back), business days (never computed), or an adjustment to the month's first or last day. */
+export type ObligationRuleOp =
+  | { unit: "days" | "months" | "years" | "business_days"; amount: number }
+  | { adjust: "month_start" | "month_end" };
+export type ObligationRuleMilestone = { kind: "due" | "opens" | "closes"; ops: ObligationRuleOp[] };
+export type ObligationRuleCitation = {
+  source_code: string;
+  law: string;
+  location: string;
+  /** The words of the law, as the official source gives them. */
+  text: string;
+  url: string;
+  /** As the official source states it, e.g. `DOF 20-10-2023`. */
+  last_reform: string;
+};
+export type ObligationRuleVerification = {
+  status: "verified" | "unverified";
+  verified_by: string | null;
+  verified_on: string | null;
+};
+export type ObligationAnchorMode = "direct" | "first_cycle";
+
+export type ObligationRule = {
+  /** `<code>@<version>`. */
+  key: string;
+  code: string;
+  version: number;
+  name_key: string;
+  applies_when_key: string;
+  /** i18n key of the sentence naming the date the rule counts from. */
+  anchor_key: string;
+  /** How the first anchor is worked out from the date a right was granted, when the rule allows it. */
+  first_cycle: { from: string; ops: ObligationRuleOp[]; only_if: string | null; cap_years: number | null } | null;
+  kind: ObligationRuleKind;
+  milestones: ObligationRuleMilestone[];
+  /** Counts business days: LiTT never computes it, the item is left to review. */
+  requires_business_days: boolean;
+  citations: ObligationRuleCitation[];
+  notes: string | null;
+  /** ISO date the official sources were consulted. */
+  consulted_on: string;
+  verification: ObligationRuleVerification;
+  /** Turned on for this matter. Only a verified rule can be. */
+  active: boolean;
+  /** The confirmed fact the active rule counts from, and how. */
+  anchor: { fact_id: string; mode: ObligationAnchorMode } | null;
+  changed_by: string | null;
+  changed_at: string | null;
+};
+
+/** A confirmed fact with a date: what a rule can count from. */
+export type ObligationAnchorChoice = {
+  fact_id: string;
+  label: string;
+  date_on: string;
+  date_kind: "effective" | "expiry" | "renewal_notice" | null;
+};
+
+export type MatterObligationRules = {
+  /** The matter is a private retainer; only then does it have rules. */
+  retainer: boolean;
+  /** The caller may turn rules on and off (owner or editor). */
+  can_write: boolean;
+  rules: ObligationRule[];
+  /** The matter's confirmed, not stale dated facts the lawyer can pick as an anchor. */
+  anchor_choices: ObligationAnchorChoice[];
+  people: ProfilePerson[];
+};
+
+export type ObligationRuleActivationInput = {
+  /** The confirmed fact the rule counts from. */
+  anchor_fact_id: string;
+  /** `first_cycle`: the fact is the date the right was granted, and the rule works the first expiry out. */
+  anchor_mode?: ObligationAnchorMode;
 };
 
 export type MatterRadar = {
@@ -2587,4 +2712,111 @@ export type RadarAction = "ack" | "dismiss" | "done";
 export type RadarActionInput = {
   /** Required to dismiss (1 to 500 characters); optional otherwise. */
   reason?: string;
+};
+
+// ---------------------------------------------------------------------------
+// Retainer report: the document a lawyer sends to a retainer client
+// (docs/retainer-report.md). LiTT sends nothing; it computes the report from
+// confirmed data and records, when the lawyer says so, that it was sent.
+// ---------------------------------------------------------------------------
+
+export type RetainerReportLocale = "es-MX" | "en-US";
+
+/** Length of the report's period, in calendar days. */
+export type RetainerReportDays = 30 | 60 | 90;
+
+export type RetainerReportTypeCount = {
+  type_id: string;
+  seed_key: MatterRequestTypeSeed | null;
+  name: string | null;
+  count: number;
+};
+
+/** A request the report lists: no hours and no estimate, only dates and rounds. */
+export type RetainerReportRequest = {
+  id: string;
+  title: string;
+  type_id: string;
+  seed_key: MatterRequestTypeSeed | null;
+  type_name: string | null;
+  complexity: MatterRequestComplexity;
+  level: MatterRequestLevel | null;
+  status: MatterRequestStatus;
+  received_on: string;
+  closed_on: string | null;
+  /** Calendar days from received to closed (closed requests); days open so far otherwise. */
+  calendar_days: number;
+  rounds: number;
+};
+
+export type RetainerReportFact = {
+  id: string;
+  kind: ProfileFactKind;
+  label: string;
+  confirmed_on: string;
+};
+
+export type RetainerReportRadarItem = {
+  key: string;
+  type: RadarItem["type"];
+  label: string;
+  due_on: string;
+  days_left: number;
+  state: RadarItemState;
+};
+
+export type RetainerReport = {
+  locale: RetainerReportLocale;
+  matter_name: string | null;
+  /** The period ends today (America/Mexico_City) and has `days` calendar days, both ends included. */
+  period: { days: RetainerReportDays; start: string; end: string; time_zone: string };
+  /** From today to `days` calendar days after it. */
+  horizon: { start: string; end: string };
+  requests: {
+    /** Requests received in the period, closed in it, or still open at its end. */
+    total: number;
+    by_type: RetainerReportTypeCount[];
+    by_complexity: Record<MatterRequestComplexity, number>;
+    /** `unassigned` counts requests nobody was assigned to. */
+    by_level: Record<MatterRequestLevel | "unassigned", number>;
+    by_status: Record<MatterRequestStatus, number>;
+    closed: RetainerReportRequest[];
+    open: RetainerReportRequest[];
+    closed_rounds_total: number;
+    /** Mean calendar days from received to closed, one decimal; null when nothing closed. */
+    closed_average_calendar_days: number | null;
+  };
+  profile: {
+    /** Confirmed facts whose cited text has not changed, today. */
+    confirmed_total: number;
+    by_kind: Record<ProfileFactKind, number>;
+    confirmed_in_period: RetainerReportFact[];
+  };
+  radar: { upcoming: RetainerReportRadarItem[] };
+  /** The fixed planning-aid text, in the report's language. */
+  disclaimer: string;
+  /** Said right after the disclaimer: only confirmed data is included, so some deadlines may be missing. */
+  scope_note: string;
+};
+
+export type RetainerReportSent = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  period_days: RetainerReportDays;
+  note: string | null;
+  sent_by: string | null;
+  sent_by_name: string | null;
+  created_at: string;
+};
+
+export type RetainerReportSentList = {
+  retainer: boolean;
+  can_write: boolean;
+  sent: RetainerReportSent[];
+};
+
+export type RetainerReportSentInput = {
+  /** At most 500 characters. */
+  note?: string;
 };

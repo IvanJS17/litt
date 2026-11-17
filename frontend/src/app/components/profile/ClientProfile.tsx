@@ -5,20 +5,28 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PillButtonUI } from "@mike/ui";
-import type { ClientProfile as ClientProfileData, ProfileFactInput } from "@mike/contracts";
+import type {
+  ClientProfile as ClientProfileData,
+  ProfileExtraction,
+  ProfileExtractionRoute,
+  ProfileFactInput,
+} from "@mike/contracts";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { LIQUID_SUBTLE_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-surface";
 import {
   confirmProfileFact,
   createProfileFact,
+  extractProfileFacts,
   getClientProfile,
+  getProfileExtractionRoute,
   rejectProfileFact,
 } from "@/app/lib/mikeApi";
 import { errorCode, notifyError } from "@/app/lib/userFacingError";
 import { MatterSectionNav } from "./MatterSectionNav";
 import { ProfileFactCard } from "./ProfileFactCard";
+import { ProfileExtractPanel, ProfileExtractResult } from "./ProfileExtractPanel";
 import { ProfileFactForm } from "./ProfileFactForm";
-import { groupFacts, type FormErrorKey } from "./profileOptions";
+import { groupFacts, pendingProposals, type FormErrorKey } from "./profileOptions";
 
 // What the server refuses about a quote, as the form words it.
 const FORM_ERRORS: Record<string, FormErrorKey> = {
@@ -43,6 +51,11 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<FormErrorKey | null>(null);
   const [busyFact, setBusyFact] = useState<string | null>(null);
+  // Assisted extraction: where the text would go (null: no button), the run in
+  // flight and the last run's counts and proposals.
+  const [route, setRoute] = useState<ProfileExtractionRoute | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extraction, setExtraction] = useState<ProfileExtraction | null>(null);
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -53,6 +66,8 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
     setData(null);
     setLoadFailed(false);
     setAdding(false);
+    setRoute(null);
+    setExtraction(null);
     getClientProfile(projectId, matterId).then(
       (next) => {
         if (current) setData(next);
@@ -67,6 +82,25 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
       current = false;
     };
   }, [projectId, matterId, reload]);
+
+  // The button exists only when the space's AI has a route for this person; the
+  // answer is read after the profile and a failure to read it just hides the button.
+  const canExtract = Boolean(data?.retainer && data.can_write);
+  useEffect(() => {
+    if (!canExtract) return;
+    let current = true;
+    getProfileExtractionRoute(projectId, matterId).then(
+      (next) => {
+        if (current) setRoute(next);
+      },
+      () => {
+        if (current) setRoute(null);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [canExtract, projectId, matterId, reload]);
 
   // After a change the page reads the profile again, so the names, the state of
   // every fact and the list of versions are the server's, not a guess.
@@ -94,6 +128,19 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
     }
   }
 
+  async function extract(versionId: string) {
+    setExtracting(true);
+    setExtraction(null);
+    try {
+      setExtraction(await extractProfileFacts(projectId, matterId, versionId));
+      await refresh();
+    } catch (error) {
+      notifyError(error, { action: t("clientProfile.extract.couldNotExtract") });
+    } finally {
+      setExtracting(false);
+    }
+  }
+
   async function decide(factId: string, choice: "confirm" | "reject", reason = "") {
     setBusyFact(factId);
     try {
@@ -118,7 +165,20 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
   }
 
   const names = new Map((data?.people ?? []).map((person) => [person.user_id, person.name] as const));
-  const groups = groupFacts(data?.facts ?? []);
+  // What the last run proposed and nobody has decided yet is listed apart, on top.
+  const proposals = pendingProposals(data?.facts ?? [], extraction?.fact_ids ?? []);
+  const proposalIds = new Set(proposals.map((fact) => fact.id));
+  const groups = groupFacts((data?.facts ?? []).filter((fact) => !proposalIds.has(fact.id)));
+  const card = (fact: ClientProfileData["facts"][number]) => (
+    <ProfileFactCard
+      fact={fact}
+      names={names}
+      canWrite={data?.can_write ?? false}
+      busy={busyFact === fact.id}
+      onConfirm={() => void decide(fact.id, "confirm")}
+      onReject={(reason) => void decide(fact.id, "reject", reason)}
+    />
+  );
 
   return (
     <main className="min-h-full px-4 py-6 md:px-8">
@@ -190,7 +250,25 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
                 />
               </section>
             ) : null}
-            {groups.length === 0 ? (
+            {route && data.versions.length > 0 ? (
+              <section className={`${LIQUID_SUBTLE_PANEL_SURFACE_CLASS} space-y-4 p-4 md:p-5`}>
+                <ProfileExtractPanel versions={data.versions} route={route} running={extracting} onRun={(id) => void extract(id)} />
+                {extraction ? <ProfileExtractResult result={extraction} /> : null}
+              </section>
+            ) : null}
+            {proposals.length > 0 ? (
+              <section aria-labelledby="profile-proposals" className="space-y-2">
+                <h2 id="profile-proposals" className="font-serif text-lg text-gray-900">
+                  {t("clientProfile.extract.proposals")}
+                </h2>
+                <ul className="space-y-3">
+                  {proposals.map((fact) => (
+                    <li key={fact.id}>{card(fact)}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {groups.length === 0 && proposals.length === 0 ? (
               <section className={`${LIQUID_SUBTLE_PANEL_SURFACE_CLASS} p-5 md:p-6`}>
                 <EmptyState
                   icon={<FileText />}
@@ -206,16 +284,7 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
                   </h2>
                   <ul className="space-y-3">
                     {facts.map((fact) => (
-                      <li key={fact.id}>
-                        <ProfileFactCard
-                          fact={fact}
-                          names={names}
-                          canWrite={data.can_write}
-                          busy={busyFact === fact.id}
-                          onConfirm={() => void decide(fact.id, "confirm")}
-                          onReject={(reason) => void decide(fact.id, "reject", reason)}
-                        />
-                      </li>
+                      <li key={fact.id}>{card(fact)}</li>
                     ))}
                   </ul>
                 </section>

@@ -24,6 +24,7 @@ const item = (over: Partial<RadarTodayItem> = {}): RadarTodayItem => ({
   base_on: "2026-12-31",
   notice_days: 30,
   rule_text: null,
+  obligation: null,
   state: "open",
   acted_by: null,
   acted_at: null,
@@ -48,6 +49,22 @@ beforeEach(() => {
 });
 
 describe("TodayRadar", () => {
+  it("always shows the fixed planning-aid notice under the list, never a legal deadline", async () => {
+    render(<TodayRadar orgId="org-1" />);
+    await screen.findByRole("link");
+    const notice = screen.getByText("Planning aid. The date is not a legal deadline and LiTT does not calculate procedural deadlines.");
+    expect(notice).toHaveClass("text-xs");
+    const list = screen.getByRole("list");
+    expect(list.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows the notice with an empty list too", async () => {
+    mocks.getRadarToday.mockResolvedValue(today({ items: [] }));
+    render(<TodayRadar orgId="org-1" />);
+    await screen.findByText("No confirmed deadlines");
+    expect(screen.getByText(/Planning aid\./)).toBeInTheDocument();
+  });
+
   it("asks for the organization's items, with a loading state of the list's shape", async () => {
     let resolve!: (value: RadarToday) => void;
     mocks.getRadarToday.mockReturnValue(new Promise((done) => (resolve = done)));
