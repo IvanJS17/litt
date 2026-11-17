@@ -180,12 +180,14 @@ Names are at most 64 characters; reads and writes are separate tools.
 | `run_tabular_review` | `litt.run` | additive, strict audit | **Mode A.** `startTabularGeneration` (shared with `POST /tabular-review/:id/generate`) on the review's own model and the person's keys; waits ~45 s, else `running`. A second start answers `review_running`. |
 | `get_tabular_run_status` | `litt.read` | read-only | Cells done / failed / pending and whether a run is in progress. |
 | `stop_tabular_run` | `litt.run` | additive, strict audit | `stopTabularGeneration`, shared with `POST …/generate/stop`. |
-| `start_chat` | `litt.chat` | additive, strict audit | Starts a conversation with LiTT's own assistant (optionally in a matter, else in a workspace) and sends its first message. The model and key are governed BYOK and pinned for the conversation: no fallback, `missing_api_key` / `byok_not_configured` refuse the call before anything is created. The conversation is marked as coming from the app (`origin = 'mcp'`). Apprentices pass `attempt`/`confidence` ("Tu turno primero"). Waits ~45 s, else `status: generating`. |
+| `start_chat` | `litt.chat` | additive, strict audit | Starts a conversation with LiTT's own assistant (optionally in a matter, else in a workspace) and sends its first message. The model and key are governed BYOK and pinned for the conversation: no fallback, `missing_api_key` refuses the call before anything is created. The conversation is marked as coming from the app (`origin = 'mcp'`). Apprentices pass `attempt`/`confidence` ("Tu turno primero"). Waits ~45 s, else `status: generating`. |
 | `send_chat_message` | `litt.chat` | additive, strict audit | A message in an existing conversation, continuing from its stored history on its pinned route; `turn_in_progress` (409) while an answer is being written. Same waiting rule. |
 | `get_chat_turn` | `litt.chat` | read-only | Polls an answer: `status` (`generating`, `completed`, `needs_input`, `stopped`, `failed`, `interrupted`), the text a window at a time as untrusted data, citations (quotes as untrusted data) and a count of what the assistant did. `wait: true` waits a short while. |
 | `stop_chat_turn` | `litt.chat` | additive, strict audit | Stops an answer being written (same standing as sending); what was written is kept. |
 | `list_chats` | `litt.chat` | read-only | The person's conversations in a workspace (the web's list), with `origin` / `origin_label`; filter by matter or origin. |
 | `get_chat` | `litt.chat` | read-only | A conversation's details and a page of messages (newest page first, cursor for older), as untrusted data; `active_turn` when an answer is being written. |
+
+**Chat tools need `litt.chat`, reads included.** `list_chats`, `get_chat` and `get_chat_turn` also require `litt.chat`, not `litt.read`: a read-only connection must not expose chat history. A chat's `origin_label` (the app's registered name, free text) is returned as untrusted data like titles; `origin_grant_id` is never returned.
 
 **Same permissions as the web.** A tool calls the service functions the web
 routes call (`getProjectsOverview`, `getProjectDetail`, `getProjectDirectoryLevel`,
