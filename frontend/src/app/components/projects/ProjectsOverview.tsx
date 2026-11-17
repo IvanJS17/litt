@@ -30,8 +30,10 @@ import {
 import { useAuth } from "@/app/contexts/AuthContext";
 import {
     PERSONAL_WORKSPACE,
+    useWorkspaceOrgId,
     useWorkspaceParam,
 } from "@/app/contexts/WorkspaceContext";
+import { TodayRadar } from "@/app/components/radar/TodayRadar";
 import type { Project } from "@/app/components/shared/types";
 import { can, roleFrom } from "@/app/lib/permissions";
 import { NewProjectModal } from "./NewProjectModal";
@@ -127,6 +129,7 @@ export function ProjectsOverview() {
     const [modalOpen, setModalOpen] = useState(false);
     const [detailsProject, setDetailsProject] = useState<Project | null>(null);
     const workspace = useWorkspaceParam();
+    const workspaceOrgId = useWorkspaceOrgId();
     const isPersonalWorkspace = workspace === PERSONAL_WORKSPACE;
     const format = useFormatter();
     const filterLabels: Record<ProjectFilter, string> = {
@@ -659,6 +662,9 @@ export function ProjectsOverview() {
                     {t("projects.projects")}
                 </h1>
             </PageHeader>
+
+            {/* Today: the deadlines of the matters where I am a member (firm workspaces only). */}
+            {workspaceOrgId ? <TodayRadar orgId={workspaceOrgId} /> : null}
 
             {nothingYet ? null : (
                 <TableToolbar

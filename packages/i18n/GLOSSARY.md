@@ -40,6 +40,9 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | awaiting confirmation | por confirmar | Dato capturado que ningún abogado ha confirmado. |
 | confirmed | confirmado | Un abogado lo confirmó contra la cita. |
 | out of date (stale) | obsoleto | El texto citado cambió o ya no existe; el dato no cuenta como confirmado. |
+| deadline radar | radar de vencimientos | Fechas calculadas por código a partir de datos confirmados; ayuda de planeación, no un término legal. |
+| to review (radar) | por revisar | Vencimiento sin fecha calculada, p. ej. un aviso en días hábiles. |
+| dismiss (radar item) | descartar | Exige un motivo. |
 | workspace | espacio de trabajo | |
 | tabular review | revisión tabular | |
 | playbook | playbook | Se queda en inglés; plural: playbooks. |

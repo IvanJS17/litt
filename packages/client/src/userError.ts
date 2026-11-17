@@ -262,6 +262,11 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     fact_already_decided: "conflict",
     fact_stale: "conflict",
     profile_fact_limit: "conflict",
+    // Deadline radar: dismissing needs a reason; an item already handled
+    // cannot be handled again.
+    radar_reason_required: "validation",
+    invalid_radar_action: "validation",
+    radar_item_closed: "conflict",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
     // LiTT governed BYOK: a conversation keeps the route it was started on.

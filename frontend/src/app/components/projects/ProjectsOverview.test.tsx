@@ -11,6 +11,7 @@ const {
     setActiveTab,
     usePaginatedProjectsSpy,
     workspace,
+    workspaceOrg,
 } = vi.hoisted(() => ({
     activeTab: { current: "all" as string },
     projectRows: { current: [] as Record<string, unknown>[] },
@@ -18,6 +19,7 @@ const {
     setActiveTab: vi.fn(),
     usePaginatedProjectsSpy: vi.fn(),
     workspace: { current: "org-1" },
+    workspaceOrg: { current: undefined as string | undefined },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -65,6 +67,11 @@ vi.mock("@/app/contexts/AuthContext", () => ({
 vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
     useWorkspaceParam: () => workspace.current,
+    useWorkspaceOrgId: () => workspaceOrg.current,
+}));
+
+vi.mock("@/app/components/radar/TodayRadar", () => ({
+    TodayRadar: ({ orgId }: { orgId: string }) => <section aria-label="Today">{`today of ${orgId}`}</section>,
 }));
 
 vi.mock("@/app/lib/mikeApi", () => ({
@@ -102,6 +109,7 @@ describe("ProjectsOverview tabs", () => {
     beforeEach(() => {
         activeTab.current = "all";
         workspace.current = "org-1";
+        workspaceOrg.current = undefined;
         // One project, so the table chrome (tabs, filters, header) is on screen;
         // the tests about an empty list say so.
         projectRows.current = [
@@ -138,6 +146,17 @@ describe("ProjectsOverview tabs", () => {
         await user.keyboard("{Escape}");
         fireEvent.contextMenu(screen.getByText("Project 1"), { clientX: 40, clientY: 40 });
         expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(items);
+    });
+
+    it("shows the Today block of a firm's workspace and none in Personal", () => {
+        workspaceOrg.current = "org-1";
+        const { unmount } = render(<ProjectsOverview />);
+        expect(screen.getByLabelText("Today")).toHaveTextContent("today of org-1");
+        unmount();
+        workspaceOrg.current = undefined;
+        workspace.current = "personal";
+        render(<ProjectsOverview />);
+        expect(screen.queryByLabelText("Today")).not.toBeInTheDocument();
     });
 
     it("shows All first and defaults to it", () => {

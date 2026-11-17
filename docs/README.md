@@ -43,6 +43,8 @@
   assignee, state and negotiation rounds of a retainer client's requests
 - [Client profile of a retainer matter](client-profile.md) — facts with a
   verified citation, lawyer confirmation and computed staleness
+- [Deadline radar of a retainer matter](deadline-radar.md) — dates computed in
+  code from confirmed profile facts, with ack/dismiss/done and a "Today" block
 - [Managed accounts](managed-accounts.md) — firm-managed accounts without a
   personal space
 - [Settings map](settings-map.md) — which Settings tab lives where, and who sees it

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-/** Moves between the pages of a retainer matter: its requests and its client profile. */
+/** Moves between the pages of a retainer matter: its requests, its client profile and its deadline radar. */
 export function MatterSectionNav({
   projectId,
   matterId,
@@ -11,11 +11,11 @@ export function MatterSectionNav({
 }: {
   projectId: string;
   matterId: string;
-  current: "requests" | "profile";
+  current: "requests" | "profile" | "radar";
 }) {
   const t = useTranslations();
   const base = `/projects/${encodeURIComponent(projectId)}/matters/${encodeURIComponent(matterId)}`;
-  const link = (section: "requests" | "profile", label: string) => (
+  const link = (section: "requests" | "profile" | "radar", label: string) => (
     <Link
       href={`${base}/${section}`}
       aria-current={current === section ? "page" : undefined}
@@ -30,6 +30,7 @@ export function MatterSectionNav({
     <nav aria-label={t("clientProfile.nav.label")} className="flex flex-wrap items-center gap-3">
       {link("requests", t("requests.title"))}
       {link("profile", t("clientProfile.title"))}
+      {link("radar", t("radar.nav"))}
     </nav>
   );
 }

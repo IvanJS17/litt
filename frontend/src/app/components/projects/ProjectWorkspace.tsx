@@ -625,6 +625,14 @@ export function ProjectWorkspaceProvider({
                                       )
                                 : null
                         }
+                        onOpenRadar={
+                            project?.matter_id
+                                ? () =>
+                                      router.push(
+                                          `/projects/${encodeURIComponent(projectId)}/matters/${encodeURIComponent(project.matter_id!)}/radar`,
+                                      )
+                                : null
+                        }
                         onDeleteProject={requestProjectDelete}
                         onSearchChange={setSearch}
                         onOpenAccess={() => setAccessModalOpen(true)}

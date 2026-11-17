@@ -7,7 +7,7 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
 }));
 
 import { buildUserAccountExport } from "../buildJsonExport";
-import { loadUserProfileFacts } from "../matterProfileExport";
+import { loadUserProfileFacts, loadUserRadarEvents } from "../matterProfileExport";
 import { makeExportDb, type Row } from "./exportDb.fixture";
 
 // The account export of a firm's workspace carries the profile facts the holder
@@ -67,6 +67,12 @@ function tables(): Record<string, Row[]> {
             fact("f4444", "m-closed", { created_by: user }),
             fact("f55555", "m-other-firm", { created_by: user }),
         ],
+        matter_radar_item_events: [
+            { id: "r1", fact_id: "f1", matter_id: "m-open", item_type: "expiry", action: "ack", due_on: "2026-12-31", reason: null, actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
+            { id: "r2", fact_id: "f22", matter_id: "m-open", item_type: "notice", action: "dismiss", due_on: null, reason: "x", actor_user_id: "someone", created_at: "2026-11-03T00:00:00Z" },
+            { id: "r3", fact_id: "f333", matter_id: "m-left", item_type: "expiry", action: "done", due_on: "2026-12-31", reason: null, actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
+            { id: "r4", fact_id: "f4444", matter_id: "m-closed", item_type: "expiry", action: "done", due_on: "2026-12-31", reason: null, actor_user_id: user, created_at: "2026-11-03T00:00:00Z" },
+        ],
         matter_profile_fact_events: [
             event("e1", "f1", "m-open", user),
             event("e2", "f22", "m-open", user),
@@ -102,5 +108,15 @@ describe("account export: profile facts", () => {
         const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
         expect(personal.matter_profile_facts).toEqual([]);
         expect(personal.matter_profile_fact_events).toEqual([]);
+    });
+
+    it("carries the radar actions the holder recorded, in matters they can still open", async () => {
+        expect((await loadUserRadarEvents(db, user, "holder@example.test", "org-current")).map((row) => row.id)).toEqual(["r1"]);
+        expect(await loadUserRadarEvents(db, user, null, null)).toEqual([]);
+        expect(await loadUserRadarEvents(db, "nobody", null, "org-current")).toEqual([]);
+        const firm = await buildUserAccountExport(db, user, "holder@example.test", "org-current");
+        expect((firm.matter_radar_item_events as Row[]).map((row) => row.id)).toEqual(["r1"]);
+        const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
+        expect(personal.matter_radar_item_events).toEqual([]);
     });
 });

@@ -1211,6 +1211,7 @@
       "firm_profile_too_large": "The firm profile is too long to save. Shorten the description or remove some items.",
       "invalid_json": "The request couldn't be read. Reload the page and try again.",
       "invalid_profile_fact": "Check the fact’s fields: something is missing or a value is not valid.",
+      "invalid_radar_action": "Check the reason: it must be text of up to 500 characters.",
       "invitation_already_member": "That person is already a member of this organization.",
       "invitation_email_invalid": "Enter a valid email address.",
       "matter_has_owner": "This matter already has an owner.",
@@ -1237,6 +1238,8 @@
       "playbook_not_draft": "Only a draft can receive proposed changes. Use this playbook as a starting point to get a copy.",
       "playbook_proposals_running": "Proposed changes are being computed for this playbook. Wait for them to finish.",
       "profile_fact_limit": "This profile has reached the maximum number of facts.",
+      "radar_item_closed": "This deadline was already handled. Reload the radar to see its state.",
+      "radar_reason_required": "Write the reason for dismissing this deadline.",
       "quote_not_found": "That sentence does not appear in the chosen version of the document. Copy it exactly from the document.",
       "rate_limited": "Too many requests. Wait a moment and try again.",
       "request_too_large": "The request is too large.",
@@ -3399,6 +3402,97 @@
       }
     },
     "youDoNotHavePermission": "You do not have permission to delete this file."
+  },
+  "radar": {
+    "title": "Deadline radar",
+    "nav": "Radar",
+    "subtitle": "Dates LiTT calculated from the confirmed facts of the client profile. A pending, rejected or out-of-date fact does not appear here.",
+    "disclaimer": "Planning aid. The date is not a legal deadline and LiTT does not calculate procedural deadlines.",
+    "calendarNote": "Days are counted as calendar days, with today's date in Mexico City.",
+    "todayIs": "Today is {date}",
+    "backToMatter": "Back to the matter",
+    "couldNotLoad": "The deadline radar could not be loaded.",
+    "retry": "Try again",
+    "loading": "Loading the deadline radar",
+    "retainer": {
+      "offTitle": "This matter is not a retainer",
+      "offDescription": "The deadline radar lives in retainer matters."
+    },
+    "empty": {
+      "title": "No confirmed deadlines",
+      "description": "When a lawyer confirms a dated fact in the client profile, it will show up here."
+    },
+    "group": {
+      "overdue": "Overdue",
+      "next_30": "Next 30 days",
+      "later": "Later",
+      "review": "To review",
+      "closed": "Handled"
+    },
+    "type": {
+      "expiry": "Expiry",
+      "notice": "Last day to give notice",
+      "power_expiry": "Power of attorney expiry"
+    },
+    "when": {
+      "onDate": "{date}",
+      "today": "Today",
+      "inDays": "{count, plural, one {In # day} other {In # days}}",
+      "overdueDays": "{count, plural, one {Expired # day ago} other {Expired # days ago}}"
+    },
+    "basis": "Calculated: {date} minus {days, plural, one {# calendar day} other {# calendar days}}",
+    "noticeDays": "Notice: {days, plural, one {# calendar day} other {# calendar days}}",
+    "noticeBusinessDays": "Notice: {days, plural, one {# business day} other {# business days}}",
+    "rule": "Rule in the document: {rule}",
+    "review": {
+      "business_days": "The notice is in business days and LiTT does not calculate them. Have a lawyer review the date.",
+      "missing_date": "The fact has no date to count from. Review it or capture it again in the client profile."
+    },
+    "state": {
+      "open": "Open",
+      "acknowledged": "Seen",
+      "dismissed": "Dismissed",
+      "done": "Done"
+    },
+    "history": {
+      "ack": "Seen by {name} on {date}",
+      "dismiss": "Dismissed by {name} on {date}",
+      "done": "Done by {name} on {date}",
+      "reason": "Reason: {reason}",
+      "unknownPerson": "Deleted user"
+    },
+    "source": {
+      "label": "Source",
+      "quote": "Quote",
+      "file": "{name}, version {version}",
+      "gone": "A version that no longer exists",
+      "profile": "See it in the client profile"
+    },
+    "actions": {
+      "ack": "Mark as seen",
+      "acking": "Marking…",
+      "done": "Mark as done",
+      "doing": "Marking…",
+      "dismiss": "Dismiss",
+      "dismissConfirm": "Dismiss the deadline",
+      "dismissing": "Dismissing…",
+      "reasonLabel": "Reason (required)",
+      "reasonRequired": "Write the reason to dismiss it.",
+      "cancel": "Cancel",
+      "couldNotAct": "The action could not be recorded.",
+      "alreadyHandled": "Somebody else already handled this deadline. The radar was reloaded."
+    },
+    "today": {
+      "title": "Today",
+      "empty": "No confirmed deadlines",
+      "loading": "Loading today's deadlines",
+      "couldNotLoad": "The deadlines could not be loaded.",
+      "retry": "Try again",
+      "open": "Open the radar of {matter}",
+      "unnamedMatter": "Unnamed matter",
+      "truncated": "Some matters are not shown here. Open each matter's radar to see them.",
+      "note": "Your retainer matters: overdue, next 30 days and to review."
+    }
   },
   "recovery": {
     "approvedReviewUnavailable": "The approved review is not available.",
