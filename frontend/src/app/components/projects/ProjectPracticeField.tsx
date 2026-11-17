@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { PRACTICE_OPTIONS } from "../workflows/practices";
+import { PRACTICE_OPTIONS, projectPracticeLabel } from "../workflows/practices";
 import { ModalSelect, type ModalSelectOption } from "../modals/ModalSelect";
 import { FormTextInput } from "../ui/form-field";
 import { useTranslations } from "next-intl";
@@ -34,7 +34,10 @@ export function ProjectPracticeField({
     const options = useMemo<ModalSelectOption[]>(
         () => [
             { value: OPTION_NONE, label: t("projects.none") },
-            ...PRACTICE_OPTIONS,
+            ...PRACTICE_OPTIONS.map((option) => ({
+                value: option,
+                label: projectPracticeLabel(option, t),
+            })),
         ],
         [t],
     );

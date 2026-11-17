@@ -89,6 +89,7 @@ import { indexById } from "@/app/lib/idCollections";
 import { useFormatter, useTranslations } from "next-intl";
 import type { NsTranslate } from "@/i18n/Translate";
 import { formatShortDate } from "@/app/lib/dateText";
+import { projectPracticeLabel } from "../workflows/practices";
 
 /**
  * Who created the row. This is provenance, not permission: what the caller may
@@ -365,7 +366,7 @@ export function ProjectsOverview() {
             allLabel={t("projects.allPractices")}
             options={practices.map((practice) => ({
                 value: practice,
-                label: practice,
+                label: projectPracticeLabel(practice, t),
             }))}
             onChange={handlePracticeFilterChange}
         />
@@ -939,7 +940,9 @@ export function ProjectsOverview() {
                                         )}
                                     </TableCell>
                                     <TableCell className="w-36">
-                                        {project.practice ?? (
+                                        {project.practice ? (
+                                            projectPracticeLabel(project.practice, t)
+                                        ) : (
                                             <span className="text-gray-300">
                                                 —
                                             </span>

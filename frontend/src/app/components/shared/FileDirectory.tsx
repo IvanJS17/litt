@@ -122,6 +122,9 @@ interface FileDirectoryProps {
    * is picked, but nothing can be added or removed. For callers whose target
    * has stopped accepting a changed document set. */
   selectionDisabled?: boolean;
+  /** Where the chosen documents are going, so the tab texts can say what
+   * "here" is. Leave unset where the target is not a project. */
+  destination?: "project" | "new-project";
 }
 
 /**
@@ -158,6 +161,7 @@ function WorkspaceFileDirectory({
   onLoadMoreRootDocuments,
   disabledDocumentIds,
   selectionDisabled = false,
+  destination,
 }: FileDirectoryProps) {
   const t = useTranslations();
   const format = useFormatter();
@@ -387,6 +391,17 @@ function WorkspaceFileDirectory({
         }))
         : localDirectoryProjects;
     const activeTab = showTabs ? selectedTab : "files";
+    const tabDescription = showTabs ? (
+        <p className="text-xs text-gray-500">
+            {activeTab === "files"
+                ? t("shared.fileDirectory.documentsDescription")
+                : activeTab === "templates"
+                  ? t("shared.fileDirectory.templatesDescription")
+                  : destination
+                    ? t("shared.fileDirectory.projectsDescriptionCopy")
+                    : t("shared.fileDirectory.projectsDescription")}
+        </p>
+    ) : null;
     const activeLoading = showTabs
     ? !!loadingTabs[activeTab] || (q.length > 0 && searchLoading)
         : externalLoading;
@@ -850,6 +865,7 @@ function WorkspaceFileDirectory({
                         tabs={availableTabs}
                     />
                 )}
+                {tabDescription}
                 <div className="flex min-h-0 flex-1 flex-col">
                     <FileDirectoryHeader />
                     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -902,6 +918,7 @@ function WorkspaceFileDirectory({
                         tabs={availableTabs}
                     />
                 )}
+                {tabDescription}
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     <p className="text-center text-sm text-gray-400 py-8">
                         {t("shared.fileDirectory.noDocumentsYet")}
@@ -929,6 +946,7 @@ function WorkspaceFileDirectory({
                     tabs={availableTabs}
                 />
             )}
+            {tabDescription}
             {activeTabHasNoResults ? (
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     <p className="text-center text-sm text-gray-400 py-8">
@@ -1033,7 +1051,11 @@ function WorkspaceFileDirectory({
                                 directoryFileFolders.length === 0 &&
                                 visibleUploadingFilenames.length === 0 && (
                                     <p className="text-center text-sm text-gray-400 py-8">
-                                        {t("shared.fileDirectory.noDocumentsYet")}
+                                        {showTabs
+                                            ? destination === "project"
+                                                ? t("shared.fileDirectory.emptyLibraryInProject")
+                                                : t("shared.fileDirectory.emptyLibrary")
+                                            : t("shared.fileDirectory.noDocumentsYet")}
                                     </p>
                                 )}
                         </>
@@ -1081,7 +1103,7 @@ function WorkspaceFileDirectory({
                                 visibleTemplateDocs.length === 0 &&
                                 directoryTemplateFolders.length === 0 && (
                                     <p className="text-center text-sm text-gray-400 py-8">
-                                        {t("shared.fileDirectory.noTemplatesYet")}
+                                        {t("shared.fileDirectory.emptyTemplates")}
                                     </p>
                                 )}
                         </>
@@ -1227,7 +1249,7 @@ function WorkspaceFileDirectory({
                         !q &&
                         visibleDirectoryProjects.length === 0 && (
                             <p className="text-center text-sm text-gray-400 py-8">
-                                {t("shared.fileDirectory.noProjectsYet")}
+                                {t("shared.fileDirectory.emptyProjects")}
                             </p>
                         )}
             {activeTab === "projects" && !q && (

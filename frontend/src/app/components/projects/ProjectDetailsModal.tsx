@@ -225,12 +225,19 @@ export function ProjectDetailsModal({
                         placeholder={t("projects.addACmNumber")}
                         variant="minimal"
                         className="text-xl text-gray-600"
+                        aria-describedby="project-details-cm-help"
                     />
+                    <p
+                        id="project-details-cm-help"
+                        className="mt-1.5 text-xs text-gray-500"
+                    >
+                        {t("projects.cmNumberHelp")}
+                    </p>
                 </div>
 
                 <div>
                     <FieldLabel htmlFor="project-details-practice">
-                        {t("projects.practice")}
+                        {t("projects.practiceOptional")}
                     </FieldLabel>
                     <ProjectPracticeField
                         id="project-details-practice"
@@ -242,6 +249,9 @@ export function ProjectDetailsModal({
                         }}
                         disabled={!canEdit || saving}
                     />
+                    <p className="mt-1.5 text-xs text-gray-500">
+                        {t("projects.practiceHelp")}
+                    </p>
                 </div>
 
                 <div>

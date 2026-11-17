@@ -3197,7 +3197,7 @@
   },
   "projects": {
     "access": "Access",
-    "addACmNumber": "Add a CM number...",
+    "addACmNumber": "e.g. 2026-014",
     "addDocuments": "Add Documents",
     "addProjectName": "Add project name",
     "addToChat": "Add to chat",
@@ -3214,7 +3214,7 @@
     "chats": "Chats",
     "closeSideChat": "Close side chat",
     "cm": "CM",
-    "cmNumber": "CM number",
+    "cmNumber": "Client/matter code (optional)",
     "collapseExplorer": "Collapse explorer",
     "continue": "Continue",
     "couldNotUpdateProjectDetails": "Could not update project details.",
@@ -3430,7 +3430,15 @@
         "label": "Workspace view"
       }
     },
-    "youDoNotHavePermission": "You do not have permission to delete this file."
+    "youDoNotHavePermission": "You do not have permission to delete this file.",
+    "cmNumberHelp": "Your internal code for this matter, if your firm uses one. It appears next to the project name.",
+    "practiceOptional": "Practice (optional)",
+    "practiceHelp": "Used to filter your projects.",
+    "pendingFilesHeading": "To upload",
+    "pendingFilesNote": "They are uploaded when you create the project.",
+    "removePendingFile": "Remove {filename} from the upload list",
+    "existingDocumentsHeading": "Add documents you already have in LiTT",
+    "pendingFileUploaded": "Uploaded"
   },
   "radar": {
     "title": "Deadline radar",
@@ -4328,7 +4336,8 @@
         "publicLawAndRegulatory": "Public Law and Regulatory",
         "realEstate": "Real Estate",
         "tax": "Tax",
-        "technologyAndTelecommunications": "Technology and Telecommunications"
+        "technologyAndTelecommunications": "Technology and Telecommunications",
+        "other": "Other"
       },
       "enterYourJurisdiction": "Enter your jurisdiction",
       "enterYourJurisdictionOfPractice": "Enter your jurisdiction of practice",
@@ -5389,8 +5398,13 @@
     "fileDirectory": {
       "collapse": "Collapse",
       "created": "Created",
-      "documents": "Documents",
+      "documents": "My library",
+      "documentsDescription": "Documents you uploaded outside any project.",
       "empty": "Empty",
+      "emptyLibrary": "You have no documents in your library outside projects.",
+      "emptyLibraryInProject": "You have no documents in your library outside projects. This project's documents are already in the project.",
+      "emptyProjects": "You have no other projects with documents yet.",
+      "emptyTemplates": "You have no templates yet. You can add them in Library › Templates.",
       "expand": "Expand",
       "expandNameAndLoadAllFiles": "Expand {name} and load all files before selecting it",
       "fileDirectory": "File directory",
@@ -5398,15 +5412,16 @@
       "name": "Name",
       "noDocumentsYet": "No documents yet",
       "noMatchesFound": "No matches found",
-      "noProjectsYet": "No projects yet",
-      "noTemplatesYet": "No templates yet",
-      "projects": "Projects",
+      "projects": "Other projects",
+      "projectsDescription": "Documents from your projects.",
+      "projectsDescriptionCopy": "Documents from your other projects, to copy here.",
       "search": "Search...",
       "selectAllFilesInName": "Select all files in {name}",
       "selectFilename": "Select {filename}",
       "selectedcountSelected": "{selectedCount, plural, one {# selected} other {# selected}}",
       "size": "Size",
       "templates": "Templates",
+      "templatesDescription": "Your templates from Library › Templates: base documents for drafting. They are not workflows or playbooks.",
       "uploading": "Uploading",
       "version": "Version"
     },
