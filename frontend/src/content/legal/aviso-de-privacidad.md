@@ -354,8 +354,8 @@ LiTT es el responsable de estos datos. Sobre ellos se aplican también las secci
      esté disponible la función de la lista de espera en la que te anotaste; y
   3. medir el interés por cada función y decidir prioridades, con estadísticas internas.
 
-  No hay finalidades secundarias. Nos das tu consentimiento para estas finalidades al marcar la
-  casilla de aceptación del cuestionario. No usamos estos datos para publicidad ni
+  No hay finalidades secundarias. Si envías el cuestionario después de ver el aviso simplificado,
+  consientes estas finalidades; si no estás de acuerdo, no lo envíes. No usamos estos datos para publicidad ni
   mercadotecnia, no los vendemos, no los compartimos con terceros para que te perfilen y no los
   usamos para entrenar modelos de inteligencia artificial.
 - **Tally.** El cuestionario funciona en Tally, de Tally BV, con sede en Bélgica. Tally es
@@ -368,13 +368,11 @@ LiTT es el responsable de estos datos. Sobre ellos se aplican también las secci
   que te identifiquen. Tally solo recibe lo que se escribe en el cuestionario: no recibe datos de
   las cuentas de LiTT ni el contenido de los despachos, y no es uno de los proveedores de la
   sección 5. El cuestionario no usa herramientas de analítica ni de publicidad de terceros.
-- **Conservación.** Conservamos tus respuestas hasta **12 meses** después de que las envías. Si
-  te anotaste en la lista de espera de una función que todavía no está disponible, las
-  conservamos hasta que te avisemos que ya lo está, y como máximo **24 meses** después del
-  envío. Después las borramos, también de Tally, que las elimina de su papelera y de sus copias
-  de respaldo en un máximo de 90 días. Podemos conservar sin plazo estadísticas que no te
-  identifican. Si te invitamos y abres una cuenta, los
-  datos de tu cuenta se rigen por las secciones 3 a 12.
+- **Conservación.** Conservamos tus respuestas mientras sean útiles para estas finalidades y
+  como máximo **24 meses** después de que las envías. Después las borramos, también de Tally,
+  que las elimina de su papelera y de sus copias de respaldo en un máximo de 90 días. Podemos
+  conservar sin plazo estadísticas que no te identifican. Si te invitamos y abres una cuenta,
+  los datos de tu cuenta se rigen por las secciones 3 a 12.
 - **Tus derechos.** Ejerce tus derechos ARCO o revoca tu consentimiento por correo a
   soporte@asteroitt.com, con los requisitos y plazos de la sección 8; no necesitas tener cuenta.
   Podremos pedirte que confirmes la solicitud desde el correo que diste en el cuestionario. Para
