@@ -13,6 +13,43 @@ const ids = (rows: Row[], column = "id") =>
     uniqueIds(rows.map((row) => (typeof row[column] === "string" ? (row[column] as string) : null)));
 
 /**
+ * Of these matter ids, the ones the holder can still open today: in this
+ * organization, an active matter membership, and the project gate open. Matter
+ * work stays with the firm, so what a matter the holder was removed from
+ * names is not theirs to take.
+ */
+export async function readableMatterIds(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: string,
+    matterIds: string[],
+): Promise<Set<string>> {
+    const matters = await selectInBatches<Row>("export matters", matterIds, (batch) =>
+        (db as any).from("matters").select("id, project_id, workspace_id").in("id", batch),
+    );
+    const workspaces = await selectInBatches<Row>("export workspaces", ids(matters, "workspace_id"), (batch) =>
+        (db as any).from("workspaces").select("id, organization_id").in("id", batch),
+    );
+    const inOrg = new Set(workspaces.filter((row) => row.organization_id === orgId).map((row) => row.id as string));
+    const memberships = await selectInBatches<Row>("export matter_memberships", matterIds, (batch) =>
+        (db as any)
+            .from("matter_memberships")
+            .select("matter_id, status")
+            .in("matter_id", batch)
+            .eq("user_id", userId)
+            .eq("status", "active"),
+    );
+    const member = new Set(memberships.map((row) => row.matter_id as string));
+    const openable = await mapWithConcurrency(matters, 8, async (matter) => {
+        if (!inOrg.has(matter.workspace_id as string) || !member.has(matter.id as string) || typeof matter.project_id !== "string")
+            return false;
+        return (await checkProjectAccess(matter.project_id, userId, userEmail, db)).ok;
+    });
+    return new Set(matters.filter((_, index) => openable[index]).map((row) => row.id as string));
+}
+
+/**
  * The requests of retainer matters that name the holder (they created the
  * request or it is assigned to them) and the events they recorded, in the
  * matters they can still open. Matter work stays with the firm: a request of a
@@ -38,30 +75,9 @@ export async function loadUserMatterRequests(
     const matterIds = ids(candidates, "matter_id");
     if (matterIds.length === 0) return { requests: [], events: [] };
 
-    const matters = await selectInBatches<Row>("export matters", matterIds, (batch) =>
-        (db as any).from("matters").select("id, project_id, workspace_id").in("id", batch),
-    );
-    const workspaces = await selectInBatches<Row>("export workspaces", ids(matters, "workspace_id"), (batch) =>
-        (db as any).from("workspaces").select("id, organization_id").in("id", batch),
-    );
-    const inOrg = new Set(workspaces.filter((row) => row.organization_id === orgId).map((row) => row.id));
-    const memberships = await selectInBatches<Row>("export matter_memberships", matterIds, (batch) =>
-        (db as any)
-            .from("matter_memberships")
-            .select("matter_id, status")
-            .in("matter_id", batch)
-            .eq("user_id", userId)
-            .eq("status", "active"),
-    );
-    const member = new Set(memberships.map((row) => row.matter_id));
-    const openable = await mapWithConcurrency(matters, 8, async (matter) => {
-        if (!inOrg.has(matter.workspace_id) || !member.has(matter.id) || typeof matter.project_id !== "string")
-            return false;
-        return (await checkProjectAccess(matter.project_id, userId, userEmail, db)).ok;
-    });
-    const readable = new Set(matters.filter((_, index) => openable[index]).map((row) => row.id));
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
 
-    const requests = candidates.filter((row) => readable.has(row.matter_id));
+    const requests = candidates.filter((row) => readable.has(row.matter_id as string));
     const events = (
         await selectAllByKey<Row>("export matter_request_events", () =>
             (db as any)
@@ -69,7 +85,7 @@ export async function loadUserMatterRequests(
                 .select("id, request_id, matter_id, action, detail, created_at")
                 .eq("actor_user_id", userId),
         )
-    ).filter((row) => readable.has(row.matter_id));
+    ).filter((row) => readable.has(row.matter_id as string));
     return {
         requests: sortRows(requests, "created_at", "id"),
         events: sortRows(events, "created_at", "id"),

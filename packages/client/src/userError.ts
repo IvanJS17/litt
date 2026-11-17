@@ -253,6 +253,15 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // owner and editors write.
     request_version_conflict: "conflict",
     matter_write_required: "forbidden",
+    // Client profile: a fact needs a citation that is in the cited text; a
+    // decided or stale fact cannot be confirmed.
+    citation_required: "validation",
+    invalid_profile_fact: "validation",
+    quote_not_found: "validation",
+    source_text_unavailable: "validation",
+    fact_already_decided: "conflict",
+    fact_stale: "conflict",
+    profile_fact_limit: "conflict",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
     // LiTT governed BYOK: a conversation keeps the route it was started on.

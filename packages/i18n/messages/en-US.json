@@ -729,6 +729,122 @@
       "verifying": "Verifying..."
     }
   },
+  "clientProfile": {
+    "title": "Client profile",
+    "subtitle": "What you know about your client, taken from their documents. Each fact carries its quote and a lawyer confirms it.",
+    "nav": {
+      "label": "Matter sections"
+    },
+    "backToMatter": "Back to the matter",
+    "couldNotLoad": "The client profile could not be loaded.",
+    "retry": "Try again",
+    "loading": "Loading the client profile",
+    "add": "Add a fact",
+    "retainer": {
+      "offTitle": "This matter is not a retainer",
+      "offDescription": "The client profile lives in retainer matters."
+    },
+    "empty": {
+      "title": "The profile is still empty",
+      "write": "Add the first fact with the quote from the document that backs it.",
+      "read": "Nobody has added a fact to this profile yet."
+    },
+    "kind": {
+      "contract": "Contract",
+      "date": "Date",
+      "power_of_attorney": "Power of attorney",
+      "obligation": "Obligation",
+      "other": "Other"
+    },
+    "group": {
+      "contract": "Contracts",
+      "date": "Dates",
+      "power_of_attorney": "Powers of attorney",
+      "obligation": "Obligations",
+      "other": "Other facts"
+    },
+    "status": {
+      "pending": "Awaiting confirmation",
+      "confirmed": "Confirmed",
+      "rejected": "Rejected",
+      "stale": "Out of date"
+    },
+    "stale": {
+      "version_missing": "The cited document or version is no longer in this matter.",
+      "text_unavailable": "The text of the cited version is not available.",
+      "text_changed": "The text of the cited version changed since the fact was captured."
+    },
+    "fields": {
+      "label": "Title of the fact",
+      "counterparty": "Counterparty",
+      "object": "Subject",
+      "dateKind": "Kind of date",
+      "dateOn": "Date",
+      "ruleText": "Rule as the document words it",
+      "noticeDays": "Notice days",
+      "noticeDayType": "Kind of days",
+      "grantee": "Attorney-in-fact",
+      "scope": "Powers granted",
+      "grantedOn": "Granted on",
+      "expiresOn": "Expires on",
+      "description": "Description",
+      "periodicity": "Periodicity",
+      "note": "Note"
+    },
+    "dateKind": {
+      "effective": "Start of term",
+      "expiry": "Expiry",
+      "renewal_notice": "Renewal notice"
+    },
+    "dayType": {
+      "calendar": "Calendar days",
+      "business": "Business days"
+    },
+    "noticeSummary": "Notice: {days, plural, one {# day} other {# days}} ({type})",
+    "source": {
+      "label": "Source",
+      "quote": "Quote",
+      "file": "{name}, version {version}",
+      "gone": "A version that no longer exists"
+    },
+    "history": {
+      "created": "Captured by {name} on {date}",
+      "confirmed": "Confirmed by {name} on {date}",
+      "rejected": "Rejected by {name} on {date}",
+      "reason": "Reason: {reason}",
+      "unknownPerson": "Deleted user"
+    },
+    "actions": {
+      "confirm": "Confirm",
+      "confirming": "Confirming…",
+      "reject": "Reject",
+      "rejecting": "Rejecting…",
+      "reasonLabel": "Reason (optional)",
+      "staleHint": "It cannot be confirmed while its source is out of date. Capture the fact again from the current version or reject it.",
+      "couldNotConfirm": "The fact could not be confirmed.",
+      "couldNotReject": "The fact could not be rejected.",
+      "alreadyDecided": "Somebody else already decided on this fact. The profile was reloaded.",
+      "rejectConfirm": "Reject the fact",
+      "cancel": "Cancel"
+    },
+    "form": {
+      "title": "Add a fact",
+      "kind": "Kind of fact",
+      "version": "Document and version",
+      "chooseVersion": "Choose a version",
+      "versionOption": "{name}, version {version}",
+      "noVersions": "This matter has no documents to cite from yet.",
+      "quote": "Quote from the document",
+      "quoteHelp": "Paste the passage that backs the fact. LiTT looks for it in that version's text before saving; if it is not there, nothing is saved.",
+      "submit": "Save fact",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "couldNotCreate": "The fact could not be saved.",
+      "quoteNotFound": "That passage is not in the text of the chosen version. Copy it as it appears in the document.",
+      "sourceTextUnavailable": "The text of that version is not ready yet. Try again in a few minutes.",
+      "versionNotInMatter": "That version is not from a document of this matter."
+    }
+  },
   "common": {
     "back": "Back",
     "cancel": "Cancel",
@@ -1075,6 +1191,7 @@
       "chat_route_credential_required": "Choose which key this conversation should use for the selected model.",
       "chat_route_credential_unavailable": "The key this conversation was started with is no longer available. Start a new conversation with a key you can use.",
       "chat_route_pinned": "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
+      "citation_required": "Every profile fact needs its citation: choose the document and paste the exact sentence it comes from.",
       "compare_not_supported": "These documents can’t be compared. Both must be Word (.docx) files in the same project.",
       "compare_source_too_large": "One of the documents is too large to compare.",
       "compare_unavailable": "Comparing isn’t available right now. Try again in a moment.",
@@ -1087,10 +1204,13 @@
       "cookie_session_required": "Sign in again to continue.",
       "document_version_conflict": "This document changed since you opened it. Reload it to continue.",
       "email_address_invalid": "Enter a valid email address.",
+      "fact_already_decided": "This fact was already confirmed or rejected. Reload the profile to see its status.",
+      "fact_stale": "The cited document changed or is no longer available, so this fact cannot be confirmed. Capture it again from the current version.",
       "firm_criteria_limit_reached": "Your firm holds as many criteria as it can. Remove one to write another.",
       "firm_criteria_rule_not_found": "That rule is not in a playbook of your firm that you can open.",
       "firm_profile_too_large": "The firm profile is too long to save. Shorten the description or remove some items.",
       "invalid_json": "The request couldn't be read. Reload the page and try again.",
+      "invalid_profile_fact": "Check the fact’s fields: something is missing or a value is not valid.",
       "invitation_already_member": "That person is already a member of this organization.",
       "invitation_email_invalid": "Enter a valid email address.",
       "matter_has_owner": "This matter already has an owner.",
@@ -1116,6 +1236,8 @@
       "playbook_model_empty": "A playbook without rules can't be marked as a model. Add at least one rule.",
       "playbook_not_draft": "Only a draft can receive proposed changes. Use this playbook as a starting point to get a copy.",
       "playbook_proposals_running": "Proposed changes are being computed for this playbook. Wait for them to finish.",
+      "profile_fact_limit": "This profile has reached the maximum number of facts.",
+      "quote_not_found": "That sentence does not appear in the chosen version of the document. Copy it exactly from the document.",
       "rate_limited": "Too many requests. Wait a moment and try again.",
       "request_too_large": "The request is too large.",
       "request_version_conflict": "This request changed since you opened it. Reload it to continue.",
@@ -1123,6 +1245,7 @@
       "review_stale": "A newer version of this tabular review is available.",
       "session_expired": "Your session has expired. Sign in again to continue.",
       "signup_invite_only": "LiTT is in closed beta: you need an invitation. If you've been invited, check your email; if not, ask the firm and sign up with that same email.",
+      "source_text_unavailable": "That document’s text is not ready yet. Try again in a few minutes.",
       "split_classes_too_large": "The list of document types is too long to save. Shorten some descriptions or remove a type.",
       "split_invalid_groups": "The documents you chose are not valid. Check the pages and names and try again.",
       "split_needs_scan_reading": "Some pages are scanned and still unread. Read the scan first, then split the file.",

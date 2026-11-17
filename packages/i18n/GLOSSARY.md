@@ -35,6 +35,11 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | retainer (matter) | iguala | El asunto de servicio continuo de un cliente; solo estos asuntos reciben solicitudes. |
 | negotiation round | ronda de negociación | Una versión de documento ligada a una solicitud; el número de rondas mide el esfuerzo, nunca horas. |
 | request type | tipo de solicitud | Catálogo editable por despacho. |
+| client profile | ficha del cliente | Los datos del cliente de una iguala, cada uno con su cita. |
+| fact (of the client profile) | dato | Plural: datos. Un contrato, una fecha, un poder, una obligación u otro. |
+| awaiting confirmation | por confirmar | Dato capturado que ningún abogado ha confirmado. |
+| confirmed | confirmado | Un abogado lo confirmó contra la cita. |
+| out of date (stale) | obsoleto | El texto citado cambió o ya no existe; el dato no cuenta como confirmado. |
 | workspace | espacio de trabajo | |
 | tabular review | revisión tabular | |
 | playbook | playbook | Se queda en inglés; plural: playbooks. |

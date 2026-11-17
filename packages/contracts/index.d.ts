@@ -2375,3 +2375,125 @@ export type MatterRequestCounts = {
   by_level: Array<MatterRequestCountBreakdown & { key: MatterRequestLevel | "unassigned" }>;
   by_status: Array<{ key: MatterRequestStatus; total: number }>;
 };
+
+// ---------------------------------------------------------------------------
+// Client profile of a retainer matter (docs/client-profile.md)
+// ---------------------------------------------------------------------------
+
+export type ProfileFactKind = "contract" | "date" | "power_of_attorney" | "obligation" | "other";
+
+/** What a fact says, by kind. Dates are ISO (YYYY-MM-DD) and stored as entered. */
+export type ProfileFactData = {
+  /** contract */
+  counterparty?: string;
+  object?: string;
+  /** date: which date this is */
+  date_kind?: "effective" | "expiry" | "renewal_notice";
+  date_on?: string;
+  /** date: the rule as the document words it, when there is no single date */
+  rule_text?: string;
+  /** date: a notice period, in days of the unit named by `notice_day_type` */
+  notice_days?: number;
+  notice_day_type?: "calendar" | "business";
+  /** power_of_attorney */
+  grantee?: string;
+  scope?: string;
+  granted_on?: string;
+  expires_on?: string;
+  /** obligation */
+  description?: string;
+  periodicity?: string;
+  /** other */
+  note?: string;
+};
+
+/** The state the lawyer gave a fact. `pending` until somebody decides. */
+export type ProfileFactStatus = "pending" | "confirmed" | "rejected";
+
+/** Why the cited passage can no longer be trusted as read. */
+export type ProfileFactStaleReason =
+  | "version_missing"
+  | "text_unavailable"
+  | "text_changed";
+
+export type ProfileFactSource = {
+  document_id: string;
+  version_id: string;
+  /** Null when the version no longer exists. */
+  version_number: number | null;
+  filename: string | null;
+  start_char: number;
+  end_char: number;
+  quote: string;
+  text_sha256: string;
+};
+
+export type ProfileFactEvent = {
+  id: string;
+  actor_user_id: string | null;
+  action: "created" | "confirmed" | "rejected";
+  reason: string | null;
+  created_at: string;
+};
+
+export type ProfileFact = {
+  id: string;
+  matter_id: string;
+  kind: ProfileFactKind;
+  label: string;
+  data: ProfileFactData;
+  status: ProfileFactStatus;
+  /** Null unless the cited text changed or went away. A rejected fact is never stale. */
+  stale_reason: ProfileFactStaleReason | null;
+  /** `stale` when pending or confirmed but the source changed; else the status. */
+  effective_status: ProfileFactStatus | "stale";
+  source: ProfileFactSource;
+  created_by: string | null;
+  created_at: string;
+  /** Who last decided and when; null while pending. */
+  decided_by: string | null;
+  decided_at: string | null;
+  events: ProfileFactEvent[];
+};
+
+/** A document version of the matter's project a fact can cite. */
+export type ProfileSourceVersion = {
+  document_id: string;
+  version_id: string;
+  version_number: number | null;
+  filename: string | null;
+};
+
+/** Somebody who captured or decided a fact, named for the reader. */
+export type ProfilePerson = {
+  user_id: string;
+  name: string | null;
+};
+
+export type ClientProfile = {
+  /** The matter is a private retainer; only then does it take facts. */
+  retainer: boolean;
+  /** The caller may add, confirm and reject facts (matter owner or editor). */
+  can_write: boolean;
+  facts: ProfileFact[];
+  /** Offered to editors for the add-fact form; empty for the rest. */
+  versions: ProfileSourceVersion[];
+  /** Names of the people the facts and their events point at. */
+  people: ProfilePerson[];
+};
+
+export type ProfileFactInput = {
+  kind: ProfileFactKind;
+  label: string;
+  data: ProfileFactData;
+  source: {
+    version_id: string;
+    /** The passage of the document that backs the fact, as the document words it. */
+    quote: string;
+  };
+};
+
+export type ProfileFactDecisionInput = {
+  /** Optional note kept with the decision (up to 500 characters). */
+  reason?: string;
+};

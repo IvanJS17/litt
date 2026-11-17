@@ -5,6 +5,7 @@ import {
     Brain,
     ClipboardList,
     CornerDownRight,
+    FileText,
     Loader2,
     Pencil,
     Plus,
@@ -422,6 +423,7 @@ export function ProjectPageHeader({
     onOpenDetails,
     onOpenMemory,
     onOpenRequests,
+    onOpenProfile,
     onDeleteProject,
     onSearchChange,
     onOpenAccess,
@@ -450,6 +452,8 @@ export function ProjectPageHeader({
     onOpenMemory: () => void;
     /** Present when the project belongs to a private matter: opens its requests. */
     onOpenRequests?: (() => void) | null;
+    /** Present with `onOpenRequests`: opens the matter's client profile. */
+    onOpenProfile?: (() => void) | null;
     onDeleteProject: () => void;
     onSearchChange: (search: string) => void;
     onOpenAccess: () => void;
@@ -563,6 +567,16 @@ export function ProjectPageHeader({
                                                   label: t("requests.title"),
                                                   icon: ClipboardList,
                                                   onSelect: onOpenRequests,
+                                                  disabled: !roleKnown,
+                                              },
+                                          ]
+                                        : []),
+                                    ...(onOpenProfile
+                                        ? [
+                                              {
+                                                  label: t("clientProfile.title"),
+                                                  icon: FileText,
+                                                  onSelect: onOpenProfile,
                                                   disabled: !roleKnown,
                                               },
                                           ]
