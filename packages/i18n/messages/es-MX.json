@@ -729,6 +729,122 @@
       "verifying": "Verificando…"
     }
   },
+  "clientProfile": {
+    "title": "Ficha del cliente",
+    "subtitle": "Los datos de tu cliente que sacaste de sus documentos. Cada uno lleva su cita y lo confirma un abogado.",
+    "nav": {
+      "label": "Secciones del asunto"
+    },
+    "backToMatter": "Volver al asunto",
+    "couldNotLoad": "No se pudo cargar la ficha del cliente.",
+    "retry": "Reintentar",
+    "loading": "Cargando la ficha del cliente",
+    "add": "Agregar dato",
+    "retainer": {
+      "offTitle": "Este asunto no es una iguala",
+      "offDescription": "La ficha del cliente vive en los asuntos de iguala."
+    },
+    "empty": {
+      "title": "La ficha todavía está vacía",
+      "write": "Agrega el primer dato con la cita del documento que lo respalda.",
+      "read": "Todavía nadie ha agregado datos a esta ficha."
+    },
+    "kind": {
+      "contract": "Contrato",
+      "date": "Fecha",
+      "power_of_attorney": "Poder",
+      "obligation": "Obligación",
+      "other": "Otro"
+    },
+    "group": {
+      "contract": "Contratos",
+      "date": "Fechas",
+      "power_of_attorney": "Poderes",
+      "obligation": "Obligaciones",
+      "other": "Otros datos"
+    },
+    "status": {
+      "pending": "Por confirmar",
+      "confirmed": "Confirmado",
+      "rejected": "Rechazado",
+      "stale": "Obsoleto"
+    },
+    "stale": {
+      "version_missing": "El documento o la versión citada ya no está en este asunto.",
+      "text_unavailable": "El texto de la versión citada no está disponible.",
+      "text_changed": "El texto de la versión citada cambió desde que se capturó el dato."
+    },
+    "fields": {
+      "label": "Título del dato",
+      "counterparty": "Contraparte",
+      "object": "Objeto",
+      "dateKind": "Tipo de fecha",
+      "dateOn": "Fecha",
+      "ruleText": "Regla tal como la dice el documento",
+      "noticeDays": "Días de aviso",
+      "noticeDayType": "Tipo de días",
+      "grantee": "Apoderado",
+      "scope": "Facultades",
+      "grantedOn": "Otorgado el",
+      "expiresOn": "Vence el",
+      "description": "Descripción",
+      "periodicity": "Periodicidad",
+      "note": "Nota"
+    },
+    "dateKind": {
+      "effective": "Inicio de vigencia",
+      "expiry": "Vencimiento",
+      "renewal_notice": "Aviso de renovación"
+    },
+    "dayType": {
+      "calendar": "Días naturales",
+      "business": "Días hábiles"
+    },
+    "noticeSummary": "Aviso: {days, plural, one {# día} other {# días}} ({type})",
+    "source": {
+      "label": "Fuente",
+      "quote": "Cita",
+      "file": "{name}, versión {version}",
+      "gone": "Versión que ya no existe"
+    },
+    "history": {
+      "created": "Capturado por {name} el {date}",
+      "confirmed": "Confirmado por {name} el {date}",
+      "rejected": "Rechazado por {name} el {date}",
+      "reason": "Motivo: {reason}",
+      "unknownPerson": "Usuario eliminado"
+    },
+    "actions": {
+      "confirm": "Confirmar",
+      "confirming": "Confirmando…",
+      "reject": "Rechazar",
+      "rejecting": "Rechazando…",
+      "reasonLabel": "Motivo (opcional)",
+      "staleHint": "No se puede confirmar mientras la fuente esté obsoleta. Captura el dato otra vez con la versión vigente o recházalo.",
+      "couldNotConfirm": "No se pudo confirmar el dato.",
+      "couldNotReject": "No se pudo rechazar el dato.",
+      "alreadyDecided": "Otra persona ya decidió sobre este dato. Se recargó la ficha.",
+      "rejectConfirm": "Rechazar el dato",
+      "cancel": "Cancelar"
+    },
+    "form": {
+      "title": "Agregar un dato",
+      "kind": "Qué dato es",
+      "version": "Documento y versión",
+      "chooseVersion": "Elige una versión",
+      "versionOption": "{name}, versión {version}",
+      "noVersions": "Este asunto todavía no tiene documentos de donde citar.",
+      "quote": "Cita del documento",
+      "quoteHelp": "Pega el pasaje que respalda el dato. LiTT lo busca en el texto de esa versión antes de guardar; si no aparece, no se guarda nada.",
+      "submit": "Guardar dato",
+      "saving": "Guardando…",
+      "cancel": "Cancelar",
+      "couldNotCreate": "No se pudo guardar el dato.",
+      "quoteNotFound": "Ese pasaje no aparece en el texto de la versión elegida. Cópialo tal como está en el documento.",
+      "sourceTextUnavailable": "El texto de esa versión todavía no está listo. Inténtalo en unos minutos.",
+      "versionNotInMatter": "Esa versión no es de un documento de este asunto."
+    }
+  },
   "common": {
     "back": "Atrás",
     "cancel": "Cancelar",

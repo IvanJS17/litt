@@ -54,6 +54,7 @@ import { playbooksRouter } from "./modules/playbooks/playbooks.routes";
 import { aiRecoveryRouter } from "./modules/ai-recovery/ai-recovery.routes";
 import { mcpConsentRouter, mcpPublicRouter } from "./modules/mcp/mcp.routes";
 import { matterSettingsRouter, mattersRouter } from "./modules/matters/matters.routes";
+import { clientProfileRouter } from "./modules/client-profile/client-profile.routes";
 import { requestCountsRouter, requestsRouter, requestTypesRouter } from "./modules/requests/requests.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
@@ -377,6 +378,7 @@ app.use("/word-chat", wordChatRouter);
 app.use("/models", modelsRouter);
 app.use("/projects/:projectId/ai-executions", aiRecoveryRouter);
 app.use("/projects/:projectId/matters/:matterId/requests", requestsRouter);
+app.use("/projects/:projectId/matters/:matterId/profile", clientProfileRouter);
 app.use("/projects/:projectId/matters", matterSettingsRouter);
 app.use("/matters", mattersRouter);
 app.use("/projects/:projectId/memory", projectMemoryRouter);

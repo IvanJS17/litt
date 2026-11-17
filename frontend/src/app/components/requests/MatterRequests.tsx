@@ -20,6 +20,7 @@ import {
   setMatterRetainer,
 } from "@/app/lib/mikeApi";
 import { errorCode, notifyError } from "@/app/lib/userFacingError";
+import { MatterSectionNav } from "@/app/components/profile/MatterSectionNav";
 import { RequestDetail } from "./RequestDetail";
 import { RequestForm } from "./RequestForm";
 import { SELECT_CLASS, useRequestWords } from "./requestFields";
@@ -138,6 +139,7 @@ export function MatterRequests({ projectId, matterId }: { projectId: string; mat
           >
             {t("requests.backToMatter")}
           </Link>
+          <MatterSectionNav projectId={projectId} matterId={matterId} current="requests" />
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="font-serif text-2xl text-gray-900">{t("requests.title")}</h1>

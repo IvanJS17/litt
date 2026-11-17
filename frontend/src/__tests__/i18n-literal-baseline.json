@@ -107,6 +107,7 @@
     "frontend/src/app/components/projects/ProjectMemoryModal.tsx",
     "frontend/src/app/components/projects/ProjectPageParts.tsx",
     "frontend/src/app/components/projects/ProjectWorkspaceViewSwitcher.tsx",
+    "frontend/src/app/components/profile",
     "frontend/src/app/components/recovery",
     "frontend/src/app/components/requests",
     "frontend/src/app/components/settings/ApiKeyField.tsx",

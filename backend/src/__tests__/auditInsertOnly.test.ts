@@ -18,17 +18,34 @@ function sourceFiles(dir: string): string[] {
     });
 }
 
-describe("audit_events is insert-only in the backend", () => {
-    it("no source file updates, upserts or deletes audit rows", () => {
-        const offenders: string[] = [];
-        for (const file of sourceFiles(SRC)) {
-            const text = readFileSync(file, "utf8");
-            for (const match of text.matchAll(/from\(\s*["']audit_events["']\s*\)/g)) {
-                const chain = text.slice(match.index, text.indexOf(";", match.index));
-                if (/\.(update|upsert|delete)\s*\(/.test(chain))
-                    offenders.push(relative(SRC, file));
+// The other insert-only tables: the same refusal in the database (a trigger),
+// the same guard here. A fact of the client profile is also never changed.
+const INSERT_ONLY_TABLES = [
+    "audit_events",
+    "matter_request_events",
+    "matter_profile_facts",
+    "matter_profile_fact_events",
+];
+
+describe("insert-only tables are insert-only in the backend", () => {
+    for (const table of INSERT_ONLY_TABLES) {
+        it(`no source file updates, upserts or deletes ${table} rows`, () => {
+            const offenders: string[] = [];
+            const pattern = new RegExp(`from\\(\\s*["']${table}["']\\s*\\)`, "g");
+            for (const file of sourceFiles(SRC)) {
+                const text = readFileSync(file, "utf8");
+                for (const match of text.matchAll(pattern)) {
+                    const chain = text.slice(match.index, text.indexOf(";", match.index));
+                    if (/\.(update|upsert|delete)\s*\(/.test(chain))
+                        offenders.push(relative(SRC, file));
+                }
             }
-        }
-        expect(offenders).toEqual([]);
+            expect(offenders).toEqual([]);
+        });
+    }
+
+    it("finds the tables it guards (a renamed table would make the scan vacuous)", () => {
+        const all = sourceFiles(SRC).map((file) => readFileSync(file, "utf8")).join("\n");
+        for (const table of INSERT_ONLY_TABLES) expect(all).toContain(`"${table}"`);
     });
 });

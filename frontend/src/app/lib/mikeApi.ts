@@ -6418,3 +6418,75 @@ export async function getRequestCounts(
     if (!counts?.totals || !Array.isArray(counts.by_matter)) throw new Error("Malformed request counts response");
     return counts;
 }
+
+// ---------------------------------------------------------------------------
+// Client profile of a retainer matter (docs/client-profile.md)
+// ---------------------------------------------------------------------------
+
+const clientProfilePath = (projectId: string, matterId: string) =>
+    `${matterRequestsPath(projectId, matterId)}/profile`;
+
+export async function getClientProfile(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").ClientProfile> {
+    const profile = await apiRequest<import("@mike/contracts").ClientProfile>(
+        "matter.profile",
+        clientProfilePath(projectId, matterId),
+    );
+    // A reply without its lists is a failed load, not an empty profile.
+    if (!Array.isArray(profile?.facts) || !Array.isArray(profile.versions) || !Array.isArray(profile.people))
+        throw new Error("Malformed client profile response");
+    return profile;
+}
+
+/** One fact came back: it must say what it is and what it cites. */
+function checkedFact(fact: import("@mike/contracts").ProfileFact | undefined) {
+    if (typeof fact?.id !== "string" || !fact.source || !Array.isArray(fact.events))
+        throw new Error("Malformed profile fact response");
+    return fact;
+}
+
+export async function createProfileFact(
+    projectId: string,
+    matterId: string,
+    input: import("@mike/contracts").ProfileFactInput,
+): Promise<import("@mike/contracts").ProfileFact> {
+    return checkedFact(
+        await apiRequest(
+            "matter.profile",
+            `${clientProfilePath(projectId, matterId)}/facts`,
+            jsonInit("POST", input),
+        ),
+    );
+}
+
+export async function confirmProfileFact(
+    projectId: string,
+    matterId: string,
+    factId: string,
+    input: import("@mike/contracts").ProfileFactDecisionInput = {},
+): Promise<import("@mike/contracts").ProfileFact> {
+    return checkedFact(
+        await apiRequest(
+            "matter.profile",
+            `${clientProfilePath(projectId, matterId)}/facts/${encodeURIComponent(factId)}/confirm`,
+            jsonInit("POST", input),
+        ),
+    );
+}
+
+export async function rejectProfileFact(
+    projectId: string,
+    matterId: string,
+    factId: string,
+    input: import("@mike/contracts").ProfileFactDecisionInput = {},
+): Promise<import("@mike/contracts").ProfileFact> {
+    return checkedFact(
+        await apiRequest(
+            "matter.profile",
+            `${clientProfilePath(projectId, matterId)}/facts/${encodeURIComponent(factId)}/reject`,
+            jsonInit("POST", input),
+        ),
+    );
+}
