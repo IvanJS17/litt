@@ -1,6 +1,6 @@
 # Organization offboarding
 
-**Status:** Shipped in production (deploy `20261117a`); no flag.
+**Status:** Shipped in production (shipped by deploy `20261117a`); no flag.
 
 Removing a member, leaving an organization and deleting an account use the
 same organization content rules. Account deletion applies them to every team

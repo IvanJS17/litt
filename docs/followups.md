@@ -11,8 +11,8 @@ Sections below that say a PR is pending or a test is flaky were written before t
 
 ## Current open items (2026-11-17)
 
-Checked against `origin/main` at `7cd3cba3c`, 2026-11-17, from the reviewer notes of PRs
-#193 to #226.
+Checked against `origin/main` at `dbd70f908`, 2026-11-17, from the reviewer notes of PRs
+#193 to #229.
 
 - **Closed since the last list:** MCP tables missing `service_role` grants (PR #229; the
   two MCP migrations had no grant and production's `public` schema has no default

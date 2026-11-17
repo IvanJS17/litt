@@ -11,11 +11,12 @@
 ## In production
 
 - **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
-- **Deploy:** `20261117a`, tag `prod-20261117a`, `RELEASE_SHA` `eb39f0d98` (full SHA
-  `eb39f0d987c9c8eb1cf0aaf879b94edfb8a85f61`). Earlier deploys: tags `prod-20261116a`
-  to `prod-20261116i`. Each deploy is a GitHub release.
-- **Contents:** every pull request up to #225, merged and deployed 2026-11-16/17.
-- **Migrations:** applied through `20261117_10_litt_chat_origin.sql`.
+- **Deploy:** `20261117c`, tag `prod-20261117c`, `RELEASE_SHA` `dbd70f908` (full SHA
+  `dbd70f9082f0671695d9dd9ebf43de65d25397dd`). Earlier deploys: tags `prod-20261116a`
+  to `prod-20261116i`, `prod-20261117a`, `prod-20261117b`. Each deploy is tagged
+  `prod-YYYYMMDDx`; not every tag has a published GitHub release yet.
+- **Contents:** every pull request up to #229, merged and deployed 2026-11-16/17.
+- **Migrations:** applied through `20261117_20_litt_mcp_service_role_grants.sql`.
 - **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
   Beta statistics are for platform administrators only, counts only, audited
   ([`beta-stats.md`](beta-stats.md)).

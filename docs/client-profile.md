@@ -1,6 +1,6 @@
 # Client profile of a retainer matter
 
-**Status:** Shipped in production (PR #220, deploy `20261116` to `20261117a`); no flag.
+**Status:** Shipped in production (PR #220, shipped by deploy `20261117a`); no flag.
 
 The client profile ("ficha del cliente") is the list of facts a lawyer knows
 about a retainer client, taken from the matter's own documents: a contract, a

@@ -38,7 +38,7 @@ Each line gives the feature and its state. "Flag" names the environment switch.
 - [Split a case file](document-split.md) — one PDF into one file per document (layer 7). Shipped.
 - [Document text search](document-text-search.md) — derived text of every document version, used by agent search. Shipped (no flag).
 - [Search indexing](search-indexing.md) — the search-engine policy while the beta is closed. Shipped (robots policy, no flag).
-- [Memory](memory.md) — app and project Markdown memory: permissions, learning, deletion. Shipped (in deploy `20261117a`; no flag).
+- [Memory](memory.md) — app and project Markdown memory: permissions, learning, deletion. Shipped by deploy `20261117a` (no flag).
 - [Subagents](subagents.md) — delegated chat tasks on the user's routes. Shipped; flag `LITT_CHAT_SUBAGENTS` (compose default `enabled`).
 - [Web search](web-search.md) — provider search and page reading. Shipped; flag `LITT_CHAT_WEB_SEARCH` (compose default `enabled`).
 - [Citation support check](citation-support-check.md) — TypeSafe Jev in silent mode; per-person opt-out. Shipped; flag `LITT_CITATION_CHECK` (on in production, `disabled` in the repository defaults).
