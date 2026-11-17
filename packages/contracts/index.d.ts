@@ -2507,7 +2507,7 @@ export type ProfileFactDecisionInput = {
  * (the date minus the notice period, in calendar days). `power_expiry`: a
  * power of attorney's expiration.
  */
-export type RadarItemType = "expiry" | "notice" | "power_expiry";
+export type RadarItemType = "expiry" | "notice" | "power_expiry" | "obligation_due";
 
 /** `open` and `acknowledged` are alive; `dismissed` and `done` are closed. */
 export type RadarItemState = "open" | "acknowledged" | "dismissed" | "done";
@@ -2524,14 +2524,18 @@ export type RadarBucket = "overdue" | "next_30" | "later" | "review";
  * business days, which LiTT never computes. `missing_date`: the fact names a
  * rule or a period but no date to count from.
  */
-export type RadarReviewReason = "business_days" | "missing_date";
+export type RadarReviewReason = "business_days" | "missing_date" | "anchor_unavailable";
 
 export type RadarItem = {
-  /** Stable name of the item: `<fact_id>:<type>`. */
+  /**
+   * Stable name of the item: `<fact_id>:<type>`, or, for an obligation rule,
+   * `<rule_code>@<version>:<anchor fact id>`.
+   */
   key: string;
+  /** The fact the item comes from (for an obligation item, the anchor the lawyer chose). */
   fact_id: string;
   type: RadarItemType;
-  /** The fact's label. */
+  /** The fact's label; for an obligation item, the rule's code (the page words the name). */
   label: string;
   /** ISO date (YYYY-MM-DD), computed in code. Null for a `review` item. */
   due_on: string | null;
@@ -2550,8 +2554,106 @@ export type RadarItem = {
   acted_at: string | null;
   /** The reason given when it was dismissed. */
   reason: string | null;
-  /** The cited passage of the fact the item comes from. */
-  source: ProfileFactSource;
+  /** The cited passage of the fact the item comes from; null when the anchor fact no longer counts. */
+  source: ProfileFactSource | null;
+  /** The rule behind an `obligation_due` item; null for the rest. */
+  obligation: RadarItemObligation | null;
+};
+
+/** What an obligation item says about its rule (docs/obligation-rules.md). */
+export type RadarItemObligation = {
+  rule_key: string;
+  name_key: string;
+  kind: ObligationRuleKind;
+  /** First day of a `window` rule; null otherwise or when it has no date. */
+  starts_on: string | null;
+  milestones: ObligationRuleMilestone[];
+  requires_business_days: boolean;
+  citations: ObligationRuleCitation[];
+  /** Legal's notes, plain text. */
+  notes: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// Obligation rules of a retainer matter (docs/obligation-rules.md)
+// ---------------------------------------------------------------------------
+
+/** `deadline`: one last day. `window`: opens and closes. `expiry`: a validity that ends. */
+export type ObligationRuleKind = "deadline" | "window" | "expiry";
+/** One step of a count, applied in order: calendar days, months, years (negative counts back), business days (never computed), or an adjustment to the month's first or last day. */
+export type ObligationRuleOp =
+  | { unit: "days" | "months" | "years" | "business_days"; amount: number }
+  | { adjust: "month_start" | "month_end" };
+export type ObligationRuleMilestone = { kind: "due" | "opens" | "closes"; ops: ObligationRuleOp[] };
+export type ObligationRuleCitation = {
+  source_code: string;
+  law: string;
+  location: string;
+  /** The words of the law, as the official source gives them. */
+  text: string;
+  url: string;
+  /** As the official source states it, e.g. `DOF 20-10-2023`. */
+  last_reform: string;
+};
+export type ObligationRuleVerification = {
+  status: "verified" | "unverified";
+  verified_by: string | null;
+  verified_on: string | null;
+};
+export type ObligationAnchorMode = "direct" | "first_cycle";
+
+export type ObligationRule = {
+  /** `<code>@<version>`. */
+  key: string;
+  code: string;
+  version: number;
+  name_key: string;
+  applies_when_key: string;
+  /** i18n key of the sentence naming the date the rule counts from. */
+  anchor_key: string;
+  /** How the first anchor is worked out from the date a right was granted, when the rule allows it. */
+  first_cycle: { from: string; ops: ObligationRuleOp[]; only_if: string | null; cap_years: number | null } | null;
+  kind: ObligationRuleKind;
+  milestones: ObligationRuleMilestone[];
+  /** Counts business days: LiTT never computes it, the item is left to review. */
+  requires_business_days: boolean;
+  citations: ObligationRuleCitation[];
+  notes: string | null;
+  /** ISO date the official sources were consulted. */
+  consulted_on: string;
+  verification: ObligationRuleVerification;
+  /** Turned on for this matter. Only a verified rule can be. */
+  active: boolean;
+  /** The confirmed fact the active rule counts from, and how. */
+  anchor: { fact_id: string; mode: ObligationAnchorMode } | null;
+  changed_by: string | null;
+  changed_at: string | null;
+};
+
+/** A confirmed fact with a date: what a rule can count from. */
+export type ObligationAnchorChoice = {
+  fact_id: string;
+  label: string;
+  date_on: string;
+  date_kind: "effective" | "expiry" | "renewal_notice" | null;
+};
+
+export type MatterObligationRules = {
+  /** The matter is a private retainer; only then does it have rules. */
+  retainer: boolean;
+  /** The caller may turn rules on and off (owner or editor). */
+  can_write: boolean;
+  rules: ObligationRule[];
+  /** The matter's confirmed, not stale dated facts the lawyer can pick as an anchor. */
+  anchor_choices: ObligationAnchorChoice[];
+  people: ProfilePerson[];
+};
+
+export type ObligationRuleActivationInput = {
+  /** The confirmed fact the rule counts from. */
+  anchor_fact_id: string;
+  /** `first_cycle`: the fact is the date the right was granted, and the rule works the first expiry out. */
+  anchor_mode?: ObligationAnchorMode;
 };
 
 export type MatterRadar = {

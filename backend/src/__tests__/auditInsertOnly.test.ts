@@ -29,6 +29,8 @@ const INSERT_ONLY_TABLES = [
     "matter_profile_facts",
     "matter_profile_fact_events",
     "matter_radar_item_events",
+    "matter_obligation_rule_events",
+    "matter_obligation_item_events",
     "matter_report_sent_events",
 ];
 

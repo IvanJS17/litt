@@ -146,7 +146,7 @@ const es: ReportLabels = {
     cancelled: "Cancelada",
   },
   kind: { contract: "Contrato", date: "Fecha", power_of_attorney: "Poder", obligation: "Obligación", other: "Otro" },
-  radarType: { expiry: "Vencimiento", notice: "Último día para avisar", power_expiry: "Vencimiento del poder" },
+  radarType: { expiry: "Vencimiento", notice: "Último día para avisar", power_expiry: "Vencimiento del poder", obligation_due: "Regla de obligación" },
   date: longDate("es-MX"),
 };
 
@@ -219,7 +219,7 @@ const en: ReportLabels = {
     cancelled: "Cancelled",
   },
   kind: { contract: "Contract", date: "Date", power_of_attorney: "Power of attorney", obligation: "Obligation", other: "Other" },
-  radarType: { expiry: "Expiry", notice: "Last day to give notice", power_expiry: "Power of attorney expiry" },
+  radarType: { expiry: "Expiry", notice: "Last day to give notice", power_expiry: "Power of attorney expiry", obligation_due: "Obligation rule" },
   date: longDate("en-US"),
 };
 

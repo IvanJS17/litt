@@ -6615,7 +6615,8 @@ export async function actOnRadarItem(
         `${matterRequestsPath(projectId, matterId)}/radar/items/${encodeURIComponent(itemKey)}/${action}`,
         jsonInit("POST", input),
     );
-    if (typeof item?.key !== "string" || !item.source) throw new Error("Malformed radar item response");
+    // An obligation item with no anchor fact has no source passage, but always names its rule.
+    if (typeof item?.key !== "string" || (!item.source && !item.obligation)) throw new Error("Malformed radar item response");
     return item;
 }
 
@@ -6627,6 +6628,40 @@ export async function getRadarToday(orgId: string): Promise<import("@mike/contra
     );
     if (typeof today?.today !== "string" || !Array.isArray(today.items)) throw new Error("Malformed radar response");
     return today;
+}
+
+// ---------------------------------------------------------------------------
+// Obligation rules of a retainer matter (docs/obligation-rules.md)
+// ---------------------------------------------------------------------------
+
+export async function getMatterObligationRules(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").MatterObligationRules> {
+    const rules = await apiRequest<import("@mike/contracts").MatterObligationRules>(
+        "matter.radar",
+        `${matterRequestsPath(projectId, matterId)}/radar/rules`,
+    );
+    // A reply without its lists is a failed load, not an empty catalog.
+    if (typeof rules?.retainer !== "boolean" || !Array.isArray(rules.rules) || !Array.isArray(rules.anchor_choices) || !Array.isArray(rules.people))
+        throw new Error("Malformed obligation rules response");
+    return rules;
+}
+
+export async function setMatterObligationRule(
+    projectId: string,
+    matterId: string,
+    ruleKey: string,
+    on: boolean,
+    input: import("@mike/contracts").ObligationRuleActivationInput | Record<string, never> = {},
+): Promise<import("@mike/contracts").ObligationRule> {
+    const rule = await apiRequest<import("@mike/contracts").ObligationRule>(
+        "matter.radar",
+        `${matterRequestsPath(projectId, matterId)}/radar/rules/${encodeURIComponent(ruleKey)}/${on ? "activate" : "deactivate"}`,
+        jsonInit("POST", on ? input : {}),
+    );
+    if (typeof rule?.key !== "string" || typeof rule.active !== "boolean") throw new Error("Malformed obligation rule response");
+    return rule;
 }
 
 // ---------------------------------------------------------------------------

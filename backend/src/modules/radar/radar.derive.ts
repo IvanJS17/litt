@@ -23,7 +23,7 @@ import type { ProfileFact, ProfileFactSource } from "@mike/contracts";
 import { addDays, bucketOf, type RadarBucket } from "./radar.dates";
 
 export type RadarItemType = "expiry" | "notice" | "power_expiry";
-export type RadarReviewReason = "business_days" | "missing_date";
+export type RadarReviewReason = "business_days" | "missing_date" | "anchor_unavailable";
 
 export type DerivedItem = {
   key: string;

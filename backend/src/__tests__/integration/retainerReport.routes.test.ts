@@ -517,7 +517,7 @@ describe("the sent history", () => {
         vi.setSystemTime(new Date("2026-11-18T18:00:00Z"));
         await request(app).post(`${base}/60d/sent`).send({ note: "segundo" });
         tables().matter_report_sent_events[1].created_at = "2026-11-18T18:00:00.000Z";
-        expect(tables().matter_report_sent_events.map((row: { note: string }) => row.note)).toEqual(["primero", "segundo"]);
+        expect(tables().matter_report_sent_events.map((row) => row.note)).toEqual(["primero", "segundo"]);
         for (const [user, canWrite] of [[OWNER, true], [EDITOR, true], [VIEWER, false], [TECH, false]] as const) {
             as(user);
             const res = await request(app).get(`${base}/sent`);

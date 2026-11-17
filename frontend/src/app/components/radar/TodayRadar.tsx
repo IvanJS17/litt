@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { RadarToday } from "@mike/contracts";
 import { getRadarToday } from "@/app/lib/mikeApi";
 import { radarHref } from "./radarOptions";
+import { useObligationWords } from "./obligationText";
 import { useRadarWords } from "./radarText";
 
 /**
@@ -17,6 +18,7 @@ import { useRadarWords } from "./radarText";
 export function TodayRadar({ orgId }: { orgId: string }) {
   const t = useTranslations();
   const { day, distance } = useRadarWords();
+  const { ruleName } = useObligationWords();
   const [reload, setReload] = useState(0);
   // The answer is kept with the request it belongs to, so a new workspace or a
   // retry shows the loading state again without resetting state in an effect.
@@ -81,7 +83,7 @@ export function TodayRadar({ orgId }: { orgId: string }) {
                     {item.due_on ? day(item.due_on) : t("radar.group.review")}
                   </span>
                   {when ? <span className="text-gray-600"> · {when}</span> : null}
-                  <span> · {t(`radar.type.${item.type}`)}: {item.label}</span>
+                  <span> · {t(`radar.type.${item.type}`)}: {item.obligation ? ruleName(item.obligation.name_key, item.label) : item.label}</span>
                   <span className="text-gray-500"> · {matter}</span>
                   {item.state === "acknowledged" ? <span className="text-gray-500"> · {t("radar.state.acknowledged")}</span> : null}
                 </Link>
@@ -91,6 +93,7 @@ export function TodayRadar({ orgId }: { orgId: string }) {
         </ul>
       )}
       {data?.truncated ? <p className="text-xs text-gray-500">{t("radar.today.truncated")}</p> : null}
+      <p className="text-xs text-gray-500">{t("radar.disclaimer")}</p>
     </section>
   );
 }
