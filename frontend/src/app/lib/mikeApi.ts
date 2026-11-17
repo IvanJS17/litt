@@ -6324,7 +6324,13 @@ export async function setMatterRetainer(
 export async function listRequestTypes(
     orgId: string,
 ): Promise<import("@mike/contracts").MatterRequestTypeList> {
-    return apiRequest("organizations.manage", `/orgs/${encodeURIComponent(orgId)}/request-types`);
+    const list = await apiRequest<import("@mike/contracts").MatterRequestTypeList>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/request-types`,
+    );
+    // A reply without the catalog is a failed load, not an empty catalog.
+    if (!Array.isArray(list?.types)) throw new Error("Malformed request types response");
+    return list;
 }
 
 export async function createRequestType(

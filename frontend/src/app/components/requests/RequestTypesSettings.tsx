@@ -29,6 +29,7 @@ export function RequestTypesSettings({ orgId }: { orgId: string }) {
   const [list, setList] = useState<MatterRequestTypeList | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [newName, setNewName] = useState("");
+  const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [nameTaken, setNameTaken] = useState(false);
   const tRef = useRef(t);
@@ -45,7 +46,9 @@ export function RequestTypesSettings({ orgId }: { orgId: string }) {
           if (current) setList(next);
         },
         (error) => {
-          if (current) notifyError(error, { action: tRef.current("requests.types.couldNotLoad") });
+          if (!current) return;
+          setFailed(true);
+          notifyError(error, { action: tRef.current("requests.types.couldNotLoad") });
         },
       );
     return () => {
@@ -105,7 +108,13 @@ export function RequestTypesSettings({ orgId }: { orgId: string }) {
             ) : null}
           </div>
         </SettingsRow>
-        {!list ? (
+        {failed ? (
+          <SettingsRow layout="stacked">
+            <p role="alert" className="text-sm text-red-700">
+              {t("requests.types.couldNotLoad")}
+            </p>
+          </SettingsRow>
+        ) : !list ? (
           <SettingsRow layout="stacked">
             <div className="h-24 animate-pulse rounded-xl bg-app-surface" aria-hidden="true" />
           </SettingsRow>

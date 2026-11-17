@@ -40,6 +40,13 @@ beforeEach(() => {
 });
 
 describe("RequestTypesSettings", () => {
+  it("shows the load error in the section when the catalog cannot be read", async () => {
+    mocks.listRequestTypes.mockRejectedValue(new Error("boom"));
+    render(<RequestTypesSettings orgId="org-1" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not load the request types");
+    expect(mocks.notifyError).toHaveBeenCalled();
+  });
+
   it("shows a member the types read only, with the default ones worded in the reader's language", async () => {
     mocks.listRequestTypes.mockResolvedValue({ types: catalog, can_manage: false });
     render(<RequestTypesSettings orgId="org-1" />);
