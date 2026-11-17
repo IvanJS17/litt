@@ -185,7 +185,11 @@ endpoint `/mcp` del backend (`docs/mcp-server.md`). Con `enabled` hace falta
 recurso son `<origen>` y `<origen>/mcp`); sin él, en producción el servidor queda apagado y el
 arranque lo avisa en el log. `LITT_MCP_ALLOWED_ORIGINS` lista los orígenes de navegador que
 pueden llamar a `/mcp` (vacío: ninguno; Claude, ChatGPT y Hermes llaman sin `Origin`). El
-proxy hacia el backend, el DNS y Caddy de ese host **no** forman parte de este cambio.
+host MCP de producción es `https://mcp.litt.asteroitt.com`: registro A sin proxy de
+Cloudflare hacia el VPS y el bloque `mcp.litt.asteroitt.com` de `Caddyfile.litt`, que solo deja
+pasar `/mcp`, `/oauth/*` y los `.well-known` de OAuth y los reenvía al gateway `/api` de la web
+(`litt:3000`), igual que el resto de la API. Para encenderlo: `LITT_MCP_SERVER=enabled` y
+`LITT_MCP_PUBLIC_URL=https://mcp.litt.asteroitt.com` en `/srv/litt/.env`, y recrear el backend.
 
 Los demás valores del `.env` no son secretos y ya vienen en `.env.example`:
 el bucket, el host, el puerto y el usuario SMTP y el remitente.
