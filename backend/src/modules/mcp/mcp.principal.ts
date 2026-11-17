@@ -182,3 +182,17 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
 export function modeOf(principal: McpPrincipal, workspaceId: string): McpMode {
     return principal.workspaces.find((w) => w.id === workspaceId)?.mode ?? "A";
 }
+
+/**
+ * The address the person has CONFIRMED, lower-cased, or "" when they have none.
+ * It is an authorization input (direct grants and invitations are matched
+ * against it), exactly as `requireAuth` computes it for the web: an address
+ * that is not confirmed matches nothing. Read from the auth service when a
+ * tool needs it, not on every request.
+ */
+export async function loadConfirmedEmail(db: Db, userId: string): Promise<string> {
+    const { data, error } = await db.auth.admin.getUserById(userId);
+    if (error) throw dbFailure("account email lookup failed", error);
+    const user = data?.user as { email?: string | null; email_confirmed_at?: string | null } | null | undefined;
+    return user?.email && user.email_confirmed_at ? user.email.toLowerCase() : "";
+}

@@ -20,13 +20,31 @@
 
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { createServerSupabase } from "../../lib/supabase";
+import { createServerSupabase, type Db } from "../../lib/supabase";
+import {
+    findPersonalWorkspaceDisabled,
+    PERSONAL_WORKSPACE_DISABLED,
+    PERSONAL_WORKSPACE_DISABLED_DETAIL,
+    withRequestPrincipal,
+} from "../../lib/managedAccounts";
 import { reportError } from "../../lib/observability/report";
 import { rateLimitedBody } from "../../lib/httpError";
 import type { McpScope } from "./mcp.config";
-import { recordMcpAuditEvent, recordMcpToolCall, type McpCallOutcome } from "./mcp.calls";
+import {
+    recordMcpAuditEvent,
+    recordMcpToolCall,
+    type McpAuditRefs,
+    type McpCallOutcome,
+} from "./mcp.calls";
 import { takeGrantBudget, type McpLane } from "./mcp.limits";
-import { modeOf, type McpMode, type McpPrincipal } from "./mcp.principal";
+import { loadConfirmedEmail, modeOf, type McpMode, type McpPrincipal } from "./mcp.principal";
+
+/**
+ * The most text one tool result may carry. Claude Code refuses results past
+ * ~25 000 tokens (design §9), and a long reply costs the person's context for
+ * nothing: tools page and truncate on their own, and this is the net under them.
+ */
+export const MCP_MAX_RESULT_CHARS = 100_000;
 
 /** An expected failure: its code and text are authored here, so they are safe to show. */
 export class McpToolError extends Error {
@@ -45,6 +63,13 @@ export type McpToolOutput = { content: McpToolContent[]; isError?: boolean };
 
 /** What a handler gets besides its arguments. */
 export type McpCall = {
+    /** The service-role client: only for passing to the services the web uses. */
+    db: Db;
+    /**
+     * The person's confirmed address ("" when none), the same authorization
+     * input `requireAuth` hands the web routes. Read once per call, on demand.
+     */
+    userEmail: () => Promise<string>;
     principal: McpPrincipal;
     /** The workspace of this call (`usesWorkspace` tools), already checked live; null otherwise. */
     workspace: string | null;
@@ -63,6 +88,11 @@ export type McpToolSpec<S extends z.ZodObject = z.ZodObject> = {
     lane: McpLane;
     readOnly: boolean;
     /**
+     * Only a tool that deletes or overwrites says so (design §4: R3). Adding a
+     * document or a note is `false`: `readOnlyHint: false, destructiveHint: false`.
+     */
+    destructive?: boolean;
+    /**
      * `strict` for a call that writes, spends or takes document text out: an
      * audit_events row (surface 'mcp') is written first and the call does
      * not run without it. `call` records mcp_tool_calls only.
@@ -70,8 +100,18 @@ export type McpToolSpec<S extends z.ZodObject = z.ZodObject> = {
     audit: "call" | "strict";
     /** The tool takes an optional `workspace` argument (default: the grant's default). */
     usesWorkspace?: boolean;
+    /**
+     * For a tool that names a resource (a matter, a document) rather than a
+     * workspace: finds the resource's workspace through the services the web
+     * uses and throws `McpToolError` when the person cannot open it or this
+     * connection does not cover its workspace. Runs before the audit row, so
+     * the row carries the right firm.
+     */
+    resolveWorkspace?: (args: z.infer<S>, call: McpCall) => Promise<string>;
     /** `B` = the client's own AI does the work; refused where the person is an apprentice. */
     mode?: McpMode;
+    /** Ids a `strict` audit row records about the call (never names, text or secrets). */
+    auditRefs?: (args: z.infer<S>) => McpAuditRefs;
     handler: (args: z.infer<S>, call: McpCall) => Promise<McpToolOutput>;
 };
 
@@ -103,8 +143,25 @@ function failureOutput(code: string, detail: string, suggestedAction?: string): 
     };
 }
 
-async function runTool(tool: AnyMcpTool, principal: McpPrincipal, args: unknown): Promise<McpToolOutput> {
+// The services the web uses read "who is asking" from the request's principal
+// (managed accounts); a tool call is one request, so it runs inside one.
+function runTool(tool: AnyMcpTool, principal: McpPrincipal, args: unknown): Promise<McpToolOutput> {
+    return withRequestPrincipal(
+        { userId: principal.userId, personalWorkspaceDisabled: principal.personalWorkspaceDisabled },
+        () => runToolInPrincipal(tool, principal, args),
+    );
+}
+
+async function runToolInPrincipal(tool: AnyMcpTool, principal: McpPrincipal, args: unknown): Promise<McpToolOutput> {
     const db = createServerSupabase();
+    let email: Promise<string> | null = null;
+    const callOf = (): McpCall => ({
+        db,
+        userEmail: () => (email ??= loadConfirmedEmail(db, principal.userId)),
+        principal,
+        workspace,
+        mode,
+    });
     const started = performance.now();
     let workspace: string | null = null;
     let mode: McpMode = principal.mode;
@@ -126,7 +183,14 @@ async function runTool(tool: AnyMcpTool, principal: McpPrincipal, args: unknown)
             await finish("denied", "insufficient_scope");
             return failureOutput("insufficient_scope", "This connection does not have the permission this tool needs.");
         }
-        if (tool.usesWorkspace) {
+        if (tool.resolveWorkspace) {
+            // The resource the call names decides the workspace (and the fence).
+            const resolved = await tool.resolveWorkspace(args, callOf());
+            if (!principal.workspaces.some((w) => w.id === resolved))
+                throw new McpToolError("not_found", "That item was not found.");
+            workspace = resolved;
+            mode = modeOf(principal, workspace);
+        } else if (tool.usesWorkspace) {
             const requested = (args as { workspace?: unknown } | null)?.workspace;
             workspace = typeof requested === "string" && requested ? requested : principal.defaultWorkspace;
             if (!principal.workspaces.some((w) => w.id === workspace)) {
@@ -151,7 +215,12 @@ async function runTool(tool: AnyMcpTool, principal: McpPrincipal, args: unknown)
         }
         if (tool.audit === "strict") {
             try {
-                await recordMcpAuditEvent(db, { principal, tool: tool.name, workspace });
+                await recordMcpAuditEvent(db, {
+                    principal,
+                    tool: tool.name,
+                    workspace,
+                    refs: tool.auditRefs?.(args),
+                });
             } catch (error) {
                 reportError(error, { tags: { component: "mcp", operation: "mcp.audit_event" } });
                 await finish("error", "audit_unavailable");
@@ -161,10 +230,23 @@ async function runTool(tool: AnyMcpTool, principal: McpPrincipal, args: unknown)
                 );
             }
         }
-        const output = await tool.handler(args, { principal, workspace, mode });
+        const output = await tool.handler(args, callOf());
+        if (output.content.some((part) => part.text.length > MCP_MAX_RESULT_CHARS)) {
+            await finish("error", "result_too_large");
+            return failureOutput(
+                "result_too_large",
+                "The result is larger than one reply can carry.",
+                "Ask for a smaller page or a narrower range.",
+            );
+        }
         await finish(output.isError ? "error" : "ok", output.isError ? "tool_error" : undefined);
         return output;
     } catch (error) {
+        // A service refused personal content to a firm-managed account.
+        if (findPersonalWorkspaceDisabled(error)) {
+            await finish("denied", PERSONAL_WORKSPACE_DISABLED);
+            return failureOutput(PERSONAL_WORKSPACE_DISABLED, PERSONAL_WORKSPACE_DISABLED_DETAIL);
+        }
         if (error instanceof McpToolError) {
             await finish("error", error.code);
             return failureOutput(error.code, error.message, error.suggestedAction);
@@ -189,7 +271,12 @@ export function registerMcpTools(
                 title: tool.title,
                 description: tool.description,
                 inputSchema: tool.inputSchema,
-                annotations: { readOnlyHint: tool.readOnly },
+                annotations: {
+                    readOnlyHint: tool.readOnly,
+                    destructiveHint: tool.destructive ?? false,
+                    // LiTT only talks to the person's own data.
+                    openWorldHint: false,
+                },
             },
             async (args: unknown) => runTool(tool, principal, args),
         );
