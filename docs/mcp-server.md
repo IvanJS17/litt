@@ -3,9 +3,10 @@
 LiTT can be connected to an AI app that speaks the Model Context Protocol
 (Claude, ChatGPT, Codex, Hermes). This page describes what the backend serves
 today: the OAuth authorization server and the `/mcp` endpoint with its
-per-call gate (live revalidation, scopes, per-connection limits, audit). The
-tools that read and run LiTT work come in later changes; today `/mcp` offers
-one, `whoami`, which already goes through all of it.
+per-call gate (live revalidation, scopes, per-connection limits, audit) and
+the first real tools: workspaces, matters, documents and uploads (see
+[Tools](#tools)). Playbooks, tabular review and the assistant's chat come in
+later changes.
 
 Everything is behind `LITT_MCP_SERVER`. With the default (`disabled`) no MCP
 route answers: the requests fall through to the normal 404.
@@ -146,6 +147,67 @@ granted and denied, token issue and refresh, reuse detection and revocation. It
 never stores a token, code, PKCE value or state. Consent fails closed: with no
 way to write the record there is no connection.
 
+## Tools
+
+All tools are declared with `defineMcpTool` in `backend/src/modules/mcp/mcp.tools.<topic>.ts`
+and listed in `mcp.catalog.ts`. A connection sees only the tools its scopes allow.
+Names are at most 64 characters; reads and writes are separate tools.
+
+| Tool | Scope | Annotations | What it does |
+| --- | --- | --- | --- |
+| `whoami` | `litt.read` | read-only | Who the connection is, its workspaces and modes. |
+| `list_workspaces` | `litt.read` | read-only | The workspaces of the connection with name, the person's role and mode. |
+| `find_matters` | `litt.read` | read-only | Lists or searches matters in one workspace (default: the connection's), newest activity first, with `match_score` and `ambiguous` when a query is given. Cursor pagination. |
+| `get_matter` | `litt.read` | read-only | One matter: details, role, folders, document count, participants (display name and role only, no addresses). |
+| `list_matter_documents` | `litt.read` | read-only | Documents and sub-folders of one folder level, with current version, status, `has_scan_pages`, `training_held`. Cursor pagination. |
+| `search_documents` | `litt.read` | read-only, strict audit | Literal phrase search in the stored text of a matter, one document or the person's library; located excerpts (version id and character offsets). |
+| `read_document` | `litt.read` | read-only, strict audit | A window of a version's stored text (`offset`, `limit_chars` ≤ 60 000, default 30 000) with `next_offset` and `total_chars`. |
+| `list_document_versions` | `litt.read` | read-only | Versions of a document: number, source, size, `training_held`. |
+| `get_upload_status` | `litt.read` | read-only | State of an upload, and the new document's id once it is done. |
+| `request_document_upload` | `litt.write` | additive (`destructiveHint: false`), strict audit | Opens the web's upload session for one file in a matter and returns a one-time signed `PUT` URL. |
+| `complete_document_upload` | `litt.write` | additive, strict audit | After the `PUT`, asks LiTT to seal, verify and process the file. Safe to repeat. |
+
+**Same permissions as the web.** A tool calls the service functions the web
+routes call (`getProjectsOverview`, `getProjectDetail`, `getProjectDirectoryLevel`,
+`getDocument`, `listVersions`, `readStoredDocumentText`, `findDocumentText`,
+`openUploadSession`, ...), with the person's id and confirmed address, so project
+roles, private-matter membership, training locks and managed accounts are decided
+by the same code; `modules/mcp` never queries a table (a test enforces it). The
+connection adds one fence: a matter or document outside the workspaces the
+connection covers (and the person can open right now) does not exist for it. Every
+refusal reads as `not_found`, except a viewer asking to upload (`forbidden`, as the
+web's 403). `backend/src/__tests__/integration/mcp.tools.routes.test.ts` runs a
+matrix (owner, editor, viewer, admin outside a private matter, apprentice, other
+firm, a person whose connection does not cover the firm) over a public and a
+private matter and compares every tool with its web route.
+
+**Text from documents is data.** `read_document` and the excerpts of
+`search_documents` are wrapped in `<<<LITT_UNTRUSTED_DOCUMENT_TEXT token>>> … <<<END_… token>>>`
+with a random token per call and a fixed notice that the text is not instructions.
+A pasante's draft that a mentor has not approved is not returned
+(`training_approval_required`, and withheld from search results).
+Offsets count Unicode characters, the unit of the database's search offsets, so a
+passage is cited as `version_id` + `start_char`/`end_char`.
+
+**Size.** Listings page by cursor (≤ 50 rows; opaque `next_cursor`). No result may
+exceed 100 000 characters (`result_too_large` otherwise), under Claude Code's
+25 000-token ceiling.
+
+**Uploads.** An MCP call cannot carry file bytes. `request_document_upload` runs the
+web's own manifest validation (types, 100 MB, destination authorization) and returns
+the signed storage URL; the client sends the file with `PUT` (from its code
+sandbox, or the person's browser), then `complete_document_upload`; the upload
+worker creates the document through the documents module. Claude needs «code
+execution» enabled and the LiTT domain allowed in its capabilities (not yet tried
+with a real Claude). No base64 upload yet.
+
+**Audit.** Each call writes `mcp_tool_calls` (no arguments, no content). Tools that
+take document text out (`read_document`, `search_documents`) or add content (the
+upload tools) also write `audit_events` (`surface = 'mcp'`, with the matter or
+document id, never a name or text) before running. Document text additionally
+writes `mcp.client_ai_egress` (document, version, characters, client) before it is
+returned; if that cannot be written the text is not returned.
+
 ## Tables
 
 `mcp_oauth_clients`, `mcp_oauth_requests`, `mcp_grants`, `mcp_oauth_codes`,
@@ -160,6 +222,13 @@ removes its connections and tokens and keeps the history.
 
 * `backend/src/__tests__/integration/mcp.oauth.routes.test.ts` — the whole
   flow over HTTP against an in-memory database.
+* `backend/src/__tests__/integration/mcp.tools.routes.test.ts` — the real tools
+  through `/mcp` JSON-RPC against an in-memory firm (`helpers/mcpToolsWorld.ts`):
+  the parity matrix with the web routes, tools/list per scope and annotations,
+  pagination, size caps, untrusted wrapping, training locks, audit rows, uploads.
+* `backend/src/modules/mcp/__tests__/mcp.toolkit.test.ts` — cursors, text
+  windows, the untrusted wrapper, matter matching, and the rule that tool files
+  do not query tables.
 * `backend/src/__tests__/integration/mcp.principal.routes.test.ts` — the gate:
   revoked membership, managed account, apprentice, erased account, expired or
   revoked connection, scopes, rate limits, the call record, sanitized errors.
@@ -171,7 +240,8 @@ removes its connections and tokens and keeps the history.
 * `backend/scripts/mcp-e2e-hermes.sh` — end to end with **Hermes** as a real MCP
   client: starts the real app on a random loopback port, points an isolated Hermes
   home at it, runs `hermes mcp login` (discovery → OAuth with PKCE) and
-  `hermes mcp test` (`tools/list`). The browser step is simulated and the web
-  session is stubbed. By default Hermes registers through its public client
+  `hermes mcp test` (`tools/list`, which must show the real tools), then calls
+  `find_matters` and `get_matter` with the access token Hermes obtained, against
+  the synthetic firm. The browser step is simulated and the web session is stubbed. By default Hermes registers through its public client
   metadata document (needs the internet); `LITT_MCP_E2E_CIMD=disabled` makes it
   register dynamically instead. Needs the `hermes` CLI; synthetic data only.

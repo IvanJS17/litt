@@ -10,7 +10,15 @@
 //   uploads.access.ts     — destination authorization
 //   uploads.sessions.ts   — session lifecycle: create, sign, seal, cancel
 //   uploads.processing.ts — the worker that turns sealed bytes into documents
+//   uploads.open.ts       — open a session: validate, authorize, create
 //   uploads.routes.ts     — the HTTP layer over the above (imports its
 //                           siblings directly, like every other module)
 
 export { startUploadProcessingWorkers } from "./uploads.processing";
+
+// The control plane for transports other than the web routes (the MCP server):
+// the same manifest validation and destination authorization, the same
+// session lifecycle.
+export { openUploadSession } from "./uploads.open";
+export { getUploadSession, completeUploadSessionFile } from "./uploads.sessions";
+export type { UploadFailure } from "./uploads.shared";
