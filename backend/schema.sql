@@ -21702,6 +21702,33 @@ create index if not exists chats_origin_grant_idx
   on public.chats(origin_grant_id, created_at desc)
   where origin_grant_id is not null;
 
+-- ---------------------------------------------------------------------------
+-- 20261117_20_litt_mcp_service_role_grants.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-17
+--
+-- LiTT MCP server: table privileges for the service role.
+--
+-- 20261116_20_litt_mcp_oauth.sql and 20261116_40_litt_mcp_tool_calls.sql
+-- revoked anon/authenticated but never granted the service role, which the
+-- backend uses for every MCP read and write. Where the public schema has no
+-- default privileges for new tables (production), registration failed with
+-- 42501. Every other LiTT table grants explicitly; these now do too.
+--
+-- The OAuth tables need delete because mcp_oauth_purge() runs as the caller.
+-- The two audit tables stay insert-only (their triggers refuse update and
+-- delete anyway). Re-runnable: grant is idempotent.
+
+grant select, insert, update, delete on
+  public.mcp_oauth_clients,
+  public.mcp_oauth_requests,
+  public.mcp_grants,
+  public.mcp_oauth_codes,
+  public.mcp_oauth_tokens
+  to service_role;
+
+grant select, insert on public.mcp_oauth_audit, public.mcp_tool_calls to service_role;
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -21982,5 +22009,6 @@ insert into public.schema_migrations (filename) values
   ('20261116_50_litt_matter_request_counts.sql'),
   ('20261116_60_litt_matter_profile_facts.sql'),
   ('20261116_70_litt_matter_radar_events.sql'),
-  ('20261117_10_litt_chat_origin.sql')
+  ('20261117_10_litt_chat_origin.sql'),
+  ('20261117_20_litt_mcp_service_role_grants.sql')
 on conflict (filename) do nothing;
