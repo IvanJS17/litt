@@ -2326,3 +2326,52 @@ export type MatterRequestRoundInput = {
   /** ISO date; defaults to today. */
   round_date?: string;
 };
+
+/** Counts of the requests of the firm's retainer matters. Numbers and opaque
+ *  labels only: never a title, a matter name, a person or any request text. */
+export type MatterRequestCountsPeriod = "month" | "quarter";
+
+export type MatterRequestCountBreakdown = {
+  total: number;
+  open: number;
+  closed: number;
+  cancelled: number;
+};
+
+export type MatterRequestCounts = {
+  period: MatterRequestCountsPeriod;
+  /** ISO dates (YYYY-MM-DD), both inclusive. */
+  period_start: string;
+  period_end: string;
+  totals: {
+    /** Received in the period. */
+    received: number;
+    open: number;
+    closed: number;
+    cancelled: number;
+    /** Not closed or cancelled at the end of the period. */
+    open_at_end: number;
+    closed_in_period: number;
+    cancelled_in_period: number;
+    /** Distinct negotiation rounds of the requests received in the period. */
+    rounds: number;
+    /** Median calendar days from received to closed of the requests closed
+     *  in the period (never hours); null when none closed. */
+    median_days: number | null;
+  };
+  /** One row per retainer matter, labelled by its position, never by name. */
+  by_matter: Array<
+    MatterRequestCountBreakdown & { ordinal: number; rounds: number; median_days: number | null }
+  >;
+  by_type: Array<
+    MatterRequestCountBreakdown & {
+      type_id: string;
+      seed_key: MatterRequestTypeSeed | null;
+      name: string | null;
+      archived: boolean;
+    }
+  >;
+  by_complexity: Array<MatterRequestCountBreakdown & { key: MatterRequestComplexity }>;
+  by_level: Array<MatterRequestCountBreakdown & { key: MatterRequestLevel | "unassigned" }>;
+  by_status: Array<{ key: MatterRequestStatus; total: number }>;
+};

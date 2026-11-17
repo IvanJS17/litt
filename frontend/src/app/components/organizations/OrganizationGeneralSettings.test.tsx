@@ -63,6 +63,8 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   getOrgLogo: mocks.getOrgLogo,
   saveOrgLogo: mocks.saveOrgLogo,
   deleteOrgLogo: mocks.deleteOrgLogo,
+  // Never answers: this suite is about the section being offered, not its numbers.
+  getRequestCounts: vi.fn(() => new Promise(() => undefined)),
 }));
 vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
   MfaVerificationPopup: ({
@@ -162,6 +164,8 @@ describe("who sees what", () => {
     render(<OrganizationGeneralSettings />);
 
     expect(nameField()).toHaveValue("Elite Law LLP");
+    // The firm's request counts are for owners and admins only.
+    expect(screen.getByRole("region", { name: "Request counts" })).toBeInTheDocument();
     // Admins change this setting too, like the one for personal keys.
     expect(screen.getByRole("switch", { name: "Firm-managed accounts" })).toBeEnabled();
     expect(
@@ -188,6 +192,7 @@ describe("who sees what", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Leave" })).toBeEnabled();
     expect(screen.queryByRole("switch", { name: "Firm-managed accounts" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Request counts" })).not.toBeInTheDocument();
   });
 
   it("offers nothing to press until the organization has loaded", () => {

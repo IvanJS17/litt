@@ -9,6 +9,7 @@ export {
   listMatterRequests,
   updateMatterRequest,
 } from "./requests.items";
+export { getFirmRequestCounts } from "./requests.counts";
 export { linkRound, unlinkRound } from "./requests.rounds";
 export {
   createRequestType,
