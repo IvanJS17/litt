@@ -28,6 +28,9 @@ const allowlist = JSON.parse(readFileSync(allowlistPath, "utf8"));
 // name or an environment variable supplied by the caller.
 // Scope fields are exact matches. `dev` is npm's lockfile classification;
 // the reason must separately assess exposure in the shipped image/bundle.
+// A production-classified copy (`dev: false`) is accepted only with an explicit
+// `notInProductionImage: true` plus the same exact path/version/dependents; the
+// reason must state how absence from the shipped image was verified.
 const workspace = relative(
   realpathSync(join(dirname(allowlistPath), "..")), realpathSync("."),
 ).replaceAll("\\", "/") || ".";
@@ -36,7 +39,8 @@ for (const entry of allowlist) {
       !entry.scopes.every((scope) =>
         typeof scope.workspace === "string" && typeof scope.package === "string" &&
         typeof scope.version === "string" && typeof scope.path === "string" &&
-        scope.dev === true && Array.isArray(scope.dependents) && scope.dependents.length > 0 &&
+        (scope.dev === true || (scope.dev === false && scope.notInProductionImage === true)) &&
+        Array.isArray(scope.dependents) && scope.dependents.length > 0 &&
         scope.dependents.every((parent) => typeof parent === "string"))) {
     throw new Error(`Invalid scoped audit exception: ${entry.ghsa ?? "unknown"}`);
   }
@@ -102,7 +106,8 @@ function isAllowed(exception, matches) {
     return copies.length > 0 && copies.every((copy) => exception.scopes.some((scope) => {
       const parents = [...(dependents.get(copy.path) ?? [])];
       return scope.workspace === workspace && scope.package === copy.name &&
-        scope.version === copy.version && scope.path === copy.path && copy.dev &&
+        scope.version === copy.version && scope.path === copy.path &&
+        (scope.dev === true ? copy.dev : !copy.dev && scope.notInProductionImage === true) &&
         parents.length > 0 && parents.every((parent) => scope.dependents.includes(parent));
     }));
   }));

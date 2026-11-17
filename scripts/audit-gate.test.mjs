@@ -507,3 +507,81 @@ test("a successful isolated probe does not hide a malformed real-package respons
     notStrictEqual(result.status, 0);
     strictEqual(result.stderr.includes("Both advisory services failed"), true);
 });
+
+// Scopes for a copy npm classifies as production but the image does not ship.
+const PM_GHSA = "GHSA-fc5q-39xc-vjpf";
+const PM_PATH = "node_modules/picomatch";
+const PM_PARENT = "node_modules/@parcel/watcher";
+const PM_LOCK = {
+    lockfileVersion: 3,
+    packages: {
+        "": { name: "frontend", version: "1.0.0" },
+        [PM_PARENT]: { version: "2.6.0", dependencies: { picomatch: "^4.0.0" } },
+        [PM_PATH]: { version: "4.0.7" },
+    },
+};
+const pmAllowlist = (scope) => [{
+    ghsa: PM_GHSA, reason: "verified in production container",
+    scopes: [{ workspace: "frontend", package: "picomatch", version: "4.0.7", path: PM_PATH,
+        dependents: [PM_PARENT], ...scope }],
+}];
+function respondWithPicomatchAdvisory() {
+    respond = (url, body) => {
+        if (url === NPM_BULK_PATH) {
+            const report = { "adm-zip": [CANARY_ADVISORY] };
+            if ((body.picomatch ?? []).includes("4.0.7")) {
+                report.picomatch = [{ url: `https://github.com/advisories/${PM_GHSA}`, title: "picomatch test advisory", severity: "high" }];
+            }
+            return { body: report };
+        }
+        return { body: {} };
+    };
+}
+
+test("accepts a production-classified copy only with notInProductionImage", async () => {
+    respondWithPicomatchAdvisory();
+    const result = await runGate(PM_LOCK, { workspace: "frontend", allowlist: pmAllowlist({ dev: false, notInProductionImage: true }) });
+    strictEqual(result.status, 0, result.stderr);
+    strictEqual(result.stdout.includes(`ALLOWLISTED high: ${PM_GHSA}`), true);
+});
+
+test("rejects a production-classified copy without notInProductionImage", async () => {
+    respondWithPicomatchAdvisory();
+    for (const scope of [{ dev: false }, { dev: false, notInProductionImage: false }, { dev: false, notInProductionImage: "true" }]) {
+        const result = await runGate(PM_LOCK, { workspace: "frontend", allowlist: pmAllowlist(scope) });
+        notStrictEqual(result.status, 0, JSON.stringify(scope));
+    }
+});
+
+test("notInProductionImage still requires the exact dependents", async () => {
+    respondWithPicomatchAdvisory();
+    const lock = structuredClone(PM_LOCK);
+    lock.packages["node_modules/new-consumer"] = { version: "1.0.0", dependencies: { picomatch: "^4.0.0" } };
+    const result = await runGate(lock, { workspace: "frontend", allowlist: pmAllowlist({ dev: false, notInProductionImage: true }) });
+    notStrictEqual(result.status, 0, result.stdout);
+    strictEqual(result.stderr.includes("outside the approved dependency scope"), true, result.stderr);
+});
+
+test("notInProductionImage does not apply to another version, path or workspace", async () => {
+    respondWithPicomatchAdvisory();
+    const wrongWorkspace = await runGate(PM_LOCK, { workspace: "backend", allowlist: pmAllowlist({ dev: false, notInProductionImage: true }) });
+    notStrictEqual(wrongWorkspace.status, 0);
+    const wrongPath = await runGate(PM_LOCK, { workspace: "frontend", allowlist: pmAllowlist({ dev: false, notInProductionImage: true, path: "node_modules/x/node_modules/picomatch" }) });
+    notStrictEqual(wrongPath.status, 0);
+});
+
+test("a dev:true scope does not accept a production copy", async () => {
+    respondWithPicomatchAdvisory();
+    const result = await runGate(PM_LOCK, { workspace: "frontend", allowlist: pmAllowlist({ dev: true }) });
+    notStrictEqual(result.status, 0);
+    strictEqual(result.stderr.includes("outside the approved dependency scope"), true, result.stderr);
+});
+
+test("a dev:true scope still accepts a dev copy", async () => {
+    respondWithPicomatchAdvisory();
+    const lock = structuredClone(PM_LOCK);
+    lock.packages[PM_PARENT].dev = true;
+    lock.packages[PM_PATH].dev = true;
+    const result = await runGate(lock, { workspace: "frontend", allowlist: pmAllowlist({ dev: true }) });
+    strictEqual(result.status, 0, result.stderr);
+});
