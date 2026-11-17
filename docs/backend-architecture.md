@@ -203,8 +203,12 @@ Runs live in process memory. A finished run is retained for
 `FINISHED_RUN_RETENTION_MS` (60 s) so a late reconnect still gets the
 terminal frames. Runs stop after five minutes without useful progress or a
 four-hour maximum lifetime (both configurable). Provider calls have separate
-two-minute first-output and 60-second inter-output limits, including waiting
-for response headers. Provider clocks stop at the end of each provider step,
+two-minute first-output and 60-second inter-output limits (production compose
+sets `STREAM_CHUNK_TIMEOUT_MS` to 180 s), including waiting
+for response headers. OpenRouter's SSE keep-alive comments
+(`: OPENROUTER PROCESSING`), which the AI SDK parser drops, are detected by the
+provider's fetch wrapper (`lib/llm/streamLiveness.ts`) and restart the running
+provider clock; a connection with no bytes still times out. Provider clocks stop at the end of each provider step,
 so local tool execution is governed by its own timeout and the run limits.
 Model output refreshes idle even while tabular JSON is buffered; transport
 keep-alives do not. Deadline errors are preserved in history and replay, while
