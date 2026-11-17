@@ -45,6 +45,9 @@
   verified citation, lawyer confirmation and computed staleness
 - [Deadline radar of a retainer matter](deadline-radar.md) — dates computed in
   code from confirmed profile facts, with ack/dismiss/done and a "Today" block
+- [Obligation rules of a retainer matter](obligation-rules.md) — a catalog of
+  verified legal obligations, kept in code, that a lawyer turns on per matter and
+  that the radar counts from a confirmed date.
 - [Managed accounts](managed-accounts.md) — firm-managed accounts without a
   personal space
 - [Settings map](settings-map.md) — which Settings tab lives where, and who sees it

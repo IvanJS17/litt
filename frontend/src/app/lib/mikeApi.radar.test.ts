@@ -55,7 +55,13 @@ describe("deadline radar API", () => {
         },
     );
 
-    it.each([[{}], [null], [{ key: "k" }], [{ key: 5, source: {} }]])("treats %j as a failed action", async (body) => {
+    it("accepts an obligation item that has no anchor fact (no source passage)", async () => {
+        const item = { key: "contract.notice@1:matter", source: null, obligation: { rule_key: "contract.notice@1" } };
+        reply(item);
+        expect(await actOnRadarItem("p", "m", item.key, "ack")).toEqual(item);
+    });
+
+    it.each([[{}], [null], [{ key: "k" }], [{ key: 5, source: {} }], [{ key: "k", source: null, obligation: null }]])("treats %j as a failed action", async (body) => {
         reply(body);
         await expect(actOnRadarItem("p", "m", "k", "ack")).rejects.toThrow("Malformed");
     });

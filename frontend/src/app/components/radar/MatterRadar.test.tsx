@@ -9,12 +9,14 @@ import { MatterRadar } from "./MatterRadar";
 const mocks = vi.hoisted(() => ({
   getMatterRadar: vi.fn(),
   actOnRadarItem: vi.fn(),
+  getMatterObligationRules: vi.fn(),
   notifyError: vi.fn(),
 }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
   getMatterRadar: mocks.getMatterRadar,
   actOnRadarItem: mocks.actOnRadarItem,
+  getMatterObligationRules: mocks.getMatterObligationRules,
 }));
 vi.mock("@/app/lib/userFacingError", () => ({
   notifyError: mocks.notifyError,
@@ -36,6 +38,7 @@ const item = (over: Partial<RadarItem> = {}): RadarItem => ({
   base_on: "2026-12-31",
   notice_days: 30,
   rule_text: null,
+  obligation: null,
   state: "open",
   acted_by: null,
   acted_at: null,
@@ -68,6 +71,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.getMatterRadar.mockResolvedValue(radar());
   mocks.actOnRadarItem.mockResolvedValue(item());
+  mocks.getMatterObligationRules.mockResolvedValue({ retainer: true, can_write: true, rules: [], anchor_choices: [], people: [] });
 });
 
 describe("MatterRadar", () => {
@@ -104,7 +108,7 @@ describe("MatterRadar", () => {
     renderPage();
     await screen.findByRole("article", { name: "Pronto" });
     const headings = screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
-    expect(headings).toEqual(["Overdue", "Next 30 days", "Later", "To review", "Handled"]);
+    expect(headings).toEqual(["Overdue", "Next 30 days", "Later", "To review", "Handled", "Rules"]);
     expect(screen.getByRole("article", { name: "Vencido" })).toHaveTextContent("Nov 10, 2026 · Expired 6 days ago");
     expect(screen.getByRole("article", { name: "Pronto" })).toHaveTextContent("Dec 1, 2026 · In 15 days");
     expect(screen.getByRole("article", { name: "Pronto" })).toHaveTextContent("Calculated: Dec 31, 2026 minus 30 calendar days");
@@ -163,7 +167,7 @@ describe("MatterRadar", () => {
             acted_by: "gone",
             acted_at: "2026-11-16T10:00:00Z",
             reason: "No aplica",
-            source: { ...item().source, version_number: null, filename: null },
+            source: { ...item().source!, version_number: null, filename: null },
           }),
         ],
         people: [],
@@ -283,6 +287,86 @@ describe("MatterRadar", () => {
     const again = renderPage();
     again.unmount();
     await Promise.resolve();
+  });
+
+  const obligation = (over: Partial<NonNullable<RadarItem["obligation"]>> = {}): NonNullable<RadarItem["obligation"]> => ({
+    rule_key: "lft.repse_renovacion@1",
+    name_key: "radar.rules.catalog.lft_repse_renovacion.name",
+    kind: "window",
+    starts_on: "2027-03-01",
+    milestones: [
+      { kind: "opens", ops: [{ unit: "months", amount: 33 }, { adjust: "month_start" }] },
+      { kind: "closes", ops: [{ unit: "months", amount: 35 }, { adjust: "month_end" }] },
+    ],
+    requires_business_days: false,
+    citations: [
+      { source_code: "LFT", law: "Ley Federal del Trabajo", location: "Art. 15, párrafo segundo", text: "El registro a que hace mención este artículo deberá ser renovado cada tres años.", url: "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf", last_reform: "DOF 14-05-2026" },
+    ],
+    notes: "Las fechas del calendario son de un acuerdo administrativo.",
+    ...over,
+  });
+
+  it("shows an obligation item with its rule name, how it is counted, the law's quote, the notes and the fact it counts from", async () => {
+    mocks.getMatterRadar.mockResolvedValue(
+      radar({
+        items: [
+          item({
+            key: "lft.repse_renovacion@1:fact-1",
+            type: "obligation_due",
+            label: "Inscripción REPSE",
+            due_on: "2027-05-31",
+            days_left: 196,
+            bucket: "later",
+            base_on: "2024-06-20",
+            obligation: obligation(),
+          }),
+        ],
+      }),
+    );
+    renderPage();
+    const card = await screen.findByRole("article", { name: "Renewal of the REPSE registration (providers of specialized services or works)" });
+    expect(card).toHaveTextContent("Counted from: Inscripción REPSE");
+    expect(card).toHaveTextContent("Obligation rule");
+    expect(card).toHaveTextContent("The window opens on Mar 1, 2027");
+    expect(card).toHaveTextContent("Opens: 33 calendar months after, then the first day of that month");
+    expect(card).toHaveTextContent("Closes: 35 calendar months after, then the last day of that month");
+    expect(card).toHaveTextContent("Source: Ley Federal del Trabajo, Art. 15, párrafo segundo");
+    expect(within(card).getByLabelText("Quote of the law")).toHaveTextContent("deberá ser renovado cada tres años");
+    expect(within(card).getByRole("link", { name: "Open the official source" })).toHaveAttribute("href", "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf");
+    expect(card).toHaveTextContent("Las fechas del calendario son de un acuerdo administrativo.");
+    // The passage of the fact is still cited.
+    expect(within(card).getByLabelText("Quote")).toHaveTextContent(QUOTE);
+  });
+
+  it("leaves an obligation item whose date was not computed to review, whatever the reason, without a date", async () => {
+    const base = { type: "obligation_due" as const, due_on: null, days_left: null, bucket: "review" as const, base_on: null, notice_days: null, source: null };
+    mocks.getMatterRadar.mockResolvedValue(
+      radar({
+        items: [
+          item({ ...base, key: "a.b@1:fact-1", label: "contract.unknown", review_reason: "anchor_unavailable", obligation: obligation({ name_key: "no.such.key", starts_on: null, notes: null, milestones: [{ kind: "due", ops: [] }], citations: [{ source_code: "X", law: "Ley", location: "Art. 1", text: "T", url: "", last_reform: "DOF 01-01-2020" }] }) }),
+          item({ ...base, key: "c.d@1:fact-1", label: "Hábiles", review_reason: "business_days", obligation: obligation({ requires_business_days: true, milestones: [{ kind: "due", ops: [{ unit: "business_days", amount: -5 }, { unit: "days", amount: 1 }, { unit: "years", amount: -1 }] }] }) }),
+        ],
+      }),
+    );
+    renderPage();
+    await screen.findAllByRole("article");
+    const lost = screen.getAllByRole("article").find((entry) => entry.textContent?.includes("no longer confirmed"))!;
+    expect(lost).toHaveTextContent("contract.unknown");
+    expect(lost).toHaveTextContent("Due: the date itself");
+    expect(within(lost).queryByRole("link", { name: "Open the official source" })).not.toBeInTheDocument();
+    expect(lost).not.toHaveTextContent(/[A-Z][a-z]{2} \d{1,2}, 20\d\d/);
+    const business = screen.getAllByRole("article").find((entry) => entry.textContent?.includes("business days and LiTT"))
+      ?? screen.getAllByRole("article").find((entry) => entry.textContent?.includes("5 business days"))!;
+    expect(business).toHaveTextContent("5 business days (LiTT does not calculate business days), then 1 calendar day after, then 1 calendar year before");
+  });
+
+  it("acts on an obligation item by its key", async () => {
+    mocks.getMatterRadar.mockResolvedValue(
+      radar({ items: [item({ key: "lft.repse_renovacion@1:fact-1", type: "obligation_due", obligation: obligation() })] }),
+    );
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Mark as seen" }));
+    expect(mocks.actOnRadarItem).toHaveBeenCalledWith("project-1", "matter-1", "lft.repse_renovacion@1:fact-1", "ack", {});
   });
 
   it("reads in Spanish, with the planning notice and no hours", async () => {

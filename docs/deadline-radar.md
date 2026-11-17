@@ -19,13 +19,16 @@ when a fact is confirmed and disappears the moment it is rejected or its source
 changes; if the text goes back to what was cited, the item comes back. Nothing
 about the items themselves is stored.
 
+Besides the items computed from facts, a lawyer can turn on [obligation rules](obligation-rules.md): a verified catalog of legal obligations counted, in code, from a confirmed date the lawyer picks. They appear as `obligation_due` items with key `<rule_code>@<version>:<anchor fact id>` and the same actions.
+
 ## Date rules
 
 All arithmetic is in **calendar days** over ISO dates (`radar.dates.ts`, pure and
 unit-tested), independent of the server's zone or daylight saving. Months are
-never computed: a fact stores a number of days, so "31 January + 1 month" cannot
-arise; a notice written in months must be entered as days (or as the rule's
-words, which computes nothing).
+never computed from a fact: a fact stores a number of days, so "31 January + 1
+month" cannot arise there; a notice written in months must be entered as days
+(or as the rule's words, which computes nothing). Only the obligation rules
+count months and years, with an explicit end-of-month rule.
 
 | Fact | Item |
 |---|---|
@@ -90,7 +93,7 @@ retainer matters have a radar (409 `matter_not_retainer` for actions; an empty,
 due within 30 days, or to review, ordered by date, for at most 50 matters
 (`truncated: true` says more were left out).
 
-New client error codes: `radar_reason_required`, `invalid_radar_action`,
+The rules' routes and their codes are in [obligation-rules.md](obligation-rules.md). Client error codes of the radar itself: `radar_reason_required`, `invalid_radar_action`,
 `radar_item_closed` (with `errors.code.*` sentences in both languages).
 
 ## UI
