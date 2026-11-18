@@ -70,6 +70,14 @@ export function reasoningLevelsForModel(
               )
               // Vertex pins Claude versions as "claude-opus-5-5@20260101".
               .replace(/^(vertex\/[^@]+)@/, "$1-");
+    // Direct Claude ids whose adaptive thinking the AI SDK sends "max" for
+    // (effort "max"); a router or cloud prefix is not verified, so it keeps
+    // the standard ladder. Fable and Opus cannot disable thinking.
+    if (/^claude-(?:fable-5-2|opus-5-5|sonnet-5-5)$/.test(model)) {
+        return model.startsWith("claude-sonnet-")
+            ? REASONING_LEVELS
+            : ALWAYS_REASONING_LEVELS;
+    }
     // Astra, Sol 6.1, and current Fable/Opus cannot disable thinking.
     if (
         /(?:^|\/)(?:gpt-6-astra|gpt-6\.1-sol|claude-fable-5-[12]|claude-opus-5-5)(?:$|-)/.test(
@@ -83,7 +91,12 @@ export function reasoningLevelsForModel(
     if (/(?:^|\/)gpt-(?:5\.6|6(?:\.1)?)(?:-|$)/.test(catalogId)) {
         return REASONING_LEVELS;
     }
-    if (/(?:^|\/)mistral-(?:large-4|medium-3-5|small-2603)$/.test(catalogId)) {
+    // Mistral Large 4 always reasons and takes low/medium/high (the SDK's
+    // capability table); "none" is invalid there.
+    if (/(?:^|\/)mistral-large-4$/.test(catalogId)) {
+        return ["low", "medium", "high"];
+    }
+    if (/(?:^|\/)mistral-(?:medium-3-5|small-2603)$/.test(catalogId)) {
         return ["none", "high"];
     }
     return STANDARD_REASONING_LEVELS;

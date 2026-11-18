@@ -5,6 +5,9 @@ import {
   AlertCircle,
   Check,
   ChevronDown,
+  CircleDashed,
+  CircleHelp,
+  Info,
   LoaderCircle,
   Settings2,
 } from "lucide-react";
@@ -114,6 +117,14 @@ export function reasoningLevelsForModel(
         )
         // Vertex pins Claude versions as "claude-opus-5-5@20260101".
         .replace(/^(vertex\/[^@]+)@/, "$1-");
+  // Direct Claude ids whose adaptive thinking the AI SDK sends "max" for
+  // (effort "max"); a router or cloud prefix is not verified, so it keeps
+  // the standard ladder. Fable and Opus cannot disable thinking.
+  if (/^claude-(?:fable-5-2|opus-5-5|sonnet-5-5)$/.test(modelId)) {
+    return modelId.startsWith("claude-sonnet-")
+      ? REASONING_LEVELS
+      : ALWAYS_REASONING_LEVELS;
+  }
   // Astra, Sol 6.1, and current Fable/Opus cannot disable thinking.
   if (
     /(?:^|\/)(?:gpt-6-astra|gpt-6\.1-sol|claude-fable-5-[12]|claude-opus-5-5)(?:$|-)/.test(
@@ -127,7 +138,12 @@ export function reasoningLevelsForModel(
   if (/(?:^|\/)gpt-(?:5\.6|6(?:\.1)?)(?:-|$)/.test(catalogId)) {
     return REASONING_LEVELS;
   }
-  if (/(?:^|\/)mistral-(?:large-4|medium-3-5|small-2603)$/.test(catalogId)) {
+  // Mistral Large 4 always reasons and takes low/medium/high (the SDK's
+  // capability table); "none" is invalid there.
+  if (/(?:^|\/)mistral-large-4$/.test(catalogId)) {
+    return ["low", "medium", "high"];
+  }
+  if (/(?:^|\/)mistral-(?:medium-3-5|small-2603)$/.test(catalogId)) {
     return ["none", "high"];
   }
   return STANDARD_REASONING_LEVELS;
@@ -215,6 +231,7 @@ function composerTriggerClassName({
   compact,
   compactShowsName,
   selected,
+  needsChoice = false,
   tone,
   triggerClassName,
 }: {
@@ -222,6 +239,8 @@ function composerTriggerClassName({
   compact: boolean;
   compactShowsName: boolean;
   selected: boolean;
+  /** No model is chosen yet: an outline asks for one. */
+  needsChoice?: boolean;
   tone: "muted" | "default";
   triggerClassName?: string;
 }): string {
@@ -235,7 +254,11 @@ function composerTriggerClassName({
         ? COMPOSER_GHOST_WORD_ICON_CLASS
         : COMPOSER_GHOST_WEB_ICON_CLASS
       : "",
-    tone === "default" || selected ? "text-gray-700" : "text-gray-500",
+    needsChoice
+      ? "font-medium text-gray-900 ring-1 ring-inset ring-interactive-border"
+      : tone === "default" || selected
+        ? "text-gray-700"
+        : "text-gray-500",
     triggerClassName,
   );
 }
@@ -249,6 +272,12 @@ export interface ModelMenuBodyProps {
   reasoningLevel?: ReasoningLevel;
   reasoningLevels?: readonly ReasoningLevel[];
   onReasoningChange?: (level: ReasoningLevel, source: LadderChangeSource) => void;
+  /** One line per reasoning level, shown under the ladder. */
+  levelHints?: Partial<Record<ReasoningLevel, string>>;
+  /** Why the menu opened ("choose a model"), announced as a status. */
+  note?: string;
+  /** Opens the full guide; the last row of the menu. */
+  onOpenGuide?: () => void;
   /**
    * `false` draws the rows as plain elements, with no menu around them and
    * no handlers: the still picture of the menu (`ModelMenuPreviewUI`).
@@ -270,6 +299,9 @@ export function ModelMenuBodyUI({
   reasoningLevel,
   reasoningLevels = REASONING_LEVELS,
   onReasoningChange,
+  levelHints,
+  note,
+  onOpenGuide,
   interactive = true,
 }: ModelMenuBodyProps) {
   const t = useTranslations();
@@ -294,8 +326,20 @@ export function ModelMenuBodyUI({
   const reasoningName = (level: ReasoningLevel): string =>
     t(REASONING_LEVEL_LABEL_KEYS[level]);
 
+  const shownLevel = previewLevel ?? reasoningLevel;
+  const levelHint = shownLevel ? levelHints?.[shownLevel] : undefined;
+
   return (
     <>
+        {note && (
+          <div
+            role="status"
+            className="mb-1 flex shrink-0 items-start gap-1.5 px-2.5 pb-1 pt-1.5 text-2xs text-gray-700"
+          >
+            <Info aria-hidden="true" className="mt-px h-3 w-3 shrink-0" />
+            <span>{note}</span>
+          </div>
+        )}
         <div
           className={`-mr-1.5 min-h-0 flex-1 overflow-y-auto pr-1.5 ${MODEL_ROWS_CLASS}`}
         >
@@ -331,6 +375,7 @@ export function ModelMenuBodyUI({
                   items.map((model) => (
                     <Item
                       key={model.id}
+                      data-model-row="true"
                       selected={model.id === value}
                       className={`${itemClassName} litt-model-row pl-[18px] ${model.id === value ? "font-medium text-gray-900" : ""}`}
                       {...(interactive && {
@@ -339,6 +384,11 @@ export function ModelMenuBodyUI({
                     >
                       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                         {model.label}
+                        {model.hint && (
+                          <span className="block text-2xs font-normal leading-4 text-gray-500">
+                            {model.hint}
+                          </span>
+                        )}
                       </span>
                       {model.source &&
                         (!["Direct", "Local", "Configured"].includes(model.source) ||
@@ -414,7 +464,26 @@ export function ModelMenuBodyUI({
                     {reasoningName(reasoningLevels.at(-1) ?? reasoningLevel)}
                   </span>
                 </div>
+                {levelHint && (
+                  <p className="mt-1.5 min-h-8 text-2xs leading-4 text-gray-500">
+                    {levelHint}
+                  </p>
+                )}
               </div>
+            </Item>
+          </div>
+        )}
+        {onOpenGuide && (
+          <div className="shrink-0">
+            <Separator className="mx-1 my-1.5 bg-[var(--litt-composer-ring)]" />
+            <Item
+              className={`${itemClassName} text-gray-700`}
+              {...(interactive && { onSelect: () => onOpenGuide() })}
+            >
+              <CircleHelp aria-hidden="true" className="h-3.5 w-3.5" />
+              <span className="min-w-0 flex-1">
+                {t("ui.modelToggle.whichOne")}
+              </span>
             </Item>
           </div>
         )}
@@ -516,6 +585,17 @@ export interface ModelToggleUIProps {
   /** Open state, for a host that opens the picker itself; uncontrolled when omitted. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * No model is chosen and there are models to choose from: the trigger asks
+   * for a choice instead of naming one.
+   */
+  needsChoice?: boolean;
+  /** Why a host opened the picker; the menu says so and focuses a model. */
+  openReason?: "send" | null;
+  /** One line per reasoning level, from the host's catalog. */
+  levelHints?: Partial<Record<ReasoningLevel, string>>;
+  /** Adds «¿Cuál elijo?» to the menu; the host shows the guide. */
+  onOpenGuide?: () => void;
 }
 
 // The grey filled field of ModalSelect's flat variant, so the two can sit
@@ -557,6 +637,10 @@ export function ModelToggleUI({
   working = false,
   open: openProp,
   onOpenChange,
+  needsChoice = false,
+  openReason = null,
+  levelHints,
+  onOpenGuide,
 }: ModelToggleUIProps) {
   const t = useTranslations();
   const TriggerButton = toolbar ? TabPillButtonUI : "button";
@@ -569,12 +653,34 @@ export function ModelToggleUI({
     const items = models.filter((model) => model.group === group);
     return items.length ? [{ group, items }] : [];
   });
-  const label =
-    selectedLabel ??
+  const showNeedsChoice =
+    needsChoice &&
+    selected === undefined &&
+    !loading &&
+    !modalInput &&
+    !toolbar &&
+    !(compact && !compactShowsName);
+  const label = showNeedsChoice
+    ? compact
+      ? t("ui.modelToggle.selectModelCompact")
+      : t("ui.modelToggle.selectModel")
+    : (selectedLabel ??
     selected?.label ??
     (models.length > 0
       ? t("ui.modelToggle.selectModel")
-      : (emptyLabel ?? t("ui.modelToggle.noModels")));
+      : (emptyLabel ?? t("ui.modelToggle.noModels"))));
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+  const hasHints = models.some((model) => model.hint);
+  // Opened to make a choice: the first model takes the focus, so the
+  // keyboard can choose at once. After a tick, because the menu focuses
+  // itself as it mounts.
+  React.useEffect(() => {
+    if (!open || openReason === null) return;
+    const timer = window.setTimeout(() => {
+      menuRef.current?.querySelector<HTMLElement>("[data-model-row]")?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open, openReason]);
   const hasReasoning = reasoningLevel !== undefined && !!onReasoningChange;
   // The thumbnail of the level, beside the name, in the chat composer only.
   const showMini =
@@ -641,7 +747,9 @@ export function ModelToggleUI({
         <TriggerButton
           type="button"
           aria-label={
-            hasReasoning && selected && selectedAvailable && !loading
+            showNeedsChoice
+              ? t("ui.modelToggle.needsChoiceLabel", { label })
+              : hasReasoning && selected && selectedAvailable && !loading
               ? t("ui.modelToggle.chooseModelWithReasoning", {
                   label,
                   level: reasoningName(reasoningLevel),
@@ -651,7 +759,9 @@ export function ModelToggleUI({
           title={
             loading
               ? t("ui.modelToggle.checkingApiKeys")
-              : models.length === 0
+              : showNeedsChoice
+                ? t("ui.modelToggle.needsChoiceLabel", { label })
+                : models.length === 0
                 ? t("ui.modelToggle.noApiKeyConfigured")
                 : selectedAvailable
                   ? t("ui.modelToggle.chooseModelLabel", { label })
@@ -670,6 +780,7 @@ export function ModelToggleUI({
                   compact,
                   compactShowsName,
                   selected: !!selected,
+                  needsChoice: showNeedsChoice,
                   tone,
                   triggerClassName,
                 })
@@ -689,6 +800,9 @@ export function ModelToggleUI({
             <>
               {compact && !selectedAvailable && (
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+              )}
+              {showNeedsChoice && (
+                <CircleDashed aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
               )}
               <span
                 className={`${modalInput ? "min-w-0 flex-1 text-left" : compact ? "min-w-0 max-w-[7.5rem]" : "min-w-0 max-w-[200px]"} truncate ${showMini ? "@max-[18rem]:hidden" : ""}`}
@@ -711,11 +825,13 @@ export function ModelToggleUI({
         </TriggerButton>
       </DropdownTrigger>
       <DropdownContent
+        ref={menuRef}
         side={modalInput || toolbar ? "bottom" : "top"}
         align={modalInput || toolbar ? "start" : "end"}
         sideOffset={modalInput ? 4 : 8}
         className={twMerge(
           MODEL_MENU_CLASS,
+          hasHints && "w-72",
           modalInput && "w-[var(--radix-dropdown-menu-trigger-width)]",
         )}
       >
@@ -732,6 +848,11 @@ export function ModelToggleUI({
           }}
           reasoningLevel={reasoningLevel}
           reasoningLevels={reasoningLevels}
+          levelHints={levelHints}
+          note={
+            openReason === "send" ? t("ui.modelToggle.sendBlocked") : undefined
+          }
+          onOpenGuide={onOpenGuide}
           onReasoningChange={
             onReasoningChange
               ? (next, source) => {

@@ -18,11 +18,13 @@ export const CLAUDE_MODEL_LABEL = "Claude Sonnet 5.5";
 /**
  * Select a Claude model in the chat input's ModelToggle. Its accessible name
  * starts with "Choose model" and then names the model and the reasoning level
- * ("Choose model: Claude Sonnet 5.5, reasoning High"); its tooltip includes the
- * selection even in compact, icon-only project composers.
+ * ("Choose model: Claude Sonnet 5.5, reasoning High"). With no model chosen it
+ * starts with the visible text and says it is needed ("Choose a model. Needed
+ * to send.", or "Choose model. Needed to send." when compact); its tooltip
+ * includes the selection even in compact, icon-only project composers.
  */
 export async function selectClaudeModel(page: Page) {
-    const trigger = page.getByRole("button", { name: /^Choose model/ });
+    const trigger = page.getByRole("button", { name: /^Choose (a )?model/ });
     // Cold hydration under the 4x CPU stress profile can outlast 10 seconds
     // before the authenticated composer mounts, even after route warmup.
     await expect(trigger).toBeVisible({

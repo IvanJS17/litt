@@ -329,6 +329,22 @@ describe("resolveModel for account-specific providers", () => {
 });
 
 describe("reasoningLevelsForModel", () => {
+    it("gives Mistral Large 4 low, medium and high, never none", () => {
+        expect(reasoningLevelsForModel("mistral-large-4")).toEqual(["low", "medium", "high"]);
+        expect(reasoningLevelsForModel("mistral-small-2603")).toEqual(["none", "high"]);
+        expect(reasoningLevelsForModel("mistral-medium-3-5")).toEqual(["none", "high"]);
+        expect(normalizeReasoningLevelForModel("mistral-large-4", "none")).toBe("low");
+    });
+
+    it("adds max for the direct Claude models, never none for Fable 5.2", () => {
+        expect(reasoningLevelsForModel("claude-fable-5-2")).toEqual(["low", "medium", "high", "xhigh", "max"]);
+        expect(reasoningLevelsForModel("claude-opus-5-5")).toEqual(["low", "medium", "high", "xhigh", "max"]);
+        expect(reasoningLevelsForModel("claude-sonnet-5-5")).toEqual(["none", "low", "medium", "high", "xhigh", "max"]);
+        expect(reasoningLevelsForModel("claude-fable-5-1")).toEqual(["low", "medium", "high", "xhigh"]);
+        expect(reasoningLevelsForModel("bedrock/us.anthropic.claude-opus-5-5")).not.toContain("max");
+        expect(normalizeReasoningLevelForModel("claude-fable-5-1", "max")).toBe("xhigh");
+    });
+
     it("recognizes Claude behind Vertex and Foundry ids", () => {
         for (const model of [
             "vertex/claude-opus-5-5@20260101",

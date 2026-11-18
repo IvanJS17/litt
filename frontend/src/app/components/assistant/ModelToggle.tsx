@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ModelToggleUI,
   nearestReasoningLevelForModel,
@@ -25,6 +25,8 @@ import {
 } from "@/app/contexts/WorkspaceContext";
 import { useOllamaModels } from "@/app/hooks/useOllamaModels";
 import { useConfiguredModels } from "@/app/hooks/useConfiguredModels";
+import { useModelGuide } from "@/app/hooks/useModelGuide";
+import { ModelGuideModal } from "./ModelGuideModal";
 
 export type { ReasoningLevel };
 
@@ -73,6 +75,18 @@ interface Props {
    * model is offered. The reasoning level can still change.
    */
   locked?: boolean;
+  /**
+   * The composer needs a model before it can send: with none chosen the
+   * trigger asks for one and the menu offers the guide.
+   */
+  askForChoice?: boolean;
+  /**
+   * A request from the host to open the picker to make a choice (the person
+   * tried to send with no model). A new object is a new request; the toggle
+   * calls `onChoiceHandled` when the menu closes or cannot open.
+   */
+  choiceRequest?: object | null;
+  onChoiceHandled?: () => void;
 }
 
 export function ModelToggle({
@@ -92,8 +106,15 @@ export function ModelToggle({
   onReasoningChange,
   working = false,
   locked = false,
+  askForChoice = false,
+  choiceRequest = null,
+  onChoiceHandled,
 }: Props) {
   const t = useTranslations();
+  const guide = useModelGuide();
+  const [open, setOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [openReason, setOpenReason] = useState<"send" | null>(null);
   const ollamaModels = useOllamaModels();
   const configuredModels = useConfiguredModels();
   const models = mergeConfiguredModelOptions(configuredModels, [
@@ -114,6 +135,23 @@ export function ModelToggle({
     return isModelAvailable(model.id, apiKeys);
   });
   const selected = availableModels.find((model) => model.id === value);
+  const showGuide = askForChoice && !modalInput && !toolbar && !locked;
+  const guidedModels = showGuide
+    ? availableModels.map((model) => {
+        const hint = guide.entryFor(model.id)?.hint;
+        return hint ? { ...model, hint } : model;
+      })
+    : availableModels;
+  // A request to choose opens the menu on the next render, or, with no
+  // model to choose from, says why (the same warning as the empty button).
+  const [seenRequest, setSeenRequest] = useState(choiceRequest);
+  if (choiceRequest !== seenRequest) {
+    setSeenRequest(choiceRequest);
+    if (choiceRequest && availableModels.length > 0 && !apiKeysLoading) {
+      setOpenReason("send");
+      setOpen(true);
+    }
+  }
   const supportedReasoningLevels = reasoningLevelsForModel(value);
   const normalizedReasoningLevel = reasoningLevel
     ? nearestReasoningLevelForModel(value, reasoningLevel)
@@ -142,11 +180,41 @@ export function ModelToggle({
       ? { allowPersonalKeys: orgApiKeys.allow_personal_keys.ai }
       : null;
   const emptyReason = noModelsReason(apiKeys, routerSelections, organization);
+  const choiceHandledRef = useRef(onChoiceHandled);
+  const noModelsClickRef = useRef(onNoModelsClick);
+  const emptyReasonRef = useRef(emptyReason);
+  useEffect(() => {
+    choiceHandledRef.current = onChoiceHandled;
+    noModelsClickRef.current = onNoModelsClick;
+    emptyReasonRef.current = emptyReason;
+  });
+  const cannotOpen =
+    choiceRequest !== null && (availableModels.length === 0 || apiKeysLoading);
+  useEffect(() => {
+    if (!cannotOpen) return;
+    if (!apiKeysLoading) noModelsClickRef.current?.(emptyReasonRef.current);
+    choiceHandledRef.current?.();
+  }, [cannotOpen, choiceRequest, apiKeysLoading]);
   return (
+    <>
     <ModelToggleUI
       value={value}
       onChange={onChange}
-      models={availableModels}
+      models={guidedModels}
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setOpenReason(null);
+          onChoiceHandled?.();
+        }
+      }}
+      needsChoice={
+        askForChoice && value === "" && availableModels.length > 0 && !locked
+      }
+      openReason={openReason}
+      levelHints={showGuide ? guide.levelHints : undefined}
+      onOpenGuide={showGuide ? () => setGuideOpen(true) : undefined}
       selectedLabel={selectedLabel}
       // No model chosen yet is not a missing key: the label says "Select
       // model" and nothing is flagged until a chosen model lacks its key.
@@ -167,5 +235,15 @@ export function ModelToggle({
       reasoningLevels={supportedReasoningLevels}
       working={working}
     />
+    {showGuide && (
+      <ModelGuideModal
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        models={availableModels}
+        value={value}
+        onSelect={onChange}
+      />
+    )}
+    </>
   );
 }

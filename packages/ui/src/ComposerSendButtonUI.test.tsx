@@ -40,6 +40,10 @@ describe("COMPOSER_SEND_BUTTON_CLASS", () => {
             "disabled:bg-[var(--litt-send-bg-disabled)]",
             "disabled:text-[var(--litt-send-fg-disabled)]",
             "disabled:shadow-none",
+            // aria-disabled looks off but still answers a click.
+            "aria-disabled:bg-[var(--litt-send-bg-disabled)]",
+            "aria-disabled:text-[var(--litt-send-fg-disabled)]",
+            "aria-disabled:enabled:hover:bg-[var(--litt-send-bg-disabled)]",
             "motion-reduce:transition-none",
         ]) {
             expect(classes).toContain(c);

@@ -20,6 +20,20 @@ export interface ModelToggleOption {
   group: ModelToggleGroup;
   /** Provider route; direct/local/configured sources only show for duplicates. */
   source?: string;
+  /**
+   * One line under the name in the picker. The host reads it from the
+   * `modelGuide` catalog (see `modelGuideKey`); the picker never writes it.
+   */
+  hint?: string;
+}
+
+/**
+ * The `modelGuide.models` key of a model id. Message keys are paths, so the
+ * dots and slashes of ids ("gpt-6.1-sol", "openrouter/z-ai/glm-5.3") become
+ * hyphens: "gpt-6-1-sol".
+ */
+export function modelGuideKey(modelId: string): string {
+  return modelId.replace(/[./]/g, "-");
 }
 
 export type ModelOption = ModelToggleOption;
