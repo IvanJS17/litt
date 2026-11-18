@@ -36,6 +36,13 @@ export const FINISHED_RUN_RETENTION_MS = 60_000;
  * provider or tool: useful model progress and data frames re-arm it, while
  * transport keep-alives do not. The lifetime is a backstop for a
  * run that emits forever.
+ *
+ * Ceiling: with keep-alives (SSE comments, `event: ping`) a provider step is
+ * governed by STREAM_CHUNK_TIMEOUT_MS (compose: 180000), but those frames do
+ * not re-arm this idle deadline. A run that shows no useful progress for
+ * IDLE_RUN_TIMEOUT_MS (5 min; STREAM_IDLE_TIMEOUT_MS, 30 s-1 h) is aborted
+ * without a retry, so a reasoning model that thinks silently longer than that
+ * needs STREAM_IDLE_TIMEOUT_MS raised, not only the chunk timeout.
  */
 export const MAX_RUN_LIFETIME_MS = 4 * 60 * 60_000;
 export const IDLE_RUN_TIMEOUT_MS = 5 * 60_000;
