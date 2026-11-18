@@ -292,9 +292,14 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
     const killed = error as { killed?: unknown; signal?: unknown } | null;
     const pastDeadline = Date.now() - startedAt >= uploadConversionTimeoutMs();
     if ((killed?.killed === true && killed.signal === "SIGKILL") || pastDeadline) {
+      // Same kind either way (the deadline passed), but the operator log says
+      // whether the process was killed by it or failed on its own past it.
+      const wasKilled = killed?.killed === true && killed.signal === "SIGKILL";
       throw new ConversionError(
         "conversion.timeout",
-        `LibreOffice conversion timed out after ${uploadConversionTimeoutMs()}ms`,
+        wasKilled
+          ? `LibreOffice conversion timed out after ${uploadConversionTimeoutMs()}ms`
+          : `LibreOffice conversion failed after the ${uploadConversionTimeoutMs()}ms deadline (not killed by it)`,
         { cause: error },
       );
     }
