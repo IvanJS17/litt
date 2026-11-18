@@ -2329,7 +2329,7 @@
         "useFor": "revisar contratos, investigar y redactar o corregir escritos."
       }
     },
-    "recommended": "Para empezar: Claude Sonnet 5.5 en Medio para el trabajo diario; sube a Alto para análisis complejos.",
+    "recommended": "Para empezar: Claude Sonnet 5.5 en Medio o Bajo para el trabajo diario.",
     "retention": "La retención depende del proveedor, la ruta, las funciones y el contrato; verifica antes de enviar datos.",
     "updated": "noviembre de 2026"
   },

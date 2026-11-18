@@ -70,9 +70,15 @@ describe.each([
 });
 
 describe("modelGuide recommendation (es-MX)", () => {
-    it("starts from Sonnet 5.5 at Medium and says when to go up", () => {
+    it("starts from Sonnet 5.5 at Medium or Low (R240-W1)", () => {
         expect(esMX.modelGuide.recommended).toBe(
-            "Para empezar: Claude Sonnet 5.5 en Medio para el trabajo diario; sube a Alto para análisis complejos.",
+            "Para empezar: Claude Sonnet 5.5 en Medio o Bajo para el trabajo diario.",
+        );
+    });
+
+    it("says the same in en-US", () => {
+        expect(enUS.modelGuide.recommended).toBe(
+            "To start: Claude Sonnet 5.5 at Medium or Low for everyday work.",
         );
     });
 });
