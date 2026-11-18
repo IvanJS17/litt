@@ -136,7 +136,8 @@ const choices: ModelToggleOption[] = [
 describe("ModelToggleUI asking for a model", () => {
     it("shows a needs-choice trigger with its own name, outline and icon", () => {
         render(<ModelToggleUI value="" onChange={vi.fn()} models={choices} needsChoice compactShowsName compact />);
-        const trigger = screen.getByRole("button", { name: "Choose a model. Needed to send." });
+        // Label in Name (WCAG 2.5.3): the name starts with the visible text.
+        const trigger = screen.getByRole("button", { name: "Choose model. Needed to send." });
         expect(trigger).toHaveTextContent("Choose model");
         expect(trigger).toHaveClass("ring-1", "ring-interactive-border", "font-medium");
         expect(trigger.querySelector("svg")).not.toBeNull();

@@ -748,7 +748,7 @@ export function ModelToggleUI({
           type="button"
           aria-label={
             showNeedsChoice
-              ? t("ui.modelToggle.needsChoiceLabel")
+              ? t("ui.modelToggle.needsChoiceLabel", { label })
               : hasReasoning && selected && selectedAvailable && !loading
               ? t("ui.modelToggle.chooseModelWithReasoning", {
                   label,
@@ -760,7 +760,7 @@ export function ModelToggleUI({
             loading
               ? t("ui.modelToggle.checkingApiKeys")
               : showNeedsChoice
-                ? t("ui.modelToggle.needsChoiceLabel")
+                ? t("ui.modelToggle.needsChoiceLabel", { label })
                 : models.length === 0
                 ? t("ui.modelToggle.noApiKeyConfigured")
                 : selectedAvailable

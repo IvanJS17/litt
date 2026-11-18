@@ -7158,7 +7158,7 @@
       "levelMedium": "Medio",
       "levelNone": "Ninguno",
       "levelXhigh": "Muy alto",
-      "needsChoiceLabel": "Elige un modelo. Hace falta para enviar.",
+      "needsChoiceLabel": "{label}. Hace falta para enviar.",
       "noApiKeyConfigured": "No hay llave de API configurada",
       "noModels": "Sin modelos",
       "noModelsAvailable": "No hay modelos disponibles",

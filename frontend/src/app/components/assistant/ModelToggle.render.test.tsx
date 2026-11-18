@@ -557,7 +557,8 @@ describe("ModelToggle asking for a model (composer)", () => {
         const { rerender } = render(
             <ModelToggle value="" onChange={vi.fn()} apiKeys={claudeKeys()} askForChoice compact compactShowsName />,
         );
-        const trigger = screen.getByRole("button", { name: "Choose a model. Needed to send." });
+        // Label in Name (WCAG 2.5.3): the name starts with the visible text.
+        const trigger = screen.getByRole("button", { name: "Choose model. Needed to send." });
         expect(trigger).toHaveClass("ring-interactive-border");
         expect(trigger).toHaveTextContent("Choose model");
         rerender(<ModelToggle value="" onChange={vi.fn()} apiKeys={claudeKeys()} />);

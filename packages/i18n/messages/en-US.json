@@ -7158,7 +7158,7 @@
       "levelMedium": "Medium",
       "levelNone": "None",
       "levelXhigh": "XHigh",
-      "needsChoiceLabel": "Choose a model. Needed to send.",
+      "needsChoiceLabel": "{label}. Needed to send.",
       "noApiKeyConfigured": "No API key configured",
       "noModels": "No Models",
       "noModelsAvailable": "No models available",
