@@ -75,6 +75,15 @@ gzip -dc | docker load
 [ "$(docker image inspect --format '{{.Id}}' "litt-word:$SHA")" = "$WORD_ID" ] || die "ID de litt-word:$SHA distinto al construido"
 log "imágenes cargadas con los IDs esperados"
 
+# La allowlist de auditoría (scripts/audit-allowlist.json, notInProductionImage) afirma que la
+# imagen del frontend no lleva las herramientas de desarrollo; aquí se comprueba de verdad.
+# Se ejecuta antes de tocar el árbol o los contenedores: si falla, la versión viva sigue igual.
+DEV_ONLY=$(docker run --rm --network none --entrypoint sh "litt-frontend:$SHA" -c \
+  "find / -xdev \\( -path '*/node_modules/@parcel/watcher' -o -path '*/node_modules/micromatch' -o -path '*/node_modules/@opennextjs' \\) -not -path '/usr/local/lib/node_modules/npm/*' 2>/dev/null; true" \
+  ) || die "no se pudo inspeccionar la imagen litt-frontend:$SHA"
+[ -z "$DEV_ONLY" ] || die "litt-frontend:$SHA contiene rutas solo de desarrollo: $(echo "$DEV_ONLY" | tr '\n' ' ')"
+log "imagen del frontend sin rutas solo de desarrollo"
+
 # 4. Árbol del release. Se extrae aparte y se sincroniza: rsync reemplaza cada archivo con
 # un rename atómico, así que los bind-mounts de contenedores vivos (gateway.conf,
 # auth-edge.conf) nunca desaparecen; borrar antes de extraer dejaría una ventana en la que

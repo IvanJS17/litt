@@ -28,6 +28,7 @@ case "\$1 \$2" in
   "image ls") [ "\$3" = --filter ] && exit 0; grep -v '^\$' "$T/tags-\$3" || true; echo '<none>' ;;
   "rmi "*) repo=\${2%%:*} tag=\${2#*:}; [ "\$tag" = '<none>' ] && { echo "Error: invalid reference" >&2; exit 1; }; grep -vx "\$tag" "$T/tags-\$repo" > "$T/t2" || true; mv "$T/t2" "$T/tags-\$repo"
            echo \$(( \$(cat "$T/free") + $GIB )) > "$T/free" ;;
+  "run --rm") [ -f "$T/devonly" ] && cat "$T/devonly"; exit 0 ;;
   "load ") cat > /dev/null; for r in litt-backend litt-frontend litt-word; do echo "$NEW" >> "$T/tags-\$r"; done ;;
   "image inspect") case "\$5" in litt-backend:*) echo "$BID";; litt-word:*) echo "$WID";; *) echo "$FID";; esac ;;
   "compose --env-file")
@@ -65,7 +66,16 @@ check "retención también para litt-word" 'grep -qx "rmi litt-word:$OLD" "$T/ca
 check "nunca usa prune" '! grep -q prune "$T/calls"'
 check "ignora imágenes colgantes (<none>)" '! grep -q "rmi .*<none>" "$T/calls"'
 check "sin carpeta temporal del release" '! ls -d "$T/app"/.release-* > /dev/null 2>&1'
+check "inspecciona la imagen del frontend antes del up" 'grep -n "^run --rm" "$T/calls" | cut -d: -f1 > "$T/a"; grep -n "up -d" "$T/calls" | cut -d: -f1 > "$T/b"; [ "$(cat "$T/a")" -lt "$(cat "$T/b")" ]'
 check "marcador borrado al terminar" '[ ! -e "$T/app/.deploy-in-progress" ]'
+rm -rf "$T"
+
+# 2b. La imagen del frontend con rutas solo de desarrollo: aborta antes de tocar el árbol y la viva sigue.
+setup $((20 * GIB))
+echo /app/node_modules/@opennextjs > "$T/devonly"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza imagen con rutas solo de desarrollo" '[ $st -ne 0 ] && grep -q "solo de desarrollo" "$T/out" && grep -q "^run --rm" "$T/calls"'
+check "no toca árbol, .env ni arranca contenedores" '[ -f "$T/app/viejo.txt" ] && grep -qx "LITT_SOURCE_COMMIT=$LIVE" "$T/app/.env" && ! grep -q "up -d" "$T/calls"'
 rm -rf "$T"
 
 # 3. Sin WORD_ADDIN_URL en .env: aborta antes de marcar, cargar o tocar el árbol.
