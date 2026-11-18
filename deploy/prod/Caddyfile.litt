@@ -26,6 +26,8 @@ word.litt.asteroitt.com {
 # documentos .well-known de OAuth, por el mismo gateway /api de la web (litt:3000
 # reenvía /api/* al backend). Todo lo demás de este host responde 404. Con
 # LITT_MCP_SERVER=disabled el backend también contesta 404 en esas rutas.
+# El matcher `path` de Caddy ignora mayúsculas (/MCP también entra) y el enrutado de Express
+# tampoco distingue mayúsculas; no abre nada nuevo: la autorización la decide el backend, no el matcher.
 mcp.litt.asteroitt.com {
 	@mcp path /mcp /mcp/* /oauth/* /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/* /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/*
 	handle @mcp {

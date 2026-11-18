@@ -585,3 +585,18 @@ test("a dev:true scope still accepts a dev copy", async () => {
     const result = await runGate(lock, { workspace: "frontend", allowlist: pmAllowlist({ dev: true }) });
     strictEqual(result.status, 0, result.stderr);
 });
+
+// Allowlist entries that carry "REVIEW BY YYYY-MM-DD" must be re-evaluated by that
+// date: once it passes this test fails, so the exception cannot outlive its review
+// unnoticed (the gate itself only validates the entry's shape).
+test("no audit-allowlist entry is past its REVIEW BY date", async () => {
+    const { readFileSync } = await import("node:fs");
+    const allowlist = JSON.parse(readFileSync(join(dirname(gatePath), "audit-allowlist.json"), "utf8"));
+    const today = new Date().toISOString().slice(0, 10);
+    const overdue = [];
+    for (const entry of allowlist) {
+        const match = /REVIEW BY (\d{4}-\d{2}-\d{2})/.exec(entry.reason ?? "");
+        if (match && match[1] < today) overdue.push(`${entry.ghsa} (review by ${match[1]})`);
+    }
+    deepStrictEqual(overdue, [], "re-evaluate these exceptions and update their REVIEW BY date or remove them");
+});

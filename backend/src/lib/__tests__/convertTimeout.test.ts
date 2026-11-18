@@ -136,6 +136,9 @@ describe("docxToPdf deadline when soffice mentions an error", () => {
       error_kind: "conversion.timeout",
       failure_code: "conversion_timeout",
     });
+    // Not the execFile SIGKILL: the message must not claim the deadline killed it.
+    expect(failure.message).toContain("failed after the");
+    expect(failure.message).not.toContain("timed out");
   });
 });
 
