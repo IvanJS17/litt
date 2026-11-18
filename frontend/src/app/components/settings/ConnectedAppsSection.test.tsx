@@ -136,7 +136,11 @@ describe("ConnectedAppsSection connect guide", () => {
         fireEvent.click(screen.getByRole("button", { name: "Copy address" }));
         await waitFor(() => expect(writeText).toHaveBeenCalledWith(SERVER_URL));
         expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
-        expect(screen.getByRole("status").textContent).toBe("Copied");
+        // The announcement lives outside the button, so it never takes the button's name.
+        const status = screen.getByRole("status");
+        expect(status.textContent).toBe("Copied");
+        expect(status.closest("button")).toBeNull();
+        expect(screen.getByRole("button", { name: "Copied" }).querySelector("[role]")).toBeNull();
     });
 
     it("also shows it above existing connections", async () => {

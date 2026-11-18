@@ -151,8 +151,10 @@ function ConnectGuide({ serverUrl }: { serverUrl: string }) {
             </code>
             <PillButtonUI tone="white" type="button" onClick={() => void copy()}>
               {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-              <span role="status">{copied ? t("copied") : t("copy")}</span>
+              {copied ? t("copied") : t("copy")}
             </PillButtonUI>
+            {/* Announced outside the button so the visible label stays its accessible name. */}
+            <span role="status" className="sr-only">{copied ? t("copied") : ""}</span>
           </div>
         </div>
         <div className="space-y-1">
