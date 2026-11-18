@@ -64,7 +64,9 @@ import {
   updateEmail,
   updatePassword,
   verificationSchema,
+  verifyEmailToken,
   verifyMfaChallenge,
+  verifyOtpSchema,
   signupSchema,
 } from "./auth.service";
 import {
@@ -334,6 +336,26 @@ authRouter.post("/invite-session", asyncRoute(async (req, res) => {
       accessToken: parsed.data.accessToken,
       refreshToken: parsed.data.refreshToken,
     });
+    if (error || !data.user || !data.session) {
+      clearRequestAuthCookies(req, res);
+      return authError(res, error);
+    }
+    res.json({ user: publicAuthUser(data.user) });
+  } catch (error) {
+    authError(res, error);
+  }
+}));
+
+// The recovery email links to /auth/confirm?token_hash=...; the page posts the
+// hash here once the person clicks. Verifying server-side needs no PKCE
+// verifier cookie, so the link works in any browser.
+authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
+  setOperation("auth.signin");
+  const parsed = verifyOtpSchema.safeParse(req.body);
+  if (!parsed.success) return invalidBody(res);
+  try {
+    const client = createRequestSupabase(req, res);
+    const { data, error } = await verifyEmailToken(client, parsed.data);
     if (error || !data.user || !data.session) {
       clearRequestAuthCookies(req, res);
       return authError(res, error);

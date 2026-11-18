@@ -289,7 +289,7 @@ app.use(generalLimiter);
 
 app.post("/auth/login", authLoginIpLimiter);
 app.post(["/auth/signup", "/auth/password-reset"], authEmailLimiter);
-app.post(["/auth/oauth", "/auth/exchange", "/auth/handoff"], authFlowLimiter);
+app.post(["/auth/oauth", "/auth/exchange", "/auth/verify-otp", "/auth/handoff"], authFlowLimiter);
 app.post(
   ["/auth/mfa/verify", "/auth/mfa/challenge-and-verify"],
   authMfaLimiter,

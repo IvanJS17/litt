@@ -9,7 +9,7 @@
           <p style="margin:0 0 24px;font-size:28px;font-weight:bold;letter-spacing:1px;color:#151A26;">LiTT<span style="color:#965900;">.</span></p>
           <h1 style="margin:0 0 12px;font-size:22px;font-weight:normal;color:#151A26;">Recupera tu contraseña de LiTT</h1>
           <p style="margin:0 0 24px;font-size:15px;line-height:1.5;color:#151A26;">Recibimos una solicitud para cambiar tu contraseña de LiTT. Elige una nueva con el siguiente botón.</p>
-          <p style="margin:0 0 24px;"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 24px;background:#151A26;color:#ECECE6;text-decoration:none;border-radius:999px;font-family:Arial,sans-serif;font-size:15px;">Cambiar mi contraseña</a></p>
+          <p style="margin:0 0 24px;"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery&amp;next=/reset-password" style="display:inline-block;padding:12px 24px;background:#151A26;color:#ECECE6;text-decoration:none;border-radius:999px;font-family:Arial,sans-serif;font-size:15px;">Cambiar mi contraseña</a></p>
           <p style="margin:0;font-size:13px;line-height:1.5;color:#565a66;">Si no lo solicitaste, ignora este correo: tu contraseña no cambiará.</p>
         </td></tr>
       </table>

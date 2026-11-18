@@ -88,6 +88,15 @@ export const exchangeSchema = z.object({
   code: z.string().trim().min(1).max(4096),
   handoffRequestId: handoffRequestIdSchema.optional(),
 });
+/**
+ * The token hash of an emailed link. Only `recovery` is accepted: it is the one
+ * link verified server-side so it opens in any browser, not just the one that
+ * asked for it (a PKCE code needs that browser's verifier cookie).
+ */
+export const verifyOtpSchema = z.object({
+  token_hash: z.string().trim().min(1).max(4096),
+  type: z.literal("recovery"),
+});
 /** The tokens GoTrue puts in the URL hash of an invitation link. */
 export const inviteSessionSchema = z.object({
   accessToken: z.string().trim().min(1).max(4096),
@@ -244,6 +253,14 @@ export function startSsoSignIn(
 
 export function exchangeCodeForSession(client: SupabaseClient, code: string) {
   return client.auth.exchangeCodeForSession(code);
+}
+
+/** Spend an emailed token hash for a session (set as cookies by the client). */
+export function verifyEmailToken(
+  client: SupabaseClient,
+  args: { token_hash: string; type: "recovery" },
+) {
+  return client.auth.verifyOtp(args);
 }
 
 /** Mint a one-shot ticket the Word add-in trades for a cookie session. */

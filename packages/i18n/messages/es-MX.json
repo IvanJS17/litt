@@ -528,6 +528,13 @@
       "confirmationSent": "Enviamos un enlace de confirmación a tu correo electrónico. Confirma tu dirección antes de iniciar sesión.",
       "returnToLogin": "Volver al inicio de sesión"
     },
+    "confirm": {
+      "action": "verificar tu enlace",
+      "continue": "Continuar",
+      "description": "Por seguridad, confirma que quieres cambiar tu contraseña. El enlace solo se puede usar una vez.",
+      "title": "Continuar para crear tu nueva contraseña",
+      "verifying": "Verificando…"
+    },
     "errors": {
       "accountExists": "Ya existe una cuenta con este correo. Mejor inicia sesión.",
       "captchaFailed": "La verificación de seguridad no se superó. Recarga la página e inténtalo de nuevo.",

@@ -19,6 +19,7 @@ const {
       signInWithOAuth: vi.fn(),
       signInWithSSO: vi.fn(),
       exchangeCodeForSession: vi.fn(),
+      verifyOtp: vi.fn(),
       resetPasswordForEmail: vi.fn(),
       signOut: vi.fn(),
       setSession: vi.fn(),
@@ -769,6 +770,84 @@ describe("auth routes", () => {
         session,
       }),
     );
+  });
+
+  describe("POST /auth/verify-otp", () => {
+    it("verifies a recovery token hash on the cookie client", async () => {
+      authClient.auth.verifyOtp.mockResolvedValue({
+        data: { user, session },
+        error: null,
+      });
+
+      const response = await request(app)
+        .post("/auth/verify-otp")
+        .set("Origin", origin)
+        .send({ token_hash: "hash-1", type: "recovery" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.user.id).toBe(user.id);
+      expect(JSON.stringify(response.body)).not.toContain("server-only-token");
+      expect(authClient.auth.verifyOtp).toHaveBeenCalledWith({
+        token_hash: "hash-1",
+        type: "recovery",
+      });
+      // The client that sets the session cookies is the request-bound one.
+      expect(createRequestSupabase).toHaveBeenCalledTimes(1);
+      expect(createRequestSupabase.mock.calls[0]).toHaveLength(2);
+    });
+
+    it.each(["signup", "invite", "email_change", "magiclink", "", undefined])(
+      "rejects type %s with 400 without calling GoTrue",
+      async (type) => {
+        const response = await request(app)
+          .post("/auth/verify-otp")
+          .set("Origin", origin)
+          .send({ token_hash: "hash-1", type });
+
+        expect(response.status).toBe(400);
+        expect(authClient.auth.verifyOtp).not.toHaveBeenCalled();
+      },
+    );
+
+    it("rejects a missing token hash", async () => {
+      const response = await request(app)
+        .post("/auth/verify-otp")
+        .set("Origin", origin)
+        .send({ type: "recovery" });
+
+      expect(response.status).toBe(400);
+      expect(authClient.auth.verifyOtp).not.toHaveBeenCalled();
+    });
+
+    it("maps an expired or used link to a 4xx with its code", async () => {
+      authClient.auth.verifyOtp.mockResolvedValue({
+        data: { user: null, session: null },
+        error: Object.assign(new Error("Email link is invalid or has expired"), {
+          status: 403,
+          code: "otp_expired",
+        }),
+      });
+
+      const response = await request(app)
+        .post("/auth/verify-otp")
+        .set("Origin", origin)
+        .send({ token_hash: "spent", type: "recovery" });
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(response.body.code).toBe("otp_expired");
+      expect(clearRequestAuthCookies).toHaveBeenCalled();
+    });
+
+    it("rejects an untrusted origin", async () => {
+      const response = await request(app)
+        .post("/auth/verify-otp")
+        .set("Origin", "https://attacker.example")
+        .send({ token_hash: "hash-1", type: "recovery" });
+
+      expect(response.status).toBe(403);
+      expect(authClient.auth.verifyOtp).not.toHaveBeenCalled();
+    });
   });
 
   it("turns the tokens of an invitation link into a cookie session", async () => {

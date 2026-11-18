@@ -38,6 +38,16 @@ describe("GoTrue mail templates (production)", () => {
         expect(html).toContain("{{ .NewEmail }}");
     });
 
+    it("the recovery mail links to the server-side token_hash confirmation, not to the PKCE link", () => {
+        const html = readFileSync(join(REPO, "frontend/public/email-templates/recovery.html"), "utf8");
+        expect(html).toContain("{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery&amp;next=/reset-password");
+        expect(html).not.toContain("{{ .ConfirmationURL }}");
+    });
+
+    it("GoTrue's SITE_URL is the public URL the recovery link is built on", () => {
+        expect(compose).toMatch(/GOTRUE_SITE_URL: \$\{PUBLIC_URL:\?required\}/);
+    });
+
     it("the reauthentication mail shows the code", () => {
         const html = readFileSync(join(REPO, "frontend/public/email-templates/reauthentication.html"), "utf8");
         expect(html).toContain("{{ .Token }}");
