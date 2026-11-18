@@ -336,7 +336,11 @@ mcpConsentRouter.get(
     "/grants",
     requireAuth,
     asyncRoute(async (_req, res) => {
-        res.json({ grants: await listGrantsForUser(createServerSupabase(), res.locals.userId as string) });
+        res.json({
+            grants: await listGrantsForUser(createServerSupabase(), res.locals.userId as string),
+            // The address people paste into Claude or ChatGPT to connect LiTT.
+            server_url: mcpConfig().resource,
+        });
     }),
 );
 

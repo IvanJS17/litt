@@ -5063,7 +5063,7 @@
         },
         "connectedApps": {
           "title": "Connected apps",
-          "help": "The AI apps, like Claude, that you let into your LiTT account. See what they can do and cut their access."
+          "help": "The AI apps, like Claude or ChatGPT, that you let into your LiTT account. See how to connect them, what they can do, and cut their access."
         }
       },
       "firmTab": {
@@ -5179,7 +5179,29 @@
       },
       "unknownFirm": "Firm",
       "untitledChat": "Untitled conversation",
-      "workspaces": "Workspaces"
+      "workspaces": "Workspaces",
+      "guide": {
+        "title": "Connect LiTT to Claude or ChatGPT",
+        "intro": "The connection starts in the AI app, not here. Copy this address and paste it there as a custom connector.",
+        "urlLabel": "LiTT server address",
+        "copy": "Copy address",
+        "copied": "Copied",
+        "claudeHeading": "With Claude",
+        "claudeStep1": "In Claude open \"Customize\" > \"Connectors\" and choose \"+\" > \"Add custom connector\". Use the name \"LiTT\".",
+        "claudeStep2": "Paste the address above and choose \"Continue\".",
+        "claudeStep3": "Keep the detected sign-in and \"Use Claude's published identity (Recommended)\", then choose \"Add\".",
+        "claudeStep4": "Sign in to LiTT and pick the workspaces and permissions on LiTT's consent screen.",
+        "claudeTeam": "On Team and Enterprise plans an Owner adds the connector in \"Organization settings\" > \"Connectors\"; each member then chooses \"Connect\" in \"Customize\" > \"Connectors\". The free plan allows one custom connector.",
+        "claudeLink": "Claude's official guide",
+        "chatgptHeading": "With ChatGPT",
+        "chatgptNote": "Custom MCP servers are available on the web for ChatGPT Business and Enterprise/Edu. Admins or owners (or, on Enterprise/Edu, members who were granted permission) can add them. With a personal Plus or Pro account you may not have this option.",
+        "chatgptStep1": "Open \"Plugins\" and choose \"+\" > \"Add custom MCP server\".",
+        "chatgptStep2": "Enter a name and paste the address above under \"Connection\".",
+        "chatgptStep3": "Choose OAuth as the authentication and tick the risk checkbox.",
+        "chatgptStep4": "Choose \"Create as a plugin\" and sign in to LiTT when asked.",
+        "chatgptLink": "ChatGPT's official guide",
+        "after": "After connecting, the app appears below with its permissions, and you can remove its access any time."
+      }
     }
   },
   "shared": {
