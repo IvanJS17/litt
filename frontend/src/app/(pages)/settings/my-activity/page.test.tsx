@@ -680,16 +680,22 @@ describe("MyActivitySettingsPage", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: "Export" }));
     expect(mockedStartUserExport).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Export CSV" }));
-
-    await waitFor(() =>
-      expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(2),
-    );
-    // The download starts after the second status call resolves, a tick
-    // later than the call itself; asserting it synchronously raced on CI.
-    await waitFor(() =>
-      expect(mockedDownloadUserExport).toHaveBeenCalledWith("export-1"),
-    );
+    // The poll loop sleeps on setTimeout. Drive it with fake timers from here
+    // on, so no wall-clock wait decides the count and a loop that outlives its
+    // test is discarded with its timers instead of calling into the next one.
+    // (The clicks use fireEvent: user-event itself sleeps on setTimeout.)
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    await vi.advanceTimersByTimeAsync(0); // startUserExport resolves, the loop sleeps
+    await vi.advanceTimersByTimeAsync(10); // poll 1: pending
+    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(1);
+    expect(mockedDownloadUserExport).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(10); // poll 2: done
+    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(2);
+    expect(mockedDownloadUserExport).toHaveBeenCalledWith("export-1");
+    // Finished: no further poll however long it waits.
+    await vi.advanceTimersByTimeAsync(100);
+    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(2);
   });
 
   it("stops polling the export job when the person leaves the page", async () => {
@@ -702,14 +708,16 @@ describe("MyActivitySettingsPage", () => {
       screen.getByRole("button", { name: "My Activity actions" }),
     );
     await user.click(screen.getByRole("menuitem", { name: "Export" }));
-    await user.click(screen.getByRole("button", { name: "Export CSV" }));
-    await waitFor(() => expect(mockedGetUserExportStatus).toHaveBeenCalled());
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(1);
 
     unmount();
-    const calls = mockedGetUserExportStatus.mock.calls.length;
     // Five poll intervals (POLL_MS is 10 ms under test) with nobody asking.
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(calls);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(mockedGetUserExportStatus).toHaveBeenCalledTimes(1);
     expect(mockedDownloadUserExport).not.toHaveBeenCalled();
   });
 
