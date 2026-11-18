@@ -5063,7 +5063,7 @@
         },
         "connectedApps": {
           "title": "Aplicaciones conectadas",
-          "help": "Las apps de IA, como Claude, a las que le diste acceso a tu cuenta de LiTT. Aquí ves qué pueden hacer y puedes cortar el acceso."
+          "help": "Las apps de IA, como Claude o ChatGPT, a las que le diste acceso a tu cuenta de LiTT. Aquí ves cómo conectarlas, qué pueden hacer y puedes cortar el acceso."
         }
       },
       "firmTab": {
@@ -5179,7 +5179,29 @@
       },
       "unknownFirm": "Despacho",
       "untitledChat": "Conversación sin título",
-      "workspaces": "Espacios"
+      "workspaces": "Espacios",
+      "guide": {
+        "title": "Conectar LiTT con Claude o ChatGPT",
+        "intro": "La conexión se inicia desde la app de IA, no desde aquí. Copia esta dirección y pégala allá como conector personalizado.",
+        "urlLabel": "Dirección del servidor de LiTT",
+        "copy": "Copiar dirección",
+        "copied": "Copiada",
+        "claudeHeading": "Con Claude",
+        "claudeStep1": "En Claude abre \"Customize\" > \"Connectors\" y elige \"+ Add\" > \"Add custom connector\". Usa el nombre \"LiTT\".",
+        "claudeStep2": "Pega la dirección de arriba y pulsa \"Continue\". Revisa la autenticación que Claude detectó y pulsa \"Continue\" otra vez.",
+        "claudeStep3": "En \"Authentication\" elige \"Sign in now\"; en \"OAuth client\" deja \"Use Claude's published identity (Recommended)\". Pulsa \"Add\".",
+        "claudeStep4": "Inicia sesión en LiTT y elige los espacios y permisos en la pantalla de autorización de LiTT.",
+        "claudeTeam": "En planes Team y Enterprise, un Owner agrega el conector en \"Organization settings\" > \"Connectors\" con \"Add\" > \"Custom\" > \"Web\"; después cada miembro pulsa \"Connect\" en \"Customize\" > \"Connectors\". El plan gratuito permite un conector personalizado.",
+        "claudeLink": "Guía oficial de Claude",
+        "chatgptHeading": "Con ChatGPT",
+        "chatgptNote": "Los servidores MCP personalizados están disponibles en la web de ChatGPT Business y Enterprise/Edu. Los administradores o propietarios del espacio (o, en Enterprise/Edu, los miembros con permiso) pueden agregarlos. Con una cuenta personal Plus o Pro es posible que no tengas esta opción.",
+        "chatgptStep1": "Abre \"Plugins\" y pulsa \"+\" > \"Add custom MCP server\".",
+        "chatgptStep2": "Escribe un nombre y pega la dirección de arriba en \"Connection\".",
+        "chatgptStep3": "Elige OAuth como autenticación y acepta la casilla de riesgo.",
+        "chatgptStep4": "Pulsa \"Create as a plugin\" e inicia sesión en LiTT cuando te lo pida.",
+        "chatgptLink": "Guía oficial de ChatGPT",
+        "after": "Al conectar, la app aparece abajo con sus permisos, y puedes quitarle el acceso cuando quieras."
+      }
     }
   },
   "shared": {

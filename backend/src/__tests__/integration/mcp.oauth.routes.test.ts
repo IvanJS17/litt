@@ -606,6 +606,7 @@ describe("revocation", () => {
     it("lets the person list and revoke their connected apps, and nobody else's", async () => {
         const { token } = await connect();
         const list = await request(app).get("/mcp-connect/grants");
+        expect(list.body.server_url).toBe(RESOURCE);
         expect(list.body.grants).toHaveLength(1);
         expect(list.body.grants[0]).toMatchObject({ client_name: "Claude", scopes: ["litt.read", "litt.chat"] });
         const id = list.body.grants[0].id as string;

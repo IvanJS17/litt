@@ -4257,8 +4257,8 @@ describe("organization private content", () => {
 describe("connected apps (MCP grants)", () => {
     it("lists the person's live connections from the grants envelope", async () => {
         const grants = [{ id: "g1", client_name: "Claude" }];
-        fetchMock.mockResolvedValue(jsonResponse({ grants }));
-        await expect(listMcpGrants()).resolves.toEqual(grants);
+        fetchMock.mockResolvedValue(jsonResponse({ grants, server_url: "https://mcp.example/mcp" }));
+        await expect(listMcpGrants()).resolves.toEqual({ grants, server_url: "https://mcp.example/mcp" });
         const { url, init } = lastFetchCall();
         expect(url).toBe("/api/mcp-connect/grants");
         expect(init.method ?? "GET").toBe("GET");

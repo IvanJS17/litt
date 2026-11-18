@@ -2121,10 +2121,15 @@ export interface McpGrant {
     expires_at: string;
 }
 
+/** The connections plus the server address an AI app is given to connect. */
+export interface McpGrantList {
+    grants: McpGrant[];
+    server_url: string;
+}
+
 /** The person's live connections. A 404 means the server does not offer MCP connections. */
-export async function listMcpGrants(): Promise<McpGrant[]> {
-    const result = await apiRequest<{ grants: McpGrant[] }>("mcp.grants", "/mcp-connect/grants");
-    return result.grants;
+export async function listMcpGrants(): Promise<McpGrantList> {
+    return apiRequest<McpGrantList>("mcp.grants", "/mcp-connect/grants");
 }
 
 /** Ends the connection; the app's next call is refused. */

@@ -27,6 +27,10 @@ const grant = (over: Partial<McpGrant> = {}): McpGrant => ({
     ...over,
 });
 
+const SERVER_URL = "https://mcp.test.example/mcp";
+const mockList = (grants: McpGrant[]) =>
+    vi.mocked(listMcpGrants).mockResolvedValue({ grants, server_url: SERVER_URL });
+
 const apiError = (status: number) => new MikeApiError({ message: "x", status, code: null });
 
 beforeEach(() => {
@@ -38,7 +42,7 @@ afterEach(cleanup);
 
 describe("ConnectedAppsSection", () => {
     it("lists each connection with app, workspaces, permissions and dates", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant(), grant({ id: "g2", client_name: "Hermes", scopes: ["litt.run", "custom"], workspaces: ["org-9"], last_used_at: null })]);
+        mockList([grant(), grant({ id: "g2", client_name: "Hermes", scopes: ["litt.run", "custom"], workspaces: ["org-9"], last_used_at: null })]);
         render(<ConnectedAppsSection />);
         expect(screen.getByText("Loading…")).toBeTruthy();
         const claude = (await screen.findByText("Claude")).closest("li")!;
@@ -52,7 +56,7 @@ describe("ConnectedAppsSection", () => {
     });
 
     it("shows an empty state", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([]);
+        mockList([]);
         render(<ConnectedAppsSection />);
         expect(await screen.findByText(/You have not connected any app yet/)).toBeTruthy();
     });
@@ -72,7 +76,7 @@ describe("ConnectedAppsSection", () => {
     });
 
     it("asks before removing access, then removes the row", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         vi.mocked(revokeMcpGrant).mockResolvedValue(undefined);
         render(<ConnectedAppsSection />);
         fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
@@ -84,7 +88,7 @@ describe("ConnectedAppsSection", () => {
     });
 
     it("lets the person back out of the confirmation", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         render(<ConnectedAppsSection />);
         fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
         fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -93,7 +97,7 @@ describe("ConnectedAppsSection", () => {
     });
 
     it("drops a row that was already revoked elsewhere", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         vi.mocked(revokeMcpGrant).mockImplementation(() => Promise.reject(apiError(404)));
         render(<ConnectedAppsSection />);
         fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
@@ -102,13 +106,55 @@ describe("ConnectedAppsSection", () => {
     });
 
     it("keeps the row and reports when removing fails", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         vi.mocked(revokeMcpGrant).mockImplementation(() => Promise.reject(apiError(500)));
         render(<ConnectedAppsSection />);
         fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
         fireEvent.click(screen.getByRole("button", { name: "Yes, remove" }));
         expect(await screen.findByRole("alert")).toBeTruthy();
         expect(screen.getByText("Claude")).toBeTruthy();
+    });
+});
+
+describe("ConnectedAppsSection connect guide", () => {
+    it("shows the server's address with a copy button and the official steps", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+        mockList([]);
+        render(<ConnectedAppsSection />);
+        expect(await screen.findByText("Connect LiTT to Claude or ChatGPT")).toBeTruthy();
+        expect(screen.getByText(SERVER_URL)).toBeTruthy();
+        expect(screen.getByText(/Add custom connector/)).toBeTruthy();
+        expect(screen.getByText(/Add custom MCP server/)).toBeTruthy();
+        expect(screen.getByText(/Plus or Pro account you may not have this option/)).toBeTruthy();
+        expect(screen.getByRole("link", { name: "Claude's official guide" }).getAttribute("href")).toBe(
+            "https://support.claude.com/en/articles/11175166",
+        );
+        expect(screen.getByRole("link", { name: "ChatGPT's official guide" }).getAttribute("href")).toBe(
+            "https://help.openai.com/en/articles/12584461",
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Copy address" }));
+        await waitFor(() => expect(writeText).toHaveBeenCalledWith(SERVER_URL));
+        expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+        // The announcement lives outside the button, so it never takes the button's name.
+        const status = screen.getByRole("status");
+        expect(status.textContent).toBe("Copied");
+        expect(status.closest("button")).toBeNull();
+        expect(screen.getByRole("button", { name: "Copied" }).querySelector("[role]")).toBeNull();
+    });
+
+    it("also shows it above existing connections", async () => {
+        mockList([grant()]);
+        render(<ConnectedAppsSection />);
+        expect(await screen.findByText(SERVER_URL)).toBeTruthy();
+        expect(screen.getByText("Claude")).toBeTruthy();
+    });
+
+    it("is not shown when the server has connections turned off", async () => {
+        vi.mocked(listMcpGrants).mockImplementation(() => Promise.reject(apiError(404)));
+        render(<ConnectedAppsSection />);
+        await screen.findByText(/does not have connections with AI apps turned on/);
+        expect(screen.queryByText("Connect LiTT to Claude or ChatGPT")).toBeNull();
     });
 });
 
@@ -127,7 +173,7 @@ describe("ConnectedAppsSection activity", () => {
     });
 
     it("shows what the app did and the conversations it started, with links, only when asked", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         vi.mocked(getMcpGrantActivity).mockResolvedValue(activity());
         render(<ConnectedAppsSection />);
         const toggle = await screen.findByRole("button", { name: "Show activity" });
@@ -147,7 +193,7 @@ describe("ConnectedAppsSection activity", () => {
     });
 
     it("says so when the app has done nothing and started nothing", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         vi.mocked(getMcpGrantActivity).mockResolvedValue(activity({ calls: [], chats: [] }));
         render(<ConnectedAppsSection />);
         fireEvent.click(await screen.findByRole("button", { name: "Show activity" }));
@@ -156,7 +202,7 @@ describe("ConnectedAppsSection activity", () => {
     });
 
     it("reports a failure to load and shows an empty record", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         vi.mocked(getMcpGrantActivity).mockImplementation(() => Promise.reject(apiError(500)));
         render(<ConnectedAppsSection />);
         fireEvent.click(await screen.findByRole("button", { name: "Show activity" }));
@@ -165,7 +211,7 @@ describe("ConnectedAppsSection activity", () => {
     });
 
     it("ignores an answer that arrives after the panel was closed", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant()]);
+        mockList([grant()]);
         let finish!: (value: McpGrantActivity) => void;
         let fail!: (reason: unknown) => void;
         vi.mocked(getMcpGrantActivity)
@@ -184,7 +230,7 @@ describe("ConnectedAppsSection activity", () => {
     });
 
     it("closes the panel when the connection is removed", async () => {
-        vi.mocked(listMcpGrants).mockResolvedValue([grant(), grant({ id: "g2", client_name: "Hermes" })]);
+        mockList([grant(), grant({ id: "g2", client_name: "Hermes" })]);
         vi.mocked(getMcpGrantActivity).mockResolvedValue(activity());
         vi.mocked(revokeMcpGrant).mockResolvedValue(undefined);
         render(<ConnectedAppsSection />);
