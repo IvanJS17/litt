@@ -429,8 +429,11 @@ describe("a firm-managed account", () => {
     it("an account nobody manages still lands in Personal", async () => {
         window.localStorage.setItem(STORAGE_KEY, PERSONAL_WORKSPACE);
         renderProvider();
-        await waitFor(() => expect(screen.getByText(/personal\|personal\|loaded\|none/)).toBeInTheDocument());
-        expect(latest.personalWorkspaceDisabled).toBe(false);
+        // `latest` is written during the provider's render, so it can lag the DOM text.
+        await waitFor(() => {
+            expect(screen.getByText(/personal\|personal\|loaded\|none/)).toBeInTheDocument();
+            expect(latest.personalWorkspaceDisabled).toBe(false);
+        });
     });
 });
 
