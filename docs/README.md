@@ -88,7 +88,7 @@ Each line gives the feature and its state. "Flag" names the environment switch.
 ## Upstream and governance
 
 - [Upstream policy](UPSTREAM_POLICY.md) — how LiTT takes MikeOSS changes; current pin and next intake
-- [Upstream compatibility ledger](UPSTREAM_COMPATIBILITY_LEDGER.md) — per-cycle dispositions of upstream changes (cycle 12, 2026-11-16, is the latest)
+- [Upstream compatibility ledger](UPSTREAM_COMPATIBILITY_LEDGER.md) — per-cycle dispositions of upstream changes (cycle 13, 2026-11-17, is the latest)
 - [Upstream sync plan](UPSTREAM_SYNC_PLAN.md) — the 2026-10-23 sync plan (completed)
 - [Technical debt](TECHNICAL_DEBT.md) and [open follow-ups](followups.md)
 - [Release gates](RELEASE_GATES.md) — the gates before production
@@ -100,7 +100,7 @@ Each line gives the feature and its state. "Flag" names the environment switch.
 These files keep the context of completed work. They are not current setup or
 architecture guidance.
 
-- [Project status history](PROJECT_STATUS_HISTORY.md) — dated snapshots up to 2026-11-16
+- [Project status history](PROJECT_STATUS_HISTORY.md) — dated snapshots up to 2026-11-17
 - [Upstream recovery plan](UPSTREAM_RECOVERY_PLAN.md) — historical since the 2026-10-23 sync
 - [Phase 3 recovery decision](PHASE3_RECOVERY_DECISION.md) — the recovery decision package
 - [Recovery evidence](recovery-evidence/README.md) — evidence from the recovery

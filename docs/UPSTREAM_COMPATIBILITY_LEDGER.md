@@ -2041,3 +2041,11 @@ CourtListener (modify/delete: the deletion is kept).
 the 3 `sourceDocuments` files (deleted), the LDH files and the support e-mail
 files; `package.json` merged by hand (above); `mikeApi.ts` (Word add-in) keeps
 LiTT's functions and drops the unused one.
+
+### 33.4 Watch
+
+The 23 version downgrades relative to `main` (frontend 16, word-addin 7) are byte-identical to
+the upstream lockfile resolution at the pin (reviewer `t_d6dc82cd` on PR #234). None is a
+direct dependency. Only `@napi-rs/canvas` (1.1.1 to 1.1.0, optional, used by pdf.js) is a
+production dependency, and it is not in the image. No advisory and no test covers the delta.
+Watch for a native render failure; no code change.

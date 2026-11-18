@@ -205,6 +205,14 @@ v4-only bundle cannot. Keep a compatible add-in build for those devices.
 Do not clear browser/add-in storage to resolve a version error: device-only
 chats have no durable server copy.
 
+### Theme migration rollback
+
+Migration `20261114_10_litt_theme.sql` replaces the `dark_mode` boolean with `theme` (`light`,
+`dark`, `system`) and drops `dark_mode`. Rolling back the application image does not restore
+`dark_mode`, so a rollback does not bring back the Dark mode choices people made. How a build
+from before the migration behaves against the new schema is not verified here. Do not delete
+migration ledger rows to undo it (see the rule above).
+
 ### Playbook review publication upgrade
 
 `20261107_01_playbook_review_publication.sql` adds atomic publication of a
