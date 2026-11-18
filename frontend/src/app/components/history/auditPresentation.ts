@@ -416,7 +416,7 @@ export function auditDetailFields(
     // The names of the fields that changed, never what they say.
     const changed = Array.isArray(detail.changed_fields) ? detail.changed_fields : [];
     const names = changed.flatMap((field) =>
-      typeof field === "string" && field in PROFILE_FIELD_KEYS
+      typeof field === "string" && Object.hasOwn(PROFILE_FIELD_KEYS, field)
         ? [t(`history.audit.profileField.${field as ProfileFieldName}`)]
         : [],
     );

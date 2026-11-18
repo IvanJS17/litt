@@ -150,10 +150,13 @@ export function ModelToggle({
     : availableModels;
   // A request to choose opens the menu on the next render, or, with no
   // model to choose from, says why (the same warning as the empty button).
-  const [seenRequest, setSeenRequest] = useState(choiceRequest);
-  if (choiceRequest !== seenRequest) {
-    setSeenRequest(choiceRequest);
-    if (choiceRequest && availableModels.length > 0 && !apiKeysLoading) {
+  // While the keys load nothing is offered yet, so a request to choose stays
+  // queued (not handled, not dropped) and acts once they are known.
+  const actionableRequest = apiKeysLoading ? null : choiceRequest;
+  const [seenRequest, setSeenRequest] = useState(actionableRequest);
+  if (actionableRequest !== seenRequest) {
+    setSeenRequest(actionableRequest);
+    if (actionableRequest && availableModels.length > 0) {
       setOpenReason("send");
       setOpen(true);
     }
@@ -163,7 +166,11 @@ export function ModelToggle({
     ? nearestReasoningLevelForModel(value, reasoningLevel)
     : undefined;
   useEffect(() => {
+    // With no model chosen there is no ladder to normalize against: the
+    // generic one has no "max", and persisting its answer would overwrite a
+    // saved max with xhigh before the person has picked a model.
     if (
+      value &&
       reasoningLevel &&
       normalizedReasoningLevel &&
       normalizedReasoningLevel !== reasoningLevel &&
@@ -171,7 +178,7 @@ export function ModelToggle({
     ) {
       onReasoningChange(normalizedReasoningLevel);
     }
-  }, [normalizedReasoningLevel, onReasoningChange, reasoningLevel]);
+  }, [normalizedReasoningLevel, onReasoningChange, reasoningLevel, value]);
   const selectedLabel = apiKeysLoading
     ? (models.find((model) => model.id === value)?.label ?? t("assistant.modelToggle.selectModel"))
     : (selected?.label ??
@@ -194,13 +201,12 @@ export function ModelToggle({
     noModelsClickRef.current = onNoModelsClick;
     emptyReasonRef.current = emptyReason;
   });
-  const cannotOpen =
-    choiceRequest !== null && (availableModels.length === 0 || apiKeysLoading);
+  const cannotOpen = actionableRequest !== null && availableModels.length === 0;
   useEffect(() => {
     if (!cannotOpen) return;
-    if (!apiKeysLoading) noModelsClickRef.current?.(emptyReasonRef.current);
+    noModelsClickRef.current?.(emptyReasonRef.current);
     choiceHandledRef.current?.();
-  }, [cannotOpen, choiceRequest, apiKeysLoading]);
+  }, [cannotOpen, actionableRequest]);
   return (
     <>
     <ModelToggleUI

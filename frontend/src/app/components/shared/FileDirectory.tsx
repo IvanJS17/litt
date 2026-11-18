@@ -49,6 +49,7 @@ const DIRECTORY_TABS = [
     { value: "templates", labelKey: "shared.fileDirectory.templates" },
     { value: "projects", labelKey: "shared.fileDirectory.projects" },
 ] as const satisfies readonly { value: DirectoryTab; labelKey: AppKey }[];
+type DirectoryTabOption = { value: DirectoryTab; labelKey: AppKey };
 const ALL_DIRECTORY_TAB_VALUES = DIRECTORY_TABS.map((tab) => tab.value);
 
 const EMPTY_DOCUMENTS: Document[] = [];
@@ -175,8 +176,14 @@ function WorkspaceFileDirectory({
     const initialDirectoryTab = tabs.includes(initialTab)
         ? initialTab
         : (tabs[0] ?? "files");
-    const availableTabs = DIRECTORY_TABS.filter((tab) =>
-        tabs.includes(tab.value),
+    // "Other projects" only where the list leaves out the one being worked
+    // on; a caller with no destination lists every project.
+    const availableTabs: readonly DirectoryTabOption[] = DIRECTORY_TABS.filter(
+        (tab) => tabs.includes(tab.value),
+    ).map((tab) =>
+        tab.value === "projects" && !destination
+            ? { ...tab, labelKey: "shared.fileDirectory.allProjects" as const }
+            : tab,
     );
     const [selectedTab, setSelectedTab] =
         useState<DirectoryTab>(initialDirectoryTab);
@@ -1249,7 +1256,11 @@ function WorkspaceFileDirectory({
                         !q &&
                         visibleDirectoryProjects.length === 0 && (
                             <p className="text-center text-sm text-gray-400 py-8">
-                                {t("shared.fileDirectory.emptyProjects")}
+                                {t(
+                                    destination
+                                        ? "shared.fileDirectory.emptyProjects"
+                                        : "shared.fileDirectory.emptyAllProjects",
+                                )}
                             </p>
                         )}
             {activeTab === "projects" && !q && (
@@ -1322,7 +1333,7 @@ function FileDirectoryControls({
     onChange: (tab: DirectoryTab) => void;
     selectedCount: number;
     showTabs: boolean;
-    tabs: readonly (typeof DIRECTORY_TABS)[number][];
+    tabs: readonly DirectoryTabOption[];
 }) {
     const t = useTranslations();
     return (

@@ -195,7 +195,15 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
         setLoading(true);
         setError("");
         try {
-            if (pendingProject) {
+            // "Continue" after a partial upload hands the project over, but
+            // only once every listed file has had its attempt: a file added
+            // after the failure was never sent, so it falls through to the
+            // normal flow below, which uploads it (and retries the failed
+            // ones) instead of closing over it silently.
+            const neverAttempted = pendingFiles.some(
+                (file) => !uploadClientIdsRef.current.has(file),
+            );
+            if (pendingProject && !neverAttempted) {
                 let project = pendingProject;
                 if (project.memory_enabled !== memoryEnabled) {
                     await setProjectMemoryEnabled(project.id, memoryEnabled);

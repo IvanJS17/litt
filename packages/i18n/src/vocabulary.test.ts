@@ -25,7 +25,12 @@ function leaves(tree: Tree, prefix = ""): [string, string][] {
 describe("es-MX vocabulary", () => {
     it("says «despacho» and «Mis llaves», never «organización» or «BYOK»", () => {
         const offenders = leaves(esMX as Tree)
-            .filter(([path]) => !EXEMPT.some((p) => path.startsWith(p)) && !SEARCH_KEYWORDS.test(path))
+            .filter(
+                ([path]) =>
+                    // A trailing dot exempts a whole subtree; anything else is one exact key.
+                    !EXEMPT.some((p) => (p.endsWith(".") ? path.startsWith(p) : path === p)) &&
+                    !SEARCH_KEYWORDS.test(path),
+            )
             .filter(([, text]) => OLD_NAMES.test(text))
             .map(([path, text]) => `${path}: ${text}`);
         expect(offenders).toEqual([]);

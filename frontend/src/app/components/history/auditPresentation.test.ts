@@ -178,6 +178,13 @@ describe("audit event presentation", () => {
     ]);
     expect(auditDetailFields({ ...changed, detail: { org_id: "o", changed_fields: [] } })).toEqual([]);
     expect(auditDetailFields({ ...changed, detail: null })).toEqual([]);
+    // Names inherited from Object.prototype are not profile fields (P-197-R1).
+    expect(
+      auditDetailFields({
+        ...changed,
+        detail: { org_id: "o", changed_fields: ["constructor", "toString", "hq_city"] },
+      }),
+    ).toEqual([{ label: "Fields changed", value: "Headquarters city" }]);
     configureClientLocale("es-MX", await loadMessages("es-MX"));
     try {
       expect(auditAction(changed)).toBe("Perfil del despacho actualizado");

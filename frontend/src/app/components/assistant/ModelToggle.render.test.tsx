@@ -649,6 +649,57 @@ describe("ModelToggle asking for a model (composer)", () => {
         expect(onChoiceHandled).toHaveBeenCalled();
     });
 
+    it("does not rewrite a saved max while no model is chosen (R240-W7)", () => {
+        const onReasoningChange = vi.fn();
+        const { rerender } = render(
+            <ModelToggle
+                value=""
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                reasoningLevel="max"
+                onReasoningChange={onReasoningChange}
+            />,
+        );
+        expect(onReasoningChange).not.toHaveBeenCalled();
+        // With a model whose ladder lacks max, the stale level still moves.
+        rerender(
+            <ModelToggle
+                value="gemini-3.8-flash"
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                reasoningLevel="max"
+                onReasoningChange={onReasoningChange}
+            />,
+        );
+        expect(onReasoningChange).toHaveBeenCalledWith("xhigh");
+    });
+
+    it("keeps a refused send queued while keys load, then opens the picker (R240-W5)", async () => {
+        const onChoiceHandled = vi.fn();
+        const toggle = (loading: boolean, request: object | null) => (
+            <ModelToggle
+                value=""
+                onChange={vi.fn()}
+                apiKeys={loading ? undefined : claudeKeys()}
+                apiKeysLoading={loading}
+                askForChoice
+                choiceRequest={request}
+                onChoiceHandled={onChoiceHandled}
+            />
+        );
+        const request = {};
+        const { rerender } = render(toggle(true, null));
+        rerender(toggle(true, request));
+        // Not dropped: still pending, nothing opened yet.
+        expect(onChoiceHandled).not.toHaveBeenCalled();
+        expect(screen.queryByRole("menu")).toBeNull();
+        rerender(toggle(false, request));
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            "To send your message, choose a model.",
+        );
+        expect(onChoiceHandled).not.toHaveBeenCalled();
+    });
+
     it("«Which one should I pick?» opens the guide and «Use this» selects the model", async () => {
         const onChange = vi.fn();
         render(<ModelToggle value="" onChange={onChange} apiKeys={claudeKeys()} askForChoice />);

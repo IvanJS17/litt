@@ -653,6 +653,74 @@ describe("NewProjectModal sharing", () => {
     );
   });
 
+    it("uploads a file added after a partial upload before Continue closes (P-239-R2, P-239-R1)", async () => {
+        const user = userEvent.setup({ delay: null });
+        const onCreated = renderModal();
+        vi.mocked(uploadProjectDocuments).mockImplementation(
+            async (_id, inputs) =>
+                inputs.map((input) =>
+                    input.file.name === "failed.pdf"
+                        ? {
+                              clientId: input.clientId ?? "x",
+                              filename: "failed.pdf",
+                              status: "error" as const,
+                              result: null,
+                              errorCode: "processing_failed",
+                          }
+                        : {
+                              clientId: input.clientId ?? "y",
+                              filename: input.file.name,
+                              status: "completed" as const,
+                              result: {
+                                  id: `doc-${input.file.name}`,
+                                  filename: input.file.name,
+                              } as never,
+                              errorCode: null,
+                          },
+                ),
+        );
+        await user.type(screen.getByPlaceholderText("Add project name"), "P");
+        const fileInput =
+            document.querySelector<HTMLInputElement>('input[type="file"]')!;
+        fireEvent.change(fileInput, {
+            target: {
+                files: [
+                    new File(["a"], "saved.pdf"),
+                    new File(["b"], "failed.pdf"),
+                ],
+            },
+        });
+        await submit(user);
+        await screen.findByRole("button", { name: "Continue" });
+        // P-239-R1: the landed file reads "Uploaded"; one is still to upload.
+        expect(screen.getByText("Uploaded")).toBeInTheDocument();
+        expect(screen.getByText(/To upload \(1\)/)).toBeInTheDocument();
+
+        fireEvent.change(fileInput, {
+            target: { files: [new File(["c"], "late.pdf")] },
+        });
+        await user.click(screen.getByRole("button", { name: "Continue" }));
+
+        // The late file is sent (with the failed one retried) instead of the
+        // modal closing over it; failed.pdf fails again, so it stays open.
+        await waitFor(() =>
+            expect(uploadProjectDocuments).toHaveBeenCalledTimes(2),
+        );
+        const lastBatch = vi.mocked(uploadProjectDocuments).mock.calls.at(-1)![1];
+        expect(lastBatch.map((input) => input.file.name).sort()).toEqual([
+            "failed.pdf",
+            "late.pdf",
+        ]);
+        expect(onCreated).not.toHaveBeenCalled();
+        // Every listed file has now had its attempt: Continue hands over.
+        await user.click(
+            await screen.findByRole("button", { name: "Continue" }),
+        );
+        await waitFor(() => expect(onCreated).toHaveBeenCalled());
+        expect(uploadProjectDocuments).toHaveBeenCalledTimes(2);
+        expect(createProject).toHaveBeenCalledTimes(1);
+    });
+
     it("shows direct sharing only on step two with Owner, Editor and Viewer", async () => {
         const user = userEvent.setup({ delay: null });
         renderModal();
