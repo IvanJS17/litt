@@ -4,7 +4,7 @@
 
 Repository: https://github.com/IvanJS17/litt (issues are disabled; code proposals go through pull requests). Production deploys are tagged `prod-YYYYMMDDx` in Git, each pointing to the commit that runs; most are also published as a GitHub release. Every build embeds its commit; the app links to that source (AGPL-3.0 section 13).
 
-Current production deploy: `20261117d` (commit `1e11b983b`, tag `prod-20261117d`).
+Current production deploy: `20261117g` (commit `cca74bf67`, tag `prod-20261117g`).
 
 Read first: the repository's agent rules and the current state. Local setup uses synthetic data only. Production state and open items change; check PROJECT_STATUS.md before relying on them.
 

@@ -7,8 +7,8 @@ improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
 **Current pin:** upstream `4cbf434e9b0517dd94b6d37b23fd1dd959d5c919`, reached by
-cycle 13 (2026-11-17; ledger [§33](UPSTREAM_COMPATIBILITY_LEDGER.md)) once its PR is
-merged; the previous pin was cycle 12 (`3edd321a`, §32, PR #205). Legal Data Hunter
+cycle 13 (2026-11-17; ledger [§33](UPSTREAM_COMPATIBILITY_LEDGER.md)), merged as PR #234
+and deployed in `20261117e`; the previous pin was cycle 12 (`3edd321a`, §32, PR #205). Legal Data Hunter
 is deferred (reverted in a separate commit, to be integrated later as its own topic),
 the upstream support e-mail is rejected, and dependency bumps are adopted without
 Sentry. Upstream may have moved past this pin since the cut; the next intake lists
