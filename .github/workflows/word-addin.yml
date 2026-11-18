@@ -85,6 +85,20 @@ jobs:
       # headers and proxy are only covered here.
       - run: npm run test:server
 
+      # The shipped bundle is `npm run build` (word-addin/Dockerfile), not the
+      # e2e build below: it also validates the production-only inputs
+      # (REACT_APP_WEB_APP_URL, a same-origin API base, GIT_SHA) and rewrites
+      # manifest.xml for the deployed origin, none of which the e2e build
+      # touches. No image is built (TD-024); the values are placeholders that
+      # only satisfy those checks, and dist/ is discarded by the e2e build.
+      - name: Production build
+        run: npm run build
+        env:
+          GIT_SHA: ${{ github.sha }}
+          REACT_APP_API_BASE_URL: /api
+          REACT_APP_WEB_APP_URL: https://app.example.test
+          WORD_ADDIN_PUBLIC_URL: https://addin.example.test
+
       # Both engines: webkit is the browser the assertions were written for
       # (see header), chromium guards the honours-overflow-anchor path.
       - name: Install Playwright browsers

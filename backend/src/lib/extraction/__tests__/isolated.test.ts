@@ -139,6 +139,15 @@ describe("runIsolatedExtraction", () => {
     expect(diagnosticErrorTags(error)).toMatchObject({ error_kind: "extraction.process_exited", failure_code: "SIGKILL" });
   });
 
+  // At its memory cap the parser can die of a SIGSEGV (the stack cannot grow)
+  // rather than an abort; that is the budget being exceeded, not a crash to retry.
+  it.skipIf(process.platform === "win32").each(["SIGSEGV", "SIGBUS", "SIGABRT"] as const)("reports a parser that %s mid-parse as over its memory budget", async (signal) => {
+    const pending = runIsolatedExtraction("spreadsheet", async () => workbook()).catch((caught: unknown) => caught);
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalled());
+    (vi.mocked(spawn).mock.results.at(-1)!.value as ChildProcess).kill(signal);
+    expect(await pending).toBeInstanceOf(ExtractionLimitError);
+  });
+
   // Upstream #799 also forced Node mode for a packaged Electron backend; LiTT
   // has no desktop app, so only this half applies: the parser's environment
   // is an allowlist, and an ambient Electron flag is not on it.

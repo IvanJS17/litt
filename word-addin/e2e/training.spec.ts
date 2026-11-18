@@ -398,6 +398,26 @@ const scrollTopOf = (page: import("@playwright/test").Page) =>
     return scroller ? Math.round(scroller.scrollTop) : -1;
   });
 
+// A wheel scroll animates in WebKit: `scrollTop` is already past a threshold
+// while the scroll is still running, and a later frame of it overrides a
+// focus scroll made meanwhile. Resolve once the position has held across
+// frames in two consecutive reads.
+async function scrollSettled(page: import("@playwright/test").Page) {
+  let previous: number | undefined;
+  await expect
+    .poll(async () => {
+      const before = await scrollTopOf(page);
+      await page.evaluate(
+        () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+      );
+      const after = await scrollTopOf(page);
+      const held = before === after && after === previous;
+      previous = after;
+      return held;
+    })
+    .toBe(true);
+}
+
 const isClear = (button: import("@playwright/test").Locator) =>
   button.evaluate((element) => {
     const box = element.getBoundingClientRect();
@@ -463,6 +483,7 @@ test("tabbing to a control under the composer scrolls it into view and stays the
   await page.mouse.move(200, 120);
   await page.mouse.wheel(0, 1200);
   await expect.poll(() => scrollTopOf(page)).toBeGreaterThan(300);
+  await scrollSettled(page);
   // A keyboard user's way there: Tab, from wherever focus is, to the control.
   // A click on the answer text gives the page the keyboard, as it would.
   await page.mouse.click(200, 120);

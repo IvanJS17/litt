@@ -343,6 +343,12 @@ test("a clean SSE cancellation finalizes and persists a partial local turn", asy
             // Deliberately leave the stream open. readSSE handles AbortSignal by
             // cancelling its reader, which resolves rather than throwing.
           },
+          // With the default high-water mark, the stream asks for more only
+          // once the app's reader has taken both queued frames: the page's
+          // signal that the partial change was read.
+          pull() {
+            (window as unknown as { __partialRead?: boolean }).__partialRead = true;
+          },
         });
         return new Response(body, {
           status: 200,
@@ -372,6 +378,13 @@ test("a clean SSE cancellation finalizes and persists a partial local turn", asy
     .getByPlaceholder("How can I help?")
     .fill("Finish this change locally");
   await page.getByRole("button", { name: "Send" }).click();
+  // Stop only once the pane has read the partial change off the stream: the
+  // card draws nothing while it receives, so the page offers no signal, and
+  // stopping earlier cancels an empty turn with nothing partial to finalize.
+  // `pull` runs when the reader has drained both queued frames.
+  await page.waitForFunction(
+    () => (window as unknown as { __partialRead?: boolean }).__partialRead === true,
+  );
   await expect(page.getByText("Receiving change…")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Stop" }).click();

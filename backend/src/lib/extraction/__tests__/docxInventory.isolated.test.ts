@@ -73,9 +73,12 @@ describe("docxInventory in the parser process", () => {
     const bytes = lyingDocx(640 * 1024 * 1024);
     expect(bytes.length).toBeLessThan(2 * 1024 * 1024);
     const before = process.memoryUsage().rss;
-    await expect(
-      runIsolatedExtraction("docxInventory", async () => toBuffer(bytes), { fileType: "docx" }),
-    ).rejects.toBeInstanceOf(ExtractionLimitError);
+    const failure = await runIsolatedExtraction("docxInventory", async () => toBuffer(bytes), { fileType: "docx" }).then(
+      () => undefined,
+      (caught: unknown) => caught,
+    );
+    // Name how the parser died if it was not the limit, so a CI failure is diagnosable.
+    expect(failure, `parser ended with ${String((failure as { code?: unknown })?.code ?? failure)}`).toBeInstanceOf(ExtractionLimitError);
     const grown = process.memoryUsage().rss - before;
     // Inflating 640 MB here would grow the process by at least that much.
     expect(grown).toBeLessThan(100 * 1024 * 1024);

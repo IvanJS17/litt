@@ -37,6 +37,12 @@ test("the managed-account clause is reachable as /terminos#5-5, in the same tab"
     await page.route("**/api/**", (route) => route.fulfill({ status: 401, json: { detail: "Not signed in" } }));
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/terminos#5-5");
+    // The browser scrolls to the anchor on first paint; hydration, the client
+    // chrome and late font swaps then move the layout under it. Assert the
+    // position only once the page has hydrated and its fonts are in.
+    await expect(page.getByRole("link", { name: "Back" })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
     const clause = page.locator("li[id='5-5']");
     await expect(clause).toContainText("Cuentas administradas por el despacho");
     await expect(clause).toBeInViewport();
