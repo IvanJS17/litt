@@ -86,6 +86,7 @@ describe("word add-in model catalog", () => {
             "bedrock/arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-opus-5-5",
             "bedrock/us.anthropic.claude-sonnet-5-5",
             "bedrock/meta.llama4-maverick-17b-instruct-v1:0",
+            "openrouter/z-ai/glm-5.3-flashx-legal",
         ]) {
             expect(reasoningLevelsForModel(id)).toEqual(backendReasoningLevels(id));
         }

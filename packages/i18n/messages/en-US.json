@@ -2325,8 +2325,9 @@
         "useFor": "instruction following, reasoning, and coding."
       },
       "openrouter-z-ai-glm-5-3-flashx-legal": {
-        "hint": "Contract review and drafting",
-        "useFor": "legal research, contract review, and legal drafting."
+        "hint": "Specialized in legal tasks; low cost",
+        "useFor": "review contracts, research, and draft or revise filings (per OpenRouter and Z.ai).",
+        "notice": "Documented for English and Chinese only; countries not published. Check Mexican law."
       }
     },
     "recommended": "To start: Claude Sonnet 5.5 at Medium for everyday work; move up to High for complex analysis.",
@@ -7182,6 +7183,8 @@
       "reasoningLevelValue": "Reasoning level: {level}",
       "routeConfigured": "Configured",
       "routeDirect": "Direct",
+      "previousGone": "{model} is no longer available in your firm. Choose another.",
+      "previousGonePersonal": "{model} is no longer available with your keys. Choose another.",
       "routeLocal": "Local",
       "selectModel": "Choose a model",
       "selectModelCompact": "Choose model",

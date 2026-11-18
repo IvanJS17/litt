@@ -206,9 +206,10 @@ four-hour maximum lifetime (both configurable). Provider calls have separate
 two-minute first-output and 60-second inter-output limits (production compose
 sets `STREAM_CHUNK_TIMEOUT_MS` to 180 s), including waiting
 for response headers. OpenRouter's SSE keep-alive comments
-(`: OPENROUTER PROCESSING`), which the AI SDK parser drops, are detected by the
-provider's fetch wrapper (`lib/llm/streamLiveness.ts`) and restart the running
-provider clock; a connection with no bytes still times out. Provider clocks stop at the end of each provider step,
+(`: OPENROUTER PROCESSING`) and Anthropic's `event: ping` frames (direct, Azure
+Foundry and Vertex-Anthropic routes; Bedrock does not use plain SSE), which the
+AI SDK parser drops, are detected by the provider's fetch wrapper
+(`lib/llm/streamLiveness.ts`) and restart the running provider clock; a connection with no bytes still times out. Provider clocks stop at the end of each provider step,
 so local tool execution is governed by its own timeout and the run limits.
 Model output refreshes idle even while tabular JSON is buffered; transport
 keep-alives do not. Deadline errors are preserved in history and replay, while

@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { streamAiSdk } from "./aiSdk";
 import { config, finish, text } from "./__tests__/mockLanguageModel";
-import { sseCommentDetector, withSseKeepAlive } from "./streamLiveness";
+import {
+  runWithLivenessListener,
+  sseCommentDetector,
+  withSseKeepAlive,
+} from "./streamLiveness";
 
 const enc = new TextEncoder();
 
@@ -40,6 +44,60 @@ describe("sseCommentDetector", () => {
   });
 });
 
+describe("sseCommentDetector with Anthropic pings", () => {
+  const PING = 'event: ping\ndata: {"type": "ping"}\n\n';
+
+  it("recognizes an event: ping frame", () => {
+    expect(sseCommentDetector()(enc.encode(PING))).toBe(true);
+  });
+
+  it("recognizes it split anywhere, byte at a time, with CRLF", () => {
+    const stream = 'event: message_start\r\ndata: {}\r\n\r\n' + PING.replace(/\n/g, "\r\n");
+    const detect = sseCommentDetector();
+    const hits = [...enc.encode(stream)].map((b) => detect(new Uint8Array([b])));
+    expect(hits.filter(Boolean)).toHaveLength(1);
+    for (let cut = 1; cut < PING.length; cut++) {
+      const d = sseCommentDetector();
+      const bytes = enc.encode(PING);
+      const found = [d(bytes.slice(0, cut)), d(bytes.slice(cut))];
+      expect(found.filter(Boolean), `cut ${cut}`).toHaveLength(1);
+    }
+  });
+
+  it("does not trigger on data lines that mention ping or on other events", () => {
+    const detect = sseCommentDetector();
+    expect(detect(enc.encode('data: {"type": "ping"}\n\n'))).toBe(false);
+    expect(detect(enc.encode('data: event: ping\n\n'))).toBe(false);
+    expect(detect(enc.encode(' event: ping\n'))).toBe(false);
+    expect(detect(enc.encode("event: pinging\n"))).toBe(false);
+    expect(detect(enc.encode("event: pin\n"))).toBe(false);
+    expect(detect(enc.encode('event: content_block_delta\ndata: {"text":"event: ping"}\n\n'))).toBe(false);
+  });
+});
+
+describe("runWithLivenessListener", () => {
+  it("keeps two concurrent scopes from notifying each other", async () => {
+    const sse = () =>
+      new Response(": hi\n\n", { headers: { "content-type": "text/event-stream" } });
+    const wrapped = withSseKeepAlive(async () => sse());
+    const a = vi.fn();
+    const b = vi.fn();
+    let release!: () => void;
+    const gate = { promise: new Promise<void>((resolve) => (release = resolve)), resolve: () => release() };
+    const scopeA = runWithLivenessListener(a, async () => {
+      await gate.promise;
+      await (await wrapped("https://example.test")).text();
+    });
+    const scopeB = runWithLivenessListener(b, async () => {
+      await (await wrapped("https://example.test")).text();
+      gate.resolve();
+    });
+    await Promise.all([scopeA, scopeB]);
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("withSseKeepAlive", () => {
   it("passes bytes through unchanged", async () => {
     const payload = ': OPENROUTER PROCESSING\n\ndata: {"x":1}\n\n: again\n\ndata: [DONE]\n\n';
@@ -63,7 +121,11 @@ describe("withSseKeepAlive", () => {
 });
 
 describe("provider watchdog and SSE keep-alives", () => {
-  async function run(keepAliveEveryMs: number | null, midStream = false) {
+  async function run(
+    keepAliveEveryMs: number | null,
+    midStream = false,
+    frame = ": OPENROUTER PROCESSING\n\n",
+  ) {
     const { MockLanguageModelV3 } = await import("ai/test");
     vi.useFakeTimers();
     vi.stubEnv("STREAM_CHUNK_TIMEOUT_MS", "5000");
@@ -72,7 +134,7 @@ describe("provider watchdog and SSE keep-alives", () => {
       start(controller) {
         if (keepAliveEveryMs === null) return;
         const interval = setInterval(
-          () => controller.enqueue(enc.encode(": OPENROUTER PROCESSING\n\n")),
+          () => controller.enqueue(enc.encode(frame)),
           keepAliveEveryMs,
         );
         setTimeout(() => {
@@ -130,6 +192,17 @@ describe("provider watchdog and SSE keep-alives", () => {
   it("keep-alives before the first token keep the call alive past the timeout", async () => {
     const outcome = await run(3000);
     expect(outcome).not.toHaveProperty("error");
+  });
+
+  it("Anthropic pings keep the call alive before and after output", async () => {
+    const ping = 'event: ping\ndata: {"type": "ping"}\n\n';
+    expect(await run(3000, false, ping)).not.toHaveProperty("error");
+    expect(await run(3000, true, ping)).not.toHaveProperty("error");
+  });
+
+  it("data frames that only mention ping do not keep it alive", async () => {
+    const outcome = await run(3000, true, 'data: {"type": "ping"}\n\n');
+    expect(String((outcome as { error: unknown }).error)).toMatch(/stopped responding/);
   });
 
   it("keep-alives after output keep the chunk clock alive", async () => {

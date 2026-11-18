@@ -588,6 +588,47 @@ describe("ModelToggle asking for a model (composer)", () => {
         expect(onChoiceHandled).toHaveBeenCalled();
     });
 
+    it("names the previous model that is gone, by cause: personal keys or the firm", async () => {
+        const toggle = () => (
+            <ModelToggle
+                value=""
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                askForChoice
+                previousModelId="gemini-3.8-flash"
+            />
+        );
+        const { unmount } = render(toggle());
+        await userEvent.click(screen.getByRole("button", { name: /Choose a model/ }));
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            "Gemini 3.8 Flash is no longer available with your keys. Choose another.",
+        );
+        unmount();
+
+        workspace.workspaceId = "org-1";
+        workspace.orgApiKeys = { allow_personal_keys: { ai: false, web_search: false, scan: false } };
+        render(toggle());
+        await userEvent.click(screen.getByRole("button", { name: /Choose a model/ }));
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            "Gemini 3.8 Flash is no longer available in your firm. Choose another.",
+        );
+    });
+
+    it("says nothing about a previous model once one is chosen", async () => {
+        render(
+            <ModelToggle
+                value="claude-sonnet-5-5"
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                askForChoice
+                previousModelId="gemini-3.8-flash"
+            />,
+        );
+        await userEvent.click(screen.getAllByRole("button")[0]!);
+        await screen.findByRole("menu");
+        expect(screen.queryByRole("status")).toBeNull();
+    });
+
     it("explains an empty picker instead of opening it", () => {
         const onNoModelsClick = vi.fn();
         const onChoiceHandled = vi.fn();

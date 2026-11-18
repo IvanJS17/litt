@@ -166,6 +166,16 @@ describe("ModelToggleUI asking for a model", () => {
         expect(first).toHaveTextContent("Fast and balanced");
     });
 
+    it("names the previous model that is gone, and the send reason wins over it", async () => {
+        const props = { value: "", onChange: vi.fn(), models: choices, needsChoice: true, onOpenChange: vi.fn() };
+        const gone = "GLM-Legal ya no está disponible en tu despacho. Elige otro.";
+        const { rerender } = render(<ModelToggleUI {...props} open previousGone={gone} />);
+        expect(await screen.findByRole("status")).toHaveTextContent(gone);
+        rerender(<ModelToggleUI {...props} open openReason="send" previousGone={gone} />);
+        expect(await screen.findByRole("status")).toHaveTextContent("To send your message");
+        expect(screen.queryByText(gone)).toBeNull();
+    });
+
     it("has no status line when the person opened it themselves", async () => {
         render(<ModelToggleUI value="" onChange={vi.fn()} models={choices} needsChoice open onOpenChange={vi.fn()} />);
         await screen.findByRole("menu");
@@ -205,6 +215,14 @@ describe("ModelToggleUI asking for a model", () => {
 });
 
 describe("reasoningLevelsForModel", () => {
+    it("never offers none for GLM 5.3 FlashX Legal, which always thinks", () => {
+        const levels = reasoningLevelsForModel("openrouter/z-ai/glm-5.3-flashx-legal");
+        expect(levels).toEqual(["low", "medium", "high", "xhigh"]);
+        expect(reasoningLevelsForModel("z-ai/glm-5.3-flashx-legal")).not.toContain("none");
+        // Another GLM keeps the standard ladder.
+        expect(reasoningLevelsForModel("openrouter/z-ai/glm-5.3")).toContain("none");
+    });
+
     it("lets Mistral Large 4 choose low, medium or high, never none", () => {
         expect(reasoningLevelsForModel("mistral-large-4")).toEqual(["low", "medium", "high"]);
         expect(reasoningLevelsForModel("openrouter/mistral-large-4")).toEqual(["low", "medium", "high"]);

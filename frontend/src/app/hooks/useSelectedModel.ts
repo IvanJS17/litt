@@ -51,6 +51,23 @@ function usableStoredModel(
     return canonical;
 }
 
+/**
+ * The model the person last used when it can no longer be used and nothing
+ * else could be restored (no key, the router selection changed, the firm
+ * dropped it). Null when a stored model is usable, when none was ever saved,
+ * or while the chat's own selection is still loading.
+ */
+export function unavailablePreviousModel(
+    sources: SelectedModelSources,
+): string | null {
+    if (sources.selectionKey && sources.chatModel === undefined) return null;
+    const stored = [sources.chatModel, sources.lastSelectedModel].filter(
+        (value): value is string => !!value,
+    );
+    if (stored.some((value) => usableStoredModel(value, sources))) return null;
+    return stored[0] ?? null;
+}
+
 /** Resolve chat model → profile last-selected model, without a product default. */
 export function useSelectedModel(
     sources: SelectedModelSources = {},

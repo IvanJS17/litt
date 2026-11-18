@@ -143,6 +143,11 @@ export function reasoningLevelsForModel(
   if (/(?:^|\/)mistral-large-4$/.test(catalogId)) {
     return ["low", "medium", "high"];
   }
+  // GLM 5.3 FlashX Legal has a mandatory thinking mode (OpenRouter model
+  // page, 2026-11-17): "none" is not offered; a saved "none" moves to "low".
+  if (/(?:^|\/)glm-5\.3-flashx-legal$/.test(catalogId)) {
+    return STANDARD_REASONING_LEVELS.filter((level) => level !== "none");
+  }
   if (/(?:^|\/)mistral-(?:medium-3-5|small-2603)$/.test(catalogId)) {
     return ["none", "high"];
   }
@@ -592,6 +597,11 @@ export interface ModelToggleUIProps {
   needsChoice?: boolean;
   /** Why a host opened the picker; the menu says so and focuses a model. */
   openReason?: "send" | null;
+  /**
+   * The model last used can no longer be used, so none is chosen: the menu
+   * says so at the top, in the host's words (the host knows the cause).
+   */
+  previousGone?: string;
   /** One line per reasoning level, from the host's catalog. */
   levelHints?: Partial<Record<ReasoningLevel, string>>;
   /** Adds «¿Cuál elijo?» to the menu; the host shows the guide. */
@@ -639,6 +649,7 @@ export function ModelToggleUI({
   onOpenChange,
   needsChoice = false,
   openReason = null,
+  previousGone,
   levelHints,
   onOpenGuide,
 }: ModelToggleUIProps) {
@@ -850,7 +861,11 @@ export function ModelToggleUI({
           reasoningLevels={reasoningLevels}
           levelHints={levelHints}
           note={
-            openReason === "send" ? t("ui.modelToggle.sendBlocked") : undefined
+            openReason === "send"
+              ? t("ui.modelToggle.sendBlocked")
+              : showNeedsChoice
+                ? previousGone
+                : undefined
           }
           onOpenGuide={onOpenGuide}
           onReasoningChange={

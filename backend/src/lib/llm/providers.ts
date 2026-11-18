@@ -210,7 +210,8 @@ async function createAnthropicAdapter(args: {
     apiKey: args.apiKey,
     baseURL: args.baseURL,
     name: `${args.provider}.messages`,
-    fetch: aiSdkFetch,
+    // `event: ping` frames, which the SDK drops, keep the stream watchdog alive.
+    fetch: withSseKeepAlive(aiSdkFetch),
   });
   return {
     provider: args.provider,
@@ -484,7 +485,14 @@ async function createVertexAdapter(
     const { createVertexAnthropic } = await import(
       "@ai-sdk/google-vertex/anthropic"
     );
-    return { ...base, model: createVertexAnthropic(settings)(upstreamId) };
+    return {
+      ...base,
+      model: createVertexAnthropic({
+        ...settings,
+        // Same `event: ping` keep-alive as the direct Anthropic adapter.
+        fetch: withSseKeepAlive(aiSdkFetch),
+      })(upstreamId),
+    };
   }
   if (protocol === "maas") {
     const { createVertexMaas } = await import("@ai-sdk/google-vertex/maas");
