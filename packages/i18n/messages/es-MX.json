@@ -207,7 +207,6 @@
       "addDocuments": "Agregar documentos",
       "addPlaybook": "Agregar playbook",
       "assistant": "Asistente",
-      "chooseAModelBeforeSendingYour": "Elige un modelo antes de enviar tu mensaje.",
       "documentsCouldNotBeUploaded": "No se pudieron subir los documentos. Inténtalo de nuevo.",
       "howCanIHelp": "¿En qué te ayudo?",
       "loading": "Cargando…",
@@ -216,7 +215,6 @@
       "openWorkflowTitle": "Abrir flujo de trabajo {title}",
       "projects": "Proyectos",
       "removeWorkflowTitle": "Quitar flujo de trabajo {title}",
-      "selectAModel": "Selecciona un modelo",
       "sendMessage": "Enviar mensaje",
       "stopResponse": "Detener respuesta",
       "untitledPlaybook": "Playbook sin título",
@@ -384,9 +382,21 @@
       "theChatCouldNotBe": "No se pudo salir del chat. Inténtalo de nuevo.",
       "yourSharedAccessWillBeRemoved": "Se quitará tu acceso compartido. Un propietario puede volver a compartir este chat contigo."
     },
+    "modelGuide": {
+      "inUse": "En uso",
+      "notice": "Aviso",
+      "others": "Otros modelos de tu despacho",
+      "tabModels": "Modelos",
+      "tabReasoning": "Razonamiento",
+      "title": "¿Cuál modelo elijo?",
+      "updated": "Actualizado: {date}",
+      "useFor": "Sirve para",
+      "useThis": "Usar este",
+      "useThisLabel": "Usar {model}"
+    },
     "modelToggle": {
       "noModels": "Sin modelos",
-      "selectModel": "Selecciona modelo"
+      "selectModel": "Elige un modelo"
     },
     "quickActionsModal": {
       "active": "Activo",
@@ -2256,6 +2266,72 @@
     "youCannotShareThisWithYourself": "No puedes compartir esto contigo mismo.",
     "zoom": "Zoom",
     "zoomOutToKeepTheWhole": "Aleja el zoom para ver la imagen completa, o acércalo a la parte que se lee mejor en tamaño pequeño."
+  },
+  "modelGuide": {
+    "availability": "Los niveles dependen del modelo y de la ruta; verifica la compatibilidad.",
+    "disclaimer": "Una persona abogada debe revisar las respuestas y comprobar las fuentes y su vigencia.",
+    "intro": "Usos descritos por los proveedores; revisa términos antes de enviar datos confidenciales.",
+    "levels": {
+      "none": "Ninguno: disponible en algunos modelos, como GPT-6 Luna.",
+      "low": "Bajo en Claude: ahorra tokens, con menor capacidad.",
+      "medium": "Medio en Claude: equilibrio y ahorro moderado de tokens.",
+      "high": "Alto en Claude: para razonamiento complejo.",
+      "xhigh": "Muy alto en Claude: trabajo agéntico prolongado.",
+      "max": "Máximo en Claude: máximo esfuerzo en tokens."
+    },
+    "models": {
+      "claude-fable-5-1": {
+        "notice": "Fable 5.1: retención de 30 días; ZDR solo con autorización expresa de Anthropic."
+      },
+      "claude-fable-5-2": {
+        "hint": "Razonamiento exigente · retención 30 días",
+        "useFor": "razonamiento exigente e investigación de varios pasos.",
+        "notice": "Fable 5.2: retención de 30 días; ZDR solo con autorización expresa de Anthropic."
+      },
+      "claude-opus-5-5": {
+        "hint": "Trabajo de conocimiento prolongado",
+        "useFor": "programación agéntica y trabajo de conocimiento prolongados."
+      },
+      "claude-sonnet-5-5": {
+        "hint": "Análisis de datos y contenido",
+        "useFor": "análisis de datos y creación de contenido."
+      },
+      "gemini-3-1-pro-preview": {
+        "hint": "Problemas complejos, varios tipos de datos",
+        "useFor": "resolución de problemas complejos con múltiples tipos de información."
+      },
+      "gemini-3-8-flash": {
+        "hint": "Razonamiento de varios pasos",
+        "useFor": "razonamiento de varios pasos en dominios especializados."
+      },
+      "gpt-6-1-sol": {
+        "hint": "Programación y trabajo profesional",
+        "useFor": "programación compleja y trabajo profesional."
+      },
+      "gpt-6-astra": {
+        "hint": "Investigación y creación de documentos",
+        "useFor": "investigación y creación de documentos."
+      },
+      "gpt-6-luna": {
+        "hint": "Tareas enfocadas y de alto volumen",
+        "useFor": "tareas enfocadas y de alto volumen."
+      },
+      "mistral-large-4": {
+        "hint": "Preguntas y respuestas sobre documentos",
+        "useFor": "preguntas y respuestas sobre documentos."
+      },
+      "mistral-small-2603": {
+        "hint": "Instrucciones, razonamiento, programación",
+        "useFor": "instrucciones, razonamiento y programación."
+      },
+      "openrouter-z-ai-glm-5-3-flashx-legal": {
+        "hint": "Revisión de contratos y redacción",
+        "useFor": "investigación, revisión de contratos y redacción jurídica."
+      }
+    },
+    "recommended": "Para empezar: Claude Sonnet 5.5 en Medio para el trabajo diario; sube a Alto para análisis complejos.",
+    "retention": "La retención depende del proveedor, la ruta, las funciones y el contrato; verifica antes de enviar datos.",
+    "updated": "noviembre de 2026"
   },
   "orgSettings": {
     "managedAccounts": {
@@ -7082,6 +7158,7 @@
       "levelMedium": "Medio",
       "levelNone": "Ninguno",
       "levelXhigh": "Muy alto",
+      "needsChoiceLabel": "Elige un modelo. Hace falta para enviar.",
       "noApiKeyConfigured": "No hay llave de API configurada",
       "noModels": "Sin modelos",
       "noModelsAvailable": "No hay modelos disponibles",
@@ -7091,7 +7168,10 @@
       "routeConfigured": "Configurado",
       "routeDirect": "Directo",
       "routeLocal": "Local",
-      "selectModel": "Selecciona modelo"
+      "selectModel": "Elige un modelo",
+      "selectModelCompact": "Elige modelo",
+      "sendBlocked": "Para enviar tu mensaje, elige un modelo. Lo que escribiste se queda.",
+      "whichOne": "¿Cuál elijo?"
     },
     "noticeCard": {
       "dismissNotification": "Descartar notificación"

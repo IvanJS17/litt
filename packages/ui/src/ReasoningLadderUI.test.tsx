@@ -15,7 +15,8 @@ import {
     ladderStepMotions,
 } from "./ReasoningLadderUI";
 
-const FOUR: readonly ReasoningLevel[] = reasoningLevelsForModel("claude-opus-5-5");
+// A model that cannot disable thinking and tops out at xhigh (e.g. a router id).
+const FOUR: readonly ReasoningLevel[] = reasoningLevelsForModel("openrouter/anthropic/claude-opus-5-5");
 const WITH_NONE: readonly ReasoningLevel[] = ["none", "low", "medium", "high", "xhigh"];
 
 function stepVars(container: HTMLElement, selector: string, name: string): string[] {
@@ -42,11 +43,12 @@ afterEach(() => {
 
 describe("the steps of a model", () => {
     it("are its levels without none", () => {
-        expect(ladderStepCount(reasoningLevelsForModel("claude-opus-5-5"))).toBe(4);
-        expect(ladderStepCount(reasoningLevelsForModel("claude-sonnet-5-5"))).toBe(4);
+        expect(ladderStepCount(reasoningLevelsForModel("claude-opus-5-5"))).toBe(5);
+        expect(ladderStepCount(reasoningLevelsForModel("claude-sonnet-5-5"))).toBe(5);
+        expect(ladderStepCount(reasoningLevelsForModel("openrouter/claude-opus-5-5"))).toBe(4);
         expect(ladderStepCount(reasoningLevelsForModel("gpt-6.1"))).toBe(5);
-        // Mistral Large 4 offers none and high: one step.
-        expect(ladderStepCount(reasoningLevelsForModel("mistral-large-4"))).toBe(1);
+        // Mistral Large 4 offers low, medium and high: three steps.
+        expect(ladderStepCount(reasoningLevelsForModel("mistral-large-4"))).toBe(3);
     });
 
     it("fill from none (no step) up to the last level", () => {

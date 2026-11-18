@@ -426,7 +426,7 @@ describe("ModelToggle availability states", () => {
         // trigger falls back to the picker prompt.
         expect(
             screen.getByRole("button", { name: "Choose model" }),
-        ).toHaveTextContent("Select model");
+        ).toHaveTextContent("Choose a model");
     });
 });
 
@@ -434,7 +434,7 @@ describe("ModelToggle with no model chosen yet", () => {
     it("asks for a model without flagging a missing key", () => {
         render(<ModelToggle value="" onChange={vi.fn()} apiKeys={keys({ gemini: true })} />);
         const trigger = screen.getByRole("button", { name: "Choose model" });
-        expect(trigger).toHaveTextContent("Select model");
+        expect(trigger).toHaveTextContent("Choose a model");
         expect(trigger).not.toHaveAttribute("title", "API key missing for selected model");
     });
 
@@ -547,5 +547,86 @@ describe("ModelToggle tone", () => {
         expect(screen.getByRole("button", { name: "Choose model" })).toHaveClass(
             "text-gray-700",
         );
+    });
+});
+
+describe("ModelToggle asking for a model (composer)", () => {
+    const claudeKeys = () => keys({ claude: true, openai: true });
+
+    it("shows the needs-choice trigger only where the host asks for a choice", () => {
+        const { rerender } = render(
+            <ModelToggle value="" onChange={vi.fn()} apiKeys={claudeKeys()} askForChoice compact compactShowsName />,
+        );
+        const trigger = screen.getByRole("button", { name: "Choose a model. Needed to send." });
+        expect(trigger).toHaveClass("ring-interactive-border");
+        expect(trigger).toHaveTextContent("Choose model");
+        rerender(<ModelToggle value="" onChange={vi.fn()} apiKeys={claudeKeys()} />);
+        expect(screen.getByRole("button", { name: "Choose model" })).not.toHaveClass("ring-interactive-border");
+    });
+
+    it("opens with the reason and a hint under each model when a send was refused", async () => {
+        const onChoiceHandled = vi.fn();
+        const toggle = (choiceRequest: object | null) => (
+            <ModelToggle
+                value=""
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                askForChoice
+                choiceRequest={choiceRequest}
+                onChoiceHandled={onChoiceHandled}
+            />
+        );
+        const { rerender } = render(toggle(null));
+        rerender(toggle({}));
+        expect(await screen.findByRole("status")).toHaveTextContent("To send your message, choose a model.");
+        const sonnet = await screen.findByRole("menuitem", { name: /Claude Sonnet 5.5/ });
+        expect(sonnet).toHaveTextContent("Data analysis and content");
+        // No recommendation for the older Fable.
+        expect(screen.getByRole("menuitem", { name: /Claude Fable 5.1/ })).not.toHaveTextContent(/analysis|research/i);
+        await userEvent.keyboard("{Escape}");
+        expect(onChoiceHandled).toHaveBeenCalled();
+    });
+
+    it("explains an empty picker instead of opening it", () => {
+        const onNoModelsClick = vi.fn();
+        const onChoiceHandled = vi.fn();
+        const toggle = (choiceRequest: object | null) => (
+            <ModelToggle
+                value=""
+                onChange={vi.fn()}
+                apiKeys={keys({})}
+                askForChoice
+                choiceRequest={choiceRequest}
+                onChoiceHandled={onChoiceHandled}
+                onNoModelsClick={onNoModelsClick}
+            />
+        );
+        const { rerender } = render(toggle(null));
+        rerender(toggle({}));
+        expect(onNoModelsClick).toHaveBeenCalledWith("api-keys");
+        expect(onChoiceHandled).toHaveBeenCalled();
+    });
+
+    it("«Which one should I pick?» opens the guide and «Use this» selects the model", async () => {
+        const onChange = vi.fn();
+        render(<ModelToggle value="" onChange={onChange} apiKeys={claudeKeys()} askForChoice />);
+        await userEvent.click(screen.getByRole("button", { name: "Choose a model. Needed to send." }));
+        await userEvent.click(await screen.findByRole("menuitem", { name: /Which one should I pick/ }));
+        await userEvent.click(await screen.findByRole("button", { name: "Use Claude Opus 5.5" }));
+        expect(onChange).toHaveBeenCalledWith("claude-opus-5-5");
+    });
+
+    it("offers max on the direct Claude ladder", async () => {
+        render(
+            <ModelToggle
+                value="claude-opus-5-5"
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                reasoningLevel="max"
+                onReasoningChange={vi.fn()}
+            />,
+        );
+        await userEvent.click(screen.getByRole("button", { name: /Choose model/ }));
+        expect(await screen.findByRole("slider", { name: "Reasoning level" })).toHaveAttribute("aria-valuetext", "Max");
     });
 });

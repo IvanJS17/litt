@@ -1,7 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ModelToggleUI, shortModelLabel, type ModelToggleOption } from "./ModelToggleUI";
+import {
+    ModelToggleUI,
+    nearestReasoningLevelForModel,
+    reasoningLevelsForModel,
+    shortModelLabel,
+    type ModelToggleOption,
+} from "./ModelToggleUI";
 
 const models: ModelToggleOption[] = [
     { id: "claude-opus-5-5", label: "Claude Opus 5.5", group: "Anthropic" },
@@ -119,5 +125,113 @@ describe("shortModelLabel", () => {
         expect(shortModelLabel(label)).toBe(label);
         expect(shortModelLabel("\t".repeat(50_000))).toBe("\t".repeat(50_000));
         expect(performance.now() - started).toBeLessThan(250);
+    });
+});
+
+const choices: ModelToggleOption[] = [
+    { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5", group: "Anthropic", hint: "Fast and balanced" },
+    { id: "gpt-6-luna", label: "GPT-6 Luna", group: "OpenAI" },
+];
+
+describe("ModelToggleUI asking for a model", () => {
+    it("shows a needs-choice trigger with its own name, outline and icon", () => {
+        render(<ModelToggleUI value="" onChange={vi.fn()} models={choices} needsChoice compactShowsName compact />);
+        const trigger = screen.getByRole("button", { name: "Choose a model. Needed to send." });
+        expect(trigger).toHaveTextContent("Choose model");
+        expect(trigger).toHaveClass("ring-1", "ring-interactive-border", "font-medium");
+        expect(trigger.querySelector("svg")).not.toBeNull();
+    });
+
+    it("is the normal trigger once a model is chosen, while loading, and as a form field", () => {
+        const { rerender } = render(
+            <ModelToggleUI value="gpt-6-luna" onChange={vi.fn()} models={choices} needsChoice selectedLabel="GPT-6 Luna" />,
+        );
+        expect(screen.getByRole("button", { name: "Choose model" })).not.toHaveClass("ring-interactive-border");
+        rerender(<ModelToggleUI value="" onChange={vi.fn()} models={choices} needsChoice loading />);
+        expect(screen.queryByRole("button", { name: /Needed to send/ })).toBeNull();
+        rerender(<ModelToggleUI value="" onChange={vi.fn()} models={choices} needsChoice modalInput="flat" />);
+        expect(screen.queryByRole("button", { name: /Needed to send/ })).toBeNull();
+    });
+
+    it("opened to choose: says why, focuses the first model and keeps hints under names", async () => {
+        const props = { value: "", onChange: vi.fn(), models: choices, needsChoice: true, onOpenChange: vi.fn() };
+        const { rerender } = render(<ModelToggleUI {...props} open={false} />);
+        rerender(<ModelToggleUI {...props} open openReason="send" />);
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            "To send your message, choose a model. What you typed is kept.",
+        );
+        const first = await screen.findByRole("menuitem", { name: /Claude Sonnet 5.5/ });
+        await waitFor(() => expect(first).toHaveFocus());
+        expect(first).toHaveTextContent("Fast and balanced");
+    });
+
+    it("has no status line when the person opened it themselves", async () => {
+        render(<ModelToggleUI value="" onChange={vi.fn()} models={choices} needsChoice open onOpenChange={vi.fn()} />);
+        await screen.findByRole("menu");
+        expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    it("offers the guide as the last row only when the host handles it", async () => {
+        const onOpenGuide = vi.fn();
+        const { rerender } = render(
+            <ModelToggleUI value="" onChange={vi.fn()} models={choices} open onOpenChange={vi.fn()} />,
+        );
+        await screen.findByRole("menu");
+        expect(screen.queryByRole("menuitem", { name: /Which one should I pick/ })).toBeNull();
+        rerender(
+            <ModelToggleUI value="" onChange={vi.fn()} models={choices} open onOpenChange={vi.fn()} onOpenGuide={onOpenGuide} />,
+        );
+        await userEvent.click(await screen.findByRole("menuitem", { name: /Which one should I pick/ }));
+        expect(onOpenGuide).toHaveBeenCalledTimes(1);
+    });
+
+    it("writes the hint of the level under the ladder", async () => {
+        render(
+            <ModelToggleUI
+                value="claude-sonnet-5-5"
+                onChange={vi.fn()}
+                models={choices}
+                open
+                onOpenChange={vi.fn()}
+                reasoningLevel="medium"
+                onReasoningChange={vi.fn()}
+                reasoningLevels={["low", "medium", "high"]}
+                levelHints={{ low: "L", medium: "A balance", high: "H" }}
+            />,
+        );
+        expect(await screen.findByText("A balance")).toBeInTheDocument();
+    });
+});
+
+describe("reasoningLevelsForModel", () => {
+    it("lets Mistral Large 4 choose low, medium or high, never none", () => {
+        expect(reasoningLevelsForModel("mistral-large-4")).toEqual(["low", "medium", "high"]);
+        expect(reasoningLevelsForModel("openrouter/mistral-large-4")).toEqual(["low", "medium", "high"]);
+    });
+
+    it("keeps none and high for the other Mistral models", () => {
+        expect(reasoningLevelsForModel("mistral-medium-3-5")).toEqual(["none", "high"]);
+        expect(reasoningLevelsForModel("mistral-small-2603")).toEqual(["none", "high"]);
+    });
+
+    it("adds max for the direct Claude models the provider mapping sends it for", () => {
+        expect(reasoningLevelsForModel("claude-fable-5-2")).toEqual(["low", "medium", "high", "xhigh", "max"]);
+        expect(reasoningLevelsForModel("claude-opus-5-5")).toEqual(["low", "medium", "high", "xhigh", "max"]);
+        expect(reasoningLevelsForModel("claude-sonnet-5-5")).toEqual(["none", "low", "medium", "high", "xhigh", "max"]);
+    });
+
+    it("never offers none to Fable 5.2 and keeps Fable 5.1 and routed Claude as before", () => {
+        expect(reasoningLevelsForModel("claude-fable-5-2")).not.toContain("none");
+        expect(reasoningLevelsForModel("claude-fable-5-1")).toEqual(["low", "medium", "high", "xhigh"]);
+        expect(reasoningLevelsForModel("openrouter/claude-opus-5-5")).toEqual(["low", "medium", "high", "xhigh"]);
+        expect(reasoningLevelsForModel("vertex/claude-opus-5-5@20260101")).not.toContain("max");
+    });
+
+    it("moves a saved level to the nearest one the model offers", () => {
+        expect(nearestReasoningLevelForModel("mistral-large-4", "none")).toBe("low");
+        expect(nearestReasoningLevelForModel("mistral-large-4", "xhigh")).toBe("high");
+        expect(nearestReasoningLevelForModel("claude-fable-5-1", "max")).toBe("xhigh");
+        expect(nearestReasoningLevelForModel("claude-fable-5-2", "none")).toBe("low");
+        expect(nearestReasoningLevelForModel("claude-opus-5-5", "max")).toBe("max");
     });
 });

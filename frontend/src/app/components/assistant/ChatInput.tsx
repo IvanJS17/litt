@@ -37,7 +37,6 @@ import {
 import { ApiKeyMissingPopup } from "../popups/ApiKeyMissingPopup";
 import { ModelToggle, type ReasoningLevel } from "./ModelToggle";
 import { NoModelsWarningPopup } from "../popups/NoModelsWarningPopup";
-import { WarningPopup } from "../popups/WarningPopup";
 import {
     useSelectedModel,
     useSelectedReasoning,
@@ -409,7 +408,10 @@ function ChatInputForChatImpl(
         useState<ModelProvider | null>(null);
     const [noModelsWarning, setNoModelsWarning] =
         useState<NoModelsReason | null>(null);
-    const [modelRequiredWarning, setModelRequiredWarning] = useState(false);
+    // Set when the person tries to send with no model: the picker opens
+    // (a new object per attempt) and clears it when it closes.
+    const [modelChoiceRequest, setModelChoiceRequest] =
+        useState<object | null>(null);
     const [reasoningLevel, setReasoningLevel] = useSelectedReasoning({
         selectionKey: chatKey,
         chatReasoningLevel,
@@ -796,7 +798,8 @@ function ChatInputForChatImpl(
             return;
         }
         if (!model) {
-            setModelRequiredWarning(true);
+            // The picker opens with the reason; what was typed stays.
+            if (!chatSettingsLoading) setModelChoiceRequest({});
             return;
         }
         if (needsAttempt && !isTrainingAttemptReady(attempt)) {
@@ -1190,6 +1193,11 @@ function ChatInputForChatImpl(
                                     onReasoningChange={handleReasoningChange}
                                     working={isLoading}
                                     locked={routeFixed}
+                                    askForChoice
+                                    choiceRequest={modelChoiceRequest}
+                                    onChoiceHandled={() =>
+                                        setModelChoiceRequest(null)
+                                    }
                                 />
                             )}
                             {!chatSettingsLoading && offerCredentialChoice && !routeFixed && composerOpen && model !== "" && (
@@ -1218,6 +1226,15 @@ function ChatInputForChatImpl(
                                         (!value.trim() &&
                                             !hasAnnotatedExcerpt) ||
                                         slashCommandsLoading)
+                                }
+                                // Something to send but no model: it looks
+                                // off yet still answers, by opening the picker.
+                                aria-disabled={
+                                    !isLoading &&
+                                    model === "" &&
+                                    !chatSettingsLoading
+                                        ? true
+                                        : undefined
                                 }
                             >
                                 <SendArrowUI stop={isLoading} />
@@ -1298,12 +1315,6 @@ function ChatInputForChatImpl(
             <NoModelsWarningPopup
                 reason={noModelsWarning}
                 onClose={() => setNoModelsWarning(null)}
-            />
-            <WarningPopup
-                open={modelRequiredWarning}
-                onClose={() => setModelRequiredWarning(false)}
-                title={t("assistant.chatInput.selectAModel")}
-                message={t("assistant.chatInput.chooseAModelBeforeSendingYour")}
             />
             <UploadOverlay
                 open={isDraggingFiles}

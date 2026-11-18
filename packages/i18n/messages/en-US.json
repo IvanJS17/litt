@@ -207,7 +207,6 @@
       "addDocuments": "Add Documents",
       "addPlaybook": "Add playbook",
       "assistant": "Assistant",
-      "chooseAModelBeforeSendingYour": "Choose a model before sending your message.",
       "documentsCouldNotBeUploaded": "Documents could not be uploaded. Please try again.",
       "howCanIHelp": "How can I help?",
       "loading": "Loading…",
@@ -216,7 +215,6 @@
       "openWorkflowTitle": "Open workflow {title}",
       "projects": "Projects",
       "removeWorkflowTitle": "Remove workflow {title}",
-      "selectAModel": "Select a model",
       "sendMessage": "Send message",
       "stopResponse": "Stop response",
       "untitledPlaybook": "Untitled playbook",
@@ -384,9 +382,21 @@
       "theChatCouldNotBe": "The chat could not be left. Please try again.",
       "yourSharedAccessWillBeRemoved": "Your shared access will be removed. An owner can share this chat with you again."
     },
+    "modelGuide": {
+      "inUse": "In use",
+      "notice": "Notice",
+      "others": "Other models in your firm",
+      "tabModels": "Models",
+      "tabReasoning": "Reasoning",
+      "title": "Which model should I pick?",
+      "updated": "Updated: {date}",
+      "useFor": "Good for",
+      "useThis": "Use this",
+      "useThisLabel": "Use {model}"
+    },
     "modelToggle": {
       "noModels": "No Models",
-      "selectModel": "Select model"
+      "selectModel": "Choose a model"
     },
     "quickActionsModal": {
       "active": "Active",
@@ -2256,6 +2266,72 @@
     "youCannotShareThisWithYourself": "You cannot share this with yourself.",
     "zoom": "Zoom",
     "zoomOutToKeepTheWhole": "Zoom out to keep the whole image, or in on the part that reads best small."
+  },
+  "modelGuide": {
+    "availability": "Levels depend on the model and route; check compatibility.",
+    "disclaimer": "A lawyer should review responses and verify sources and their currency.",
+    "intro": "Provider-described uses; review terms before sending confidential data.",
+    "levels": {
+      "none": "None: available on some models, such as GPT-6 Luna.",
+      "low": "Low on Claude: saves tokens, with reduced capability.",
+      "medium": "Medium on Claude: balance and moderate token savings.",
+      "high": "High on Claude: for complex reasoning.",
+      "xhigh": "Very high on Claude: long-running agentic work.",
+      "max": "Maximum on Claude: maximum token effort."
+    },
+    "models": {
+      "claude-fable-5-1": {
+        "notice": "Fable 5.1: 30-day retention; ZDR only with Anthropic's express authorization."
+      },
+      "claude-fable-5-2": {
+        "hint": "Demanding reasoning · 30-day retention",
+        "useFor": "demanding reasoning and multistep research.",
+        "notice": "Fable 5.2: 30-day retention; ZDR only with Anthropic's express authorization."
+      },
+      "claude-opus-5-5": {
+        "hint": "Long-running knowledge work",
+        "useFor": "long-running agentic coding and knowledge work."
+      },
+      "claude-sonnet-5-5": {
+        "hint": "Data analysis and content",
+        "useFor": "data analysis and content creation."
+      },
+      "gemini-3-1-pro-preview": {
+        "hint": "Complex, multi-type problems",
+        "useFor": "complex problems across multiple information types."
+      },
+      "gemini-3-8-flash": {
+        "hint": "Multistep reasoning",
+        "useFor": "multistep reasoning in specialized domains."
+      },
+      "gpt-6-1-sol": {
+        "hint": "Coding and professional work",
+        "useFor": "complex coding and professional work."
+      },
+      "gpt-6-astra": {
+        "hint": "Research and document creation",
+        "useFor": "research and document creation."
+      },
+      "gpt-6-luna": {
+        "hint": "Focused, high-volume tasks",
+        "useFor": "focused, high-volume tasks."
+      },
+      "mistral-large-4": {
+        "hint": "Document question answering",
+        "useFor": "document question answering."
+      },
+      "mistral-small-2603": {
+        "hint": "Instructions, reasoning, coding",
+        "useFor": "instruction following, reasoning, and coding."
+      },
+      "openrouter-z-ai-glm-5-3-flashx-legal": {
+        "hint": "Contract review and drafting",
+        "useFor": "legal research, contract review, and legal drafting."
+      }
+    },
+    "recommended": "To start: Claude Sonnet 5.5 at Medium for everyday work; move up to High for complex analysis.",
+    "retention": "Retention depends on provider, route, features, and agreement; check before sending data.",
+    "updated": "November 2026"
   },
   "orgSettings": {
     "managedAccounts": {
@@ -7082,6 +7158,7 @@
       "levelMedium": "Medium",
       "levelNone": "None",
       "levelXhigh": "XHigh",
+      "needsChoiceLabel": "Choose a model. Needed to send.",
       "noApiKeyConfigured": "No API key configured",
       "noModels": "No Models",
       "noModelsAvailable": "No models available",
@@ -7091,7 +7168,10 @@
       "routeConfigured": "Configured",
       "routeDirect": "Direct",
       "routeLocal": "Local",
-      "selectModel": "Select model"
+      "selectModel": "Choose a model",
+      "selectModelCompact": "Choose model",
+      "sendBlocked": "To send your message, choose a model. What you typed is kept.",
+      "whichOne": "Which one should I pick?"
     },
     "noticeCard": {
       "dismissNotification": "Dismiss notification"
