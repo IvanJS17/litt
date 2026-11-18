@@ -136,6 +136,7 @@ describe("ConnectedAppsSection connect guide", () => {
         fireEvent.click(screen.getByRole("button", { name: "Copy address" }));
         await waitFor(() => expect(writeText).toHaveBeenCalledWith(SERVER_URL));
         expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+        expect(screen.getByRole("status").textContent).toBe("Copied");
     });
 
     it("also shows it above existing connections", async () => {
