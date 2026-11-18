@@ -11,10 +11,21 @@ Sections below that say a PR is pending or a test is flaky were written before t
 
 ## Current open items (2026-11-17)
 
-Checked against `origin/main` at `cca74bf67` (production deploy `20261117g`, tag `prod-20261117g`),
-2026-11-17, from the reviewer notes of PRs #193 to #240.
+Checked against `origin/main` at `8f25fc8e0` (production deploy `20261117i`, tag `prod-20261117i`),
+2026-11-17, from the reviewer notes of PRs #193 to #245 and the 2026-11-17 review triage
+(`artifacts/notas-menores-20261117/`, local, not versioned).
 
-- **Closed since the last list:** OpenRouter streams cut by the 60 s chunk timeout while the
+- **Closed since the last list:** #242 (`20261117h`): the Anthropic `event: ping` counts as
+  stream liveness, including Vertex-Anthropic; a notice in the selector when the previously
+  chosen model is unavailable; GLM 5.3 FlashX Legal reasoning levels low, high and max as Z.ai
+  states them. #243 (`20261117i`): `litt-deploy.sh` checks the web image before it touches the
+  tree and aborts if it contains `@parcel/watcher`, `micromatch` or `@opennextjs`. #244: «Continuar»
+  on a new project uploads the pending files and retries the failed ones; a send without a model
+  is queued while the keys load; the key labels read «Clave de cliente/asunto»; the Sonnet
+  recommendation text is restored to the verified wording. #245: flaky tests fixed at their
+  root (TD-050), a Word production build step in CI, `use-intl` 4.15.1 and `intl-messageformat`
+  12.2.0 pinned.
+- **Closed earlier (`20261117e` to `20261117g`):** OpenRouter streams cut by the 60 s chunk timeout while the
   model sent only SSE keep-alive comments: the AI SDK dropped them, so they were not counted as
   activity (#238, deploy `20261117f`; production `STREAM_CHUNK_TIMEOUT_MS=180000`; reproduced by the
   reviewer with real OpenRouter); a model must be chosen before a chat starts, and the model and
@@ -32,12 +43,14 @@ Checked against `origin/main` at `cca74bf67` (production deploy `20261117g`, tag
   the live checks pass, but no owner account has yet logged in from Claude or ChatGPT and
   run a tool call. Close it when that works and is recorded here.
 - **Open: model guide (#240).** The owner does not accept the Fable 5.2 entry as written
-  (2026-11-17); the correction is open. A follow-up pull request is in progress: Anthropic ping
-  liveness, the notice for previous models, the GLM reasoning fix and a guide text for the legal GLM model.
+  (2026-11-17); the correction is open and the verified contents of `20261117h` and `20261117i`
+  do not change it. The Anthropic ping liveness, the previous-model notice, the GLM reasoning
+  fix and the legal GLM guide text are closed (#242, #244).
 - **Open, in the debt ledger:** TD-047 (legal wording of the citation checks), TD-048
   (PostgREST memory, re-measure by 2026-11-22), TD-049 (MCP mode B run record), TD-050
-  (flaky backend and frontend tests from the 2026-11-14 CI runs).
-- **Open, not yet in the ledger** (reviewer reservations; fix status **(unverified)**):
+  (flaky tests; the root fixes are in #245, the row stays open until CI confirms them).
+- **Open, not yet in the ledger** (reviewer reservations written on `cca74bf67`; fix status **(unverified)**;
+  items that #243 to #245 may have fixed are not removed here until re-checked line by line):
   - Scan reading (#175): a reading can stay `processing` if the enqueue fails; a
     re-read clears the stored pages before the new call; the cost estimate after a
     partial reading counts fewer pages than it resends; a LibreOffice failure after the
@@ -56,8 +69,29 @@ Checked against `origin/main` at `cca74bf67` (production deploy `20261117g`, tag
   - Radar (#223): `isIsoDate` accepts years 0000 to 0999.
   - Tabular (#202, #203): clearing cells does not delete their verifications; citation
     references for tabular need a lighter endpoint (the tabular chat loads them whole).
+- **Open, from the 2026-11-17 review triage (documented here; the code change is not in this PR):**
+  - No Docker image build per pull request in CI (R234-R3; TD-024 usage limits apply). The
+    VPS deploy checks the image instead. Not decided.
+  - The «Ninguno» label on Sonnet 5.5 sends `between_tools`, and the same label is shared with
+    GPT-6 Luna; the label is kept (R240-W3) until a wording covering both is agreed.
+  - OpenRouter's keep-alive cadence is not a contract; watch it in production (R238-W1). The
+    mitigation is `STREAM_CHUNK_TIMEOUT_MS=180000`. No code change.
+  - The ping detector does not count `event: ping` with a trailing space (R242-W2). The SSE
+    framing does not produce that form; a comment in the detector belongs to a code change.
+  - `deploy/prod/Caddyfile.litt` says the public `Host` and `X-Forwarded-Host` are kept; the
+    gateway rewrites them (P-227-W3, unverified in this pass). Comment change pending.
+  - Migration `20261116_70_litt_matter_radar_events.sql` says its constraints are dropped before
+    they are created; its CHECK and foreign-key constraints are not dropped (P-223-W1). The
+    applied migration is not rewritten; this note is the record.
+  - The window in which an older frontend talks to the new backend for `allow_personal_keys`
+    (#193) is not yet in `deployment.md` (P-193-CONTRACT, unverified in this pass).
+  - The picomatch allowlist expiry (2026-12-17) has no test that fails after the date
+    (R233-R3; R234-R4). The review date is in the Open items above.
+  - Dependabot pull requests #235, #236, #237 and #207 are open and not merged.
 - **Owner-only checks:** a real iPhone test of the mobile menu (Safari and Chrome iOS);
   a Word desktop and web host matrix; Word add-in install on Microsoft 365.
+- **Owner or legal decisions:** legal review of the English names of the obligation rules; the
+  1,400-character context cap of the citation check (`citation-support-check.md`).
 - **Not built:** Google connectors (no OAuth client; postponed by the owner);
   Microsoft 365 and Dropbox connectors (in design).
 

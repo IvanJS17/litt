@@ -116,6 +116,14 @@ host (`HOST-RULES.md` §3–§5):
 6. Solo entonces aplica la retención: imagen viva + 1 anterior, retirando el resto por tag
    explícito. Nunca usa `docker system/image/volume/builder prune`.
 
+**Chequeo de la imagen del frontend (paso 3, antes de tocar el árbol).** Con `--network none`,
+`litt-deploy.sh` busca dentro de `litt-frontend:<SHA>` las rutas que solo sirven para desarrollo
+(`node_modules/@parcel/watcher`, `micromatch` y `@opennextjs`). Si encuentra alguna, aborta
+antes de sincronizar el árbol o tocar los contenedores: la versión viva sigue igual. Así se
+comprueba de verdad la afirmación `notInProductionImage` de `scripts/audit-allowlist.json`. En
+el registro del despliegue aparece la línea «imagen del frontend sin rutas solo de desarrollo»
+cuando la comprobación pasa.
+
 **Rollback:** la imagen anterior sigue cargada en el VPS. Para volver a ella se corre el
 mismo procedimiento con el SHA anterior: las imágenes se vuelven a mandar por stdin, ya sea
 reconstruyéndolas en la máquina de build desde ese commit o con `docker save` de las que
