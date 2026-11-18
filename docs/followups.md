@@ -11,10 +11,16 @@ Sections below that say a PR is pending or a test is flaky were written before t
 
 ## Current open items (2026-11-17)
 
-Checked against `origin/main` at `1e11b983b` (production deploy `20261117d`), 2026-11-17, from the
-reviewer notes of PRs #193 to #233.
+Checked against `origin/main` at `cca74bf67` (production deploy `20261117g`, tag `prod-20261117g`),
+2026-11-17, from the reviewer notes of PRs #193 to #240.
 
-- **Closed since the last list:** MCP tables missing `service_role` grants (PR #229; the
+- **Closed since the last list:** OpenRouter streams cut by the 60 s chunk timeout while the
+  model sent only SSE keep-alive comments: the AI SDK dropped them, so they were not counted as
+  activity (#238, deploy `20261117f`; production `STREAM_CHUNK_TIMEOUT_MS=180000`; reproduced by the
+  reviewer with real OpenRouter); a model must be chosen before a chat starts, and the model and
+  reasoning guide in the selector (#240, `20261117g`); new-project and saved-documents UX (#239);
+  upstream cycle 13 merged (#234, `20261117e`; Legal Data Hunter deferred, see ledger §33);
+  MCP tables missing `service_role` grants (PR #229; the
   two MCP migrations had no grant and production's `public` schema has no default
   privileges, so registration failed with `42501` right after the flag was enabled;
   guard test `littTableGrants.test.ts`; lesson: every new table needs its grants in the
@@ -25,6 +31,9 @@ reviewer notes of PRs #193 to #233.
 - **Open: real Claude/ChatGPT test pending.** MCP is on in production (`20261117c`) and
   the live checks pass, but no owner account has yet logged in from Claude or ChatGPT and
   run a tool call. Close it when that works and is recorded here.
+- **Open: model guide (#240).** The owner does not accept the Fable 5.2 entry as written
+  (2026-11-17); the correction is open. A follow-up pull request is in progress: Anthropic ping
+  liveness, the notice for previous models, the GLM reasoning fix and a guide text for the legal GLM model.
 - **Open, in the debt ledger:** TD-047 (legal wording of the citation checks), TD-048
   (PostgREST memory, re-measure by 2026-11-22), TD-049 (MCP mode B run record), TD-050
   (flaky backend and frontend tests from the 2026-11-14 CI runs).
