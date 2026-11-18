@@ -166,7 +166,11 @@ export function ModelToggle({
     ? nearestReasoningLevelForModel(value, reasoningLevel)
     : undefined;
   useEffect(() => {
+    // With no model chosen there is no ladder to normalize against: the
+    // generic one has no "max", and persisting its answer would overwrite a
+    // saved max with xhigh before the person has picked a model.
     if (
+      value &&
       reasoningLevel &&
       normalizedReasoningLevel &&
       normalizedReasoningLevel !== reasoningLevel &&
@@ -174,7 +178,7 @@ export function ModelToggle({
     ) {
       onReasoningChange(normalizedReasoningLevel);
     }
-  }, [normalizedReasoningLevel, onReasoningChange, reasoningLevel]);
+  }, [normalizedReasoningLevel, onReasoningChange, reasoningLevel, value]);
   const selectedLabel = apiKeysLoading
     ? (models.find((model) => model.id === value)?.label ?? t("assistant.modelToggle.selectModel"))
     : (selected?.label ??

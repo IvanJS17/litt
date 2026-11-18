@@ -649,6 +649,31 @@ describe("ModelToggle asking for a model (composer)", () => {
         expect(onChoiceHandled).toHaveBeenCalled();
     });
 
+    it("does not rewrite a saved max while no model is chosen (R240-W7)", () => {
+        const onReasoningChange = vi.fn();
+        const { rerender } = render(
+            <ModelToggle
+                value=""
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                reasoningLevel="max"
+                onReasoningChange={onReasoningChange}
+            />,
+        );
+        expect(onReasoningChange).not.toHaveBeenCalled();
+        // With a model whose ladder lacks max, the stale level still moves.
+        rerender(
+            <ModelToggle
+                value="gemini-3.8-flash"
+                onChange={vi.fn()}
+                apiKeys={claudeKeys()}
+                reasoningLevel="max"
+                onReasoningChange={onReasoningChange}
+            />,
+        );
+        expect(onReasoningChange).toHaveBeenCalledWith("xhigh");
+    });
+
     it("keeps a refused send queued while keys load, then opens the picker (R240-W5)", async () => {
         const onChoiceHandled = vi.fn();
         const toggle = (loading: boolean, request: object | null) => (
