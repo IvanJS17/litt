@@ -87,6 +87,11 @@ interface Props {
    */
   choiceRequest?: object | null;
   onChoiceHandled?: () => void;
+  /**
+   * The id of the model the person used last when it can no longer be used
+   * (`unavailablePreviousModel`). With no model chosen the menu names it.
+   */
+  previousModelId?: string | null;
 }
 
 export function ModelToggle({
@@ -109,6 +114,7 @@ export function ModelToggle({
   askForChoice = false,
   choiceRequest = null,
   onChoiceHandled,
+  previousModelId = null,
 }: Props) {
   const t = useTranslations();
   const guide = useModelGuide();
@@ -213,6 +219,20 @@ export function ModelToggle({
         askForChoice && value === "" && availableModels.length > 0 && !locked
       }
       openReason={openReason}
+      previousGone={
+        previousModelId && value === ""
+          ? t(
+              organization
+                ? "ui.modelToggle.previousGone"
+                : "ui.modelToggle.previousGonePersonal",
+              {
+                model:
+                  models.find((model) => model.id === previousModelId)?.label ??
+                  modelDisplayName(previousModelId),
+              },
+            )
+          : undefined
+      }
       levelHints={showGuide ? guide.levelHints : undefined}
       onOpenGuide={showGuide ? () => setGuideOpen(true) : undefined}
       selectedLabel={selectedLabel}

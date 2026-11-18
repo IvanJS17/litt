@@ -1,6 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useSelectedModel, useSelectedReasoning } from "./useSelectedModel";
+import {
+    unavailablePreviousModel,
+    useSelectedModel,
+    useSelectedReasoning,
+} from "./useSelectedModel";
 import {
     canonicalModelId,
     routerSelections as selectionsFromProfile,
@@ -186,5 +190,61 @@ describe("canonicalModelId", () => {
         );
         expect(canonicalModelId("gpt-5.4-lite")).toBe("gpt-6-luna");
         expect(canonicalModelId("claude-fable-5-1")).toBe("claude-fable-5-1");
+    });
+});
+
+describe("unavailablePreviousModel", () => {
+    it("names the saved model when it has no key and nothing else is usable", () => {
+        expect(
+            unavailablePreviousModel({
+                lastSelectedModel: "gemini-3.8-flash",
+                apiKeys: keys,
+            }),
+        ).toBe("gemini-3.8-flash");
+    });
+
+    it("prefers the chat's own model over the profile's", () => {
+        expect(
+            unavailablePreviousModel({
+                selectionKey: "chat-1",
+                chatModel: "gemini-3.8-flash",
+                lastSelectedModel: "mistral-small-2603",
+                apiKeys: keys,
+            }),
+        ).toBe("gemini-3.8-flash");
+    });
+
+    it("is null when a saved model can still be used, even if the chat's is gone", () => {
+        expect(
+            unavailablePreviousModel({
+                chatModel: "gemini-3.8-flash",
+                lastSelectedModel: "gpt-6-luna",
+                apiKeys: keys,
+            }),
+        ).toBeNull();
+    });
+
+    it("is null for a new account, an unknown key state, and a chat still loading", () => {
+        expect(unavailablePreviousModel({ apiKeys: keys })).toBeNull();
+        expect(
+            unavailablePreviousModel({ lastSelectedModel: "gemini-3.8-flash" }),
+        ).toBeNull();
+        expect(
+            unavailablePreviousModel({
+                selectionKey: "chat-1",
+                lastSelectedModel: "gemini-3.8-flash",
+                apiKeys: keys,
+            }),
+        ).toBeNull();
+    });
+
+    it("notices a model the router selection no longer lists", () => {
+        expect(
+            unavailablePreviousModel({
+                lastSelectedModel: "openrouter/anthropic/claude-opus-5-5",
+                routerSelections,
+                apiKeys: keys,
+            }),
+        ).toBe("openrouter/anthropic/claude-opus-5-5");
     });
 });

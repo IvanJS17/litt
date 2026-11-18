@@ -143,6 +143,14 @@ export function reasoningLevelsForModel(
   if (/(?:^|\/)mistral-large-4$/.test(catalogId)) {
     return ["low", "medium", "high"];
   }
+  // GLM 5.3 FlashX Legal always thinks and takes only low, high and max
+  // (Z.ai Chat Completion API, `reasoning_effort`: "For the GLM-5.3
+  // GLM-5.3-FLASH model, only the low / high / max levels are supported";
+  // `thinking.type` only supports `enabled`). A saved level moves to the
+  // nearest: none to low, medium to high, xhigh to max.
+  if (/(?:^|\/)glm-5\.3-flashx-legal$/.test(catalogId)) {
+    return ["low", "high", "max"];
+  }
   if (/(?:^|\/)mistral-(?:medium-3-5|small-2603)$/.test(catalogId)) {
     return ["none", "high"];
   }
@@ -592,6 +600,11 @@ export interface ModelToggleUIProps {
   needsChoice?: boolean;
   /** Why a host opened the picker; the menu says so and focuses a model. */
   openReason?: "send" | null;
+  /**
+   * The model last used can no longer be used, so none is chosen: the menu
+   * says so at the top, in the host's words (the host knows the cause).
+   */
+  previousGone?: string;
   /** One line per reasoning level, from the host's catalog. */
   levelHints?: Partial<Record<ReasoningLevel, string>>;
   /** Adds «¿Cuál elijo?» to the menu; the host shows the guide. */
@@ -639,6 +652,7 @@ export function ModelToggleUI({
   onOpenChange,
   needsChoice = false,
   openReason = null,
+  previousGone,
   levelHints,
   onOpenGuide,
 }: ModelToggleUIProps) {
@@ -850,7 +864,11 @@ export function ModelToggleUI({
           reasoningLevels={reasoningLevels}
           levelHints={levelHints}
           note={
-            openReason === "send" ? t("ui.modelToggle.sendBlocked") : undefined
+            openReason === "send"
+              ? t("ui.modelToggle.sendBlocked")
+              : showNeedsChoice
+                ? previousGone
+                : undefined
           }
           onOpenGuide={onOpenGuide}
           onReasoningChange={

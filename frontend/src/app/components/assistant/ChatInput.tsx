@@ -39,6 +39,7 @@ import { ModelToggle, type ReasoningLevel } from "./ModelToggle";
 import { NoModelsWarningPopup } from "../popups/NoModelsWarningPopup";
 import {
     useSelectedModel,
+    unavailablePreviousModel,
     useSelectedReasoning,
 } from "@/app/hooks/useSelectedModel";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
@@ -319,7 +320,7 @@ function ChatInputForChatImpl(
     // the stored selection alone for.
     // In an organization workspace these are the lists that govern its keys.
     const savedRouterSelections = useModelRouterSelections();
-    const [model, setModel] = useSelectedModel({
+    const modelSources = {
         selectionKey: chatKey,
         chatModel,
         lastSelectedModel: profile?.lastSelectedChatModel,
@@ -329,7 +330,11 @@ function ChatInputForChatImpl(
                 : null,
         apiKeys,
         configuredModelIds,
-    });
+    };
+    const [model, setModel] = useSelectedModel(modelSources);
+    // The last model used, when it can no longer be used: the picker names it.
+    const previousModelId =
+        model === "" ? unavailablePreviousModel(modelSources) : null;
     // LiTT governed BYOK: a conversation that already has a model is fixed
     // to its provider, model and key (the server pinned them with its first
     // answer). Before that, the composer also offers which key to use.
@@ -1194,6 +1199,7 @@ function ChatInputForChatImpl(
                                     working={isLoading}
                                     locked={routeFixed}
                                     askForChoice
+                                    previousModelId={previousModelId}
                                     choiceRequest={modelChoiceRequest}
                                     onChoiceHandled={() =>
                                         setModelChoiceRequest(null)

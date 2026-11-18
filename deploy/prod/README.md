@@ -162,7 +162,7 @@ Nunca imprimir el contenido del `.env`.
 
 | Variable | Valor en compose | Uso |
 |---|---|---|
-| `STREAM_CHUNK_TIMEOUT_MS` | `180000` (ms; rango 5000–1800000) | Silencio máximo entre salidas (texto, razonamiento, llamada a herramienta) de un modelo antes de abortar con «stopped responding». Los comentarios SSE de OpenRouter (`: OPENROUTER PROCESSING`) reinician este reloj y el de primera salida; una conexión sin bytes aborta igual. Sin definirla en `/srv/litt/.env` rige el valor por defecto de compose; el valor por defecto del código (60000) solo aplica fuera de compose. |
+| `STREAM_CHUNK_TIMEOUT_MS` | `180000` (ms; rango 5000–1800000) | Silencio máximo entre salidas (texto, razonamiento, llamada a herramienta) de un modelo antes de abortar con «stopped responding». Los comentarios SSE de OpenRouter (`: OPENROUTER PROCESSING`) y los eventos `event: ping` de Anthropic reinician este reloj y el de primera salida; una conexión sin bytes aborta igual. Sin definirla en `/srv/litt/.env` rige el valor por defecto de compose; el valor por defecto del código (60000) solo aplica fuera de compose. |
 
 ### Checklist: de dónde sale cada secreto
 

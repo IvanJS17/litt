@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { ChatInput } from "./ChatInput";
+import { isModelAvailable } from "@/app/lib/modelAvailability";
 
 const getChatCredentialOptions = vi.hoisted(() => vi.fn());
 vi.mock("@/app/lib/mikeApi", () => ({
@@ -32,7 +33,9 @@ vi.mock("./ModelToggle", async (importOriginal) => ({
         onChange,
         choiceRequest,
         onChoiceHandled,
+        previousModelId,
     }: {
+        previousModelId?: string | null;
         onChange: (model: string) => void;
         choiceRequest?: object | null;
         onChoiceHandled?: () => void;
@@ -41,6 +44,7 @@ vi.mock("./ModelToggle", async (importOriginal) => ({
             <button type="button" onClick={() => onChange("gpt-6-astra")}>
                 Select test model
             </button>
+            <span data-testid="previous-model">{previousModelId ?? "none"}</span>
             {choiceRequest && (
                 <div role="status" data-testid="selector-open">
                     <button type="button" onClick={onChoiceHandled}>
@@ -70,13 +74,13 @@ class ResizeObserverMock {
     disconnect() {}
 }
 
-function mockProfile() {
+function mockProfile(lastSelectedChatModel: string | null = null) {
     vi.mocked(useUserProfile).mockReturnValue({
         profile: {
             openRouterModels: [],
             vercelModels: [],
             openCodeGoModels: [],
-            lastSelectedChatModel: null,
+            lastSelectedChatModel,
             lastSelectedReasoningLevel: "high",
             apiKeys: {},
         },
@@ -133,6 +137,24 @@ describe("ChatInput sending with no model chosen", () => {
         expect(send).not.toHaveAttribute("aria-disabled");
         fireEvent.click(send);
         await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ content: "hola", model: "gpt-6-astra" })));
+    });
+
+    it("hands the picker the saved model it can no longer use", () => {
+        vi.mocked(isModelAvailable).mockReturnValue(false);
+        mockProfile("gemini-3.8-flash");
+        render(<ChatInput onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
+        expect(screen.getByTestId("previous-model")).toHaveTextContent("gemini-3.8-flash");
+    });
+
+    it("hands the picker nothing when the saved model still works or none was saved", () => {
+        vi.mocked(isModelAvailable).mockReturnValue(true);
+        mockProfile("gemini-3.8-flash");
+        const { unmount } = render(<ChatInput onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
+        expect(screen.getByTestId("previous-model")).toHaveTextContent("none");
+        unmount();
+        mockProfile(null);
+        render(<ChatInput onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} />);
+        expect(screen.getByTestId("previous-model")).toHaveTextContent("none");
     });
 
     it("keeps the empty box fully disabled", () => {

@@ -2325,8 +2325,8 @@
         "useFor": "instrucciones, razonamiento y programación."
       },
       "openrouter-z-ai-glm-5-3-flashx-legal": {
-        "hint": "Revisión de contratos y redacción",
-        "useFor": "investigación, revisión de contratos y redacción jurídica."
+        "hint": "Especializado en lo jurídico; económico",
+        "useFor": "revisar contratos, investigar y redactar o corregir escritos."
       }
     },
     "recommended": "Para empezar: Claude Sonnet 5.5 en Medio para el trabajo diario; sube a Alto para análisis complejos.",
@@ -7182,6 +7182,8 @@
       "reasoningLevelValue": "Nivel de razonamiento: {level}",
       "routeConfigured": "Configurado",
       "routeDirect": "Directo",
+      "previousGone": "{model} ya no está disponible en tu despacho. Elige otro.",
+      "previousGonePersonal": "{model} ya no está disponible con tus llaves. Elige otro.",
       "routeLocal": "Local",
       "selectModel": "Elige un modelo",
       "selectModelCompact": "Elige modelo",
