@@ -215,9 +215,9 @@ describe("ModelToggleUI asking for a model", () => {
 });
 
 describe("reasoningLevelsForModel", () => {
-    it("never offers none for GLM 5.3 FlashX Legal, which always thinks", () => {
+    it("gives GLM 5.3 FlashX Legal only low, high and max (Z.ai), never none", () => {
         const levels = reasoningLevelsForModel("openrouter/z-ai/glm-5.3-flashx-legal");
-        expect(levels).toEqual(["low", "medium", "high", "xhigh"]);
+        expect(levels).toEqual(["low", "high", "max"]);
         expect(reasoningLevelsForModel("z-ai/glm-5.3-flashx-legal")).not.toContain("none");
         // Another GLM keeps the standard ladder.
         expect(reasoningLevelsForModel("openrouter/z-ai/glm-5.3")).toContain("none");

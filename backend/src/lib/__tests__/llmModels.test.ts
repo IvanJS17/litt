@@ -336,10 +336,12 @@ describe("reasoningLevelsForModel", () => {
         expect(normalizeReasoningLevelForModel("mistral-large-4", "none")).toBe("low");
     });
 
-    it("never offers none for GLM 5.3 FlashX Legal and moves a saved none to low", () => {
+    it("gives GLM 5.3 FlashX Legal only low, high and max, and moves saved levels", () => {
         const id = "openrouter/z-ai/glm-5.3-flashx-legal";
-        expect(reasoningLevelsForModel(id)).toEqual(["low", "medium", "high", "xhigh"]);
+        expect(reasoningLevelsForModel(id)).toEqual(["low", "high", "max"]);
         expect(normalizeReasoningLevelForModel(id, "none")).toBe("low");
+        expect(normalizeReasoningLevelForModel(id, "medium")).toBe("high");
+        expect(normalizeReasoningLevelForModel(id, "xhigh")).toBe("max");
         expect(normalizeReasoningLevelForModel(id, "high")).toBe("high");
         expect(reasoningLevelsForModel("openrouter/z-ai/glm-5.3")).toContain("none");
     });

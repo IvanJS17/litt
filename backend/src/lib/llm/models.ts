@@ -96,10 +96,13 @@ export function reasoningLevelsForModel(
     if (/(?:^|\/)mistral-large-4$/.test(catalogId)) {
         return ["low", "medium", "high"];
     }
-    // GLM 5.3 FlashX Legal has a mandatory thinking mode (OpenRouter model
-    // page, 2026-11-17): "none" is not offered; a saved "none" moves to "low".
+    // GLM 5.3 FlashX Legal always thinks and takes only low, high and max
+    // (Z.ai Chat Completion API, `reasoning_effort`: "For the GLM-5.3
+    // GLM-5.3-FLASH model, only the low / high / max levels are supported";
+    // `thinking.type` only supports `enabled`). A saved level moves to the
+    // nearest: none to low, medium to high, xhigh to max.
     if (/(?:^|\/)glm-5\.3-flashx-legal$/.test(catalogId)) {
-        return STANDARD_REASONING_LEVELS.filter((level) => level !== "none");
+        return ["low", "high", "max"];
     }
     if (/(?:^|\/)mistral-(?:medium-3-5|small-2603)$/.test(catalogId)) {
         return ["none", "high"];

@@ -2326,8 +2326,7 @@
       },
       "openrouter-z-ai-glm-5-3-flashx-legal": {
         "hint": "Especializado en lo jurídico; económico",
-        "useFor": "revisar contratos, investigar y redactar o corregir escritos (según OpenRouter y Z.ai).",
-        "notice": "Solo documenta inglés y chino; no dice qué países cubre. Verifica con derecho mexicano."
+        "useFor": "revisar contratos, investigar y redactar o corregir escritos."
       }
     },
     "recommended": "Para empezar: Claude Sonnet 5.5 en Medio para el trabajo diario; sube a Alto para análisis complejos.",

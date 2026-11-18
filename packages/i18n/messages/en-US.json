@@ -2326,8 +2326,7 @@
       },
       "openrouter-z-ai-glm-5-3-flashx-legal": {
         "hint": "Specialized in legal tasks; low cost",
-        "useFor": "review contracts, research, and draft or revise filings (per OpenRouter and Z.ai).",
-        "notice": "Documented for English and Chinese only; countries not published. Check Mexican law."
+        "useFor": "review contracts, research, and draft or revise filings."
       }
     },
     "recommended": "To start: Claude Sonnet 5.5 at Medium for everyday work; move up to High for complex analysis.",

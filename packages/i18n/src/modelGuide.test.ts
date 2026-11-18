@@ -58,10 +58,10 @@ describe.each([
         expect(guide.models["claude-fable-5-1"]!.notice).toMatch(/30/);
     });
 
-    it("warns that GLM 5.3 FlashX Legal does not publish its jurisdictions", () => {
+    it("describes GLM 5.3 FlashX Legal without a notice (owner decision)", () => {
         const glm = guide.models["openrouter-z-ai-glm-5-3-flashx-legal"]!;
-        expect(glm.notice).toMatch(/Mexican|mexicano/);
-        expect(glm.useFor).toMatch(/OpenRouter/);
+        expect(glm.useFor).toMatch(/contra(tos|cts)/);
+        expect(glm.notice).toBeUndefined();
     });
 
     it("never promises verifiable sources", () => {
