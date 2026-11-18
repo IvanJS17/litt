@@ -85,6 +85,6 @@ describe("Anthropic ping events as stream liveness", () => {
     });
     const adapter = streamAiSdk.mock.calls[0]![1] as AiSdkAdapterConfig;
     expect(await pingsSeen(adapter.model)).toBeGreaterThanOrEqual(1);
-    expect(String(fetchMock.mock.calls[0]![0])).toContain("us-central1-aiplatform.googleapis.com");
+    expect(String((fetchMock.mock.calls as unknown[][])[0]![0])).toContain("us-central1-aiplatform.googleapis.com");
   });
 });
