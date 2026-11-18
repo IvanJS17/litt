@@ -46,7 +46,7 @@ describe("FileDirectory tabs", () => {
         await user.click(screen.getByRole("button", { name: "Plantillas" }));
         expect(
             screen.getByText(
-                "Tus plantillas de Biblioteca › Plantillas: documentos base para redactar. No son workflows ni playbooks.",
+                "Tus plantillas de Biblioteca › Plantillas: documentos base para redactar. No son flujos de trabajo ni playbooks.",
             ),
         ).toBeInTheDocument();
 
@@ -88,15 +88,17 @@ describe("FileDirectory tabs", () => {
     it("keeps the wording neutral for callers that are not a project", async () => {
         const user = userEvent.setup({ delay: null });
         renderEs();
-        await user.click(screen.getByRole("button", { name: "Otros proyectos" }));
+        await user.click(screen.getByRole("button", { name: "Proyectos" }));
+        expect(screen.queryByRole("button", { name: "Otros proyectos" })).not.toBeInTheDocument();
         expect(screen.getByText("Documentos de tus proyectos.")).toBeInTheDocument();
+        expect(screen.getByText("No tienes proyectos con documentos todavía.")).toBeInTheDocument();
         expect(screen.queryByText(/copiarlos aquí/)).not.toBeInTheDocument();
     });
 
     it("uses the English names in en-US", () => {
         render(<FileDirectory selectedDocuments={[]} onChange={vi.fn()} showTabs />);
         const tabs = screen.getAllByRole("button").map((b) => b.textContent);
-        expect(tabs).toEqual(expect.arrayContaining(["My library", "Templates", "Other projects"]));
+        expect(tabs).toEqual(expect.arrayContaining(["My library", "Templates", "Projects"]));
         expect(
             within(document.body).getByText("Documents you uploaded outside any project."),
         ).toBeInTheDocument();

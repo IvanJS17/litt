@@ -241,7 +241,7 @@ describe("FileDirectory", () => {
             screen.getByRole("button", { name: "My library" }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole("button", { name: "Other projects" }),
+            screen.getByRole("button", { name: "Projects" }),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole("button", { name: "Templates" }),

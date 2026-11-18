@@ -354,7 +354,7 @@ export function ProjectsOverview() {
     );
     const cmFilterButton = (
         <TableSortFilter
-            label={t("projects.sortByCm")}
+            label={t("projects.sortByClientMatterKey")}
             value={cmSortDirection}
             onChange={(direction) => handleSortChange("cm", direction)}
         />
@@ -715,7 +715,7 @@ export function ProjectsOverview() {
                         </TableHeaderCell>
                         <TableHeaderCell className="w-32">
                             <div className="flex items-center gap-1">
-                                <span>{t("projects.cm")}</span>
+                                <span>{t("projects.clientMatterKey")}</span>
                                 {!loading && cmFilterButton}
                             </div>
                         </TableHeaderCell>

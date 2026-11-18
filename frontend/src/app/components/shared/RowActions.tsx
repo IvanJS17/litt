@@ -216,7 +216,7 @@ export function RowActionMenuItems({
             {onUpdateCmNumber && (
                 <DropdownItem onSelect={run(onUpdateCmNumber)}>
                     <Hash className="h-3.5 w-3.5" />
-                    {t("shared.rowActions.editCmNo")}
+                    {t("shared.rowActions.editClientMatterKey")}
                 </DropdownItem>
             )}
             {onDownload && (
