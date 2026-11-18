@@ -649,6 +649,32 @@ describe("ModelToggle asking for a model (composer)", () => {
         expect(onChoiceHandled).toHaveBeenCalled();
     });
 
+    it("keeps a refused send queued while keys load, then opens the picker (R240-W5)", async () => {
+        const onChoiceHandled = vi.fn();
+        const toggle = (loading: boolean, request: object | null) => (
+            <ModelToggle
+                value=""
+                onChange={vi.fn()}
+                apiKeys={loading ? undefined : claudeKeys()}
+                apiKeysLoading={loading}
+                askForChoice
+                choiceRequest={request}
+                onChoiceHandled={onChoiceHandled}
+            />
+        );
+        const request = {};
+        const { rerender } = render(toggle(true, null));
+        rerender(toggle(true, request));
+        // Not dropped: still pending, nothing opened yet.
+        expect(onChoiceHandled).not.toHaveBeenCalled();
+        expect(screen.queryByRole("menu")).toBeNull();
+        rerender(toggle(false, request));
+        expect(await screen.findByRole("status")).toHaveTextContent(
+            "To send your message, choose a model.",
+        );
+        expect(onChoiceHandled).not.toHaveBeenCalled();
+    });
+
     it("«Which one should I pick?» opens the guide and «Use this» selects the model", async () => {
         const onChange = vi.fn();
         render(<ModelToggle value="" onChange={onChange} apiKeys={claudeKeys()} askForChoice />);
