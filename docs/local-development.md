@@ -126,8 +126,9 @@ A new email-and-password registration must confirm its address before it can
 sign in. Supabase Auth sends authentication email; the LiTT backend does not
 send it directly. Open [Mailpit](http://localhost:8025) to read the
 confirmation message. Mailpit also captures local email-change and
-password-reset messages, and no email leaves your machine. These links pass
-through `/auth/callback` and return to the relevant app screen.
+password-reset messages, and no email leaves your machine. Signup and email-change links pass
+through `/auth/callback`; password-reset links open `/auth/confirm`. Both
+return to the relevant app screen.
 
 Confirmation is on by default because project, chat, review, and workflow
 shares and organization invitations are addressed by email: with autoconfirm

@@ -22,6 +22,7 @@ import {
     unenrollMfa,
     updateAuthEmail,
     updateAuthPassword,
+    verifyRecoveryToken,
     verifyMfa,
 } from "./authApi";
 
@@ -349,6 +350,13 @@ describe("cookie auth client", () => {
             "/api/auth/exchange",
             "POST",
             { code: "oauth-code" },
+        ],
+        [
+            "recovery token verification",
+            () => verifyRecoveryToken("hash-1"),
+            "/api/auth/verify-otp",
+            "POST",
+            { token_hash: "hash-1", type: "recovery" },
         ],
         [
             "invitation session",

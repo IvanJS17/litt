@@ -193,6 +193,14 @@ export async function exchangeAuthCode(code: string) {
     });
 }
 
+/** Spend the token hash of the recovery email: works in any browser. */
+export async function verifyRecoveryToken(tokenHash: string) {
+    return authRequest<{ user: AuthUser }>("auth.signin", "/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ token_hash: tokenHash, type: "recovery" }),
+    });
+}
+
 /** An invitation link carries its session in the URL hash; this makes it the
  *  cookie session every other screen reads. */
 export async function startInviteSession(

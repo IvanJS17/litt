@@ -459,7 +459,16 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   conexión sin cifrar y, si el servidor anuncia la extensión `STARTTLS`, llama a
   `StartTLS`. Es decir, en el 587 hay STARTTLS cuando el servidor lo ofrece; si
   no lo ofreciera, gomail seguiría sin cifrar. Los enlaces apuntan a
-  `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app. El
+  `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app.
+  **Recuperación de contraseña**: el enlace del correo no pasa por
+  `/auth/v1/verify` (PKCE exige el mismo navegador que lo pidió); apunta a
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
+  (`GOTRUE_SITE_URL` = `PUBLIC_URL`). La página `/auth/confirm` no gasta el
+  token al cargar (los escáneres de correo abren los enlaces): lo verifica el
+  backend (`POST /api/auth/verify-otp`, solo `type=recovery`) cuando la persona
+  pulsa «Continuar», y deja la sesión en cookie, así que funciona en cualquier
+  navegador. Los correos `invite`, `confirmation` y `email_change` siguen con
+  `{{ .ConfirmationURL }}`. El
   backend no tiene credenciales de correo: al invitar a un correo sin cuenta
   pide a GoTrue (`inviteUserByEmail`) que envíe la invitación; quien ya tiene
   cuenta ve su invitación dentro de la app.

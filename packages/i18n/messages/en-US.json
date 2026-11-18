@@ -528,6 +528,13 @@
       "confirmationSent": "We sent a confirmation link to your email address. Confirm your address before logging in.",
       "returnToLogin": "Return to login"
     },
+    "confirm": {
+      "action": "verify your link",
+      "continue": "Continue",
+      "description": "For your security, confirm that you want to change your password. The link can only be used once.",
+      "title": "Continue to create your new password",
+      "verifying": "Verifying…"
+    },
     "errors": {
       "accountExists": "An account with this email already exists. Log in instead.",
       "captchaFailed": "The security check didn't pass. Reload the page and try again.",
