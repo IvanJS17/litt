@@ -11,6 +11,7 @@ import {
     Loader2,
     Pencil,
     Plus,
+    Sparkles,
     Trash2,
     Users,
 } from "lucide-react";
@@ -428,6 +429,7 @@ export function ProjectPageHeader({
     onOpenProfile,
     onOpenRadar,
     onOpenReport,
+    onOpenRuleProposals,
     onDeleteProject,
     onSearchChange,
     onOpenAccess,
@@ -462,6 +464,8 @@ export function ProjectPageHeader({
     onOpenRadar?: (() => void) | null;
     /** Present with `onOpenRequests`: opens the matter's retainer report. */
     onOpenReport?: (() => void) | null;
+    /** Present for a firm project that is not a matter: opens the AI proposals of new rules from a law text. */
+    onOpenRuleProposals?: (() => void) | null;
     onDeleteProject: () => void;
     onSearchChange: (search: string) => void;
     onOpenAccess: () => void;
@@ -605,6 +609,16 @@ export function ProjectPageHeader({
                                                   label: t("retainerReport.title"),
                                                   icon: FileBarChart,
                                                   onSelect: onOpenReport,
+                                                  disabled: !roleKnown,
+                                              },
+                                          ]
+                                        : []),
+                                    ...(onOpenRuleProposals
+                                        ? [
+                                              {
+                                                  label: t("ruleProposals.title"),
+                                                  icon: Sparkles,
+                                                  onSelect: onOpenRuleProposals,
                                                   disabled: !roleKnown,
                                               },
                                           ]

@@ -49,7 +49,7 @@ vi.mock("@/app/components/shared/DocumentUploadMenu", () => ({
     DocumentUploadMenu: () => <button>Upload</button>,
 }));
 
-function renderHeader(overrides: { roleKnown?: boolean; onOpenRadar?: (() => void) | null; onOpenReport?: (() => void) | null } = {}) {
+function renderHeader(overrides: { roleKnown?: boolean; onOpenRadar?: (() => void) | null; onOpenReport?: (() => void) | null; onOpenRuleProposals?: (() => void) | null } = {}) {
     render(
         <ProjectPageHeader
             project={{ id: "project-1", name: "Matter" } as never}
@@ -109,5 +109,20 @@ describe("ProjectPageHeader report action", () => {
     it("is absent without a matter", () => {
         renderHeader({ onOpenReport: null });
         expect(screen.queryByRole("button", { name: "Retainer report" })).not.toBeInTheDocument();
+    });
+});
+
+describe("ProjectPageHeader rule proposals action", () => {
+    it("opens the proposals of new rules from the actions menu of a firm project, and offers it only then", async () => {
+        const user = userEvent.setup();
+        const onOpenRuleProposals = vi.fn();
+        renderHeader({ onOpenRuleProposals });
+        await user.click(screen.getByRole("button", { name: "Propose new rules" }));
+        expect(onOpenRuleProposals).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides it for a matter's project or a personal one", () => {
+        renderHeader({ onOpenRuleProposals: null });
+        expect(screen.queryByRole("button", { name: "Propose new rules" })).not.toBeInTheDocument();
     });
 });

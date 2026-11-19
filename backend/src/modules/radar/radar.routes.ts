@@ -32,12 +32,19 @@ import {
   acceptRuleSuggestion,
   actOnRadarItem,
   decideRuleSuggestions,
+  discardProposal,
   discardRuleSuggestion,
+  exportRuleProposals,
   getMatterRadar,
   getMatterRules,
+  getProposalRoute,
   getRadarToday,
+  getRuleProposals,
   getRuleSuggestions,
   getSuggestionRoute,
+  markProposalImplemented,
+  proposeRules,
+  sendProposalToLegal,
   setMatterRule,
   suggestRules,
 } from "./radar.service";
@@ -128,3 +135,60 @@ radarTodayRouter.get("/today", requireAuth, asyncRoute(async (req, res) => {
 }));
 
 radarTodayRouter.use(routerErrorHandler("[radar-today]"));
+
+// ---------------------------------------------------------------------------
+// Rule proposals (S8b): drafts of NEW rules from a law text that lives in a
+// firm project (never a matter). Reading and the file for legal are for any
+// member of the project; proposing and deciding for its owner or editor.
+// ---------------------------------------------------------------------------
+//   GET  /                         the drafts and their decisions
+//   GET  /route                    where a version's text would go (null: no button)
+//   GET  /export                   the Markdown file for legal (sent_to_legal, not discarded)
+//   POST /versions/:versionId/propose
+//   POST /:proposalId/{send-to-legal,discard,implemented}
+const proposalLimiter = rateLimit({
+  windowMs: envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15) * 60 * 1000,
+  max: envInt("RATE_LIMIT_RULE_SUGGEST_MAX", 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (_req, res) => String(res.locals.userId),
+  message: rateLimitedBody("Too many proposal requests. Please try again later."),
+});
+
+const projectActor = (req: Request, res: Response) => ({
+  userId: res.locals.userId as string,
+  userEmail: (res.locals.userEmail as string | undefined) ?? null,
+  projectId: req.params.projectId as unknown,
+});
+
+export const ruleProposalsRouter = Router({ mergeParams: true });
+
+ruleProposalsRouter.get("/", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await getRuleProposals(createServerSupabase(), projectActor(req, res)));
+}));
+
+ruleProposalsRouter.get("/route", requireAuth, asyncRoute(async (req, res) => {
+  const result = await getProposalRoute(createServerSupabase(), projectActor(req, res));
+  send(res, result.ok ? { ok: true, data: { route: result.data } } : result);
+}));
+
+ruleProposalsRouter.get("/export", requireAuth, asyncRoute(async (req, res) => {
+  const result = await exportRuleProposals(createServerSupabase(), projectActor(req, res));
+  if (!result.ok) return void sendServiceFailure(res, result);
+  res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.data.filename}"`);
+  res.setHeader("Cache-Control", "no-store");
+  res.send(result.data.content);
+}));
+
+ruleProposalsRouter.post("/versions/:versionId/propose", requireAuth, requireMfaIfEnrolled, proposalLimiter, asyncRoute(async (req, res) => {
+  send(res, await proposeRules(createServerSupabase(), { ...projectActor(req, res), versionId: req.params.versionId }));
+}));
+
+for (const [path, decide] of [["send-to-legal", sendProposalToLegal], ["discard", discardProposal], ["implemented", markProposalImplemented]] as const) {
+  ruleProposalsRouter.post(`/:proposalId/${path}`, requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+    send(res, await decide(createServerSupabase(), { ...projectActor(req, res), proposalId: req.params.proposalId, body: req.body }));
+  }));
+}
+
+ruleProposalsRouter.use(routerErrorHandler("[rule-proposals]"));

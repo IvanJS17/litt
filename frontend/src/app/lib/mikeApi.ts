@@ -6848,6 +6848,89 @@ export async function decideRuleSuggestions(
 }
 
 // ---------------------------------------------------------------------------
+// AI proposals of NEW rules from a law text (docs/obligation-rules.md, "Rule proposals")
+// ---------------------------------------------------------------------------
+
+const ruleProposalsPath = (projectId: string) => `/projects/${encodeURIComponent(projectId)}/rule-proposals`;
+
+export async function getRuleProposals(projectId: string): Promise<import("@mike/contracts").RuleProposals> {
+    const result = await apiRequest<import("@mike/contracts").RuleProposals>("project.ruleProposals", ruleProposalsPath(projectId));
+    // A reply without its lists is a failed load, not "no proposals".
+    if (
+        typeof result?.can_write !== "boolean" ||
+        !Array.isArray(result.proposals) ||
+        !Array.isArray(result.versions) ||
+        !Array.isArray(result.people)
+    )
+        throw new Error("Malformed rule proposals response");
+    return result;
+}
+
+/** Where the text of a version would go if the AI is asked for proposals; null: no button. */
+export async function getRuleProposalRoute(
+    projectId: string,
+): Promise<import("@mike/contracts").ProfileExtractionRoute | null> {
+    const body = await apiRequest<{ route?: import("@mike/contracts").ProfileExtractionRoute | null }>(
+        "project.ruleProposals",
+        `${ruleProposalsPath(projectId)}/route`,
+    );
+    const route = body?.route;
+    if (route === null) return null;
+    if (typeof route?.provider !== "string" || typeof route.model !== "string")
+        throw new Error("Malformed rule proposal route response");
+    return route;
+}
+
+/** Asks the space's AI which new rules ONE version's law text proposes (synchronous). */
+export async function proposeObligationRules(
+    projectId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").RuleProposalRun> {
+    const result = await apiRequest<import("@mike/contracts").RuleProposalRun>(
+        "project.ruleProposals",
+        `${ruleProposalsPath(projectId)}/versions/${encodeURIComponent(versionId)}/propose`,
+        jsonInit("POST", {}),
+    );
+    const counts = [
+        result?.proposed,
+        result?.discarded_quote_not_found,
+        result?.discarded_duplicate,
+        result?.discarded_invalid,
+        result?.discarded_term_has_date,
+    ];
+    // A reply without its counts is a failed run, not "nothing was proposed".
+    if (
+        !counts.every((count) => typeof count === "number" && Number.isInteger(count) && count >= 0) ||
+        !Array.isArray(result.proposal_ids) ||
+        !result.proposal_ids.every((id) => typeof id === "string")
+    )
+        throw new Error("Malformed rule proposal run response");
+    return result;
+}
+
+/** `send-to-legal` and `discard` (owner or editor); `implemented` carries the catalog code a pull request gave it. */
+export async function decideRuleProposal(
+    projectId: string,
+    proposalId: string,
+    action: "send-to-legal" | "discard" | "implemented",
+    input: import("@mike/contracts").RuleProposalDecisionInput = {},
+): Promise<import("@mike/contracts").RuleProposal> {
+    const proposal = await apiRequest<import("@mike/contracts").RuleProposal>(
+        "project.ruleProposals",
+        `${ruleProposalsPath(projectId)}/${encodeURIComponent(proposalId)}/${action}`,
+        jsonInit("POST", input),
+    );
+    if (typeof proposal?.id !== "string" || typeof proposal.status !== "string")
+        throw new Error("Malformed rule proposal response");
+    return proposal;
+}
+
+/** The Markdown file for legal, to hand to the browser's download. Generated for this person only; nothing is sent to LiTT. */
+export async function downloadRuleProposals(projectId: string): Promise<{ blob: Blob; filename: string | null }> {
+    return apiBlobRequest("project.ruleProposals", `${ruleProposalsPath(projectId)}/export`);
+}
+
+// ---------------------------------------------------------------------------
 // Retainer report of a matter (docs/retainer-report.md)
 // ---------------------------------------------------------------------------
 

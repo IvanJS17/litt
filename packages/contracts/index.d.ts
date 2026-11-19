@@ -2773,6 +2773,82 @@ export type RuleSuggestionBatchResult = {
   results: { suggestion_id: string; outcome: "ok" | "conflict" | "not_found" | "forbidden" | "error"; code?: string }[];
 };
 
+/** Why a proposal no longer stands on its text (computed when it is read). */
+export type RuleProposalStaleReason = "text_changed" | "version_missing" | "text_unavailable";
+
+/**
+ * An AI proposal of a NEW obligation rule from a law text (docs/obligation-rules.md,
+ * "Rule proposals"): an UNVERIFIED draft. It cannot be turned on and no calculation
+ * reads it. `plazo_propuesto` is the model's free draft text (never a calendar date).
+ * `quote` is a passage of the uploaded text that the code found in it.
+ */
+export type RuleProposal = {
+  id: string;
+  project_id: string;
+  law: string;
+  article: string;
+  obligation: string;
+  anchor_name: string;
+  plazo_propuesto: string | null;
+  quote: string;
+  page: number | null;
+  source: {
+    document_id: string;
+    version_id: string;
+    version_number: number | null;
+    filename: string | null;
+    start_char: number;
+    end_char: number;
+    text_sha256: string;
+  };
+  ai_provider: string | null;
+  ai_model: string | null;
+  /** The last decision; `pending` when nobody decided. */
+  status: "pending" | "sent_to_legal" | "implemented" | "discarded";
+  stale_reason: RuleProposalStaleReason | null;
+  effective_status: "pending" | "sent_to_legal" | "implemented" | "discarded" | "obsolete";
+  /** The catalog code a person recorded once a pull request added the rule. */
+  catalog_code: string | null;
+  created_by: string | null;
+  created_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+};
+
+export type RuleProposals = {
+  /** The caller may propose and decide (owner or editor of the project). */
+  can_write: boolean;
+  proposals: RuleProposal[];
+  /** Document versions a run can read; empty for readers. */
+  versions: ProfileSourceVersion[];
+  people: ProfilePerson[];
+};
+
+export type RuleProposalRun = {
+  proposed: number;
+  discarded_quote_not_found: number;
+  discarded_duplicate: number;
+  /** Beyond the cap of 25 or outside the closed schema (any date or operation field). */
+  discarded_invalid: number;
+  /** Proposals kept whose term wrote a calendar date: the term was dropped. */
+  discarded_term_has_date: number;
+  proposal_ids: string[];
+};
+
+export type RuleProposalDecisionInput = {
+  /** Optional note kept with the decision (up to 500 characters). */
+  reason?: string;
+  /** `implemented` only: the code the rule got in the catalog. */
+  catalog_code?: string;
+};
+
+export type RuleProposalExport = {
+  filename: string;
+  /** The Markdown file for legal. */
+  content: string;
+  count: number;
+};
+
 export type ObligationRuleActivationInput = {
   /** The confirmed fact the rule counts from. */
   anchor_fact_id: string;

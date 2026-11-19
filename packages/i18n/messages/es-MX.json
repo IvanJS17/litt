@@ -1381,7 +1381,15 @@
       "suggestion_already_decided": "Esta sugerencia ya se decidió. Recarga la lista para ver su estado.",
       "suggestion_obsolete": "El documento citado o la regla cambiaron, así que esta sugerencia no se puede aceptar. Pide sugerencias de nuevo con la versión vigente.",
       "invalid_rule_suggestion": "Revisa la solicitud: el motivo debe ser texto de hasta 500 caracteres y se pueden decidir hasta 50 sugerencias a la vez.",
-      "rule_suggestion_limit": "Este asunto ya tiene todas las sugerencias que puede guardar."
+      "rule_suggestion_limit": "Este asunto ya tiene todas las sugerencias que puede guardar.",
+      "rule_proposal_firm_project_required": "Las propuestas de reglas se hacen en un proyecto del despacho, no en uno personal.",
+      "rule_proposal_matter_project": "Las propuestas de reglas leen texto de ley en un proyecto del despacho, nunca en el proyecto de un asunto de cliente.",
+      "rule_proposal_write_required": "Solo una persona propietaria o editora del proyecto puede proponer o decidir reglas.",
+      "rule_proposal_limit": "Este proyecto ya tiene todas las propuestas que admite.",
+      "invalid_rule_proposal": "Revisa la solicitud: el motivo debe ser texto de hasta 500 caracteres.",
+      "proposal_already_decided": "Esta propuesta ya se decidió. Recarga la lista para ver su estado.",
+      "proposal_obsolete": "El texto citado cambió, así que esta propuesta no se puede enviar a legal. Pide propuestas de nuevo con la versión actual.",
+      "proposal_unknown_catalog_code": "Ese código no es una regla verificada del catálogo de esta versión de LiTT."
     },
     "couldnt": "No fue posible {action}",
     "couldntTryAgain": "No fue posible {action}. Inténtalo de nuevo.",
@@ -4457,6 +4465,75 @@
       "quote": "Cita de la ley",
       "opens": "La ventana abre el {date}",
       "anchorFact": "Se cuenta desde: {fact}"
+    }
+  },
+  "ruleProposals": {
+    "title": "Proponer reglas nuevas",
+    "backToProject": "Volver al proyecto",
+    "subtitle": "Sube el texto de una ley (o de los capítulos que importan) como documento de este proyecto del despacho. La IA propone obligaciones con la cita literal del artículo. Cada propuesta es un borrador sin verificar: no se puede encender y solo sirve para ahorrarle trabajo a legal.",
+    "sizeNote": "Si la ley supera 120,000 caracteres, sube solo los capítulos que importan: el texto nunca se recorta.",
+    "version": "Documento y versión",
+    "chooseVersion": "Elige una versión",
+    "source": "{name}, versión {version}",
+    "button": "Proponer reglas nuevas",
+    "running": "Leyendo la ley…",
+    "helper": "Se enviará el texto de esta versión y la lista de códigos del catálogo a {provider}, con la llave que usa el chat en este espacio. Sube solo texto de ley, de preferencia el oficial, sin datos de clientes. Las propuestas son borradores sin verificar.",
+    "readOnly": "Solo una persona propietaria o editora del proyecto puede proponer y decidir reglas. Tú puedes leer las propuestas y descargar el archivo.",
+    "noRoute": "Para proponer reglas hace falta un modelo y una llave de IA en este espacio. Configúralos en Ajustes.",
+    "couldNotLoad": "No se pudieron cargar las propuestas.",
+    "couldNotPropose": "No se pudieron proponer reglas con IA.",
+    "loading": "Cargando propuestas",
+    "result": {
+      "title": "Resultado",
+      "proposed": "{count, plural, =0 {La IA no propuso reglas nuevas.} one {La IA propuso # regla nueva.} other {La IA propuso # reglas nuevas.}}",
+      "discardedQuote": "{count, plural, one {# propuesta se rechazó porque su cita no aparece en el texto.} other {# propuestas se rechazaron porque su cita no aparece en el texto.}}",
+      "discardedDuplicate": "{count, plural, one {# propuesta se rechazó porque ya existe para este texto.} other {# propuestas se rechazaron porque ya existen para este texto.}}",
+      "discardedInvalid": "{count, plural, one {# propuesta se rechazó por no cumplir el formato.} other {# propuestas se rechazaron por no cumplir el formato.}}",
+      "discardedTerm": "{count, plural, one {En # propuesta se quitó el plazo porque escribía una fecha de calendario.} other {En # propuestas se quitó el plazo porque escribía una fecha de calendario.}}",
+      "notExhaustive": "La lista no es exhaustiva y la cita solo prueba que la frase está en el texto subido, no en la ley vigente."
+    },
+    "listTitle": "Borradores",
+    "empty": "Todavía no hay propuestas en este proyecto.",
+    "legend": "Borrador sin verificar. No se puede usar hasta que legal lo verifique y se agregue al catálogo.",
+    "lawArticle": "{law} · {article}",
+    "quote": "Cita literal del texto subido",
+    "page": "Pág. {page}",
+    "anchorLabel": "Dato de partida (IA)",
+    "termLabel": "Plazo propuesto",
+    "termLegend": "Plazo propuesto por la IA, sin verificar; legal define el plazo final.",
+    "noTerm": "La IA no propuso plazo.",
+    "status": {
+      "pending": "Borrador pendiente de revisión.",
+      "sent": "Enviada a legal.",
+      "implemented": "Implementada en el catálogo con el código {code}.",
+      "obsolete": "Desactualizada: {reason}"
+    },
+    "stale": {
+      "text_changed": "el texto de esa versión cambió.",
+      "version_missing": "la versión ya no existe.",
+      "text_unavailable": "el texto de esa versión ya no está disponible."
+    },
+    "actions": {
+      "send": "Enviar a legal",
+      "sending": "Enviando…",
+      "sendHint": "Registra el envío y descarga un archivo en tu equipo. LiTT no recibe nada: tú decides cómo y a quién se lo mandas.",
+      "discard": "Descartar",
+      "discardConfirm": "Confirmar descarte",
+      "discardReason": "Motivo (opcional)",
+      "cancel": "Cancelar",
+      "implemented": "Registrar como implementada",
+      "implementedHint": "Úsalo cuando un cambio ya agregó la regla al catálogo.",
+      "implementedCode": "Código de la regla en el catálogo",
+      "implementedConfirm": "Guardar",
+      "couldNotDecide": "No se pudo registrar la decisión.",
+      "couldNotImplement": "No se pudo registrar: el código debe ser una regla verificada del catálogo."
+    },
+    "export": {
+      "button": "Descargar archivo para legal",
+      "downloading": "Preparando archivo…",
+      "hint": "Incluye solo las propuestas enviadas a legal y no descartadas. Se genera para ti; LiTT no recibe nada.",
+      "couldNotDownload": "No se pudo preparar el archivo para legal.",
+      "sentAndDownloaded": "Enviada a legal. El archivo se descargó en tu equipo."
     }
   },
   "retainerReport": {

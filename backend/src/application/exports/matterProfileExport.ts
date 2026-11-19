@@ -1,4 +1,6 @@
-import { selectAllByKey } from "../../lib/batchedQuery";
+import { checkProjectAccess } from "../../lib/access";
+import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
+import { mapWithConcurrency } from "../../lib/concurrency";
 import type { Db } from "../../lib/supabase";
 import { readableMatterIds } from "./matterRequestsExport";
 
@@ -129,10 +131,12 @@ export async function loadUserReportSentEvents(
 
 /**
  * The rule suggestions the holder asked for, and the decisions (accepted,
- * discarded) they recorded, in the matters they can still open. A suggestion
+ * discarded, sent_to_legal, implemented) they recorded. A matter suggestion
  * carries a quote of a firm document, so, like the profile facts, it is matter
- * work: it stays with the firm when the holder is no longer on the matter.
- * Only an organization's export carries them.
+ * work: it stays with the firm when the holder is no longer on the matter. A
+ * rule proposal (S8b: a draft from a law text, no matter) is project work and
+ * follows the same rule: it is carried only while the holder can still open
+ * its project. Only an organization's export carries them.
  */
 export async function loadUserRuleSuggestions(
     db: Db,
@@ -144,20 +148,35 @@ export async function loadUserRuleSuggestions(
     const suggestions = await selectAllByKey<Row>("export obligation_rule_suggestions", () =>
         (db as any)
             .from("obligation_rule_suggestions")
-            .select("id, flow, matter_id, project_id, document_id, version_id, text_sha256, start_char, end_char, quote, page, rule_code, rule_version, ai_reason, created_by, created_at")
+            .select("id, flow, org_id, matter_id, project_id, document_id, version_id, text_sha256, start_char, end_char, quote, page, rule_code, rule_version, ai_reason, draft, ai_provider, ai_model, created_by, created_at")
             .eq("created_by", userId),
     );
     const events = await selectAllByKey<Row>("export obligation_rule_suggestion_events", () =>
         (db as any)
             .from("obligation_rule_suggestion_events")
-            .select("id, suggestion_id, matter_id, action, reason, created_at")
+            .select("id, suggestion_id, matter_id, action, reason, catalog_code, created_at")
             .eq("actor_user_id", userId),
     );
-    const matterIds = [...new Set([...suggestions, ...events].map((row) => row.matter_id as string))];
-    if (matterIds.length === 0) return { suggestions: [], events: [] };
-    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    // A draft's event names no matter and no project: its project is its suggestion's.
+    const projectOf = new Map(suggestions.map((row) => [row.id as string, row.project_id as string | null]));
+    const missing = [...new Set(events.filter((row) => row.matter_id == null && !projectOf.has(row.suggestion_id as string)).map((row) => row.suggestion_id as string))];
+    if (missing.length > 0) {
+        const parents = await selectInBatches<Row>("export obligation_rule_suggestions parents", missing, (batch) =>
+            (db as any).from("obligation_rule_suggestions").select("id, project_id").in("id", batch),
+        );
+        for (const parent of parents) projectOf.set(parent.id as string, parent.project_id as string | null);
+    }
+    const matterIds = [...new Set([...suggestions, ...events].map((row) => row.matter_id as string | null).filter((id): id is string => typeof id === "string"))];
+    const readable = matterIds.length > 0 ? await readableMatterIds(db, userId, userEmail, orgId, matterIds) : new Set<string>();
+    const projectIds = [...new Set([...projectOf.values()].filter((id): id is string => typeof id === "string"))];
+    const openable = new Set<string>();
+    await mapWithConcurrency(projectIds, 8, async (projectId) => {
+        if ((await checkProjectAccess(projectId, userId, userEmail, db)).ok) openable.add(projectId);
+    });
+    const keep = (row: Row, project: string | null | undefined) =>
+        typeof row.matter_id === "string" ? readable.has(row.matter_id) : typeof project === "string" && openable.has(project);
     return {
-        suggestions: sortRows(suggestions.filter((row) => readable.has(row.matter_id as string))),
-        events: sortRows(events.filter((row) => readable.has(row.matter_id as string))),
+        suggestions: sortRows(suggestions.filter((row) => keep(row, row.project_id as string | null))),
+        events: sortRows(events.filter((row) => keep(row, projectOf.get(row.suggestion_id as string)))),
     };
 }
