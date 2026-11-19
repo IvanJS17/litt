@@ -60,6 +60,7 @@ import { OBLIGATION_RULES, RAW_CATALOG } from "./radar.rules.catalog";
 import { findRule, isUsable, ruleKey, type ObligationRuleDef } from "./radar.rules";
 import { loadRuleStates } from "./radar.rules.state";
 import { NOT_A_RETAINER_CODE } from "./radar.shared";
+import { isTraineeIn, refuseTrainee } from "./radar.trainee";
 import {
   buildSuggestSystemPrompt,
   INVALID_SUGGESTION_CODE,
@@ -224,13 +225,16 @@ export async function getRuleSuggestions(
     if (!access.data.isRetainer) return ok({ retainer: false, can_write: false, suggestions: [], versions: [], people: [] });
     const suggestions = await loadSuggestions(db, access.data, catalog);
     if (!suggestions.ok) return suggestions;
-    const versions = access.data.canWrite ? await sourceVersions(db, access.data.projectId) : ok([]);
+    // A person in training reads the results but neither requests nor decides.
+    const canWrite =
+      access.data.canWrite && !(await isTraineeIn(db, actor.userId, access.data.organizationId, access.data.projectId));
+    const versions = canWrite ? await sourceVersions(db, access.data.projectId) : ok([]);
     if (!versions.ok) return versions;
     const people: ProfilePerson[] = await namePeople(
       db,
       suggestions.data.flatMap((suggestion) => [suggestion.created_by, suggestion.decided_by]),
     );
-    return ok({ retainer: true, can_write: access.data.canWrite, suggestions: suggestions.data, versions: versions.data, people });
+    return ok({ retainer: true, can_write: canWrite, suggestions: suggestions.data, versions: versions.data, people });
   } catch (error) {
     return internalFailure(error);
   }
@@ -246,6 +250,8 @@ export async function suggestRules(
   try {
     const access = await authorizeMatterMember(db, { ...actor, write: true });
     if (!access.ok) return access;
+    const trainee = await refuseTrainee(db, actor.userId, access.data.organizationId, access.data.projectId);
+    if (trainee) return trainee;
     if (!access.data.isRetainer) return failure("conflict", "The matter is not a retainer.", NOT_A_RETAINER_CODE);
     const versionId = actor.versionId;
     if (typeof versionId !== "string" || !isUuid(versionId)) return failure("not_found", NOT_FOUND);
@@ -412,6 +418,8 @@ async function decide(
   try {
     const access = await authorizeMatterMember(db, { ...actor, write: true });
     if (!access.ok) return access;
+    const trainee = await refuseTrainee(db, actor.userId, access.data.organizationId, access.data.projectId);
+    if (trainee) return trainee;
     if (!access.data.isRetainer) return failure("conflict", "The matter is not a retainer.", NOT_A_RETAINER_CODE);
     if (typeof actor.suggestionId !== "string" || !isUuid(actor.suggestionId)) return failure("not_found", NOT_FOUND);
 
@@ -482,6 +490,8 @@ export async function decideRuleSuggestions(
   try {
     const access = await authorizeMatterMember(db, { ...actor, write: true });
     if (!access.ok) return access;
+    const trainee = await refuseTrainee(db, actor.userId, access.data.organizationId, access.data.projectId);
+    if (trainee) return trainee;
     if (!access.data.isRetainer) return failure("conflict", "The matter is not a retainer.", NOT_A_RETAINER_CODE);
 
     const body = actor.body;

@@ -82,6 +82,7 @@ import {
 } from "./radar.proposals.shared";
 import { OBLIGATION_RULES } from "./radar.rules.catalog";
 import { isUsable, type ObligationRuleDef } from "./radar.rules";
+import { isTraineeIn, refuseTrainee } from "./radar.trainee";
 import {
   SUGGEST_OUTPUT_INVALID_CODE,
   SUGGEST_PROVIDER_FAILED_CODE,
@@ -115,9 +116,16 @@ async function authorizeProject(db: Db, actor: Actor, write: boolean): Promise<S
   if (error) return internalFailure(error);
   if ((matter ?? []).length > 0)
     return failure("conflict", "Rule proposals cannot read the project of a matter.", PROPOSAL_MATTER_PROJECT_CODE);
-  const canWrite = access.projectRole === "owner" || access.projectRole === "editor";
+  let canWrite = access.projectRole === "owner" || access.projectRole === "editor";
   if (write && !canWrite)
     return failure("forbidden", "Only an owner or editor of the project can propose or decide rules.", PROPOSAL_WRITE_REQUIRED_CODE);
+  // A person in training reads the proposals but neither proposes nor decides.
+  if (canWrite) {
+    if (write) {
+      const trainee = await refuseTrainee(db, actor.userId, orgId, projectId);
+      if (trainee) return trainee;
+    } else canWrite = !(await isTraineeIn(db, actor.userId, orgId, projectId));
+  }
   return ok({ projectId, orgId, canWrite });
 }
 

@@ -107,6 +107,7 @@ const STRANGER = id(5);
 const ORG_ADMIN = id(6);
 const OUTSIDER = id(7);
 const PASANTE = id(8);
+const TRAINEE = id(11);
 const REMOVED = id(9);
 const DOC = id(200);
 const VERSION = id(210);
@@ -188,6 +189,7 @@ beforeEach(async () => {
             { org_id: ORG, user_id: STRANGER, role: "member" },
             { org_id: ORG, user_id: ORG_ADMIN, role: "admin" },
             { org_id: ORG, user_id: PASANTE, role: "member" },
+            { org_id: ORG, user_id: TRAINEE, role: "member" },
             { org_id: ORG, user_id: REMOVED, role: "member" },
             { org_id: OTHER_ORG, user_id: OUTSIDER, role: "owner" },
         ],
@@ -199,7 +201,7 @@ beforeEach(async () => {
             { id: PUBLIC_MATTER, project_id: PUBLIC_PROJECT, workspace_id: WORKSPACE, is_retainer: true, visibility: "public" },
         ],
         matter_memberships: [
-            ...[OWNER, EDITOR, VIEWER, TECH, PASANTE].map((user_id) => ({
+            ...[OWNER, EDITOR, VIEWER, TECH, PASANTE, TRAINEE].map((user_id) => ({
                 matter_id: MATTER,
                 user_id,
                 status: "active",
@@ -226,6 +228,7 @@ beforeEach(async () => {
         ],
         user_profiles: [{ user_id: EDITOR, display_name: "Elena Editora", email: "elena@example.test" }],
         user_api_keys: [await keyRow({ kind: "user", id: EDITOR }, "claude", "sk-own")].map((row) => ({ ...row, user_id: EDITOR })),
+        training_stages: [],
         matter_profile_facts: [],
         matter_profile_fact_events: [],
         matter_obligation_rule_events: [],
@@ -845,5 +848,49 @@ describe("who can ask and who can read (matrix)", () => {
         expect((await run()).status).toBe(200);
         tables().matter_memberships.find((row) => row.user_id === EDITOR && row.matter_id === MATTER)!.status = "revoked";
         expect((await run()).status).toBe(404);
+    });
+});
+
+describe("people in training do not request or decide (owner decision 2026-11-19)", () => {
+    const egress = () => tables().audit_events.filter((row) => row.action === "llm.egress");
+
+    it.each([["pasante"], ["junior"]])("refuses a %s with 403 on request, decide and batch, before any route, egress or model call", async (stage) => {
+        as(EDITOR);
+        answer(item());
+        await run();
+        const target = rows()[0].id as string;
+        const calls = h.llm.calls.length;
+        const egressBefore = egress().length;
+        tables().training_stages.push({ org_id: ORG, trainee_user_id: TRAINEE, practice: null, stage });
+        // No key of their own: the refusal must come before the route would complain.
+        as(TRAINEE);
+        for (const path of [suggestPath(), `${listPath}/${target}/accept`, `${listPath}/${target}/discard`, `${listPath}/batch`]) {
+            const res = await request(app).post(path).send({ action: "accept", suggestionIds: [target] });
+            expect(res.status, path).toBe(403);
+            expect(res.body.code, path).toBe("rule_suggestions_trainee");
+        }
+        expect(h.llm.calls).toHaveLength(calls);
+        expect(egress()).toHaveLength(egressBefore);
+        expect(events()).toHaveLength(0);
+    });
+
+    it("still lets them read the radar results, read-only", async () => {
+        as(EDITOR);
+        answer(item());
+        await run();
+        tables().training_stages.push({ org_id: ORG, trainee_user_id: TRAINEE, practice: null, stage: "pasante" });
+        as(TRAINEE);
+        const res = await request(app).get(listPath);
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({ retainer: true, can_write: false, versions: [] });
+        expect(res.body.suggestions).toHaveLength(1);
+    });
+
+    it("does not touch an editor with no stage, nor one trained in another organization", async () => {
+        tables().training_stages.push({ org_id: OTHER_ORG, trainee_user_id: EDITOR, practice: null, stage: "pasante" });
+        as(EDITOR);
+        answer(item());
+        expect((await run()).status).toBe(200);
+        expect((await request(app).get(listPath)).body).toMatchObject({ can_write: true });
     });
 });

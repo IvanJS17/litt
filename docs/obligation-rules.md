@@ -211,6 +211,17 @@ Failures of the call are 422 `suggestion_provider_failed` /
 `suggestion_provider_refused`. A quote proves the passage **exists** in the
 document, not that it **justifies** the rule: that judgement is the lawyer's.
 
+### Who can request and decide
+
+An owner or editor **who is not in training**. A person with a training stage
+(`pasante` or `junior`, any practice area; the one resolver
+`resolveTrainingStage`, [`training.md`](training.md)) gets `403`
+`rule_suggestions_trainee` on the run, each decision and the batch, before any
+route, egress record or model call. They still read the radar and the
+suggestions, read-only (`can_write: false`, no versions, no button). Deciding
+which legal terms apply to a client is the judgment of a responsible lawyer
+(owner decision 2026-11-19). The client-profile extraction is not affected.
+
 ### Decisions
 
 A suggestion has no status column: the latest event (`accepted`, `discarded`) is
@@ -321,6 +332,13 @@ this before the click.
    (`discarded_term_has_date`) and the proposal stays. No calculation or turn-on
    module reads the field (a test reads their imports). It is always shown and
    exported with its legend "Sin verificar".
+
+### Who can propose and decide
+
+Same rule as the suggestions: an owner or editor of the project who is not in
+training. A trainee gets `403` `rule_suggestions_trainee` on `propose`,
+`send-to-legal`, `discard` and `implemented` (before any route, egress or model
+call) and reads the proposals and the file read-only (`can_write: false`).
 
 ### Decisions
 

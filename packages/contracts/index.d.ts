@@ -2738,7 +2738,7 @@ export type RuleSuggestion = {
 
 export type RuleSuggestions = {
   retainer: boolean;
-  /** The caller may ask for suggestions and decide them (owner or editor). */
+  /** The caller may ask for suggestions and decide them (owner or editor, not in training). */
   can_write: boolean;
   suggestions: RuleSuggestion[];
   /** Document versions a run can read; empty for readers. */
@@ -2816,7 +2816,7 @@ export type RuleProposal = {
 };
 
 export type RuleProposals = {
-  /** The caller may propose and decide (owner or editor of the project). */
+  /** The caller may propose and decide (owner or editor of the project, not in training). */
   can_write: boolean;
   proposals: RuleProposal[];
   /** Document versions a run can read; empty for readers. */
