@@ -290,6 +290,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     suggestion_obsolete: "conflict",
     invalid_rule_suggestion: "validation",
     rule_suggestion_limit: "conflict",
+    // A person in training neither requests nor decides rule suggestions or proposals.
+    rule_suggestions_trainee: "forbidden",
     // Rule proposals (a law text in a firm project): a matter's project or a
     // personal one is not a source; only an owner or editor proposes; a draft
     // is decided in order; the catalog code must be a verified rule of this release.

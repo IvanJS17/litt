@@ -99,7 +99,7 @@ describe("the button and its help line", () => {
     expect(screen.queryByRole("button", { name: "Propose new rules" })).not.toBeInTheDocument();
     mocks.list.mockResolvedValue(list([proposal()], { can_write: false, versions: [] }));
     view();
-    await screen.findAllByText(/Only an owner or editor of the project can propose/);
+    await screen.findAllByText(/Only an owner or editor of the project who is not in training can propose/);
     expect(mocks.route).toHaveBeenCalledTimes(1);
   });
 

@@ -86,6 +86,7 @@ const OWNER = id(1);
 const EDITOR = id(2);
 const VIEWER = id(3);
 const STRANGER = id(5);
+const TRAINEE = id(11);
 const DOC = id(200);
 const VERSION = id(210);
 const NO_TEXT_VERSION = id(214);
@@ -139,14 +140,14 @@ beforeEach(async () => {
     h.llm = { calls: [], answer: "[]", error: null };
     h.settings = { last_selected_chat_model: "claude-sonnet-5-5", last_selected_reasoning_level: null, api_keys: { claude: "sk-own" } };
     h.roles = {
-        [LAW_PROJECT]: { [OWNER]: "owner", [EDITOR]: "editor", [VIEWER]: "viewer" },
+        [LAW_PROJECT]: { [OWNER]: "owner", [EDITOR]: "editor", [VIEWER]: "viewer", [TRAINEE]: "editor" },
         [PERSONAL_PROJECT]: { [OWNER]: "owner" },
         [MATTER_PROJECT]: { [OWNER]: "owner", [EDITOR]: "editor" },
     };
     h.texts = { [VERSION]: TEXT, [MATTER_VERSION]: TEXT, [FOREIGN_VERSION]: TEXT, [NO_TEXT_VERSION]: null, [HUGE_VERSION]: "a".repeat(MAX_EXTRACT_TEXT_CHARS + 1) };
     h.state = memoryDb({
         organizations: [{ id: ORG, kind: "team" }],
-        org_members: [OWNER, EDITOR, VIEWER, STRANGER].map((user_id) => ({ org_id: ORG, user_id, role: "member" })),
+        org_members: [OWNER, EDITOR, VIEWER, STRANGER, TRAINEE].map((user_id) => ({ org_id: ORG, user_id, role: "member" })),
         workspaces: [{ id: WORKSPACE, organization_id: ORG }],
         projects: [
             { id: LAW_PROJECT, org_id: ORG, name: "Biblioteca legal: Leyes" },
@@ -168,6 +169,7 @@ beforeEach(async () => {
         ],
         user_profiles: [{ user_id: EDITOR, display_name: "Elena Editora", email: "elena@example.test" }],
         user_api_keys: [await keyRow({ kind: "user", id: EDITOR }, "claude", "sk-own")].map((row) => ({ ...row, user_id: EDITOR })),
+        training_stages: [],
         matter_obligation_rule_events: [],
         obligation_rule_suggestions: [],
         obligation_rule_suggestion_events: [],
@@ -596,5 +598,51 @@ describe("who can ask and who can read (matrix)", () => {
         delete h.roles[LAW_PROJECT][EDITOR];
         expect((await run()).status).toBe(404);
         expect((await request(app).get(base)).status).toBe(404);
+    });
+});
+
+describe("people in training do not propose or decide (owner decision 2026-11-19)", () => {
+    const egress = () => tables().audit_events.filter((row) => row.action === "llm.egress");
+
+    it.each([["pasante"], ["junior"]])("refuses a %s with 403 on every write, before any route, egress or model call", async (stage) => {
+        as(EDITOR);
+        answer(item());
+        await run();
+        const target = rows()[0].id as string;
+        const calls = h.llm.calls.length;
+        const egressBefore = egress().length;
+        const eventsBefore = events().length;
+        tables().training_stages.push({ org_id: ORG, trainee_user_id: TRAINEE, practice: null, stage });
+        // No key at all: a refusal must come before the route would complain.
+        as(TRAINEE);
+        for (const path of [`/versions/${VERSION}/propose`, `/${target}/send-to-legal`, `/${target}/discard`, `/${target}/implemented`]) {
+            const res = await request(app).post(`${base}${path}`).send({});
+            expect(res.status, path).toBe(403);
+            expect(res.body.code, path).toBe("rule_suggestions_trainee");
+        }
+        expect(h.llm.calls).toHaveLength(calls);
+        expect(egress()).toHaveLength(egressBefore);
+        expect(events()).toHaveLength(eventsBefore);
+    });
+
+    it("still lets them read: the proposals, no versions to run on, no route", async () => {
+        as(EDITOR);
+        answer(item());
+        await run();
+        tables().training_stages.push({ org_id: ORG, trainee_user_id: TRAINEE, practice: null, stage: "pasante" });
+        as(TRAINEE);
+        const list = await request(app).get(base);
+        expect(list.status).toBe(200);
+        expect(list.body).toMatchObject({ can_write: false, versions: [] });
+        expect(list.body.proposals).toHaveLength(1);
+        expect((await request(app).get(`${base}/route`)).body).toEqual({ route: null });
+    });
+
+    it("does not touch an editor who has no stage, nor one trained in another organization", async () => {
+        tables().training_stages.push({ org_id: id(999), trainee_user_id: EDITOR, practice: null, stage: "pasante" });
+        as(EDITOR);
+        answer(item());
+        expect((await run()).status).toBe(200);
+        expect((await request(app).get(base)).body).toMatchObject({ can_write: true });
     });
 });

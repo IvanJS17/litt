@@ -106,6 +106,18 @@ matter.
 | Promotion proposal | no: it is the mentor's decision, computed from the person's own evidence above | yes, they decide | no: `404` |
 | The firm's criteria (`firm_criteria`) | every member of the firm reads | every member reads | not learning data: a non-member gets `404`, a member reads it |
 
+### What a person in training cannot do
+
+Beyond the turn rules, a person with a stage (any practice area) cannot:
+
+- request or decide the AI's rule suggestions of a retainer matter (Radar), nor
+  propose or decide rule proposals from a law text: `403`
+  `rule_suggestions_trainee`. They still see the Radar and those results,
+  read-only. Deciding which legal terms apply to a client is a responsible
+  lawyer's judgment (owner decision 2026-11-19; see
+  [`obligation-rules.md`](obligation-rules.md)).
+- use MCP outside mode A (the workspace is mode A for them).
+
 ## Data
 
 Migration `backend/migrations/20261106_50_litt_training.sql` (also in

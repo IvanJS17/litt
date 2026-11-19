@@ -176,7 +176,7 @@ describe("the button and its help line", () => {
     expect(await section.findByRole("article", { name: NAME })).toBeInTheDocument();
     expect(mocks.route).not.toHaveBeenCalled();
     expect(section.queryByRole("button")).not.toBeInTheDocument();
-    expect(section.getByText("Only the matter's owners and editors can ask for and decide suggestions.")).toBeInTheDocument();
+    expect(section.getByText("Only the matter's owners and editors who are not in training can ask for and decide suggestions. You can read them.")).toBeInTheDocument();
   });
 
   it("speaks the legal line in Spanish, as socium-legal confirmed it", async () => {
