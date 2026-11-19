@@ -18,6 +18,7 @@ import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { MCP_SCOPES, mcpConfig } from "./mcp.config";
 import { MCP_TOOLS } from "./mcp.catalog";
+import { LITT_MCP_ICON } from "./mcp.icon";
 import { recordMcpToolCall } from "./mcp.calls";
 import { revalidatePrincipal, type McpPrincipal } from "./mcp.principal";
 import { preflightMcpRequest, registerMcpTools, type McpRefusal } from "./mcp.tools";
@@ -156,7 +157,13 @@ export async function preflightMcp(
 
 function buildServer(principal: McpPrincipal): McpServer {
     const server = new McpServer(
-        { name: "litt", version: "0.1.0" },
+        {
+            name: "litt",
+            title: "LiTT",
+            version: "0.1.0",
+            websiteUrl: mcpConfig().issuer,
+            icons: [{ ...LITT_MCP_ICON, sizes: [...LITT_MCP_ICON.sizes] }],
+        },
         { capabilities: { tools: {} } },
     );
     registerMcpTools(server, MCP_TOOLS, principal);

@@ -265,6 +265,27 @@ export function buildWorld() {
             return randomUUID();
         },
         extend_upload_session_expiry: () => null,
+        // The transaction the web's createProject calls: one project row.
+        create_project_with_memory: (args) => {
+            const row: Row = {
+                id: randomUUID(), user_id: args.p_user_id, org_id: args.p_org_id ?? null, name: args.p_name,
+                cm_number: args.p_cm_number ?? null, practice: args.p_practice ?? null, visibility: "private",
+                archived_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+            };
+            tables.projects.push(row);
+            return [row];
+        },
+        // A new version, active at once (what documents.lifecycle asks of the database).
+        create_document_version: (args) => {
+            const meta = args.p_version as Row;
+            const row: Row = { ...meta, id: meta.id ?? randomUUID(), document_id: args.p_document_id, deleted_at: null, created_at: new Date().toISOString() };
+            tables.document_versions.push(row);
+            if (args.p_activate !== false) {
+                const doc = tables.documents.find((d) => d.id === args.p_document_id);
+                if (doc) doc.current_version_id = row.id;
+            }
+            return row;
+        },
     };
 
     const db = {

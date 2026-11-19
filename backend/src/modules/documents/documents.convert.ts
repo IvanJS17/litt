@@ -447,7 +447,7 @@ export async function convertDocument(
  * Store `bytes` as a NEW document next to `doc` (same project and folder, or
  * the same library folder), version 1, with the given `source`. On a failure
  * after the file was stored, the stored file and the half-made document are
- * removed. Shared by the conversion, the comparison and the split.
+ * removed. Shared by the conversion, the comparison, the split and the note.
  */
 export async function storeDerivedDocument(
     db: Db,
@@ -457,13 +457,14 @@ export async function storeDerivedDocument(
         filename: string;
         bytes: Buffer;
         fileType: DocumentConversionType;
-        source: "converted" | "compared" | "split";
+        source: "converted" | "compared" | "split" | "generated";
         /** A PDF that is made from known pages (a split): its page count. */
         pageCount?: number;
     },
 ): Promise<ServiceResult<DocumentConversionResult>> {
     const { doc, filename, bytes: output, fileType, source } = args;
-    const label = source === "compared" ? "compare" : source === "split" ? "split" : "convert";
+    const label =
+        source === "compared" ? "compare" : source === "split" ? "split" : source === "generated" ? "note" : "convert";
     const documentId = randomUUID();
     const key = versionStorageKey(args.userId, documentId, randomUUID().replace(/-/g, ""), filename);
     try {
