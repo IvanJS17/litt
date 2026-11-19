@@ -407,7 +407,9 @@ export async function listProjectIds(
 export type CreateProjectResult =
   | { ok: true; project: Record<string, unknown> }
   | { ok: false; kind: "validation"; detail: string }
-  | { ok: false; kind: "db_error"; error: unknown };
+  // `created`: the project row already exists (only the visibility write
+  // failed, so it stays private); a caller that can retry must not repeat it.
+  | { ok: false; kind: "db_error"; error: unknown; created?: { id: string } };
 
 /** Create a project with a non-blank name in a workspace the caller may use. */
 export async function createProject(
@@ -487,7 +489,12 @@ export async function createProject(
       .update({ visibility })
       .eq("id", (data as { id: string }).id);
     if (visibilityError)
-      return { ok: false, kind: "db_error", error: visibilityError };
+      return {
+        ok: false,
+        kind: "db_error",
+        error: visibilityError,
+        created: { id: (data as { id: string }).id },
+      };
   }
   return {
     ok: true,

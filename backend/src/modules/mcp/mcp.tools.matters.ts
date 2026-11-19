@@ -240,6 +240,16 @@ export const createMatter = defineMcpTool({
             visibility: args.visibility,
         });
         if (!created.ok) {
+            // The matter exists but could not be opened to the firm: say so with its id, so a retry does not duplicate it.
+            if (created.kind === "db_error" && created.created) {
+                reportError(created.error, { tags: { component: "mcp", operation: "mcp.create_matter.visibility" } });
+                const { id } = created.created;
+                throw new McpToolError(
+                    "partial_failure",
+                    `The matter was created (id ${id}, ${mcpConfig().webUrl}/projects/${id}) but it could not be opened to the whole firm: it stays private. Do not create it again.`,
+                    "Open the matter's Access panel in LiTT to share it with the firm, or tell the person to.",
+                );
+            }
             if (created.kind === "db_error") throw serviceFailure("create matter", created.error);
             throw new McpToolError("invalid_request", created.detail);
         }

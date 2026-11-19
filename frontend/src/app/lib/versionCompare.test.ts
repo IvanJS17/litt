@@ -19,6 +19,7 @@ describe("versionAuthor", () => {
     it.each([
         ["assistant_edit", "ai"],
         ["generated", "ai"],
+        ["mcp_client", "app"],
         ["upload", "person"],
         ["user_upload", "person"],
         ["user_edit", "person"],

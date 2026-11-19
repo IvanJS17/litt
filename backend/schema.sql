@@ -12861,7 +12861,8 @@ alter table public.document_versions
     'user_edit'::text,
     'converted'::text,
     'compared'::text,
-    'split'::text
+    'split'::text,
+    'mcp_client'::text
   ]));
 
 create table if not exists public.ai_document_version_pages (
@@ -22495,5 +22496,6 @@ insert into public.schema_migrations (filename) values
   ('20261117_30_litt_matter_obligation_rules.sql'),
   ('20261117_40_litt_matter_report_sent.sql'),
   ('20261117_50_litt_radar_item_guard_due_on.sql'),
+  ('20261119_10_litt_version_source_mcp_client.sql'),
   ('20261119_20_litt_rule_suggestions.sql')
 on conflict (filename) do nothing;

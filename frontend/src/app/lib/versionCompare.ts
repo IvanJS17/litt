@@ -1,13 +1,14 @@
 import type { VersionCompareSide } from "@mike/contracts";
 import type { EqualRun, TextChange, TextComparison } from "./textDiff";
 
-/** `assistant_edit` and `generated` are the AI's; every other source is a person's. */
+/** `assistant_edit` and `generated` are the AI's; `mcp_client` came from another app; every other source is a person's. */
 const AI_SOURCES: ReadonlySet<string> = new Set(["assistant_edit", "generated"]);
 
-export type VersionAuthor = "ai" | "person";
+export type VersionAuthor = "ai" | "app" | "person";
 
 /** Read from the version's `source` only, never from its text. */
 export function versionAuthor(source: string | null | undefined): VersionAuthor {
+    if (source === "mcp_client") return "app";
     return source != null && AI_SOURCES.has(source) ? "ai" : "person";
 }
 

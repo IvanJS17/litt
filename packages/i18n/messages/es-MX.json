@@ -7993,6 +7993,7 @@
   "versionCompare": {
     "added": "Agregado",
     "authorAi": "IA",
+    "authorApp": "Claude u otra app",
     "authorOf": "Hecha por: {author}",
     "authorPerson": "Persona",
     "base": "Versión base",

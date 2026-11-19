@@ -457,14 +457,14 @@ export async function storeDerivedDocument(
         filename: string;
         bytes: Buffer;
         fileType: DocumentConversionType;
-        source: "converted" | "compared" | "split" | "generated";
+        source: "converted" | "compared" | "split" | "generated" | "mcp_client";
         /** A PDF that is made from known pages (a split): its page count. */
         pageCount?: number;
     },
 ): Promise<ServiceResult<DocumentConversionResult>> {
     const { doc, filename, bytes: output, fileType, source } = args;
     const label =
-        source === "compared" ? "compare" : source === "split" ? "split" : source === "generated" ? "note" : "convert";
+        source === "compared" ? "compare" : source === "split" ? "split" : source === "generated" || source === "mcp_client" ? "note" : "convert";
     const documentId = randomUUID();
     const key = versionStorageKey(args.userId, documentId, randomUUID().replace(/-/g, ""), filename);
     try {
