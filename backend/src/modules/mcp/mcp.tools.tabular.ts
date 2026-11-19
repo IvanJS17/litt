@@ -81,7 +81,7 @@ type Review = Record<string, unknown> & {
 type Detail = { review: Review; cells: Cell[]; rows: Row[]; documents: { id: string; current_version_id?: string | null }[] };
 
 /** A tabular service refusal, in the words the module authored, as a tool error. */
-function refuse(failure: TabularFailure): never {
+export function refuse(failure: TabularFailure): never {
     if (failure.kind === "error") throw serviceFailure("tabular review", failure.error);
     if (failure.kind === "status") {
         const body = failure.body as { code?: unknown; detail?: unknown };
@@ -127,7 +127,7 @@ async function loadReview(call: McpCall, reviewId: string): Promise<{ detail: De
     return { detail, workspace };
 }
 
-const reviewWorkspace = async (call: McpCall, reviewId: string) => (await loadReview(call, reviewId)).workspace;
+export const reviewWorkspace = async (call: McpCall, reviewId: string) => (await loadReview(call, reviewId)).workspace;
 
 function progressOf(detail: Detail) {
     const columns = detail.review.columns_config ?? [];

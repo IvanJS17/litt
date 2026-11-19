@@ -30,6 +30,7 @@ export function memoryDb(
         let skip = 0;
         const orders: [string, boolean][] = [];
         let columns: string[] | null = null;
+        let wantCount = false;
         // Copies, projected to the selected columns, as PostgREST returns them.
         const project = (row: Row): Row =>
             columns ? Object.fromEntries(columns.map((c) => [c, row[c] ?? null])) : { ...row };
@@ -65,10 +66,13 @@ export function memoryDb(
                       return 0;
                   })
                 : matches;
-            return { data: sorted.slice(skip, skip + Math.min(limit, options.maxRows ?? Infinity)).map(project), error: null };
+            const page = sorted.slice(skip, skip + Math.min(limit, options.maxRows ?? Infinity)).map(project);
+            return wantCount ? { data: page, error: null, count: matches.length } : { data: page, error: null };
         };
         const builder: Record<string, unknown> = {
-            select: (list?: string) => {
+            select: (list?: string, options?: { count?: string }) => {
+                // `{ count: "exact" }` answers the number of rows before the page.
+                wantCount = options?.count === "exact";
                 columns =
                     list && list !== "*"
                         ? list.split(",").map((c) => c.trim()).filter((c) => /^\w+$/.test(c))

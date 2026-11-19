@@ -1,6 +1,7 @@
 // The tools /mcp offers. Each one is declared with defineMcpTool in a
 // mcp.tools.<topic>.ts file (context, matters, documents, uploads, playbooks,
-// tabular, chat, donna, workflows, documentOps, scans) and listed here. They get scope enforcement, the
+// tabular, chat, projectChats, tabularChats, firmProfile, donna, workflows,
+// documentOps, scans) and listed here. They get scope enforcement, the
 // per-grant budget, the live workspace check and the audit from mcp.tools.ts.
 
 import { z } from "zod";
@@ -40,6 +41,14 @@ import {
     startChat,
     stopChatTurnTool,
 } from "./mcp.tools.chat";
+import { sendProjectChatMessage, startProjectChat } from "./mcp.tools.projectChats";
+import {
+    getTabularChatTurn,
+    listTabularChatsTool,
+    sendTabularChatMessage,
+    stopTabularChatTurn,
+} from "./mcp.tools.tabularChats";
+import { getFirmProfileTool } from "./mcp.tools.firmProfile";
 import {
     getClientProfileTool,
     getDeadlineRadar,
@@ -123,6 +132,13 @@ export const MCP_TOOLS: readonly AnyMcpTool[] = [
     stopChatTurnTool,
     listChatsTool,
     getChatTool,
+    startProjectChat,
+    sendProjectChatMessage,
+    listTabularChatsTool,
+    sendTabularChatMessage,
+    getTabularChatTurn,
+    stopTabularChatTurn,
+    getFirmProfileTool,
     listRetainerRequests,
     getClientProfileTool,
     getDeadlineRadar,

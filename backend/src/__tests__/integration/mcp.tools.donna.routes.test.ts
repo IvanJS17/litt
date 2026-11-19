@@ -805,3 +805,79 @@ describe("read-only, audited, sanitized", () => {
         expect((await callTool(token, "list_retainer_requests", {})).code).toBe("invalid_params");
     });
 });
+
+// ---------------------------------------------------------------------------
+// The client profile as an MCP resource (layer 2c): litt://matters/{id}/client-profile
+// is read through get_client_profile, so it is the tool's answer, audit and egress record.
+// ---------------------------------------------------------------------------
+
+const profileUri = (matterId: string) => `litt://matters/${matterId}/client-profile`;
+const readResource = async (token: string, uri: string) => {
+    const res = await rpc(token, "resources/read", { uri });
+    const body = bodyOf(res) as unknown as { result?: { contents: { uri: string; mimeType: string; text: string }[] }; error?: { message: string } };
+    return { status: res.status, result: body.result, error: body.error, raw: res.text };
+};
+
+describe("the client profile as a resource", () => {
+    it("reads the same confirmed facts as the tool, with the tool's strict audit row and its egress record", async () => {
+        as("viewer");
+        const token = await connect();
+        const read = await readResource(token, profileUri(PROJECT_PRIVATE));
+        expect(read.result!.contents[0]).toMatchObject({ uri: profileUri(PROJECT_PRIVATE), mimeType: "application/json" });
+        const viaResource = JSON.parse(read.result!.contents[0].text);
+        const viaTool = await callTool(token, "get_client_profile", { matter_id: PROJECT_PRIVATE });
+        expect(viaResource.facts.map((f: { id: string }) => f.id).sort()).toEqual(viaTool.data.facts.map((f: { id: string }) => f.id).sort());
+        // Only confirmed, not stale facts: a proposal, a rejection and a stale fact never leave.
+        for (const hidden of [FACTS.pending, FACTS.rejected, FACTS.stale]) expect(read.raw).not.toContain(hidden);
+        // The quotes are data, fenced, and they left LiTT only after being recorded (once per read).
+        expect(viaResource.facts.find((f: { id: string }) => f.id === FACTS.expiry).citation.quote).toMatch(/^<<<LITT_UNTRUSTED_DOCUMENT_TEXT \S+>>>\n/);
+        expect(tables().audit_events.filter((a) => a.action === "mcp.client_ai_egress")).toHaveLength(2);
+        expect(tables().audit_events.filter((a) => a.action === "mcp.get_client_profile" && a.project_id === PROJECT_PRIVATE)).toHaveLength(2);
+    });
+
+    it("does not return the quotes when the egress cannot be recorded, and does not run when the audit row cannot", async () => {
+        as("owner");
+        const token = await connect();
+        let inserts = 0;
+        const real = (h.state!.db as { from: (t: string) => unknown }).from.bind(h.state!.db);
+        (h.state!.db as { from: (t: string) => unknown }).from = (table: string) => {
+            if (table === "audit_events" && ++inserts === 2) h.state!.failNext("audit_events", "insert", { message: "disk full at /var/lib/pg" });
+            return real(table);
+        };
+        const failed = await readResource(token, profileUri(PROJECT_PRIVATE));
+        expect(failed.result).toBeUndefined();
+        expect(failed.error!.message).not.toContain("disk full");
+        expect(failed.raw).not.toContain(QUOTE);
+        (h.state!.db as { from: (t: string) => unknown }).from = real;
+        h.state!.failNext("audit_events", "insert", { message: "down" });
+        const notRun = await readResource(token, profileUri(PROJECT_PRIVATE));
+        expect(notRun.result).toBeUndefined();
+        expect(notRun.raw).not.toContain(QUOTE);
+    });
+
+    it("answers the same not found for what the person cannot open, what is not a retainer, another firm's matter and an unknown id", async () => {
+        as("owner");
+        const token = await connect();
+        const refused = [
+            await readResource(token, profileUri(PROJECT_PLAIN)),
+            await readResource(token, profileUri(PROJECT_FOREIGN)),
+            await readResource(token, profileUri("33333333-3333-4333-8333-333333333333")),
+            await readResource(token, "litt://matters/not-an-id/client-profile"),
+        ];
+        for (const r of refused) expect(r.error, r.raw).toMatchObject({ message: "That resource was not found." });
+        for (const name of ["admin", "outsider"] as PersonName[]) {
+            as(name);
+            const denied = await readResource(await connect({ workspaces: name === "outsider" ? [ORG2] : [ORG] }), profileUri(PROJECT_PRIVATE));
+            expect(denied.error, name).toMatchObject({ message: "That resource was not found." });
+            expect(denied.raw).not.toContain(QUOTE);
+        }
+        // The tool gives the same people the same verdicts.
+        for (const name of PEOPLE_NAMES) {
+            as(name);
+            const t = await connect({ workspaces: name === "outsider" ? [ORG2] : [ORG] });
+            const viaTool = await callTool(t, "get_client_profile", { matter_id: PROJECT_PRIVATE });
+            const viaResource = await readResource(t, profileUri(PROJECT_PRIVATE));
+            expect(Boolean(viaResource.result), name).toBe(viaTool.ok);
+        }
+    });
+});

@@ -55,8 +55,8 @@ import {
 } from "./mcp.toolkit";
 
 /** Characters of an answer per reply, and per message in a transcript page. */
-const ANSWER_PAGE_CHARS = 30_000;
-const ANSWER_MAX_PAGE_CHARS = 60_000;
+export const ANSWER_PAGE_CHARS = 30_000;
+export const ANSWER_MAX_PAGE_CHARS = 60_000;
 const TRANSCRIPT_MESSAGE_CHARS = 1_500;
 const TRANSCRIPT_MAX_MESSAGES = 30;
 const TRANSCRIPT_DEFAULT_MESSAGES = 10;
@@ -65,14 +65,14 @@ const LIST_LOOKBACK = 200;
 const MAX_CITATIONS = 50;
 const CITATION_QUOTE_CHARS = 400;
 
-const attemptSchema = z
+export const attemptSchema = z
     .string()
     .trim()
     .min(1)
     .max(10_000)
     .optional()
     .describe("Only for an apprentice (\"Tu turno primero\"): the person's own approach to the question, written before LiTT answers. Others leave it out.");
-const confidenceSchema = z
+export const confidenceSchema = z
     .number()
     .int()
     .min(1)
@@ -80,7 +80,7 @@ const confidenceSchema = z
     .optional()
     .describe("Only for an apprentice: how sure they are of their approach, 1 (unsure) to 4 (sure).");
 
-const messageSchema = z
+export const messageSchema = z
     .string()
     .trim()
     .min(1)
@@ -92,7 +92,7 @@ const messageSchema = z
 // ---------------------------------------------------------------------------
 
 /** The conversation, once the person may open it AND this connection covers its workspace. */
-async function chatAccess(call: McpCall, chatId: string) {
+export async function chatAccess(call: McpCall, chatId: string) {
     const access = await getAccessibleChat(call.db, {
         chatId,
         userId: call.principal.userId,
@@ -102,11 +102,11 @@ async function chatAccess(call: McpCall, chatId: string) {
     return access;
 }
 
-const chatWorkspace = async (call: McpCall, chatId: string): Promise<string> =>
+export const chatWorkspace = async (call: McpCall, chatId: string): Promise<string> =>
     workspaceOf((await chatAccess(call, chatId)).chat.org_id);
 
 /** A turn the service refused, in the words it authored. */
-function startRefusal(failure: StartChatTurnFailure): never {
+export function startRefusal(failure: StartChatTurnFailure): never {
     if ("internal" in failure) throw serviceFailure("start chat turn", failure.error);
     const code =
         failure.code ??
@@ -142,7 +142,7 @@ const quoteLine = (citation: Record<string, unknown>): string =>
  * person's documents and from a model: they are returned as untrusted data,
  * a window at a time, and recorded as data leaving LiTT before they go out.
  */
-async function presentTurn(
+export async function presentTurn(
     call: McpCall,
     chatId: string,
     workspace: string,
@@ -269,12 +269,24 @@ export async function runTurn(
         turn.run.finish();
     });
 
-    const chatId = turn.prepared.chatId;
-    const turnId = turn.turnMessageId;
+    return followTurn(call, { run: turn.run, chatId: turn.prepared.chatId, turnId: turn.turnMessageId }, args.workspace);
+}
+
+/**
+ * A started turn as the client first sees it: wait a little for the run to
+ * finish, then report the stored message (or `generating`). Shared by every
+ * tool that starts an assistant turn (assistant chat, project chat).
+ */
+export async function followTurn(
+    call: McpCall,
+    turn: { run: { finished: boolean }; chatId: string; turnId: string },
+    workspace: string,
+) {
+    const { chatId, turnId } = turn;
     const settled = await waitFor(async () => (turn.run.finished ? await readChatTurn(call.db, { chatId, turnId }) : null));
     const state = settled ?? (await readChatTurn(call.db, { chatId, turnId }));
     if (!state) throw serviceFailure("read chat turn");
-    return presentTurn(call, chatId, args.workspace, state, { offset: 0, limitChars: ANSWER_PAGE_CHARS });
+    return presentTurn(call, chatId, workspace, state, { offset: 0, limitChars: ANSWER_PAGE_CHARS });
 }
 
 /** Where a new conversation goes: the matter's workspace, else the one named, else the default. */

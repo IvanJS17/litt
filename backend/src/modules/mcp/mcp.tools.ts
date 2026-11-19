@@ -257,6 +257,19 @@ async function runToolInPrincipal(tool: AnyMcpTool, principal: McpPrincipal, arg
     }
 }
 
+/**
+ * One tool, run for this grant as `tools/call` runs it: arguments checked
+ * against the tool's schema, then the scope, the live workspace fence, the
+ * strict audit row, the handler and the call record, in that order. The prompts
+ * and resources of mcp.context.ts read through here, so they have no
+ * authorization path of their own.
+ */
+export async function runMcpTool(tool: AnyMcpTool, principal: McpPrincipal, args: unknown): Promise<McpToolOutput> {
+    const parsed = (tool.inputSchema as z.ZodObject).safeParse(args);
+    if (!parsed.success) return failureOutput("invalid_arguments", "The request is not valid.");
+    return runTool(tool, principal, parsed.data);
+}
+
 /** Register the tools the grant may use; the rest do not appear in tools/list. */
 export function registerMcpTools(
     server: McpServer,

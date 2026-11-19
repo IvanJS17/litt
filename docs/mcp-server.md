@@ -369,3 +369,48 @@ removes its connections and tokens and keeps the history.
   the synthetic firm. The browser step is simulated and the web session is stubbed. By default Hermes registers through its public client
   metadata document (needs the internet); `LITT_MCP_E2E_CIMD=disabled` makes it
   register dynamically instead. Needs the `hermes` CLI; synthetic data only.
+
+## Layer 2c: prompts, resources and the chats of a matter and of a review
+
+The server now declares `tools`, `prompts` and `resources`: what Claude supports. It declares **no resource subscriptions and no `listChanged`** (Claude does not support them, and a request is its own server, so nothing is ever announced). Tasks and progress are not in this slice: they need a real Claude test and stay documented as pending (design §8, layer 2 summary).
+
+### Prompts and resources (`mcp.context.ts`, `mcp.prompts.ts`, `mcp.resources.ts`)
+
+They carry the inputs of a piece of work (design §2.3): a workflow's instructions, a playbook's rules, the firm's profile and a retainer matter's client profile.
+
+| Kind | Name / URI | Same text as the tool |
+|---|---|---|
+| prompt | `workflow:<id>` | `get_workflow` |
+| prompt | `playbook:<id>` | `get_playbook` |
+| resource | `litt://workflows/{id}`, `litt://playbooks/{id}` | `get_workflow`, `get_playbook` |
+| resource | `litt://workspaces/{id}/firm-profile` | `get_firm_profile` (new, read-only, `litt.read`, strict audit) |
+| resource | `litt://matters/{id}/client-profile` | `get_client_profile` (template only: a person has many matters) |
+
+**No second authorization path.** A prompt or a resource is read by running the tool that returns the same thing through `runMcpTool` (`mcp.tools.ts`), which is what `tools/call` runs: arguments, the grant's scope, the live workspace fence, the person's own access, the strict audit row (and, for the client profile, the egress record of the quotes written *before* they are returned), the handler and the call record. `mcp.context.ts`, `mcp.prompts.ts` and `mcp.resources.ts` query no table and check no access themselves (the catalog test pins it). A thing that does not exist, one the person cannot open and one outside the connection's workspaces answer the same (`That prompt was not found.` / `That resource was not found.`), so existence does not leak. The text is the author's: it keeps the tools' untrusted-data fence, and the prompt's own framing says it never overrides the person's request.
+
+**Listing is bounded and paged.** `prompts/list` and `resources/list` show the connection's **default workspace**: workflows first, then playbooks (what `list_workflows` / `find_playbooks` list for that person), at most 25 per page, with an opaque cursor. `resources/list` adds, on its first page, the firm profile of each firm workspace of the connection (Personal has none). A prompt or resource of another workspace of the same connection is read by name or URI all the same; it just is not in the menu. The apprentice rules are the tools': these are reads, mode A.
+
+### Chats of a matter and of a review
+
+| Tool | What it starts / does | Same turn as the web |
+|---|---|---|
+| `start_project_chat`, `send_project_chat_message` | the matter's conversation (all the matter's documents, its tools, its workflows) | `POST /projects/:id/chat` |
+| `send_tabular_chat_message`, `get_tabular_chat_turn`, `stop_tabular_chat_turn`, `list_tabular_chats` | the review panel's thread (the model reads the grid and cites cells) | `POST /tabular-review/:id/chat`, its `chats`, `messages`, `turn/:id/stop` routes |
+
+Both web turns used to live inside their route handler. They now run behind `startProjectChatTurn` / `runProjectChatTurn` (`project-chat/projectChat.turn.ts`) and `startTabularChatTurn` / `runTabularChatTurn` (`tabular/tabular.chatTurn.ts`), the way `chat.turn.ts` does for `POST /chat`: the route parses, starts the turn, attaches the run to the response and runs it, and the tools call the very same functions through the module facades. Nothing about frames, ordering or persistence changed (the golden recording and the route tests pass untouched).
+
+* **Same rules.** Access (a matter or review the person cannot open is `not_found`), write standing (`forbidden` for a viewer), one answer at a time (`turn_in_progress`, checked before anything is written), the BYOK route pinned to the conversation (no fallback; `missing_api_key` fails closed) and the training rules (mode A only: a pasante or junior brings `attempt` and `confidence` first, "Tu turno primero"; there is no mode B here).
+* **Review threads are written by their author** (as the web's rename and delete): another member reads a thread (provenance filter included: a message built from a document the reader cannot open is withheld, as in the web's messages route) but writing to it is `chat_write_forbidden`; they start their own.
+* **Scope.** `litt.chat`, write lane, strict audit before running (the spend and the thread), like `start_chat`. What leaves LiTT is recorded as a chat egress before it is returned (`mcp.chat_egress`), by the same code as the assistant chat.
+* **Session «Sesión desde Claude».** A new matter conversation is a `chats` row with `origin = 'mcp'`, so the web's history and the connection's activity list it like any chat started from Claude. A review thread has no origin column (the tool calls, which carry the review and thread ids, are the session's record); adding one is a migration left out of this slice.
+* **Following a turn.** A matter conversation is followed and stopped with `get_chat_turn`, `stop_chat_turn` and `get_chat` (same table, same run registry). `get_chat_turn` now also reports `generating` for a live turn whose answer is not saved yet (the matter's engine saves it when it ends; the assistant chat reserves its row first). Review threads have their own `get_tabular_chat_turn` / `stop_tabular_chat_turn` because their messages live in their own table.
+* **Why new tools instead of `start_chat(matter_id)`.** That tool runs the assistant chat's engine with a `project_id`, which attaches only the documents named on the message; the web's matter page uses the matter engine. `start_chat` is unchanged. `run_workflow` / `run_quick_action` with a `matter_id` still use the assistant chat's engine too.
+
+None of the new tools sits on a route with `requireMfaIfEnrolled` (the firm profile's read route has none; only its write does): checked in the catalog test, so none is withheld for MFA.
+
+### Tests of layer 2c
+
+* `backend/src/__tests__/integration/mcp.promptsResources.routes.test.ts` — capabilities (no subscriptions), `prompts/list|get`, `resources/list|templates/list|read`: paging and bounds, the workspace fence, the person's own access, "not found" without leaking existence, strict audit, the read budget, apprentice reads, and a per-person matrix against the tools (`get_workflow`, `get_playbook`, `get_firm_profile`, `list_workflows`).
+* `backend/src/__tests__/integration/mcp.tools.donna.routes.test.ts` (new describe) — the client profile as a resource: same facts, egress and audit as the tool, fail-closed.
+* `backend/src/__tests__/integration/mcp.tools.projectChats.routes.test.ts` and `mcp.tools.tabularChats.routes.test.ts` — the matrices against `POST /projects/:id/chat` and the review chat routes (owner, editor, viewer, admin outside a private matter, apprentice, outsider, a connection that does not cover the firm), origin and sessions, generating / stop / error, creator-write, provenance, strict audit and fail-closed. The model is stood in for at the seam both the route and the tool call.
+* `projectChat.routes.test.ts` (origin of a new matter chat), `chat.history.test.ts` (a live turn with no row), `mcp.catalog.test.ts` (classification, the prompts' and resources' tools, MFA guard).
