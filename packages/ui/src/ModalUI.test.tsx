@@ -104,6 +104,67 @@ describe("ModalUI focus on a touch screen", () => {
     });
 });
 
+describe("ModalUI makes the page behind inert", () => {
+    it("sets inert on the other body children while open and restores them on close", () => {
+        const page = document.createElement("div");
+        const alreadyInert = document.createElement("div");
+        alreadyInert.setAttribute("inert", "");
+        const toasts = document.createElement("div");
+        toasts.setAttribute("aria-live", "polite");
+        document.body.append(page, alreadyInert, toasts);
+        try {
+            const { rerender } = render(
+                <ModalUI open onClose={vi.fn()} ariaLabel="Example">
+                    <button type="button">Inside</button>
+                </ModalUI>,
+            );
+            const dialog = screen.getByRole("dialog", { name: "Example" });
+            expect(page).toHaveAttribute("inert");
+            expect(toasts).not.toHaveAttribute("inert");
+            expect(dialog.closest("[inert]")).toBeNull();
+
+            rerender(
+                <ModalUI open={false} onClose={vi.fn()} ariaLabel="Example">
+                    <button type="button">Inside</button>
+                </ModalUI>,
+            );
+            expect(page).not.toHaveAttribute("inert");
+            // What was inert before the modal stays inert.
+            expect(alreadyInert).toHaveAttribute("inert");
+        } finally {
+            page.remove();
+            alreadyInert.remove();
+            toasts.remove();
+        }
+    });
+
+    it("restores the page when the modal unmounts, and leaves a modal under another as it found it", () => {
+        const page = document.createElement("div");
+        document.body.append(page);
+        try {
+            const first = render(
+                <ModalUI open onClose={vi.fn()} ariaLabel="First">
+                    one
+                </ModalUI>,
+            );
+            const second = render(
+                <ModalUI open onClose={vi.fn()} ariaLabel="Second">
+                    two
+                </ModalUI>,
+            );
+            expect(page).toHaveAttribute("inert");
+            expect(screen.getByRole("dialog", { name: "Second" }).closest("[inert]")).toBeNull();
+            second.unmount();
+            expect(page).toHaveAttribute("inert");
+            expect(screen.getByRole("dialog", { name: "First" }).closest("[inert]")).toBeNull();
+            first.unmount();
+            expect(page).not.toHaveAttribute("inert");
+        } finally {
+            page.remove();
+        }
+    });
+});
+
 describe("ModalUI as a bottom sheet", () => {
     const stubPhone = (reduceMotion = false) =>
         vi.stubGlobal("matchMedia", (query: string) => ({

@@ -60,6 +60,30 @@ const sheetAnimates = () =>
     window.matchMedia?.("(max-width: 767px)").matches === true &&
     window.matchMedia("(prefers-reduced-motion: no-preference)").matches === true;
 
+/** Never made inert: not page content (scripts, styles) or a live region that must keep announcing. */
+const INERT_EXEMPT = "script, style, link, template, noscript, [aria-live], [role='status'], [role='alert']";
+
+/**
+ * While a modal is open, everything else on the page is made `inert` (not
+ * focusable, clickable or readable), the same way the phone menu does it.
+ * Only the siblings that were not already inert are touched, so closing a
+ * modal restores exactly what it changed, and a modal opened over another
+ * leaves the first one as it found it.
+ */
+function inertPageBehind(dialog: HTMLElement): () => void {
+    let root: HTMLElement | null = dialog;
+    while (root && root.parentElement !== document.body) root = root.parentElement;
+    const changed = Array.from(document.body.children).filter(
+        (element): element is HTMLElement =>
+            element instanceof HTMLElement &&
+            element !== root &&
+            !element.hasAttribute("inert") &&
+            !element.matches(INERT_EXEMPT),
+    );
+    changed.forEach((element) => element.setAttribute("inert", ""));
+    return () => changed.forEach((element) => element.removeAttribute("inert"));
+}
+
 /** An element that opens the on-screen keyboard when it takes focus. */
 function isTextEntry(element: Element | null): boolean {
     if (element instanceof HTMLTextAreaElement) return true;
@@ -124,6 +148,13 @@ export function ModalUI({
             dialog.focus({ preventScroll: true });
         }
     }, [open, hasMounted]);
+
+    // aria-modal alone is advisory: make the page behind really unreachable.
+    useEffect(() => {
+        const dialog = dialogRef.current;
+        if (!open || !dialog) return;
+        return inertPageBehind(dialog);
+    }, [open]);
 
     useEffect(() => {
         if (!open) return;
