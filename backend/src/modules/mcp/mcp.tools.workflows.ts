@@ -222,6 +222,7 @@ export const getWorkflowTool = defineMcpTool({
     readOnly: true,
     // The workflow's text goes out to the client's AI.
     audit: "strict",
+    auditRefs: (args) => ({ workflowId: args.workflow_id }),
     resolveWorkspace: (args, call) => workflowWorkspace(call, args.workflow_id),
     handler: async (args, call) => {
         const workflow = await readWorkflow(call, args.workflow_id);
@@ -450,7 +451,7 @@ export const runWorkflow = defineMcpTool({
     destructive: false,
     // It spends the person's model budget and writes a conversation or a review.
     audit: "strict",
-    auditRefs: (args) => ({ projectId: args.matter_id }),
+    auditRefs: (args) => ({ projectId: args.matter_id, workflowId: args.workflow_id }),
     resolveWorkspace: startWorkspace,
     handler: async (args, call) => {
         const workflow = await readWorkflow(call, args.workflow_id);

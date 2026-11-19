@@ -28,17 +28,9 @@ import {
     proposeSplit,
     requestScanReading,
 } from "../documents/documents.service";
-import { mcpConfig } from "./mcp.config";
-import { refuse } from "./mcp.tools.documentOps";
-import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
+import { documentUrl, emailOf, refuse } from "./mcp.tools.documentOps";
+import { defineMcpTool, mcpText, McpToolError } from "./mcp.tools";
 import { documentWorkspace, idSchema, POLL_AFTER_SECONDS, UNTRUSTED_NOTICE, untrusted } from "./mcp.toolkit";
-
-const documentUrl = (projectId: string | null | undefined) =>
-    `${mcpConfig().webUrl}${projectId ? `/projects/${projectId}` : "/library"}`;
-
-async function emailOf(call: McpCall): Promise<string | undefined> {
-    return (await call.userEmail()) || undefined;
-}
 
 const costArgs = {
     acknowledge_cost: z
@@ -67,7 +59,7 @@ function requireCostConfirmation(args: CostArgs, stateTool: string): void {
         );
 }
 
-/** The estimate the person saw may not be lower than what it is now (a cent of rounding aside). */
+/** The estimate the person saw may not be lower than what it is now (half a cent of rounding aside). */
 function requireEstimateHolds(args: CostArgs, current: number | null | undefined, stateTool: string): void {
     if (args.estimated_cost_usd === undefined || current === null || current === undefined) return;
     if (current > args.estimated_cost_usd + 0.005)

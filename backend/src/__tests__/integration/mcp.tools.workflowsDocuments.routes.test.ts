@@ -601,7 +601,7 @@ describe("get_workflow", () => {
         await callTool(await connect(), "get_workflow", { workflow_id: WF_ASSIST });
         const rows = TOOL_AUDIT("get_workflow");
         expect(rows).toHaveLength(1);
-        expect(rows[0]).toMatchObject({ surface: "mcp", org_id: ORG });
+        expect(rows[0]).toMatchObject({ surface: "mcp", org_id: ORG, detail: expect.objectContaining({ workflow_id: WF_ASSIST }) });
         expect(JSON.stringify(rows[0])).not.toContain("evil.example");
         expect(callRows("get_workflow")).toEqual([expect.objectContaining({ outcome: "ok", workspace: ORG, mode: "B" })]);
     });

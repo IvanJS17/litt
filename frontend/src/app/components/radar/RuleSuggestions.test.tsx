@@ -301,6 +301,18 @@ describe("accepting does not turn the rule on", () => {
     expect(mocks.set).toHaveBeenCalledWith("p", "m", "lgsm.asamblea_ordinaria_anual@1", true, { anchor_fact_id: "f1", anchor_mode: "direct" });
   });
 
+  it("opens the form even when the refresh after a saved acceptance fails, and says it was the refresh", async () => {
+    const user = userEvent.setup();
+    mocks.list.mockResolvedValueOnce(list([suggestion()]));
+    view();
+    const card = await (await panel()).findByRole("article", { name: NAME });
+    mocks.list.mockRejectedValue(new Error("offline"));
+    await user.click(within(card).getByRole("button", { name: "Accept" }));
+    expect(await openForm()).toBeDefined();
+    expect(mocks.notifyError).toHaveBeenCalledWith(expect.any(Error), { action: "Could not load the suggestions." });
+    expect(mocks.notifyError).not.toHaveBeenCalledWith(expect.anything(), { action: "Could not decide the selected suggestions." });
+  });
+
   it("keeps an accepted suggestion with the rule off, and lets the lawyer open the form again from it", async () => {
     const user = userEvent.setup();
     mocks.list.mockResolvedValue(list([accepted()]));

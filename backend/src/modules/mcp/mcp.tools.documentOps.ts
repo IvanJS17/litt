@@ -82,10 +82,10 @@ export function refuse(failure: ServiceFailure, operation: string): never {
     );
 }
 
-const documentUrl = (projectId: string | null) =>
+export const documentUrl = (projectId: string | null | undefined) =>
     `${mcpConfig().webUrl}${projectId ? `/projects/${projectId}` : "/library"}`;
 
-async function emailOf(call: McpCall): Promise<string | undefined> {
+export async function emailOf(call: McpCall): Promise<string | undefined> {
     return (await call.userEmail()) || undefined;
 }
 

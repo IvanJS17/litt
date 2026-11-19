@@ -79,6 +79,7 @@ export async function recordMcpAuditEvent(
             mode: args.principal.mode,
             ...(args.refs?.versionId ? { version_id: args.refs.versionId } : {}),
             ...(args.refs?.playbookId ? { playbook_id: args.refs.playbookId } : {}),
+            ...(args.refs?.workflowId ? { workflow_id: args.refs.workflowId } : {}),
             ...(args.refs?.reviewId ? { review_id: args.refs.reviewId } : {}),
         },
     });
@@ -91,6 +92,7 @@ export type McpAuditRefs = {
     chatId?: string | null;
     versionId?: string | null;
     playbookId?: string | null;
+    workflowId?: string | null;
     reviewId?: string | null;
 };
 
