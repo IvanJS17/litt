@@ -4811,7 +4811,17 @@
       "newLabel": "Tipo nuevo",
       "add": "Agregar tipo",
       "couldNotLoad": "No se pudieron cargar los tipos de solicitud.",
-      "couldNotSave": "No se pudieron guardar los tipos de solicitud."
+      "couldNotSave": "No se pudieron guardar los tipos de solicitud.",
+      "playbooksLegend": "Playbooks sugeridos para {name}",
+      "playbooksHeading": "Playbooks sugeridos",
+      "playbooksHelp": "Solo se vinculan playbooks listos y compartidos con el despacho. Al desvincular uno, su historial se conserva.",
+      "playbooksNoneAvailable": "Aún no hay playbooks listos compartidos con el despacho.",
+      "playbooksNoneLinked": "Ningún playbook vinculado.",
+      "playbooksLinked": "{playbook} vinculado a {name}.",
+      "playbooksUnlinked": "{playbook} desvinculado de {name}.",
+      "playbooksCouldNotLoad": "No se pudieron cargar los playbooks sugeridos.",
+      "playbooksCouldNotSave": "No se pudieron guardar los playbooks sugeridos.",
+      "playbooksNotReady": "Ese playbook no está listo, por eso no se puede vincular."
     },
     "counts": {
       "title": "Conteos de solicitudes",

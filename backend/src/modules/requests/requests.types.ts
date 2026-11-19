@@ -93,7 +93,7 @@ export async function listRequestTypes(db: Db, actor: Actor): Promise<ServiceRes
   return ok({ types: rows.data.map(toType), can_manage: who.data.admin });
 }
 
-async function manager(db: Db, actor: Actor): Promise<ServiceResult<Member>> {
+export async function manager(db: Db, actor: Actor): Promise<ServiceResult<Member>> {
   const who = await teamMember(db, actor);
   if (!who.ok) return who;
   if (!who.data.admin)

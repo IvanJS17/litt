@@ -4811,7 +4811,17 @@
       "newLabel": "New type",
       "add": "Add type",
       "couldNotLoad": "Could not load the request types.",
-      "couldNotSave": "Could not save the request types."
+      "couldNotSave": "Could not save the request types.",
+      "playbooksLegend": "Suggested playbooks for {name}",
+      "playbooksHeading": "Suggested playbooks",
+      "playbooksHelp": "Only ready playbooks shared with the firm can be linked. Unlinking one keeps its history.",
+      "playbooksNoneAvailable": "No ready playbooks shared with the firm yet.",
+      "playbooksNoneLinked": "No playbook linked.",
+      "playbooksLinked": "{playbook} linked to {name}.",
+      "playbooksUnlinked": "{playbook} unlinked from {name}.",
+      "playbooksCouldNotLoad": "Could not load the suggested playbooks.",
+      "playbooksCouldNotSave": "Could not save the suggested playbooks.",
+      "playbooksNotReady": "That playbook is not ready, so it cannot be linked."
     },
     "counts": {
       "title": "Request counts",

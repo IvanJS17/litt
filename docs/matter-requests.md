@@ -91,6 +91,8 @@ writes (only `service_role`).
 | `PUT /projects/:projectId/matters/:matterId/retainer` | matter owner; unmarking is refused while requests exist (`409 retainer_has_requests`) |
 | `GET/POST /orgs/:orgId/request-types`, `PATCH .../:typeId` | read: any member of the team organization; write: owner or admin (audited) |
 | `GET /orgs/:orgId/requests/counts?period=month\|quarter&date=YYYY-MM-DD` | firm owner or admin, **counts only** (see below). A member, a matter editor or viewer: `403 org_admin_required`; not in the firm, or a personal organization: `404` |
+| `GET /orgs/:orgId/request-types/playbooks`, `GET .../:typeId/playbooks` | any member of the team organization: the open links and the ready playbooks that can be linked (`can_manage` says whether the caller changes them) |
+| `POST .../:typeId/playbooks` `{ "playbook_id" }`, `DELETE .../:typeId/playbooks/:playbookId` | owner or admin, as for the catalog (`403 org_admin_required`); audited (`request_type_playbooks.linked` / `.unlinked`). See "Playbooks suggested for a type" |
 
 Rounds reuse the documents' versions: this module only **reads**
 `document_versions`/`documents` to check ownership and never writes a version row
@@ -101,6 +103,34 @@ The matter's project detail (`GET /projects/:id`) adds `matter_id` and
 **Requests** entry (its header menu). The page is
 `/projects/:id/matters/:matterId/requests`; the catalog is a section of
 **Ajustes del despacho › General**.
+
+## Playbooks suggested for a type
+
+Donna's triage (slice P1) starts by linking each type of the firm's catalog to
+the playbooks the firm uses for it. It is a person's choice, with no model
+involved: an owner or admin ticks **Suggested playbooks** under a type in
+**Ajustes del despacho › General**; members read the links.
+
+- A type has zero or more playbooks; a playbook may serve several types.
+- Only a playbook that is **ready** (never a draft; see `docs/playbooks.md`),
+  **shared with the whole firm** (`visibility = 'organization'`) and of the
+  **same firm** can be linked. Another firm's playbook, a private one and a
+  missing one are `404`; a draft is `409 playbook_not_ready`; a playbook
+  already linked is `409 request_type_playbook_linked`. A type of another
+  firm is `404`, for members and non-members alike.
+- **Unlinking never deletes.** Table `request_type_playbooks`
+  (`20261119_50_litt_request_type_playbooks.sql`): `org_id`, `type_id`,
+  `playbook_id`, `linked_by`, `linked_at`, `unlinked_by`, `unlinked_at`. Unlinking
+  marks the row once; linking again writes a new row, so who linked and
+  unlinked what stays. One open link per type and playbook (partial unique
+  index). A trigger repeats the rule in the database (same firm, ready,
+  shared) and refuses delete and any change other than the one unlinking.
+  `playbook_id` and the actor columns have no foreign key, so deleting a
+  playbook or erasing an account is never blocked; a link whose playbook is
+  gone, private or no longer shared reads as absent.
+- RLS: members of the firm read; every write is the backend's.
+- Archiving a type keeps its links (its selector is hidden; the links are not
+  deleted). The triage card will read these links in a later slice.
 
 ## Firm counts
 

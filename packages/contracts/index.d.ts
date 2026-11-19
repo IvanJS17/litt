@@ -2224,6 +2224,31 @@ export type MatterRequestTypeList = {
   can_manage: boolean;
 };
 
+/** A ready playbook linked to a request type of the firm. */
+export type RequestTypePlaybook = {
+  type_id: string;
+  playbook_id: string;
+  name: string;
+  linked_at: string;
+};
+
+/** A ready playbook shared with the firm: one that can be linked. */
+export type RequestTypePlaybookOption = { id: string; name: string };
+
+export type RequestTypePlaybookLinks = {
+  /** Open links only; an unlinked one stays in the history, not here. */
+  links: RequestTypePlaybook[];
+  available: RequestTypePlaybookOption[];
+  /** The caller may link and unlink (owner or admin of the firm). */
+  can_manage: boolean;
+};
+
+export type RequestTypePlaybookUnlinked = {
+  type_id: string;
+  playbook_id: string;
+  unlinked: true;
+};
+
 export type MatterRequestRound = {
   id: string;
   round_number: number;
