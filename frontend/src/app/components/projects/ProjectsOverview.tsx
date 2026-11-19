@@ -1,5 +1,6 @@
 "use client";
 
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import { clientTranslator } from "@mike/client";
 import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -659,9 +660,12 @@ export function ProjectsOverview() {
                           ]
                 }
             >
-                <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
-                    {t("projects.projects")}
-                </h1>
+                <div className="flex min-w-0 items-center gap-3">
+                    <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
+                        {t("projects.projects")}
+                    </h1>
+                    <GuideTrigger id="projects_documents" />
+                </div>
             </PageHeader>
 
             {/* Today: the deadlines of the matters where I am a member (firm workspaces only). */}

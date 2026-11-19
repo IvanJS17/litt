@@ -1,5 +1,6 @@
 "use client";
 
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -523,9 +524,12 @@ export function WorkflowList({
           },
         ]}
       >
-        <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
-          {t("workflows.workflows")}
-        </h1>
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
+            {t("workflows.workflows")}
+          </h1>
+          <GuideTrigger id="playbooks_workflows" />
+        </div>
       </PageHeader>
 
       <TableToolbar

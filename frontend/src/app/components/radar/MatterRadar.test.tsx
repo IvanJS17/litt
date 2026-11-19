@@ -18,6 +18,8 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   actOnRadarItem: mocks.actOnRadarItem,
   getMatterObligationRules: mocks.getMatterObligationRules,
 }));
+// The first-time hint is remembered per user.
+vi.mock("@/app/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-ana" } }) }));
 vi.mock("@/app/lib/userFacingError", () => ({
   notifyError: mocks.notifyError,
   errorCode: (error: unknown) => (error as { code?: string } | null)?.code ?? null,
@@ -91,6 +93,22 @@ describe("MatterRadar", () => {
     expect(within(nav).getByRole("link", { name: "Client profile" })).toHaveAttribute("href", "/projects/project-1/matters/matter-1/profile");
     expect(within(nav).getByRole("link", { name: "Requests" })).toBeInTheDocument();
     expect(getComputedStyle(document.body).display).toBeDefined();
+  });
+
+  it("offers «What is this?» beside the title and a first-time hint that closes for good", async () => {
+    window.localStorage.clear();
+    mocks.getMatterRadar.mockResolvedValue(radar());
+    const user = userEvent.setup();
+    const first = renderPage();
+    await screen.findByRole("article");
+    expect(screen.getAllByRole("button", { name: "What is this?" })).toHaveLength(2);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dismiss the notice" }));
+    expect(screen.getAllByRole("button", { name: "What is this?" })).toHaveLength(1);
+    first.unmount();
+    renderPage();
+    await screen.findByRole("article");
+    expect(screen.queryByRole("button", { name: "Dismiss the notice" })).not.toBeInTheDocument();
   });
 
   it("groups the items: overdue, next 30 days, later and to review, with the handled ones last", async () => {

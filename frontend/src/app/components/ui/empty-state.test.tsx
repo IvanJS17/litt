@@ -40,7 +40,22 @@ describe("EmptyState", () => {
 
     it("uses the muted tone for the description by default", () => {
         render(<EmptyState title="Projects" description="Add one" />);
-        expect(screen.getByText("Add one")).toHaveClass("text-gray-400");
+        // gray-500 passes AA (5.2:1 on papel); gray-400 (3.1:1) did not.
+        expect(screen.getByText("Add one")).toHaveClass("text-gray-500", "text-sm");
+    });
+
+    it("renders the help slot (the guide's «When to use it?») under the description, before the action", () => {
+        const { container } = render(
+            <EmptyState
+                title="Projects"
+                description="Add one"
+                help={<button type="button">When to use it?</button>}
+                action={<button type="button">Create</button>}
+            />,
+        );
+        const help = container.querySelector('[data-slot="empty-state-help"]')!;
+        expect(help).toContainElement(screen.getByRole("button", { name: "When to use it?" }));
+        expect(help.nextElementSibling).toContainElement(screen.getByRole("button", { name: "Create" }));
     });
 
     it("renders the icon and the action slots", () => {

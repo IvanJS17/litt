@@ -93,12 +93,13 @@ test("every way into the beta opens the Tally questionnaire with its origin and 
     const origins = await soon
         .getByRole("link", { name: /^Me interesa/ })
         .evaluateAll((links) => links.map((a) => new URL((a as HTMLAnchorElement).href).searchParams.get("origen")));
-    expect(origins).toEqual(["soon-contextlex", "soon-mcp", "soon-donna", "soon-conectores"]);
+    expect(origins).toEqual(["soon-contextlex", "soon-conectores"]);
     // The support address is still a plain contact link in the footer.
     await expect(page.getByRole("contentinfo").locator('a[href="mailto:soporte@asteroitt.com"]')).toHaveCount(1);
     // Honest copy: the footnotes are there and Donna is never sold by the hour.
     await expect(soon).toContainText("* Google en preparación; Microsoft 365 y Dropbox en diseño.");
-    await expect(soon).toContainText("* Harness: el programa con el que trabajas con una IA");
+    // Donna and LiTT from Claude or ChatGPT are features now, not «Próximamente».
+    expect((await soon.textContent()) ?? "").not.toMatch(/Donna|Claude|MCP|demanda/);
     expect((await soon.textContent()) ?? "").not.toMatch(/\bhoras?\b/i);
 });
 
@@ -184,16 +185,16 @@ test("the menu button shows on 390 × 844 and 375 × 667, closed, and not at 100
     }
     await page.setViewportSize({ width: 1000, height: 800 });
     await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();
-    // From 880 px the four links are in the header itself.
+    // From 880 px the five links are in the header itself.
     const nav = page.getByRole("banner").getByRole("navigation", { name: "Sections" });
-    await expect(nav.getByRole("link")).toHaveText(["Features", "Why LiTT", "Coming soon", "Trust"]);
+    await expect(nav.getByRole("link")).toHaveText(["Training", "Features", "Why LiTT", "Coming soon", "Trust"]);
 });
 
-test("opening the menu moves the focus to «Features», makes the page inert and stops the page scrolling", async ({ page }) => {
+test("opening the menu moves the focus to «Training», makes the page inert and stops the page scrolling", async ({ page }) => {
     await onAPhone(page);
     await page.getByRole("button", { name: "Menu" }).click();
     await expect(page.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "true");
-    await expect(page.locator("#landing-menu").getByRole("link", { name: "Features" })).toBeFocused();
+    await expect(page.locator("#landing-menu").getByRole("link", { name: "Training" })).toBeFocused();
     const state = await page.evaluate(() => ({
         mainInert: (document.getElementById("main") as HTMLElement).inert,
         footerInert: (document.querySelector("footer") as HTMLElement).inert,
@@ -214,12 +215,12 @@ test("opening the menu moves the focus to «Features», makes the page inert and
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
 
-test("Tab cycles inside the menu: ten tabs come back to the button, the eleventh to «Features»", async ({ page }) => {
+test("Tab cycles inside the menu: ten tabs come back to the button, the twelfth to «Training»", async ({ page }) => {
     await onAPhone(page);
     await page.getByRole("button", { name: "Menu" }).click();
-    await expect(page.locator("#landing-menu").getByRole("link", { name: "Features" })).toBeFocused();
+    await expect(page.locator("#landing-menu").getByRole("link", { name: "Training" })).toBeFocused();
     const order: string[] = [];
-    for (let i = 0; i < 11; i += 1) {
+    for (let i = 0; i < 12; i += 1) {
         await page.keyboard.press("Tab");
         order.push(
             await page.evaluate(() => {
@@ -229,6 +230,7 @@ test("Tab cycles inside the menu: ten tabs come back to the button, the eleventh
         );
     }
     expect(order).toEqual([
+        "Features",
         "Why LiTT",
         "Coming soon",
         "Trust",
@@ -239,7 +241,7 @@ test("Tab cycles inside the menu: ten tabs come back to the button, the eleventh
         "Privacy notice",
         "Terms and conditions",
         "Menu",
-        "Features",
+        "Training",
     ]);
     // And Shift+Tab goes back the other way, from the button to the last link.
     await page.keyboard.press("Shift+Tab");
@@ -336,7 +338,7 @@ for (const theme of ["light", "dark"] as const) {
     test(`with the menu open, axe finds nothing and nothing scrolls sideways (${theme})`, async ({ page }) => {
         await onAPhone(page, { theme });
         await page.getByRole("button", { name: "Menu" }).click();
-        await expect(page.locator("#landing-menu").getByRole("link", { name: "Features" })).toBeFocused();
+        await expect(page.locator("#landing-menu").getByRole("link", { name: "Training" })).toBeFocused();
         // The 220 ms entrance is over: contrast is read on settled colors.
         await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
         const widths = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);

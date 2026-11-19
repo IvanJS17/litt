@@ -1,5 +1,6 @@
 "use client";
 
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { FileText } from "lucide-react";
@@ -133,7 +134,10 @@ export function MatterReport({ projectId, matterId }: { projectId: string; matte
           </Link>
           <MatterSectionNav projectId={projectId} matterId={matterId} current="report" />
           <div className="min-w-0">
-            <h1 className="font-serif text-2xl text-gray-900">{t("retainerReport.title")}</h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <h1 className="font-serif text-2xl text-gray-900">{t("retainerReport.title")}</h1>
+              <GuideTrigger id="donna_retainer_report" />
+            </div>
             <p className="mt-1 text-sm text-gray-600">{t("retainerReport.subtitle")}</p>
             <p className="mt-1 text-sm font-medium text-gray-900">{t("retainerReport.disclaimer")}</p>
           </div>
@@ -169,6 +173,7 @@ export function MatterReport({ projectId, matterId }: { projectId: string; matte
               icon={<FileText />}
               title={t("retainerReport.retainer.offTitle")}
               description={t("retainerReport.retainer.offDescription")}
+              help={<GuideTrigger id="donna_retainer_report" label={t("guides.ui.whenToUse")} icon={false} />}
             />
           </section>
         ) : (

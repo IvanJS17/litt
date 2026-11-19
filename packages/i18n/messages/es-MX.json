@@ -967,7 +967,8 @@
       "settings": "Ajustes",
       "tabularReviews": "Revisiones tabulares",
       "workflows": "Flujos de trabajo",
-      "connectAuthorize": "Conectar una app"
+      "connectAuthorize": "Conectar una app",
+      "help": "Ayuda"
     }
   },
   "connect": {
@@ -1749,10 +1750,427 @@
     "openAProjectToStartDrafting": "Abre un proyecto para empezar a redactar y revisar con la ayuda del Asistente del proyecto.",
     "openProject": "Abrir proyecto"
   },
+  "guides": {
+    "ui": {
+      "whatIsThis": "¿Qué es esto?",
+      "whenToUse": "¿Cuándo usarla?",
+      "guide": "Guía: {title}",
+      "hintDismiss": "Cerrar el aviso",
+      "gotIt": "Entendido",
+      "moreInHelp": "Todas las guías están en Ayuda.",
+      "openHelp": "Ir a Ayuda",
+      "hintChat": "Para saber qué hace el asistente y cuándo usarlo, abre la guía. Es solo una vez.",
+      "hintRadar": "El Radar muestra qué vence y de qué dato sale cada fecha. La guía explica cuándo usarlo y qué no calcula.",
+      "hintPupil": "Tu etapa cambia cómo responde el asistente. La guía explica qué cambia y por qué.",
+      "hintMentor": "Eres mentor de aprendices en este despacho. La guía explica el panel paso a paso.",
+      "pupilLink": "Guía para tu etapa",
+      "mentorHow": "¿Cómo funciona?",
+      "ifTraining": "Si estás en formación",
+      "ifTrainingBody": "Con una etapa de formación el asistente se comporta distinto en el chat y en las tablas. La guía de tu etapa lo explica.",
+      "helpTitle": "Ayuda",
+      "helpIntro": "Guías de cada función y de la formación. Nunca se abren solas: aquí las encuentras siempre.",
+      "helpFeatures": "Funciones",
+      "helpRoles": "Formación",
+      "openGuide": "Ver la guía",
+      "navLabel": "Ayuda"
+    },
+    "chat": {
+      "title": "Asistente",
+      "summary": "Responde consultas jurídicas, analiza documentos adjuntos, redacta cláusulas y ejecuta herramientas sobre el expediente usando modelos de IA con citas verificadas al texto.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Para resolver dudas de expedientes, resumir antecedentes, cotejar contradicciones entre contratos o preparar borradores iniciales de escritos."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No sustituye el criterio del abogado, no recuerda datos entre chats independientes y no inventa artículos legales (citas no halladas se marcan como sin verificar)."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Abre un nuevo chat o ingresa al chat de un proyecto y adjunta los documentos relevantes.",
+            "i2": "Escribe tu instrucción jurídica (si eres pasante, completa tu planteamiento previo y termómetro).",
+            "i3": "Revisa la respuesta generada, verifica las citas en las fuentes y aplica los cambios al documento."
+          }
+        }
+      }
+    },
+    "projects_documents": {
+      "title": "Proyectos y documentos",
+      "summary": "Centraliza expedientes por asunto, gestiona versiones de archivos (DOCX, PDF, TXT), extrae texto mediante OCR y controla permisos de acceso para el equipo del despacho.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Al aperturar un asunto o litigio para organizar contratos, demandas, pruebas y acuerdos en un repositorio seguro y colaborativo."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No calcula plazos procesales judiciales y no permite descargar versiones selladas de pasantes sin previa aprobación de un abogado."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Crea un proyecto, asigna su materia y define los miembros con permiso de edición o lectura.",
+            "i2": "Sube los archivos del asunto para que LiTT extraiga su capa de texto e indexe su contenido.",
+            "i3": "Abre el visor para comparar versiones, editar en línea con el asistente o iniciar revisiones."
+          }
+        }
+      }
+    },
+    "tabular_review": {
+      "title": "Revisión tabular",
+      "summary": "Extrae datos específicos de decenas o cientos de contratos organizándolos en tablas estructuradas con justificación y cita textual verificada por celda.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "En auditorías legales (due diligence), revisión masiva de arrendamientos, pólizas o contratos de proveedores con preguntas estandarizadas."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No modifica los archivos originales y no reemplaza la verificación de celdas marcadas como dudosas o con citas sin verificar."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Crea una revisión tabular dentro de un proyecto o espacio y selecciona los documentos a analizar.",
+            "i2": "Define las columnas con su instrucción y formato de respuesta (texto, fecha, moneda, sí/no, lista).",
+            "i3": "Inicia la generación automática, audita las celdas resultantes y exporta los datos."
+          }
+        }
+      }
+    },
+    "playbooks_workflows": {
+      "title": "Playbooks y flujos",
+      "summary": "Convierte guías de negociación en reglas estructuradas para auditar contratos, detectar cláusulas inaceptables y proponer redacciones alternativas con control de cambios.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Al revisar contratos frente a las políticas internas del cliente o del despacho, identificando riesgos, desviaciones y posturas negociables."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No ejecuta revisiones con playbooks en estado de borrador y no aprueba contratos automáticamente sin intervención humana."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Crea un playbook desde cero, cuestionario o importando un Word/PDF, y márcalo como listo.",
+            "i2": "Inicia una ejecución eligiendo el contrato, el alcance (completo o problemas) y la postura (estricta o permisiva).",
+            "i3": "Examina los hallazgos en la vista comparativa y aplica los cambios sugeridos en el archivo Word."
+          }
+        }
+      }
+    },
+    "donna_requests": {
+      "title": "Donna: solicitudes",
+      "summary": "Registra y organiza el flujo de peticiones recurrentes de clientes bajo iguala fija, midiendo complejidad, responsable, estado y rondas de negociación de documentos.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Para dar seguimiento ordenado a contratos, asambleas y consultas corporativas dentro de asuntos marcados como iguala privada."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No registra horas trabajadas ni tarifas horarias (las igualas son fijas) y no permite borrar solicitudes (solo cerrarlas o cancelarlas)."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Abre la sección Solicitudes en el asunto de iguala y crea una petición con su tipo y complejidad.",
+            "i2": "Asigna la solicitud a un abogado o pasante y vincula las versiones de documentos conforme avanzan las rondas.",
+            "i3": "Actualiza el estado (recibida, en revisión, con cliente, con contraparte) hasta marcarla como cerrada."
+          }
+        }
+      }
+    },
+    "donna_client_profile": {
+      "title": "Donna: ficha del cliente",
+      "summary": "Almacena hechos jurídicos estructurados del cliente (fechas, contratos marco, poderes, obligaciones) vinculados de forma obligatoria a citas textuales del expediente.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Para registrar datos corporativos permanentes a partir de actas, escrituras y contratos vigentes del cliente."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No calcula términos judiciales ni proyecta fechas por sí misma (lo hace el radar), y rechaza cualquier dato cuya cita no coincida con el documento."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Entra a Ficha del cliente dentro del asunto de iguala.",
+            "i2": "Agrega hechos manualmente con su cita exacta o pulsa «Proponer datos con IA» sobre una versión.",
+            "i3": "Revisa los hechos propuestos y confírmalos o recházalos como abogado responsable."
+          }
+        }
+      }
+    },
+    "donna_radar": {
+      "title": "Donna: Radar y reglas de obligaciones",
+      "summary": "Proyecta fechas de vencimiento, periodos de preaviso y obligaciones legales (asambleas anuales, vigencia de poderes) calculadas por código desde los hechos confirmados de la ficha.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Para planear con anticipación renovaciones de contratos, avisos de no renovación y cumplimientos corporativos antes de que expiren."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No calcula términos procesales de litigio ni días hábiles (los marca para revisión), y no envía notificaciones externas al cliente."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Consulta la pestaña Radar en el asunto o la sección Hoy en el inicio para ver vencimientos próximos.",
+            "i2": "En la sección Reglas, activa las obligaciones aplicables seleccionando su hecho de partida (ancla).",
+            "i3": "Marca cada elemento como visto, atendido o descartado, con su motivo."
+          }
+        }
+      }
+    },
+    "donna_retainer_report": {
+      "title": "Donna: reporte de iguala",
+      "summary": "Genera informes ejecutivos en Word y JSON sobre los últimos 30, 60 o 90 días de la iguala: solicitudes atendidas, rondas, mediana de días de resolución, hechos confirmados y vencimientos.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Al cierre de mes o trimestre para entregar al cliente un balance claro y transparente del trabajo realizado bajo su iguala fija."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No envía correos directamente al cliente (el abogado descarga el archivo y lo entrega por sus canales) y no contiene horas ni tarifas."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Entra a la pestaña Reporte dentro del asunto de iguala y selecciona el periodo (30, 60 o 90 días).",
+            "i2": "Revisa la vista previa con las estadísticas de solicitudes, rondas y vencimientos.",
+            "i3": "Descarga el reporte en Word (.docx), entrégalo al cliente y regístralo con «Marcar como enviado»."
+          }
+        }
+      }
+    },
+    "training": {
+      "title": "Formación",
+      "summary": "Modifica la interacción con la IA para pasantes y juniors en materias específicas (planteamiento previo, sellado de borradores, pistas), ofrece el Gimnasio de casos ficticios contra reloj y gestiona la supervisión por evidencia.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Para capacitar a pasantes y juniors del despacho asegurando que desarrollen criterio jurídico propio mediante práctica activa en expedientes y retos simulados sin depender pasivamente de la IA."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No altera el comportamiento para abogados sin etapa, no califica con promedios comparativos y no permite a administradores sin rol de mentor ver notas privadas ni intentos del gimnasio."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Asigna aprendices a sus mentores en Ajustes del despacho › Formación.",
+            "i2": "El mentor define la etapa (pasante o junior) por materia en Mis aprendices.",
+            "i3": "El mentor supervisa trabajos, asigna casos del Gimnasio, conduce defensas orales y promueve al aprendiz por evidencia en el Panel del mentor."
+          }
+        }
+      }
+    },
+    "connected_apps_mcp": {
+      "title": "Aplicaciones conectadas (MCP)",
+      "summary": "Conecta LiTT con apps de IA como Claude o ChatGPT mediante MCP, un estándar abierto, para consultar asuntos, documentos y playbooks con tu cuenta y tus permisos. Cada acción queda registrada en LiTT.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Cuando trabajas desde clientes de IA de escritorio o agentes locales y necesitas acceder a los documentos y herramientas de tu despacho en LiTT."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No comparte datos con despachos que no autorizaste, no deja que un aprendiz se salte las reglas de su formación y no entrega borradores sellados sin aprobar."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Inicia la conexión desde tu app de IA y autoriza los permisos y el despacho en la pantalla de consentimiento de LiTT.",
+            "i2": "Pide desde tu app que busque en un asunto, lea un documento o corra un playbook o una tabla.",
+            "i3": "Para subir un archivo, la app pide a LiTT una sesión de subida con un enlace de un solo uso: la conversación no lleva el archivo.",
+            "i4": "Administra las conexiones activas y revoca accesos en Ajustes › Aplicaciones conectadas."
+          }
+        }
+      }
+    },
+    "model_selector": {
+      "title": "Selector de modelo",
+      "summary": "Permite elegir el proveedor y modelo de IA para cada conversación o ejecución (Claude, GPT, Gemini, Mistral, GLM Legal), ajustando el nivel de esfuerzo de razonamiento según la tarea.",
+      "sections": {
+        "s1": {
+          "heading": "Úsala cuando",
+          "body": "Para equilibrar velocidad, costo y profundidad de análisis según la complejidad del asunto o el volumen documental a procesar."
+        },
+        "s2": {
+          "heading": "Qué no hace",
+          "body": "No cambia de modelo automáticamente a mitad de una ejecución sin aviso, y no exime de verificar fuentes y vigencia legal."
+        },
+        "s3": {
+          "heading": "Cómo empezar",
+          "items": {
+            "i1": "Abre el selector de modelo en el encabezado del chat, al importar un playbook o en una revisión tabular.",
+            "i2": "Elige el modelo adecuado. La guía de modelos junto al selector describe cada uno y avisa de la retención de datos del proveedor.",
+            "i3": "Ajusta el nivel de razonamiento (Bajo, Medio, Alto) antes de enviar la instrucción."
+          }
+        }
+      }
+    },
+    "pupil": {
+      "title": "Guía del pasante y del junior",
+      "summary": "Acompañarte en la práctica jurídica real para que desarrolles criterio propio, solidez técnica y seguridad al argumentar antes de apoyarte en la IA.",
+      "tabsLabel": "Etapa",
+      "tabs": {
+        "pasante": {
+          "label": "Pasante",
+          "body": "Planteamiento previo obligatorio, termómetro de confianza, documentos sellados hasta aprobación, retos en el Gimnasio, acceso a pistas y abogado de la contraparte."
+        },
+        "junior": {
+          "label": "Junior",
+          "body": "Respuesta directa de la IA, documentos sin sello, retos en el Gimnasio, panel de rendición de cuentas de conclusiones, anexo metodológico de cálculo, lectura mensual sin asistente y auditoría tabular."
+        }
+      },
+      "sections": {
+        "s1": {
+          "heading": "Qué puedes hacer",
+          "items": {
+            "i1": "Hacer consultas jurídicas y analizar contratos en web y Word con citas verificadas.",
+            "i2": "Crear y editar documentos dentro de proyectos asignados y ejecutar playbooks y tablas.",
+            "i3": "Resolver retos de práctica en el Gimnasio con casos ficticios contra reloj para afinar la detección de errores jurídicos.",
+            "i4": "Pedir pistas progresivas o simular objeciones del abogado de la contraparte cuando un tema sea complejo.",
+            "i5": "Consultar tu propio mapa de criterio, calibración de seguridad y trabajos revisados en Mi formación."
+          }
+        },
+        "s2": {
+          "heading": "Qué no puedes hacer y por qué",
+          "items": {
+            "i1": "Pasantes: No pueden recibir respuestas de la IA sin enviar antes su planteamiento previo y nivel de seguridad. Por qué: Para ejercitar tu propio análisis jurídico antes de ver la solución de la máquina y evitar la ilusión pasiva de dominio.",
+            "i2": "Pasantes: No pueden descargar en ZIP ni exportar borradores sellados sin aprobación de un abogado o mentor. Por qué: Por gobernanza y control de calidad del despacho, asegurando que ningún documento salga sin supervisión.",
+            "i3": "Aprendices: No pueden redactar Criterios del Despacho mientras tengan etapa de formación. Por qué: Porque los criterios institucionales y votos particulares representan la doctrina oficial del despacho y son fijados por abogados titulados."
+          }
+        },
+        "s3": {
+          "heading": "Tu turno primero",
+          "items": {
+            "i1": "En cada mensaje de chat, redactas tu planteamiento (60–4,000 caracteres) y marcas tu seguridad en el termómetro (Casi adivino, Dudo, Bastante seguro, Seguro).",
+            "i2": "La IA responde normalmente y genera un contraste privado con tres listas: Coincide, No coincide y Faltó.",
+            "i3": "«Pedir una pista» ofrece hasta 3 niveles progresivos: 1. Enfoque, 2. Dónde buscar, 3. Qué revisar (sin dar la conclusión final).",
+            "i4": "«Probar con el abogado de la contraparte» genera hasta 3 objeciones simuladas para defender tu postura."
+          }
+        },
+        "s4": {
+          "heading": "El sello y la aprobación",
+          "items": {
+            "i1": "Los documentos generados o editados por un pasante llevan un sello interno. Puedes editarlos en LiTT, pero su descarga o publicación está bloqueada hasta su aprobación.",
+            "i2": "Un abogado editor del proyecto (sin etapa) o tu mentor actual pulsa «Aprobar esta versión» en el visor de documentos o en la pestaña Trabajos."
+          }
+        },
+        "s5": {
+          "heading": "El Gimnasio",
+          "items": {
+            "i1": "Casos ficticios con párrafos numerados que te asigna tu mentor. Es un espacio de entrenamiento para fortalecer tu criterio, no un examen.",
+            "i2": "El tiempo límite lo controla el servidor. Tus hallazgos se guardan automáticamente; al vencer el plazo se entrega lo guardado.",
+            "i3": "«Pedir pista» revela la siguiente pista redactada por tu mentor y queda registrada en el conteo final sin darte la solución completa.",
+            "i4": "No ves los errores sembrados hasta entregar. El resultado detalla encontrados, escapados con explicación del mentor, marcas donde no había error y pistas usadas. Solo tú y tu mentor pueden verlo."
+          }
+        },
+        "s6": {
+          "heading": "Si usas LiTT desde Claude o ChatGPT",
+          "items": {
+            "i1": "Los pasantes envían su planteamiento previo y su nivel de seguridad también desde la app de IA.",
+            "i2": "Las revisiones de playbooks y de tablas corren con el motor de LiTT, que aplica tus reglas; el modo externo no está disponible.",
+            "i3": "Los borradores de pasante sin aprobar no se pueden descargar ni leer desde fuera."
+          }
+        }
+      }
+    },
+    "mentor": {
+      "title": "Guía del mentor",
+      "summary": "Disponible en Ajustes › Formación › Panel del mentor. Organiza a tus aprendices por actividad reciente y contiene 6 pestañas: Trabajos, Defensa oral, Pase de urgencia, Gimnasio, Promoción y Criterio.",
+      "sections": {
+        "s1": {
+          "heading": "Tomar aprendices",
+          "body": "Los propietarios o administradores designan mentores y asignan miembros en Ajustes del despacho › Formación. Los mentores también pueden tomar miembros sin mentor en Ajustes › Formación › Mis aprendices.",
+          "items": {
+            "i1": "Un propietario o administrador puede ser mentor, pero nunca aprendiz.",
+            "i2": "Si un aprendiz es promovido a administrador o propietario, su rol de aprendiz concluye en el mismo acto.",
+            "i3": "Solo el mentor actual y el propio aprendiz pueden ver las notas, datos de aprendizaje e intentos del gimnasio (los administradores no los ven)."
+          }
+        },
+        "s2": {
+          "heading": "Etapas por materia",
+          "body": "En Mis aprendices, el mentor asigna la etapa (pasante o junior) para Todas las materias o por área de práctica específica.",
+          "items": {
+            "i1": "Solo el mentor actual puede fijar, modificar o retirar etapas.",
+            "i2": "La etapa se evalúa por materia en proyectos y de forma general en Word."
+          }
+        },
+        "s3": {
+          "heading": "Qué cambia en cada etapa",
+          "items": {
+            "i1": "Pasante: Se activa «Tu turno primero» (planteamiento de 60 a 4,000 caracteres y termómetro de seguridad 1 a 4 antes de responder). Todos los documentos generados o editados quedan sellados y requieren aprobación para descargarse o publicarse.",
+            "i2": "Junior: Recibe respuesta directa de la IA. Se activa el Modo de rendición de cuentas (desglose de hasta 12 conclusiones para verificar citas y fundamentar lo no respaldado), anexo metodológico de cálculo, lectura mensual sin asistente, auditoría tabular y contraste de subagentes."
+          }
+        },
+        "s4": {
+          "heading": "Revisión de dos minutos",
+          "body": "En la pestaña Trabajos, cada interacción se organiza en 4 filas: Propuso, Corrigió la IA, Dudó y Sin verificar.",
+          "items": {
+            "i1": "Si hay borradores sellados pendientes, la fila Sin verificar muestra «Aprobar esta versión», que aprueba el contenido exacto de ese momento; si el archivo cambia después, hay que aprobarlo de nuevo."
+          }
+        },
+        "s5": {
+          "heading": "Defensa oral",
+          "body": "En la pestaña Defensa oral, el mentor crea una defensa y genera 5 preguntas basadas en los planteamientos del aprendiz (4 de justificación y 1 de cambio de hechos).",
+          "items": {
+            "i1": "El resultado (Aprobada / No aprobada, motivo oficial y nota de hasta 500 caracteres) se registra de forma final e irreversible."
+          }
+        },
+        "s6": {
+          "heading": "Pase de urgencia",
+          "body": "El mentor puede suspender temporalmente «Tu turno primero» en un proyecto específico durante 30 minutos a 72 horas (8 horas por defecto).",
+          "items": {
+            "i1": "No retira el sello de los documentos generados (siguen requiriendo aprobación).",
+            "i2": "No aplica en Word (en Word siempre se pide planteamiento previo)."
+          }
+        },
+        "s7": {
+          "heading": "Gimnasio",
+          "body": "En la pestaña Gimnasio, el mentor crea y administra casos ficticios de práctica y asigna retos a sus aprendices.",
+          "items": {
+            "i1": "Cada caso incluye título, materia, párrafos numerados, tiempo límite fijado por el mentor (1 a 240 minutos) y confirmación de datos ficticios. Cada pantalla muestra el aviso «Caso ficticio de práctica».",
+            "i2": "El mentor puede redactarlo directamente o solicitar un borrador con IA con su propia llave. El borrador solo llena el formulario sin guardarse para que el mentor lo revise, ajuste y guarde. Cada mentor administra solo sus propios casos.",
+            "i3": "Tipos de error: Tesis superada; Artículo derogado; Competencia confundida; Cita inventada; Otro (other).",
+            "i4": "Al asignar se crea una copia íntegra del caso en el intento. Cuando el aprendiz entrega, el mentor puede pulsar «Dar otro intento» para reasignarlo. No se permite dar otro intento si hay uno abierto.",
+            "i5": "Muestra encontrados (con coincidencia de tipo), escapados con la explicación del mentor, hallazgos donde no había error («aquí no había error sembrado») y pistas usadas. Solo lo leen el mentor y el aprendiz.",
+            "i6": "Los intentos entregados, errores encontrados y pistas se agregan como evidencia objetiva a la propuesta de promoción, sin reglas de bloqueo automático; la decisión es del mentor."
+          }
+        },
+        "s8": {
+          "heading": "Promoción por evidencia",
+          "body": "LiTT propone la promoción en tiempo real y el mentor decide.",
+          "items": {
+            "i1": "Al menos 2 defensas orales aprobadas desde el último cambio de etapa (sin reprobadas posteriores).",
+            "i2": "Al menos 3 trabajos marcados formalmente como revisados.",
+            "i3": "Calibración de seguridad sin exceso de confianza (si hay ≥10 turnos marcados y ≥4 «Seguro», al menos el 75% debió coincidir).",
+            "i4": "Evidencia complementaria del Gimnasio: intentos entregados, errores sembrados, encontrados y pistas utilizadas por materia."
+          }
+        },
+        "s9": {
+          "heading": "Criterios del despacho",
+          "body": "En Ajustes del despacho › Formación › Criterios del despacho, todos los miembros leen y cualquier abogado sin etapa de formación puede registrar criterios o votos particulares.",
+          "items": {
+            "i1": "El asistente consulta automáticamente estos criterios en los chats de aprendices y muestra el panel Criterios consultados con autor y fecha."
+          }
+        }
+      }
+    }
+  },
   "landing": {
     "access": {
       "body": "Escríbenos a <mail>soporte@asteroitt.com</mail> con el nombre de tu despacho y cuántas personas usarían LiTT. Te respondemos por correo.",
-      "marker": "Quinto",
+      "marker": "Sexto",
       "self": "¿Prefieres instalarlo tú? El código y la guía de instalación están en <github>GitHub</github>.",
       "title": "Abrimos lugares en la beta poco a poco."
     },
@@ -1775,10 +2193,6 @@
       "open": "Abrir LiTT",
       "request": "Solicitar acceso"
     },
-    "donna": {
-      "body": "Recibe y ordena las solicitudes de cada cliente con iguala (tipo, complejidad, rondas), mantiene una ficha viva donde cada dato lleva su fuente confirmada por un abogado, y un radar que se adelanta a los vencimientos.",
-      "title": "Donna: intake y memoria de cada cliente"
-    },
     "features": {
       "assistant": {
         "also": "<b>También dentro de Word.</b> Pregunta, redacta y revisa sin salir del documento, con control de cambios y los playbooks del despacho.",
@@ -1789,8 +2203,8 @@
         "body": "Guarda como flujo lo que el despacho hace una y otra vez y córrelo con un clic, en el chat o en una tabla. Los playbooks convierten los criterios del despacho en reglas que revisan cada contrato igual.",
         "title": "Flujos y playbooks"
       },
-      "intro": "Cuatro funciones que trabajan juntas y ya están en la beta. Cada respuesta y cada celda remiten al documento y a la página de donde salen.",
-      "marker": "Primero",
+      "intro": "Seis funciones que trabajan juntas y ya están en la beta. Cada respuesta y cada celda remiten al documento y a la página de donde salen.",
+      "marker": "Segundo",
       "projects": {
         "body": "Un proyecto por asunto. Sube contratos, escrituras y expedientes, y el asistente conserva el contexto en cada conversación y en cada documento. Los proyectos privados solo los ven sus miembros.",
         "title": "Proyectos"
@@ -1846,20 +2260,16 @@
       "title": "El asistente jurídico que trabaja el asunto contigo."
     },
     "inhouse": {
-      "body": "Para los equipos legales dentro de una empresa: registra y prioriza las solicitudes internas y da seguimiento al negocio. Lo adaptaremos cuando haya demanda.",
+      "body": "Para los equipos legales dentro de una empresa: registra y prioriza las solicitudes internas y da seguimiento al negocio.",
       "join": "Únete a la lista de espera",
       "title": "Intake para áreas jurídicas internas (in-house)"
-    },
-    "mcp": {
-      "body": "Usa todas las funciones de LiTT desde la IA (el harness* de tu preferencia) que ya ocupas, con los mismos permisos. Cada sesión queda registrada en LiTT.",
-      "note": "* Harness: el programa con el que trabajas con una IA —por ejemplo Claude, ChatGPT o un agente como Claude Code—. LiTT se conecta a él con MCP, un estándar abierto.",
-      "title": "LiTT desde Claude, ChatGPT u otra IA (el harness de tu preferencia)"
     },
     "meta": {
       "description": "LiTT es un asistente jurídico con IA para despachos mexicanos chicos y medianos: lee los documentos del asunto, responde con la fuente, redacta en Word y revisa cientos de documentos en una tabla. Con tus llaves, tu modelo y, si quieres, en tus servidores.",
       "title": "LiTT · Asistente jurídico con IA para despachos en México"
     },
     "nav": {
+      "training": "Formación",
       "features": "Funciones",
       "soon": "Próximamente",
       "trust": "Confianza",
@@ -1867,6 +2277,7 @@
     },
     "own": {
       "intro": "Lo que LiTT añade para el trabajo de un despacho en México.",
+      "title": "Hecho para la práctica mexicana.",
       "o1": {
         "body": "La interfaz, los avisos y los textos legales están escritos para la práctica mexicana. No trae plantillas de otro país. También en inglés.",
         "title": "En español de México y para el derecho mexicano"
@@ -1880,26 +2291,21 @@
         "title": "Verificación automática de citas"
       },
       "o4": {
-        "body": "El aprendiz intenta primero y LiTT lo guía; su mentor revisa, corrige y decide cuándo pasa a la siguiente etapa.",
-        "title": "Formación de aprendices con mentor"
-      },
-      "o5": {
         "body": "Lee PDF escaneados y divide un expediente en un archivo por documento: escritura, anexos, identificaciones.",
         "title": "Escaneados y «Separar expediente»"
       },
-      "o6": {
+      "o5": {
         "body": "Dile a LiTT en qué estados, materias e industrias trabaja tu despacho, y el asistente lo toma en cuenta en cada conversación.",
         "title": "Perfil del despacho"
       },
-      "o7": {
+      "o6": {
         "body": "Cada despacho con sus proyectos, miembros y permisos. Los asuntos privados solo los ven sus miembros.",
         "title": "Espacios del despacho con roles"
       },
-      "o8": {
-        "body": "Conecta Notion, Airtable u otro servidor MCP para que el asistente consulte la información de tu despacho.",
-        "title": "Conectores MCP"
-      },
-      "title": "Hecho para la práctica mexicana."
+      "o7": {
+        "title": "Notion, Airtable y tus otras herramientas",
+        "body": "Conecta Notion, Airtable u otro servidor MCP para que el asistente consulte la información de tu despacho."
+      }
     },
     "project": {
       "aria": "Ejemplo: el proyecto Bodega Tlalnepantla con seis documentos, tres conversaciones y una tabla.",
@@ -1920,8 +2326,8 @@
     },
     "soon": {
       "interest": "Me interesa",
-      "intro": "Cinco novedades en camino. Llegarán primero a quienes estén en la beta o en la lista de espera.",
-      "marker": "Tercero",
+      "intro": "Tres novedades en camino. Llegarán primero a quienes estén en la beta o en la lista de espera.",
+      "marker": "Cuarto",
       "tag": "Próximamente",
       "title": "Lo que estamos preparando."
     },
@@ -2020,7 +2426,7 @@
         "title": "Un registro que no se reescribe"
       },
       "intro": "Cómo está hecho LiTT, dicho sin letra chiquita. Todo se puede comprobar en el código.",
-      "marker": "Cuarto",
+      "marker": "Quinto",
       "title": "Tus documentos siguen siendo tuyos."
     },
     "why": {
@@ -2040,7 +2446,7 @@
         "none": "Sin llave",
         "saved": "Guardada"
       },
-      "marker": "Segundo",
+      "marker": "Tercero",
       "model": {
         "body": "Claude, GPT, Gemini o Mistral; GLM-Legal, el modelo jurídico de Z.ai, a través de OpenRouter; o un modelo abierto como GLM, Qwen o DeepSeek que tu despacho instala por su cuenta. Lo eliges en cada conversación y en cada tabla.",
         "title": "Elige tu modelo"
@@ -2085,6 +2491,155 @@
       "text1a": "En caso de retraso, el Arrendatario pagará un interés moratorio del",
       "text1b": "mensual sobre las cantidades vencidas.",
       "who": "Cambio sugerido"
+    },
+    "pair": {
+      "title": "Además, para el cliente y desde tu IA.",
+      "donna": {
+        "title": "Donna, para los clientes con iguala",
+        "body": "Cada solicitud del cliente queda en su asunto: qué pidió, quién la lleva y cuántas rondas lleva. La ficha guarda cada dato con el documento de donde salió, y el Radar te avisa qué vence. Cada trimestre, el reporte para el cliente sale en Word.",
+        "caps": {
+          "i1": "Solicitudes por iguala",
+          "i2": "Ficha con datos citados",
+          "i3": "Radar y «Hoy»",
+          "i4": "Reglas de obligaciones",
+          "i5": "Extracción asistida",
+          "i6": "Reporte de 30, 60 o 90 días"
+        },
+        "note": "Ninguna fecha la calcula la IA: salen de datos que confirmó un abogado. El Radar ayuda a planear y no calcula términos procesales."
+      },
+      "claude": {
+        "title": "LiTT desde Claude o ChatGPT",
+        "body": "Si tu despacho ya trabaja en Claude o ChatGPT, conecta LiTT y pídele desde ahí que busque en un asunto, lea un documento o corra un playbook o una tabla. Entra con tu cuenta y tus permisos, cada acción queda registrada en LiTT y, con un pasante, valen las mismas reglas de formación.",
+        "note": "Cómo conectarlo: Ajustes › Aplicaciones conectadas."
+      }
+    },
+    "training": {
+      "title": "Tus pasantes y juniors también usan IA. Su mentor ve cómo.",
+      "intro": "LiTT cambia, solo para quien está aprendiendo, la forma en que responde el asistente. Así practica el razonamiento antes de leer el de la IA, y su mentor revisa sin rehacer el trabajo.",
+      "steps": {
+        "s1": {
+          "title": "Intenta primero",
+          "body": "Antes de ver la respuesta, escribe su planteamiento en dos o tres líneas y marca qué tan seguro está."
+        },
+        "s2": {
+          "title": "LiTT responde y compara",
+          "body": "La misma respuesta que a cualquier abogado. Después, una nota privada: en qué coincidió, en qué no y qué le faltó."
+        },
+        "s3": {
+          "title": "El mentor revisa y decide",
+          "body": "Lo revisa en dos minutos, aprueba lo que sale del despacho y decide cuándo sube de etapa."
+        }
+      },
+      "more": "Todo lo que incluye la formación",
+      "groups": {
+        "pupil": {
+          "title": "El pasante",
+          "lead": "Intenta primero"
+        },
+        "junior": {
+          "title": "El junior",
+          "lead": "Responde por lo que firma"
+        },
+        "mentor": {
+          "title": "El mentor",
+          "lead": "Revisa y decide"
+        },
+        "firm": {
+          "title": "El despacho",
+          "lead": "Pone las reglas"
+        }
+      },
+      "items": {
+        "turn": {
+          "title": "Tu turno primero",
+          "body": "Escribe su planteamiento antes de ver la respuesta y marca qué tan seguro está."
+        },
+        "hints": {
+          "title": "Pistas y abogado de la contraparte",
+          "body": "Hasta tres pistas que no le dan la conclusión, y una contraparte que objeta lo que escribió."
+        },
+        "map": {
+          "title": "Mapa propio con calibración",
+          "body": "Dónde coincide seguido, qué reforzar y si su seguridad corresponde con lo que pasa."
+        },
+        "accountability": {
+          "title": "Rendición de cuentas",
+          "body": "Tras cada respuesta, cada conclusión con su fuente o marcada «sin respaldo». Él verifica."
+        },
+        "annex": {
+          "title": "Cálculos con anexo",
+          "body": "Intereses y actualizaciones paso a paso en un anexo de Word, cada dato con su fuente."
+        },
+        "review": {
+          "title": "Revisión de dos minutos",
+          "body": "Qué propuso, qué corrigió la IA, en qué dudó y qué quedó sin verificar."
+        },
+        "defense": {
+          "title": "Defensa oral",
+          "body": "Cinco preguntas sobre su trabajo, una con los hechos cambiados."
+        },
+        "promotion": {
+          "title": "Promoción por evidencia",
+          "body": "LiTT propone el ascenso con la evidencia a la vista; el mentor decide."
+        },
+        "gym": {
+          "title": "Gimnasio de casos ficticios",
+          "body": "El mentor asigna casos con errores sembrados; el aprendiz los busca contra reloj, sin IA. El resultado, que solo ven ellos dos, suma a la evidencia de promoción."
+        },
+        "seal": {
+          "title": "El sello del pasante",
+          "body": "Lo que redacta un pasante no sale de LiTT hasta que su mentor lo aprueba."
+        },
+        "stages": {
+          "title": "Etapas por materia",
+          "body": "Pasante en litigio y junior en corporativo, si así trabaja."
+        },
+        "criteria": {
+          "title": "Criterios del despacho",
+          "body": "Las posiciones del despacho por escrito; todos las leen y el asistente las consulta."
+        },
+        "pass": {
+          "title": "Pase de urgencia",
+          "body": "Con un plazo encima, quita «Tu turno primero» en un asunto por unas horas."
+        }
+      },
+      "privacy": "Lo que hace un aprendiz solo lo ven él y su mentor. Nadie más del despacho lo ve por su cargo, y no hay rankings entre aprendices.",
+      "interest": "Me interesa para mi despacho",
+      "ex": {
+        "label": "Ejemplo con datos ficticios",
+        "plan": "Tu planteamiento (2–3 líneas)",
+        "count": "148 / 4000",
+        "planText": "Sí: hay dos rentas sin pagar y la cláusula décima quinta permite rescindir sin declaración judicial. Revisaría si el convenio de pago lo impide.",
+        "sure": "¿Qué tan seguro estás?",
+        "levels": {
+          "i1": "Casi adivino",
+          "i2": "Dudo",
+          "i3": "Bastante seguro",
+          "i4": "Seguro"
+        },
+        "hint": "Pedir una pista",
+        "counterparty": "Probar con el abogado de la contraparte",
+        "note": "Nota privada · solo el aprendiz y su mentor",
+        "match": "Coincide",
+        "matchText": "Procede rescindir sin declaración judicial por dos mensualidades sin pagar.",
+        "miss": "No coincide",
+        "missText": "El convenio de pago es un borrador sin firmar; no lo impide.",
+        "lacked": "Faltó",
+        "lackedText": "El interés moratorio del 3 % mensual sobre lo vencido.",
+        "verdict": "Veredicto: parcial · según el contraste de la IA",
+        "supervise": "Supervisar a Mariana Ruiz · Pasante · Inmobiliario",
+        "proposed": "Propuso",
+        "proposedText": "Rescindir sin juicio por dos rentas sin pagar.",
+        "corrected": "Corrigió la IA",
+        "correctedText": "Faltó el interés moratorio del 3 % mensual.",
+        "doubted": "Dudó",
+        "doubtedText": "Marcó «Bastante seguro» y pidió una pista.",
+        "unverified": "Sin verificar",
+        "unverifiedText": "Carta de requerimiento.docx · borrador de pasante",
+        "approve": "Aprobar esta versión",
+        "promote": "Para proponer junior: defensas aprobadas 1 de 2 · trabajos revisados 3 de 3"
+      },
+      "marker": "Primero"
     }
   },
   "legal": {
@@ -5337,7 +5892,8 @@
       "themeNowLight": "ahora: claro",
       "titleReviewRunning": "Revisión de {title} en curso",
       "untitledReview": "Revisión sin título",
-      "workspace": "Espacio de trabajo"
+      "workspace": "Espacio de trabajo",
+      "navHelp": "Ayuda"
     },
     "chatPanelHeader": {
       "chatTitle": "Título del chat",

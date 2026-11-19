@@ -8,7 +8,12 @@ export { SUPPORT_EMAIL, SOURCE_REPOSITORY_URL } from "@mike/client";
  */
 export const ACCESS_FORM_URL = "https://tally.so/r/2jAeGL";
 
-export type AccessOrigin = "acceso" | "inhouse" | `soon-${string}`;
+export type AccessOrigin =
+    | "acceso"
+    | "inhouse"
+    | "formacion"
+    | "soon-contextlex"
+    | "soon-conectores";
 
 export function accessFormHref(origen: AccessOrigin, lang: string): string {
     const url = new URL(ACCESS_FORM_URL);
@@ -19,6 +24,7 @@ export function accessFormHref(origen: AccessOrigin, lang: string): string {
 
 /** Anchors of the header navigation. */
 export const SECTION_IDS = {
+    training: "formacion",
     features: "funciones",
     why: "por-que",
     soon: "proximamente",

@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { GlassCardUI } from "@mike/ui";
 import { PillButtonUI } from "@mike/ui";
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
+import { stageFromMemberships } from "@/app/components/guides/guideCatalog";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { SettingsDescription, SettingsLabel } from "@/app/components/settings/SettingsText";
@@ -89,6 +91,13 @@ export function TrainingSettings() {
             <section className="space-y-3">
                 <SettingsHeading id="mi-formacion">{tr("training.miFormacion")}</SettingsHeading>
                 <SettingsDescription>{tr("training.personal.intro")}</SettingsDescription>
+                {asPupil.length > 0 ? (
+                    <GuideTrigger
+                        id="pupil"
+                        label={tr("guides.ui.pupilLink")}
+                        initialStage={stageFromMemberships(asPupil) ?? undefined}
+                    />
+                ) : null}
                 {asPupil.length === 0 ? (
                     <SettingsDescription>
                         {tr("training.noTienesMentor")}
@@ -107,6 +116,7 @@ export function TrainingSettings() {
                 <section className="space-y-3">
                     <SettingsHeading id="mis-pupilos">{tr("training.misPupilos")}</SettingsHeading>
                     <SettingsDescription>{tr("training.personal.pupilsHelp")}</SettingsDescription>
+                    <GuideTrigger id="mentor" label={tr("guides.ui.mentorHow")} />
                     <Link
                         href="/settings/training/mentor"
                         className="inline-flex rounded text-sm font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"

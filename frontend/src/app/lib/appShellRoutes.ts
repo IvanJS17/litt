@@ -5,6 +5,7 @@
  */
 export const APP_SHELL_SEGMENTS = [
     "assistant",
+    "help",
     "history",
     "ide",
     "library",

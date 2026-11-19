@@ -4,6 +4,7 @@ import {
     LANDING_BUTTON_SIZE,
     LANDING_FOCUS,
     LANDING_RULE,
+    LANDING_SECTION,
     LANDING_TAG,
 } from "./landingStyles";
 import { accessFormHref, SECTION_IDS, type AccessOrigin } from "./landingConstants";
@@ -67,8 +68,8 @@ function SoonItem({
 /**
  * The second spotlight: intake for in-house legal teams. It has its own
  * surface (the sheet of the law citation) and its own button, because it is
- * not a feature of the firm's product but a track that opens when there is
- * demand: the button is the waitlist.
+ * not a feature of the firm's product but a track for another audience: the
+ * button is the waitlist.
  */
 function InhouseSpotlight() {
     const t = useTranslations();
@@ -135,12 +136,11 @@ function LawCitationCard() {
 }
 
 /**
- * TERCERO · Próximamente. The band takes the tokens of the other theme on its
- * own container (landing.css `.landing-band`), so it is tinta with papel
- * letters on the light page and papel with tinta letters on the dark one.
- * ContextLex MX is the lead: its name on one line, at the largest size of the
- * page. MCP, Donna and the connectors follow in a row from 960 px, and the
- * in-house waitlist closes the band as its own card with its own button.
+ * CUARTO · Próximamente. A plain section now: Donna and LiTT from Claude or
+ * ChatGPT are in production and live in Funciones, and the inverted band
+ * belongs to Formación. ContextLex MX is the lead: its name on one line, at
+ * the largest size of the page. The connectors follow, and the in-house
+ * waitlist closes the section as its own card with its own button.
  */
 export function SoonBand() {
     const t = useTranslations();
@@ -148,7 +148,7 @@ export function SoonBand() {
         <section
             id={SECTION_IDS.soon}
             aria-labelledby="landing-soon-title"
-            className="landing-band bg-surface-desk py-[clamp(64px,9vw,128px)] text-foreground"
+            className={LANDING_SECTION}
         >
             <div className="landing-wrap">
                 <SectionHead
@@ -184,14 +184,7 @@ export function SoonBand() {
                     <LawCitationCard />
                 </div>
 
-                <div className="mt-[clamp(8px,2vw,16px)] grid grid-cols-1 min-[960px]:grid-cols-3 min-[960px]:gap-x-10">
-                    <SoonItem
-                        title={t("landing.mcp.title")}
-                        body={t("landing.mcp.body")}
-                        note={t("landing.mcp.note")}
-                        origen="soon-mcp"
-                    />
-                    <SoonItem title={t("landing.donna.title")} body={t("landing.donna.body")} origen="soon-donna" />
+                <div className="mt-[clamp(8px,2vw,16px)] grid grid-cols-1 min-[960px]:max-w-[44rem]">
                     <SoonItem
                         title={t("landing.connectors.title")}
                         body={t("landing.connectors.body")}

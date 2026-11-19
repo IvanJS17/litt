@@ -15,6 +15,7 @@ import {
   Check,
   ChevronsUpDown,
   ChevronDown,
+  CircleHelp,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -102,6 +103,8 @@ const NAV_ITEMS = [
     },
     { href: "/workflows", labelKey: "shared.appSidebar.navWorkflows", icon: WorkflowSkeuoIcon },
     { href: "/playbooks", labelKey: "shared.appSidebar.navPlaybooks", icon: PlaybookSkeuoIcon },
+    // Ayuda: always last, in the same place (WCAG 3.2.6 consistent help).
+    { href: "/help", labelKey: "shared.appSidebar.navHelp", icon: CircleHelp },
 ] as const;
 
 const RECENT_PROJECT_PAGE_SIZE = 10;

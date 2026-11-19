@@ -38,6 +38,7 @@ import {
     type PersonOption,
 } from "@/app/components/shared/PersonFilter";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import { PillButtonUI } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
 import { TabularReviewSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
@@ -383,6 +384,13 @@ export function ReviewsListTable({
                             icon={<TabularReviewSkeuoIcon />}
                             title={t("tabular.emptyTitle")}
                             description={emptyDescription}
+                            help={
+                                <GuideTrigger
+                                    id="tabular_review"
+                                    label={t("guides.ui.whenToUse")}
+                                    icon={false}
+                                />
+                            }
                             action={
                                 <PillButtonUI
                                     tone="black"

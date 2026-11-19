@@ -1005,6 +1005,31 @@ rest).
 - **Search engines:** off while the beta is closed; see
   [search-indexing.md](search-indexing.md).
 
+## In-app guides
+
+Every feature explains itself the same way, from one catalog (`guides.<id>.*`
+in the interface catalog, ids in `components/guides/guideCatalog.ts`): the
+eleven feature guides and the two role guides (`pupil`, `mentor`). One generic
+`FeatureGuideModal` renders any of them (a dialog on a desktop, a bottom sheet
+on a phone, the shared `Modal`); a new guide is its texts plus its id, never a
+component. A test fails if an id lacks its es-MX or en-US text.
+
+- **«¿Qué es esto?»** (`GuideTrigger`) sits next to the title of each main
+  screen and never opens by itself. Focus goes to the guide's title, Esc
+  returns it to the button, and a guide with tabs (the pupil's, Pasante and
+  Junior) has `role="tablist"`, arrow keys and `aria-selected`.
+- **Empty states** keep their one line and offer «¿Cuándo usarla?»
+  (`EmptyState`'s `help` prop). The description is `text-sm text-gray-500`
+  (5.2:1); `text-gray-400` is for markers only.
+- **First-time hints** (`GuideHint`) on the Radar and above the composer are
+  dismissible with × and remembered per person: `localStorage` key
+  `litt:guide-hint:<user id>:<hint>`; no server field, no telemetry. A person in
+  training gets the pupil guide's hint (`role:<stage>`), open on their stage.
+- **Ayuda** (`/help`, last item of the sidebar) lists every guide. The pupil
+  guide opens on the person's stage (from `GET /training/me`), sits at the top
+  of Ajustes › Mi formación, and the mentor guide is behind «¿Cómo funciona?»
+  in the mentor panel. The connected-apps guide is reached from Ayuda only.
+
 ## Public start page
 
 `/` (`frontend/src/app/page.tsx`, components in
@@ -1016,30 +1041,35 @@ already has the right one. The design is the owner-approved SPEC v2 of
 2026-11-16 (v1 plus the assistant as the hero, four features, "Por qué LiTT"
 and the phone menu); what matters for the next change:
 
-- **Order and anchors.** Portada (the assistant at work) · `#funciones` (the
-  four features: Asistente, Proyectos, Revisión tabular, Flujos y playbooks) ·
-  `#por-que` (own keys, model choice, self-hosting, and "Hecho para la práctica
-  mexicana") · `#proximamente` · `#confianza` (three points) · `#acceso`. The
-  old `#que-hace` is rewritten to `#funciones` (`LegacyAnchor`).
+- **Order and anchors.** Portada (the assistant at work) · `#formacion` (the
+  inverted band, variant B of 18 Nov 2026: three steps with their example, then
+  «Todo lo que incluye la formación», gym included) · `#funciones` (the four
+  features: Asistente, Proyectos, Revisión tabular, Flujos y playbooks, then
+  the pair «Donna» and «LiTT desde Claude o ChatGPT») · `#por-que` (own keys,
+  model choice, self-hosting, and "Hecho para la práctica mexicana") ·
+  `#proximamente` · `#confianza` (three points) · `#acceso`. The old
+  `#que-hace` is rewritten to `#funciones` (`LegacyAnchor`).
 - **Access and waitlist.** Every way into the beta goes to one Tally
   questionnaire whose address is the single constant `ACCESS_FORM_URL`
   (`landing/landingConstants.ts`); `accessFormHref(origen, lang)` adds
-  `?origen=<acceso|inhouse|soon-<feature>>&lang=<locale>`, which the form reads
+  `?origen=<acceso|inhouse|formacion|soon-contextlex|soon-conectores>&lang=<locale>`, which the form reads
   as hidden fields. "Solicitar acceso" (header, hero, phone menu, QUINTO) sends
   `acceso`; the in-house card sends `inhouse`; the small "Me interesa" links of
-  the coming-soon cards send `soon-contextlex`, `soon-mcp`, `soon-donna` and
-  `soon-conectores`. The links open in the same tab with `rel="noopener
+  the coming-soon cards send `soon-contextlex` and `soon-conectores`; «Me interesa
+  para mi despacho» in Formación sends `formacion`. The links open in the same tab with `rel="noopener
   noreferrer"`. `soporte@asteroitt.com` stays as a plain contact link in the
   footer (and in the hero note). A visitor's choice of language and origin is
   the only thing the page sends; it sends nothing else to Tally.
-- **Próximamente.** Five items: ContextLex MX (the lead, largest type), then
-  MCP, Donna and the connectors in a row from 960 px, then the in-house intake
-  as a card of its own (`bg-surface-sheet`, large title, its own button), which
-  is a track that opens when there is demand, not a feature. A card that needs
-  a footnote carries it inside itself (`landing.<item>.note`): the connectors
-  say which provider is in preparation and which in design, and the MCP card
-  defines «harness» for a lawyer. Copy rules: Donna is never described with
-  hours, and nothing here is presented as available.
+- **Próximamente.** Three items on a plain section (not a band): ContextLex MX
+  (the lead, largest type), the connectors, then the in-house intake as a card
+  of its own (`bg-surface-sheet`, large title, its own button), a track for
+  another audience, not a feature. Donna and LiTT from Claude or ChatGPT are in
+  production and live in Funciones, so they carry no «Próximamente» tag. A card
+  that needs a footnote carries it inside itself (`landing.<item>.note`): the
+  connectors say which provider is in preparation and which in design. Copy
+  rules: Donna is never described with hours, nothing here is presented as
+  available, and public text never names a competitor nor says what other
+  firms do.
 - **Tokens only.** Components use no hex color and no `blue`, `amber-`,
   `orange-` or `green-` class (`landing.styles.test.ts` checks it). The only hex
   values are in `landing/landing.css`: copies of the other theme's tokens for the
@@ -1047,7 +1077,7 @@ and the phone menu); what matters for the next change:
   the header's sun/moon swap and in `AssistantSpecimen` (to override
   `CitationPillUI`'s own `dark:` classes). The one amber outside the wordmark is
   the focus ring (`--litt-accent`).
-- **The inverted band** (TERCERO · Próximamente) takes the tokens of the other
+- **The inverted band** (PRIMERO · Formación) takes the tokens of the other
   theme on its own container: `.landing-band` in `landing/landing.css`
   reassigns `--surface-*`, `--foreground`, `--muted-foreground`,
   `--litt-accent` and the interactive tints. Inside it use the semantic

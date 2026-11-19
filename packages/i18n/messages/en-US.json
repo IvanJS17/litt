@@ -967,7 +967,8 @@
       "settings": "Settings",
       "tabularReviews": "Tabular reviews",
       "workflows": "Workflows",
-      "connectAuthorize": "Connect an app"
+      "connectAuthorize": "Connect an app",
+      "help": "Help"
     }
   },
   "connect": {
@@ -1749,10 +1750,427 @@
     "openAProjectToStartDrafting": "Open a Project to start drafting and reviewing with the help of the Project Assistant.",
     "openProject": "Open project"
   },
+  "guides": {
+    "ui": {
+      "whatIsThis": "What is this?",
+      "whenToUse": "When to use it?",
+      "guide": "Guide: {title}",
+      "hintDismiss": "Dismiss the notice",
+      "gotIt": "Got it",
+      "moreInHelp": "All the guides are in Help.",
+      "openHelp": "Go to Help",
+      "hintChat": "To learn what the assistant does and when to use it, open the guide. You will see this only once.",
+      "hintRadar": "The Radar shows what is coming due and which fact each date comes from. The guide explains when to use it and what it does not calculate.",
+      "hintPupil": "Your stage changes how the assistant answers. The guide explains what changes and why.",
+      "hintMentor": "You are a mentor to trainees in this firm. The guide walks through the panel step by step.",
+      "pupilLink": "Guide for your stage",
+      "mentorHow": "How does it work?",
+      "ifTraining": "If you are in training",
+      "ifTrainingBody": "With a training stage the assistant behaves differently in chat and in tables. The guide for your stage explains it.",
+      "helpTitle": "Help",
+      "helpIntro": "Guides for every feature and for training. They never open by themselves: you always find them here.",
+      "helpFeatures": "Features",
+      "helpRoles": "Training",
+      "openGuide": "Open the guide",
+      "navLabel": "Help"
+    },
+    "chat": {
+      "title": "Assistant",
+      "summary": "Answers legal questions, analyzes attached documents, drafts clauses, and runs matter tools using verified citations to source text.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "For quick matter inquiries, summarizing background, comparing contract terms, or drafting initial legal briefs."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not replace lawyer judgment, does not share memory across unlinked chats, and does not invent statutes (unfound references are tagged unverified)."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Start a new chat or open a project chat and attach relevant matter documents.",
+            "i2": "Enter your legal instruction (pasantes must complete their initial approach and confidence rating).",
+            "i3": "Review the generated response, verify citations in the text, and apply changes to your document."
+          }
+        }
+      }
+    },
+    "projects_documents": {
+      "title": "Projects and documents",
+      "summary": "Organizes matter files, manages DOCX/PDF/TXT versioning, extracts text with OCR, and controls team access permissions.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "When opening a new matter or litigation to centralize agreements, pleadings, exhibits, and notes in a secure workspace."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not calculate procedural court deadlines and does not allow downloading sealed pasante drafts without lawyer approval."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Create a project, assign its practice area, and add team members with edit or view access.",
+            "i2": "Upload matter documents for text extraction and search indexing.",
+            "i3": "Open the document viewer to compare versions, edit online with the assistant, or run reviews."
+          }
+        }
+      }
+    },
+    "tabular_review": {
+      "title": "Tabular review",
+      "summary": "Extracts structured data points across dozens or hundreds of agreements into customizable columns with verified citations and rationale per cell.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "During due diligence, bulk lease reviews, insurance audits, or vendor contract assessments with standardized questions."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not modify source files and does not eliminate manual verification for cells with unverified citations."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Create a tabular review inside a project or workspace and select documents to analyze.",
+            "i2": "Define columns with prompts and target formats (text, date, currency, yes/no, list).",
+            "i3": "Run automatic generation, audit results directly in the grid, and export the data."
+          }
+        }
+      }
+    },
+    "playbooks_workflows": {
+      "title": "Playbooks and workflows",
+      "summary": "Turns negotiation guidelines into structured rules to audit contracts, flag unacceptable clauses, and propose redlines with tracked changes.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "When reviewing third-party agreements against firm or client negotiation policies to spot risks and acceptable fallback positions."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It cannot run reviews using draft playbooks and does not approve agreements without lawyer review."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Create a playbook from scratch, questionnaire, or file import, and mark it as ready.",
+            "i2": "Start a run selecting the contract, review scope (full or issues only), and posture (strict or permissive).",
+            "i3": "Inspect findings in the side-by-side viewer and accept or reject suggested Word tracked changes."
+          }
+        }
+      }
+    },
+    "donna_requests": {
+      "title": "Donna: requests",
+      "summary": "Logs and tracks recurring client requests under fixed-fee retainers, measuring complexity, assigned staff, status, and negotiation rounds.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "To manage day-to-day corporate inquiries, contracts, and board filings within a private retainer matter."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It never tracks billable hours or hourly rates (retainers are fixed) and does not permit deleting requests (only closing or cancelling)."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Open the Requests section in a retainer matter and create a request with its type and complexity.",
+            "i2": "Assign the request to a lawyer or pasante and link document versions as negotiation rounds occur.",
+            "i3": "Update request status (received, in review, with client, with counterparty) until marked closed."
+          }
+        }
+      }
+    },
+    "donna_client_profile": {
+      "title": "Donna: client profile",
+      "summary": "Stores verified client facts (key dates, corporate powers, master agreements, obligations) strictly anchored to document citations.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "To maintain permanent corporate client data extracted from articles of incorporation, powers of attorney, and active contracts."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not compute procedural deadlines on its own (handled by Radar) and rejects any fact whose quote does not match source text."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Navigate to Client profile inside the retainer matter.",
+            "i2": "Add facts manually with their exact quote or click “Propose facts with AI” on a document version.",
+            "i3": "Review pending proposals and confirm or reject each item as the responsible lawyer."
+          }
+        }
+      }
+    },
+    "donna_radar": {
+      "title": "Donna: Radar and obligation rules",
+      "summary": "Computes contract expiry dates, renewal notice windows, and legal obligations (annual shareholder meetings, powers validity) from confirmed profile facts.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "To plan ahead for contract renewals, non-renewal notifications, and corporate statutory filings before deadlines lapse."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not calculate procedural litigation deadlines or business days (flags them for review), and sends no external notifications."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Check the Radar tab or the Today dashboard widget for overdue and upcoming milestones.",
+            "i2": "In the Rules section, turn on applicable statutory obligations by selecting their anchor fact.",
+            "i3": "Mark each item as seen, handled or dismissed, with a reason."
+          }
+        }
+      }
+    },
+    "donna_retainer_report": {
+      "title": "Donna: retainer report",
+      "summary": "Generates executive Word and JSON reports covering 30, 60, or 90 days: requests handled, rounds, median days to close, confirmed facts, and upcoming dates.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "At month-end or quarter-end to deliver a transparent summary of work performed under a fixed-fee retainer."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not email clients directly (lawyers download and send via their own channels) and never contains hours or rates."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Open the Report tab in a retainer matter and choose the reporting window (30, 60, or 90 days).",
+            "i2": "Review the preview summarizing requests, negotiation rounds, and radar milestones.",
+            "i3": "Download the Word document (.docx), deliver it to the client, and click “Mark as sent”."
+          }
+        }
+      }
+    },
+    "training": {
+      "title": "Training",
+      "summary": "Adapts AI behavior for pasantes and juniors in specific practice areas (upfront approaches, sealed drafts, progressive hints), provides the practice Gym with timed fictitious cases, and coordinates evidence-based supervision.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "To train junior practitioners and pasantes, ensuring they build independent legal judgment through real matter work and simulated practice challenges rather than passively relying on AI output."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not change behavior for stage-free lawyers, produces no comparative class rankings, and blocks non-mentor admins from viewing learning notes or gym attempts."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Assign pupils to designated mentors under Firm settings › Training.",
+            "i2": "The mentor sets the pupil's stage (pasante or junior) by practice area in My pupils.",
+            "i3": "The mentor reviews works, assigns Gym cases, conducts oral defenses, and promotes pupils based on accumulated evidence in the Mentor panel."
+          }
+        }
+      }
+    },
+    "connected_apps_mcp": {
+      "title": "Connected apps (MCP)",
+      "summary": "Connects LiTT to AI apps such as Claude or ChatGPT through MCP, an open standard, so they can look up matters, documents and playbooks with your account and your permissions. Every action is recorded in LiTT.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "When working from desktop AI clients or local coding agents that require access to firm documents and tools stored in LiTT."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not share data with firms you did not authorize, does not let a trainee skip their training rules and does not hand over sealed drafts that are not approved."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Start the connection from your AI app and authorize the permissions and the firm on LiTT’s consent screen.",
+            "i2": "Ask your app to search a matter, read a document or run a playbook or a table.",
+            "i3": "To upload a file, the app asks LiTT for an upload session with a one-time link: the conversation does not carry the file.",
+            "i4": "Manage active connections and revoke access under Settings › Connected apps."
+          }
+        }
+      }
+    },
+    "model_selector": {
+      "title": "Model selector",
+      "summary": "Selects AI providers and models for chats and runs (Claude, GPT, Gemini, Mistral, GLM Legal) and sets reasoning effort levels based on task requirements.",
+      "sections": {
+        "s1": {
+          "heading": "Use it when",
+          "body": "To balance speed, cost, and reasoning depth according to the complexity of the legal analysis or volume of documents."
+        },
+        "s2": {
+          "heading": "What it does not do",
+          "body": "It does not switch models mid-turn without notice and does not eliminate the need to verify legal citations and currency."
+        },
+        "s3": {
+          "heading": "How to start",
+          "items": {
+            "i1": "Open the model selector in the chat header, when importing a playbook or in a tabular review.",
+            "i2": "Pick the right model. The model guide next to the selector describes each one and flags the provider’s data retention.",
+            "i3": "Set the reasoning level (Low, Medium, High) before you send the instruction."
+          }
+        }
+      }
+    },
+    "pupil": {
+      "title": "Guide for interns and juniors",
+      "summary": "To guide and support you in real legal practice, helping you build independent judgment, technical rigor, and confidence before relying on AI assistance.",
+      "tabsLabel": "Stage",
+      "tabs": {
+        "pasante": {
+          "label": "Intern",
+          "body": "Mandatory upfront approach, confidence thermometer, documents sealed until approval, Gym practice challenges, access to hints and counterparty sparring."
+        },
+        "junior": {
+          "label": "Junior",
+          "body": "Direct AI responses, unsealed documents, Gym practice challenges, conclusion accountability panel, methodology calculator, monthly independent reading, and tabular auditing."
+        }
+      },
+      "sections": {
+        "s1": {
+          "heading": "What you can do",
+          "items": {
+            "i1": "Run legal inquiries and analyze matter files in web chat and Word with verified citations.",
+            "i2": "Create and edit documents within assigned projects and run playbooks and tabular reviews.",
+            "i3": "Complete practice challenges in the Gym with timed fictitious cases to sharpen legal issue spotting.",
+            "i4": "Request progressive hints or test counterparty objections when facing complex issues.",
+            "i5": "Review your own criterion map, confidence calibration, and reviewed works under My training."
+          }
+        },
+        "s2": {
+          "heading": "What you cannot do, and why",
+          "items": {
+            "i1": "Pasantes: Cannot receive AI answers without entering an initial approach and confidence rating. Why: To exercise independent legal reasoning before seeing machine suggestions, avoiding passive illusions of competence.",
+            "i2": "Pasantes: Cannot download zip archives or export sealed drafts without lawyer sign-off. Why: For firm governance and quality control, ensuring client deliverables are reviewed by qualified practitioners.",
+            "i3": "Trainees: Cannot author Firm Criteria while in training. Why: Firm criteria and dissenting opinions represent formal institutional doctrine and are set by stage-free lawyers."
+          }
+        },
+        "s3": {
+          "heading": "Your turn first",
+          "items": {
+            "i1": "Before each chat turn, you enter your approach (60–4,000 characters) and rate confidence (Almost guessing, Doubtful, Fairly sure, Sure).",
+            "i2": "The AI answers normally and generates a private contrast with three lists: Coincides, Differs, and Missing.",
+            "i3": "“Request a hint” provides up to 3 progressive rungs: 1. Approach, 2. Where to look, 3. What to check (without giving away the conclusion).",
+            "i4": "“Test with counterparty's lawyer” generates up to 3 simulated objections to stress-test your thesis."
+          }
+        },
+        "s4": {
+          "heading": "The seal and approval",
+          "items": {
+            "i1": "Documents created or edited by a pasante carry an internal training tag. You can edit them in LiTT, but external downloads are blocked until approved.",
+            "i2": "A project editor lawyer (without a stage) or your current mentor clicks “Approve this version” in the document viewer or Works tab."
+          }
+        },
+        "s5": {
+          "heading": "The Gym",
+          "items": {
+            "i1": "Fictitious cases with numbered paragraphs assigned by your mentor. It is a supportive training space to hone your judgment, not an exam.",
+            "i2": "The time limit is kept by the server. Your findings save continuously; when the timer expires, saved progress is submitted automatically.",
+            "i3": "“Ask for a hint” reveals your mentor's next hint and is logged in the final score without giving away the answer.",
+            "i4": "Seeded errors remain hidden until submission. Results breakdown found errors, missed errors with mentor explanations, unseeded flags, and hints used. Strictly private between you and your mentor."
+          }
+        },
+        "s6": {
+          "heading": "If you use LiTT from Claude or ChatGPT",
+          "items": {
+            "i1": "Pasantes send their own approach and confidence from the AI app too.",
+            "i2": "Playbook and table reviews run on LiTT’s own engine, which applies your rules; the external mode is not available.",
+            "i3": "Pasante drafts that are not approved cannot be downloaded or read from outside."
+          }
+        }
+      }
+    },
+    "mentor": {
+      "title": "Mentor guide",
+      "summary": "Available under Settings › Training › Mentor panel. Organizes pupils by recent activity and provides 6 tabs: Works, Oral defense, Urgency pass, Gym, Promotion, and Criterion.",
+      "sections": {
+        "s1": {
+          "heading": "Take on pupils",
+          "body": "Firm owners or administrators designate mentors and assign members under Firm settings › Training. Mentors can also claim unassigned members under Settings › Training › My pupils.",
+          "items": {
+            "i1": "An owner or administrator may act as a mentor, but never as a pupil.",
+            "i2": "Promoting a pupil to an administrator or owner role automatically releases their pupil record.",
+            "i3": "Only the current mentor and the pupil read learning data, notes, and gym attempts (admins do not see them)."
+          }
+        },
+        "s2": {
+          "heading": "Stages by subject",
+          "body": "In My pupils, the mentor sets the pupil's stage (pasante or junior) for All practice areas or by specific practice area.",
+          "items": {
+            "i1": "Only the current mentor can set, change, or remove stages.",
+            "i2": "The stage is evaluated per practice area in projects and generally in Word."
+          }
+        },
+        "s3": {
+          "heading": "What changes at each stage",
+          "items": {
+            "i1": "Pasante: Activates “Your turn first” (approach of 60 to 4,000 characters and confidence rating 1 to 4 required before AI answers). All created or edited documents are sealed and require approval before export or download.",
+            "i2": "Junior: Direct AI answers without upfront approaches. Activates Accountability mode (breakdown of up to 12 conclusions to verify citations and justify unbacked points), methodology calculator, monthly independent full reading, tabular question auditing, and subagent contrast."
+          }
+        },
+        "s4": {
+          "heading": "Two-minute review",
+          "body": "In the Works tab, each interaction is organized into 4 lists: Proposed, AI corrected, Doubts, and Unverified.",
+          "items": {
+            "i1": "When unapproved drafts are listed, the Unverified row provides “Approve this version”, which approves the exact content of that moment; if the file changes afterwards it needs a new approval."
+          }
+        },
+        "s5": {
+          "heading": "Oral defense",
+          "body": "In the Oral defense tab, the mentor creates a defense and generates 5 questions from pupil notes (4 reasoning justifications and 1 change of facts scenario).",
+          "items": {
+            "i1": "The outcome (Approved / Not approved, official reason code, and note up to 500 characters) is recorded permanently and cannot be edited."
+          }
+        },
+        "s6": {
+          "heading": "Urgency pass",
+          "body": "The mentor can temporarily lift “Your turn first” in a specific project for 30 minutes to 72 hours (default 8 hours).",
+          "items": {
+            "i1": "Does not unseal generated documents (approval is still required).",
+            "i2": "Does not apply in Word (Word chats always require upfront approaches)."
+          }
+        },
+        "s7": {
+          "heading": "Gym",
+          "body": "Under the Gym tab, mentors create and manage fictitious practice cases and assign challenges to their pupils.",
+          "items": {
+            "i1": "Each case includes title, practice area, numbered paragraphs, time limit set by mentor (1 to 240 minutes), and fictitious data confirmation. Every screen displays the “Fictitious practice case” notice.",
+            "i2": "Mentors can write cases from scratch or request an AI draft using their own key. The draft only fills the form without saving so the mentor reviews, edits, and saves it. Each mentor manages only their own cases.",
+            "i3": "Error kinds: Superseded thesis; Repealed article; Wrong jurisdiction; Invented citation; Other (other).",
+            "i4": "Assigning creates a standalone snapshot of the case in the attempt. Once submitted, mentors can click “Give another attempt” to reassign. Open attempts prevent duplicate assignments.",
+            "i5": "Details found errors (with type match), missed errors with mentor explanations, findings without seeded errors (“there was no seeded error here”), and hints used. Visible only to mentor and pupil.",
+            "i6": "Submitted attempts, found errors, and hints used feed into the promotion evidence proposal without automatic blocking rules; the decision rests with the mentor."
+          }
+        },
+        "s8": {
+          "heading": "Promotion by evidence",
+          "body": "LiTT computes promotion proposals dynamically; the mentor decides.",
+          "items": {
+            "i1": "At least 2 approved oral defenses since the last stage change (with no subsequent unapproved defense).",
+            "i2": "At least 3 works formally marked as reviewed.",
+            "i3": "Confidence calibration without overconfidence (if ≥10 marked turns and ≥4 “Sure”, at least 75% must have coincided).",
+            "i4": "Supplementary Gym evidence: submitted attempts, seeded errors, found errors, and hints used per practice area."
+          }
+        },
+        "s9": {
+          "heading": "Firm criteria",
+          "body": "Under Firm settings › Training › Firm criteria, all members read and any stage-free lawyer can author criteria or dissenting opinions.",
+          "items": {
+            "i1": "The assistant automatically queries these criteria in trainee chats and renders a Consulted criteria disclosure showing author and timestamp."
+          }
+        }
+      }
+    }
+  },
   "landing": {
     "access": {
       "body": "Write to <mail>soporte@asteroitt.com</mail> with your firm’s name and how many people would use LiTT. We’ll reply by email.",
-      "marker": "Fifth",
+      "marker": "Sixth",
       "self": "Would you rather install it yourself? The code and the installation guide are on <github>GitHub</github>.",
       "title": "We’re opening beta seats a few at a time."
     },
@@ -1775,10 +2193,6 @@
       "open": "Open LiTT",
       "request": "Request access"
     },
-    "donna": {
-      "body": "Receives and organizes every retainer client’s requests (type, complexity, rounds), keeps a living profile where each fact carries a source a lawyer has confirmed, and runs a radar that sees deadlines coming.",
-      "title": "Donna: intake and memory for every client"
-    },
     "features": {
       "assistant": {
         "also": "<b>Inside Word, too.</b> Ask, draft and review without leaving the document, with tracked changes and your firm’s playbooks.",
@@ -1789,8 +2203,8 @@
         "body": "Save what your firm does over and over as a workflow and run it in one click, in the chat or in a table. Playbooks turn your firm’s positions into rules that review every contract the same way.",
         "title": "Workflows and playbooks"
       },
-      "intro": "Four features that work together and are already in the beta. Every answer and every cell points to the document and page it comes from.",
-      "marker": "First",
+      "intro": "Six features that work together and are already in the beta. Every answer and every cell points to the document and page it comes from.",
+      "marker": "Second",
       "projects": {
         "body": "One project per matter. Upload contracts, deeds and case files, and the assistant keeps the context across every conversation and every document. Private projects are visible to their members only.",
         "title": "Projects"
@@ -1846,20 +2260,16 @@
       "title": "The legal assistant that works the matter with you."
     },
     "inhouse": {
-      "body": "For legal teams inside companies: register and prioritize internal requests and keep the business informed with follow-up. We’ll adapt LiTT when there’s demand.",
+      "body": "For legal teams inside companies: register and prioritize internal requests and keep the business informed with follow-up.",
       "join": "Join the waitlist",
       "title": "Intake for in-house legal teams"
-    },
-    "mcp": {
-      "body": "Use all of LiTT’s features from the AI (the harness* of your choice) you already use, with the same permissions. Every session is recorded in LiTT.",
-      "note": "* Harness: the program you use to work with an AI—for example Claude, ChatGPT or an agent like Claude Code. LiTT connects to it through MCP, an open standard.",
-      "title": "LiTT from Claude, ChatGPT or another AI (the harness of your choice)"
     },
     "meta": {
       "description": "LiTT is an AI legal assistant for small and mid-sized Mexican law firms: it reads the documents in the matter, answers with the source, drafts in Word and reviews hundreds of documents in a table. With your keys, your model and, if you want, on your own servers.",
       "title": "LiTT · AI legal assistant for law firms in Mexico"
     },
     "nav": {
+      "training": "Training",
       "features": "Features",
       "soon": "Coming soon",
       "trust": "Trust",
@@ -1867,6 +2277,7 @@
     },
     "own": {
       "intro": "What LiTT adds for the work of a law firm in Mexico.",
+      "title": "Built for Mexican practice.",
       "o1": {
         "body": "The interface, notices and legal texts are written for Mexican practice. No templates from another country. Also available in English.",
         "title": "In Mexican Spanish, for Mexican law"
@@ -1880,26 +2291,21 @@
         "title": "Automatic citation check"
       },
       "o4": {
-        "body": "The junior tries first and LiTT guides them; their mentor reviews, corrects and decides when they move to the next stage.",
-        "title": "Training for juniors, with a mentor"
-      },
-      "o5": {
         "body": "Reads scanned PDFs and splits a case file into one file per document: deed, annexes, IDs.",
         "title": "Scans and “Split case file”"
       },
-      "o6": {
+      "o5": {
         "body": "Tell LiTT which states, practice areas and industries your firm works in, and the assistant takes it into account in every conversation.",
         "title": "Firm profile"
       },
-      "o7": {
+      "o6": {
         "body": "Each firm with its own projects, members and permissions. Private matters are visible to their members only.",
         "title": "Firm workspaces with roles"
       },
-      "o8": {
-        "body": "Connect Notion, Airtable or another MCP server so the assistant can look up your firm’s information.",
-        "title": "MCP connectors"
-      },
-      "title": "Built for Mexican practice."
+      "o7": {
+        "title": "Notion, Airtable and your other tools",
+        "body": "Connect Notion, Airtable or another MCP server so the assistant can look up your firm’s information."
+      }
     },
     "project": {
       "aria": "Example: the Tlalnepantla Warehouse project with six documents, three conversations and one table.",
@@ -1920,8 +2326,8 @@
     },
     "soon": {
       "interest": "I’m interested",
-      "intro": "Five things on the way. They’ll reach beta participants and the waitlist first.",
-      "marker": "Third",
+      "intro": "Three things on the way. They’ll reach beta participants and the waitlist first.",
+      "marker": "Fourth",
       "tag": "Coming soon",
       "title": "What we’re working on."
     },
@@ -2020,7 +2426,7 @@
         "title": "A record that can’t be rewritten"
       },
       "intro": "How LiTT is built, with no fine print. You can check all of it in the code.",
-      "marker": "Fourth",
+      "marker": "Fifth",
       "title": "Your documents stay yours."
     },
     "why": {
@@ -2040,7 +2446,7 @@
         "none": "No key",
         "saved": "Saved"
       },
-      "marker": "Second",
+      "marker": "Third",
       "model": {
         "body": "Claude, GPT, Gemini or Mistral; GLM-Legal, Z.ai’s legal model, through OpenRouter; or an open model such as GLM, Qwen or DeepSeek that your firm installs itself. You choose it for each conversation and each table.",
         "title": "Choose your model"
@@ -2085,6 +2491,155 @@
       "text1a": "In case of late payment, the Tenant shall pay default interest of",
       "text1b": "per month on overdue amounts.",
       "who": "Suggested change"
+    },
+    "pair": {
+      "title": "Also, for the client and from your AI.",
+      "donna": {
+        "title": "Donna, for retainer clients",
+        "body": "Every client request stays in its matter: what they asked, who has it and how many rounds it has taken. The profile keeps every fact with the document it came from, and the Radar tells you what is coming due. Each quarter, the client report comes out in Word.",
+        "caps": {
+          "i1": "Requests per retainer",
+          "i2": "Profile with cited facts",
+          "i3": "Radar and “Today”",
+          "i4": "Obligation rules",
+          "i5": "Assisted extraction",
+          "i6": "30, 60 or 90-day report"
+        },
+        "note": "No date is calculated by the AI: they come from facts a lawyer confirmed. The Radar helps you plan and does not calculate procedural deadlines."
+      },
+      "claude": {
+        "title": "LiTT from Claude or ChatGPT",
+        "body": "If your firm already works in Claude or ChatGPT, connect LiTT and ask it from there to search a matter, read a document or run a playbook or a table. It signs in with your account and your permissions, every action is recorded in LiTT and, with a trainee, the same training rules apply.",
+        "note": "How to connect it: Settings › Connected apps."
+      }
+    },
+    "training": {
+      "title": "Your interns and juniors use AI too. Their mentor sees how.",
+      "intro": "LiTT changes how the assistant answers, only for the person who is learning. They practice their own reasoning before reading the AI’s, and their mentor reviews without redoing the work.",
+      "steps": {
+        "s1": {
+          "title": "Try first",
+          "body": "Before seeing the answer, they write their approach in two or three lines and mark how sure they are."
+        },
+        "s2": {
+          "title": "LiTT answers and compares",
+          "body": "The same answer any lawyer gets. Then a private note: where they matched, where they did not and what they missed."
+        },
+        "s3": {
+          "title": "The mentor reviews and decides",
+          "body": "They review it in two minutes, approve what leaves the firm and decide when the person moves up a stage."
+        }
+      },
+      "more": "Everything training includes",
+      "groups": {
+        "pupil": {
+          "title": "The intern",
+          "lead": "Tries first"
+        },
+        "junior": {
+          "title": "The junior",
+          "lead": "Answers for what they sign"
+        },
+        "mentor": {
+          "title": "The mentor",
+          "lead": "Reviews and decides"
+        },
+        "firm": {
+          "title": "The firm",
+          "lead": "Sets the rules"
+        }
+      },
+      "items": {
+        "turn": {
+          "title": "Your turn first",
+          "body": "They write their approach before seeing the answer and mark how sure they are."
+        },
+        "hints": {
+          "title": "Hints and opposing counsel",
+          "body": "Up to three hints that do not hand over the conclusion, and a counterparty that objects to what they wrote."
+        },
+        "map": {
+          "title": "Their own map, with calibration",
+          "body": "Where they often match, what to reinforce and whether their confidence fits what happens."
+        },
+        "accountability": {
+          "title": "Accountability",
+          "body": "After each answer, every conclusion with its source or marked “unsupported”. They verify."
+        },
+        "annex": {
+          "title": "Calculations with an annex",
+          "body": "Interest and updates step by step in a Word annex, every figure with its source."
+        },
+        "review": {
+          "title": "Two-minute review",
+          "body": "What they proposed, what the AI corrected, where they doubted and what is still unverified."
+        },
+        "defense": {
+          "title": "Oral defense",
+          "body": "Five questions about their work, one with the facts changed."
+        },
+        "promotion": {
+          "title": "Promotion by evidence",
+          "body": "LiTT proposes the promotion with the evidence in view; the mentor decides."
+        },
+        "gym": {
+          "title": "Gym of fictitious cases",
+          "body": "The mentor assigns cases with seeded errors; the trainee hunts for them against the clock, without AI. The result, seen only by the two of them, adds to the promotion evidence."
+        },
+        "seal": {
+          "title": "The intern’s seal",
+          "body": "What an intern drafts does not leave LiTT until their mentor approves it."
+        },
+        "stages": {
+          "title": "Stages by subject",
+          "body": "Intern in litigation and junior in corporate, if that is how they work."
+        },
+        "criteria": {
+          "title": "Firm criteria",
+          "body": "The firm’s positions in writing; everyone reads them and the assistant consults them."
+        },
+        "pass": {
+          "title": "Urgency pass",
+          "body": "With a deadline looming, lifts “Your turn first” on a matter for a few hours."
+        }
+      },
+      "privacy": "What a trainee does is seen only by them and their mentor. No one else in the firm sees it by title, and there are no rankings among trainees.",
+      "interest": "I’m interested for my firm",
+      "ex": {
+        "label": "Example with fictitious data",
+        "plan": "Your approach (2–3 lines)",
+        "count": "148 / 4000",
+        "planText": "Yes: two rents are unpaid and the fifteenth clause allows rescission without a court ruling. I would check whether the payment agreement prevents it.",
+        "sure": "How sure are you?",
+        "levels": {
+          "i1": "Almost guessing",
+          "i2": "Doubtful",
+          "i3": "Fairly sure",
+          "i4": "Sure"
+        },
+        "hint": "Ask for a hint",
+        "counterparty": "Try it on opposing counsel",
+        "note": "Private note · only the trainee and their mentor",
+        "match": "Matches",
+        "matchText": "Rescission without a court ruling is proper for two unpaid months.",
+        "miss": "Does not match",
+        "missText": "The payment agreement is an unsigned draft; it does not prevent it.",
+        "lacked": "Missing",
+        "lackedText": "The 3 % monthly default interest on the overdue amount.",
+        "verdict": "Verdict: partial · per the AI contrast",
+        "supervise": "Supervise Mariana Ruiz · Intern · Real estate",
+        "proposed": "Proposed",
+        "proposedText": "Rescind without a lawsuit for two unpaid rents.",
+        "corrected": "The AI corrected",
+        "correctedText": "The 3 % monthly default interest was missing.",
+        "doubted": "Doubted",
+        "doubtedText": "Marked “Fairly sure” and asked for a hint.",
+        "unverified": "Unverified",
+        "unverifiedText": "Demand letter.docx · intern draft",
+        "approve": "Approve this version",
+        "promote": "To propose junior: oral defenses passed 1 of 2 · works reviewed 3 of 3"
+      },
+      "marker": "First"
     }
   },
   "legal": {
@@ -5337,7 +5892,8 @@
       "themeNowLight": "now: light",
       "titleReviewRunning": "{title} review running",
       "untitledReview": "Untitled review",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "navHelp": "Help"
     },
     "chatPanelHeader": {
       "chatTitle": "Chat title",

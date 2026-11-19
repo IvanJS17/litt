@@ -10,6 +10,8 @@ type EmptyStateProps = {
     description?: ReactNode;
     /** Usually a `PillButtonUI`. */
     action?: ReactNode;
+    /** A `GuideTrigger` («¿Cuándo usarla?») under the description. */
+    help?: ReactNode;
     tone?: "default" | "error";
     className?: string;
 };
@@ -24,6 +26,7 @@ export function EmptyState({
     title,
     description,
     action,
+    help,
     tone = "default",
     className,
 }: EmptyStateProps) {
@@ -48,13 +51,15 @@ export function EmptyState({
                 <p
                     data-slot="empty-state-description"
                     className={cn(
-                        "mt-1 max-w-xs text-xs",
-                        tone === "error" ? "text-red-500" : "text-gray-400",
+                        "mt-1 max-w-sm text-sm",
+                        // gray-500 is the muted text that passes AA (5.2:1 on papel); gray-400 is for markers only.
+                        tone === "error" ? "text-red-500" : "text-gray-500",
                     )}
                 >
                     {description}
                 </p>
             ) : null}
+            {help ? <div data-slot="empty-state-help" className="mt-1">{help}</div> : null}
             {action ? <div className="mt-4">{action}</div> : null}
         </div>
     );
