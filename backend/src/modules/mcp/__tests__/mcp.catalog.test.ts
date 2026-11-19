@@ -22,4 +22,16 @@ describe("MCP catalog", () => {
             expect(tool.scope, tool.name).not.toBe("litt.read");
         }
     });
+
+    it("declares the four Donna tools as read-only reads, with both languages in the description", () => {
+        for (const name of ["list_retainer_requests", "get_client_profile", "get_deadline_radar", "get_retainer_report"]) {
+            const tool = MCP_TOOLS.find((t) => t.name === name);
+            expect(tool, name).toBeDefined();
+            expect(tool).toMatchObject({ scope: "litt.read", lane: "read", readOnly: true });
+            expect(tool!.destructive ?? false).toBe(false);
+            expect(tool!.description).toContain(" | ");
+        }
+        // The profile hands cited passages to the client's AI: its audit is strict.
+        expect(MCP_TOOLS.find((t) => t.name === "get_client_profile")).toMatchObject({ audit: "strict" });
+    });
 });

@@ -5832,7 +5832,11 @@
         "get_chat_turn": "Ver la respuesta del asistente",
         "stop_chat_turn": "Detener la respuesta del asistente",
         "list_chats": "Ver tus conversaciones",
-        "get_chat": "Abrir una conversación"
+        "get_chat": "Abrir una conversación",
+        "list_retainer_requests": "Ver las solicitudes de una iguala",
+        "get_client_profile": "Ver la ficha del cliente",
+        "get_deadline_radar": "Ver el radar de vencimientos",
+        "get_retainer_report": "Ver el reporte de la iguala"
       }
     }
   },
