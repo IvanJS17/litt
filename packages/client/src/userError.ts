@@ -230,6 +230,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // Scan reading with the owner\'s own LandingAI key: a refused key, an empty
     // account, a file it will not read or a missing key are fixed by the
     // person, not by retrying; LandingAI being down is not.
+    // An MCP call that sends a document to LandingAI without the person's
+    // confirmed cost, or whose estimate grew after they confirmed it.
+    cost_not_acknowledged: "validation",
+    cost_changed: "validation",
     ocr_key_missing: "validation",
     ocr_key_invalid: "validation",
     ocr_no_credits: "validation",

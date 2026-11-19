@@ -47,8 +47,24 @@ const LOSS_TEXT: Record<DocumentConversionLoss, string> = {
     pdf_layout_lost: "The page layout is lost; only the text is kept.",
 };
 
+/** What to do next, by the refusal's code, for the codes a person can fix. */
+const NEXT_STEP: Record<string, string> = {
+    training_approval_required: "A mentor has to approve this draft in LiTT before it can be used.",
+    convert_pdf_without_text: "The PDF is a scan: read its pages first with read_scanned_document.",
+    ocr_key_missing: "Add a LandingAI key in LiTT: Settings, then Scan reading. The firm's key is used first, then the person's own where the firm allows it.",
+    ocr_key_invalid: "LandingAI did not accept the key: check it in LiTT's Settings.",
+    ocr_no_credits: "The LandingAI account has no credits: add some at LandingAI, then try again.",
+    ocr_not_supported: "Nothing LiTT can read here: only a PDF with scanned pages (see get_scan_reading_state), or a PDF for the split.",
+    ocr_too_large: "This file is over the size LiTT sends to LandingAI.",
+    split_not_supported: "Only a PDF filed as a document can be split.",
+    split_too_large: "This file is over what the split takes (400 pages, about 4 MB of text).",
+    split_needs_scan_reading: "Some pages are scanned and unread: call read_scanned_document, wait until get_scan_reading_state says ready, then propose the split again.",
+    split_invalid_groups: "Check the groups: each needs pages of this version (1 to page_count, none repeated), a name and a type from document_types (or null).",
+    document_version_conflict: "The document changed after the proposal: call get_case_file_split_state and propose_case_file_split again.",
+};
+
 /** A document service's refusal, in the words the module authored (the web's 404/403/409/400/503). */
-function refuse(failure: ServiceFailure, operation: string): never {
+export function refuse(failure: ServiceFailure, operation: string): never {
     if (failure.kind === "error") throw serviceFailure(operation, failure.error);
     if (failure.kind === "not_found") throw notFound("The document");
     if (failure.kind === "unavailable")
@@ -59,13 +75,11 @@ function refuse(failure: ServiceFailure, operation: string): never {
         conflict: "conflict",
         unprocessable: "unprocessable",
     };
-    const suggestion =
-        failure.code === "training_approval_required"
-            ? "A mentor has to approve this draft in LiTT before it can be used."
-            : failure.code === "convert_pdf_without_text"
-              ? "The PDF is a scan: read its pages in LiTT's web app first."
-              : undefined;
-    throw new McpToolError(failure.code ?? fallback[failure.kind] ?? "request_refused", failure.detail, suggestion);
+    throw new McpToolError(
+        failure.code ?? fallback[failure.kind] ?? "request_refused",
+        failure.detail,
+        failure.code ? NEXT_STEP[failure.code] : undefined,
+    );
 }
 
 const documentUrl = (projectId: string | null) =>

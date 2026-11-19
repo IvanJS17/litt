@@ -1274,6 +1274,8 @@
       "convert_unavailable": "Conversion isn’t available right now. Try again in a moment.",
       "convert_unreadable": "This document couldn’t be read, so it can’t be converted.",
       "cookie_session_required": "Sign in again to continue.",
+      "cost_changed": "The estimated cost went up since you confirmed it. Check the new cost and confirm again.",
+      "cost_not_acknowledged": "Show the estimated cost and confirm with the person before sending the document to LandingAI.",
       "document_version_conflict": "This document changed since you opened it. Reload it to continue.",
       "email_address_invalid": "Enter a valid email address.",
       "extraction_output_invalid": "The AI did not answer in the expected format, so nothing was saved. Try again.",
@@ -5921,7 +5923,12 @@
         "run_quick_action": "Run a quick action",
         "compare_documents": "Compare two Word documents",
         "preview_document_conversion": "Preview a document conversion",
-        "convert_document": "Convert a document"
+        "convert_document": "Convert a document",
+        "get_scan_reading_state": "See a document's scanned pages",
+        "read_scanned_document": "Read a document's scanned pages",
+        "get_case_file_split_state": "See what splitting a case file would do",
+        "propose_case_file_split": "Propose how to split a case file",
+        "create_split_documents": "Create the documents of a split"
       }
     }
   },

@@ -1274,6 +1274,8 @@
       "convert_unavailable": "La conversión no está disponible por ahora. Inténtalo de nuevo en un momento.",
       "convert_unreadable": "No se pudo leer este documento, así que no se puede convertir.",
       "cookie_session_required": "Vuelve a iniciar sesión para continuar.",
+      "cost_changed": "El costo estimado subió desde que lo confirmaste. Revisa el nuevo costo y confirma de nuevo.",
+      "cost_not_acknowledged": "Muestra el costo estimado y confirma con la persona antes de enviar el documento a LandingAI.",
       "document_version_conflict": "Este documento cambió desde que lo abriste. Recárgalo para continuar.",
       "email_address_invalid": "Escribe un correo electrónico válido.",
       "extraction_output_invalid": "La IA no respondió con el formato esperado, así que no se guardó nada. Inténtalo de nuevo.",
@@ -5921,7 +5923,12 @@
         "run_quick_action": "Ejecutar una acción rápida",
         "compare_documents": "Comparar dos documentos de Word",
         "preview_document_conversion": "Ver qué cambia al convertir un documento",
-        "convert_document": "Convertir un documento"
+        "convert_document": "Convertir un documento",
+        "get_scan_reading_state": "Ver las páginas escaneadas de un documento",
+        "read_scanned_document": "Leer las páginas escaneadas de un documento",
+        "get_case_file_split_state": "Ver qué haría separar un expediente",
+        "propose_case_file_split": "Proponer cómo separar un expediente",
+        "create_split_documents": "Crear los documentos de una separación"
       }
     }
   },
