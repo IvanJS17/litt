@@ -297,16 +297,16 @@ export function RuleSuggestions({
     }
   }
 
-  async function decideBatch(action: "accept" | "discard", reason: string) {
+  async function decideBatch(decision: "accept" | "discard", reason: string) {
     setBatchBusy(true);
     try {
       const done = await decideRuleSuggestions(projectId, matterId, {
-        action,
+        action: decision,
         suggestionIds: [...selected],
         ...(reason ? { reason } : {}),
       });
       const ok = done.results.filter((one) => one.outcome === "ok").length;
-      setSummary({ action, ok, failed: done.results.length - ok });
+      setSummary({ action: decision, ok, failed: done.results.length - ok });
       await load();
     } catch (error) {
       notifyError(error, { action: tRef.current("radar.rules.suggest.batch.couldNotDecide") });
