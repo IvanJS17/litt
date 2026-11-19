@@ -63,10 +63,44 @@ export async function revokeGrant(
     return true;
 }
 
+/** The two AI apps whose brand LiTT shows next to a connection. */
+export type ConnectedApp = "claude" | "chatgpt";
+
+// The HTTPS hosts that identify each app. The client id is the URL of the
+// app's published metadata document (LiTT fetches it from that host), so the
+// host cannot be claimed by another site; the name the app gives itself can.
+const APP_HOSTS: Record<ConnectedApp, readonly string[]> = {
+    claude: ["claude.ai", "anthropic.com"],
+    chatgpt: ["openai.com", "chatgpt.com"],
+};
+
+/**
+ * Which app a connection belongs to, from the host of its OAuth client id and
+ * nothing else (never the self-declared client name). Exact hosts only: a
+ * look-alike such as claude.ai.evil.com, a host with credentials or a custom
+ * port, or a client id that is not an https URL gives null.
+ */
+export function connectedAppOf(clientId: string): ConnectedApp | null {
+    let url: URL;
+    try {
+        url = new URL(clientId);
+    } catch {
+        return null;
+    }
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return null;
+    const host = url.hostname.toLowerCase();
+    for (const app of Object.keys(APP_HOSTS) as ConnectedApp[]) {
+        if (APP_HOSTS[app].includes(host)) return app;
+    }
+    return null;
+}
+
 export type GrantSummary = {
     id: string;
     client_id: string;
     client_name: string;
+    /** Claude or ChatGPT when the client id's host says so; null for any other app. */
+    app: ConnectedApp | null;
     scopes: string[];
     workspaces: string[];
     default_workspace: string;
@@ -102,6 +136,7 @@ export async function listGrantsForUser(db: Db, userId: string): Promise<GrantSu
         id: g.id,
         client_id: g.client_id,
         client_name: names.get(g.client_id) ?? g.client_id,
+        app: connectedAppOf(g.client_id),
         scopes: g.scopes,
         workspaces: g.workspaces,
         default_workspace: g.default_workspace,

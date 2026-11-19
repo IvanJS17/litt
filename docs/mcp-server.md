@@ -43,7 +43,7 @@ its Caddy block are infrastructure and are not part of the backend.
 | `POST /oauth/revoke` | RFC 7009. Revoking any token of a connection revokes the connection. |
 | `ALL /mcp` | Streamable HTTP MCP endpoint (both 2025-11-25 and 2026-07-28 revisions, stateless). |
 | `GET/POST /mcp-connect/authorizations/:id[/decision]` | What the consent page calls, under the person's web session. |
-| `GET /mcp-connect/grants`, `DELETE /mcp-connect/grants/:id` | The person's connected apps: list and revoke. |
+| `GET /mcp-connect/grants`, `DELETE /mcp-connect/grants/:id` | The person's connected apps: list and revoke. Each grant carries `app` (`claude`, `chatgpt` or `null`), derived only from the host of its OAuth `client_id` (exact host `claude.ai`/`anthropic.com` or `openai.com`/`chatgpt.com`, https), never from the self-declared `client_name`; the screen shows a brand logo only for a non-null `app`. |
 
 ### Clients
 
