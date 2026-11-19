@@ -62,6 +62,13 @@ export function ProfileBatchBar({
     setRejecting(false);
     setReason("");
   };
+  // Pressing reject starts the call; the bar stays in "rejecting" (so the
+  // button can say «Rechazando…») and closes only when the call is over.
+  const [wasBusy, setWasBusy] = useState(busy);
+  if (wasBusy !== busy) {
+    setWasBusy(busy);
+    if (wasBusy && !busy) stop();
+  }
   return (
     <div role="group" aria-label={t("clientProfile.batch.group")} className="space-y-2 rounded-xl bg-app-surface/60 p-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -112,7 +119,6 @@ export function ProfileBatchBar({
           onClick={() => {
             if (!rejecting) return setRejecting(true);
             onDecide("reject", reason.trim());
-            stop();
           }}
         >
           {busy && rejecting

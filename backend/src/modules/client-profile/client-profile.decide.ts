@@ -9,7 +9,7 @@
 import type { ProfileFact, ProfileFactBatchResult } from "@mike/contracts";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { authorizeMatterMember } from "../matters/matters.service";
+import { authorizeMatterMember, type MatterAccess } from "../matters/matters.service";
 import { isFactId, loadFacts, NOT_FOUND, type Actor } from "./client-profile.facts";
 import {
   BATCH_MAX,
@@ -28,9 +28,13 @@ async function decide(
   db: Db,
   actor: Actor & { factId: unknown; body: unknown },
   action: Decision,
+  // A batch has already authorized the member once for the whole request.
+  granted?: MatterAccess,
 ): Promise<ServiceResult<ProfileFact>> {
   try {
-    const access = await authorizeMatterMember(db, { ...actor, write: true });
+    const access = granted
+      ? ok(granted)
+      : await authorizeMatterMember(db, { ...actor, write: true });
     if (!access.ok) return access;
     if (!access.data.isRetainer)
       return failure("conflict", "The matter is not a retainer.", NOT_A_RETAINER_CODE);
@@ -69,6 +73,8 @@ async function decide(
       return failure("conflict", "That fact was already decided.", FACT_ALREADY_DECIDED_CODE);
     if (error) return internalFailure(error);
 
+    // The batch only needs to know it worked: it does not show the fact.
+    if (granted) return ok(fact);
     const after = await loadFacts(db, access.data, fact.id);
     if (!after.ok) return after;
     return after.data[0] ? ok(after.data[0]) : failure("not_found", NOT_FOUND);
@@ -110,7 +116,7 @@ export async function decideProfileFacts(
     const action: Decision = body.action === "confirm" ? "confirmed" : "rejected";
     const results: ProfileFactBatchResult["results"] = [];
     for (const factId of [...new Set(ids as string[])]) {
-      const one = await decide(db, { ...actor, factId, body: { reason: body.reason } }, action);
+      const one = await decide(db, { ...actor, factId, body: { reason: body.reason } }, action, access.data);
       if (one.ok) results.push({ fact_id: factId, outcome: "ok" });
       else if (one.kind === "conflict" || one.kind === "not_found" || one.kind === "forbidden")
         results.push({ fact_id: factId, outcome: one.kind, ...(one.code ? { code: one.code } : {}) });
