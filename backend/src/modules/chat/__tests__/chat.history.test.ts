@@ -82,6 +82,19 @@ describe("readChatTurn", () => {
         expect((await read(db, "m5"))!.status).toBe("stopped");
     });
 
+    it("reads a live turn whose answer is saved only when it ends (a matter's chat) as generating, and an unknown id as nothing", async () => {
+        const { db } = world([msg("m1", { role: "user", content: "x" })]);
+        // The run exists, the row does not yet.
+        const run = startAssistantTurnRun({ id: "m9", chatId: CHAT, userId: USER, assistantMessageId: "m9" })!;
+        expect(await read(db, "m9")).toMatchObject({ status: "generating", text: "", citations: [], events: [], errorMessage: null, createdAt: null });
+        // A live run of ANOTHER chat does not make this chat's unknown id a turn.
+        startAssistantTurnRun({ id: "m8", chatId: "other-chat", userId: USER, assistantMessageId: "m8" });
+        expect(await read(db, "m8")).toBeNull();
+        // Once it ends with nothing saved there is no turn to report.
+        run.finish();
+        expect(await read(db, "m9")).toBeNull();
+    });
+
     it("ignores a run of another chat with the same id", async () => {
         const { db } = world([msg("m5", { content: null })]);
         startAssistantTurnRun({ id: "m5", chatId: "other-chat", userId: USER, assistantMessageId: "m5" });

@@ -18,6 +18,8 @@ import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { MCP_SCOPES, mcpConfig } from "./mcp.config";
 import { MCP_TOOLS } from "./mcp.catalog";
+import { registerMcpPrompts } from "./mcp.prompts";
+import { registerMcpResources } from "./mcp.resources";
 import { LITT_MCP_ICON } from "./mcp.icon";
 import { recordMcpToolCall } from "./mcp.calls";
 import { revalidatePrincipal, type McpPrincipal } from "./mcp.principal";
@@ -167,6 +169,8 @@ function buildServer(principal: McpPrincipal): McpServer {
         { capabilities: { tools: {} } },
     );
     registerMcpTools(server, MCP_TOOLS, principal);
+    registerMcpPrompts(server, principal);
+    registerMcpResources(server, principal);
     return server;
 }
 

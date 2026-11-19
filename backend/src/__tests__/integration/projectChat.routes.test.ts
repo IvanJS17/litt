@@ -1293,6 +1293,27 @@ describe("POST /projects/:projectId/chat", () => {
         expect(runLLMStream).not.toHaveBeenCalled();
     });
 
+    it("marks a NEW chat with the connected app it was started from (the turn the MCP tools start), and the web's with none", async () => {
+        const { parseProjectChatRequest, startProjectChatTurn } = await import("../../modules/project-chat/projectChat.turn.js");
+        const parsed = parseProjectChatRequest(VALID_BODY);
+        if (!parsed.ok) throw new Error("fixture");
+        const db = createServerSupabase();
+        const viaApp = await startProjectChatTurn(db, {
+            userId: "u1", userEmail: "u1@test.local", requestId: undefined, projectId: "p1", parsed: parsed.value,
+            origin: { grantId: "g1", label: "Claude" },
+        });
+        expect(viaApp.ok).toBe(true);
+        const created = dbInserts.filter((i) => i.table === "chats");
+        expect(created).toHaveLength(1);
+        expect(created[0].value).toMatchObject({ project_id: "p1", origin: "mcp", origin_grant_id: "g1", origin_label: "Claude" });
+        // The same start without an origin (the web route's own) writes none of the three columns.
+        resetAssistantTurnRunsForTests();
+        dbInserts.length = 0;
+        const viaWeb = await startProjectChatTurn(db, { userId: "u1", userEmail: "u1@test.local", requestId: undefined, projectId: "p1", parsed: parsed.value });
+        expect(viaWeb.ok).toBe(true);
+        expect(Object.keys(dbInserts.find((i) => i.table === "chats")!.value as object)).not.toEqual(expect.arrayContaining(["origin"]));
+    });
+
     // -----------------------------------------------------------------------
     // The tool loop is judged against the PROJECT, not against the chat
     // -----------------------------------------------------------------------

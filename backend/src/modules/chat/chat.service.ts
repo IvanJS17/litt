@@ -5,6 +5,7 @@ export {
 export { getChatMessages } from "./chat.messages";
 export {
   withChatOrigin,
+  chatOriginColumns,
   listChatsCreatedByGrant,
   type ChatOrigin,
   type GrantChat,

@@ -265,7 +265,7 @@ describe("tools/list for chat", () => {
         as("owner");
         const token = await connect();
         const listed = bodyOf(await rpc(token, "tools/list")).result!.tools as { name: string; annotations: Record<string, boolean> }[];
-        const chat = Object.fromEntries(listed.filter((t) => /chat/.test(t.name)).map((t) => [t.name, t.annotations]));
+        const chat = Object.fromEntries(listed.filter((t) => /chat/.test(t.name) && !/project_chat|tabular_chat/.test(t.name)).map((t) => [t.name, t.annotations]));
         expect(Object.keys(chat).sort()).toEqual(["get_chat", "get_chat_turn", "list_chats", "send_chat_message", "start_chat", "stop_chat_turn"]);
         for (const name of ["get_chat", "get_chat_turn", "list_chats"]) expect(chat[name]).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
         for (const name of ["start_chat", "send_chat_message", "stop_chat_turn"]) expect(chat[name]).toMatchObject({ readOnlyHint: false, destructiveHint: false, openWorldHint: false });

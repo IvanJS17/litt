@@ -34,3 +34,23 @@ export {
     type StartedTabularGeneration,
 } from "./tabular.generation";
 export { isReviewGenerationRunning, parseCellContent, type TabularFailure } from "./tabular.shared";
+
+// The review chat (what POST /:reviewId/chat and the chat list routes use), for
+// the MCP tools: the turn without HTTP, and the same reads and access gates.
+export {
+    abandonTabularChatTurn,
+    parseTabularChatRequest,
+    runTabularChatTurn,
+    startTabularChatTurn,
+    type ParsedTabularChatRequest,
+    type StartedTabularChatTurn,
+    type StartTabularChatTurnResult,
+    type TabularChatTurnSink,
+} from "./tabular.chatTurn";
+export {
+    ensureReviewChatReadAccess,
+    ensureReviewChatWriteAccess,
+    listTabularReviewChatMessages,
+    listTabularReviewChats,
+    type ReviewChatSummary,
+} from "./tabular.chats";
