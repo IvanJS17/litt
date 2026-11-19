@@ -129,6 +129,16 @@ describe("ConnectedAppsSection", () => {
         fireEvent.click(screen.getByRole("button", { name: "Yes, remove" }));
         await screen.findByText(/You have not connected any app yet/);
         expect([...container.querySelectorAll("h2")].map((h) => h.textContent)[0]).toBe("Connect LiTT to Claude or ChatGPT");
+        // The guide is now first, so its Claude steps open like on a first visit.
+        expect(screen.getByText(/Add custom connector/)).toBeTruthy();
+    });
+
+    it("does not reopen the guide that the person folded with no connections", async () => {
+        mockList([]);
+        render(<ConnectedAppsSection />);
+        await screen.findByText(/You have not connected any app yet/);
+        fireEvent.click(screen.getByRole("button", { name: "With Claude" }));
+        expect(screen.queryByText(/Add custom connector/)).toBeNull();
     });
 
     it("explains that connections are off when the server answers 404", async () => {
@@ -171,7 +181,9 @@ describe("ConnectedAppsSection", () => {
         render(<ConnectedAppsSection />);
         fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
         fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-        expect(screen.getByRole("button", { name: "Remove access" })).toBeTruthy();
+        const remove = screen.getByRole("button", { name: "Remove access" });
+        expect(remove).toBeTruthy();
+        expect(document.activeElement).toBe(remove);
         expect(revokeMcpGrant).not.toHaveBeenCalled();
     });
 
@@ -222,9 +234,15 @@ describe("ConnectedAppsSection connect guide", () => {
         expect(screen.getByRole("link", { name: "ChatGPT's official guide" }).getAttribute("href")).toBe(
             "https://help.openai.com/en/articles/12584461",
         );
+        // aria-controls only points at a panel that is rendered.
+        const chatgpt = screen.getByRole("button", { name: "With ChatGPT" });
+        expect(chatgpt.getAttribute("aria-controls")).toBe("connect-guide-chatgpt");
+        expect(document.getElementById("connect-guide-chatgpt")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "With Claude" }).hasAttribute("aria-controls")).toBe(false);
         // Picking the open tab again folds it.
         fireEvent.click(screen.getByRole("button", { name: "With ChatGPT" }));
         expect(screen.queryByText(/Add custom MCP server/)).toBeNull();
+        expect(chatgpt.hasAttribute("aria-controls")).toBe(false);
     });
 
     it("copies the address, keeps the button's name and announces «Copied» outside it", async () => {

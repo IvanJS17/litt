@@ -43,6 +43,14 @@ export function ConnectGuide({ serverUrl, connections }: { serverUrl: string; co
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  // Removing the last connection brings the guide first: open the Claude steps
+  // as in the first-visit design. Folding it by hand with none stays respected.
+  const [previous, setPrevious] = useState(connections);
+  if (previous !== connections) {
+    setPrevious(connections);
+    if (previous > 0 && connections === 0) setOpen("claude");
+  }
+
   async function copy() {
     try {
       await navigator.clipboard.writeText(serverUrl);
@@ -73,7 +81,7 @@ export function ConnectGuide({ serverUrl, connections }: { serverUrl: string; co
   const tab = (app: GuideApp, label: string) => (
     <TabPillButtonUI
       active={open === app}
-      aria-controls={`connect-guide-${app}`}
+      aria-controls={open === app ? `connect-guide-${app}` : undefined}
       onClick={() => setOpen(open === app ? null : app)}
     >
       <ConnectedAppIcon app={app} size="sm" />

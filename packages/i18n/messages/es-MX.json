@@ -5787,7 +5787,7 @@
         "chatgptStep3": "Elige OAuth como autenticación y acepta la casilla de riesgo.",
         "chatgptStep4": "Pulsa \"Create as a plugin\" e inicia sesión en LiTT cuando te lo pida.",
         "chatgptLink": "Guía oficial de ChatGPT",
-        "after": "Al conectar, la app aparece abajo con sus permisos, y puedes quitarle el acceso cuando quieras.",
+        "after": "Al conectar, la app aparece en la lista con sus permisos, y puedes quitarle el acceso cuando quieras.",
         "tabsLabel": "App",
         "chatgptRequirement": "Solo ChatGPT Business, Enterprise y Edu"
       },

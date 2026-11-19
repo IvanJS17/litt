@@ -51,6 +51,9 @@ export function ConnectedAppActivity({
 
   if (!activity) return <p className="text-sm text-gray-500">{t("activityLoading")}</p>;
   const when = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short" });
+  // Date and time stack on two lines so a narrow column never wraps mid-date.
+  const day = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
+  const hour = (iso: string) => format.dateTime(new Date(iso), { timeStyle: "short" });
   // A tool added to the server before it has a label shows its own name.
   const toolLabel = (tool: string) => {
     const key = `tool.${tool}` as never; // the catalog grows on the server, so the key is open
@@ -78,7 +81,12 @@ export function ConnectedAppActivity({
                 const Outcome = OUTCOME_ICONS[call.outcome];
                 return (
                   <tr key={`${call.at}-${index}`} className="border-t border-gray-100">
-                    <td className="py-2 pr-2 [overflow-wrap:anywhere]">{when(call.at)}</td>
+                    <td className="py-2 pr-2 text-xs sm:text-sm">
+                      <time dateTime={call.at}>
+                        <span className="block">{day(call.at)}</span>
+                        <span className="block text-gray-500">{hour(call.at)}</span>
+                      </time>
+                    </td>
                     <td className="py-2 pr-2 [overflow-wrap:anywhere]">
                       <span className="block text-gray-900">{toolLabel(call.tool)}</span>
                       <span className="block text-xs text-gray-500">
