@@ -86,7 +86,6 @@ function AuthConfirmContent() {
                 setBusy(false);
                 return;
             }
-            await refreshSession();
         } catch (caught) {
             const described = reportFault(caught, {
                 action,
@@ -104,6 +103,22 @@ function AuthConfirmContent() {
                     ? { ...described, message: authSentenceText("linkSpent") }
                     : described,
             );
+            setBusy(false);
+            return;
+        }
+        // The token is already spent here: a failure now is not a spent link.
+        try {
+            await refreshSession();
+        } catch (caught) {
+            const described = reportFault(caught, {
+                action,
+                fallback: authSentenceText("linkConfirmedNoSession"),
+                operation: "auth.session",
+            });
+            setError({
+                ...described,
+                message: authSentenceText("linkConfirmedNoSession"),
+            });
             setBusy(false);
             return;
         }

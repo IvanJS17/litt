@@ -562,6 +562,7 @@
       "insufficientAal": "Completa la verificación en dos pasos para continuar.",
       "invalidCredentials": "El correo o la contraseña no son correctos.",
       "invalidInput": "Parte de la información que diste no es válida.",
+      "linkConfirmedNoSession": "Tu enlace se confirmó, pero no pudimos iniciar tu sesión. Inicia sesión para continuar.",
       "linkSpent": "Este enlace de confirmación no es válido o expiró. Pide uno nuevo.",
       "mfaCodeExpired": "Ese código expiró. Escribe el código actual de seis dígitos de tu app de autenticación.",
       "mfaCodeIncorrect": "Ese código no es correcto. Escribe el código actual de seis dígitos de tu app de autenticación.",

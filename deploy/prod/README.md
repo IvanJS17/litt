@@ -475,10 +475,11 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   correo a cada dirección con su propio `token_hash`; el primer enlace solo
   registra su mitad (la página lo avisa) y el cambio se aplica con el segundo.
   El correo `invite` sigue con `{{ .ConfirmationURL }}` (flujo implícito, no
-  PKCE). **Tras desplegar `litt-web` hay que reiniciar `litt-auth`**
-  (`$C restart auth`): GoTrue v2.189.0 guarda en caché las plantillas hasta
-  10 minutos y, sin reinicio, seguiría enviando las anteriores; probar los
-  correos después del reinicio. El
+  PKCE). **Tras desplegar `litt-web`, `litt-auth` recarga las
+  plantillas solo**: GoTrue v2.189.0 las guarda en caché y las vuelve a leer
+  al pasar `TemplateMaxAge` (10 minutos); durante esa ventana puede seguir
+  enviando las anteriores. Reiniciar `litt-auth` (`$C restart auth`) lo hace
+  inmediato; probar los correos después de la recarga o del reinicio. El
   backend no tiene credenciales de correo: al invitar a un correo sin cuenta
   pide a GoTrue (`inviteUserByEmail`) que envíe la invitación; quien ya tiene
   cuenta ve su invitación dentro de la app.
