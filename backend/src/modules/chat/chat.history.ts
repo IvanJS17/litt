@@ -87,7 +87,21 @@ export async function readChatTurn(
         .eq("role", "assistant")
         .maybeSingle();
     if (error) throw error;
-    if (!data) return null;
+    if (!data) {
+        // A project chat's answer is saved when it ends: until then the turn
+        // is a live run with no row yet.
+        return live
+            ? {
+                  messageId: args.turnId,
+                  text: "",
+                  citations: [],
+                  events: [],
+                  errorMessage: null,
+                  createdAt: null,
+                  status: "generating",
+              }
+            : null;
+    }
     const message = data as StoredMessage;
     const events = eventsOf(message);
     const counts = new Map<string, number>();

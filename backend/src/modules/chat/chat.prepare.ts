@@ -92,7 +92,7 @@ export type PreparedChatStream = {
     // chat writes into the caller's own library, so it keeps them; a project
     // chat writes into the PROJECT, and that is a question about the caller's
     // project role, never about their standing in the thread. See the long
-    // note in modules/project-chat/projectChat.service.ts — this is the same
+    // note in modules/project-chat/projectChat.prepare.ts — this is the same
     // partition on the route that serves standalone and project chats alike.
     allowDocumentMutation: boolean;
     canReadProjectMemory: boolean;
@@ -199,7 +199,7 @@ export async function prepareChatStream(
     // chat writes into the caller's own library, so it keeps them; a project
     // chat writes into the PROJECT, and that is a question about the caller's
     // project role, never about their standing in the thread. See the long
-    // note in modules/project-chat/projectChat.service.ts — this is the same
+    // note in modules/project-chat/projectChat.prepare.ts — this is the same
     // partition on the route that serves standalone and project chats alike.
     let allowDocumentMutation = true;
     // The organization this chat belongs to: its keys are the ones the turn

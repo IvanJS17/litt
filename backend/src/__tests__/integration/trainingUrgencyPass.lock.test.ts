@@ -188,7 +188,7 @@ describe("D4: which rule each place reads", () => {
     // stage rule is applied inside beginTrainingTurn.
     const SURFACES = [
         ["modules/chat/chat.prepare.ts", "chat"],
-        ["modules/project-chat/projectChat.service.ts", "project_chat"],
+        ["modules/project-chat/projectChat.prepare.ts", "project_chat"],
         ["modules/tabular/tabular.chats.ts", "tabular"],
         ["modules/word-chat/wordChat.service.ts", "word"],
     ] as const;
