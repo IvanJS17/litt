@@ -2107,11 +2107,16 @@ export async function decideMcpConsent(
     );
 }
 
+/** The AI apps whose brand LiTT shows; the server decides from the client id's host. */
+export type McpGrantApp = "claude" | "chatgpt";
+
 /** One app connected to the person's account (GET /mcp-connect/grants). */
 export interface McpGrant {
     id: string;
     client_id: string;
     client_name: string;
+    /** Set only when the client id's host is Claude's or ChatGPT's; null for any other app. */
+    app: McpGrantApp | null;
     scopes: string[];
     /** `personal` and/or organization ids. */
     workspaces: string[];
