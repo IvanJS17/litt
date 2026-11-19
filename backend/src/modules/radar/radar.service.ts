@@ -7,3 +7,11 @@ export { actOnRadarItem } from "./radar.act";
 export { getMatterRadar } from "./radar.read";
 export { getRadarToday } from "./radar.today";
 export { getMatterRules, setMatterRule } from "./radar.rules.manage";
+export {
+  acceptRuleSuggestion,
+  decideRuleSuggestions,
+  discardRuleSuggestion,
+  getRuleSuggestions,
+  getSuggestionRoute,
+  suggestRules,
+} from "./radar.suggest";

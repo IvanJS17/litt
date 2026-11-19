@@ -126,3 +126,38 @@ export async function loadUserReportSentEvents(
     const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
     return sortRows(events.filter((row) => readable.has(row.matter_id as string)));
 }
+
+/**
+ * The rule suggestions the holder asked for, and the decisions (accepted,
+ * discarded) they recorded, in the matters they can still open. A suggestion
+ * carries a quote of a firm document, so, like the profile facts, it is matter
+ * work: it stays with the firm when the holder is no longer on the matter.
+ * Only an organization's export carries them.
+ */
+export async function loadUserRuleSuggestions(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: string | null,
+): Promise<{ suggestions: Row[]; events: Row[] }> {
+    if (!orgId) return { suggestions: [], events: [] };
+    const suggestions = await selectAllByKey<Row>("export obligation_rule_suggestions", () =>
+        (db as any)
+            .from("obligation_rule_suggestions")
+            .select("id, flow, matter_id, project_id, document_id, version_id, text_sha256, start_char, end_char, quote, page, rule_code, rule_version, ai_reason, created_by, created_at")
+            .eq("created_by", userId),
+    );
+    const events = await selectAllByKey<Row>("export obligation_rule_suggestion_events", () =>
+        (db as any)
+            .from("obligation_rule_suggestion_events")
+            .select("id, suggestion_id, matter_id, action, reason, created_at")
+            .eq("actor_user_id", userId),
+    );
+    const matterIds = [...new Set([...suggestions, ...events].map((row) => row.matter_id as string))];
+    if (matterIds.length === 0) return { suggestions: [], events: [] };
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    return {
+        suggestions: sortRows(suggestions.filter((row) => readable.has(row.matter_id as string))),
+        events: sortRows(events.filter((row) => readable.has(row.matter_id as string))),
+    };
+}

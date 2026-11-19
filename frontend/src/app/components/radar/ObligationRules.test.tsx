@@ -6,11 +6,12 @@ import esMX from "../../../../../packages/i18n/messages/es-MX.json";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { ObligationRules } from "./ObligationRules";
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), notifyError: vi.fn() }));
+const mocks = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), notifyError: vi.fn(), suggestions: vi.fn() }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
   getMatterObligationRules: mocks.get,
   setMatterObligationRule: mocks.set,
+  getRuleSuggestions: mocks.suggestions,
 }));
 vi.mock("@/app/lib/userFacingError", () => ({
   notifyError: mocks.notifyError,
@@ -77,6 +78,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.get.mockResolvedValue(rules());
   mocks.set.mockResolvedValue(rule({ active: true }));
+  // The suggestions panel has its own suite; here it reads an empty list.
+  mocks.suggestions.mockResolvedValue({ retainer: true, can_write: false, suggestions: [], versions: [], people: [] });
 });
 
 describe("ObligationRules", () => {

@@ -61,7 +61,7 @@ import {
   VERSION_NOT_IN_MATTER_CODE,
 } from "./client-profile.shared";
 
-type Route = { route: ProfileExtractionRoute; resolved: ResolvedChatRoute };
+export type ExtractionRoute = { route: ProfileExtractionRoute; resolved: ResolvedChatRoute };
 
 const NOT_FOUND = "Not found";
 
@@ -80,7 +80,7 @@ function routeFailure(error: Pick<ChatRouteFailure, "status" | "code" | "detail"
  * or key that is missing fails closed with the chat's own code
  * (`missing_api_key`, `model_required`, `chat_route_credential_required`, …).
  */
-async function resolveRoute(db: Db, args: { userId: string; orgId: string }): Promise<ServiceResult<Route>> {
+export async function resolveExtractionRoute(db: Db, args: { userId: string; orgId: string }): Promise<ServiceResult<ExtractionRoute>> {
   const selection = await resolveUserChatSelection(db, { userId: args.userId, orgId: args.orgId });
   if (!selection.ok) return routeFailure(selection);
   // What the chat's key selector preselects for a new conversation here (the
@@ -117,7 +117,7 @@ export async function getExtractionRoute(db: Db, actor: Actor): Promise<ServiceR
     const access = await authorizeMatterMember(db, actor);
     if (!access.ok) return access;
     if (!access.data.isRetainer || !access.data.canWrite) return ok(null);
-    const resolved = await resolveRoute(db, { userId: actor.userId, orgId: access.data.organizationId });
+    const resolved = await resolveExtractionRoute(db, { userId: actor.userId, orgId: access.data.organizationId });
     if (!resolved.ok) return ok(null);
     return ok(resolved.data.route);
   } catch (error) {
@@ -180,7 +180,7 @@ export async function extractProfileFacts(
       return failure("conflict", "The profile holds as many facts as it can.", FACT_LIMIT_CODE);
 
     // The route first, before anything is sent: no key, no call, no other route.
-    const routed = await resolveRoute(db, { userId: actor.userId, orgId: access.data.organizationId });
+    const routed = await resolveExtractionRoute(db, { userId: actor.userId, orgId: access.data.organizationId });
     if (!routed.ok) return routed;
     const { resolved } = routed.data;
     // Recorded before the text leaves; if it cannot be recorded, nothing is sent.

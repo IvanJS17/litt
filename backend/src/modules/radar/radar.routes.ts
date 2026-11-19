@@ -8,6 +8,11 @@
 //     GET  /rules                    the obligation rules and which are on (any member)
 //     POST /rules/:ruleKey/activate  turn a verified rule on, body { anchor_fact_id, anchor_mode? } (owner or editor)
 //     POST /rules/:ruleKey/deactivate turn it off (owner or editor)
+//     GET  /rules/suggestions        the AI's rule suggestions and their decisions (any member)
+//     GET  /rules/suggestions/route  where a version's text would go (null: no button)
+//     POST /rules/suggestions/versions/:versionId/suggest   the space's AI suggests catalog rules from one version
+//     POST /rules/suggestions/batch  accept or discard several (each one its own decision)
+//     POST /rules/suggestions/:suggestionId/{accept,discard}   the lawyer decides (owner or editor)
 //
 //   /orgs/:orgId/radar   (radarTodayRouter)
 //     GET /today                     open items of the matters where the caller is an active member
@@ -16,11 +21,26 @@
 // touches the database.
 
 import { Router, type Request, type Response } from "express";
+import rateLimit from "express-rate-limit";
+import { rateLimitedBody } from "../../lib/httpError";
+import { envInt } from "../../lib/runtimeConfig";
 import { sendServiceFailure, type ServiceResult } from "../../lib/serviceResult";
 import { createServerSupabase } from "../../lib/supabase";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
-import { actOnRadarItem, getMatterRadar, getMatterRules, getRadarToday, setMatterRule } from "./radar.service";
+import {
+  acceptRuleSuggestion,
+  actOnRadarItem,
+  decideRuleSuggestions,
+  discardRuleSuggestion,
+  getMatterRadar,
+  getMatterRules,
+  getRadarToday,
+  getRuleSuggestions,
+  getSuggestionRoute,
+  setMatterRule,
+  suggestRules,
+} from "./radar.service";
 
 function send<T>(res: Response, result: ServiceResult<T>, status = 200) {
   if (!result.ok) return void sendServiceFailure(res, result);
@@ -47,6 +67,41 @@ for (const action of ["ack", "dismiss", "done"] as const) {
       itemKey: req.params.itemKey,
       body: req.body,
     }, action));
+  }));
+}
+
+// One run is one model call on the person's key, with a whole document in it:
+// a lane per person (not per address), after authentication.
+const suggestLimiter = rateLimit({
+  windowMs: envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15) * 60 * 1000,
+  max: envInt("RATE_LIMIT_RULE_SUGGEST_MAX", 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (_req, res) => String(res.locals.userId),
+  message: rateLimitedBody("Too many suggestion requests. Please try again later."),
+});
+
+// Declared before `/rules/:ruleKey/...`: "suggestions" is never a rule key.
+matterRadarRouter.get("/rules/suggestions", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await getRuleSuggestions(createServerSupabase(), matterActor(req, res)));
+}));
+
+matterRadarRouter.get("/rules/suggestions/route", requireAuth, asyncRoute(async (req, res) => {
+  const result = await getSuggestionRoute(createServerSupabase(), matterActor(req, res));
+  send(res, result.ok ? { ok: true, data: { route: result.data } } : result);
+}));
+
+matterRadarRouter.post("/rules/suggestions/versions/:versionId/suggest", requireAuth, requireMfaIfEnrolled, suggestLimiter, asyncRoute(async (req, res) => {
+  send(res, await suggestRules(createServerSupabase(), { ...matterActor(req, res), versionId: req.params.versionId }));
+}));
+
+matterRadarRouter.post("/rules/suggestions/batch", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+  send(res, await decideRuleSuggestions(createServerSupabase(), { ...matterActor(req, res), body: req.body }));
+}));
+
+for (const [path, decide] of [["accept", acceptRuleSuggestion], ["discard", discardRuleSuggestion]] as const) {
+  matterRadarRouter.post(`/rules/suggestions/:suggestionId/${path}`, requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+    send(res, await decide(createServerSupabase(), { ...matterActor(req, res), suggestionId: req.params.suggestionId, body: req.body }));
   }));
 }
 

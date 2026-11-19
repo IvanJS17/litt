@@ -2687,6 +2687,92 @@ export type MatterObligationRules = {
   people: ProfilePerson[];
 };
 
+/**
+ * Why a suggestion no longer stands (computed when it is read): the cited text
+ * changed or is gone, or the catalog rule is no longer the verified version
+ * the suggestion pointed at.
+ */
+export type RuleSuggestionStaleReason =
+  | "text_changed"
+  | "version_missing"
+  | "text_unavailable"
+  | "rule_changed"
+  | "rule_unverified";
+
+/**
+ * An AI suggestion that a catalog rule may apply to the client
+ * (docs/obligation-rules.md, "Rule suggestions"). It carries no date: dates are
+ * computed by the engine once a lawyer turns the rule on from a confirmed fact.
+ * `reason` is the model's own words and is not verified; `quote` is a passage
+ * of the document that the code found in its text.
+ */
+export type RuleSuggestion = {
+  id: string;
+  matter_id: string;
+  /** `<code>@<version>`, as in `ObligationRule.key`. */
+  rule_key: string;
+  rule_code: string;
+  rule_version: number;
+  quote: string;
+  reason: string;
+  page: number | null;
+  source: {
+    document_id: string;
+    version_id: string;
+    version_number: number | null;
+    filename: string | null;
+    start_char: number;
+    end_char: number;
+    text_sha256: string;
+  };
+  /** The last decision; `pending` when nobody decided. */
+  status: "pending" | "accepted" | "discarded";
+  stale_reason: RuleSuggestionStaleReason | null;
+  /** `obsolete` when the suggestion no longer stands and was not discarded. */
+  effective_status: "pending" | "accepted" | "discarded" | "obsolete";
+  created_by: string | null;
+  created_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+};
+
+export type RuleSuggestions = {
+  retainer: boolean;
+  /** The caller may ask for suggestions and decide them (owner or editor). */
+  can_write: boolean;
+  suggestions: RuleSuggestion[];
+  /** Document versions a run can read; empty for readers. */
+  versions: ProfileSourceVersion[];
+  people: ProfilePerson[];
+};
+
+/** What one suggestion run did: how many it kept and why the rest were discarded. */
+export type RuleSuggestionRun = {
+  suggested: number;
+  discarded_unknown_rule: number;
+  discarded_already_active: number;
+  discarded_quote_not_found: number;
+  discarded_duplicate: number;
+  /** Beyond the cap of 20, outside the closed schema, or a repeated rule. */
+  discarded_invalid: number;
+  suggestion_ids: string[];
+};
+
+export type RuleSuggestionDecisionInput = {
+  /** Optional note kept with the decision (up to 500 characters). */
+  reason?: string;
+};
+
+export type RuleSuggestionBatchInput = {
+  action: "accept" | "discard";
+  suggestionIds: string[];
+  reason?: string;
+};
+
+export type RuleSuggestionBatchResult = {
+  results: { suggestion_id: string; outcome: "ok" | "conflict" | "not_found" | "forbidden" | "error"; code?: string }[];
+};
+
 export type ObligationRuleActivationInput = {
   /** The confirmed fact the rule counts from. */
   anchor_fact_id: string;

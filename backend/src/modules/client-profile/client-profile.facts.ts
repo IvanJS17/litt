@@ -80,7 +80,7 @@ export async function loadFacts(
   );
 }
 
-async function sourceVersions(db: Db, projectId: string): Promise<ServiceResult<ProfileSourceVersion[]>> {
+export async function sourceVersions(db: Db, projectId: string): Promise<ServiceResult<ProfileSourceVersion[]>> {
   const { data: documents, error } = await db
     .from("documents")
     .select("id")

@@ -131,3 +131,124 @@ confirmed date it counts from (and, where the rule allows, that the date is the
 grant date), change that date, or turn it off. A rule that is not verified is
 shown disabled with the reason. Items in the radar and in "Hoy" show the rule
 name; "Hoy" also carries the fixed planning-aid notice.
+
+## Rule suggestions
+
+**Status:** built (slice S8a); not deployed until a reviewed release says so.
+
+On the lawyer's click ("Sugerir reglas con IA", under **Reglas**), the AI of the
+space reads **one version** of a client document already in the matter (articles
+of incorporation, trademark titles, a REPSE certificate…) and says **which rules
+of this catalog may apply** to the client, each with a literal quote. It only
+chooses among rules that already exist and that a lawyer already verified: it
+never writes a rule, an operation or a date. The lawyer decides whether the rule
+applies to this client, with the quote in view.
+
+### What leaves LiTT, per click, and what does not
+
+It is a synchronous request from the server (the key never travels in a job).
+**Leaves**, to the provider of the route the project chat would use in this
+space, with that route's key:
+
+1. The text of one version that has ready text (never the file, never OCR or a
+   split).
+2. The fixed instructions and the closed output schema
+   `[{ rule_code, quote, reason, page }]`, at most 20 items
+   (`buildSuggestSystemPrompt`).
+3. The list of **verified** catalog rules, each with `codigo`, name and "aplica
+   cuando" as legal worded them in Spanish. No citations, no notes, no
+   operations. **The same list in every matter, whatever the client has turned
+   on**: a list filtered by the rules a client has on would reveal them. Which
+   rules are already on only decides what is discarded afterwards.
+4. The technical data of the call (model, token cap, the credential of the
+   route, the timeout), which go out from the server.
+
+**Does not leave:** the file name, the matter or client name, the account, the
+client profile (its facts), the instructions or memory of the person or the
+firm, any chat, other documents or other versions, the decisions on earlier
+suggestions. No tools. It never goes to TypeSafe, LandingAI, a web search or
+Jev (a test reads the module's imports), and nothing is truncated: a text above
+120,000 characters (UTF-16 code units, `MAX_EXTRACT_TEXT_CHARS`) is refused with
+422 `suggestion_text_too_large` before any route lookup, call or egress record.
+
+**Stored:** the quote as the document words it, with offsets and the SHA-256 of
+the whole text; the model's explanation (`reason`, plain text, at most 200
+characters, shown as "not verified"); and the decisions as events. The quotes
+may contain third parties' data (partners, attorneys-in-fact): they follow the
+rules of the client profile and live in the private retainer matter.
+
+### Route, key and audit
+
+Same as [assisted extraction](client-profile.md#assisted-extraction): the model
+the chat would pick for this person and the key its selector preselects, **only
+the person's own key or the firm's, never the deployment's**, governed like a
+chat (`resolveExtractionRoute`, `governChatRoute`). With no key or model the
+button is hidden (`GET .../rules/suggestions/route` answers `{ route: null }`) and
+the POST fails with the chat's own code (`missing_api_key`, `model_required`,
+`chat_route_credential_required`) before any call or egress record: no fallback
+to another provider, key or model. The egress is recorded in the audit log
+(`llm.egress`, surface `rule_suggestion_catalog`: provider, model, credential
+reference, host, matter and version ids; never content) **before** the call, and
+if it cannot be recorded nothing is sent (`recordChatEgressOrThrow`).
+
+### How each suggestion is checked, in this order
+
+1. `rule_code` is a rule of the catalog and verified, else
+   `discarded_unknown_rule`.
+2. The rule is not already on in the matter, else `discarded_already_active`.
+3. The quote is found in the version's text with `locateQuote` (case, spacing,
+   line-end hyphens), else `discarded_quote_not_found`; the quote saved is the
+   document's, not the model's.
+4. One suggestion per rule and rule version, **per version of the document**,
+   decided or not, and one per run, else `discarded_duplicate` (a unique index
+   also settles two runs that race).
+
+An item with any key besides `rule_code`, `quote`, `reason` and `page` (a date, a
+term, an operation) is out of the schema: discarded and counted
+(`discarded_invalid`), as is anything beyond the 20th. An answer that is not a
+JSON array is refused (422 `suggestion_output_invalid`) and nothing is saved.
+Failures of the call are 422 `suggestion_provider_failed` /
+`suggestion_provider_refused`. A quote proves the passage **exists** in the
+document, not that it **justifies** the rule: that judgement is the lawyer's.
+
+### Decisions
+
+A suggestion has no status column: the latest event (`accepted`, `discarded`) is
+its state, none means pending, and the database allows only
+nothing → accepted or discarded, and accepted → discarded. **Accepting turns
+nothing on**: it records the event and opens the existing turn-on form of that
+rule, where the lawyer picks the confirmed date and confirms
+(`POST .../rules/:ruleKey/activate`, unchanged). With no confirmed date, that form
+says so and the suggestion stays accepted with the rule off. A suggestion is
+**out of date** (computed on read) when the version's text changed or the version
+is gone, or when the rule changed version or is no longer verified; an out-of-date
+suggestion cannot be accepted (409 `suggestion_obsolete`), only discarded.
+
+### Storage and API
+
+Migration `20261119_20_litt_rule_suggestions.sql`, two insert-only tables (no
+foreign key from the actor, document or version columns, RLS read by the matter's
+active roster, writes only the backend's `service_role`):
+`obligation_rule_suggestions` and `obligation_rule_suggestion_events`. The
+account export carries what the holder suggested and decided, in matters they can
+still open.
+
+Under `/projects/:projectId/matters/:matterId/radar/rules/suggestions` (private
+retainer matters only; an admin without a membership gets 404):
+
+| Route | Who |
+|---|---|
+| `GET /` | any active member: the suggestions with their state, and the versions a run can read (writers) |
+| `GET /route` | owner or editor: where the text would go, or `{ route: null }` |
+| `POST /versions/:versionId/suggest` | owner or editor; MFA if enrolled; 10 runs per person per 15 minutes (`RATE_LIMIT_RULE_SUGGEST_MAX`, `RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES`) |
+| `POST /:suggestionId/accept`, `/discard` | owner or editor; body `{ reason? }` |
+| `POST /batch` | owner or editor; `{ action: "accept" \| "discard", suggestionIds (≤ 50), reason? }`: each id goes through the same decision as the single route, one event each, a partial result is normal |
+
+UI: in **Reglas**, owners and editors whose space has a route see the version
+picker, the button and the line "The text of this version and the list of catalog
+rules will be sent to {provider} using the key the chat uses in this space.
+Suggestions are not exhaustive, and no rule is turned on until a lawyer reviews
+it." Each pending suggestion shows the rule's name, "AI suggestion, not
+verified", the quote with its file and version, the AI's explanation marked "not
+verified" and its state as plain text, with Accept and Discard (optional
+reason); two or more pending ones can be reviewed in a batch.
