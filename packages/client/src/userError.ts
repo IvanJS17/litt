@@ -165,6 +165,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     upload_session_control_rate_limit: "rate_limited",
     upload_session_poll_rate_limit: "rate_limited",
     upload_session_rate_limit_exceeded: "rate_limited",
+    // An MCP client already has its share of heavy jobs running (design §9.4); nothing was started.
+    heavy_jobs_busy: "rate_limited",
     // Size limits
     request_too_large: "payload_too_large",
     upload_file_too_large: "payload_too_large",

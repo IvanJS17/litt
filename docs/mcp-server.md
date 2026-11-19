@@ -27,6 +27,7 @@ route answers: the requests fall through to the normal 404.
 | `LITT_MCP_REFRESH_TTL_DAYS` | 30 | Refresh-token lifetime (each refresh issues a new one). |
 | `LITT_MCP_GRANT_MAX_DAYS` | 90 | Absolute life of a connection; after it the person connects again. |
 | `RATE_LIMIT_MCP_GRANT_READ_MAX` / `RATE_LIMIT_MCP_GRANT_READ_WINDOW_SECONDS` | 120 / 60 | Read budget of one connection. |
+| `LITT_MCP_HEAVY_PER_USER` / `LITT_MCP_HEAVY_GLOBAL` | 2 / 4 | Heavy jobs started from MCP that may run at once per person and in the whole process (design §9.4; see «Heavy-job cap»). |
 | `RATE_LIMIT_MCP_GRANT_WRITE_MAX` / `RATE_LIMIT_MCP_GRANT_WRITE_WINDOW_MINUTES` | 30 / 15 | Budget of one connection for calls that write, run an engine, spend or chat. |
 
 The proxy that makes the backend reachable at the MCP host, its DNS name and
@@ -133,6 +134,46 @@ requests) and `write` (30 per 15 minutes: writes, engine runs, spending, chat).
 In-memory, per process, like the API's other limiters. `/mcp` also passes the
 generous IP lane in `app.ts`.
 
+**Heavy-job cap** (`mcp.heavy.ts`; design §9.4). The host has 2 CPU and 3.7 GB, so
+the risk is not the call rate but several heavy jobs at once. A person may have
+**2** heavy jobs started from MCP running, and the process **4**
+(`LITT_MCP_HEAVY_PER_USER` / `LITT_MCP_HEAVY_GLOBAL`). The call that would pass
+either is refused with `heavy_jobs_busy` (`retryable: true`,
+`retry_after_seconds: 30`, a `suggested_action` naming the tools that follow the
+running jobs, «Nothing was started»). The check runs in `runTool`
+(`mcp.tools.ts`) after the scope, workspace, mode and cost-confirmation checks
+and **before** the strict audit row and the handler, so a refused call writes no
+`audit_events` row and starts nothing; `mcp_tool_calls` records it as
+`rate_limited` / `heavy_jobs_busy`. The code is in `CODE_KINDS` (`rate_limited`
+kind, so clients offer Retry) with en-US and es-MX sentences.
+
+Every tool that writes declares whether it is heavy (a catalog test fails for a
+new write tool that is neither heavy nor listed as a light write):
+
+| Class | Tools |
+| --- | --- |
+| `background` (the work outlives the call; the slot stays until it ends) | `run_playbook_review`, `run_tabular_review`, `start_chat`, `send_chat_message`, `start_project_chat`, `send_project_chat_message`, `send_tabular_chat_message`, `run_workflow`, `run_quick_action`, `read_scanned_document` |
+| `sync` (the work is the call; the slot is released when the handler settles, whether it succeeds, fails or aborts) | `compare_documents`, `convert_document`, `propose_case_file_split`, `create_split_documents` |
+| light (no slot) | every read, and `create_matter`, `create_note_document`, `request_document_upload`, `complete_document_upload` (extraction has its own worker, concurrency 3), `submit_playbook_review`, `create_tabular_review` (only sets the grid up), `stop_*` |
+
+A background tool tells the wrapper its job is running with
+`call.heavy.hold(probe)`; the probe reads state that already exists: the chat,
+project-chat, review-chat or tabular run's `finished` flag, `playbook_runs.status`
+(`running`), `document_version_ocr.status` (`processing`). A probe that fails
+counts as running until 4 hours (the longest run), so a database blip never
+frees capacity by mistake. Acquisition is atomic (count and insert with no
+`await` between), so concurrent calls cannot both take the last slot.
+
+**Limits of the mechanism.** (1) It assumes **one backend replica**, as the
+design does: the table of slots is in memory like the grant budgets, so two
+replicas would each cap on their own. (2) It counts only what MCP started: web
+UI work is **not** capped here and does not take or wait for slots (out of scope;
+the web has its own guards: one turn per chat, `review_running`, the queue's
+concurrency, the worker pools). (3) After a restart the table is empty: a job
+the queue resumes is not counted until a new call. (4) The `run_*` tools still
+wait up to 45 s for their job, so one call can hold a request for that long.
+Memory is not measured by this mechanism; that stays an operations task.
+
 ### Audit
 
 `mcp_tool_calls` is insert-only too: one row per call with the tool, connection,
@@ -211,7 +252,7 @@ Names are at most 64 characters; reads and writes are separate tools.
 
 **Workflows, quick actions, compare and convert** (`mcp.tools.workflows.ts`, `mcp.tools.documentOps.ts`; design §4.6, layer 2a). Same permission rules as the web, through the same facades: `workflows.service`, `quickActions.service`, `documents.service` (`compareDocuments`, `previewDocumentConversion`, `convertDocument`), `chat.turn` (via the chat tools' `runTurn`) and the tabular tools' `createReviewFor` / `runReviewFor`. `modules/mcp` queries no table. Only the connection's fence is added: a workflow, document or matter outside the workspaces the connection covers is `not_found`. Scopes: running is `litt.run`, like the playbook and tabular runs; because a run also does what a chat or a review creation does, an assistant workflow also needs `litt.chat` and a tabular one `litt.write`, so `run_workflow` never reaches what `start_chat` or `create_tabular_review` could not (`insufficient_scope` as a tool error, nothing created). Compare and convert write a new document: `litt.write`, write lane, strict audit before running. None of the eight has a mode B, so apprentices may use them: the runs go through "Tu turno primero" (`attempt`, `confidence`) and the sealed-draft rules like any chat. None sits on a route with `requireMfaIfEnrolled` (checked in the catalog test), so no tool of this slice is withheld for MFA. OCR and split are layer 2b, below.
 
-**Scanned pages and case-file split** (`mcp.tools.scans.ts`; design §4.6, layer 2b). Neither has a mode (no model is involved), so apprentices may use all five: the web has no rule of its own for them beyond the training hold, and the tools mirror it (a pasante's unapproved version is `training_approval_required` for the split state, read, propose and create tools alike, to the owner too (`get_scan_reading_state` is not held, as `GET …/ocr` is not on the web); a released one is open to them with edit rights). Same facades as the web (`documents.service`: `getScanReadingState`, `requestScanReading`, `getSplitState`, `proposeSplit`, `createSplitDocuments`) and the same key (`resolveScanKey`: the firm's, then the person's own where the firm allows it; there is no platform key). **Cost confirmation (design §6.4 rule 3).** `read_scanned_document` and `propose_case_file_split` send pages or text to LandingAI and spend the person's credits, so they refuse unless the call says `acknowledge_cost: true`: `cost_not_acknowledged` is answered from `resolveWorkspace`, before the strict audit row, the key lookup, the queue or LandingAI are touched, so nothing is recorded as an action and nothing is sent. The client's AI is told (tool description and error) to say `true` only after showing the person the `estimated_cost_usd` of the matching `get_*_state` and having their go-ahead. It may also pass that `estimated_cost_usd`: if the current estimate is higher by more than half a cent, the call is refused as `cost_changed` and nothing is sent. It is optional on purpose: a client that omits it still has to say `acknowledge_cost: true`, and the check only protects those that pass it; making it mandatory is left to the owner as a product decision. Scope: all three that act are `litt.write` (write lane, strict audit before running), like `compare_documents` and `convert_document`: reading a scan merges text into the document, the split creates documents, and the proposal is the step of that flow that spends; `litt.run` is left for LiTT's own engines (playbook, tabular and chat runs); a `litt.write`-only connection can therefore start spending on the firm's LandingAI key, and `acknowledge_cost` is the control for that, not the scope. The two state tools are `litt.read` (counts, a status and the names of the person's own document types; no document text leaves). Long work: the reading is a durable job (`document_version_ocr.status`), polled with `get_scan_reading_state`; the split is one synchronous call. The design's cap of 2 heavy jobs per user / 4 global is **not** implemented in layer 1 or here: the existing guards are the write lane's budget, the job's `dedupeKey` (one live reading per version) and the isolated parser's own busy answer (`ocr_unavailable`, "try again"). None of the five sits on a route with `requireMfaIfEnrolled` (checked in the catalog test).
+**Scanned pages and case-file split** (`mcp.tools.scans.ts`; design §4.6, layer 2b). Neither has a mode (no model is involved), so apprentices may use all five: the web has no rule of its own for them beyond the training hold, and the tools mirror it (a pasante's unapproved version is `training_approval_required` for the split state, read, propose and create tools alike, to the owner too (`get_scan_reading_state` is not held, as `GET …/ocr` is not on the web); a released one is open to them with edit rights). Same facades as the web (`documents.service`: `getScanReadingState`, `requestScanReading`, `getSplitState`, `proposeSplit`, `createSplitDocuments`) and the same key (`resolveScanKey`: the firm's, then the person's own where the firm allows it; there is no platform key). **Cost confirmation (design §6.4 rule 3).** `read_scanned_document` and `propose_case_file_split` send pages or text to LandingAI and spend the person's credits, so they refuse unless the call says `acknowledge_cost: true`: `cost_not_acknowledged` is answered from `resolveWorkspace`, before the strict audit row, the key lookup, the queue or LandingAI are touched, so nothing is recorded as an action and nothing is sent. The client's AI is told (tool description and error) to say `true` only after showing the person the `estimated_cost_usd` of the matching `get_*_state` and having their go-ahead. It may also pass that `estimated_cost_usd`: if the current estimate is higher by more than half a cent, the call is refused as `cost_changed` and nothing is sent. It is optional on purpose: a client that omits it still has to say `acknowledge_cost: true`, and the check only protects those that pass it; making it mandatory is left to the owner as a product decision. Scope: all three that act are `litt.write` (write lane, strict audit before running), like `compare_documents` and `convert_document`: reading a scan merges text into the document, the split creates documents, and the proposal is the step of that flow that spends; `litt.run` is left for LiTT's own engines (playbook, tabular and chat runs); a `litt.write`-only connection can therefore start spending on the firm's LandingAI key, and `acknowledge_cost` is the control for that, not the scope. The two state tools are `litt.read` (counts, a status and the names of the person's own document types; no document text leaves). Long work: the reading is a durable job (`document_version_ocr.status`), polled with `get_scan_reading_state`; the split is one synchronous call. `read_scanned_document` (background) and `propose_case_file_split` / `create_split_documents` (sync) take a heavy-job slot (see «Heavy-job cap»); besides it, the job's `dedupeKey` (one live reading per version) and the isolated parser's own busy answer (`ocr_unavailable`, "try again") bound the work. None of the five sits on a route with `requireMfaIfEnrolled` (checked in the catalog test).
 
 **Donna tools** (`mcp.tools.donna.ts`). `matter_id` is the id `find_matters` returns; the matter row's id the facades also need comes from the project detail the web page reads. Same rules as the web routes: project access (private matters closed to non-members), an **active matter membership** (an organization owner or admin without one gets `not_found`), a matter outside the connection's workspaces is `not_found`, a viewer reads requests, profile and radar, and only an owner or editor reads the report (`forbidden`). A public or non-retainer matter answers `matter_not_retainer` (the web answers an empty `retainer: false`, or 404 for the report). Apprentices (pasantes) may call them: they are read tools and need no mode B; quotes of their held versions are withheld. Results carry LiTT `url`s, cap their lists and mark titles and labels as data.
 
@@ -327,6 +368,11 @@ removes its connections and tokens and keeps the history.
 
 ## Tests
 
+* `backend/src/modules/mcp/__tests__/mcp.heavy.test.ts` — the heavy-job cap: per
+  person and global limits, atomic acquisition, release after success, failure and
+  abort, background slots held by their probe, read tools untouched, the error
+  shape and the `CODE_KINDS` / i18n / diagnostics entries; the catalog test
+  classifies every tool.
 * `backend/src/__tests__/integration/mcp.oauth.routes.test.ts` — the whole
   flow over HTTP against an in-memory database.
 * `backend/src/__tests__/integration/mcp.tools.routes.test.ts` — the real tools

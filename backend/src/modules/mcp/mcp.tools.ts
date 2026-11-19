@@ -37,6 +37,7 @@ import {
     type McpCallOutcome,
 } from "./mcp.calls";
 import { takeGrantBudget, type McpLane } from "./mcp.limits";
+import { acquireHeavySlot, type HeavyClass, type HeavyHold, type HeavyLease } from "./mcp.heavy";
 import { loadConfirmedEmail, modeOf, type McpMode, type McpPrincipal } from "./mcp.principal";
 
 /**
@@ -52,6 +53,8 @@ export class McpToolError extends Error {
         readonly code: string,
         message: string,
         readonly suggestedAction?: string,
+        /** A refusal that is only about timing: the same call may work later. */
+        readonly retry?: { retryAfterSeconds: number },
     ) {
         super(message);
         this.name = "McpToolError";
@@ -75,6 +78,8 @@ export type McpCall = {
     workspace: string | null;
     /** The mode this call runs in: the workspace's own, or the grant's strictest. */
     mode: McpMode;
+    /** For a heavy tool: say here that its work goes on after the call returns (mcp.heavy.ts). */
+    heavy?: HeavyHold;
 };
 
 export type McpToolSpec<S extends z.ZodObject = z.ZodObject> = {
@@ -98,6 +103,14 @@ export type McpToolSpec<S extends z.ZodObject = z.ZodObject> = {
      * not run without it. `call` records mcp_tool_calls only.
      */
     audit: "call" | "strict";
+    /**
+     * Declared by every tool that starts heavy work (an LLM turn, a tabular or
+     * playbook run, a comparison, a conversion, a reading, a split): `sync`
+     * when the work is the call, `background` when it goes on after it. Such a
+     * call is refused with `heavy_jobs_busy` when the person has 2 heavy jobs
+     * running or 4 are (design §9.4, mcp.heavy.ts). Light tools leave it out.
+     */
+    heavy?: HeavyClass;
     /** The tool takes an optional `workspace` argument (default: the grant's default). */
     usesWorkspace?: boolean;
     /**
@@ -127,7 +140,12 @@ export const mcpText = (value: unknown): McpToolOutput => ({
     content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value) }],
 });
 
-function failureOutput(code: string, detail: string, suggestedAction?: string): McpToolOutput {
+function failureOutput(
+    code: string,
+    detail: string,
+    suggestedAction?: string,
+    retry?: { retryAfterSeconds: number },
+): McpToolOutput {
     return {
         isError: true,
         content: [
@@ -137,6 +155,7 @@ function failureOutput(code: string, detail: string, suggestedAction?: string): 
                     code,
                     detail,
                     ...(suggestedAction ? { suggested_action: suggestedAction } : {}),
+                    ...(retry ? { retryable: true, retry_after_seconds: retry.retryAfterSeconds } : {}),
                 }),
             },
         ],
@@ -155,12 +174,14 @@ function runTool(tool: AnyMcpTool, principal: McpPrincipal, args: unknown): Prom
 async function runToolInPrincipal(tool: AnyMcpTool, principal: McpPrincipal, args: unknown): Promise<McpToolOutput> {
     const db = createServerSupabase();
     let email: Promise<string> | null = null;
+    let lease: HeavyLease | null = null;
     const callOf = (): McpCall => ({
         db,
         userEmail: () => (email ??= loadConfirmedEmail(db, principal.userId)),
         principal,
         workspace,
         mode,
+        ...(lease ? { heavy: { hold: lease.hold } } : {}),
     });
     const started = performance.now();
     let workspace: string | null = null;
@@ -213,6 +234,17 @@ async function runToolInPrincipal(tool: AnyMcpTool, principal: McpPrincipal, arg
                 "Use the tool that lets LiTT run it.",
             );
         }
+        // Before the audit row and before anything starts: a refusal leaves nothing behind.
+        if (tool.heavy) {
+            const taken = await acquireHeavySlot(principal.userId, tool.name);
+            if ("refusal" in taken) {
+                await finish("rate_limited", taken.refusal.code);
+                return failureOutput(taken.refusal.code, taken.refusal.detail, taken.refusal.suggestedAction, {
+                    retryAfterSeconds: taken.refusal.retryAfterSeconds,
+                });
+            }
+            lease = taken.lease;
+        }
         if (tool.audit === "strict") {
             try {
                 await recordMcpAuditEvent(db, {
@@ -249,11 +281,15 @@ async function runToolInPrincipal(tool: AnyMcpTool, principal: McpPrincipal, arg
         }
         if (error instanceof McpToolError) {
             await finish("error", error.code);
-            return failureOutput(error.code, error.message, error.suggestedAction);
+            return failureOutput(error.code, error.message, error.suggestedAction, error.retry);
         }
         reportError(error, { tags: { component: "mcp", operation: "mcp.tool" }, extra: { tool: tool.name } });
         await finish("error", "internal_error");
         return failureOutput("internal_error", "LiTT could not complete this request.");
+    } finally {
+        // Success, error or abort: a sync job's slot ends with the call; a
+        // background one stays until its probe says it is over.
+        lease?.release();
     }
 }
 

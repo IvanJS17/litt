@@ -1371,6 +1371,7 @@
       "upload_session_control_rate_limit": "Demasiadas solicitudes de carga. Inténtalo de nuevo más tarde.",
       "upload_session_poll_rate_limit": "Se consultó el estado de la carga demasiadas veces. Inténtalo de nuevo en un momento.",
       "upload_session_rate_limit_exceeded": "Demasiadas sesiones de carga. Inténtalo de nuevo más tarde.",
+      "heavy_jobs_busy": "LiTT ya está ejecutando todos los trabajos pesados que admite para tus apps conectadas. No se inició nada. Inténtalo de nuevo en unos 30 segundos.",
       "upload_target_busy": "Otra carga ya está actualizando este elemento.",
       "validation_failed": "Parte de la información que diste no es válida.",
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible.",

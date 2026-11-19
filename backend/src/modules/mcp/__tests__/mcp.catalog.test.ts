@@ -77,6 +77,47 @@ describe("MCP catalog", () => {
             expect(Object.keys(MCP_TOOLS.find((t) => t.name === name)!.inputSchema.shape), name).toContain("acknowledge_cost");
     });
 
+    it("gives every tool a heavy-work class: a new tool cannot be added without one (design §9.4)", () => {
+        // `sync`: the work is the call. `background`: it goes on after the call (mcp.heavy.ts).
+        const heavy: Record<string, "sync" | "background"> = {
+            run_playbook_review: "background",
+            run_tabular_review: "background",
+            start_chat: "background",
+            send_chat_message: "background",
+            start_project_chat: "background",
+            send_project_chat_message: "background",
+            send_tabular_chat_message: "background",
+            run_workflow: "background",
+            run_quick_action: "background",
+            read_scanned_document: "background",
+            compare_documents: "sync",
+            convert_document: "sync",
+            propose_case_file_split: "sync",
+            create_split_documents: "sync",
+        };
+        // Every other tool that writes is light on purpose: it stores rows or a file, sets a grid up, or stops work.
+        const lightWrites = new Set([
+            "create_matter",
+            "create_note_document",
+            "request_document_upload",
+            "complete_document_upload", // extraction runs on the extraction worker (concurrency 3)
+            "submit_playbook_review", // stores the findings the client's own AI wrote
+            "create_tabular_review", // only sets the grid up; run_tabular_review is the heavy step
+            "stop_chat_turn",
+            "stop_tabular_chat_turn",
+            "stop_tabular_run",
+        ]);
+        const actual: Record<string, "sync" | "background"> = {};
+        for (const tool of MCP_TOOLS) {
+            if (tool.heavy) actual[tool.name] = tool.heavy;
+            else if (!tool.readOnly) expect(lightWrites.has(tool.name), `${tool.name} writes: classify it heavy or add it as a light write`).toBe(true);
+            // A read never takes a slot.
+            if (tool.readOnly) expect(tool.heavy, tool.name).toBeUndefined();
+        }
+        expect(actual).toEqual(heavy);
+        for (const name of lightWrites) expect(MCP_TOOLS.some((t) => t.name === name), name).toBe(true);
+    });
+
     it("offers 57 tools: 50 up to layer 2b and the seven of layer 2c", () => {
         expect(MCP_TOOLS).toHaveLength(57);
     });

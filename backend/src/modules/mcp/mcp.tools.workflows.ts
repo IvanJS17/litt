@@ -447,6 +447,7 @@ export const runWorkflow = defineMcpTool({
     }),
     scope: "litt.run",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     // It spends the person's model budget and writes a conversation or a review.
@@ -543,6 +544,7 @@ export const runQuickAction = defineMcpTool({
     }),
     scope: "litt.run",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     audit: "strict",

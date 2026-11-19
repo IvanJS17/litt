@@ -7,6 +7,7 @@
 // writes, runs an engine, spends or chats). The store is in memory, like the
 // rest of the API's limiters: one process, reset on restart.
 
+import { resetHeavySlots } from "./mcp.heavy";
 import { mcpConfig, type McpRateLimits } from "./mcp.config";
 
 export type McpLane = "read" | "write";
@@ -54,7 +55,8 @@ export function takeGrantBudget(
     return { allowed: true };
 }
 
-/** Tests only. */
+/** Tests only. Also empties the heavy-job slots (mcp.heavy.ts): the other in-memory state a test must not inherit. */
 export function resetGrantBudgets(): void {
     buckets.clear();
+    resetHeavySlots();
 }

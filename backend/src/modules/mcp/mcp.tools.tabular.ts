@@ -451,6 +451,8 @@ export async function runReviewFor(call: McpCall, reviewId: string) {
     });
     if (!started.ok) refuse(started);
     const generation = started.data;
+    // The extraction is the server's and outlives this call: the slot stays until the run ends.
+    call.heavy?.hold(() => !generation.run.finished);
     if (generation.aborted) {
         await generation.release();
         throw new McpToolError("generation_stopped", "The run was stopped before it began.");
@@ -482,6 +484,7 @@ export const runTabularReview = defineMcpTool({
     inputSchema: z.object({ review_id: idSchema("review_id") }),
     scope: "litt.run",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     audit: "strict",

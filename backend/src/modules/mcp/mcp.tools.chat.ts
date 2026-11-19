@@ -261,6 +261,8 @@ export async function runTurn(
     });
     if (!started.ok) startRefusal(started);
     const turn = started.started;
+    // The answer is written after this call returns: the slot stays until the run ends.
+    call.heavy?.hold(() => !turn.run.finished);
 
     // Nobody holds a socket: the turn runs on its own run, writes to this
     // sink and saves the answer to the conversation. It ends the run itself.
@@ -318,6 +320,7 @@ export const startChat = defineMcpTool({
     }),
     scope: "litt.chat",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     // It spends the person's model budget and writes a conversation.
@@ -352,6 +355,7 @@ export const sendChatMessage = defineMcpTool({
     }),
     scope: "litt.chat",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     audit: "strict",
