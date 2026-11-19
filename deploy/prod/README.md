@@ -124,10 +124,13 @@ comprueba de verdad la afirmación `notInProductionImage` de `scripts/audit-allo
 el registro del despliegue aparece la línea «imagen del frontend sin rutas solo de desarrollo»
 cuando la comprobación pasa.
 
-**Rollback:** la imagen anterior sigue cargada en el VPS. Para volver a ella se corre el
-mismo procedimiento con el SHA anterior: las imágenes se vuelven a mandar por stdin, ya sea
-reconstruyéndolas en la máquina de build desde ese commit o con `docker save` de las que
-están en el VPS, y el árbol sale de `git archive` de ese commit.
+**Rollback:** normalmente la imagen anterior sigue cargada en el VPS, pero no siempre: cuando
+falta espacio libre, el paso 2 de `litt-deploy.sh` retira las imágenes `litt-*` que no están
+vivas antes de cargar las nuevas (§1, paso 2). Si el despliegue la retiró por espacio, el
+rollback vuelve a mandar las imágenes desde la máquina de build por stdin. En ambos casos se
+corre el mismo procedimiento con el SHA anterior: las imágenes se mandan por stdin,
+reconstruyéndolas en la máquina de build desde ese commit (o con `docker save` si siguen en el
+VPS), y el árbol sale de `git archive` de ese commit.
 
 La etiqueta de las imágenes es el SHA completo y queda en `.env` como
 `LITT_SOURCE_COMMIT`; `compose.yaml` no arranca sin ella. El contexto de build

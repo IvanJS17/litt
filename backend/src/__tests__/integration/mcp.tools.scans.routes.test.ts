@@ -115,6 +115,7 @@ vi.mock("../../lib/extraction/isolated", async (importOriginal) => {
 
 import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
+import { heavyInFlight } from "../../modules/mcp/mcp.heavy";
 import { registerLegalVersion } from "../../lib/managedAccounts";
 import { buildWorld, DOC_PRIVATE, DOC_PUBLIC, ORG, ORG2, PEOPLE, PROJECT_PUBLIC, type PersonName } from "../helpers/mcpToolsWorld";
 import { DEFAULT_SPLIT_CLASSES } from "../../lib/ocr/splitClasses";
@@ -501,6 +502,15 @@ describe("read_scanned_document: cost confirmation", () => {
         const again = await callTool(token, "read_scanned_document", { document_id: DOC_SCAN, acknowledge_cost: true });
         expect(again.ok).toBe(true);
         expect(h.jobs).toHaveLength(1);
+    });
+
+    it("keeps the heavy slot while the reading runs, and when the probe's own lookup FAILS (a blip never frees capacity)", async () => {
+        as("owner");
+        const token = await connect();
+        await callTool(token, "read_scanned_document", { document_id: DOC_SCAN, acknowledge_cost: true });
+        expect((await heavyInFlight()).total).toBe(1);
+        h.state!.failNext("document_versions", "select", { message: "pg: connection reset", code: "XX000" });
+        expect((await heavyInFlight()).total).toBe(1);
     });
 
     it("refuses with cost_changed when the estimate the person saw is lower than the current one, and sends nothing", async () => {

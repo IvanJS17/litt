@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { MCP_TOOLS } from "../mcp.catalog";
 
 describe("MCP catalog", () => {
@@ -179,5 +181,29 @@ describe("MCP catalog", () => {
         expect(read.length).toBeGreaterThan(50);
         expect(read).not.toContain("requireMfaIfEnrolled");
         expect(orgs.slice(orgs.indexOf('orgsRouter.put(\n    "/:orgId/profile"'), orgs.indexOf('orgsRouter.put(\n    "/:orgId/profile"') + 200)).toContain("requireMfaIfEnrolled");
+    });
+
+    it("makes every background tool register its hold: a tool that forgets would free its slot when the call ends (design §9.4)", () => {
+        // Structural: where each background tool's work registers `call.heavy?.hold(...)`. Tools that
+        // delegate (run_workflow, run_quick_action) name the files that hold on their behalf.
+        const holdsIn: Record<string, string[]> = {
+            start_chat: ["mcp.tools.chat.ts"],
+            send_chat_message: ["mcp.tools.chat.ts"],
+            start_project_chat: ["mcp.tools.projectChats.ts"],
+            send_project_chat_message: ["mcp.tools.projectChats.ts"],
+            send_tabular_chat_message: ["mcp.tools.tabularChats.ts"],
+            run_tabular_review: ["mcp.tools.tabular.ts"],
+            run_playbook_review: ["mcp.tools.playbooks.ts"],
+            read_scanned_document: ["mcp.tools.scans.ts"],
+            run_workflow: ["mcp.tools.chat.ts", "mcp.tools.tabular.ts"],
+            run_quick_action: ["mcp.tools.chat.ts", "mcp.tools.tabular.ts"],
+        };
+        const background = MCP_TOOLS.filter((t) => t.heavy === "background").map((t) => t.name);
+        // A new background tool must be listed here (and so must hold), not just classified.
+        expect([...background].sort()).toEqual(Object.keys(holdsIn).sort());
+        const dir = join(__dirname, "..");
+        for (const [tool, files] of Object.entries(holdsIn))
+            for (const file of files)
+                expect(readFileSync(join(dir, file), "utf8"), `${tool}: ${file} must call call.heavy?.hold(...)`).toMatch(/\bheavy\??\.hold\(/);
     });
 });
