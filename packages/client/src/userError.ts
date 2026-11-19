@@ -271,6 +271,19 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     extraction_output_invalid: "unavailable",
     extraction_provider_failed: "unavailable",
     extraction_provider_refused: "validation",
+    // Rule suggestions: the text is longer than one call takes (nothing was
+    // sent); the model or its provider failed (nothing was saved, trying again
+    // may help); the provider refused the key or the request (the fix is in
+    // Settings); a suggestion is decided once and an out-of-date one cannot be
+    // accepted.
+    suggestion_text_too_large: "payload_too_large",
+    suggestion_output_invalid: "unavailable",
+    suggestion_provider_failed: "unavailable",
+    suggestion_provider_refused: "validation",
+    suggestion_already_decided: "conflict",
+    suggestion_obsolete: "conflict",
+    invalid_rule_suggestion: "validation",
+    rule_suggestion_limit: "conflict",
     // Deadline radar: dismissing needs a reason; an item already handled
     // cannot be handled again.
     radar_reason_required: "validation",

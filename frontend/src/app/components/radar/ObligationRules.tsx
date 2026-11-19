@@ -9,6 +9,7 @@ import { LIQUID_SUBTLE_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-su
 import { getMatterObligationRules, setMatterObligationRule } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useObligationWords } from "./obligationText";
+import { RuleSuggestions } from "./RuleSuggestions";
 import { useRadarWords } from "./radarText";
 
 /** The citations, notes and the way each date is counted: the same for the list and for the items. */
@@ -76,6 +77,7 @@ function RuleCard({
   names,
   canWrite,
   busy,
+  openRequest,
   onTurn,
 }: {
   rule: ObligationRule;
@@ -83,6 +85,8 @@ function RuleCard({
   names: ReadonlyMap<string, string | null>;
   canWrite: boolean;
   busy: boolean;
+  /** Counts up each time an accepted suggestion asks for this rule's turn-on form; null: not asked. */
+  openRequest: number | null;
   onTurn: (on: boolean, input?: ObligationRuleActivationInput) => void;
 }) {
   const t = useTranslations();
@@ -93,6 +97,10 @@ function RuleCard({
   const [choosing, setChoosing] = useState(false);
   const [factId, setFactId] = useState("");
   const [firstCycle, setFirstCycle] = useState(false);
+  const [fromSuggestion, setFromSuggestion] = useState(false);
+  const articleRef = useRef<HTMLElement>(null);
+  const anchorRef = useRef<HTMLSelectElement>(null);
+  const [handledRequest, setHandledRequest] = useState<number | null>(null);
   const verified = rule.verification.status === "verified";
   const status = rule.active ? "active" : verified ? "off" : "unverified";
   // An unverified rule is shown but cannot be turned on; a rule that is on can always be turned off.
@@ -103,15 +111,30 @@ function RuleCard({
   function open() {
     setFactId(rule.anchor?.fact_id ?? "");
     setFirstCycle(rule.anchor?.mode === "first_cycle");
+    setFromSuggestion(false);
     setChoosing(true);
   }
+  // An accepted suggestion opens this same form, with this rule chosen: nothing is turned on until
+  // the lawyer picks the confirmed date and confirms. (State adjusted while rendering, once per request.)
+  if (openRequest !== null && openRequest !== handledRequest && canWrite && !cannotTurnOn) {
+    setHandledRequest(openRequest);
+    setFactId(rule.anchor?.fact_id ?? "");
+    setFirstCycle(rule.anchor?.mode === "first_cycle");
+    setFromSuggestion(true);
+    setChoosing(true);
+  }
+  useEffect(() => {
+    if (!choosing || !fromSuggestion) return;
+    articleRef.current?.scrollIntoView?.({ block: "center" });
+    anchorRef.current?.focus();
+  }, [choosing, fromSuggestion]);
   function confirm() {
     onTurn(true, { anchor_fact_id: factId, anchor_mode: firstCycle && rule.first_cycle ? "first_cycle" : "direct" });
     setChoosing(false);
   }
 
   return (
-    <article aria-labelledby={`${id}-name`} className="min-w-0 space-y-2 rounded-xl bg-app-surface/60 p-4">
+    <article ref={articleRef} aria-labelledby={`${id}-name`} className="min-w-0 space-y-2 rounded-xl bg-app-surface/60 p-4">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
           <h3 id={`${id}-name`} className="min-w-0 break-words text-sm font-medium text-gray-900">
@@ -156,6 +179,7 @@ function RuleCard({
       ) : null}
       {choosing ? (
         <div className="space-y-2 rounded-lg bg-app-surface p-3">
+          {fromSuggestion ? <p className="text-xs text-gray-600">{t("radar.rules.suggest.openedFromSuggestion")}</p> : null}
           {choices.length === 0 ? (
             <p className="text-sm text-amber-800">{t("radar.rules.anchor.none")}</p>
           ) : (
@@ -165,6 +189,7 @@ function RuleCard({
               </label>
               <select
                 id={`${id}-anchor`}
+                ref={anchorRef}
                 className={`${FORM_CONTROL_GLASS_CLASS} h-10`}
                 value={factId}
                 onChange={(event) => setFactId(event.target.value)}
@@ -237,6 +262,7 @@ export function ObligationRules({
   const [data, setData] = useState<MatterObligationRules | null>(null);
   const [failed, setFailed] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [openRequest, setOpenRequest] = useState<{ key: string; count: number } | null>(null);
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -296,6 +322,12 @@ export function ObligationRules({
         <p className="text-sm text-gray-500">{t("radar.rules.empty")}</p>
       ) : (
         <>
+          <RuleSuggestions
+            projectId={projectId}
+            matterId={matterId}
+            rules={data.rules}
+            onTurnOn={(key) => setOpenRequest((current) => ({ key, count: (current?.count ?? 0) + 1 }))}
+          />
           {!data.can_write ? <p className="text-xs text-gray-500">{t("radar.rules.readOnly")}</p> : null}
           <ul className="space-y-3">
             {data.rules.map((rule) => (
@@ -306,6 +338,7 @@ export function ObligationRules({
                   names={names}
                   canWrite={data.can_write}
                   busy={busyKey === rule.key}
+                  openRequest={openRequest?.key === rule.key ? openRequest.count : null}
                   onTurn={(on, input) => void turn(rule, on, input)}
                 />
               </li>

@@ -6741,6 +6741,113 @@ export async function setMatterObligationRule(
 }
 
 // ---------------------------------------------------------------------------
+// AI suggestions of catalog rules (docs/obligation-rules.md, "Rule suggestions")
+// ---------------------------------------------------------------------------
+
+const ruleSuggestionsPath = (projectId: string, matterId: string) =>
+    `${matterRequestsPath(projectId, matterId)}/radar/rules/suggestions`;
+
+export async function getRuleSuggestions(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").RuleSuggestions> {
+    const result = await apiRequest<import("@mike/contracts").RuleSuggestions>(
+        "matter.radar",
+        ruleSuggestionsPath(projectId, matterId),
+    );
+    // A reply without its lists is a failed load, not "no suggestions".
+    if (
+        typeof result?.retainer !== "boolean" ||
+        typeof result.can_write !== "boolean" ||
+        !Array.isArray(result.suggestions) ||
+        !Array.isArray(result.versions) ||
+        !Array.isArray(result.people)
+    )
+        throw new Error("Malformed rule suggestions response");
+    return result;
+}
+
+/**
+ * Where the text of a version would go if the AI is asked for suggestions: the
+ * provider and model the project chat uses for this person. null when there is
+ * no such route (no key, no model, or the person only reads): no button then.
+ */
+export async function getRuleSuggestionRoute(
+    projectId: string,
+    matterId: string,
+): Promise<import("@mike/contracts").ProfileExtractionRoute | null> {
+    const body = await apiRequest<{ route?: import("@mike/contracts").ProfileExtractionRoute | null }>(
+        "matter.radar",
+        `${ruleSuggestionsPath(projectId, matterId)}/route`,
+    );
+    const route = body?.route;
+    if (route === null) return null;
+    if (typeof route?.provider !== "string" || typeof route.model !== "string")
+        throw new Error("Malformed rule suggestion route response");
+    return route;
+}
+
+/** Asks the space's AI which catalog rules ONE version's text suggests (synchronous). */
+export async function suggestObligationRules(
+    projectId: string,
+    matterId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").RuleSuggestionRun> {
+    const result = await apiRequest<import("@mike/contracts").RuleSuggestionRun>(
+        "matter.radar",
+        `${ruleSuggestionsPath(projectId, matterId)}/versions/${encodeURIComponent(versionId)}/suggest`,
+        jsonInit("POST", {}),
+    );
+    const counts = [
+        result?.suggested,
+        result?.discarded_unknown_rule,
+        result?.discarded_already_active,
+        result?.discarded_quote_not_found,
+        result?.discarded_duplicate,
+        result?.discarded_invalid,
+    ];
+    // A reply without its counts is a failed run, not "nothing was suggested".
+    if (
+        !counts.every((count) => typeof count === "number" && Number.isInteger(count) && count >= 0) ||
+        !Array.isArray(result.suggestion_ids) ||
+        !result.suggestion_ids.every((id) => typeof id === "string")
+    )
+        throw new Error("Malformed rule suggestion run response");
+    return result;
+}
+
+export async function decideRuleSuggestion(
+    projectId: string,
+    matterId: string,
+    suggestionId: string,
+    action: "accept" | "discard",
+    input: import("@mike/contracts").RuleSuggestionDecisionInput = {},
+): Promise<import("@mike/contracts").RuleSuggestion> {
+    const suggestion = await apiRequest<import("@mike/contracts").RuleSuggestion>(
+        "matter.radar",
+        `${ruleSuggestionsPath(projectId, matterId)}/${encodeURIComponent(suggestionId)}/${action}`,
+        jsonInit("POST", input),
+    );
+    if (typeof suggestion?.id !== "string" || typeof suggestion.rule_key !== "string" || typeof suggestion.status !== "string")
+        throw new Error("Malformed rule suggestion response");
+    return suggestion;
+}
+
+export async function decideRuleSuggestions(
+    projectId: string,
+    matterId: string,
+    input: import("@mike/contracts").RuleSuggestionBatchInput,
+): Promise<import("@mike/contracts").RuleSuggestionBatchResult> {
+    const result = await apiRequest<import("@mike/contracts").RuleSuggestionBatchResult>(
+        "matter.radar",
+        `${ruleSuggestionsPath(projectId, matterId)}/batch`,
+        jsonInit("POST", input),
+    );
+    if (!Array.isArray(result?.results)) throw new Error("Malformed rule suggestion batch response");
+    return result;
+}
+
+// ---------------------------------------------------------------------------
 // Retainer report of a matter (docs/retainer-report.md)
 // ---------------------------------------------------------------------------
 

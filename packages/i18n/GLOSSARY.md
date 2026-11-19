@@ -56,6 +56,8 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | tracked changes / redline (la función) | control de cambios | |
 | tracked change (cada cambio) | cambio marcado | Plural: cambios marcados. Nunca «cambio de control de cambios». |
 | Personal (workspace) | Personal | Es el nombre del espacio de trabajo y se queda así. |
+| rule suggestion (AI) | sugerencia de reglas | La IA sugiere qué reglas verificadas del catálogo podrían aplicar a un cliente; siempre «sin verificar» y aceptar no activa nada. |
+| accept (a suggestion) | aceptar | Abre el formulario de activación de la regla; no la activa. |
 | deployment key | Llave de la plataforma | Nombre aprobado por el dueño (12-nov). La llave que ofrece la plataforma, no la de la persona ni la del despacho. |
 | organization key | Llave del despacho | En los textos de llaves (chip del chat, selector, Ajustes) se dice «despacho», igual que en Ajustes del despacho → Llaves del despacho. |
 | your own key | Mi llave | En el chip del chat y el selector: «Mi llave», «Llave del despacho», «Llave de la plataforma». |

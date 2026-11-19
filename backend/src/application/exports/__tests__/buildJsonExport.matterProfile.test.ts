@@ -7,7 +7,7 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
 }));
 
 import { buildUserAccountExport } from "../buildJsonExport";
-import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents } from "../matterProfileExport";
+import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents, loadUserRuleSuggestions } from "../matterProfileExport";
 import { makeExportDb, type Row } from "./exportDb.fixture";
 
 // The account export of a firm's workspace carries the profile facts the holder
@@ -87,6 +87,16 @@ function tables(): Record<string, Row[]> {
             { id: "s2", matter_id: "m-open", period_start: "2026-08-19", period_end: "2026-11-16", period_days: 90, note: null, actor_user_id: "someone", created_at: "2026-11-17T00:00:00Z" },
             { id: "s3", matter_id: "m-left", period_start: "2026-08-19", period_end: "2026-11-16", period_days: 90, note: "x", actor_user_id: user, created_at: "2026-11-17T00:00:00Z" },
         ],
+        obligation_rule_suggestions: [
+            { id: "g1", matter_id: "m-open", rule_code: "lgsm.asamblea_ordinaria_anual", rule_version: 1, quote: "q", created_by: user, created_at: "2026-11-19T00:00:00Z" },
+            { id: "g2", matter_id: "m-open", rule_code: "lft.ptu_reparto", rule_version: 1, quote: "q", created_by: "someone", created_at: "2026-11-19T00:00:00Z" },
+            { id: "g3", matter_id: "m-left", rule_code: "lft.ptu_reparto", rule_version: 1, quote: "q", created_by: user, created_at: "2026-11-19T00:00:00Z" },
+        ],
+        obligation_rule_suggestion_events: [
+            { id: "d1", suggestion_id: "g2", matter_id: "m-open", action: "accepted", reason: null, actor_user_id: user, created_at: "2026-11-19T01:00:00Z" },
+            { id: "d2", suggestion_id: "g1", matter_id: "m-open", action: "discarded", reason: null, actor_user_id: "someone", created_at: "2026-11-19T01:00:00Z" },
+            { id: "d3", suggestion_id: "g3", matter_id: "m-left", action: "accepted", reason: null, actor_user_id: user, created_at: "2026-11-19T01:00:00Z" },
+        ],
         matter_profile_fact_events: [
             event("e1", "f1", "m-open", user),
             event("e2", "f22", "m-open", user),
@@ -156,5 +166,19 @@ describe("account export: profile facts", () => {
         expect((firm.matter_report_sent_events as Row[]).map((row) => row.id)).toEqual(["s1"]);
         const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
         expect(personal.matter_report_sent_events).toEqual([]);
+    });
+
+    it("carries the rule suggestions the holder asked for and decided, in matters they can still open", async () => {
+        const mine = await loadUserRuleSuggestions(db, user, "holder@example.test", "org-current");
+        expect(mine.suggestions.map((row) => row.id)).toEqual(["g1"]);
+        expect(mine.events.map((row) => row.id)).toEqual(["d1"]);
+        expect(await loadUserRuleSuggestions(db, user, null, null)).toEqual({ suggestions: [], events: [] });
+        expect(await loadUserRuleSuggestions(db, "nobody", null, "org-current")).toEqual({ suggestions: [], events: [] });
+        const firm = await buildUserAccountExport(db, user, "holder@example.test", "org-current");
+        expect((firm.obligation_rule_suggestions as Row[]).map((row) => row.id)).toEqual(["g1"]);
+        expect((firm.obligation_rule_suggestion_events as Row[]).map((row) => row.id)).toEqual(["d1"]);
+        const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
+        expect(personal.obligation_rule_suggestions).toEqual([]);
+        expect(personal.obligation_rule_suggestion_events).toEqual([]);
     });
 });
