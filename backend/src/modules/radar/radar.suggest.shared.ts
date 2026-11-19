@@ -69,7 +69,7 @@ export function buildSuggestSystemPrompt(catalog: readonly CatalogEntryForPrompt
 export type SuggestedItem = { ruleCode: string; quote: string; reason: string; page: number | null };
 
 /** The explanation as plain text: no markup, one line, control characters gone. */
-function plainReason(value: unknown): string | null {
+export function plainReason(value: unknown): string | null {
   if (typeof value !== "string") return null;
   // eslint-disable-next-line no-control-regex
   const text = oneLine(value.replace(/<[^>]*>/g, " ").replace(/[\u0000-\u001f\u007f]/g, " "));

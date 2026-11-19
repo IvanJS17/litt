@@ -4459,7 +4459,54 @@
           "doneDiscarded": "{count, plural, one {# sugerencia descartada.} other {# sugerencias descartadas.}}",
           "failed": "{count, plural, one {# sugerencia no se pudo decidir: otra persona ya decidió o cambió su fuente. Se recargó la lista.} other {# sugerencias no se pudieron decidir: otra persona ya decidió o cambió su fuente. Se recargó la lista.}}",
           "couldNotDecide": "No se pudieron decidir las sugerencias seleccionadas."
-        }
+        },
+        "all": {
+          "title": "Leer todos los documentos del cliente ({count})",
+          "description": "La IA lee los documentos vigentes de este asunto que tienen texto, en llamadas de hasta 120,000 caracteres, y sugiere qué reglas del catálogo pueden aplicar. Los documentos nunca se cortan.",
+          "group": "Documentos que se leerán",
+          "select": "Leer «{name}»",
+          "version": "versión {version}",
+          "chars": "{count} caracteres",
+          "helper": "Se enviará el texto de {n, plural, one {# documento} other {# documentos}} de este asunto a {provider}, en {k, plural, one {# llamada} other {# llamadas}}, con la llave que usa el chat en este espacio. Las sugerencias no son exhaustivas y ninguna regla se enciende hasta que un abogado la revise.",
+          "nothingSelected": "Elige al menos un documento para leer.",
+          "planning": "Calculando las llamadas…",
+          "noDocuments": "Este asunto no tiene documentos vigentes con texto listo para leer.",
+          "button": "Leer todos los documentos",
+          "running": "Leyendo…",
+          "progress": "Llamada {current} de {total}",
+          "couldNotPlan": "No se pudo preparar la lectura de los documentos.",
+          "couldNotRead": "No se pudo leer todos los documentos.",
+          "stoppedAt": "La lectura se detuvo en la llamada {current} de {total}. Lo que ya se guardó sigue en la lista.",
+          "result": {
+            "title": "Resultado de la lectura",
+            "reviewed": "Revisé {reviewed} de {total} documentos.",
+            "notReviewed": "No revisé: {names}.",
+            "suggested": "{count, plural, =0 {La IA no sugirió reglas nuevas.} one {La IA sugirió # regla.} other {La IA sugirió # reglas.}}",
+            "superseded": "{count, plural, one {# sugerencia se reemplazó por una cita mejor de la misma regla.} other {# sugerencias se reemplazaron por una cita mejor de la misma regla.}}",
+            "questions": "{count, plural, =0 {La IA no dejó preguntas.} one {La IA dejó # pregunta para ti.} other {La IA dejó # preguntas para ti.}}",
+            "discarded": "{count, plural, one {Se descartó # sugerencia por no cumplir las verificaciones del código.} other {Se descartaron # sugerencias por no cumplir las verificaciones del código.}}"
+          },
+          "skipped": {
+            "too_long": "demasiado largo",
+            "no_text": "sin texto listo"
+          }
+        },
+        "questions": {
+          "title": "Preguntas para ti",
+          "description": "La IA no encontró en los documentos si estas reglas aplican. Tu respuesta no se envía a ninguna IA.",
+          "text": "¿Es cierto lo siguiente para este cliente? «{condition}»",
+          "ruleLabel": "Regla: {name}",
+          "group": "Respuesta a la pregunta sobre «{name}»",
+          "yes": "Sí",
+          "no": "No",
+          "saving": "Guardando…",
+          "answeredYes": "Respuesta guardada: se creó una sugerencia para que la revises.",
+          "answeredNo": "Respuesta guardada. No se enciende ninguna regla, y esto no significa que la regla no aplique.",
+          "couldNotAnswer": "No se pudo guardar la respuesta.",
+          "empty": "No hay preguntas pendientes."
+        },
+        "answerSource": "Según respuesta de {name}. No cita ningún documento.",
+        "answerSourceUnknown": "un abogado"
       }
     },
     "obligation": {

@@ -15,6 +15,8 @@ export {
   getSuggestionRoute,
   suggestRules,
 } from "./radar.suggest";
+export { planRuleRead, readRuleBatch } from "./radar.suggest.all";
+export { answerRuleQuestion } from "./radar.questions";
 export {
   discardProposal,
   exportRuleProposals,

@@ -24,7 +24,6 @@ import type {
   RuleSuggestionBatchResult,
   RuleSuggestionRun,
   RuleSuggestions,
-  RuleSuggestionStaleReason,
 } from "@mike/contracts";
 import { AppError } from "../../lib/appError";
 import { loadVersionTextState } from "../../lib/documentTextCache";
@@ -45,19 +44,19 @@ import {
   isRecord,
   MAX_EXTRACT_TEXT_CHARS,
   readModelArray,
-  readSources,
   resolveExtractionRoute,
   sha256,
   SOURCE_TEXT_UNAVAILABLE_CODE,
-  sourceStateFor,
   sourceVersions,
   VERSION_NOT_IN_MATTER_CODE,
 } from "../client-profile/client-profile.service";
 import { authorizeMatterMember } from "../matters/matters.service";
 import { recordChatEgressOrThrow } from "../user/user.service";
 import { namePeople } from "./radar.people";
+import { loadOpenQuestions } from "./radar.questions";
+import { loadSuggestions, MAX_SUGGESTIONS_PER_MATTER, SUGGESTION_LIMIT_CODE } from "./radar.suggest.load";
 import { OBLIGATION_RULES, RAW_CATALOG } from "./radar.rules.catalog";
-import { findRule, isUsable, ruleKey, type ObligationRuleDef } from "./radar.rules";
+import { isUsable, ruleKey, type ObligationRuleDef } from "./radar.rules";
 import { loadRuleStates } from "./radar.rules.state";
 import { NOT_A_RETAINER_CODE } from "./radar.shared";
 import { isTraineeIn, refuseTrainee } from "./radar.trainee";
@@ -78,9 +77,6 @@ import {
 } from "./radar.suggest.shared";
 
 const NOT_FOUND = "Not found";
-/** Suggestions of one matter read at most; a matter that reaches it cannot ask for more. */
-const MAX_SUGGESTIONS_PER_MATTER = 2000;
-const SUGGESTION_LIMIT_CODE = "rule_suggestion_limit";
 
 type Actor = { userId: string; userEmail?: string | null; projectId: unknown; matterId: unknown };
 type Dependencies = { completeText?: typeof completeText };
@@ -103,114 +99,6 @@ export function catalogForSuggestions(
   return entries;
 }
 
-type SuggestionRow = {
-  id: string;
-  matter_id: string;
-  document_id: string;
-  version_id: string;
-  text_sha256: string;
-  start_char: number;
-  end_char: number;
-  quote: string;
-  page: number | null;
-  rule_code: string;
-  rule_version: number;
-  ai_reason: string;
-  created_by: string | null;
-  created_at: string;
-};
-const SUGGESTION_COLUMNS =
-  "id, matter_id, document_id, version_id, text_sha256, start_char, end_char, quote, page, rule_code, rule_version, ai_reason, created_by, created_at";
-
-type EventRow = { id: string; suggestion_id: string; actor_user_id: string | null; action: "accepted" | "discarded"; created_at: string };
-
-const statusOf = (events: readonly Pick<EventRow, "action">[]): "pending" | "accepted" | "discarded" =>
-  events.some((event) => event.action === "discarded") ? "discarded" : events.some((event) => event.action === "accepted") ? "accepted" : "pending";
-
-/** The reason a suggestion no longer stands, from its source and from the catalog of this release. */
-function staleReasonOf(
-  row: Pick<SuggestionRow, "rule_code" | "rule_version">,
-  sourceReason: RuleSuggestionStaleReason | null,
-  catalog: readonly ObligationRuleDef[],
-): RuleSuggestionStaleReason | null {
-  if (sourceReason) return sourceReason;
-  const rule = findRule(catalog, `${row.rule_code}@${row.rule_version}`);
-  if (!rule) return "rule_changed";
-  return isUsable(rule) ? null : "rule_unverified";
-}
-
-/** The suggestions of a matter with their decisions and whether each still stands. Read, never stored. */
-async function loadSuggestions(
-  db: Db,
-  access: { matterId: string; projectId: string },
-  catalog: readonly ObligationRuleDef[],
-  only?: string,
-): Promise<ServiceResult<RuleSuggestion[]>> {
-  let query = db.from("obligation_rule_suggestions").select(SUGGESTION_COLUMNS).eq("matter_id", access.matterId);
-  if (only) query = query.eq("id", only);
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(MAX_SUGGESTIONS_PER_MATTER);
-  if (error) return internalFailure(error);
-  const rows = (data ?? []) as unknown as SuggestionRow[];
-  if (rows.length === 0) return ok([]);
-
-  let eventQuery = db
-    .from("obligation_rule_suggestion_events")
-    .select("id, suggestion_id, actor_user_id, action, created_at")
-    .eq("matter_id", access.matterId);
-  if (only) eventQuery = eventQuery.eq("suggestion_id", only);
-  const { data: eventData, error: eventError } = await eventQuery.order("created_at", { ascending: true }).limit(MAX_SUGGESTIONS_PER_MATTER * 2);
-  if (eventError) return internalFailure(eventError);
-  const bySuggestion = new Map<string, EventRow[]>();
-  for (const event of (eventData ?? []) as unknown as EventRow[])
-    bySuggestion.set(event.suggestion_id, [...(bySuggestion.get(event.suggestion_id) ?? []), event]);
-
-  // A discarded suggestion is never obsolete, so its source is not read.
-  const open = rows.filter((row) => statusOf(bySuggestion.get(row.id) ?? []) !== "discarded");
-  const sources = await readSources(db, access.projectId, open);
-  if (!sources.ok) return sources;
-
-  return ok(
-    rows.map((row): RuleSuggestion => {
-      const events = bySuggestion.get(row.id) ?? [];
-      const status = statusOf(events);
-      const source = sourceStateFor(row, sources.data) ?? {
-        versionNumber: null,
-        filename: null,
-        staleReason: "version_missing" as const,
-        currentSha: null,
-      };
-      const stale = status === "discarded" ? null : staleReasonOf(row, source.staleReason, catalog);
-      const decision = [...events].reverse()[0];
-      return {
-        id: row.id,
-        matter_id: row.matter_id,
-        rule_key: `${row.rule_code}@${row.rule_version}`,
-        rule_code: row.rule_code,
-        rule_version: row.rule_version,
-        quote: row.quote,
-        reason: row.ai_reason,
-        page: row.page,
-        source: {
-          document_id: row.document_id,
-          version_id: row.version_id,
-          version_number: source.versionNumber,
-          filename: source.filename,
-          start_char: row.start_char,
-          end_char: row.end_char,
-          text_sha256: row.text_sha256,
-        },
-        status,
-        stale_reason: stale,
-        effective_status: stale && status !== "discarded" ? "obsolete" : status,
-        created_by: row.created_by,
-        created_at: row.created_at,
-        decided_by: decision?.actor_user_id ?? null,
-        decided_at: decision?.created_at ?? null,
-      };
-    }),
-  );
-}
-
 /** Whether the button can be offered: the route the chat would use here, for an owner or editor of a retainer matter. */
 export const getSuggestionRoute = getExtractionRoute;
 
@@ -218,11 +106,12 @@ export async function getRuleSuggestions(
   db: Db,
   actor: Actor,
   catalog: readonly ObligationRuleDef[] = OBLIGATION_RULES,
+  raw: typeof RAW_CATALOG = RAW_CATALOG,
 ): Promise<ServiceResult<RuleSuggestions>> {
   try {
     const access = await authorizeMatterMember(db, actor);
     if (!access.ok) return access;
-    if (!access.data.isRetainer) return ok({ retainer: false, can_write: false, suggestions: [], versions: [], people: [] });
+    if (!access.data.isRetainer) return ok({ retainer: false, can_write: false, suggestions: [], versions: [], questions: [], people: [] });
     const suggestions = await loadSuggestions(db, access.data, catalog);
     if (!suggestions.ok) return suggestions;
     // A person in training reads the results but neither requests nor decides.
@@ -234,7 +123,9 @@ export async function getRuleSuggestions(
       db,
       suggestions.data.flatMap((suggestion) => [suggestion.created_by, suggestion.decided_by]),
     );
-    return ok({ retainer: true, can_write: canWrite, suggestions: suggestions.data, versions: versions.data, people });
+    const questions = canWrite ? await loadOpenQuestions(db, access.data, suggestions.data, catalog, raw) : ok([]);
+    if (!questions.ok) return questions;
+    return ok({ retainer: true, can_write: canWrite, suggestions: suggestions.data, versions: versions.data, questions: questions.data, people });
   } catch (error) {
     return internalFailure(error);
   }

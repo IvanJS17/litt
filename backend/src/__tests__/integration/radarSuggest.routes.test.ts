@@ -586,7 +586,7 @@ describe("where it goes: the chat's rule, no other (C1, C2, C3)", () => {
         const dir = join(__dirname, "../../modules/radar");
         const forbidden = /from\s+["'][^"']*(citationSupport|typesafe|landingai|\/ocr\/|documents\.ocr|documents\.split|webSearch|jev)[^"']*["']/i;
         const files = readdirSync(dir).filter((name) => name.startsWith("radar.suggest") && name.endsWith(".ts"));
-        expect(files.sort()).toEqual(["radar.suggest.shared.ts", "radar.suggest.ts"]);
+        expect(files.sort()).toEqual(["radar.suggest.all.shared.ts", "radar.suggest.all.ts", "radar.suggest.load.ts", "radar.suggest.shared.ts", "radar.suggest.ts"]);
         for (const name of files) {
             const code = readFileSync(join(dir, name), "utf8");
             expect(code, name).not.toMatch(forbidden);
@@ -837,7 +837,7 @@ describe("who can ask and who can read (matrix)", () => {
             const root = `/projects/${project}/matters/${matter}/radar/rules/suggestions`;
             expect((await request(app).post(`${root}/${id(1)}/accept`).send({})).body.code).toBe("matter_not_retainer");
             expect((await request(app).post(`${root}/batch`).send({})).body.code).toBe("matter_not_retainer");
-            expect((await request(app).get(root)).body).toEqual({ retainer: false, can_write: false, suggestions: [], versions: [], people: [] });
+            expect((await request(app).get(root)).body).toEqual({ retainer: false, can_write: false, suggestions: [], versions: [], questions: [], people: [] });
         }
         expect(h.llm.calls).toHaveLength(0);
     });

@@ -2738,9 +2738,18 @@ export type RuleSuggestion = {
   rule_key: string;
   rule_code: string;
   rule_version: number;
-  quote: string;
-  reason: string;
+  /**
+   * `document`: the AI cited a passage of a document (`quote`, `source`).
+   * `lawyer_answer` (S8c): the lawyer answered "yes" to a closed question; there
+   * is no passage, no document and no model words (`reason` is null): it reads
+   * "according to the answer of {creator}", the lawyer who answered.
+   */
+  evidence: "document" | "lawyer_answer";
+  /** The passage as the document words it; null for `lawyer_answer`. */
+  quote: string | null;
+  reason: string | null;
   page: number | null;
+  /** Null for `lawyer_answer`. */
   source: {
     document_id: string;
     version_id: string;
@@ -2749,7 +2758,9 @@ export type RuleSuggestion = {
     start_char: number;
     end_char: number;
     text_sha256: string;
-  };
+  } | null;
+  /** The question a `lawyer_answer` suggestion answers. */
+  question_id: string | null;
   /** The last decision; `pending` when nobody decided. */
   status: "pending" | "accepted" | "discarded";
   stale_reason: RuleSuggestionStaleReason | null;
@@ -2768,7 +2779,69 @@ export type RuleSuggestions = {
   suggestions: RuleSuggestion[];
   /** Document versions a run can read; empty for readers. */
   versions: ProfileSourceVersion[];
+  /** S8c: closed yes/no questions still open (nobody answered, and no document settles the rule). */
+  questions: RuleQuestion[];
   people: ProfilePerson[];
+};
+
+/**
+ * S8c: a closed yes/no question about a catalog rule whose applicability
+ * depends on a fact the documents do not state. The AI only said WHICH rule needs
+ * one; the question is `applies_when` (legal's own wording of the rule's
+ * condition, from the catalog), asked by the UI in a fixed sentence. No model
+ * text. The answer is the lawyer's and is never sent to any AI; a "no" is only
+ * recorded and is never shown as "the rule does not apply".
+ */
+export type RuleQuestion = {
+  id: string;
+  matter_id: string;
+  rule_key: string;
+  rule_code: string;
+  rule_version: number;
+  applies_when: string;
+  created_at: string;
+};
+
+export type RuleQuestionAnswerInput = { answer: "yes" | "no" };
+
+/** "yes" creates a pending suggestion (evidence `lawyer_answer`); "no" only records. */
+export type RuleQuestionAnswerResult = {
+  question_id: string;
+  answer: "yes" | "no";
+  suggestion: RuleSuggestion | null;
+};
+
+export type RuleReadDocument = {
+  version_id: string;
+  document_id: string;
+  version_number: number | null;
+  filename: string | null;
+  chars: number;
+};
+
+export type RuleReadSkipped = {
+  version_id: string;
+  version_number: number | null;
+  filename: string | null;
+  /** `too_long`: above 120,000 characters, never sent. `no_text`: no ready text. */
+  reason: "too_long" | "no_text";
+};
+
+/** What reading all the documents would do: whole documents grouped into calls, and what is left out. */
+export type RuleReadPlan = {
+  max_chars: number;
+  batches: { chars: number; documents: RuleReadDocument[] }[];
+  skipped: RuleReadSkipped[];
+};
+
+export type RuleReadBatchInput = { runId: string; versionIds: string[] };
+
+/** What one call of a multi-document read did (a `RuleSuggestionRun` plus the questions). */
+export type RuleReadBatchResult = RuleSuggestionRun & {
+  questions_asked: number;
+  discarded_question_invalid: number;
+  /** Earlier suggestions of this run replaced by a better citation of the same rule. */
+  superseded: number;
 };
 
 /** What one suggestion run did: how many it kept and why the rest were discarded. */

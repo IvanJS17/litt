@@ -4459,7 +4459,54 @@
           "doneDiscarded": "{count, plural, one {# suggestion discarded.} other {# suggestions discarded.}}",
           "failed": "{count, plural, one {# suggestion could not be decided: someone else already decided or its source changed. The list was reloaded.} other {# suggestions could not be decided: someone else already decided or their source changed. The list was reloaded.}}",
           "couldNotDecide": "Could not decide the selected suggestions."
-        }
+        },
+        "all": {
+          "title": "Read all the client's documents ({count})",
+          "description": "The AI reads the current documents of this matter that have text, in calls of up to 120,000 characters, and suggests which catalog rules may apply. Documents are never cut.",
+          "group": "Documents to read",
+          "select": "Read “{name}”",
+          "version": "version {version}",
+          "chars": "{count} characters",
+          "helper": "The text of {n, plural, one {# document} other {# documents}} in this matter will be sent to {provider} in {k, plural, one {# call} other {# calls}}, using the key the chat uses in this space. Suggestions are not exhaustive, and no rule is turned on until a lawyer reviews it.",
+          "nothingSelected": "Choose at least one document to read.",
+          "planning": "Working out the calls…",
+          "noDocuments": "This matter has no current documents with text ready to read.",
+          "button": "Read all documents",
+          "running": "Reading…",
+          "progress": "Call {current} of {total}",
+          "couldNotPlan": "Could not prepare the reading of the documents.",
+          "couldNotRead": "Could not read all the documents.",
+          "stoppedAt": "The reading stopped at call {current} of {total}. What was already saved stays in the list.",
+          "result": {
+            "title": "Result of the reading",
+            "reviewed": "I reviewed {reviewed} of {total} documents.",
+            "notReviewed": "Not reviewed: {names}.",
+            "suggested": "{count, plural, =0 {The AI suggested no new rules.} one {The AI suggested # rule.} other {The AI suggested # rules.}}",
+            "superseded": "{count, plural, one {# suggestion was replaced by a better citation of the same rule.} other {# suggestions were replaced by a better citation of the same rule.}}",
+            "questions": "{count, plural, =0 {The AI left no questions.} one {The AI left # question for you.} other {The AI left # questions for you.}}",
+            "discarded": "{count, plural, one {# suggestion was discarded for not passing the code's checks.} other {# suggestions were discarded for not passing the code's checks.}}"
+          },
+          "skipped": {
+            "too_long": "too long",
+            "no_text": "no text ready"
+          }
+        },
+        "questions": {
+          "title": "Questions for you",
+          "description": "The AI could not tell from the documents whether these rules apply. Your answer is not sent to any AI.",
+          "text": "Is the following true for this client? “{condition}”",
+          "ruleLabel": "Rule: {name}",
+          "group": "Answer to the question about “{name}”",
+          "yes": "Yes",
+          "no": "No",
+          "saving": "Saving…",
+          "answeredYes": "Answer saved: a suggestion was created for you to review.",
+          "answeredNo": "Answer saved. No rule is turned on, and this does not mean the rule does not apply.",
+          "couldNotAnswer": "Could not save the answer.",
+          "empty": "There are no pending questions."
+        },
+        "answerSource": "According to the answer of {name}. It cites no document.",
+        "answerSourceUnknown": "a lawyer"
       }
     },
     "obligation": {
