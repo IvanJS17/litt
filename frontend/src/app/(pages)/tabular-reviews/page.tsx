@@ -42,6 +42,7 @@ import {
 import { useQueryParamTab } from "@/app/hooks/useQueryParamTab";
 import { useIdSet } from "@/app/hooks/useIdSet";
 import { useTranslations } from "next-intl";
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 
 type ReviewScope = TabularReviewScope;
 
@@ -425,6 +426,7 @@ function TabularReviewsWorkspacePage({ workspace }: { workspace?: string }) {
                 <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
                     {t("tabular.tabularReviews")}
                 </h1>
+                <GuideTrigger id="tabular_review" className="ml-3 shrink-0" />
             </PageHeader>
 
             <ReviewsListTable

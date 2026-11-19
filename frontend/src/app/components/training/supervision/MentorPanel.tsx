@@ -1,5 +1,7 @@
 "use client";
 
+import { GuideHint } from "@/app/components/guides/GuideHint";
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -76,6 +78,7 @@ async function loadOrgPupils(orgId: string): Promise<OrgPupils> {
 
 export function MentorPanel() {
     const t = useTranslations("training.mentorPanel");
+    const tg = useTranslations();
     const { organizations } = useWorkspace();
     const load = useCallback(async () => {
         const memberships = await getMyTraining();
@@ -100,6 +103,8 @@ export function MentorPanel() {
                 </Link>
                 <SettingsHeading id="panel-del-mentor">{t("title")}</SettingsHeading>
                 <SettingsDescription>{t("intro")}</SettingsDescription>
+                <GuideTrigger id="mentor" label={tg("guides.ui.mentorHow")} />
+                <GuideHint hint="role:mentor" guide="mentor" message={tg("guides.ui.hintMentor")} />
             </div>
             {selected ? (
                 <PupilSupervision

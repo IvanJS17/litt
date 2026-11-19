@@ -18,7 +18,10 @@ Training has three layers, all integrated into `main`:
   annex, the bulk review designer, from correction to rule, the pupil's own
   map with calibration and retakes, the periodic full reading, the firm's
   criteria, the criteria contrast, authorship of the work and promotion v2.
-- **Layer 4** (the gym) is not started.
+- **Layer 4**: the gym: fictitious practice cases with seeded errors, assigned
+  by the mentor and worked against a server-side clock, with hints and a
+  result only the pupil and the mentor read; its outcome is promotion evidence
+  (in production since `prod-20261113e`).
 
 ## Contents
 
@@ -1080,7 +1083,7 @@ proposals are computed on every read and never stored
   `{ org_id, target_user_id }` only. The new stage starts its evidence
   again.
 - Layer 3 added the confidence calibration and the new evidence above as
-  further inputs of the same function; layer 4 will add the gym.
+  further inputs of the same function; layer 4 added the gym (below).
 
 ### The mentor panel and «Lo que mi mentor ve de mí»
 

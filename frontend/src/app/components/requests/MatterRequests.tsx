@@ -1,5 +1,6 @@
 "use client";
 
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ClipboardList } from "lucide-react";
@@ -142,7 +143,10 @@ export function MatterRequests({ projectId, matterId }: { projectId: string; mat
           <MatterSectionNav projectId={projectId} matterId={matterId} current="requests" />
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <h1 className="font-serif text-2xl text-gray-900">{t("requests.title")}</h1>
+              <GuideTrigger id="donna_requests" />
+            </div>
               <p className="mt-1 text-sm text-gray-600">{t("requests.subtitle")}</p>
             </div>
             {data?.retainer && data.can_write ? (
@@ -186,6 +190,7 @@ export function MatterRequests({ projectId, matterId }: { projectId: string; mat
               description={
                 data.can_manage_retainer ? t("requests.retainer.offOwner") : t("requests.retainer.offMember")
               }
+              help={<GuideTrigger id="donna_requests" label={t("guides.ui.whenToUse")} icon={false} />}
               action={
                 data.can_manage_retainer ? (
                   <PillButtonUI

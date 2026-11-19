@@ -81,7 +81,7 @@ describe("the public start page without a session", () => {
             expect(a).toHaveAttribute("rel", "noopener noreferrer");
         });
         // The address lives in one constant: no other link to the form is hand-written.
-        expect(accessFormHref("soon-donna", "es-MX")).toBe(`${ACCESS_FORM_URL}?origen=soon-donna&lang=es-MX`);
+        expect(accessFormHref("formacion", "es-MX")).toBe(`${ACCESS_FORM_URL}?origen=formacion&lang=es-MX`);
     });
 
     it("sends the in-house waitlist and each coming-soon card to the questionnaire with their origin", () => {
@@ -94,11 +94,60 @@ describe("the public start page without a session", () => {
         const interested = within(soon).getAllByRole("link", { name: /^I’m interested/ });
         expect(interested.map((a) => new URL(a.getAttribute("href")!).searchParams.get("origen"))).toEqual([
             "soon-contextlex",
-            "soon-mcp",
-            "soon-donna",
             "soon-conectores",
         ]);
         interested.forEach((a) => expect(a.textContent).toMatch(/^I’m interested: .+/));
+    });
+
+    it("puts Training second, with its three steps, the gym in «Everything training includes» and its own form origin", () => {
+        render(<LandingPage signedIn={false} />);
+        const band = document.getElementById("formacion")!;
+        expect(band).toHaveClass("landing-band");
+        expect(within(band).getByRole("heading", { level: 2, name: /^Your interns and juniors use AI too/ })).toBeInTheDocument();
+        expect(
+            within(band)
+                .getAllByRole("heading", { level: 3 })
+                .slice(0, 3)
+                .map((h) => h.textContent),
+        ).toEqual(["Try first", "LiTT answers and compares", "The mentor reviews and decides"]);
+        expect(within(band).getByText("Everything training includes")).toBeInTheDocument();
+        expect(within(band).getByRole("heading", { level: 4, name: "Gym of fictitious cases" })).toBeInTheDocument();
+        expect(within(band).getByRole("link", { name: "I’m interested for my firm" })).toHaveAttribute(
+            "href",
+            "https://tally.so/r/2jAeGL?origen=formacion&lang=en-US",
+        );
+        // Training comes right after the hero and before the features.
+        const order = [...document.querySelectorAll("main > section")].map((el) => el.id);
+        expect(order.indexOf("formacion")).toBe(1);
+    });
+
+    it("no longer calls Donna or LiTT from Claude «coming soon»: they are features, and the page says «Claude or ChatGPT»", () => {
+        render(<LandingPage signedIn={false} />);
+        const soon = document.getElementById("proximamente")!;
+        expect(soon).not.toHaveClass("landing-band");
+        expect(soon.textContent).not.toMatch(/Donna|Claude|MCP/);
+        const features = document.getElementById("funciones")!;
+        expect(within(features).getByRole("heading", { level: 4, name: "Donna, for retainer clients" })).toBeInTheDocument();
+        expect(within(features).getByRole("heading", { level: 4, name: "LiTT from Claude or ChatGPT" })).toBeInTheDocument();
+        expect(within(features).queryByText("Coming soon", { selector: ".sr-only" })).toBeNull();
+        expect(document.body.textContent).not.toMatch(/Claude or another compatible app|another AI/);
+    });
+
+    it("says what the in-house track is without promising it depends on demand", () => {
+        render(<LandingPage signedIn={false} />);
+        const soon = document.getElementById("proximamente")!;
+        expect(within(soon).getByText(/^For legal teams inside companies: register and prioritize internal requests/).textContent).toBe(
+            "For legal teams inside companies: register and prioritize internal requests and keep the business informed with follow-up.",
+        );
+        expect(soon.textContent).not.toMatch(/demand/i);
+        inSpanish(<LandingPage signedIn={false} />);
+        expect(screen.getByText("Para los equipos legales dentro de una empresa: registra y prioriza las solicitudes internas y da seguimiento al negocio.")).toBeInTheDocument();
+        expect(document.body.textContent).not.toMatch(/cuando haya demanda/);
+    });
+
+    it("never names a competitor or says what other firms do in the training texts", () => {
+        render(<LandingPage signedIn={false} />);
+        expect(document.getElementById("formacion")!.textContent).not.toMatch(/Harvey|Legora|CoCounsel|Lexis|Westlaw|other firms|other firms do/i);
     });
 
     it("keeps the support address as a plain contact link in the footer", () => {
@@ -110,10 +159,10 @@ describe("the public start page without a session", () => {
         );
     });
 
-    it("explains the harness and which connectors are only planned, without promising what is not there", () => {
+    it("says which connectors are only planned, without promising what is not there", () => {
         render(<LandingPage signedIn={false} />);
         const soon = screen.getByRole("region", { name: "What we’re working on." });
-        expect(within(soon).getByText(/^\* Harness: the program you use to work with an AI/)).toBeInTheDocument();
+        expect(soon.textContent).not.toMatch(/Harness/);
         expect(
             within(soon).getByText("* Google is in preparation; Microsoft 365 and Dropbox are in design."),
         ).toBeInTheDocument();
@@ -127,29 +176,30 @@ describe("the public start page without a session", () => {
         expect(screen.getByRole("contentinfo")).toBeInTheDocument();
         expect(screen.getByRole("navigation", { name: "Sections" })).toBeInTheDocument();
         expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-        expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
+        expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(6);
         expect(screen.getByRole("link", { name: "Skip to content" })).toHaveAttribute("href", "#main");
     });
 
-    it("orders the sections: the four features, why LiTT, coming soon, trust, access", () => {
+    it("orders the sections: training first, the features, why LiTT, coming soon, trust, access", () => {
         render(<LandingPage signedIn={false} />);
         const sections = [...document.querySelectorAll("main > section[id]")].map((el) => el.id);
-        expect(sections).toEqual(["funciones", "por-que", "proximamente", "confianza", "acceso"]);
+        expect(sections).toEqual(["formacion", "funciones", "por-que", "proximamente", "confianza", "acceso"]);
         const features = within(document.getElementById("funciones")!).getAllByRole("heading", { level: 3 });
         expect(features.map((h) => h.textContent)).toEqual([
             "Assistant",
             "Projects",
             "Tabular review",
             "Workflows and playbooks",
+            "Also, for the client and from your AI.",
         ]);
     });
 
-    it("lists the eight things built for Mexican practice and the five that are coming", () => {
+    it("lists the seven things built for Mexican practice and the three that are coming", () => {
         render(<LandingPage signedIn={false} />);
         const index = screen.getByRole("list", { name: "Built for Mexican practice." });
-        expect(within(index).getAllByRole("listitem")).toHaveLength(8);
+        expect(within(index).getAllByRole("listitem")).toHaveLength(7);
         const soon = screen.getByRole("region", { name: "What we’re working on." });
-        expect(within(soon).getAllByText("Coming soon", { selector: ".sr-only" })).toHaveLength(5);
+        expect(within(soon).getAllByText("Coming soon", { selector: ".sr-only" })).toHaveLength(3);
         expect(within(soon).getByText("Article 2398")).toBeInTheDocument();
     });
 
@@ -207,7 +257,7 @@ describe("the public start page in Mexican Spanish", () => {
         expect(screen.getAllByRole("link", { name: "Abrir LiTT" })).toHaveLength(3);
     });
 
-    it("opens the questionnaire in Spanish and names the new coming-soon cards", () => {
+    it("opens the questionnaire in Spanish and shows Donna and Claude or ChatGPT as features", () => {
         inSpanish(<LandingPage signedIn={false} />);
         const [request] = screen.getAllByRole("link", { name: "Solicitar acceso" });
         expect(request).toHaveAttribute("href", "https://tally.so/r/2jAeGL?origen=acceso&lang=es-MX");
@@ -215,11 +265,9 @@ describe("the public start page in Mexican Spanish", () => {
             "href",
             "https://tally.so/r/2jAeGL?origen=inhouse&lang=es-MX",
         );
-        expect(screen.getByRole("heading", { name: "Donna: intake y memoria de cada cliente" })).toBeInTheDocument();
-        expect(
-            screen.getByRole("heading", { name: "LiTT desde Claude, ChatGPT u otra IA (el harness de tu preferencia)" }),
-        ).toBeInTheDocument();
-        expect(screen.getByText("Cinco novedades en camino.", { exact: false })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Donna, para los clientes con iguala" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "LiTT desde Claude o ChatGPT" })).toBeInTheDocument();
+        expect(screen.getByText("Tres novedades en camino.", { exact: false })).toBeInTheDocument();
     });
 
     it("has the same keys in both catalogs for the page", () => {
@@ -707,7 +755,7 @@ describe("the phone menu", () => {
         await user.click(button());
         expect(button()).toHaveAttribute("aria-expanded", "true");
         expect(panel()).not.toHaveAttribute("hidden");
-        expect(within(panel()).getByRole("link", { name: "Features" })).toHaveFocus();
+        expect(within(panel()).getByRole("link", { name: "Training" })).toHaveFocus();
         expect(document.documentElement).toHaveClass("menu-open");
         expect(document.getElementById("main")).toHaveAttribute("inert");
         expect(document.getElementById("landing-skip")).toHaveAttribute("inert");
@@ -727,13 +775,14 @@ describe("the phone menu", () => {
         expect(inside.getByRole("link", { name: "Terms and conditions" })).toHaveAttribute("href", "/terminos");
     });
 
-    it("has the four sections and 56 px rows", async () => {
+    it("has the five sections and 56 px rows", async () => {
         const user = userEvent.setup();
         render(<LandingPage signedIn={false} />);
         await user.click(button());
         const nav = within(panel()).getByRole("navigation", { name: "Sections" });
         const links = within(nav).getAllByRole("link");
         expect(links.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
+            ["Training", "#formacion"],
             ["Features", "#funciones"],
             ["Why LiTT", "#por-que"],
             ["Coming soon", "#proximamente"],
@@ -747,11 +796,12 @@ describe("the phone menu", () => {
         render(<LandingPage signedIn={false} />);
         await user.click(button());
         const seen: string[] = [];
-        for (let i = 0; i < 11; i += 1) {
+        for (let i = 0; i < 12; i += 1) {
             await user.tab();
             seen.push((document.activeElement as HTMLElement).textContent?.trim() || (document.activeElement as HTMLElement).getAttribute("aria-label") || "?");
         }
         expect(seen).toEqual([
+            "Features",
             "Why LiTT",
             "Coming soon",
             "Trust",
@@ -762,7 +812,7 @@ describe("the phone menu", () => {
             "Privacy notice",
             "Terms and conditions",
             "Menu",
-            "Features",
+            "Training",
         ]);
         // Shift+Tab from the first thing goes to the last, and from the button to the last link.
         await user.tab({ shift: true });

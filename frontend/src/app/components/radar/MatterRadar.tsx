@@ -1,5 +1,7 @@
 "use client";
 
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
+import { GuideHint } from "@/app/components/guides/GuideHint";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CalendarClock } from "lucide-react";
@@ -92,7 +94,10 @@ export function MatterRadar({ projectId, matterId }: { projectId: string; matter
           </Link>
           <MatterSectionNav projectId={projectId} matterId={matterId} current="radar" />
           <div className="min-w-0">
-            <h1 className="font-serif text-2xl text-gray-900">{t("radar.title")}</h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <h1 className="font-serif text-2xl text-gray-900">{t("radar.title")}</h1>
+              <GuideTrigger id="donna_radar" />
+            </div>
             <p className="mt-1 text-sm text-gray-600">{t("radar.subtitle")}</p>
             <p className="mt-1 text-sm font-medium text-gray-900">{t("radar.disclaimer")}</p>
             <p className="mt-1 text-xs text-gray-500">
@@ -101,6 +106,8 @@ export function MatterRadar({ projectId, matterId }: { projectId: string; matter
             </p>
           </div>
         </header>
+
+        <GuideHint hint="radar" guide="donna_radar" message={t("guides.ui.hintRadar")} />
 
         {loadFailed ? (
           <section className={`${LIQUID_SUBTLE_PANEL_SURFACE_CLASS} space-y-3 p-5`} role="alert">
@@ -124,11 +131,13 @@ export function MatterRadar({ projectId, matterId }: { projectId: string; matter
               icon={<CalendarClock />}
               title={t("radar.retainer.offTitle")}
               description={t("radar.retainer.offDescription")}
+              help={<GuideTrigger id="donna_radar" label={t("guides.ui.whenToUse")} icon={false} />}
             />
           </section>
         ) : groups.length === 0 ? (
           <section className={`${LIQUID_SUBTLE_PANEL_SURFACE_CLASS} p-5 md:p-6`}>
-            <EmptyState icon={<CalendarClock />} title={t("radar.empty.title")} description={t("radar.empty.description")} />
+            <EmptyState icon={<CalendarClock />} title={t("radar.empty.title")} description={t("radar.empty.description")}
+              help={<GuideTrigger id="donna_radar" label={t("guides.ui.whenToUse")} icon={false} />} />
           </section>
         ) : (
           <div className="space-y-5">

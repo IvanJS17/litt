@@ -63,6 +63,7 @@ function useDocked(): boolean {
 }
 
 const NAV = [
+    { id: SECTION_IDS.training, label: "landing.nav.training" },
     { id: SECTION_IDS.features, label: "landing.nav.features" },
     { id: SECTION_IDS.why, label: "landing.nav.why" },
     { id: SECTION_IDS.soon, label: "landing.nav.soon" },
@@ -104,7 +105,7 @@ export function LandingHeader({ signedIn }: { signedIn: boolean }) {
                     </a>
                     <nav
                         aria-label={t("landing.header.nav")}
-                        className="mx-auto hidden gap-7 min-[880px]:flex"
+                        className="mx-auto hidden gap-4 whitespace-nowrap min-[880px]:flex min-[960px]:gap-5 min-[1040px]:gap-7"
                     >
                         {NAV.map(({ id, label }) => (
                             <a key={id} href={`#${id}`} className={navLink}>

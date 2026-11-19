@@ -12,6 +12,7 @@ import {
     TOUCH_TARGET_CLASS,
 } from "@mike/ui";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
+import { ChatGuideHint } from "@/app/components/guides/ChatGuideHint";
 import type { Document, Message, QuickAction } from "../shared/types";
 import { useTranslations } from "next-intl";
 
@@ -86,6 +87,7 @@ export function InitialView({
             </div>
 
             <div className="w-full max-w-4xl justify-self-center px-0 xl:px-8">
+                <ChatGuideHint className="mb-3" />
                 <ChatInput
                     trainingTurns
                     ref={chatInputRef}

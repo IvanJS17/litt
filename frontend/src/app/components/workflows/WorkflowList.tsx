@@ -1,5 +1,6 @@
 "use client";
 
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -524,8 +525,9 @@ export function WorkflowList({
         ]}
       >
         <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
-          {t("workflows.workflows")}
-        </h1>
+        {t("workflows.workflows")}
+      </h1>
+        <GuideTrigger id="playbooks_workflows" className="ml-3 shrink-0" />
       </PageHeader>
 
       <TableToolbar

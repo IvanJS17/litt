@@ -17,6 +17,7 @@ export type MobileMenuPanelProps = Pick<
 > & { signedIn: boolean };
 
 const LINKS = [
+    { id: SECTION_IDS.training, label: "landing.nav.training" },
     { id: SECTION_IDS.features, label: "landing.nav.features" },
     { id: SECTION_IDS.why, label: "landing.nav.why" },
     { id: SECTION_IDS.soon, label: "landing.nav.soon" },

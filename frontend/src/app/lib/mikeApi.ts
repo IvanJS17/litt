@@ -2619,6 +2619,7 @@ export async function getMyTraining(): Promise<import("@mike/contracts").Trainin
         "training.read",
         "/training/me",
     );
+    if (!Array.isArray(result?.memberships)) throw new Error("Malformed training reply");
     return result.memberships;
 }
 

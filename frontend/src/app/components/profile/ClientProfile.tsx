@@ -1,5 +1,6 @@
 "use client";
 
+import { GuideTrigger } from "@/app/components/guides/GuideTrigger";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FileText } from "lucide-react";
@@ -230,7 +231,10 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
           <MatterSectionNav projectId={projectId} matterId={matterId} current="profile" />
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <h1 className="font-serif text-2xl text-gray-900">{t("clientProfile.title")}</h1>
+              <GuideTrigger id="donna_client_profile" />
+            </div>
               <p className="mt-1 text-sm text-gray-600">{t("clientProfile.subtitle")}</p>
             </div>
             {data?.retainer && data.can_write && !adding ? (
@@ -272,6 +276,7 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
               icon={<FileText />}
               title={t("clientProfile.retainer.offTitle")}
               description={t("clientProfile.retainer.offDescription")}
+              help={<GuideTrigger id="donna_client_profile" label={t("guides.ui.whenToUse")} icon={false} />}
             />
           </section>
         ) : (

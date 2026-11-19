@@ -37,6 +37,8 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getPupilCriteriaContrasts: vi.fn(async () => ({ org_id: "org-1", trainee_user_id: "pupil-1", contrasts: [], contrasts_without_access: 0 })),
 }));
 vi.mock("@/app/lib/userFacingError", () => ({ notifyError: vi.fn() }));
+// The mentor panel's first-time hint is remembered per user.
+vi.mock("@/app/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "mentor-1" } }) }));
 vi.mock("@/app/contexts/WorkspaceContext", () => ({
     useWorkspace: () => ({ organizations: [{ id: "org-1", name: "Despacho Ruiz" }] }),
 }));

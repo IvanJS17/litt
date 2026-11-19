@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import { LANDING_RULE } from "./landingStyles";
 
-const ITEMS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+const ITEMS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 /**
  * «Hecho para la práctica mexicana»: what LiTT adds for a firm in Mexico, a

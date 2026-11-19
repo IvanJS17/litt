@@ -3,6 +3,7 @@ import "./landing.css";
 import { AssistantSpecimen } from "./AssistantSpecimen";
 import { CtaPair } from "./LandingCtas";
 import { FeatureIndex } from "./FeatureIndex";
+import { FeaturePair } from "./FeaturePair";
 import { FeatureRow } from "./FeatureRow";
 import { FlowsSpecimen } from "./FlowsSpecimen";
 import { LandingFooter } from "./LandingFooter";
@@ -12,6 +13,7 @@ import { ProjectSpecimen } from "./ProjectSpecimen";
 import { SectionHead } from "./SectionHead";
 import { SoonBand } from "./SoonBand";
 import { TabularSpecimen } from "./TabularSpecimen";
+import { TrainingBand } from "./TrainingBand";
 import { TrustList } from "./TrustList";
 import { WhyColumns } from "./WhyColumns";
 import { WordSpecimen } from "./WordSpecimen";
@@ -32,8 +34,10 @@ import { LANDING_FOCUS, LANDING_PIXEL, LANDING_SECTION } from "./landingStyles";
  * /login, "Abrir LiTT" → /assistant), and it is decided on the server, so it
  * never flickers. Static text and fictitious examples: it calls no API.
  *
- * The order: Portada (the assistant at work), PRIMERO Funciones, SEGUNDO Por
- * qué LiTT, TERCERO Próximamente, CUARTO Confianza, QUINTO Acceso (SPEC v2 §1).
+ * The order: Portada (the assistant at work), PRIMERO Formación (the inverted
+ * band), SEGUNDO Funciones (four rows and the Donna / Claude-or-ChatGPT pair),
+ * TERCERO Por qué LiTT, CUARTO Próximamente, QUINTO Confianza, SEXTO Acceso
+ * (SPEC v2 §1, with Formación moved up by the owner on 18 Nov 2026).
  */
 export function LandingPage({ signedIn }: { signedIn: boolean }) {
     const t = useTranslations();
@@ -101,7 +105,10 @@ export function LandingPage({ signedIn }: { signedIn: boolean }) {
                     </div>
                 </section>
 
-                {/* ── PRIMERO · Funciones ── */}
+                {/* ── PRIMERO · Formación ── */}
+                <TrainingBand />
+
+                {/* ── SEGUNDO · Funciones ── */}
                 <section
                     id={SECTION_IDS.features}
                     aria-labelledby="landing-features-title"
@@ -152,10 +159,11 @@ export function LandingPage({ signedIn }: { signedIn: boolean }) {
                                 <FlowsSpecimen />
                             </FeatureRow>
                         </div>
+                        <FeaturePair />
                     </div>
                 </section>
 
-                {/* ── SEGUNDO · Por qué LiTT ── */}
+                {/* ── TERCERO · Por qué LiTT ── */}
                 <section
                     id={SECTION_IDS.why}
                     aria-labelledby="landing-why-title"
@@ -176,10 +184,10 @@ export function LandingPage({ signedIn }: { signedIn: boolean }) {
                     </div>
                 </section>
 
-                {/* ── TERCERO · Próximamente ── */}
+                {/* ── CUARTO · Próximamente ── */}
                 <SoonBand />
 
-                {/* ── CUARTO · Confianza ── */}
+                {/* ── QUINTO · Confianza ── */}
                 <section
                     id={SECTION_IDS.trust}
                     aria-labelledby="landing-trust-title"
@@ -199,7 +207,7 @@ export function LandingPage({ signedIn }: { signedIn: boolean }) {
                     </div>
                 </section>
 
-                {/* ── QUINTO · Acceso ── */}
+                {/* ── SEXTO · Acceso ── */}
                 <section
                     id={SECTION_IDS.access}
                     aria-labelledby="landing-access-title"
