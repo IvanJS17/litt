@@ -165,6 +165,8 @@ Names are at most 64 characters; reads and writes are separate tools.
 | `search_documents` | `litt.read` | read-only, strict audit | Literal phrase search in the stored text of a matter, one document or the person's library; located excerpts (version id and character offsets). |
 | `read_document` | `litt.read` | read-only, strict audit | A window of a version's stored text (`offset`, `limit_chars` ≤ 60 000, default 30 000) with `next_offset` and `total_chars`. |
 | `list_document_versions` | `litt.read` | read-only | Versions of a document: number, source, size, `training_held`. |
+| `create_matter` | `litt.write` | additive (`destructiveHint: false`), strict audit | Creates an empty matter with `createProject`, the service behind `POST /projects`: `name` (required, ≤ 300), optional `workspace` (default: the connection's), `matter_number` (the web's `cm_number`, ≤ 100), `practice` (≤ 100) and `visibility` (`private` default, or `organization`, firms only). Returns `id`, `name`, `matter_number`, `practice`, `workspace`, `visibility` and `url` to open it. Membership of the firm, Personal closed to managed accounts and who may open a matter to the firm are the web's rules. |
+| `create_note_document` | `litt.write` | additive, strict audit | Creates a NEW Markdown document (`.md`, version 1, `source = 'generated'`) at the top level of a matter from `title` (≤ 120 characters, becomes the file name; a taken name gets ` (2)`…) and `markdown` (≤ 100 000 characters, stored byte for byte). `createNoteDocument` in the documents module: same permission as opening an upload into the matter (edit rights; a viewer gets `forbidden`, anyone who cannot open the matter or whose connection does not cover it gets `not_found`); a pasante's note is sealed like any of their versions. Never changes or deletes a document. Returns `document_id`, `version_id`, `filename`, `matter_id` and `url` (the matter). |
 | `get_upload_status` | `litt.read` | read-only | State of an upload, and the new document's id once it is done. |
 | `request_document_upload` | `litt.write` | additive (`destructiveHint: false`), strict audit | Opens the web's upload session for one file in a matter and returns a one-time signed `PUT` URL. |
 | `complete_document_upload` | `litt.write` | additive, strict audit | After the `PUT`, asks LiTT to seal, verify and process the file. Safe to repeat. |
@@ -257,8 +259,9 @@ with a real Claude). No base64 upload yet.
 
 **Audit.** Each call writes `mcp_tool_calls` (no arguments, no content). Tools that
 take document text out (`read_document`, `search_documents`) or add content (the
-upload tools) also write `audit_events` (`surface = 'mcp'`, with the matter or
-document id, never a name or text) before running. Document text additionally
+upload tools, `create_matter`, `create_note_document`) also write `audit_events` (`surface = 'mcp'`, with the matter or
+document id, never a name or text) before running. `create_matter` writes a second row,
+`mcp.create_matter.created`, with the new matter's id (best effort: the matter already exists). Document text additionally
 writes `mcp.client_ai_egress` (document, version, characters, client) before it is
 returned; if that cannot be written the text is not returned.
 
@@ -277,6 +280,14 @@ A restart of the backend turns a running answer into `interrupted`.
 **Sessions.** `GET /mcp-connect/grants/:id/activity` (the «Aplicaciones conectadas» tab)
 lists a connection's recent calls (tool, time, workspace, outcome: `mcp_tool_calls` holds
 nothing else) and the conversations it started that the person can still open, with links.
+
+**Server identity.** The `initialize` result carries `serverInfo` `{ name: "litt", title: "LiTT",
+websiteUrl: <LITT_MCP_PUBLIC_URL>, icons }` so Claude shows the LiTT mark instead of a letter tile
+(Claude's «Declare an app icon» guideline). `icons` holds one inline `data:image/png;base64,…`
+128×128 (about 150 bytes; Claude never fetches icon URLs, and requires PNG/JPEG under 10 KB):
+LiTT's small-size mark, the 48 px variant of `frontend/src/app/icon.svg`. It lives in
+`backend/src/modules/mcp/mcp.icon.ts` (a module, so the build needs no extra file; how to regenerate
+it is in the file's header; `assets/litt-icon-128.png` is the same image). No other mechanism is used.
 
 ## Tables
 
@@ -308,6 +319,11 @@ removes its connections and tokens and keeps the history.
   the web list, and the sessions endpoint. The model itself is stood in for at the
   `startChatTurn` / `runChatTurn` seam; the real turn is pinned by the golden recordings
   of the web route (`chatTurn.golden.routes.test.ts`).
+* `backend/src/__tests__/integration/mcp.tools.create.routes.test.ts` — `create_matter` and
+  `create_note_document` through `/mcp`: the matrix against the web's upload permission
+  (owner, editor, viewer, admin outside a private matter, apprentice, outsider, a connection
+  that does not cover the firm), managed accounts and Personal, validation, size caps, strict
+  audit and fail-closed, sanitized failures, cleanup, and the write lane.
 * `backend/src/modules/mcp/__tests__/mcp.toolkit.test.ts` — cursors, text
   windows, the untrusted wrapper, matter matching, and the rule that tool files
   do not query tables.

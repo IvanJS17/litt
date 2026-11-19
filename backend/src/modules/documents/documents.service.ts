@@ -19,6 +19,7 @@
 //   documents.authorship.ts — estimated authorship of a version (training)
 //   documents.convert.ts   — convert between Markdown, Word and PDF as a new document
 //   documents.compare.ts   — compare two Word files into a new one with tracked changes
+//   documents.note.ts      — a new Markdown note document from text (the MCP create_note_document tool)
 //   documents.split.ts     — split a case-file PDF into one PDF per document (LandingAI Split)
 //
 // Upload sessions own transport and destination authorization; version metadata
@@ -65,6 +66,7 @@ export {
 } from "./documents.convert";
 
 export { compareDocuments } from "./documents.compare";
+export { createNoteDocument, NOTE_MAX_MARKDOWN_CHARS, NOTE_MAX_TITLE_CHARS } from "./documents.note";
 
 export { renameDocument } from "./documents.rename";
 export { deleteCollectionDocuments } from "./documents.cleanup";

@@ -13,11 +13,15 @@ import { isVersionHeld, assertVersionReleasable } from "../../lib/trainingReleas
 import { TRAINING_APPROVAL_REQUIRED_CODE } from "../../lib/httpError";
 import { getProjectDirectoryLevel } from "../projects/projects.service";
 import {
+    createNoteDocument,
     findDocumentText,
     listVersions,
+    NOTE_MAX_MARKDOWN_CHARS,
+    NOTE_MAX_TITLE_CHARS,
     readStoredDocumentText,
 } from "../documents/documents.service";
 import { recordMcpEgress } from "./mcp.calls";
+import { mcpConfig } from "./mcp.config";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
 import {
     cursorSchema,
@@ -365,6 +369,64 @@ export const listDocumentVersions = defineMcpTool({
                 deleted: !!version.deleted_at,
                 training_held: version.training_held === true,
             })),
+        });
+    },
+});
+
+export const createNoteDocumentTool = defineMcpTool({
+    name: "create_note_document",
+    title: "Create a note document",
+    description:
+        `Creates a NEW Markdown document (a note) in the top level of a matter from the text you give, and returns its document id, version id and the address of the matter. It never changes or deletes an existing document: calling it again makes another note. Needs the same permission as adding a file to the matter in the web app. The markdown is limited to ${NOTE_MAX_MARKDOWN_CHARS} characters. / Crea un documento nuevo de notas en Markdown en un asunto; nunca modifica ni borra documentos existentes.`,
+    inputSchema: z.object({
+        matter_id: idSchema("matter_id"),
+        title: z
+            .string()
+            .trim()
+            .min(1)
+            .max(NOTE_MAX_TITLE_CHARS)
+            .describe("Name of the note; it becomes the file name (.md is added)."),
+        markdown: z
+            .string()
+            .min(1)
+            .max(NOTE_MAX_MARKDOWN_CHARS)
+            .describe(`The note's text in Markdown (at most ${NOTE_MAX_MARKDOWN_CHARS} characters).`),
+    }),
+    scope: "litt.write",
+    lane: "write",
+    readOnly: false,
+    destructive: false,
+    audit: "strict",
+    auditRefs: (args) => ({ projectId: args.matter_id }),
+    resolveWorkspace: (args, call) => matterWorkspace(call, args.matter_id),
+    handler: async (args, call) => {
+        const created = await createNoteDocument(call.db, {
+            projectId: args.matter_id,
+            userId: call.principal.userId,
+            userEmail: await call.userEmail(),
+            title: args.title,
+            markdown: args.markdown,
+        });
+        if (!created.ok) {
+            switch (created.kind) {
+                case "error":
+                    throw serviceFailure("create note document", created.error);
+                case "not_found":
+                    throw notFound("The matter");
+                case "forbidden":
+                    throw new McpToolError("forbidden", created.detail);
+                case "unavailable":
+                    throw new McpToolError("storage_unavailable", created.detail, "Try again later.");
+                default:
+                    throw new McpToolError(created.code ?? "invalid_request", created.detail);
+            }
+        }
+        return mcpText({
+            document_id: created.data.document_id,
+            version_id: created.data.version_id,
+            filename: created.data.filename,
+            matter_id: created.data.project_id,
+            url: `${mcpConfig().webUrl}/projects/${created.data.project_id}`,
         });
     },
 });

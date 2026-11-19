@@ -6,8 +6,9 @@
 import { z } from "zod";
 import { defineMcpTool, mcpText, type AnyMcpTool } from "./mcp.tools";
 import { listWorkspaces } from "./mcp.tools.context";
-import { findMatters, getMatter } from "./mcp.tools.matters";
+import { createMatter, findMatters, getMatter } from "./mcp.tools.matters";
 import {
+    createNoteDocumentTool,
     listDocumentVersions,
     listMatterDocuments,
     readDocument,
@@ -68,10 +69,12 @@ export const MCP_TOOLS: readonly AnyMcpTool[] = [
     listWorkspaces,
     findMatters,
     getMatter,
+    createMatter,
     listMatterDocuments,
     searchDocuments,
     readDocument,
     listDocumentVersions,
+    createNoteDocumentTool,
     requestDocumentUpload,
     completeDocumentUpload,
     getUploadStatus,

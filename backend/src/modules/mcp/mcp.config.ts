@@ -22,6 +22,8 @@ export type McpConfig = {
     protectedResourceMetadataUrl: string;
     /** The web page that asks the person to approve a connection. */
     consentUrl: string;
+    /** Origin of the web app: where a matter can be opened. */
+    webUrl: string;
     cimdEnabled: boolean;
     allowedOrigins: Set<string>;
     accessTtlSeconds: number;
@@ -87,6 +89,7 @@ export function mcpConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
         revocationEndpoint: `${issuer}/oauth/revoke`,
         protectedResourceMetadataUrl: `${issuer}/.well-known/oauth-protected-resource/mcp`,
         consentUrl: `${originOf(env.LITT_MCP_CONSENT_URL) ?? web}/connect/authorize`,
+        webUrl: originOf(env.LITT_MCP_CONSENT_URL) ?? web,
         cimdEnabled: env.LITT_MCP_CIMD?.trim().toLowerCase() !== "disabled",
         allowedOrigins: new Set(
             (env.LITT_MCP_ALLOWED_ORIGINS ?? "")
