@@ -28,6 +28,7 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 | `litt-backup.sh` | Respaldo diario (pg_dump + restic en R2; sin documentos, por diseño) |
 | `litt-restic.env.example` | Nombres de las variables de `/etc/litt-restic.env` (sin valores) |
 | `litt-deploy.sh` | Deploy de un release en el VPS: marcador, espacio, carga verificada, árbol, salud y retención (§1) |
+| `image-bytes.sh` | Tamaño en disco de un release para el chequeo de espacio (capas y blobs únicos de las tres imágenes) |
 | `litt-deploy.test.sh` | Pruebas de `litt-deploy.sh` con dobles de `docker` y `df` (`bash deploy/prod/litt-deploy.test.sh`) |
 | `word-addin-install.md` | Guía de una página para el administrador de Microsoft 365 de cada despacho (§9) |
 
@@ -84,12 +85,10 @@ done
 BID=$(docker image inspect --format '{{.Id}}' "litt-backend:$SHA")
 FID=$(docker image inspect --format '{{.Id}}' "litt-frontend:$SHA")
 WID=$(docker image inspect --format '{{.Id}}' "litt-word:$SHA")
-# Huella real en disco: unión de capas de las tres imágenes, cada capa una sola vez
-# (comparten la base node:22-slim). `docker history` da un renglón por capa con su
-# tamaño sin comprimir; una capa compartida tiene el mismo CreatedAt y tamaño en las tres.
-BYTES=$(for i in backend frontend word; do
-  docker history --human=false --format '{{.CreatedAt}} {{.Size}}' "litt-$i:$SHA"
-done | sort -u | awk '{ s += $2 } END { print s }')
+# Tamaño en disco del release (capas descomprimidas + blobs comprimidos, cada uno una
+# sola vez; así guarda las imágenes el almacén de containerd del VPS). Falla si falta
+# alguna imagen: no se sigue con un BYTES incompleto.
+BYTES=$(bash deploy/prod/image-bytes.sh "$SHA") || { echo "no se pudo medir BYTES"; exit 1; }
 echo "BYTES=$BYTES"
 # Deploy (el árbol del release viaja aparte; las imágenes, por stdin y sin copias en disco):
 scp deploy/prod/litt-deploy.sh staging-apps-dev:/tmp/litt-deploy.sh
@@ -104,9 +103,10 @@ host (`HOST-RULES.md` §3–§5):
 1. Crea `/srv/litt/.deploy-in-progress` al empezar y lo borra al terminar, también si
    falla (`trap`). Mientras exista, el guardián de disco del host no retira imágenes.
 2. **Antes de cargar** comprueba que haya libres al menos `max(7 GiB, 2 × BYTES + 5 GiB)`.
-   `BYTES` es la unión de capas de las tres imágenes (cada capa una vez), calculada en la
-   máquina de build con el comando de arriba; no es la suma de los tamaños de las imágenes,
-   que cuenta tres veces la base compartida. Si no alcanza, **aborta sin tocar nada**: no
+   `BYTES` es el tamaño en disco del release que da `image-bytes.sh` en la máquina de build:
+   capas descomprimidas más blobs comprimidos, cada uno una sola vez, porque así guarda las
+   imágenes el almacén de containerd del VPS. No es la suma de los tamaños de las tres
+   imágenes, que cuenta tres veces la base compartida `node:22-slim`. Si no alcanza, **aborta sin tocar nada**: no
    retira ninguna imagen, así que la viva y la anterior siguen cargadas y producción queda
    intacta. Para liberar espacio, hacerlo a mano (por tag explícito, nunca `prune`) y
    volver a lanzar el deploy.
