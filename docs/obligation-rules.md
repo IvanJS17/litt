@@ -252,3 +252,116 @@ it." Each pending suggestion shows the rule's name, "AI suggestion, not
 verified", the quote with its file and version, the AI's explanation marked "not
 verified" and its state as plain text, with Accept and Discard (optional
 reason); two or more pending ones can be reviewed in a batch.
+
+## Rule proposals
+
+**Status:** built (slice S8b); not deployed until a reviewed release says so.
+
+On the lawyer's click (**Proponer reglas nuevas**, in the project's actions menu),
+the AI of the space reads **one version** of a law text and proposes **new**
+obligations, each with the literal quote of the article. A proposal is an
+**unverified draft**. It is not a rule: it cannot be turned on, no calculation
+reads it, and it never enters the catalog by itself. The catalog is code
+(`radar_catalogo_s5_lote1.json` plus three phrases in `packages/i18n`), so a rule
+only exists after legal verifies the draft against the official source and a
+reviewed pull request adds it. Nothing in the runtime writes the catalog.
+
+### Where the law text lives
+
+In a **document of a firm project that no matter is bound to** (a project of the
+organization: not Personal, not the project of a client or retainer matter). The
+service reuses the project's own access rules (`checkProjectAccess`) and adds two
+checks, `rule_proposal_firm_project_required` (409, not an organization project)
+and `rule_proposal_matter_project` (409, a matter is bound to the project), both
+before any read, route lookup or egress. The database enforces the same on every
+insert. The library module was reviewed and not used: its documents are filed by
+workspace and carry no project role, so reading them would need a new access path;
+a project document already has the roles, the version text and the "is this a
+matter?" test. The law text is not verified: it may be out of date or badly
+extracted, and the quote only proves fidelity **to that text**, not to the law in
+force.
+
+### What leaves LiTT, per click, and what does not
+
+A synchronous request from the server. **Leaves**, to the provider of the route
+the project chat would use in this space, with that route's key (the person's own
+or the firm's, never the deployment's; no fallback):
+
+1. The text of one version that has ready text (never the file, never OCR or a
+   split).
+2. The fixed instructions and the closed output schema
+   `[{ law, article, obligation, anchor_name, quote, page, plazo_propuesto }]`, at
+   most 25 items (`buildProposeSystemPrompt`).
+3. The list of **codes** of the catalog (all of them, only the `codigo`: no names,
+   citations, notes or operations), so the model does not propose what exists.
+4. The technical data of the call (model, token cap, credential, timeout).
+
+**Does not leave:** the file or project name, the account, any client data (no
+matter is read), instructions or memory, chats, other documents or versions, the
+earlier proposals. No tools. Never TypeSafe, LandingAI, a web search or Jev (a test
+reads the module's imports). Nothing is truncated: a text above 120,000 characters
+is refused with 422 `suggestion_text_too_large` before any route lookup, call or
+egress record; for a longer law, upload the relevant chapters. The egress is
+recorded (`llm.egress`, surface `rule_suggestion_law`, never content) **before**
+the call (`recordChatEgressOrThrow`). The help line next to the button says all
+this before the click.
+
+### How each proposal is checked
+
+1. The item fits the closed schema. A date, an operation or any other key makes the
+   item invalid (`discarded_invalid`), as does anything beyond the 25th. An answer
+   that is not a JSON array is refused (422 `suggestion_output_invalid`).
+2. The quote is found with `locateQuote`, else `discarded_quote_not_found`; the
+   quote saved is the document's own wording.
+3. The same passage of the same text (version, SHA-256 and position) is one
+   proposal, else `discarded_duplicate` (a unique index also settles a race).
+4. `plazo_propuesto` is **free draft text**, at most 80 characters (for example
+   "+4 meses"). If it writes a calendar date (a day and a month, a numeric date, a
+   month name or a year) the term is dropped and counted
+   (`discarded_term_has_date`) and the proposal stays. No calculation or turn-on
+   module reads the field (a test reads their imports). It is always shown and
+   exported with its legend "Sin verificar".
+
+### Decisions
+
+Same insert-only tables as the suggestions (migration
+`20261119_30_litt_rule_proposals.sql`): `flow = 'new_rule_draft'`, no matter, a
+closed `draft` object, and the provider and model that wrote it. The latest event
+is the state, and the database enforces the order: nothing → `sent_to_legal` or
+`discarded`; `sent_to_legal` → `implemented` or `discarded`; `discarded` and
+`implemented` end it. `implemented` is written by a **project member** (owner or
+editor), never by the AI or by staff access, and needs a **code that is a verified
+rule of the catalog of the deployed release** (422 `proposal_unknown_catalog_code`).
+**Sending to legal records the event and downloads the file for the person: LiTT
+receives nothing and no one at LiTT can read it from a panel.** A proposal is out of
+date (computed on read) when the version's text changed or is gone; it cannot be
+sent (409 `proposal_obsolete`), only discarded. The account export carries what the
+holder proposed and decided, while they can still open the project.
+
+### The file for legal
+
+`GET .../rule-proposals/export` returns Markdown (`propuestas-reglas-<proyecto>-<AAAAMMDD>.md`)
+with the proposals that were sent to legal and not discarded, for anyone who can
+open the project. The whole format lives in `radar.proposals.markdown.ts`: a header
+(date and time, project, document, version, full `text_sha256`, provider and model,
+count and the fixed legend), then one table per source text with the columns
+`# | id_propuesta | codigo | Obligación propuesta (IA) | Cuándo aplica | Dato de partida (IA) | Plazo propuesto (borrador, sin verificar) | Cita literal (texto subido) | Ley y artículo (según el texto subido) | Pág. | URL oficial | Última reforma DOF | estado | Notas de legal`.
+`codigo`, `Cuándo aplica`, the URL, the DOF date and the notes are «por llenar»
+(legal writes them); `estado` is always `propuesta`; the quote goes as stored (only
+`|` and line breaks are escaped).
+
+### API
+
+Under `/projects/:projectId/rule-proposals` (a project member; a stranger gets 404):
+
+| Route | Who |
+|---|---|
+| `GET /` | any member: the drafts with their state, and the versions a run can read (writers) |
+| `GET /route` | owner or editor: where the text would go, or `{ route: null }` |
+| `GET /export` | any member: the Markdown file for legal |
+| `POST /versions/:versionId/propose` | owner or editor; MFA if enrolled; the same per-person lane as the suggestions |
+| `POST /:proposalId/send-to-legal`, `/discard` | owner or editor; body `{ reason? }` |
+| `POST /:proposalId/implemented` | owner or editor; body `{ catalog_code, reason? }` |
+
+Drafts are never in `GET .../radar/rules` or in the turn-on selector: they are not
+rules, and the browser policies of the tables cover matter suggestions only.

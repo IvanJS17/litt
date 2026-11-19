@@ -15,3 +15,12 @@ export {
   getSuggestionRoute,
   suggestRules,
 } from "./radar.suggest";
+export {
+  discardProposal,
+  exportRuleProposals,
+  getProposalRoute,
+  getRuleProposals,
+  markProposalImplemented,
+  proposeRules,
+  sendProposalToLegal,
+} from "./radar.proposals";

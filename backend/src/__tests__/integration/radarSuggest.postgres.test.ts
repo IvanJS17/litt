@@ -77,6 +77,8 @@ describe.skipIf(!container)("rule suggestions in PostgreSQL", () => {
         const migration = readFileSync(resolve(process.cwd(), "migrations", "20261119_20_litt_rule_suggestions.sql"), "utf8");
         psql(migration);
         psql(migration);
+        // Later migrations replace the guard functions: re-running this one alone would put the old ones back.
+        psql(readFileSync(resolve(process.cwd(), "migrations", "20261119_30_litt_rule_proposals.sql"), "utf8"));
     }, 180_000);
 
     afterAll(() => {
@@ -197,7 +199,7 @@ describe.skipIf(!container)("rule suggestions in PostgreSQL", () => {
     it("binds a decision to a suggestion of the same matter", () => {
         psql(sug(SUGGESTION));
         psql(`insert into public.matters(id, workspace_id, name, is_retainer) values (${q(32)}, ${q(WORKSPACE)}, 'Otra', true)`);
-        expect(failure(event(SUGGESTION, "accepted", { matter: 32 }))).toContain("foreign key");
+        expect(failure(event(SUGGESTION, "accepted", { matter: 32 }))).toMatch(/foreign key|another matter/);
         expect(failure(event(99, "accepted"))).toContain("foreign key");
         expect(psql("select count(*) from public.obligation_rule_suggestion_events")).toBe("0");
     });

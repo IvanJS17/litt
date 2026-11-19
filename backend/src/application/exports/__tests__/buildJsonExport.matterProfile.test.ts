@@ -91,11 +91,18 @@ function tables(): Record<string, Row[]> {
             { id: "g1", matter_id: "m-open", rule_code: "lgsm.asamblea_ordinaria_anual", rule_version: 1, quote: "q", created_by: user, created_at: "2026-11-19T00:00:00Z" },
             { id: "g2", matter_id: "m-open", rule_code: "lft.ptu_reparto", rule_version: 1, quote: "q", created_by: "someone", created_at: "2026-11-19T00:00:00Z" },
             { id: "g3", matter_id: "m-left", rule_code: "lft.ptu_reparto", rule_version: 1, quote: "q", created_by: user, created_at: "2026-11-19T00:00:00Z" },
+            // Rule proposals (S8b): drafts of a law text, no matter; project work.
+            { id: "p1", flow: "new_rule_draft", matter_id: null, project_id: "project-open", draft: { law: "L" }, ai_provider: "claude", ai_model: "m", quote: "q", created_by: user, created_at: "2026-11-19T00:00:00Z" },
+            { id: "p2", flow: "new_rule_draft", matter_id: null, project_id: "project-closed", draft: { law: "L" }, quote: "q", created_by: user, created_at: "2026-11-19T00:00:00Z" },
+            { id: "p3", flow: "new_rule_draft", matter_id: null, project_id: "project-open", draft: { law: "L" }, quote: "q", created_by: "someone", created_at: "2026-11-19T00:00:00Z" },
         ],
         obligation_rule_suggestion_events: [
             { id: "d1", suggestion_id: "g2", matter_id: "m-open", action: "accepted", reason: null, actor_user_id: user, created_at: "2026-11-19T01:00:00Z" },
             { id: "d2", suggestion_id: "g1", matter_id: "m-open", action: "discarded", reason: null, actor_user_id: "someone", created_at: "2026-11-19T01:00:00Z" },
             { id: "d3", suggestion_id: "g3", matter_id: "m-left", action: "accepted", reason: null, actor_user_id: user, created_at: "2026-11-19T01:00:00Z" },
+            { id: "d4", suggestion_id: "p1", matter_id: null, action: "sent_to_legal", reason: null, catalog_code: null, actor_user_id: user, created_at: "2026-11-19T02:00:00Z" },
+            { id: "d5", suggestion_id: "p3", matter_id: null, action: "sent_to_legal", reason: null, catalog_code: null, actor_user_id: user, created_at: "2026-11-19T02:00:00Z" },
+            { id: "d6", suggestion_id: "p2", matter_id: null, action: "sent_to_legal", reason: null, catalog_code: null, actor_user_id: user, created_at: "2026-11-19T02:00:00Z" },
         ],
         matter_profile_fact_events: [
             event("e1", "f1", "m-open", user),
@@ -170,13 +177,14 @@ describe("account export: profile facts", () => {
 
     it("carries the rule suggestions the holder asked for and decided, in matters they can still open", async () => {
         const mine = await loadUserRuleSuggestions(db, user, "holder@example.test", "org-current");
-        expect(mine.suggestions.map((row) => row.id)).toEqual(["g1"]);
-        expect(mine.events.map((row) => row.id)).toEqual(["d1"]);
+        // Matter work needs the matter; a rule proposal needs the project: the holder's own, and still open.
+        expect(mine.suggestions.map((row) => row.id)).toEqual(["g1", "p1"]);
+        expect(mine.events.map((row) => row.id)).toEqual(["d1", "d4", "d5"]);
         expect(await loadUserRuleSuggestions(db, user, null, null)).toEqual({ suggestions: [], events: [] });
         expect(await loadUserRuleSuggestions(db, "nobody", null, "org-current")).toEqual({ suggestions: [], events: [] });
         const firm = await buildUserAccountExport(db, user, "holder@example.test", "org-current");
-        expect((firm.obligation_rule_suggestions as Row[]).map((row) => row.id)).toEqual(["g1"]);
-        expect((firm.obligation_rule_suggestion_events as Row[]).map((row) => row.id)).toEqual(["d1"]);
+        expect((firm.obligation_rule_suggestions as Row[]).map((row) => row.id)).toEqual(["g1", "p1"]);
+        expect((firm.obligation_rule_suggestion_events as Row[]).map((row) => row.id)).toEqual(["d1", "d4", "d5"]);
         const personal = await buildUserAccountExport(db, user, "holder@example.test", null);
         expect(personal.obligation_rule_suggestions).toEqual([]);
         expect(personal.obligation_rule_suggestion_events).toEqual([]);

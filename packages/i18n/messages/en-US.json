@@ -1379,7 +1379,15 @@
       "suggestion_already_decided": "This suggestion was already decided. Reload the list to see its state.",
       "suggestion_obsolete": "The cited document or the rule changed, so this suggestion cannot be accepted. Ask for suggestions again with the current version.",
       "invalid_rule_suggestion": "Check the request: the reason must be text of up to 500 characters and up to 50 suggestions can be decided at once.",
-      "rule_suggestion_limit": "This matter already holds as many suggestions as it can."
+      "rule_suggestion_limit": "This matter already holds as many suggestions as it can.",
+      "rule_proposal_firm_project_required": "Rule proposals are made in a firm project, not in a personal one.",
+      "rule_proposal_matter_project": "Rule proposals read law text in a firm project, never in the project of a client matter.",
+      "rule_proposal_write_required": "Only an owner or editor of the project can propose or decide rules.",
+      "rule_proposal_limit": "This project already holds as many proposals as it can.",
+      "invalid_rule_proposal": "Check the request: the reason must be text of up to 500 characters.",
+      "proposal_already_decided": "This proposal was already decided. Reload the list to see its state.",
+      "proposal_obsolete": "The cited text changed, so this proposal cannot be sent to legal. Ask for proposals again with the current version.",
+      "proposal_unknown_catalog_code": "That code is not a verified rule of the catalog of this LiTT release."
     },
     "couldnt": "Couldn't {action}",
     "couldntTryAgain": "LiTT couldn't {action}. Try again.",
@@ -4455,6 +4463,76 @@
       "quote": "Quote of the law",
       "opens": "The window opens on {date}",
       "anchorFact": "Counted from: {fact}"
+    }
+  },
+  "ruleProposals": {
+    "title": "Propose new rules",
+    "backToProject": "Back to project",
+    "subtitle": "Upload the text of a law (or the chapters that matter) as a document of this firm project. The AI proposes obligations with the literal quote of the article. Every proposal is an unverified draft: it cannot be turned on and only saves legal some work.",
+    "sizeNote": "If the law is longer than 120,000 characters, upload only the chapters that matter: the text is never cut.",
+    "version": "Document and version",
+    "chooseVersion": "Choose a version",
+    "source": "{name}, version {version}",
+    "button": "Propose new rules",
+    "running": "Reading the law…",
+    "helper": "The text of this version and the list of catalog codes will be sent to {provider} using the key the chat uses in this space. Upload only legal text, preferably the official version, with no client data. Proposals are unverified drafts.",
+    "readOnly": "Only an owner or editor of the project can propose and decide rules. You can read the proposals and download the file.",
+    "noRoute": "Proposing rules needs an AI model and key in this space. Set them up in Settings.",
+    "couldNotLoad": "The proposals could not be loaded.",
+    "couldNotPropose": "Rules could not be proposed with AI.",
+    "loading": "Loading proposals",
+    "result": {
+      "title": "Result",
+      "proposed": "{count, plural, =0 {The AI did not propose new rules.} one {The AI proposed # new rule.} other {The AI proposed # new rules.}}",
+      "discardedQuote": "{count, plural, one {# proposal was rejected because its quote is not in the text.} other {# proposals were rejected because their quote is not in the text.}}",
+      "discardedDuplicate": "{count, plural, one {# proposal was rejected because it already exists for this text.} other {# proposals were rejected because they already exist for this text.}}",
+      "discardedInvalid": "{count, plural, one {# proposal was rejected for not following the format.} other {# proposals were rejected for not following the format.}}",
+      "discardedTerm": "{count, plural, one {The term was removed from # proposal because it wrote a calendar date.} other {The term was removed from # proposals because they wrote a calendar date.}}",
+      "notExhaustive": "The list is not exhaustive and a quote only proves the sentence is in the uploaded text, not in the law in force."
+    },
+    "listTitle": "Drafts",
+    "empty": "There are no proposals in this project yet.",
+    "legend": "Unverified draft. It cannot be used until legal verifies it and it is added to the catalog.",
+    "aiLabel": "AI proposal, unverified",
+    "lawArticle": "{law} · {article}",
+    "quote": "Literal quote from the uploaded text",
+    "page": "Page {page}",
+    "anchorLabel": "Starting fact (AI)",
+    "termLabel": "Proposed term",
+    "termLegend": "Term proposed by the AI, unverified; legal sets the final term.",
+    "noTerm": "The AI did not propose a term.",
+    "status": {
+      "pending": "Draft waiting for review.",
+      "sent": "Sent to legal.",
+      "implemented": "Implemented in the catalog with the code {code}.",
+      "obsolete": "Out of date: {reason}"
+    },
+    "stale": {
+      "text_changed": "the text of that version changed.",
+      "version_missing": "the version no longer exists.",
+      "text_unavailable": "the text of that version is no longer available."
+    },
+    "actions": {
+      "send": "Send to legal",
+      "sending": "Sending…",
+      "sendHint": "Records the send and downloads a file to your device. LiTT receives nothing: you decide how and to whom you send it.",
+      "discard": "Discard",
+      "discardConfirm": "Confirm discard",
+      "discardReason": "Reason (optional)",
+      "cancel": "Cancel",
+      "implemented": "Record as implemented",
+      "implementedHint": "Use it once a change has added the rule to the catalog.",
+      "implementedCode": "Catalog code of the rule",
+      "implementedConfirm": "Save",
+      "couldNotDecide": "The decision could not be recorded.",
+      "couldNotImplement": "It could not be recorded: the code must be a verified rule of the catalog."
+    },
+    "export": {
+      "button": "Download file for legal",
+      "downloading": "Preparing file…",
+      "hint": "It holds only the proposals sent to legal and not discarded. It is generated for you; LiTT receives nothing.",
+      "couldNotDownload": "The file for legal could not be prepared.",
+      "sentAndDownloaded": "Sent to legal. The file was downloaded to your device."
     }
   },
   "retainerReport": {

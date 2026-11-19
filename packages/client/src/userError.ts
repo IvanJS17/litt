@@ -284,6 +284,17 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     suggestion_obsolete: "conflict",
     invalid_rule_suggestion: "validation",
     rule_suggestion_limit: "conflict",
+    // Rule proposals (a law text in a firm project): a matter's project or a
+    // personal one is not a source; only an owner or editor proposes; a draft
+    // is decided in order; the catalog code must be a verified rule of this release.
+    rule_proposal_firm_project_required: "conflict",
+    rule_proposal_matter_project: "conflict",
+    rule_proposal_write_required: "forbidden",
+    rule_proposal_limit: "conflict",
+    invalid_rule_proposal: "validation",
+    proposal_already_decided: "conflict",
+    proposal_obsolete: "conflict",
+    proposal_unknown_catalog_code: "validation",
     // Deadline radar: dismissing needs a reason; an item already handled
     // cannot be handled again.
     radar_reason_required: "validation",
