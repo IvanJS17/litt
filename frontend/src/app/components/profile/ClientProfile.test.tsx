@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ClientProfile as ClientProfileData, ProfileExtraction, ProfileFact } from "@mike/contracts";
 import esMX from "../../../../../packages/i18n/messages/es-MX.json";
@@ -524,6 +524,8 @@ describe("assisted extraction", () => {
     await screen.findByRole("article");
     expect(screen.queryByRole("button", { name: "Propose facts with AI" })).not.toBeInTheDocument();
 
+    // Unmount the first page before counting, so its own effects cannot land after the clear.
+    cleanup();
     mocks.getProfileExtractionRoute.mockClear();
     mocks.getClientProfile.mockResolvedValue(profile({ can_write: false, versions: [] }));
     renderPage();

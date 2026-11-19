@@ -4493,7 +4493,6 @@
     "listTitle": "Borradores",
     "empty": "Todavía no hay propuestas en este proyecto.",
     "legend": "Borrador sin verificar. No se puede usar hasta que legal lo verifique y se agregue al catálogo.",
-    "aiLabel": "Propuesta de la IA, sin verificar",
     "lawArticle": "{law} · {article}",
     "quote": "Cita literal del texto subido",
     "page": "Pág. {page}",

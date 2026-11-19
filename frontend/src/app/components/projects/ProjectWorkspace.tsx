@@ -642,7 +642,7 @@ export function ProjectWorkspaceProvider({
                                 : null
                         }
                         onOpenRuleProposals={
-                            project?.org_id && !project.matter_id
+                            project?.org_id && !project.matter_id && canDo("content.edit")
                                 ? () =>
                                       router.push(
                                           `/projects/${encodeURIComponent(projectId)}/rule-proposals`,

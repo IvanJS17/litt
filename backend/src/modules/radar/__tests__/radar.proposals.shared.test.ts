@@ -140,4 +140,18 @@ describe("the file for legal", () => {
         expect(exportFileName("Año  ñandú / \"x\"", at)).toBe("propuestas-reglas-ano-nandu-x-20261119.md");
         expect(exportFileName("¿¿??", at)).toBe("propuestas-reglas-proyecto-20261119.md");
     });
+
+    it("dates the file on the Mexico City calendar day, not the UTC one", () => {
+        // 21:30 on 19 November in Mexico City is already the 20th in UTC.
+        expect(exportFileName("L", "2026-11-20T03:30:00.000Z")).toBe("propuestas-reglas-l-20261119.md");
+    });
+
+    it("escapes a backslash so a quoted \\| cannot end the cell early (CodeQL js/incomplete-sanitization)", () => {
+        const md = renderProposalsMarkdown([proposal({ quote: "a \\| b \\ c" })], { projectName: "L", exportedAt: at });
+        const row = md.split("\n").find((line) => line.startsWith("| 1 |"))!;
+        expect(row).toContain("a \\\\\\| b \\\\ c");
+        // GFM: a pipe is a column separator unless an odd number of backslashes precede it.
+        const separators = [...row.matchAll(/(\\*)\|/g)].filter((m) => m[1].length % 2 === 0);
+        expect(separators).toHaveLength(15);
+    });
 });

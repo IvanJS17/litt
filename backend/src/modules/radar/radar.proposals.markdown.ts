@@ -61,9 +61,16 @@ export type ExportContext = {
   exportedAt: string;
 };
 
-/** A cell of a table: `|` and line breaks escaped, nothing else touched. */
+/**
+ * A cell of a table. A backslash is escaped first, then `|`, then line breaks
+ * become `<br>`: rendered, the cell reads exactly the stored text, and a `\|`
+ * in a quote cannot end the cell early. Nothing else is touched.
+ */
 export function cell(text: string): string {
-  return text.replace(/\|/g, "\\|").replace(/\r\n|\r|\n/g, "<br>");
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r\n|\r|\n/g, "<br>");
 }
 
 const header = (title: string) => `\n## ${title}\n`;
@@ -98,7 +105,9 @@ export function exportFileName(projectName: string, exportedAt: string): string 
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 60) || "proyecto";
-  return `propuestas-reglas-${slug}-${exportedAt.slice(0, 10).replace(/-/g, "")}.md`;
+  // The firm's calendar day, not UTC: an export at 19:00 in Mexico City is still today.
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date(exportedAt));
+  return `propuestas-reglas-${slug}-${day.replace(/-/g, "")}.md`;
 }
 
 export function renderProposalsMarkdown(proposals: readonly ExportProposal[], context: ExportContext): string {

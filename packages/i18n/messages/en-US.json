@@ -4493,7 +4493,6 @@
     "listTitle": "Drafts",
     "empty": "There are no proposals in this project yet.",
     "legend": "Unverified draft. It cannot be used until legal verifies it and it is added to the catalog.",
-    "aiLabel": "AI proposal, unverified",
     "lawArticle": "{law} · {article}",
     "quote": "Literal quote from the uploaded text",
     "page": "Page {page}",
