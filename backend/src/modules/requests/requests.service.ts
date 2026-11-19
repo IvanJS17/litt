@@ -11,6 +11,7 @@ export {
 } from "./requests.items";
 export { getFirmRequestCounts } from "./requests.counts";
 export { linkRound, unlinkRound } from "./requests.rounds";
+export { linkTypePlaybook, listTypePlaybooks, unlinkTypePlaybook } from "./requests.playbooks";
 export {
   createRequestType,
   listRequestTypes,

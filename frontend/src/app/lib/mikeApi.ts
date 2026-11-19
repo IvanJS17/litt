@@ -6508,6 +6508,48 @@ export async function updateRequestType(
     );
 }
 
+export async function listRequestTypePlaybooks(
+    orgId: string,
+): Promise<import("@mike/contracts").RequestTypePlaybookLinks> {
+    const list = await apiRequest<import("@mike/contracts").RequestTypePlaybookLinks>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/request-types/playbooks`,
+    );
+    // A reply without the links or the choices is a failed load, not an empty one.
+    if (!Array.isArray(list?.links) || !Array.isArray(list?.available))
+        throw new Error("Malformed request type playbooks response");
+    return list;
+}
+
+export async function linkRequestTypePlaybook(
+    orgId: string,
+    typeId: string,
+    playbookId: string,
+): Promise<import("@mike/contracts").RequestTypePlaybook> {
+    const link = await apiRequest<import("@mike/contracts").RequestTypePlaybook>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/request-types/${encodeURIComponent(typeId)}/playbooks`,
+        jsonInit("POST", { playbook_id: playbookId }),
+    );
+    if (typeof link?.playbook_id !== "string" || typeof link.type_id !== "string")
+        throw new Error("Malformed request type playbook link response");
+    return link;
+}
+
+export async function unlinkRequestTypePlaybook(
+    orgId: string,
+    typeId: string,
+    playbookId: string,
+): Promise<import("@mike/contracts").RequestTypePlaybookUnlinked> {
+    const done = await apiRequest<import("@mike/contracts").RequestTypePlaybookUnlinked>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/request-types/${encodeURIComponent(typeId)}/playbooks/${encodeURIComponent(playbookId)}`,
+        { method: "DELETE" },
+    );
+    if (done?.unlinked !== true) throw new Error("Malformed request type playbook unlink response");
+    return done;
+}
+
 export async function getRequestCounts(
     orgId: string,
     period: import("@mike/contracts").MatterRequestCountsPeriod,

@@ -3,17 +3,26 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { GlassCardUI, PillButtonUI, TextButtonUI } from "@mike/ui";
-import type { MatterRequestType, MatterRequestTypeList } from "@mike/contracts";
+import type {
+  MatterRequestType,
+  MatterRequestTypeList,
+  RequestTypePlaybookLinks,
+  RequestTypePlaybookOption,
+} from "@mike/contracts";
 import { FormTextInput } from "@/app/components/ui/form-field";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import {
   createRequestType,
+  linkRequestTypePlaybook,
+  listRequestTypePlaybooks,
   listRequestTypes,
+  unlinkRequestTypePlaybook,
   updateRequestType,
 } from "@/app/lib/mikeApi";
 import { errorCode, notifyError } from "@/app/lib/userFacingError";
+import { RequestTypePlaybooks } from "./RequestTypePlaybooks";
 import { TYPE_NAME_MAX, typeName } from "./requestOptions";
 
 /**
@@ -32,6 +41,10 @@ export function RequestTypesSettings({ orgId }: { orgId: string }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [nameTaken, setNameTaken] = useState(false);
+  const [links, setLinks] = useState<RequestTypePlaybookLinks | null>(null);
+  const [linksFailed, setLinksFailed] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const [notReady, setNotReady] = useState(false);
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -49,6 +62,18 @@ export function RequestTypesSettings({ orgId }: { orgId: string }) {
           if (!current) return;
           setFailed(true);
           notifyError(error, { action: tRef.current("requests.types.couldNotLoad") });
+        },
+      );
+    Promise.resolve()
+      .then(() => listRequestTypePlaybooks(orgId))
+      .then(
+        (next) => {
+          if (current) setLinks(next);
+        },
+        (error) => {
+          if (!current) return;
+          setLinksFailed(true);
+          notifyError(error, { action: tRef.current("requests.types.playbooksCouldNotLoad") });
         },
       );
     return () => {
@@ -79,6 +104,44 @@ export function RequestTypesSettings({ orgId }: { orgId: string }) {
       setBusy(false);
     }
   }
+
+  const togglePlaybook = (type: MatterRequestType, label: string, playbook: RequestTypePlaybookOption, link: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    setNotReady(false);
+    const apply = async () => {
+      if (link) {
+        const made = await linkRequestTypePlaybook(orgId, type.id, playbook.id);
+        setLinks((current) =>
+          current ? { ...current, links: [...current.links, { ...made, name: playbook.name }] } : current,
+        );
+      } else {
+        await unlinkRequestTypePlaybook(orgId, type.id, playbook.id);
+        setLinks((current) =>
+          current
+            ? {
+                ...current,
+                links: current.links.filter(
+                  (entry) => !(entry.type_id === type.id && entry.playbook_id === playbook.id),
+                ),
+              }
+            : current,
+        );
+      }
+      setAnnouncement(
+        t(link ? "requests.types.playbooksLinked" : "requests.types.playbooksUnlinked", {
+          playbook: playbook.name,
+          name: label,
+        }),
+      );
+    };
+    apply()
+      .catch((error) => {
+        if (errorCode(error) === "playbook_not_ready") setNotReady(true);
+        else notifyError(error, { action: tRef.current("requests.types.playbooksCouldNotSave") });
+      })
+      .finally(() => setBusy(false));
+  };
 
   const rename = (type: MatterRequestType) =>
     run(async () => {
@@ -161,11 +224,36 @@ export function RequestTypesSettings({ orgId }: { orgId: string }) {
                     )}
                     {type.archived ? (
                       <p className="text-xs text-gray-500">{t("requests.types.archivedNote")}</p>
+                    ) : links && !type.archived ? (
+                      <RequestTypePlaybooks
+                        typeName={label}
+                        links={links.links.filter((link) => link.type_id === type.id)}
+                        available={links.available}
+                        canManage={canManage && links.can_manage}
+                        disabled={busy}
+                        onToggle={(playbook, link) => togglePlaybook(type, label, playbook, link)}
+                      />
                     ) : null}
                   </li>
                 );
               })}
             </ul>
+            <p role="status" className="sr-only">
+              {announcement}
+            </p>
+            {linksFailed ? (
+              <p role="alert" className="text-sm text-red-700">
+                {t("requests.types.playbooksCouldNotLoad")}
+              </p>
+            ) : null}
+            {notReady ? (
+              <p role="alert" className="text-sm text-red-700">
+                {t("requests.types.playbooksNotReady")}
+              </p>
+            ) : null}
+            {links && canManage ? (
+              <SettingsDescription>{t("requests.types.playbooksHelp")}</SettingsDescription>
+            ) : null}
             {nameTaken ? (
               <p role="alert" className="text-sm text-red-700">
                 {t("requests.types.nameTaken")}

@@ -10,6 +10,10 @@
 //
 //   /orgs/:orgId/request-types   (requestTypesRouter)
 //     GET /, POST /, PATCH /:typeId
+//     GET /playbooks                           every open link of the firm and the playbooks that can be linked
+//     GET /:typeId/playbooks                   the links of one type
+//     POST /:typeId/playbooks                  link a ready playbook ({ playbook_id }), owner or admin
+//     DELETE /:typeId/playbooks/:playbookId    unlink it (the row is marked, the history stays)
 //
 //   /orgs/:orgId/requests   (requestCountsRouter)
 //     GET /counts?period=month|quarter&date=YYYY-MM-DD   counts only, owner or admin
@@ -28,9 +32,12 @@ import {
   getFirmRequestCounts,
   getMatterRequest,
   linkRound,
+  linkTypePlaybook,
   listMatterRequests,
   listRequestTypes,
+  listTypePlaybooks,
   unlinkRound,
+  unlinkTypePlaybook,
   updateMatterRequest,
   updateRequestType,
 } from "./requests.service";
@@ -111,6 +118,30 @@ requestTypesRouter.patch("/:typeId", requireAuth, asyncRoute(async (req, res) =>
     ...orgActor(req, res),
     typeId: req.params.typeId,
     body: req.body,
+  }));
+}));
+
+requestTypesRouter.get("/playbooks", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await listTypePlaybooks(createServerSupabase(), orgActor(req, res)));
+}));
+
+requestTypesRouter.get("/:typeId/playbooks", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await listTypePlaybooks(createServerSupabase(), { ...orgActor(req, res), typeId: req.params.typeId }));
+}));
+
+requestTypesRouter.post("/:typeId/playbooks", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await linkTypePlaybook(createServerSupabase(), {
+    ...orgActor(req, res),
+    typeId: req.params.typeId,
+    body: req.body,
+  }), 201);
+}));
+
+requestTypesRouter.delete("/:typeId/playbooks/:playbookId", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await unlinkTypePlaybook(createServerSupabase(), {
+    ...orgActor(req, res),
+    typeId: req.params.typeId,
+    playbookId: req.params.playbookId,
   }));
 }));
 
