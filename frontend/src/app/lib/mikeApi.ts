@@ -6590,6 +6590,20 @@ export async function rejectProfileFact(
     );
 }
 
+export async function decideProfileFacts(
+    projectId: string,
+    matterId: string,
+    input: import("@mike/contracts").ProfileFactBatchInput,
+): Promise<import("@mike/contracts").ProfileFactBatchResult> {
+    const result = await apiRequest<import("@mike/contracts").ProfileFactBatchResult>(
+        "matter.profile",
+        `${clientProfilePath(projectId, matterId)}/facts/batch`,
+        jsonInit("POST", input),
+    );
+    if (!Array.isArray(result?.results)) throw new Error("Malformed profile batch response");
+    return result;
+}
+
 /**
  * Where the text of a version would go if the AI is asked to propose facts: the
  * provider and model the project chat uses for this person. null when there is

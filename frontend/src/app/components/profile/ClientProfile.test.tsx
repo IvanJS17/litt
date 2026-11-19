@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createProfileFact: vi.fn(),
   confirmProfileFact: vi.fn(),
   rejectProfileFact: vi.fn(),
+  decideProfileFacts: vi.fn(),
   getProfileExtractionRoute: vi.fn(),
   extractProfileFacts: vi.fn(),
   notifyError: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   createProfileFact: mocks.createProfileFact,
   confirmProfileFact: mocks.confirmProfileFact,
   rejectProfileFact: mocks.rejectProfileFact,
+  decideProfileFacts: mocks.decideProfileFacts,
   getProfileExtractionRoute: mocks.getProfileExtractionRoute,
   extractProfileFacts: mocks.extractProfileFacts,
 }));
@@ -696,5 +698,129 @@ describe("assisted extraction", () => {
       "Se enviará el texto de esta versión a OpenAI, con tu propia llave o la de tu despacho, nunca una de LiTT. Cada propuesta queda por confirmar hasta que un abogado la revise.",
     );
     expect(screen.getByLabelText("Documento y versión")).toBeInTheDocument();
+  });
+});
+
+describe("batch review of the proposals", () => {
+  const route = { provider: "claude", model: "claude-sonnet-5-5" };
+  const proposed = (n: number, over: Partial<ProfileFact> = {}) =>
+    fact({
+      id: `fact-ai-${n}`,
+      kind: "other",
+      label: `Propuesta ${n}`,
+      data: { note: `Nota ${n}` },
+      events: [{ id: `e${n}`, actor_user_id: ANA, action: "created", reason: "assisted_extraction", created_at: "2026-11-17T10:00:00Z" }],
+      ...over,
+    });
+  const three = [proposed(1), proposed(2), proposed(3)];
+  const open = async (facts: ProfileFact[] = three, bar = true) => {
+    mocks.getProfileExtractionRoute.mockResolvedValue(route);
+    mocks.getClientProfile.mockResolvedValue(profile({ facts }));
+    mocks.extractProfileFacts.mockResolvedValue({
+      proposed: facts.length,
+      discarded_quote_not_found: 0,
+      discarded_invalid: 0,
+      discarded_duplicate: 0,
+      fact_ids: facts.map((item) => item.id),
+    });
+    renderPage();
+    await userEvent.selectOptions(await screen.findByLabelText("Document and version"), "contrato.docx, version 2");
+    await userEvent.click(screen.getByRole("button", { name: "Propose facts with AI" }));
+    if (bar) await screen.findByRole("group", { name: "Batch review of the suggestions" });
+    else await screen.findByRole("article", { name: "Propuesta 1" });
+  };
+
+  it("ticks suggestions, counts them and confirms only the ticked ones in one call", async () => {
+    await open();
+    expect(screen.getByText("None selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm selected" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select “Propuesta 1”" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select “Propuesta 3”" }));
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Select all" })).toBePartiallyChecked();
+    mocks.decideProfileFacts.mockResolvedValue({
+      results: [
+        { fact_id: "fact-ai-1", outcome: "ok" },
+        { fact_id: "fact-ai-3", outcome: "ok" },
+      ],
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Confirm selected" }));
+    await waitFor(() =>
+      expect(mocks.decideProfileFacts).toHaveBeenCalledWith("project-1", "matter-1", {
+        action: "confirm",
+        factIds: ["fact-ai-1", "fact-ai-3"],
+      }),
+    );
+    expect(await screen.findByText("2 facts confirmed.")).toBeInTheDocument();
+    expect(mocks.confirmProfileFact).not.toHaveBeenCalled();
+  });
+
+  it("selects all, asks for one reason before rejecting and sends it for every fact", async () => {
+    await open();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
+    expect(screen.getByText("3 selected")).toBeInTheDocument();
+    mocks.decideProfileFacts.mockResolvedValue({ results: three.map((item) => ({ fact_id: item.id, outcome: "ok" })) });
+    await userEvent.click(screen.getByRole("button", { name: "Reject selected" }));
+    expect(mocks.decideProfileFacts).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByLabelText("Reason for all (optional)"), "No aplica");
+    await userEvent.click(screen.getByRole("button", { name: "Reject the 3 selected facts" }));
+    await waitFor(() =>
+      expect(mocks.decideProfileFacts).toHaveBeenCalledWith("project-1", "matter-1", {
+        action: "reject",
+        factIds: ["fact-ai-1", "fact-ai-2", "fact-ai-3"],
+        reason: "No aplica",
+      }),
+    );
+    expect(await screen.findByText("3 facts rejected.")).toBeInTheDocument();
+  });
+
+  it("says how many worked and how many did not on a partial failure, and reloads", async () => {
+    await open();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
+    mocks.decideProfileFacts.mockResolvedValue({
+      results: [
+        { fact_id: "fact-ai-1", outcome: "ok" },
+        { fact_id: "fact-ai-2", outcome: "conflict", code: "fact_already_decided" },
+        { fact_id: "fact-ai-3", outcome: "conflict", code: "fact_stale" },
+      ],
+    });
+    mocks.getClientProfile.mockClear();
+    await userEvent.click(screen.getByRole("button", { name: "Confirm selected" }));
+    const status = await screen.findByText("1 fact confirmed.");
+    expect(status.closest("[role=status]")).toHaveTextContent(
+      "2 facts could not be decided: somebody else already decided or their source changed. The profile was reloaded.",
+    );
+    expect(mocks.getClientProfile).toHaveBeenCalled();
+    expect(mocks.notifyError).not.toHaveBeenCalled();
+  });
+
+  it("reports a request that fails as a whole and keeps the selection", async () => {
+    await open();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
+    mocks.decideProfileFacts.mockRejectedValue(new Error("down"));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm selected" }));
+    await waitFor(() => expect(mocks.notifyError).toHaveBeenCalled());
+    expect(screen.getByText("3 selected")).toBeInTheDocument();
+  });
+
+  it("offers no selection to a viewer, nor for a single suggestion", async () => {
+    mocks.getClientProfile.mockResolvedValue(profile({ can_write: false, facts: three }));
+    const { unmount } = renderPage();
+    await screen.findByRole("heading", { name: "Other facts" });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm selected" })).not.toBeInTheDocument();
+    unmount();
+    await open([proposed(1)], false);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("batch review in Spanish", () => {
+  it("speaks the glossary words of the batch actions", () => {
+    const batch = esMX.clientProfile.batch;
+    expect(batch.confirm).toBe("Confirmar seleccionadas");
+    expect(batch.reject).toBe("Rechazar seleccionadas");
+    expect(batch.selected).toContain("seleccionadas");
+    expect(JSON.stringify(batch)).not.toMatch(/\bhoras?\b/i);
   });
 });

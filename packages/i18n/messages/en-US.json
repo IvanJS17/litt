@@ -880,6 +880,22 @@
         "review": "Review each suggestion and confirm or reject it. Nothing reaches the radar until someone confirms it."
       },
       "proposals": "Suggestions awaiting confirmation"
+    },
+    "batch": {
+      "group": "Batch review of the suggestions",
+      "selectAll": "Select all",
+      "selectFact": "Select “{name}”",
+      "selected": "{count, plural, =0 {None selected} one {# selected} other {# selected}}",
+      "confirm": "Confirm selected",
+      "confirming": "Confirming…",
+      "reject": "Reject selected",
+      "rejecting": "Rejecting…",
+      "rejectConfirm": "{count, plural, one {Reject the selected fact} other {Reject the # selected facts}}",
+      "reasonLabel": "Reason for all (optional)",
+      "doneConfirmed": "{count, plural, one {# fact confirmed.} other {# facts confirmed.}}",
+      "doneRejected": "{count, plural, one {# fact rejected.} other {# facts rejected.}}",
+      "failed": "{count, plural, one {# fact could not be decided: somebody else already decided or its source changed. The profile was reloaded.} other {# facts could not be decided: somebody else already decided or their source changed. The profile was reloaded.}}",
+      "couldNotDecide": "The selected facts could not be decided."
     }
   },
   "common": {

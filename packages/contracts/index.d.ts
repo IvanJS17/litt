@@ -2521,6 +2521,21 @@ export type ProfileFactDecisionInput = {
   reason?: string;
 };
 
+/** Batch decision: confirm or reject up to 50 facts, one outcome per fact. */
+export type ProfileFactBatchInput = ProfileFactDecisionInput & {
+  action: "confirm" | "reject";
+  factIds: string[];
+};
+
+export type ProfileFactBatchResult = {
+  results: {
+    fact_id: string;
+    outcome: "ok" | "conflict" | "not_found" | "forbidden" | "error";
+    /** e.g. fact_already_decided, fact_stale */
+    code?: string;
+  }[];
+};
+
 // ---------------------------------------------------------------------------
 // Deadline radar of a retainer matter (docs/deadline-radar.md)
 // ---------------------------------------------------------------------------

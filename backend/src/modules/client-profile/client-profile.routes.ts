@@ -5,6 +5,7 @@
 //     POST   /facts                   capture a fact (a citation is required)
 //     POST   /facts/:factId/confirm   the lawyer confirms it
 //     POST   /facts/:factId/reject    the lawyer rejects it
+//     POST   /facts/batch             confirm or reject several (each one its own decision)
 //     GET    /extraction              where a version's text would go (null: no button)
 //     POST   /versions/:versionId/extract   the space's AI proposes facts from one version
 //
@@ -22,6 +23,7 @@ import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import {
   confirmProfileFact,
   createProfileFact,
+  decideProfileFacts,
   extractProfileFacts,
   getClientProfile,
   getExtractionRoute,
@@ -59,6 +61,10 @@ clientProfileRouter.get("/", requireAuth, asyncRoute(async (req, res) => {
 
 clientProfileRouter.post("/facts", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
   send(res, await createProfileFact(createServerSupabase(), { ...matterActor(req, res), body: req.body }), 201);
+}));
+
+clientProfileRouter.post("/facts/batch", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+  send(res, await decideProfileFacts(createServerSupabase(), { ...matterActor(req, res), body: req.body }));
 }));
 
 clientProfileRouter.post("/facts/:factId/confirm", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {

@@ -70,6 +70,7 @@ All under `/projects/:projectId/matters/:matterId/profile`:
 | `POST /facts` | owner, editor | `{ kind, label, data, source: { version_id, quote } }` → 201 |
 | `POST /facts/:factId/confirm` | owner, editor | optional `{ reason }` → the fact; 409 `fact_already_decided`, `fact_stale` |
 | `POST /facts/:factId/reject` | owner, editor | optional `{ reason }` (≤ 500) → the fact |
+| `POST /facts/batch` | owner, editor | `{ action: "confirm" \| "reject", factIds: [≤ 50], reason? }` → `{ results: [{ fact_id, outcome, code? }] }`, outcome `ok`, `conflict` (`fact_already_decided`, `fact_stale`), `not_found`, `forbidden` or `error`; 400 `invalid_profile_fact` for a bad action, list, cap or reason |
 | `GET /extraction` | member | `{ route }`: the provider and model the text of a version would go to, or `null` (no key or model, or the caller only reads): no button then |
 | `POST /versions/:versionId/extract` | owner, editor | assisted extraction → `{ proposed, discarded_quote_not_found, discarded_invalid, discarded_duplicate, fact_ids }` |
 
@@ -181,6 +182,30 @@ sent to {provider}, using your own key or your firm's key, never LiTT's. Each su
 stays awaiting confirmation until a lawyer reviews it." (the provider is the
 route's, named before the click), the result of the run and the proposals
 awaiting confirmation, each with Confirm and Reject.
+
+### Batch review
+
+The proposals list can be decided in bulk. `POST /facts/batch` runs, for each id
+in order, the **same function** as the single confirm and reject routes
+(`decide`): same permission, retainer and staleness checks, same insert-only
+`confirmed`/`rejected` event with the actor and, for a confirmation, the text
+hash. There is no bulk insert: each fact is decided on its own, so each leaves
+its own event, one fact never undoes another and a partial result is normal
+(one outcome per id; repeated ids count once). Permission is checked once
+before anything: a viewer gets 403, a stranger 404 and a matter that is not a
+retainer 409, with no per-fact list. A reason is optional, as for a single
+rejection, and the one given is stored with every rejected fact. Same
+middleware as the single routes (`requireAuth`, `requireMfaIfEnrolled`); the
+cap of 50 ids bounds the work of a request, and the extraction limiter is not
+used because no model is called.
+
+UI: when a writer sees two or more proposals, each has a native checkbox
+named after the fact, with "Seleccionar todas", a count (“2 seleccionadas”) and
+**Confirmar seleccionadas** / **Rechazar seleccionadas**. Rejecting first shows
+the optional "Motivo para todas" field and a confirmation button, like a single
+rejection. The result is announced in a polite live region (“2 datos
+confirmados.”, and how many could not be decided); the profile is read again
+afterwards. Readers see no checkboxes.
 
 ## What builds on this
 
