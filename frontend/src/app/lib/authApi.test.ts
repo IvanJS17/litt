@@ -22,7 +22,7 @@ import {
     unenrollMfa,
     updateAuthEmail,
     updateAuthPassword,
-    verifyRecoveryToken,
+    verifyEmailLinkToken,
     verifyMfa,
 } from "./authApi";
 
@@ -353,10 +353,24 @@ describe("cookie auth client", () => {
         ],
         [
             "recovery token verification",
-            () => verifyRecoveryToken("hash-1"),
+            () => verifyEmailLinkToken("hash-1", "recovery"),
             "/api/auth/verify-otp",
             "POST",
             { token_hash: "hash-1", type: "recovery" },
+        ],
+        [
+            "signup token verification",
+            () => verifyEmailLinkToken("hash-1", "signup"),
+            "/api/auth/verify-otp",
+            "POST",
+            { token_hash: "hash-1", type: "signup" },
+        ],
+        [
+            "email change token verification",
+            () => verifyEmailLinkToken("hash-1", "email_change"),
+            "/api/auth/verify-otp",
+            "POST",
+            { token_hash: "hash-1", type: "email_change" },
         ],
         [
             "invitation session",

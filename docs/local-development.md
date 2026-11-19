@@ -126,9 +126,12 @@ A new email-and-password registration must confirm its address before it can
 sign in. Supabase Auth sends authentication email; the LiTT backend does not
 send it directly. Open [Mailpit](http://localhost:8025) to read the
 confirmation message. Mailpit also captures local email-change and
-password-reset messages, and no email leaves your machine. Signup and email-change links pass
-through `/auth/callback`; password-reset links open `/auth/confirm`. Both
-return to the relevant app screen.
+password-reset messages, and no email leaves your machine. The local stack does not set
+`GOTRUE_MAILER_TEMPLATES_*`, so it uses GoTrue's default templates: the signup,
+email-change and password-reset links all go through `/auth/v1/verify` and
+return to `/auth/callback`, which needs the browser that started the flow
+(PKCE). Production uses its own templates that open `/auth/confirm` instead and
+work in any browser (`deploy/prod/README.md`).
 
 Confirmation is on by default because project, chat, review, and workflow
 shares and organization invitations are addressed by email: with autoconfirm

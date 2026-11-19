@@ -530,9 +530,26 @@
     },
     "confirm": {
       "action": "verify your link",
-      "continue": "Continue",
-      "description": "For your security, confirm that you want to change your password. The link can only be used once.",
-      "title": "Continue to create your new password",
+      "emailChange": {
+        "title": "Confirm your email change",
+        "description": "Confirm that you want to change the email of your LiTT account. The link can only be used once.",
+        "button": "Confirm email change"
+      },
+      "pending": {
+        "title": "One link left",
+        "description": "We recorded this confirmation. The change applies when you also confirm the link we sent to the other email address.",
+        "done": "Return to login"
+      },
+      "recovery": {
+        "title": "Continue to create your new password",
+        "description": "For your security, confirm that you want to change your password. The link can only be used once.",
+        "button": "Continue"
+      },
+      "signup": {
+        "title": "Confirm your email",
+        "description": "Confirm your email address to activate your LiTT account. The link can only be used once.",
+        "button": "Confirm my email"
+      },
       "verifying": "Verifying…"
     },
     "errors": {

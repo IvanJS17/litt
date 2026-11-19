@@ -574,10 +574,13 @@ enabled so Supabase requires confirmation from both the current and proposed
 addresses. Set the minimum password length to 10; this applies when passwords
 are created or changed and does not invalidate existing shorter passwords. The
 same callback handles signup confirmation and confirmed email changes before
-sending the user to the appropriate LiTT page. Password-recovery links do not
-use it: the recovery template links to `/auth/confirm?token_hash=…&type=recovery`,
-which the person confirms with a button and the backend verifies server-side
-(`POST /api/auth/verify-otp`), so the link works in any browser.
+sending the user to the appropriate LiTT page when the stack uses GoTrue's
+default templates (the local stack). In production the recovery, signup
+confirmation and email-change templates do not use it: they link to
+`/auth/confirm?token_hash=…&type=recovery|signup|email_change`, which the person
+confirms with a button and the backend verifies server-side
+(`POST /api/auth/verify-otp`), so the link works in any browser. GoTrue caches
+templates for up to 10 minutes: restart `auth` after deploying new templates.
 
 Review the Supabase email templates after changing the public Site URL, and
 test every link against the deployed frontend before inviting users. Existing

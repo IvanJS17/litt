@@ -460,15 +460,25 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   `StartTLS`. Es decir, en el 587 hay STARTTLS cuando el servidor lo ofrece; si
   no lo ofreciera, gomail seguiría sin cifrar. Los enlaces apuntan a
   `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app.
-  **Recuperación de contraseña**: el enlace del correo no pasa por
-  `/auth/v1/verify` (PKCE exige el mismo navegador que lo pidió); apunta a
-  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
-  (`GOTRUE_SITE_URL` = `PUBLIC_URL`). La página `/auth/confirm` no gasta el
+  **Recuperación de contraseña, confirmación de registro y cambio de correo**:
+  los enlaces de estos tres correos no pasan por `/auth/v1/verify` (PKCE exige
+  el mismo navegador que inició el flujo); apuntan a
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=<tipo>&next=<pantalla>`
+  (`GOTRUE_SITE_URL` = `PUBLIC_URL`) con `type=recovery` → `/reset-password`,
+  `type=signup` → `/onboarding/profile` y `type=email_change` →
+  `/settings?emailChange=processed`. La página `/auth/confirm` no gasta el
   token al cargar (los escáneres de correo abren los enlaces): lo verifica el
-  backend (`POST /api/auth/verify-otp`, solo `type=recovery`) cuando la persona
-  pulsa «Continuar», y deja la sesión en cookie, así que funciona en cualquier
-  navegador. Los correos `invite`, `confirmation` y `email_change` siguen con
-  `{{ .ConfirmationURL }}`. El
+  backend (`POST /api/auth/verify-otp`, solo esos tres tipos) cuando la persona
+  pulsa el botón, y deja la sesión en cookie, así que funciona en cualquier
+  navegador. El cambio de correo conserva la doble confirmación de GoTrue
+  (`GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED`, activo por defecto): llega un
+  correo a cada dirección con su propio `token_hash`; el primer enlace solo
+  registra su mitad (la página lo avisa) y el cambio se aplica con el segundo.
+  El correo `invite` sigue con `{{ .ConfirmationURL }}` (flujo implícito, no
+  PKCE). **Tras desplegar `litt-web` hay que reiniciar `litt-auth`**
+  (`$C restart auth`): GoTrue v2.189.0 guarda en caché las plantillas hasta
+  10 minutos y, sin reinicio, seguiría enviando las anteriores; probar los
+  correos después del reinicio. El
   backend no tiene credenciales de correo: al invitar a un correo sin cuenta
   pide a GoTrue (`inviteUserByEmail`) que envíe la invitación; quien ya tiene
   cuenta ve su invitación dentro de la app.

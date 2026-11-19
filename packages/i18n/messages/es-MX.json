@@ -530,9 +530,26 @@
     },
     "confirm": {
       "action": "verificar tu enlace",
-      "continue": "Continuar",
-      "description": "Por seguridad, confirma que quieres cambiar tu contraseña. El enlace solo se puede usar una vez.",
-      "title": "Continuar para crear tu nueva contraseña",
+      "emailChange": {
+        "title": "Confirma el cambio de correo",
+        "description": "Confirma que quieres cambiar el correo de tu cuenta de LiTT. El enlace solo se puede usar una vez.",
+        "button": "Confirmar el cambio de correo"
+      },
+      "pending": {
+        "title": "Falta un enlace",
+        "description": "Registramos esta confirmación. El cambio se aplica cuando también confirmes el enlace que enviamos al otro correo.",
+        "done": "Volver a iniciar sesión"
+      },
+      "recovery": {
+        "title": "Continuar para crear tu nueva contraseña",
+        "description": "Por seguridad, confirma que quieres cambiar tu contraseña. El enlace solo se puede usar una vez.",
+        "button": "Continuar"
+      },
+      "signup": {
+        "title": "Confirma tu correo",
+        "description": "Confirma tu correo electrónico para activar tu cuenta de LiTT. El enlace solo se puede usar una vez.",
+        "button": "Confirmar mi correo"
+      },
       "verifying": "Verificando…"
     },
     "errors": {

@@ -11,7 +11,7 @@ import {
     authGlassCardUIClassName,
 } from "@mike/ui";
 import { safeAuthNext } from "@/app/lib/authRedirects";
-import { verifyRecoveryToken } from "@/app/lib/authApi";
+import { verifyEmailLinkToken, type EmailLinkType } from "@/app/lib/authApi";
 import { useAuth } from "@/app/contexts/AuthContext";
 import {
     UserVisibleError,
@@ -32,6 +32,19 @@ const CONFIRM_ERROR_MESSAGES = authMessages({
     otp_expired: authSentence("linkSpent"),
 });
 
+/** What the page says for each emailed link, as i18n sub-keys of auth.confirm. */
+const LINK_COPY = {
+    recovery: "recovery",
+    signup: "signup",
+    email_change: "emailChange",
+} as const satisfies Record<EmailLinkType, string>;
+
+function linkType(value: string | null): EmailLinkType | null {
+    return value !== null && Object.hasOwn(LINK_COPY, value)
+        ? (value as EmailLinkType)
+        : null;
+}
+
 /**
  * The email link is only a door: the token is spent when the person presses
  * the button, never on load, because mail scanners open links before the
@@ -45,8 +58,10 @@ function AuthConfirmContent() {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<UserFacingError | null>(null);
     const tokenHash = searchParams.get("token_hash");
-    const type = searchParams.get("type");
-    const linkIsUsable = !!tokenHash && type === "recovery";
+    const type = linkType(searchParams.get("type"));
+    const copy = LINK_COPY[type ?? "recovery"];
+    const linkIsUsable = !!tokenHash && type !== null;
+    const [pending, setPending] = useState(false);
 
     async function handleContinue() {
         if (busy) return;
@@ -65,7 +80,12 @@ function AuthConfirmContent() {
         setBusy(true);
         setError(null);
         try {
-            await verifyRecoveryToken(tokenHash);
+            const result = await verifyEmailLinkToken(tokenHash, type);
+            if (result.pendingSecondConfirmation) {
+                setPending(true);
+                setBusy(false);
+                return;
+            }
             await refreshSession();
         } catch (caught) {
             const described = reportFault(caught, {
@@ -94,7 +114,26 @@ function AuthConfirmContent() {
         <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
-                    {error ? (
+                    {pending ? (
+                        <>
+                            <h1 className="text-2xl font-medium font-serif text-gray-950">
+                                {t("auth.confirm.pending.title")}
+                            </h1>
+                            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                                {t("auth.confirm.pending.description")}
+                            </p>
+                            <Link
+                                href="/login"
+                                className={pillButtonUIClassName({
+                                    tone: "black",
+                                    size: "normal",
+                                    className: "mt-6",
+                                })}
+                            >
+                                {t("auth.confirm.pending.done")}
+                            </Link>
+                        </>
+                    ) : error ? (
                         <>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
                                 {t("auth.callback.unableToConfirm")}
@@ -132,10 +171,10 @@ function AuthConfirmContent() {
                     ) : (
                         <>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                {t("auth.confirm.title")}
+                                {t(`auth.confirm.${copy}.title`)}
                             </h1>
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                {t("auth.confirm.description")}
+                                {t(`auth.confirm.${copy}.description`)}
                             </p>
                             <PillButtonUI
                                 type="button"
@@ -151,7 +190,7 @@ function AuthConfirmContent() {
                                         {t("auth.confirm.verifying")}
                                     </>
                                 ) : (
-                                    t("auth.confirm.continue")
+                                    t(`auth.confirm.${copy}.button`)
                                 )}
                             </PillButtonUI>
                         </>

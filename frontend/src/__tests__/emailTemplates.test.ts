@@ -32,10 +32,22 @@ describe("GoTrue mail templates (production)", () => {
         expect(html).toContain("LiTT<span");
     });
 
-    it("the change-of-email mail links to the confirmation and names the new address", () => {
+    it("the change-of-email mail links to the server-side token_hash confirmation and names the new address", () => {
         const html = readFileSync(join(REPO, "frontend/public/email-templates/email_change.html"), "utf8");
-        expect(html).toContain("{{ .ConfirmationURL }}");
+        expect(html).toContain("{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email_change&amp;next=/settings%3FemailChange%3Dprocessed");
+        expect(html).not.toContain("{{ .ConfirmationURL }}");
         expect(html).toContain("{{ .NewEmail }}");
+    });
+
+    it("the signup confirmation mail links to the server-side token_hash confirmation, not to the PKCE link", () => {
+        const html = readFileSync(join(REPO, "frontend/public/email-templates/confirmation.html"), "utf8");
+        expect(html).toContain("{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=signup&amp;next=/onboarding/profile");
+        expect(html).not.toContain("{{ .ConfirmationURL }}");
+    });
+
+    it("the invite mail keeps the implicit-flow link", () => {
+        const html = readFileSync(join(REPO, "frontend/public/email-templates/invite.html"), "utf8");
+        expect(html).toContain("{{ .ConfirmationURL }}");
     });
 
     it("the recovery mail links to the server-side token_hash confirmation, not to the PKCE link", () => {
