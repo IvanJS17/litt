@@ -33,6 +33,8 @@ export * from "./PasswordInputUI";
 export * from "./dropdown";
 export * from "./KeyChipUI";
 export * from "./ModelToggleUI";
+export * from "./ModelGuideUI";
+export * from "./useModelGuide";
 export * from "./WorkflowSlashCommandUI";
 export * from "./ChatHistoryDropdownUI";
 

@@ -34,6 +34,11 @@ interface ChatInputProps {
      * already says what is being asked (an annotated excerpt).
      */
     canSubmitEmpty?: boolean;
+    /**
+     * Something to send but something missing (a model): the arrow looks off
+     * yet still answers, by asking `onSubmit` to say what is missing.
+     */
+    sendBlocked?: boolean;
     className?: string;
     onKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
     combobox?: {
@@ -63,6 +68,7 @@ export function ChatInput({
     rightSlot,
     attachments,
     canSubmitEmpty = false,
+    sendBlocked = false,
     className,
     onKeyDown,
     combobox,
@@ -177,6 +183,7 @@ export function ChatInput({
                             isLoading ? onCancel?.() : canSend && onSubmit()
                         }
                         disabled={!isLoading && !canSend}
+                        aria-disabled={canSend && sendBlocked ? true : undefined}
                         data-testid="chat-send"
                         aria-label={isLoading ? t("word.stopResponse") : t("word.sendMessage")}
                         className={cn(

@@ -1558,12 +1558,15 @@ for (const model of [
     await addin.gotoTaskpane({ documentText: "Current Word document" });
     await addin.expectAuthedShell();
 
-    await page.getByRole("button", { name: "Choose model" }).click();
+    await page.getByRole("button", { name: /Choose model|Needed to send/ }).click();
     const group = page.getByRole("menuitem", { name: model.group, exact: true });
     if ((await group.getAttribute("aria-expanded")) !== "true") {
       await group.click();
     }
-    await page.getByRole("menuitem", { name: model.label, exact: true }).click();
+    // With no model chosen yet the rows carry the guide's one-line hint.
+    await page
+      .getByRole("menuitem", { name: new RegExp(`^${model.label}`) })
+      .click();
     await page.getByPlaceholder("How can I help?").fill("Hello");
     const requestPromise = page.waitForRequest("**/word-chat");
     await page.getByRole("button", { name: "Send" }).click();

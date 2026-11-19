@@ -268,7 +268,13 @@ behavior), each consumed by name through `webpack.config.js` and
 keep in sync. The model catalog is one example: it is exported by
 `@mike/client` (`packages/client/src/modelCatalog.ts`), and
 `src/taskpane/lib/modelCatalog.ts` only adapts the add-in's key-status shape
-to it. The packages have no `node_modules` of their own; their dependencies
+to it. The model guide («¿Cuál elijo?», `ModelGuideUI` and `useModelGuide` in
+`@mike/ui`) is another: the web's `ModelGuideModal` and the task pane's
+`ModelToggle` both render it, so «Usar este», the one-line hints and the
+reasoning levels read from one catalog (`modelGuide.*`). As on the web, the
+pane has no default model: with none chosen the send arrow is `aria-disabled`
+and opens the picker, keeping what was typed. Its tests run with the
+frontend's Vitest (`frontend/src/wordAddin/modelGuide.test.tsx`). The packages have no `node_modules` of their own; their dependencies
 resolve to the add-in's through the `paths` entries in `tsconfig.json` and the
 absolute `resolve.modules` fallback in `webpack.config.js`.
 
