@@ -526,6 +526,110 @@ describe("the lawyer's decision", () => {
     });
 });
 
+describe("batch decision", () => {
+    const batch = (body: unknown) => request(app).post(`${base}/facts/batch`).send(body as object);
+    const makeFacts = async (n: number) => {
+        const ids: string[] = [];
+        for (let i = 0; i < n; i += 1) ids.push((await create(contract({ label: `Dato ${i}` }))).body.id as string);
+        return ids;
+    };
+
+    it("confirms several facts, each with its own event of who decided", async () => {
+        as(EDITOR);
+        const ids = await makeFacts(3);
+        as(OWNER);
+        const res = await batch({ action: "confirm", factIds: ids });
+        expect(res.status).toBe(200);
+        expect(res.body.results).toEqual(ids.map((fact_id) => ({ fact_id, outcome: "ok" })));
+        for (const factId of ids) {
+            expect(eventsOf(factId).map((row) => row.action)).toEqual(["created", "confirmed"]);
+            expect(eventsOf(factId)[1]).toMatchObject({ actor_user_id: OWNER, text_sha256: sha(TEXT) });
+        }
+        expect(tables().matter_profile_fact_events.filter((row) => row.action === "confirmed")).toHaveLength(3);
+    });
+
+    it("rejects several with one reason applied to each", async () => {
+        as(EDITOR);
+        const ids = await makeFacts(2);
+        const res = await batch({ action: "reject", factIds: ids, reason: "No aplica" });
+        expect(res.status).toBe(200);
+        for (const factId of ids) expect(eventsOf(factId)[1]).toMatchObject({ action: "rejected", reason: "No aplica", text_sha256: null });
+    });
+
+    it("answers each fact by itself: partial success keeps the decisions that worked", async () => {
+        as(EDITOR);
+        const [a, b, c] = await makeFacts(3);
+        await request(app).post(`${base}/facts/${b}/reject`);
+        h.texts[VERSION] = "Otro texto.";
+        const stale = (await create(contract({ label: "Otro", source: { version_id: VERSION_2, quote: QUOTE } }))).body.id as string;
+        h.texts[VERSION_2] = "Texto cambiado.";
+        h.texts[VERSION] = TEXT;
+        const res = await batch({ action: "confirm", factIds: [a, b, id(777), "nope", stale, c] });
+        expect(res.status).toBe(200);
+        expect(res.body.results).toEqual([
+            { fact_id: a, outcome: "ok" },
+            { fact_id: b, outcome: "conflict", code: "fact_already_decided" },
+            { fact_id: id(777), outcome: "not_found" },
+            { fact_id: "nope", outcome: "not_found" },
+            { fact_id: stale, outcome: "conflict", code: "fact_stale" },
+            { fact_id: c, outcome: "ok" },
+        ]);
+        expect(eventsOf(a).map((row) => row.action)).toEqual(["created", "confirmed"]);
+        expect(eventsOf(b).map((row) => row.action)).toEqual(["created", "rejected"]);
+        expect(eventsOf(stale).map((row) => row.action)).toEqual(["created"]);
+    });
+
+    it("counts a repeated id once, and reports a lost decision row as error without stopping", async () => {
+        as(EDITOR);
+        const [a, b] = await makeFacts(2);
+        h.state!.failNext("matter_profile_fact_events", "insert", { message: "down" });
+        const res = await batch({ action: "confirm", factIds: [a, a, b] });
+        expect(res.body.results).toEqual([{ fact_id: a, outcome: "error" }, { fact_id: b, outcome: "ok" }]);
+        expect(eventsOf(a)).toHaveLength(1);
+    });
+
+    it("refuses a viewer, a stranger and a plain matter as a whole", async () => {
+        as(EDITOR);
+        const [a] = await makeFacts(1);
+        for (const user of [VIEWER, TECH]) {
+            as(user);
+            expect((await batch({ action: "confirm", factIds: [a] })).status, user).toBe(403);
+        }
+        as(STRANGER);
+        expect((await batch({ action: "confirm", factIds: [a] })).status).toBe(404);
+        expect(eventsOf(a)).toHaveLength(1);
+        as(OWNER);
+        const plain = await request(app).post(`/projects/${PLAIN_PROJECT}/matters/${PLAIN_MATTER}/profile/facts/batch`).send({ action: "confirm", factIds: [a] });
+        expect(plain.status).toBe(409);
+    });
+
+    it("validates the action, the list, the cap of 50 and the reason", async () => {
+        as(EDITOR);
+        const [a] = await makeFacts(1);
+        const many = Array.from({ length: 51 }, (_, i) => id(1000 + i));
+        const bad: unknown[] = [
+            undefined,
+            [],
+            { factIds: [a] },
+            { action: "delete", factIds: [a] },
+            { action: "confirm" },
+            { action: "confirm", factIds: [] },
+            { action: "confirm", factIds: "x" },
+            { action: "confirm", factIds: [a, 5] },
+            { action: "confirm", factIds: many },
+            { action: "reject", factIds: [a], reason: "x".repeat(501) },
+            { action: "reject", factIds: [a], reason: 5 },
+        ];
+        for (const body of bad) {
+            const res = await batch(body);
+            expect(res.status, JSON.stringify(body)).toBe(400);
+            expect(res.body.code).toBe("invalid_profile_fact");
+        }
+        expect((await batch({ action: "confirm", factIds: many.slice(0, 50) })).status).toBe(200);
+        expect(eventsOf(a)).toHaveLength(1);
+    });
+});
+
 describe("a fact is stale when its source is no longer what was cited", () => {
     const confirmed = async () => {
         as(EDITOR);

@@ -41,6 +41,8 @@ export const CITATION_REQUIRED_CODE = "citation_required";
 export const VERSION_NOT_IN_MATTER_CODE = "version_not_in_matter";
 export const SOURCE_TEXT_UNAVAILABLE_CODE = "source_text_unavailable";
 export const QUOTE_NOT_FOUND_CODE = "quote_not_found";
+/** Most facts one batch decision takes. */
+export const BATCH_MAX = 50;
 export const FACT_ALREADY_DECIDED_CODE = "fact_already_decided";
 export const FACT_STALE_CODE = "fact_stale";
 export const FACT_LIMIT_CODE = "profile_fact_limit";

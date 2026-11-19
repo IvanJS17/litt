@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     confirmProfileFact,
     createProfileFact,
+    decideProfileFacts,
     extractProfileFacts,
     getClientProfile,
     getProfileExtractionRoute,
@@ -19,6 +20,7 @@ const reply = (body: unknown) => {
     fetchMock.mockImplementation(async () => new Response(JSON.stringify(body), { status: 200 }));
 };
 const goodFact = { id: "f1", source: { quote: "q" }, events: [] };
+const goodBatch = { results: [{ fact_id: "f1", outcome: "ok" }] };
 const goodProfile = { retainer: true, can_write: true, facts: [], versions: [], people: [] };
 beforeEach(() => {
     fetchMock.mockReset();
@@ -34,6 +36,8 @@ describe("client profile API", () => {
         ["confirm with a note", () => confirmProfileFact("p 1", "m 1", "f 1", { reason: "ok" }), `${M}/facts/f%201/confirm`, "POST", { reason: "ok" }, goodFact],
         ["reject", () => rejectProfileFact("p 1", "m 1", "f 1"), `${M}/facts/f%201/reject`, "POST", {}, goodFact],
         ["reject with a reason", () => rejectProfileFact("p 1", "m 1", "f 1", { reason: "no" }), `${M}/facts/f%201/reject`, "POST", { reason: "no" }, goodFact],
+        ["decide a batch", () => decideProfileFacts("p 1", "m 1", { action: "confirm", factIds: ["f1", "f2"] }), `${M}/facts/batch`, "POST", { action: "confirm", factIds: ["f1", "f2"] }, goodBatch],
+        ["reject a batch with a reason", () => decideProfileFacts("p 1", "m 1", { action: "reject", factIds: ["f1"], reason: "no" }), `${M}/facts/batch`, "POST", { action: "reject", factIds: ["f1"], reason: "no" }, goodBatch],
     ] as const)("%s", async (_name, call, path, method, body, answer) => {
         reply(answer);
         await call();
@@ -49,6 +53,13 @@ describe("client profile API", () => {
         expect(await getClientProfile("p", "m")).toEqual(goodProfile);
         reply(goodFact);
         expect(await createProfileFact("p", "m", {} as never)).toEqual(goodFact);
+        reply(goodBatch);
+        expect(await decideProfileFacts("p", "m", { action: "confirm", factIds: ["f1"] })).toEqual(goodBatch);
+    });
+
+    it.each([[{}], [null], [[]], [{ results: {} }], [{ results: null }]])("treats %j as a failed batch", async (body) => {
+        reply(body);
+        await expect(decideProfileFacts("p", "m", { action: "confirm", factIds: ["f1"] })).rejects.toThrow("Malformed");
     });
 
     it.each([[{}], [[]], [null], [{ ...goodProfile, facts: {} }], [{ ...goodProfile, versions: null }], [{ ...goodProfile, people: undefined }]])(

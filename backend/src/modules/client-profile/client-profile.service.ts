@@ -4,6 +4,6 @@
  * (docs/client-profile.md).
  */
 
-export { confirmProfileFact, rejectProfileFact } from "./client-profile.decide";
+export { confirmProfileFact, decideProfileFacts, rejectProfileFact } from "./client-profile.decide";
 export { createProfileFact, getClientProfile, loadFacts } from "./client-profile.facts";
 export { extractProfileFacts, getExtractionRoute } from "./client-profile.extract";

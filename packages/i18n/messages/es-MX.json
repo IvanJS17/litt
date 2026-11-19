@@ -897,6 +897,22 @@
         "review": "Revisa cada propuesta y confírmala o recházala. Lo que nadie confirma no llega al radar."
       },
       "proposals": "Propuestas por confirmar"
+    },
+    "batch": {
+      "group": "Revisión en lote de las propuestas",
+      "selectAll": "Seleccionar todas",
+      "selectFact": "Seleccionar «{name}»",
+      "selected": "{count, plural, =0 {Ninguna seleccionada} one {# seleccionada} other {# seleccionadas}}",
+      "confirm": "Confirmar seleccionadas",
+      "confirming": "Confirmando…",
+      "reject": "Rechazar seleccionadas",
+      "rejecting": "Rechazando…",
+      "rejectConfirm": "{count, plural, one {Rechazar el dato seleccionado} other {Rechazar los # datos seleccionados}}",
+      "reasonLabel": "Motivo para todas (opcional)",
+      "doneConfirmed": "{count, plural, one {# dato confirmado.} other {# datos confirmados.}}",
+      "doneRejected": "{count, plural, one {# dato rechazado.} other {# datos rechazados.}}",
+      "failed": "{count, plural, one {# dato no se pudo decidir: otra persona ya decidió o su fuente cambió. Se recargó la ficha.} other {# datos no se pudieron decidir: otra persona ya decidió o su fuente cambió. Se recargó la ficha.}}",
+      "couldNotDecide": "No se pudieron decidir los datos seleccionados."
     }
   },
   "common": {

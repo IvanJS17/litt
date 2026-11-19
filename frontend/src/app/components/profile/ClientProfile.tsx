@@ -16,6 +16,7 @@ import { LIQUID_SUBTLE_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-su
 import {
   confirmProfileFact,
   createProfileFact,
+  decideProfileFacts,
   extractProfileFacts,
   getClientProfile,
   getProfileExtractionRoute,
@@ -23,6 +24,7 @@ import {
 } from "@/app/lib/mikeApi";
 import { errorCode, notifyError } from "@/app/lib/userFacingError";
 import { MatterSectionNav } from "./MatterSectionNav";
+import { BatchResult, ProfileBatchBar, ProposalCheckbox, type BatchSummary } from "./ProfileBatchBar";
 import { ProfileFactCard } from "./ProfileFactCard";
 import { ProfileExtractPanel, ProfileExtractResult } from "./ProfileExtractPanel";
 import { ProfileFactForm } from "./ProfileFactForm";
@@ -56,6 +58,10 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
   const [route, setRoute] = useState<ProfileExtractionRoute | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [extraction, setExtraction] = useState<ProfileExtraction | null>(null);
+  // Batch review of the proposals: the ids ticked, the call in flight and its outcome.
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [batching, setBatching] = useState(false);
+  const [batchSummary, setBatchSummary] = useState<BatchSummary | null>(null);
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -68,6 +74,8 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
     setAdding(false);
     setRoute(null);
     setExtraction(null);
+    setPicked(new Set());
+    setBatchSummary(null);
     getClientProfile(projectId, matterId).then(
       (next) => {
         if (current) setData(next);
@@ -164,11 +172,40 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
     }
   }
 
+  async function decideBatch(choice: "confirm" | "reject", reason: string, ids: string[]) {
+    setBatching(true);
+    setBatchSummary(null);
+    try {
+      const { results } = await decideProfileFacts(projectId, matterId, {
+        action: choice,
+        factIds: ids,
+        ...(reason ? { reason } : {}),
+      });
+      const done = results.filter((item) => item.outcome === "ok").length;
+      setBatchSummary({ action: choice, ok: done, failed: results.length - done });
+      setPicked(new Set());
+      await refresh();
+    } catch (error) {
+      notifyError(error, { action: t("clientProfile.batch.couldNotDecide") });
+    } finally {
+      setBatching(false);
+    }
+  }
+
   const names = new Map((data?.people ?? []).map((person) => [person.user_id, person.name] as const));
   // What the last run proposed and nobody has decided yet is listed apart, on top.
   const proposals = pendingProposals(data?.facts ?? [], extraction?.fact_ids ?? []);
   const proposalIds = new Set(proposals.map((fact) => fact.id));
   const groups = groupFacts((data?.facts ?? []).filter((fact) => !proposalIds.has(fact.id)));
+  // Only what is still a proposal can be ticked, whatever was ticked before.
+  const ticked = proposals.filter((fact) => picked.has(fact.id)).map((fact) => fact.id);
+  const tick = (id: string, on: boolean) =>
+    setPicked((current) => {
+      const next = new Set(current);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
   const card = (fact: ClientProfileData["facts"][number]) => (
     <ProfileFactCard
       fact={fact}
@@ -261,13 +298,33 @@ export function ClientProfile({ projectId, matterId }: { projectId: string; matt
                 <h2 id="profile-proposals" className="font-serif text-lg text-gray-900">
                   {t("clientProfile.extract.proposals")}
                 </h2>
+                {data.can_write && proposals.length > 1 ? (
+                  <ProfileBatchBar
+                    total={proposals.length}
+                    selected={ticked.length}
+                    busy={batching}
+                    onSelectAll={(on) => setPicked(on ? new Set(proposalIds) : new Set())}
+                    onDecide={(choice, reason) => void decideBatch(choice, reason, ticked)}
+                  />
+                ) : null}
                 <ul className="space-y-3">
                   {proposals.map((fact) => (
-                    <li key={fact.id}>{card(fact)}</li>
+                    <li key={fact.id} className="flex items-start">
+                      {data.can_write && proposals.length > 1 ? (
+                        <ProposalCheckbox
+                          label={fact.label}
+                          checked={picked.has(fact.id)}
+                          disabled={batching}
+                          onChange={(on) => tick(fact.id, on)}
+                        />
+                      ) : null}
+                      <div className="min-w-0 flex-1">{card(fact)}</div>
+                    </li>
                   ))}
                 </ul>
               </section>
             ) : null}
+            <BatchResult summary={batchSummary} />
             {groups.length === 0 && proposals.length === 0 ? (
               <section className={`${LIQUID_SUBTLE_PANEL_SURFACE_CLASS} p-5 md:p-6`}>
                 <EmptyState
