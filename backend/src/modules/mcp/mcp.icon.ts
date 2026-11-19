@@ -1,6 +1,6 @@
 // The server's icon, declared in the initialize result (serverInfo.icons).
 // Claude never fetches icon URLs: it needs an inline data: URI, PNG or JPEG,
-// 64-128 px, under 10 KB. This is LiTT's small-size mark (the 48 px variant of
+// 64-128 px, under 10 KB. This is LiTT's small-size mark (the 16 px variant, #u16, of
 // frontend/src/app/icon.svg, the favicon source: «L» with the amber square on the
 // brand navy), rendered at 128x128 and palette-reduced. Regenerate with:
 //   rsvg-convert -w 128 -h 128 frontend/src/app/icon.svg -o raw.png

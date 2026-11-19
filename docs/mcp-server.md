@@ -190,6 +190,12 @@ Names are at most 64 characters; reads and writes are separate tools.
 | `stop_chat_turn` | `litt.chat` | additive, strict audit | Stops an answer being written (same standing as sending); what was written is kept. |
 | `list_chats` | `litt.chat` | read-only | The person's conversations in a workspace (the web's list), with `origin` / `origin_label`; filter by matter or origin. |
 | `get_chat` | `litt.chat` | read-only | A conversation's details and a page of messages (newest page first, cursor for older), as untrusted data; `active_turn` when an answer is being written. |
+| `list_retainer_requests` | `litt.read` | read-only | Donna. The requests of one retainer matter (`listMatterRequests`, the web's service), newest received first: title, type, complexity, status, `assignee_level`, dates, `round_count` (never hours). Optional `status` (or `open`), cursor pagination (≤ 50 per page), `total`, `url`. |
+| `get_client_profile` | `litt.read` | read-only, strict audit | Donna. The client profile (`getClientProfile`): **only facts a lawyer confirmed and whose source text is unchanged**, each with its citation (document, version, offsets, quote as untrusted data). Pending, rejected and stale facts are only counted (`pending_count`, `stale_count`): the web lists them all, but a proposal is not yet a fact, and the radar and the report use confirmed facts alone. ≤ 100 facts (`truncated`). Quotes of a held pasante version are withheld; the quotes leaving are recorded as `mcp.client_ai_egress`. |
+| `get_deadline_radar` | `litt.read` | read-only | Donna. With `matter_id`: the open radar items of that matter (`getMatterRadar`): overdue, within `window_days` (1–90, default 30) or to review. Without it: the person's «Hoy» (`getRadarToday`, the web's `/orgs/:orgId/radar/today`) over every firm workspace of the connection (or one `workspace`), at most 30 days ahead like the web. ≤ 100 items (`truncated`). Citations are pointers (document, version, offsets), not text. |
+| `get_retainer_report` | `litt.read` | read-only | Donna. The 30/60/90-day report as the web's JSON preview (`getRetainerReport`, default 90, `locale` es-MX/en-US); lists capped at 50 rows with complete counts. Owner or editor of the matter only (a viewer gets `forbidden`, as the web's 403). Downloads no Word file and marks nothing as sent. |
+
+**Donna tools** (`mcp.tools.donna.ts`). `matter_id` is the id `find_matters` returns; the matter row's id the facades also need comes from the project detail the web page reads. Same rules as the web routes: project access (private matters closed to non-members), an **active matter membership** (an organization owner or admin without one gets `not_found`), a matter outside the connection's workspaces is `not_found`, a viewer reads requests, profile and radar, and only an owner or editor reads the report (`forbidden`). A public or non-retainer matter answers `matter_not_retainer` (the web answers an empty `retainer: false`, or 404 for the report). Apprentices (pasantes) may call them: they are read tools and need no mode B; quotes of their held versions are withheld. Results carry LiTT `url`s, cap their lists and mark titles and labels as data.
 
 **Chat tools need `litt.chat`, reads included.** `list_chats`, `get_chat` and `get_chat_turn` also require `litt.chat`, not `litt.read`: a read-only connection must not expose chat history. A chat's `origin_label` (the app's registered name, free text) is returned as untrusted data like titles; `origin_grant_id` is never returned.
 
@@ -285,7 +291,7 @@ nothing else) and the conversations it started that the person can still open, w
 websiteUrl: <LITT_MCP_PUBLIC_URL>, icons }` so Claude shows the LiTT mark instead of a letter tile
 (Claude's «Declare an app icon» guideline). `icons` holds one inline `data:image/png;base64,…`
 128×128 (about 150 bytes; Claude never fetches icon URLs, and requires PNG/JPEG under 10 KB):
-LiTT's small-size mark, the 48 px variant of `frontend/src/app/icon.svg`. It lives in
+LiTT's small-size mark, the 16 px variant (`#u16`, the one the SVG shows below 32 px) of `frontend/src/app/icon.svg`. It lives in
 `backend/src/modules/mcp/mcp.icon.ts` (a module, so the build needs no extra file; how to regenerate
 it is in the file's header; `assets/litt-icon-128.png` is the same image). No other mechanism is used.
 
@@ -324,6 +330,7 @@ removes its connections and tokens and keeps the history.
   (owner, editor, viewer, admin outside a private matter, apprentice, outsider, a connection
   that does not cover the firm), managed accounts and Personal, validation, size caps, strict
   audit and fail-closed, sanitized failures, cleanup, and the write lane.
+* `backend/src/__tests__/integration/mcp.tools.donna.routes.test.ts` — the Donna tools through `/mcp`: the matrix against the web routes (owner, editor, viewer, apprentice, firm admin without membership, outsider, workspace not in the grant, private matter non-member), a non-retainer matter, caps, «Hoy», confirmed-only profile, egress and audit.
 * `backend/src/modules/mcp/__tests__/mcp.toolkit.test.ts` — cursors, text
   windows, the untrusted wrapper, matter matching, and the rule that tool files
   do not query tables.
