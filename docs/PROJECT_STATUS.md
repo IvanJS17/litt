@@ -11,12 +11,12 @@
 ## In production
 
 - **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
-- **Deploy:** `20261118e`, tag `prod-20261118e`, `RELEASE_SHA` `51aa6997c` (full SHA
-  `51aa6997c728cdaf3942a3724cc304c05db531b3`, the merge of #254). Previous deploy: `20261118d`
-  (`6a33f21dc`). Earlier deploys: `prod-20261118a` to `prod-20261118c`, and `prod-20261117a` to
-  `prod-20261117i` (see [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)). Each deploy is
-  tagged `prod-YYYYMMDDx`.
-- **Contents:** every merged pull request up to #254. Shipped since `20261117i`:
+- **Deploy:** `20261119c`, tag `prod-20261119c`, `RELEASE_SHA` `824a756d4` (full SHA
+  `824a756d4d702ab0e6841cb92688b6cbeef4dad7`, the merge of #259). Previous deploy: `20261119b`
+  (`fbcba5b3a`). Earlier deploys: `prod-20261119a`, `prod-20261118a` to `prod-20261118e`, and
+  `prod-20261117a` to `prod-20261117i` (see [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)).
+  Each deploy is tagged `prod-YYYYMMDDx`.
+- **Contents:** every merged pull request up to #256, plus #258 and #259. Shipped since `20261117i`:
   - `20261118a` (`0112c4a60`): #247, the password recovery link works in any browser.
   - `20261118b` (`59f30a854`): #248, a guide in Settings to connect LiTT from Claude and ChatGPT.
   - `20261118c` (`448bae645`): #249, the sign-up confirmation and e-mail change links work in any
@@ -26,10 +26,22 @@
   - `20261118d` (`6a33f21dc`): #252, redesign of the connected apps settings.
   - `20261118e` (`51aa6997c`): #253, the landing presents Formación (layers 1 to 4, including the
     gym) and the guides inside the app; #254, review notes for the connected apps settings.
-- **Health:** `verify.txt` of `20261118e` (`artifacts/deploy-20261118e`): `litt / 200` and the
-  release endpoint reports `51aa6997c`. Container health was not re-read for this update [VERIFICAR].
-- **Migrations:** applied in production through `20261117_50_litt_radar_item_guard_due_on.sql`.
-  No `.sql` file changed between `8f25fc8e0` and `51aa6997c` (empty `git diff`, verified).
+  - `20261119a` (`87a236340`): #255, status documents; #256, four read-only Donna tools over MCP
+    (retainer requests, confirmed client profile, deadline radar, retainer report).
+  - `20261119b` (`fbcba5b3a`): #258, Donna S8a: the AI suggests which verified catalog rules apply
+    to a client from one of its documents ([`obligation-rules.md`](obligation-rules.md)).
+  - `20261119c` (`824a756d4`): #259, MCP layer 2a: workflows, quick actions, compare and convert.
+- **Merged, not deployed:** #257 (review notes; migration `20261119_10`), #260 (model guide in the
+  Word add-in), #261 (Donna S8b, new-rule proposals from a law text; migration `20261119_30`), #262
+  (MCP layer 2b: scanned reading and case-file split with cost confirmation) and #263 (review notes).
+  The deploy of `ab318a949` on 2026-11-19 stopped before loading anything because the server's free
+  disk (10.11 GB) was under the deploy's required margin (10.22 GB: twice the image plus 5 GB);
+  production was not touched. Deploys wait for more free disk on the shared server.
+- **Health:** `verify.txt` of `20261119c` (`artifacts/deploy-20261119c`): `litt / 200`, the seven
+  LiTT containers healthy, other domains unchanged, MCP on (`mcp=401` without a token).
+- **Migrations:** applied in production through `20261119_20_litt_rule_suggestions.sql` (applied by
+  `20261119b`). `20261119_10` and `20261119_30` ship with the next deploy; the runner applies every
+  file the ledger does not list, in name order.
 - **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
   Beta statistics are for platform administrators only, counts only, audited
   ([`beta-stats.md`](beta-stats.md)).
