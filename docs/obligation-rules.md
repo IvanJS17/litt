@@ -347,8 +347,8 @@ open the project. The whole format lives in `radar.proposals.markdown.ts`: a hea
 count and the fixed legend), then one table per source text with the columns
 `# | id_propuesta | codigo | Obligación propuesta (IA) | Cuándo aplica | Dato de partida (IA) | Plazo propuesto (borrador, sin verificar) | Cita literal (texto subido) | Ley y artículo (según el texto subido) | Pág. | URL oficial | Última reforma DOF | estado | Notas de legal`.
 `codigo`, `Cuándo aplica`, the URL, the DOF date and the notes are «por llenar»
-(legal writes them); `estado` is always `propuesta`; the quote goes as stored (only
-`|` and line breaks are escaped).
+(legal writes them); `estado` is always `propuesta`; the quote goes as stored: only
+`\`, `|` and line breaks are escaped, so the rendered cell reads exactly the stored text.
 
 ### API
 

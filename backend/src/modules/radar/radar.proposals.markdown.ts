@@ -8,8 +8,8 @@
  * What the file never does: invent a code, a name or a "when it applies" (they
  * are «por llenar» for legal to write), mark anything as verified (`estado` is
  * always `propuesta`), or normalize the quote (it goes as stored, because a
- * script compares it with the official text; only `|` and line breaks are
- * escaped so the table holds).
+ * script compares it with the official text; only `\`, `|` and line breaks
+ * are escaped so the table holds and the rendered cell reads as stored).
  */
 
 export const EXPORT_LEGEND =
