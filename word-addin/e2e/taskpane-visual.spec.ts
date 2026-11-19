@@ -162,7 +162,7 @@ test("scrolls long composer text on whole lines instead of cutting the top one",
 });
 
 test.describe("Select a model warning", () => {
-  test("opens the model picker when there are models to choose", async ({
+  test("sending with no model opens the picker with the reason and keeps the text", async ({
     addin,
     page,
   }) => {
@@ -174,15 +174,40 @@ test.describe("Select a model warning", () => {
       page.getByRole("button", { name: "Choose model" }),
     ).toHaveAttribute("aria-expanded", "false");
 
-    await page.getByPlaceholder("How can I help?").fill("Hola");
-    await page.getByRole("button", { name: "Send message" }).click();
+    const box = page.getByPlaceholder("How can I help?");
+    await box.fill("Hola");
+    const send = page.getByRole("button", { name: "Send message" });
+    // It looks off yet still answers.
+    await expect(send).toHaveAttribute("aria-disabled", "true");
+    // Playwright treats aria-disabled as not clickable; a person can click.
+    await send.click({ force: true });
 
-    const warning = page.getByRole("alert");
-    await expect(warning).toContainText(
-      "Select a model before sending your message.",
-    );
-    await warning.getByRole("button", { name: "Choose model" }).click();
     await expect(page.getByRole("menu")).toBeVisible();
+    await expect(page.getByRole("menu").getByRole("status")).toContainText(
+      "To send your message, choose a model. What you typed is kept.",
+    );
+    await expect(box).toHaveValue("Hola");
+  });
+
+  test("the guide opens from the picker and «Use this» chooses the model", async ({
+    addin,
+    page,
+  }) => {
+    await mockProfile(page, { lastSelectedChatModel: null });
+    await addin.gotoTaskpane();
+    await addin.expectAuthedShell();
+    await page.getByRole("button", { name: "Choose model" }).click();
+    await page.getByRole("menuitem", { name: "Which one should I pick?" }).click();
+
+    const guide = page.getByRole("dialog");
+    await expect(guide).toBeVisible();
+    // A narrow pane gets the web's phone sheet.
+    await expect(guide).toHaveClass(/modal-sheet/);
+    await guide.getByRole("button", { name: /^Use / }).first().click();
+    await expect(guide).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: /^Choose model: .+, reasoning .+/ }),
+    ).toBeVisible();
   });
 
   test("links to My AI keys when there are no models", async ({
@@ -199,7 +224,9 @@ test.describe("Select a model warning", () => {
     ).toBeVisible();
 
     await page.getByPlaceholder("How can I help?").fill("Hola");
-    await page.getByRole("button", { name: "Send message" }).click();
+    await page
+      .getByRole("button", { name: "Send message" })
+      .click({ force: true });
 
     const warning = page.getByRole("alert");
     await expect(warning).toContainText(

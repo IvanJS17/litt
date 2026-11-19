@@ -143,10 +143,7 @@ export function ModelToggle({
   const selected = availableModels.find((model) => model.id === value);
   const showGuide = askForChoice && !modalInput && !toolbar && !locked;
   const guidedModels = showGuide
-    ? availableModels.map((model) => {
-        const hint = guide.entryFor(model.id)?.hint;
-        return hint ? { ...model, hint } : model;
-      })
+    ? guide.withHints(availableModels)
     : availableModels;
   // A request to choose opens the menu on the next render, or, with no
   // model to choose from, says why (the same warning as the empty button).

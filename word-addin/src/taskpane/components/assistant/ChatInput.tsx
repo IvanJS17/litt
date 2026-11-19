@@ -231,6 +231,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     // The "Select a model" warning opens the picker when it has models, or
     // points to Bring Your Own Keys in the web app when it has none.
     const [modelPickerOpen, setModelPickerOpen] = useState(false);
+    // Set when the picker was opened by trying to send with no model: the
+    // menu then says why. The text typed stays.
+    const [modelPickerReason, setModelPickerReason] = useState<"send" | null>(
+      null,
+    );
     const [hasModels, setHasModels] = useState<boolean | null>(null);
     // LiTT training ("Tu turno primero"): a pasante writes their own
     // approach before each turn. The server decides; this only shows it.
@@ -641,11 +646,15 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         return;
       }
       if (!model) {
-        setModelError(
-          hasModels === false
-            ? noModelsError(keyStatus, routerSelections, selectModelMessage())
-            : { message: selectModelMessage(), action: "choose-model" },
-        );
+        if (hasModels === false) {
+          setModelError(
+            noModelsError(keyStatus, routerSelections, selectModelMessage()),
+          );
+        } else if (!chatSettingsLoading && !keyStatusLoading) {
+          // The picker opens with the reason, as on the web.
+          setModelPickerReason("send");
+          setModelPickerOpen(true);
+        }
         return;
       }
       if (!isModelAvailable(model, keyStatus)) {
@@ -891,6 +900,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               disabled={false}
               placeholder={t("word.howCanIHelp")}
               canSubmitEmpty={hasAnnotatedExcerpt}
+              sendBlocked={model === "" && !chatSettingsLoading && !keyStatusLoading}
               attachments={
                 <ComposerChipsUI
                   announce
@@ -1009,8 +1019,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                     onNoModelsClick={() => {
                       setModelError(noModelsError(keyStatus, routerSelections));
                     }}
+                    askForChoice
+                    openReason={modelPickerReason}
                     open={modelPickerOpen}
-                    onOpenChange={setModelPickerOpen}
+                    onOpenChange={(next) => {
+                      setModelPickerOpen(next);
+                      if (!next) setModelPickerReason(null);
+                    }}
                     onHasModelsChange={setHasModels}
                   />
                 )

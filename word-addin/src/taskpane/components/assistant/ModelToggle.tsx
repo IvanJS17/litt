@@ -1,9 +1,11 @@
 import { useTranslations } from "use-intl";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ModelGuideUI,
   ModelToggleUI,
   nearestReasoningLevelForModel,
   reasoningLevelsForModel,
+  useModelGuide,
   type ReasoningLevel,
 } from "@mike/ui";
 import { getOllamaModels, type ApiKeyStatus } from "../../api/mikeApi";
@@ -31,6 +33,8 @@ export function ModelToggle({
   open,
   onOpenChange,
   onHasModelsChange,
+  askForChoice = false,
+  openReason = null,
 }: {
   value: string;
   onChange: (model: string) => void;
@@ -53,7 +57,16 @@ export function ModelToggle({
   onOpenChange?: (open: boolean) => void;
   /** Whether the picker has any model to offer, once the preflight is done. */
   onHasModelsChange?: (hasModels: boolean) => void;
+  /**
+   * The composer needs a model before it can send, as on the web: with none
+   * chosen the trigger asks for one and the menu offers «¿Cuál elijo?».
+   */
+  askForChoice?: boolean;
+  /** Why the host opened the picker (the person tried to send with no model). */
+  openReason?: "send" | null;
 }): React.ReactElement {
+  const guide = useModelGuide();
+  const [guideOpen, setGuideOpen] = useState(false);
   const [ollamaModels, setOllamaModels] = useState<ModelOption[]>([]);
 
   useEffect(() => {
@@ -114,17 +127,24 @@ export function ModelToggle({
 
   const t = useTranslations();
   return (
+    <>
     <ModelToggleUI
       value={value}
       onChange={onChange}
-      models={models}
+      models={askForChoice ? guide.withHints(models) : models}
+      needsChoice={askForChoice && value === "" && hasModels}
+      openReason={openReason}
+      levelHints={askForChoice ? guide.levelHints : undefined}
+      onOpenGuide={askForChoice ? () => setGuideOpen(true) : undefined}
       selectedLabel={
         keyStatusLoading
           ? (selected?.label ?? t("word.selectModel2"))
           : (selected?.label ??
             (models.length > 0 ? t("word.selectModel2") : t("word.noModels")))
       }
-      selectedAvailable={selected !== undefined}
+      // No model chosen yet is not a missing key: nothing is flagged until a
+      // chosen model lacks its key.
+      selectedAvailable={selected !== undefined || (askForChoice && value === "")}
       loading={keyStatusLoading}
       compact={compact}
       compactShowsName={compactShowsName}
@@ -138,5 +158,15 @@ export function ModelToggle({
       open={open}
       onOpenChange={onOpenChange}
     />
+    {askForChoice && (
+      <ModelGuideUI
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        models={models}
+        value={value}
+        onSelect={onChange}
+      />
+    )}
+    </>
   );
 }
