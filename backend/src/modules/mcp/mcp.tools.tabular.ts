@@ -143,7 +143,7 @@ function runStatusOf(progress: ReturnType<typeof progressOf>, running: boolean) 
 }
 
 /** A workspace named by the call, or the matter's, as the tools that list or create reviews resolve it. */
-async function matterOrWorkspace(call: McpCall, matterId: string | undefined, workspaceArg: string | undefined): Promise<string> {
+export async function matterOrWorkspace(call: McpCall, matterId: string | undefined, workspaceArg: string | undefined): Promise<string> {
     if (matterId) return matterWorkspace(call, matterId);
     const workspace = workspaceArg || call.principal.defaultWorkspace;
     if (!call.principal.workspaces.some((w) => w.id === workspace))
@@ -218,6 +218,58 @@ export const listTabularReviewsTool = defineMcpTool({
     },
 });
 
+/**
+ * Creates a review in the call's workspace through `createTabularReview`, the
+ * web's service. Shared by `create_tabular_review` and `run_workflow` (a
+ * tabular workflow): the model is the one named or the person's saved one;
+ * with neither the service answers `model_required` and nothing picks one.
+ */
+export async function createReviewFor(
+    call: McpCall,
+    args: {
+        title: string;
+        documentIds: string[];
+        columns: { name: string; prompt: string; format?: string; tags?: string[] }[];
+        matterId?: string;
+        model?: string;
+        workflowId?: string;
+    },
+) {
+    const userId = call.principal.userId;
+    const workspace = call.workspace!;
+    const orgId = workspace === "personal" ? null : workspace;
+    const model = args.model || (await savedTabularModel(call.db, userId, orgId)) || undefined;
+    const created = await createTabularReview(call.db, {
+        userId,
+        userEmail: (await call.userEmail()) || undefined,
+        title: args.title,
+        document_ids: args.documentIds,
+        columns_config: args.columns.map((column, index) => ({
+            index,
+            name: column.name,
+            prompt: column.prompt,
+            ...(column.format ? { format: column.format } : {}),
+            ...(column.tags?.length ? { tags: column.tags } : {}),
+        })),
+        project_id: args.matterId,
+        org_id: args.matterId ? undefined : orgId ?? undefined,
+        model,
+        ...(args.workflowId ? { workflow_id: args.workflowId } : {}),
+    });
+    if (!created.ok) refuse(created);
+    const review = created.data as unknown as Review;
+    return {
+        review_id: review.id,
+        title: review.title ?? args.title,
+        workspace,
+        matter_id: args.matterId ?? null,
+        model: review.model ?? model ?? null,
+        columns: args.columns.map((column, index) => ({ index, name: column.name })),
+        document_count: Array.isArray(review.document_ids) ? (review.document_ids as unknown[]).length : args.documentIds.length,
+        next_step: "Start the extraction with run_tabular_review.",
+    };
+}
+
 export const createTabularReviewTool = defineMcpTool({
     name: "create_tabular_review",
     title: "Create a tabular review",
@@ -238,41 +290,16 @@ export const createTabularReviewTool = defineMcpTool({
     audit: "strict",
     auditRefs: (args) => ({ projectId: args.matter_id ?? null }),
     resolveWorkspace: (args, call) => matterOrWorkspace(call, args.matter_id, args.workspace),
-    handler: async (args, call) => {
-        const userId = call.principal.userId;
-        const workspace = call.workspace!;
-        const orgId = workspace === "personal" ? null : workspace;
-        // The model is the one asked for or the person's saved one; with neither the
-        // service answers model_required, and nothing picks a model for them.
-        const model = args.model || (await savedTabularModel(call.db, userId, orgId)) || undefined;
-        const created = await createTabularReview(call.db, {
-            userId,
-            userEmail: (await call.userEmail()) || undefined,
-            title: args.title,
-            document_ids: args.document_ids,
-            columns_config: args.columns.map((column, index) => ({
-                index,
-                name: column.name,
-                prompt: column.prompt,
-                ...(column.format ? { format: column.format } : {}),
-            })),
-            project_id: args.matter_id,
-            org_id: args.matter_id ? undefined : orgId ?? undefined,
-            model,
-        });
-        if (!created.ok) refuse(created);
-        const review = created.data as unknown as Review;
-        return mcpText({
-            review_id: review.id,
-            title: review.title ?? args.title,
-            workspace,
-            matter_id: args.matter_id ?? null,
-            model: review.model ?? model ?? null,
-            columns: args.columns.map((column, index) => ({ index, name: column.name })),
-            document_count: Array.isArray(review.document_ids) ? (review.document_ids as unknown[]).length : args.document_ids.length,
-            next_step: "Start the extraction with run_tabular_review.",
-        });
-    },
+    handler: async (args, call) =>
+        mcpText(
+            await createReviewFor(call, {
+                title: args.title,
+                documentIds: args.document_ids,
+                columns: args.columns,
+                matterId: args.matter_id,
+                model: args.model,
+            }),
+        ),
 });
 
 export const getTabularReviewTool = defineMcpTool({
@@ -401,6 +428,52 @@ export const readTabularCells = defineMcpTool({
     },
 });
 
+/**
+ * Starts LiTT's extraction of a review (the web's generation) and waits a
+ * little. Shared by `run_tabular_review` and `run_workflow` (a tabular workflow).
+ */
+export async function runReviewFor(call: McpCall, reviewId: string) {
+    const userId = call.principal.userId;
+    const userEmail = (await call.userEmail()) || undefined;
+    // The checks POST /generate makes before it claims anything: edit standing,
+    // columns, and a usable model with the person's key (no fallback).
+    const prepared = await prepareTabularGenerate(call.db, { reviewId, userId, userEmail });
+    if (!prepared.ok) refuse(preparedGenerateFailure(prepared));
+    const started = await startTabularGeneration(call.db, {
+        reviewId,
+        userId,
+        userEmail,
+        // The tool works from the review as it is now.
+        expectedUpdatedAt: String(prepared.data.review.updated_at),
+        columns: prepared.data.columns,
+        model: prepared.data.tabular_model,
+        apiKeys: prepared.data.api_keys,
+    });
+    if (!started.ok) refuse(started);
+    const generation = started.data;
+    if (generation.aborted) {
+        await generation.release();
+        throw new McpToolError("generation_stopped", "The run was stopped before it began.");
+    }
+    // The run is the server's: it goes on without this call and ends by itself.
+    void runTabularGeneration(generation);
+    const finished = await waitFor(async () => (generation.run.finished ? true : null));
+    const { detail } = await loadReview(call, reviewId);
+    return {
+        review_id: reviewId,
+        generation_id: generation.generationId,
+        // The same word get_tabular_run_status gives: a stopped run with cells left is not completed.
+        status: finished ? runStatusOf(progressOf(detail), false) : "running",
+        progress: progressOf(detail),
+        ...(finished
+            ? {}
+            : {
+                  poll_after_s: POLL_AFTER_SECONDS,
+                  next_step: `The extraction continues in LiTT. Ask again with get_tabular_run_status in ${POLL_AFTER_SECONDS} seconds.`,
+              }),
+    };
+}
+
 export const runTabularReview = defineMcpTool({
     name: "run_tabular_review",
     title: "Run a tabular review (LiTT)",
@@ -414,47 +487,7 @@ export const runTabularReview = defineMcpTool({
     audit: "strict",
     auditRefs: (args) => ({ reviewId: args.review_id }),
     resolveWorkspace: (args, call) => reviewWorkspace(call, args.review_id),
-    handler: async (args, call) => {
-        const userId = call.principal.userId;
-        const userEmail = (await call.userEmail()) || undefined;
-        // The checks POST /generate makes before it claims anything: edit standing,
-        // columns, and a usable model with the person's key (no fallback).
-        const prepared = await prepareTabularGenerate(call.db, { reviewId: args.review_id, userId, userEmail });
-        if (!prepared.ok) refuse(preparedGenerateFailure(prepared));
-        const started = await startTabularGeneration(call.db, {
-            reviewId: args.review_id,
-            userId,
-            userEmail,
-            // The tool works from the review as it is now.
-            expectedUpdatedAt: String(prepared.data.review.updated_at),
-            columns: prepared.data.columns,
-            model: prepared.data.tabular_model,
-            apiKeys: prepared.data.api_keys,
-        });
-        if (!started.ok) refuse(started);
-        const generation = started.data;
-        if (generation.aborted) {
-            await generation.release();
-            throw new McpToolError("generation_stopped", "The run was stopped before it began.");
-        }
-        // The run is the server's: it goes on without this call and ends by itself.
-        void runTabularGeneration(generation);
-        const finished = await waitFor(async () => (generation.run.finished ? true : null));
-        const { detail } = await loadReview(call, args.review_id);
-        return mcpText({
-            review_id: args.review_id,
-            generation_id: generation.generationId,
-            // The same word get_tabular_run_status gives: a stopped run with cells left is not completed.
-            status: finished ? runStatusOf(progressOf(detail), false) : "running",
-            progress: progressOf(detail),
-            ...(finished
-                ? {}
-                : {
-                      poll_after_s: POLL_AFTER_SECONDS,
-                      next_step: `The extraction continues in LiTT. Ask again with get_tabular_run_status in ${POLL_AFTER_SECONDS} seconds.`,
-                  }),
-        });
-    },
+    handler: async (args, call) => mcpText(await runReviewFor(call, args.review_id)),
 });
 
 export const getTabularRunStatus = defineMcpTool({

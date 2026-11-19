@@ -5912,7 +5912,15 @@
         "list_retainer_requests": "Ver las solicitudes de una iguala",
         "get_client_profile": "Ver la ficha del cliente",
         "get_deadline_radar": "Ver el radar de vencimientos",
-        "get_retainer_report": "Ver el reporte de la iguala"
+        "get_retainer_report": "Ver el reporte de la iguala",
+        "list_workflows": "Ver los flujos de trabajo",
+        "get_workflow": "Abrir un flujo de trabajo",
+        "run_workflow": "Ejecutar un flujo de trabajo",
+        "list_quick_actions": "Ver tus acciones rápidas",
+        "run_quick_action": "Ejecutar una acción rápida",
+        "compare_documents": "Comparar dos documentos de Word",
+        "preview_document_conversion": "Ver qué cambia al convertir un documento",
+        "convert_document": "Convertir un documento"
       }
     }
   },

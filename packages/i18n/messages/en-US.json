@@ -5912,7 +5912,15 @@
         "list_retainer_requests": "See a retainer's requests",
         "get_client_profile": "See the client profile",
         "get_deadline_radar": "See the deadline radar",
-        "get_retainer_report": "See the retainer report"
+        "get_retainer_report": "See the retainer report",
+        "list_workflows": "See workflows",
+        "get_workflow": "Open a workflow",
+        "run_workflow": "Run a workflow",
+        "list_quick_actions": "See your quick actions",
+        "run_quick_action": "Run a quick action",
+        "compare_documents": "Compare two Word documents",
+        "preview_document_conversion": "Preview a document conversion",
+        "convert_document": "Convert a document"
       }
     }
   },

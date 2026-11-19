@@ -204,13 +204,23 @@ async function presentTurn(
     };
 }
 
-async function runTurn(
+/**
+ * One assistant turn: start it, wait a little, report. Shared by the chat tools
+ * and by the tools that open a chat with a workflow (`run_workflow`,
+ * `run_quick_action`): the picked workflow and the documents travel on the
+ * message exactly as the web's composer sends them.
+ */
+export async function runTurn(
     call: McpCall,
     args: {
         chatId: string | null;
         matterId?: string;
         workspace: string;
         message: string;
+        /** The workflow picked for this message, as the web sends it (`lastUser.workflow`). */
+        workflow?: { id: string; title: string };
+        /** Documents attached to this message. */
+        files?: { filename: string; document_id: string }[];
         model?: string;
         credentialRef?: string;
         attempt?: string;
@@ -219,7 +229,15 @@ async function runTurn(
 ) {
     const history = args.chatId ? await loadChatHistory(call.db, args.chatId) : [];
     const parsed = parseChatTurnRequest({
-        messages: [...history, { role: "user", content: args.message }],
+        messages: [
+            ...history,
+            {
+                role: "user",
+                content: args.message,
+                ...(args.workflow ? { workflow: args.workflow } : {}),
+                ...(args.files?.length ? { files: args.files } : {}),
+            },
+        ],
         chat_id: args.chatId ?? undefined,
         ...(args.chatId ? {} : args.matterId ? { project_id: args.matterId } : {}),
         ...(args.chatId || args.matterId || args.workspace === PERSONAL_WORKSPACE ? {} : { org_id: args.workspace }),
@@ -260,7 +278,7 @@ async function runTurn(
 }
 
 /** Where a new conversation goes: the matter's workspace, else the one named, else the default. */
-async function startWorkspace(args: { matter_id?: string; workspace?: string }, call: McpCall): Promise<string> {
+export async function startWorkspace(args: { matter_id?: string; workspace?: string }, call: McpCall): Promise<string> {
     if (args.matter_id) return matterWorkspace(call, args.matter_id);
     const workspace = args.workspace || call.principal.defaultWorkspace;
     if (!call.principal.workspaces.some((w) => w.id === workspace))
