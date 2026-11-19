@@ -370,6 +370,7 @@ export const runPlaybookReview = defineMcpTool({
     }),
     scope: "litt.run",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     audit: "strict",
@@ -423,6 +424,11 @@ export const runPlaybookReview = defineMcpTool({
             }),
         );
         const runId = started.id;
+        // The review is a queued job that outlives this call: the slot stays while it runs.
+        call.heavy?.hold(async () => {
+            const [state] = await playbookRunStatuses(userId, [runId], call.db);
+            return state?.status === "running";
+        });
         // Wait a little for a quick review; otherwise the answer says it is still running.
         await waitFor(async () => {
             const [state] = await playbookRunStatuses(userId, [runId], call.db);

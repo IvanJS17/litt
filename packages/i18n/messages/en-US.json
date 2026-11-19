@@ -1371,6 +1371,7 @@
       "upload_session_control_rate_limit": "Too many upload requests. Try again later.",
       "upload_session_poll_rate_limit": "Upload status was checked too often. Try again shortly.",
       "upload_session_rate_limit_exceeded": "Too many upload sessions. Try again later.",
+      "heavy_jobs_busy": "LiTT is already running as many heavy jobs for your connected apps as it can. Nothing was started. Try again in about 30 seconds.",
       "upload_target_busy": "Another upload is already updating this item.",
       "validation_failed": "Some of the information provided isn't valid.",
       "workflow_open_source_disabled": "Publishing workflows outside LiTT isn't available.",

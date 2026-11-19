@@ -141,6 +141,7 @@ export const sendTabularChatMessage = defineMcpTool({
     }),
     scope: "litt.chat",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     // It spends the person's model budget and writes a thread.
@@ -195,6 +196,8 @@ export const sendTabularChatMessage = defineMcpTool({
         const turn = started.started;
         const run = turn.run;
         const chatId = turn.prepared.chatId;
+        // The answer may outlive this call: the slot stays until the run ends.
+        if (run) call.heavy?.hold(() => !run.finished);
         // A thread that could not be created has no run to follow.
         if (!run || !chatId) {
             await abandonTabularChatTurn(call.db, turn);

@@ -130,6 +130,7 @@ export const readScannedDocumentTool = defineMcpTool({
     inputSchema: z.object({ document_id: idSchema("document_id"), ...costArgs }),
     scope: "litt.write",
     lane: "write",
+    heavy: "background",
     readOnly: false,
     destructive: false,
     audit: "strict",
@@ -157,6 +158,16 @@ export const readScannedDocumentTool = defineMcpTool({
         });
         if (!result.ok) refuse(result, "read scanned document");
         const state = result.data;
+        // The reading is a queued job that outlives this call: the slot stays while it processes.
+        if (state.status === "processing")
+            call.heavy?.hold(async () => {
+                const now = await getScanReadingState(call.db, {
+                    documentId: args.document_id,
+                    userId: call.principal.userId,
+                    userEmail: await emailOf(call),
+                });
+                return now.ok && now.data.status === "processing";
+            });
         return mcpText({
             document_id: args.document_id,
             status: state.status,
@@ -228,6 +239,7 @@ export const proposeCaseFileSplitTool = defineMcpTool({
     inputSchema: z.object({ document_id: idSchema("document_id"), ...costArgs }),
     scope: "litt.write",
     lane: "write",
+    heavy: "sync",
     readOnly: false,
     destructive: false,
     audit: "strict",
@@ -294,6 +306,7 @@ export const createSplitDocumentsTool = defineMcpTool({
     }),
     scope: "litt.write",
     lane: "write",
+    heavy: "sync",
     readOnly: false,
     destructive: false,
     audit: "strict",
