@@ -50,13 +50,20 @@ export function ConnectedAppCard({
   const tc = useTranslations("connect");
   const format = useFormatter();
   const actions = useRef<HTMLDivElement>(null);
+  const backOut = useRef(false);
   const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
   const titleId = `connected-app-${grant.id}`;
+  const revokeId = `connected-app-revoke-${grant.id}`;
 
   // The confirmation takes focus so the keyboard lands on the safe choice.
   useEffect(() => {
     if (confirming) actions.current?.querySelector("button")?.focus();
-  }, [confirming]);
+    else if (backOut.current) {
+      // Cancelling unmounts the confirmation: focus returns to the button that opened it.
+      backOut.current = false;
+      document.getElementById(revokeId)?.focus();
+    }
+  }, [confirming, revokeId]);
 
   const granted = new Set(grant.scopes.map(knownScope));
   const cannot = KNOWN_SCOPES.filter((scope) => !granted.has(scope));
@@ -78,7 +85,7 @@ export function ConnectedAppCard({
             </div>
           </div>
           {!confirming && (
-            <PillButtonUI tone="whiteDanger" type="button" className="self-start sm:self-center" onClick={onAskRevoke}>
+            <PillButtonUI id={revokeId} tone="whiteDanger" type="button" className="self-start sm:self-center" onClick={onAskRevoke}>
               {t("revoke")}
             </PillButtonUI>
           )}
@@ -132,7 +139,12 @@ export function ConnectedAppCard({
           <SettingsRow>
             <p className="text-sm text-gray-900">{t("confirmRevoke", { client: grant.client_name })}</p>
             <div ref={actions} className="flex shrink-0 gap-2">
-              <PillButtonUI tone="white" type="button" disabled={busy} onClick={onCancelRevoke}>
+              <PillButtonUI tone="white" type="button" disabled={busy}
+                onClick={() => {
+                  backOut.current = true;
+                  onCancelRevoke();
+                }}
+              >
                 {t("cancel")}
               </PillButtonUI>
               <PillButtonUI tone="danger" type="button" disabled={busy} onClick={onRevoke}>
