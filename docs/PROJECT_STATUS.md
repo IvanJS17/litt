@@ -33,7 +33,9 @@
   - `20261119c` (`824a756d4`): #259, MCP layer 2a: workflows, quick actions, compare and convert.
 - **Merged, not deployed:** #257 (review notes; migration `20261119_10`), #260 (model guide in the
   Word add-in), #261 (Donna S8b, new-rule proposals from a law text; migration `20261119_30`), #262
-  (MCP layer 2b: scanned reading and case-file split with cost confirmation) and #263 (review notes).
+  (MCP layer 2b: scanned reading and case-file split with cost confirmation),
+  #263 (review notes),
+  #264 (MCP layer 2c: prompts/resources, matter and tabular-review chats) and #266 (MCP heavy-job cap).
   The deploy of `ab318a949` on 2026-11-19 stopped before loading anything because the server's free
   disk (10.11 GB) was under the deploy's required margin (10.22 GB: twice the image plus 5 GB);
   production was not touched. Deploys wait for more free disk on the shared server.

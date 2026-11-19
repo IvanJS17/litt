@@ -166,7 +166,9 @@ export const readScannedDocumentTool = defineMcpTool({
                     userId: call.principal.userId,
                     userEmail: await emailOf(call),
                 });
-                return now.ok && now.data.status === "processing";
+                // A failed lookup cannot tell: the job counts as alive (mcp.heavy.ts), never freed by a blip.
+                if (!now.ok) return true;
+                return now.data.status === "processing";
             });
         return mcpText({
             document_id: args.document_id,
