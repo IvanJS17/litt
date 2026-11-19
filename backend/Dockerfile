@@ -17,9 +17,13 @@ COPY packages/i18n/messages /packages/i18n/messages
 RUN npm run build && npm prune --omit=dev
 
 FROM node:22-slim
-# libreoffice-convert shells out to soffice for doc conversion (see src/lib/convert.ts)
+# libreoffice-convert shells out to soffice for doc conversion (see src/lib/convert.ts).
+# The code only converts Word (doc/docx) and presentation (ppt/pptx) files to PDF
+# (shouldConvertToPdf; spreadsheets are read in-process), so only the Writer and
+# Impress headless components are installed, not the `libreoffice` metapackage
+# (Calc, Draw, Math, Base, GUI toolkits).
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends libreoffice util-linux \
+  && apt-get install -y --no-install-recommends libreoffice-writer-nogui libreoffice-impress-nogui util-linux \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app ./

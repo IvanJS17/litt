@@ -84,9 +84,13 @@ done
 BID=$(docker image inspect --format '{{.Id}}' "litt-backend:$SHA")
 FID=$(docker image inspect --format '{{.Id}}' "litt-frontend:$SHA")
 WID=$(docker image inspect --format '{{.Id}}' "litt-word:$SHA")
-BYTES=$(( $(docker image inspect --format '{{.Size}}' "litt-backend:$SHA") \
-        + $(docker image inspect --format '{{.Size}}' "litt-frontend:$SHA") \
-        + $(docker image inspect --format '{{.Size}}' "litt-word:$SHA") ))
+# Huella real en disco: unión de capas de las tres imágenes, cada capa una sola vez
+# (comparten la base node:22-slim). `docker history` da un renglón por capa con su
+# tamaño sin comprimir; una capa compartida tiene el mismo CreatedAt y tamaño en las tres.
+BYTES=$(for i in backend frontend word; do
+  docker history --human=false --format '{{.CreatedAt}} {{.Size}}' "litt-$i:$SHA"
+done | sort -u | awk '{ s += $2 } END { print s }')
+echo "BYTES=$BYTES"
 # Deploy (el árbol del release viaja aparte; las imágenes, por stdin y sin copias en disco):
 scp deploy/prod/litt-deploy.sh staging-apps-dev:/tmp/litt-deploy.sh
 git archive --format=tar.gz "$SHA" | ssh staging-apps-dev "cat > /tmp/litt-$SHA.tar.gz"
@@ -100,9 +104,12 @@ host (`HOST-RULES.md` §3–§5):
 1. Crea `/srv/litt/.deploy-in-progress` al empezar y lo borra al terminar, también si
    falla (`trap`). Mientras exista, el guardián de disco del host no retira imágenes.
 2. **Antes de cargar** comprueba que haya libres al menos `max(7 GiB, 2 × BYTES + 5 GiB)`.
-   `BYTES` es la suma de los tamaños de las tres imágenes, una cota conservadora porque
-   comparten capas. Si no alcanza, retira primero las imágenes `litt-*` que no son la
-   viva y, si aún no alcanza, aborta sin cargar nada.
+   `BYTES` es la unión de capas de las tres imágenes (cada capa una vez), calculada en la
+   máquina de build con el comando de arriba; no es la suma de los tamaños de las imágenes,
+   que cuenta tres veces la base compartida. Si no alcanza, **aborta sin tocar nada**: no
+   retira ninguna imagen, así que la viva y la anterior siguen cargadas y producción queda
+   intacta. Para liberar espacio, hacerlo a mano (por tag explícito, nunca `prune`) y
+   volver a lanzar el deploy.
 3. Carga las imágenes y compara sus IDs con los de la máquina de build.
 4. Reemplaza el árbol del release. Lo extrae aparte y lo sincroniza con `rsync`, de modo
    que el árbol nunca queda vacío mientras corren los contenedores, que montan archivos
@@ -124,13 +131,12 @@ comprueba de verdad la afirmación `notInProductionImage` de `scripts/audit-allo
 el registro del despliegue aparece la línea «imagen del frontend sin rutas solo de desarrollo»
 cuando la comprobación pasa.
 
-**Rollback:** normalmente la imagen anterior sigue cargada en el VPS, pero no siempre: cuando
-falta espacio libre, el paso 2 de `litt-deploy.sh` retira las imágenes `litt-*` que no están
-vivas antes de cargar las nuevas (§1, paso 2). Si el despliegue la retiró por espacio, el
-rollback vuelve a mandar las imágenes desde la máquina de build por stdin. En ambos casos se
-corre el mismo procedimiento con el SHA anterior: las imágenes se mandan por stdin,
-reconstruyéndolas en la máquina de build desde ese commit (o con `docker save` si siguen en el
-VPS), y el árbol sale de `git archive` de ese commit.
+**Rollback:** la imagen anterior siempre sigue cargada en el VPS: el deploy nunca retira
+imágenes antes de cargar (si falta espacio, el paso 2 aborta sin tocar nada) y la retención del
+paso 6 conserva la viva + 1 anterior. Se corre el mismo procedimiento con el SHA anterior: las
+imágenes se mandan por stdin, reconstruyéndolas en la máquina de build desde ese commit (o con
+`docker save` desde el VPS, donde siguen cargadas), y el árbol sale de `git archive` de ese
+commit.
 
 La etiqueta de las imágenes es el SHA completo y queda en `.env` como
 `LITT_SOURCE_COMMIT`; `compose.yaml` no arranca sin ella. El contexto de build

@@ -44,12 +44,12 @@ EOF
 run() { echo imagen | gzip | PATH="$T/bin:$PATH" LITT_APP_DIR="$T/app" bash "$HERE/litt-deploy.sh" "$NEW" "$1" "$BID" "$FID" "$WID" "$T/tree.tgz" > "$T/out" 2>&1; }
 check() { if eval "$2"; then echo "ok   - $1"; else echo "FAIL - $1"; fails=$((fails + 1)); sed 's/^/       /' "$T/out"; fi; }
 
-# 1. Sin espacio ni retirando la imagen vieja: aborta antes de cargar, conserva la viva y borra el marcador.
+# 1. Sin espacio: aborta antes de cargar SIN retirar ninguna imagen (viva y anterior intactas) y borra el marcador.
 setup $((4 * GIB))
 if run $((2 * GIB)); then st=0; else st=$?; fi
 check "aborta por espacio" '[ $st -ne 0 ] && grep -q "espacio insuficiente" "$T/out"'
 check "no carga la imagen" '! grep -q "^load" "$T/calls"'
-check "retira primero la vieja propia, nunca la viva" 'grep -qx "rmi litt-backend:$OLD" "$T/calls" && ! grep -q "rmi .*:$LIVE" "$T/calls"'
+check "no retira ninguna imagen antes de abortar" '! grep -q "^rmi" "$T/calls" && grep -qx "$LIVE" "$T/tags-litt-backend" && grep -qx "$OLD" "$T/tags-litt-backend"'
 check "marcador borrado en error" '[ ! -e "$T/app/.deploy-in-progress" ]'
 check "no toca el árbol ni .env" '[ -f "$T/app/viejo.txt" ] && grep -qx "LITT_SOURCE_COMMIT=$LIVE" "$T/app/.env"'
 rm -rf "$T"
