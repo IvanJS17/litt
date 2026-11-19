@@ -1784,7 +1784,7 @@
         },
         "s2": {
           "heading": "Qué no hace",
-          "body": "No sustituye el criterio del abogado, no recuerda datos entre chats independientes y no inventa artículos legales (citas no halladas se marcan como sin verificar)."
+          "body": "No sustituye el criterio del abogado, no recuerda conversaciones por sí solo: solo si la memoria está activa, usa notas editables de tu cuenta o del proyecto como contexto en chats posteriores (nunca como fuente ni cita), y no inventa artículos legales (citas no halladas se marcan como sin verificar)."
         },
         "s3": {
           "heading": "Cómo empezar",
@@ -1930,7 +1930,7 @@
     },
     "donna_retainer_report": {
       "title": "Donna: reporte de iguala",
-      "summary": "Genera informes ejecutivos en Word y JSON sobre los últimos 30, 60 o 90 días de la iguala: solicitudes atendidas, rondas, mediana de días de resolución, hechos confirmados y vencimientos.",
+      "summary": "Genera informes ejecutivos en Word y JSON sobre los últimos 30, 60 o 90 días de la iguala: solicitudes atendidas, rondas, promedio de días naturales hasta el cierre, hechos confirmados y vencimientos.",
       "sections": {
         "s1": {
           "heading": "Úsala cuando",
@@ -2012,7 +2012,7 @@
           "items": {
             "i1": "Abre el selector de modelo en el encabezado del chat, al importar un playbook o en una revisión tabular.",
             "i2": "Elige el modelo adecuado. La guía de modelos junto al selector describe cada uno y avisa de la retención de datos del proveedor.",
-            "i3": "Ajusta el nivel de razonamiento (Bajo, Medio, Alto) antes de enviar la instrucción."
+            "i3": "Ajusta el nivel de razonamiento antes de enviar la instrucción; los niveles disponibles cambian según el modelo y el proveedor."
           }
         }
       }
@@ -2588,7 +2588,7 @@
         },
         "seal": {
           "title": "El sello del pasante",
-          "body": "Lo que redacta un pasante no sale de LiTT hasta que su mentor lo aprueba."
+          "body": "Lo que redacta un pasante no sale de LiTT hasta que su mentor o un abogado del asunto lo aprueba."
         },
         "stages": {
           "title": "Etapas por materia",

@@ -1784,7 +1784,7 @@
         },
         "s2": {
           "heading": "What it does not do",
-          "body": "It does not replace lawyer judgment, does not share memory across unlinked chats, and does not invent statutes (unfound references are tagged unverified)."
+          "body": "It does not replace lawyer judgment, does not remember conversations on its own: only when memory is on does it use editable notes from your account or the project as context in later chats (never as a source or citation), and does not invent statutes (unfound references are tagged unverified)."
         },
         "s3": {
           "heading": "How to start",
@@ -1930,7 +1930,7 @@
     },
     "donna_retainer_report": {
       "title": "Donna: retainer report",
-      "summary": "Generates executive Word and JSON reports covering 30, 60, or 90 days: requests handled, rounds, median days to close, confirmed facts, and upcoming dates.",
+      "summary": "Generates executive Word and JSON reports covering 30, 60, or 90 days: requests handled, rounds, average calendar days to close, confirmed facts, and upcoming dates.",
       "sections": {
         "s1": {
           "heading": "Use it when",
@@ -2012,7 +2012,7 @@
           "items": {
             "i1": "Open the model selector in the chat header, when importing a playbook or in a tabular review.",
             "i2": "Pick the right model. The model guide next to the selector describes each one and flags the provider’s data retention.",
-            "i3": "Set the reasoning level (Low, Medium, High) before you send the instruction."
+            "i3": "Set the reasoning level before you send the instruction; the levels available change by model and provider."
           }
         }
       }
@@ -2588,7 +2588,7 @@
         },
         "seal": {
           "title": "The intern’s seal",
-          "body": "What an intern drafts does not leave LiTT until their mentor approves it."
+          "body": "What an intern drafts does not leave LiTT until their mentor or a lawyer on the matter approves it."
         },
         "stages": {
           "title": "Stages by subject",

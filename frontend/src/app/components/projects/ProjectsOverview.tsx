@@ -660,12 +660,10 @@ export function ProjectsOverview() {
                           ]
                 }
             >
-                <div className="flex min-w-0 items-center gap-3">
-                    <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
-                        {t("projects.projects")}
-                    </h1>
-                    <GuideTrigger id="projects_documents" />
-                </div>
+                <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
+                    {t("projects.projects")}
+                </h1>
+                <GuideTrigger id="projects_documents" className="ml-3 shrink-0" />
             </PageHeader>
 
             {/* Today: the deadlines of the matters where I am a member (firm workspaces only). */}

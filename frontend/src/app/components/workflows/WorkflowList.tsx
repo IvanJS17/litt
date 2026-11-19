@@ -524,12 +524,10 @@ export function WorkflowList({
           },
         ]}
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
-            {t("workflows.workflows")}
-          </h1>
-          <GuideTrigger id="playbooks_workflows" />
-        </div>
+        <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
+        {t("workflows.workflows")}
+      </h1>
+        <GuideTrigger id="playbooks_workflows" className="ml-3 shrink-0" />
       </PageHeader>
 
       <TableToolbar

@@ -423,12 +423,10 @@ function TabularReviewsWorkspacePage({ workspace }: { workspace?: string }) {
                     },
                 ]}
             >
-                <div className="flex min-w-0 items-center gap-3">
-                    <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
-                        {t("tabular.tabularReviews")}
-                    </h1>
-                    <GuideTrigger id="tabular_review" />
-                </div>
+                <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
+                    {t("tabular.tabularReviews")}
+                </h1>
+                <GuideTrigger id="tabular_review" className="ml-3 shrink-0" />
             </PageHeader>
 
             <ReviewsListTable

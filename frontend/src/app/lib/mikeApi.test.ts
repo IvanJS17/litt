@@ -1424,6 +1424,14 @@ describe("training API", () => {
         ok();
         await expect(getMyTraining()).resolves.toEqual([]);
         expect(lastFetchCall().url).toBe("/api/training/me");
+        expect(lastFetchCall().init.method ?? "GET").toBe("GET");
+        // A reply that is not {memberships: [...]} is a failure, never data.
+        for (const body of [[], {}, { memberships: null }, { memberships: {} }, null]) {
+            fetchMock.mockResolvedValueOnce(jsonResponse(body));
+            await expect(getMyTraining()).rejects.toThrow("Malformed training reply");
+        }
+        fetchMock.mockResolvedValueOnce(jsonResponse({ memberships: [{ org_id: "o1" }] }));
+        await expect(getMyTraining()).resolves.toEqual([{ org_id: "o1" }]);
         await getOrgTraining("o1");
         expect(lastFetchCall().url).toBe("/api/orgs/o1/training/mentors");
         await getMyPupils("o1");

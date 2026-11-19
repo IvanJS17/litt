@@ -130,7 +130,7 @@ export function PageHeader({
         >
             {headerContent}
             {hasActions && (
-                <div className="ml-4 hidden shrink-0 items-center gap-3 md:flex">
+                <div className="ml-auto hidden shrink-0 items-center gap-3 pl-4 md:flex">
                     <PageHeaderActionGroups
                         groupedActionItems={groupedActionItems}
                         actionsDisabled={actionsDisabled}
