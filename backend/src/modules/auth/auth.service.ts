@@ -89,13 +89,17 @@ export const exchangeSchema = z.object({
   handoffRequestId: handoffRequestIdSchema.optional(),
 });
 /**
- * The token hash of an emailed link. Only `recovery` is accepted: it is the one
- * link verified server-side so it opens in any browser, not just the one that
- * asked for it (a PKCE code needs that browser's verifier cookie).
+ * The token hash of an emailed link. Only the links whose flow starts PKCE are
+ * accepted (`recovery`, `signup`, `email_change`): they are verified
+ * server-side so they open in any browser, not just the one that asked for
+ * them (a PKCE code needs that browser's verifier cookie). `invite` is already
+ * implicit-flow and needs none of this.
  */
+export const EMAIL_LINK_TYPES = ["recovery", "signup", "email_change"] as const;
+export type EmailLinkType = (typeof EMAIL_LINK_TYPES)[number];
 export const verifyOtpSchema = z.object({
   token_hash: z.string().trim().min(1).max(4096),
-  type: z.literal("recovery"),
+  type: z.enum(EMAIL_LINK_TYPES),
 });
 /** The tokens GoTrue puts in the URL hash of an invitation link. */
 export const inviteSessionSchema = z.object({
@@ -258,7 +262,7 @@ export function exchangeCodeForSession(client: SupabaseClient, code: string) {
 /** Spend an emailed token hash for a session (set as cookies by the client). */
 export function verifyEmailToken(
   client: SupabaseClient,
-  args: { token_hash: string; type: "recovery" },
+  args: { token_hash: string; type: EmailLinkType },
 ) {
   return client.auth.verifyOtp(args);
 }

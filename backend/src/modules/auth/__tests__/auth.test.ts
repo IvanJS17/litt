@@ -773,30 +773,70 @@ describe("auth routes", () => {
   });
 
   describe("POST /auth/verify-otp", () => {
-    it("verifies a recovery token hash on the cookie client", async () => {
+    it.each(["recovery", "signup", "email_change"])(
+      "verifies a %s token hash on the cookie client",
+      async (type) => {
+        authClient.auth.verifyOtp.mockResolvedValue({
+          data: { user, session },
+          error: null,
+        });
+
+        const response = await request(app)
+          .post("/auth/verify-otp")
+          .set("Origin", origin)
+          .send({ token_hash: "hash-1", type });
+
+        expect(response.status).toBe(200);
+        expect(response.body.user.id).toBe(user.id);
+        expect(JSON.stringify(response.body)).not.toContain("server-only-token");
+        expect(authClient.auth.verifyOtp).toHaveBeenCalledWith({
+          token_hash: "hash-1",
+          type,
+        });
+        // The client that sets the session cookies is the request-bound one.
+        expect(createRequestSupabase).toHaveBeenCalledTimes(1);
+        expect(createRequestSupabase.mock.calls[0]).toHaveLength(2);
+      },
+    );
+
+    it("answers pending when only the first of two email-change links is confirmed", async () => {
       authClient.auth.verifyOtp.mockResolvedValue({
-        data: { user, session },
+        data: { user: null, session: null },
         error: null,
       });
 
       const response = await request(app)
         .post("/auth/verify-otp")
         .set("Origin", origin)
-        .send({ token_hash: "hash-1", type: "recovery" });
+        .send({ token_hash: "hash-1", type: "email_change" });
 
       expect(response.status).toBe(200);
-      expect(response.body.user.id).toBe(user.id);
-      expect(JSON.stringify(response.body)).not.toContain("server-only-token");
-      expect(authClient.auth.verifyOtp).toHaveBeenCalledWith({
-        token_hash: "hash-1",
-        type: "recovery",
+      expect(response.body).toEqual({
+        user: null,
+        pendingSecondConfirmation: true,
       });
-      // The client that sets the session cookies is the request-bound one.
-      expect(createRequestSupabase).toHaveBeenCalledTimes(1);
-      expect(createRequestSupabase.mock.calls[0]).toHaveLength(2);
+      expect(clearRequestAuthCookies).not.toHaveBeenCalled();
     });
 
-    it.each(["signup", "invite", "email_change", "magiclink", "", undefined])(
+    it.each(["recovery", "signup"])(
+      "treats a %s link that yields no session as spent",
+      async (type) => {
+        authClient.auth.verifyOtp.mockResolvedValue({
+          data: { user: null, session: null },
+          error: null,
+        });
+
+        const response = await request(app)
+          .post("/auth/verify-otp")
+          .set("Origin", origin)
+          .send({ token_hash: "hash-1", type });
+
+        expect(response.status).toBeGreaterThanOrEqual(400);
+        expect(response.body.pendingSecondConfirmation).toBeUndefined();
+      },
+    );
+
+    it.each(["invite", "magiclink", "email", "sms", "", undefined])(
       "rejects type %s with 400 without calling GoTrue",
       async (type) => {
         const response = await request(app)
@@ -819,25 +859,33 @@ describe("auth routes", () => {
       expect(authClient.auth.verifyOtp).not.toHaveBeenCalled();
     });
 
-    it("maps an expired or used link to a 4xx with its code", async () => {
-      authClient.auth.verifyOtp.mockResolvedValue({
-        data: { user: null, session: null },
-        error: Object.assign(new Error("Email link is invalid or has expired"), {
-          status: 403,
-          code: "otp_expired",
-        }),
-      });
+    it.each(["recovery", "signup", "email_change"])(
+      "maps an expired or used %s link to a 4xx with its code",
+      async (type) => {
+        authClient.auth.verifyOtp.mockResolvedValue({
+          data: { user: null, session: null },
+          error: Object.assign(new Error("Email link is invalid or has expired"), {
+            status: 403,
+            code: "otp_expired",
+          }),
+        });
 
-      const response = await request(app)
-        .post("/auth/verify-otp")
-        .set("Origin", origin)
-        .send({ token_hash: "spent", type: "recovery" });
+        const response = await request(app)
+          .post("/auth/verify-otp")
+          .set("Origin", origin)
+          .send({ token_hash: "spent", type });
 
-      expect(response.status).toBeGreaterThanOrEqual(400);
-      expect(response.status).toBeLessThan(500);
-      expect(response.body.code).toBe("otp_expired");
-      expect(clearRequestAuthCookies).toHaveBeenCalled();
-    });
+        expect(response.status).toBeGreaterThanOrEqual(400);
+        expect(response.status).toBeLessThan(500);
+        expect(response.body.code).toBe("otp_expired");
+        // A spent email-change link must not sign out the browser it opens in.
+        if (type === "email_change") {
+          expect(clearRequestAuthCookies).not.toHaveBeenCalled();
+        } else {
+          expect(clearRequestAuthCookies).toHaveBeenCalled();
+        }
+      },
+    );
 
     it("rejects an untrusted origin", async () => {
       const response = await request(app)

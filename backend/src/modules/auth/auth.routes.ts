@@ -346,8 +346,9 @@ authRouter.post("/invite-session", asyncRoute(async (req, res) => {
   }
 }));
 
-// The recovery email links to /auth/confirm?token_hash=...; the page posts the
-// hash here once the person clicks. Verifying server-side needs no PKCE
+// The recovery, signup-confirmation and email-change emails link to
+// /auth/confirm?token_hash=...&type=...; the page posts the hash here once the
+// person clicks. Verifying server-side needs no PKCE
 // verifier cookie, so the link works in any browser.
 authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
@@ -356,8 +357,20 @@ authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
   try {
     const client = createRequestSupabase(req, res);
     const { data, error } = await verifyEmailToken(client, parsed.data);
+    // Secure email change: the first of the two links GoTrue sends only
+    // records its half (200, no user, no session). The change applies, and a
+    // session is issued, when the second one is confirmed.
+    if (
+      parsed.data.type === "email_change" &&
+      !error &&
+      !data?.user &&
+      !data?.session
+    ) {
+      return res.json({ user: null, pendingSecondConfirmation: true });
+    }
     if (error || !data.user || !data.session) {
-      clearRequestAuthCookies(req, res);
+      // A spent email-change link must not sign out whoever is using this browser.
+      if (parsed.data.type !== "email_change") clearRequestAuthCookies(req, res);
       return authError(res, error);
     }
     res.json({ user: publicAuthUser(data.user) });

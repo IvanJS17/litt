@@ -193,11 +193,22 @@ export async function exchangeAuthCode(code: string) {
     });
 }
 
-/** Spend the token hash of the recovery email: works in any browser. */
-export async function verifyRecoveryToken(tokenHash: string) {
-    return authRequest<{ user: AuthUser }>("auth.signin", "/verify-otp", {
+/** The emailed links verified server-side so they open in any browser. */
+export type EmailLinkType = "recovery" | "signup" | "email_change";
+
+/** Spend the token hash of an emailed link: works in any browser. With a
+ *  secure email change the first of the two links only records its half and
+ *  answers `pendingSecondConfirmation` (no session yet). */
+export async function verifyEmailLinkToken(
+    tokenHash: string,
+    type: EmailLinkType,
+) {
+    return authRequest<{
+        user: AuthUser | null;
+        pendingSecondConfirmation?: boolean;
+    }>("auth.signin", "/verify-otp", {
         method: "POST",
-        body: JSON.stringify({ token_hash: tokenHash, type: "recovery" }),
+        body: JSON.stringify({ token_hash: tokenHash, type }),
     });
 }
 
