@@ -1,7 +1,7 @@
 // A new Markdown note, written from text, in a matter.
 //
 // The result is always a NEW document in the matter's top level, version 1,
-// `source` 'generated' (content produced on the person's behalf), stored as a
+// `source` 'mcp_client' (written by another app, such as Claude, on the person's behalf), stored as a
 // UTF-8 `.md` file exactly as given. Nothing that exists is changed. Who may
 // create one is who may open an upload into the matter on the web: a member
 // with edit rights on it (a viewer is refused, a stranger sees "not found"),
@@ -62,6 +62,7 @@ export async function createNoteDocument(
     if (!storageEnabled) return failure("unavailable", "File storage is not available right now.");
 
     const doc = {
+        // `namesInContainer` only reads project/folder/org; the row does not exist yet, so it has no id.
         id: "",
         user_id: args.userId,
         project_id: args.projectId,
@@ -80,7 +81,7 @@ export async function createNoteDocument(
         filename,
         bytes: Buffer.from(markdown, "utf8"),
         fileType: "md",
-        source: "generated",
+        source: "mcp_client",
     });
     if (!stored.ok) return stored;
     return ok({

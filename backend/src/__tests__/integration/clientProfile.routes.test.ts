@@ -534,6 +534,32 @@ describe("batch decision", () => {
         return ids;
     };
 
+    it("authorizes the member once for the whole batch, not once per fact", async () => {
+        as(EDITOR);
+        const ids = await makeFacts(3);
+        as(OWNER);
+        const db = h.state!.db as { from: (table: string) => unknown };
+        const original = db.from;
+        const reads: Record<string, number> = {};
+        db.from = (table: string) => {
+            reads[table] = (reads[table] ?? 0) + 1;
+            return original.call(db, table);
+        };
+        try {
+            const res = await batch({ action: "confirm", factIds: ids });
+            expect(res.body.results).toEqual(ids.map((fact_id) => ({ fact_id, outcome: "ok" })));
+        } finally {
+            db.from = original;
+        }
+        // One read of the fact per fact (its current status), none to show the result; each event is still written (and its history read) per fact.
+        expect(reads.matter_profile_facts).toBe(ids.length);
+        expect(reads.matter_profile_fact_events).toBe(2 * ids.length);
+        // Authorization reads (membership, matter, project) do not grow with the batch.
+        const perFact = new Set(["matter_profile_facts", "matter_profile_fact_events", "document_versions", "documents"]);
+        for (const [table, count] of Object.entries(reads))
+            if (!perFact.has(table)) expect(count, table).toBeLessThanOrEqual(2);
+    });
+
     it("confirms several facts, each with its own event of who decided", async () => {
         as(EDITOR);
         const ids = await makeFacts(3);

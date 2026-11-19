@@ -183,6 +183,21 @@ describe("AuthConfirmPage", () => {
         expect(router.replace).not.toHaveBeenCalled();
     });
 
+    it("says the session could not start, not that the link is spent, when the token was verified but the session check fails", async () => {
+        verifyEmailLinkToken.mockResolvedValue({ user: { id: "u1" } });
+        refreshSession.mockRejectedValue(new Error("network down"));
+        render(<AuthConfirmPage />);
+
+        await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "Your link was confirmed, but we couldn't start your session. Log in to continue.",
+        );
+        expect(screen.queryByText(/invalid or has expired/)).not.toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /log ?in/i })).toHaveAttribute("href", "/login");
+        expect(router.replace).not.toHaveBeenCalled();
+    });
+
     it("reports a link without a token as spent, with no request", async () => {
         state.params = new URLSearchParams("type=recovery");
         render(<AuthConfirmPage />);

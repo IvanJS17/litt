@@ -60,6 +60,45 @@ const sheetAnimates = () =>
     window.matchMedia?.("(max-width: 767px)").matches === true &&
     window.matchMedia("(prefers-reduced-motion: no-preference)").matches === true;
 
+/** Never made inert: not page content (scripts, styles) or a live region that must keep announcing. */
+const INERT_EXEMPT = "script, style, link, template, noscript, [aria-live], [role='status'], [role='alert']";
+
+/** Marks a notice stack (the toast viewport, a fallback warning popup) that must stay usable over a modal. */
+const INERT_EXEMPT_MARK = "[data-inert-exempt]";
+
+/**
+ * While a modal is open, everything else on the page is made `inert` (not
+ * focusable, clickable or readable), the same way the phone menu does it.
+ *
+ * Branches that hold the modal or an exempt notice stack (`data-inert-exempt`)
+ * stay live: a branch that holds a notice stack is entered and only its
+ * siblings that hold neither are made inert (so the Word add-in's `#root`,
+ * which contains the toast viewport, is not inert as a whole). Only elements
+ * that were not already inert are touched, so closing a modal restores
+ * exactly what it changed, and a modal opened over another leaves the first
+ * one as it found it.
+ */
+function inertPageBehind(dialog: HTMLElement): () => void {
+    const changed: HTMLElement[] = [];
+    const visit = (parent: Element) => {
+        for (const element of Array.from(parent.children)) {
+            if (!(element instanceof HTMLElement) || element.hasAttribute("inert")) continue;
+            if (element === dialog || element.matches(INERT_EXEMPT) || element.matches(INERT_EXEMPT_MARK)) continue;
+            const holdsExempt = element.querySelector(INERT_EXEMPT_MARK) !== null;
+            const holdsDialog = element.contains(dialog);
+            if (holdsExempt) {
+                // An exempt stack inside: keep this branch live, inert what is around it.
+                visit(element);
+            } else if (!holdsDialog) {
+                element.setAttribute("inert", "");
+                changed.push(element);
+            }
+        }
+    };
+    visit(document.body);
+    return () => changed.forEach((element) => element.removeAttribute("inert"));
+}
+
 /** An element that opens the on-screen keyboard when it takes focus. */
 function isTextEntry(element: Element | null): boolean {
     if (element instanceof HTMLTextAreaElement) return true;
@@ -124,6 +163,13 @@ export function ModalUI({
             dialog.focus({ preventScroll: true });
         }
     }, [open, hasMounted]);
+
+    // aria-modal alone is advisory: make the page behind really unreachable.
+    useEffect(() => {
+        const dialog = dialogRef.current;
+        if (!open || !dialog) return;
+        return inertPageBehind(dialog);
+    }, [open]);
 
     useEffect(() => {
         if (!open) return;

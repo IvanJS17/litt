@@ -304,6 +304,23 @@ describe("create_matter", () => {
         }
     });
 
+    it("answers a failed visibility write with the created matter's id, so a retry does not duplicate it", async () => {
+        as("owner");
+        const token = await connect();
+        const before = tables().projects.length;
+        h.state!.failNext("projects", "update", { message: "relation secret_table does not exist" });
+        const partial = await callTool(token, "create_matter", { name: "A medias", workspace: ORG, visibility: "organization" });
+        expect(partial.ok).toBe(false);
+        expect(partial.code).toBe("partial_failure");
+        expect(tables().projects).toHaveLength(before + 1);
+        const row = tables().projects.at(-1)!;
+        expect(row).toMatchObject({ name: "A medias", visibility: "private" });
+        expect(partial.data.detail).toContain(String(row.id));
+        expect(partial.data.detail).toContain(`http://localhost:3000/projects/${row.id}`);
+        expect(partial.data.detail).toMatch(/stays private/);
+        expect(partial.raw).not.toMatch(/secret_table/);
+    });
+
     it("spends the write lane of the connection, not the read lane", async () => {
         as("owner");
         const token = await connect();
@@ -339,7 +356,7 @@ describe("create_note_document", () => {
             project_id: PROJECT_PUBLIC, org_id: ORG, user_id: PEOPLE.editor.id, folder_id: null, status: "ready", current_version_id: made.data.version_id,
         });
         const version = tables().document_versions.find((v) => v.id === made.data.version_id)!;
-        expect(version).toMatchObject({ document_id: made.data.document_id, source: "generated", file_type: "md", filename: "Minuta de junta.md", version_number: 1 });
+        expect(version).toMatchObject({ document_id: made.data.document_id, source: "mcp_client", file_type: "md", filename: "Minuta de junta.md", version_number: 1 });
         const stored = h.stored.get(String(version.storage_path))!;
         expect(stored).toMatchObject({ contentType: expect.stringContaining("markdown"), size: Buffer.byteLength("# Minuta\n\nAcuerdos: **uno**.") });
         // Nothing that existed changed.
@@ -347,6 +364,20 @@ describe("create_note_document", () => {
         // The web's own listing shows it.
         const listed = await callTool(token, "list_matter_documents", { matter_id: PROJECT_PUBLIC });
         expect(JSON.stringify(listed.data)).toContain(String(made.data.document_id));
+    });
+
+    it("seals a pasante's note as the version of its author, as an upload would", async () => {
+        tables().training_stages.push({ org_id: ORG, trainee_user_id: PEOPLE.apprentice.id, practice: null, stage: "pasante" });
+        as("apprentice");
+        const token = await connect();
+        const made = await note(token);
+        expect(made.ok).toBe(true);
+        const version = tables().document_versions.find((v) => v.id === made.data.version_id)!;
+        expect(version).toMatchObject({ source: "mcp_client", training_stage: "pasante", training_author_user_id: PEOPLE.apprentice.id });
+        // Someone who is not a pasante gets no seal.
+        as("editor");
+        const plain = await note(await connect());
+        expect(tables().document_versions.find((v) => v.id === plain.data.version_id)).not.toHaveProperty("training_stage");
     });
 
     it("never overwrites: the same title again is another document", async () => {

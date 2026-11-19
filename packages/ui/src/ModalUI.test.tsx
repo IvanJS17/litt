@@ -1,7 +1,15 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createPortal } from "react-dom";
 import { ModalUI } from "./ModalUI";
+import { ToastViewportUI, clearToasts, showToast, useNoticeStackSlot } from "./ToastUI";
+
+/** What the web `WarningPopup` does: portals its card into the viewport's stack slot. */
+function SlotPopup() {
+    const slot = useNoticeStackSlot();
+    return slot ? createPortal(<button type="button">Popup action</button>, slot) : null;
+}
 
 describe("ModalUI", () => {
     it("renders shared modal chrome, content, and action slots", async () => {
@@ -101,6 +109,151 @@ describe("ModalUI focus on a touch screen", () => {
         await new Promise((resolve) => requestAnimationFrame(resolve));
 
         expect(screen.getByLabelText("Title")).toHaveFocus();
+    });
+});
+
+describe("ModalUI makes the page behind inert", () => {
+    it("sets inert on the other body children while open and restores them on close", () => {
+        const page = document.createElement("div");
+        const alreadyInert = document.createElement("div");
+        alreadyInert.setAttribute("inert", "");
+        const toasts = document.createElement("div");
+        toasts.setAttribute("aria-live", "polite");
+        document.body.append(page, alreadyInert, toasts);
+        try {
+            const { rerender } = render(
+                <ModalUI open onClose={vi.fn()} ariaLabel="Example">
+                    <button type="button">Inside</button>
+                </ModalUI>,
+            );
+            const dialog = screen.getByRole("dialog", { name: "Example" });
+            expect(page).toHaveAttribute("inert");
+            expect(toasts).not.toHaveAttribute("inert");
+            expect(dialog.closest("[inert]")).toBeNull();
+
+            rerender(
+                <ModalUI open={false} onClose={vi.fn()} ariaLabel="Example">
+                    <button type="button">Inside</button>
+                </ModalUI>,
+            );
+            expect(page).not.toHaveAttribute("inert");
+            // What was inert before the modal stays inert.
+            expect(alreadyInert).toHaveAttribute("inert");
+        } finally {
+            page.remove();
+            alreadyInert.remove();
+            toasts.remove();
+        }
+    });
+
+    it("restores the page when the modal unmounts, and leaves a modal under another as it found it", () => {
+        const page = document.createElement("div");
+        document.body.append(page);
+        try {
+            const first = render(
+                <ModalUI open onClose={vi.fn()} ariaLabel="First">
+                    one
+                </ModalUI>,
+            );
+            const second = render(
+                <ModalUI open onClose={vi.fn()} ariaLabel="Second">
+                    two
+                </ModalUI>,
+            );
+            expect(page).toHaveAttribute("inert");
+            expect(screen.getByRole("dialog", { name: "Second" }).closest("[inert]")).toBeNull();
+            second.unmount();
+            expect(page).toHaveAttribute("inert");
+            expect(screen.getByRole("dialog", { name: "First" }).closest("[inert]")).toBeNull();
+            first.unmount();
+            expect(page).not.toHaveAttribute("inert");
+        } finally {
+            page.remove();
+        }
+    });
+});
+
+describe("ModalUI keeps the notification region usable", () => {
+    afterEach(() => clearToasts());
+
+    const open = () =>
+        render(
+            <ModalUI open onClose={vi.fn()} ariaLabel="Example">
+                <button type="button">Inside</button>
+            </ModalUI>,
+        );
+
+    const showError = () =>
+        act(() => {
+            showToast({
+                tone: "error",
+                title: "Couldn't save",
+                message: "Try again.",
+                actions: [{ label: "Retry", onClick: () => {} }],
+            });
+        });
+
+    it("web shape: viewport and popup as body children stay live, the page is inert", () => {
+        const page = document.createElement("div");
+        document.body.append(page);
+        try {
+            render(
+                <>
+                    <ToastViewportUI />
+                    <SlotPopup />
+                </>,
+            );
+            showError();
+            const modal = render(
+                <ModalUI open onClose={vi.fn()} ariaLabel="Example">
+                    <button type="button">Inside</button>
+                </ModalUI>,
+            );
+            expect(page).toHaveAttribute("inert");
+            const region = screen.getByRole("region");
+            expect(region.closest("[inert]")).toBeNull();
+            expect(screen.getByRole("button", { name: "Retry" }).closest("[inert]")).toBeNull();
+            expect(screen.getByRole("button", { name: "Popup action" }).closest("[inert]")).toBeNull();
+            expect(screen.getByRole("dialog").closest("[inert]")).toBeNull();
+            modal.unmount();
+            expect(page).not.toHaveAttribute("inert");
+        } finally {
+            page.remove();
+        }
+    });
+
+    it("add-in shape: viewport inside #root next to app content; only the app content is inert", () => {
+        const root = document.createElement("div");
+        root.id = "root";
+        const app = document.createElement("main");
+        const appButton = document.createElement("button");
+        app.append(appButton);
+        const host = document.createElement("div");
+        root.append(app, host);
+        document.body.append(root);
+        try {
+            const { unmount: unmountToasts } = render(
+                <>
+                    <ToastViewportUI />
+                    <SlotPopup />
+                </>,
+                { container: host },
+            );
+            showError();
+            const modal = open();
+            expect(root).not.toHaveAttribute("inert");
+            expect(app).toHaveAttribute("inert");
+            expect(screen.getByRole("region").closest("[inert]")).toBeNull();
+            expect(screen.getByRole("button", { name: "Retry" }).closest("[inert]")).toBeNull();
+            expect(screen.getByRole("button", { name: "Popup action" }).closest("[inert]")).toBeNull();
+            expect(screen.getByRole("dialog").closest("[inert]")).toBeNull();
+            modal.unmount();
+            expect(app).not.toHaveAttribute("inert");
+            expect(root.querySelectorAll("[inert]")).toHaveLength(0);
+            unmountToasts();
+        } finally {
+            root.remove();
+        }
     });
 });
 

@@ -238,12 +238,14 @@ async function loadBaseline(
     .filter(
       (row) =>
         !row.deleted_at &&
-        (row.source === "generated" || row.source === "upload" || row.source === "user_upload"),
+        (row.source === "generated" ||
+          row.source === "mcp_client" ||
+          row.source === "upload" || row.source === "user_upload"),
     )
     .sort(compareVersions);
   const start = starts[starts.length - 1];
   if (!start) return { kind: "unknown" };
-  const kind = start.source === "generated" ? "ai" : "file";
+  const kind = start.source === "generated" || start.source === "mcp_client" ? "ai" : "file";
   if (
     kind === "ai" &&
     !(start.storage_path ?? "").startsWith(GENERATED_STORAGE_PREFIX)

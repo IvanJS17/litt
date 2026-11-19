@@ -562,6 +562,7 @@
       "insufficientAal": "Finish two-factor verification to continue.",
       "invalidCredentials": "The email or password is incorrect.",
       "invalidInput": "Some of the information provided isn't valid.",
+      "linkConfirmedNoSession": "Your link was confirmed, but we couldn't start your session. Log in to continue.",
       "linkSpent": "This confirmation link is invalid or has expired. Request a new one.",
       "mfaCodeExpired": "That code expired. Enter the current six-digit code from your authenticator app.",
       "mfaCodeIncorrect": "That code is incorrect. Enter the current six-digit code from your authenticator app.",
@@ -8001,6 +8002,7 @@
   "versionCompare": {
     "added": "Added",
     "authorAi": "AI",
+    "authorApp": "Claude or another app",
     "authorOf": "Made by: {author}",
     "authorPerson": "Person",
     "base": "Base version",

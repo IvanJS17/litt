@@ -185,7 +185,7 @@ function CompareBody({
 
     // --- Labels -------------------------------------------------------------
     const authorLabel = (source: string | null | undefined) =>
-        versionAuthor(source) === "ai" ? t("authorAi") : t("authorPerson");
+        ({ ai: t("authorAi"), app: t("authorApp"), person: t("authorPerson") })[versionAuthor(source)];
     const options = ordered.map((version) => ({
         value: version.id,
         label:
