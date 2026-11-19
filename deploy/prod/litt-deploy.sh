@@ -9,9 +9,10 @@
 #
 # Las imágenes llegan por stdin (sin copias temporales en disco). El script:
 #   1. marca el deploy en curso (/srv/litt/.deploy-in-progress, borrado con trap);
-#   2. comprueba el espacio ANTES de cargar: libres >= max(7 GiB, 2 × IMAGE_BYTES + 5 GiB);
-#      si no alcanza, retira primero imágenes litt-* que no son la viva y, si aún no
-#      alcanza, aborta;
+#   2. comprueba el espacio ANTES de cargar: libres >= max(7 GiB, 2 × IMAGE_BYTES + 5 GiB),
+#      con IMAGE_BYTES = tamaño de la unión de capas de las tres imágenes (README §1).
+#      Si no alcanza, aborta sin tocar nada: no retira imágenes (la viva y la anterior
+#      siguen cargadas, el rollback depende de ello);
 #   3. carga las imágenes y verifica sus IDs contra los de la máquina de build;
 #   4. reemplaza el árbol del release sin dejarlo vacío en ningún momento (extrae aparte y
 #      sincroniza con rsync; conserva .env y backups/) y fija LITT_SOURCE_COMMIT;
@@ -56,14 +57,6 @@ free_bytes() { df -B1 --output=avail / | tail -1 | tr -d ' '; }
 # 2. Espacio antes de cargar (HOST-RULES §5).
 NEED=$((2 * IMAGE_BYTES + 5 * GIB))
 [ "$NEED" -ge $((7 * GIB)) ] || NEED=$((7 * GIB))
-if [ "$(free_bytes)" -lt "$NEED" ]; then
-  log "libres $(free_bytes) < necesarios $NEED: retiro imágenes litt-* que no son la viva ($LIVE)"
-  for repo in "${REPOS[@]}"; do
-    for tag in $(own_tags "$repo"); do
-      [ "$tag" = "$LIVE" ] || [ "$tag" = "$SHA" ] || docker rmi "$repo:$tag"
-    done
-  done
-fi
 FREE=$(free_bytes)
 [ "$FREE" -ge "$NEED" ] || die "espacio insuficiente: libres $FREE < necesarios $NEED; se aborta sin cargar"
 log "espacio ok: libres $FREE >= necesarios $NEED"
