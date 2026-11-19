@@ -343,6 +343,8 @@ export function ToastViewportUI({
             // exposed at all.
             role="region"
             aria-label={t("ui.toast.notifications")}
+            // Stays usable while a ModalUI makes the rest of the page inert.
+            data-inert-exempt=""
             className={twMerge(
                 clsx(
                     "pointer-events-none fixed left-1/2 top-5 z-[260] flex w-[min(92vw,520px)] -translate-x-1/2 flex-col gap-2 px-4",

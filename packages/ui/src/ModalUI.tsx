@@ -63,24 +63,39 @@ const sheetAnimates = () =>
 /** Never made inert: not page content (scripts, styles) or a live region that must keep announcing. */
 const INERT_EXEMPT = "script, style, link, template, noscript, [aria-live], [role='status'], [role='alert']";
 
+/** Marks a notice stack (the toast viewport, a fallback warning popup) that must stay usable over a modal. */
+const INERT_EXEMPT_MARK = "[data-inert-exempt]";
+
 /**
  * While a modal is open, everything else on the page is made `inert` (not
  * focusable, clickable or readable), the same way the phone menu does it.
- * Only the siblings that were not already inert are touched, so closing a
- * modal restores exactly what it changed, and a modal opened over another
- * leaves the first one as it found it.
+ *
+ * Branches that hold the modal or an exempt notice stack (`data-inert-exempt`)
+ * stay live: a branch that holds a notice stack is entered and only its
+ * siblings that hold neither are made inert (so the Word add-in's `#root`,
+ * which contains the toast viewport, is not inert as a whole). Only elements
+ * that were not already inert are touched, so closing a modal restores
+ * exactly what it changed, and a modal opened over another leaves the first
+ * one as it found it.
  */
 function inertPageBehind(dialog: HTMLElement): () => void {
-    let root: HTMLElement | null = dialog;
-    while (root && root.parentElement !== document.body) root = root.parentElement;
-    const changed = Array.from(document.body.children).filter(
-        (element): element is HTMLElement =>
-            element instanceof HTMLElement &&
-            element !== root &&
-            !element.hasAttribute("inert") &&
-            !element.matches(INERT_EXEMPT),
-    );
-    changed.forEach((element) => element.setAttribute("inert", ""));
+    const changed: HTMLElement[] = [];
+    const visit = (parent: Element) => {
+        for (const element of Array.from(parent.children)) {
+            if (!(element instanceof HTMLElement) || element.hasAttribute("inert")) continue;
+            if (element === dialog || element.matches(INERT_EXEMPT) || element.matches(INERT_EXEMPT_MARK)) continue;
+            const holdsExempt = element.querySelector(INERT_EXEMPT_MARK) !== null;
+            const holdsDialog = element.contains(dialog);
+            if (holdsExempt) {
+                // An exempt stack inside: keep this branch live, inert what is around it.
+                visit(element);
+            } else if (!holdsDialog) {
+                element.setAttribute("inert", "");
+                changed.push(element);
+            }
+        }
+    };
+    visit(document.body);
     return () => changed.forEach((element) => element.removeAttribute("inert"));
 }
 

@@ -141,7 +141,7 @@ describe("runIsolatedExtraction", () => {
 
   // At its memory cap the parser can die of a SIGSEGV (the stack cannot grow)
   // rather than an abort; that is the budget being exceeded, not a crash to retry.
-  it.skipIf(process.platform === "win32").each(["SIGSEGV", "SIGBUS", "SIGABRT"] as const)("reports a parser that %s mid-parse as over its memory budget", async (signal) => {
+  it.skipIf(process.platform === "win32").each(["SIGSEGV", "SIGBUS", "SIGABRT", "SIGTRAP"] as const)("reports a parser that %s mid-parse as over its memory budget", async (signal) => {
     const pending = runIsolatedExtraction("spreadsheet", async () => workbook()).catch((caught: unknown) => caught);
     await vi.waitFor(() => expect(spawn).toHaveBeenCalled());
     (vi.mocked(spawn).mock.results.at(-1)!.value as ChildProcess).kill(signal);

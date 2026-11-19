@@ -196,10 +196,10 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
         else if (reply?.ok) resolve(reply.result as Result<K>);
         else if (reply) reject(reply.limited ? new ExtractionLimitError(reply.message) : extractionFailureFromWire(reply));
         // The memory caps end the parser as an abort (V8 cannot allocate) or, when
-        // the stack cannot grow at the cap, as a SIGSEGV/SIGBUS; all three are the
+        // the stack cannot grow at the cap, as a SIGSEGV/SIGBUS, or V8's heap-limit trap surfaces as a SIGTRAP; all of these are the
         // budget (see extractionCommand). SIGKILL stays apart: it is the host's
         // OOM killer or an operator, not this parser's own limit.
-        else if (signal === "SIGABRT" || signal === "SIGSEGV" || signal === "SIGBUS" || /out of memory|allocation failed|cannot allocate memory|failed to map segment|ENOMEM/i.test(diagnostics)) {
+        else if (signal === "SIGABRT" || signal === "SIGSEGV" || signal === "SIGBUS" || signal === "SIGTRAP" || /out of memory|allocation failed|cannot allocate memory|failed to map segment|ENOMEM/i.test(diagnostics)) {
           reject(new ExtractionLimitError("parser memory budget exceeded"));
         } else if (failure) reject(failure);
         else {

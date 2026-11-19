@@ -125,6 +125,7 @@ export function WarningPopup({
 
     return createPortal(
         <div
+            data-inert-exempt=""
             className={`pointer-events-none fixed z-[220] ${NOTICE_STACK_POSITION_CLASS}`}
         >
             {card}
