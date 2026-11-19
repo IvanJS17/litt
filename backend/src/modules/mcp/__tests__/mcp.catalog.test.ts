@@ -56,7 +56,32 @@ describe("MCP catalog", () => {
         }
     });
 
-    it("keeps the layer 2a tools off the routes that ask for two-step verification (design §6.3)", async () => {
+    it("classifies the layer 2b tools: the two states are reads, the three that send or create are litt.write on the write lane with a strict audit, none destructive, none in mode B", () => {
+        const expected: Record<string, { scope: string; lane: string; readOnly: boolean; audit: string }> = {
+            get_scan_reading_state: { scope: "litt.read", lane: "read", readOnly: true, audit: "call" },
+            get_case_file_split_state: { scope: "litt.read", lane: "read", readOnly: true, audit: "call" },
+            // They send pages or text to LandingAI with the person's key (read_scanned_document, propose_case_file_split) or create documents.
+            read_scanned_document: { scope: "litt.write", lane: "write", readOnly: false, audit: "strict" },
+            propose_case_file_split: { scope: "litt.write", lane: "write", readOnly: false, audit: "strict" },
+            create_split_documents: { scope: "litt.write", lane: "write", readOnly: false, audit: "strict" },
+        };
+        for (const [name, want] of Object.entries(expected)) {
+            const tool = MCP_TOOLS.find((t) => t.name === name);
+            expect(tool, name).toBeDefined();
+            expect(tool, name).toMatchObject(want);
+            expect(tool!.destructive ?? false, name).toBe(false);
+            expect(tool!.mode ?? "A", name).toBe("A");
+        }
+        // The two that send ask for the cost to be confirmed.
+        for (const name of ["read_scanned_document", "propose_case_file_split"])
+            expect(Object.keys(MCP_TOOLS.find((t) => t.name === name)!.inputSchema.shape), name).toContain("acknowledge_cost");
+    });
+
+    it("offers 50 tools: 45 up to layer 2a and the five of layer 2b", () => {
+        expect(MCP_TOOLS).toHaveLength(50);
+    });
+
+    it("keeps the layer 2a and 2b tools off the routes that ask for two-step verification (design §6.3)", async () => {
         // The routes these tools sit on carry no requireMfaIfEnrolled; if one ever does, the tool must go.
         const { readFileSync } = await import("node:fs");
         const { join } = await import("node:path");

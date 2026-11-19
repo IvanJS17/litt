@@ -1,6 +1,6 @@
 // The tools /mcp offers. Each one is declared with defineMcpTool in a
 // mcp.tools.<topic>.ts file (context, matters, documents, uploads, playbooks,
-// tabular, chat, donna, workflows, documentOps) and listed here. They get scope enforcement, the
+// tabular, chat, donna, workflows, documentOps, scans) and listed here. They get scope enforcement, the
 // per-grant budget, the live workspace check and the audit from mcp.tools.ts.
 
 import { z } from "zod";
@@ -58,6 +58,13 @@ import {
     runQuickAction,
     runWorkflow,
 } from "./mcp.tools.workflows";
+import {
+    createSplitDocumentsTool,
+    getCaseFileSplitStateTool,
+    getScanReadingStateTool,
+    proposeCaseFileSplitTool,
+    readScannedDocumentTool,
+} from "./mcp.tools.scans";
 import { completeDocumentUpload, getUploadStatus, requestDocumentUpload } from "./mcp.tools.uploads";
 
 export const whoami = defineMcpTool({
@@ -128,4 +135,9 @@ export const MCP_TOOLS: readonly AnyMcpTool[] = [
     compareDocumentsTool,
     previewDocumentConversionTool,
     convertDocumentTool,
+    getScanReadingStateTool,
+    readScannedDocumentTool,
+    getCaseFileSplitStateTool,
+    proposeCaseFileSplitTool,
+    createSplitDocumentsTool,
 ];
