@@ -398,6 +398,15 @@ describe("parity: the tools that send or create allow and deny what the web rout
 // ---------------------------------------------------------------------------
 
 describe("get_scan_reading_state", () => {
+    it("answers for a version held for training, as the web does (only the acting tools are refused)", async () => {
+        as("owner");
+        const rest = await request(app).get(`/single-documents/${DOC_SEALED}/ocr`);
+        expect(rest.status).toBe(200);
+        const out = await callTool(await connect(), "get_scan_reading_state", { document_id: DOC_SEALED });
+        expect(out.ok).toBe(true);
+        expect(out.data).toMatchObject({ document_id: DOC_SEALED, applicable: true, status: "none", pages_without_text: 4 });
+    });
+
     it("shows the pages without text, the status, the estimated cost and whether a key exists", async () => {
         as("owner");
         const out = await callTool(await connect(), "get_scan_reading_state", { document_id: DOC_SCAN });

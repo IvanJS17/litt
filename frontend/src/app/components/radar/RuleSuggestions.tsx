@@ -271,16 +271,18 @@ export function RuleSuggestions({
     setBusyId(suggestion.id);
     try {
       await decideRuleSuggestion(projectId, matterId, suggestion.id, "accept");
-      setSummary(null);
-      await load();
-      // Accepting turns nothing on: it opens the turn-on form, where the lawyer picks the date.
-      onTurnOn(suggestion.rule_key);
     } catch (error) {
       notifyError(error, { action: tRef.current("radar.rules.suggest.batch.couldNotDecide") });
       await reload();
-    } finally {
       setBusyId(null);
+      return;
     }
+    // The decision is saved: a failed refresh is reported as a refresh, and the form still opens.
+    setSummary(null);
+    await reload();
+    setBusyId(null);
+    // Accepting turns nothing on: it opens the turn-on form, where the lawyer picks the date.
+    onTurnOn(suggestion.rule_key);
   }
 
   async function discard(suggestion: RuleSuggestion, reason: string) {

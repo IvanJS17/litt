@@ -26,7 +26,7 @@ Every directory under `src/modules/` follows the same shape:
 | `<name>.routes.ts` | **HTTP layer.** Parses params/query/body, calls service functions, maps their typed results onto status codes and JSON. Never queries the database. |
 | `<name>.service.ts` | **Facade.** The module's public surface: named re-exports of the functions other code may call. Exactly one per module. Small modules put the implementation here directly. |
 | `<name>.<topic>.ts` | **Service topic files** (large modules only). Business logic and data access for one topic: `documents.versions.ts`, `user.profile.ts`, `tabular.chats.ts`… Take an explicit `db: Db`, return typed results, never touch `req`/`res`. |
-| `<name>.shared.ts` | Types and helpers shared by the module's topic files but not exported through the facade. |
+| `<name>.shared.ts` | Types and helpers shared by the module's topic files. Not exported through the facade, except by explicit named re-exports of what other modules need (`client-profile.service.ts` re-exports `cleanText`, `isRecord` and the shared error codes; never `export *`). |
 | `__tests__/` | Unit tests for the service functions (fake `db`), colocated with the code. |
 
 Streaming endpoints are the one place HTTP leaks into the module body: SSE
