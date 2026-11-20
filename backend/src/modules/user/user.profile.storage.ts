@@ -4,9 +4,10 @@ import { type Db } from "./user.shared";
 
 export const MONTHLY_CREDIT_LIMIT = 999999;
 
-// The published Terms and Privacy Notice. Raising it makes every account accept
-// again (profile `termsRequired`). Keep in step with frontend/src/content/legal/version.ts.
-export const LEGAL_VERSION = "2026-11-16";
+// The published Terms and Privacy Notice. Raise it whenever a change requires new acceptance (legal
+// t_ce7d0315 §2.3): every account then accepts again (profile `termsRequired`). Keep in step with
+// frontend/src/content/legal/version.ts (version.test.ts fails if they differ).
+export const LEGAL_VERSION = "2026-11-20";
 
 export type UserProfileRow = {
     display_name: string | null;

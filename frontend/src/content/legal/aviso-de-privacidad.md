@@ -1,8 +1,8 @@
 # Aviso de Privacidad de LiTT
 
-**Última actualización:** 16 de noviembre de 2026
+**Última actualización:** 20 de noviembre de 2026
 
-**Entrada en vigor:** 16 de noviembre de 2026
+**Entrada en vigor:** 20 de noviembre de 2026
 
 ## 1. Quién es el responsable
 
@@ -80,7 +80,9 @@ solicitas y, por eso, no requieren tu consentimiento:
 2. Operar los despachos, espacios de trabajo y asuntos: membresías, funciones, invitaciones y
    permisos.
 3. Prestar las funciones de LiTT: chat sobre documentos, revisión tabular, flujos de trabajo,
-   playbooks, complemento de Word y formación de pasantes y juniors.
+   playbooks, solicitudes de clientes, complemento de Word y formación de pasantes y juniors. En
+   los proyectos (así se llaman los asuntos en la aplicación) con Donna activada, esto incluye proponer a qué abogado del proyecto conviene
+   asignar cada solicitud nueva, con un identificador interno y su función en el proyecto.
 4. Enviar tus solicitudes y documentos a los servicios que tú elijas y uses con tu llave: tu
    proveedor de IA y, si los activas o los usas, la búsqueda web, la lectura de escaneados y la
    separación de expedientes (ver la sección 6).
@@ -120,6 +122,7 @@ cuenta y para prestarnos su servicio:
 | Cloudflare | Resolución de nombres de dominio (DNS). No recibe el tráfico de la aplicación | Centros de datos de Cloudflare; ubicación asignada automáticamente por el proveedor |
 | Neubox | Envío de los correos del sistema desde no-reply@asteroitt.com | Estados Unidos (Dallas) |
 | TypeSafe AI, Inc. | Verificación de citas: estima si el texto que citan las respuestas del asistente, las celdas de las revisiones tabulares y los borradores de playbook respalda lo que en ellos se afirma. Recibe, por cada cita, la oración o la regla que lleva la cita, el texto citado y un fragmento breve del texto que lo rodea; no recibe datos de tu cuenta | Estados Unidos; algunos de sus subencargados operan también en otros países |
+| TypeSafe AI, Inc. | Clasificación de solicitudes (Donna), solo en los proyectos que la tienen activada: propone el tipo, la complejidad, la urgencia y a qué abogado del proyecto conviene asignar cada solicitud nueva. Recibe el título y el texto de la solicitud y de todos sus documentos, hasta el tope de tamaño que indica la aplicación, la lista de tipos de solicitud del despacho y, de cada abogado que puede llevarla, un identificador interno y su función en el proyecto; no recibe su nombre ni su correo | Estados Unidos; algunos de sus subencargados operan también en otros países |
 
 El servidor, el correo saliente y TypeSafe están fuera de México, y Cloudflare y algunos
 subencargados de TypeSafe pueden tratar los datos en otros países. Al ser nuestros encargados,
@@ -131,6 +134,12 @@ cero; sin él, sus condiciones no fijan un plazo para borrarlos y le permiten ob
 datos técnicos de uso, como registros, estadísticas y métricas. LiTT guarda el resultado sin el
 texto enviado y lo borra cuando se borra la respuesta, la celda o el playbook. Puedes apagarla en Ajustes → Privacidad y datos
 (sección 7).
+
+**Clasificación de solicitudes con TypeSafe.** Corre sola cada vez que se crea una solicitud en un
+proyecto que tiene marcada la casilla «Activar Donna en este proyecto». La casilla viene marcada
+en todos los proyectos. A lo que TypeSafe
+recibe se aplica lo dicho en el párrafo anterior sobre entrenamiento, retención y datos técnicos
+de uso. Apagar la verificación de citas no la desactiva (sección 7).
 
 **Transferencias.** No transferimos tus datos a terceros para que los usen por su cuenta. Solo
 los comunicaríamos sin tu consentimiento en los casos que permite el artículo 36 de la Ley, por
@@ -146,8 +155,7 @@ preparan dentro de LiTT.
 ## 6. Servicios que tú eliges: proveedores de IA, búsqueda web, lectura de escaneados, Google y otros conectores
 
 LiTT no tiene un proveedor de inteligencia artificial propio para el asistente, ni servicios
-propios de búsqueda web, de lectura de escaneados o de separación de expedientes. La
-verificación de citas sí es un servicio de LiTT (sección 5). Cada persona o despacho conecta la
+propios de búsqueda web, de lectura de escaneados o de separación de expedientes. La verificación de citas y la clasificación de solicitudes sí son servicios de LiTT (sección 5). Cada persona o despacho conecta la
 llave de su propio proveedor y decide qué activa o usa.
 
 Cuando usas el asistente, LiTT envía al proveedor y al modelo que **tú elegiste** lo necesario para
@@ -176,18 +184,37 @@ dividirlo. Puede ser el texto de un PDF digital, no solo de un escaneado. Sobre 
 ese texto y su uso para entrenar, se aplica lo dicho en el párrafo anterior sobre la retención
 cero.
 
+**Propuestas de Donna con tu proveedor de IA.** En un proyecto que tiene marcada la casilla
+«Activar Donna en este proyecto», cada vez que se crea una solicitud, LiTT envía al proveedor de
+IA de la ruta que usa el chat en ese espacio, con esa llave, el título y el texto de la solicitud
+y de sus documentos, hasta el tope de tamaño que indica la aplicación, y las listas de tipos de
+solicitud y de playbooks del despacho, para proponer una estrategia inicial, preguntas para el
+cliente y documentos por redactar. No envía tu perfil, tu memoria ni el historial del chat.
+
+**ContextLex MX.** Es un servicio de consulta de legislación mexicana que opera Iván Juárez Soria,
+el mismo responsable de LiTT, como un servicio distinto, con su propia cuenta, sus términos y su
+aviso de privacidad (https://contextlexmx.asteroitt.com/privacidad). Si lo conectas con tu cuenta
+de ContextLex MX, cuando el asistente consulta una ley, LiTT le envía solo los datos de la
+búsqueda (ley, artículo, texto de la búsqueda, jurisdicción y fecha), que el asistente formula a
+partir de tu conversación y que pueden incluir información de ella; nunca tus documentos ni el
+historial del chat. ContextLex MX trata esos datos y los de tu cuenta de ContextLex MX conforme a
+su aviso de privacidad, y puede enviar el texto de la búsqueda a sus proveedores en Estados
+Unidos. LiTT no usa lo que consultas en ContextLex MX, ni ContextLex MX lo que haces en LiTT, para
+fines distintos de prestar cada servicio.
+
 Estos son los destinatarios, solo si tú los activas o los usas:
 
 | Destinatario | Cuándo | Qué recibe | Dónde |
 |---|---|---|---|
-| El proveedor de IA que elijas (por ejemplo, Anthropic, OpenAI, Google, Mistral, Amazon Bedrock, Azure o xAI) | Cuando usas el asistente | Tu mensaje, los documentos o fragmentos que seleccionas y el contexto de la conversación, incluido tu perfil | Donde opere ese proveedor, según su contrato y la región que elijas |
+| El proveedor de IA que elijas (por ejemplo, Anthropic, OpenAI, Google, Mistral, Amazon Bedrock, Azure o xAI) | Cuando usas el asistente y, en los proyectos con Donna activada, cada vez que se crea una solicitud | Tu mensaje, los documentos o fragmentos que seleccionas y el contexto de la conversación, incluido tu perfil. Con Donna: el título y el texto de la solicitud y de sus documentos, y las listas de tipos de solicitud y de playbooks | Donde opere ese proveedor, según su contrato y la región que elijas |
 | El servicio de búsqueda que elijas (por ejemplo, Brave Search, Tavily o DeepSeek) | Si activas la búsqueda web | Las consultas y las direcciones de las páginas que debe leer | Donde opere ese proveedor, según sus términos |
 | LandingAI, Inc. | Si activas la lectura de escaneados, y cada vez que pides «Separar expediente» | Lectura de escaneados: el PDF escaneado completo. Separar expediente: el texto del documento y la lista de tipos de documento | Estados Unidos |
+| ContextLex MX (lo opera Iván Juárez Soria, el mismo responsable de LiTT, como servicio distinto) | Si lo conectas con tu cuenta de ContextLex MX y el asistente consulta una ley | Los datos de la búsqueda: ley, artículo, texto de la búsqueda, jurisdicción y fecha. No recibe tus documentos ni el historial del chat | Según el aviso de privacidad de ContextLex MX; sus proveedores de búsqueda están en Estados Unidos |
 | Google u otro conector | Si lo conectas | Lo necesario para la función que usas | Según sus términos |
 
 Cada uno recibe la información bajo **sus propios términos y aviso de privacidad**, en virtud de
 la relación que tú o tu despacho tienen con él. No son encargados de LiTT: LiTT no los contrata
-ni los paga, y solo les envía información cuando tú los activas o los usas. Cuando ese envío
+ni los paga, y solo les envía información cuando tú o tu despacho los activan o los usan. Cuando ese envío
 incluye datos personales tuyos, ocurre a tu solicitud y es necesario para prestarte la función
 que pediste (artículo 36, fracción VII, de la Ley). Activarlos es tu decisión, y puedes
 revertirla en cualquier momento (sección 7).
@@ -206,6 +233,9 @@ retención y uso de datos para entrenamiento.
 - Apaga la verificación de citas en Ajustes → Privacidad y datos. Desde ese momento, LiTT deja de
   enviar a TypeSafe las citas de lo que el asistente genera a petición tuya: respuestas, celdas de
   revisiones tabulares y borradores de playbook.
+- En la configuración de un proyecto, desmarca «Activar Donna en este proyecto» para que LiTT
+  deje de enviar sus solicitudes nuevas a TypeSafe y al proveedor de IA. Apagar la verificación de
+  citas no la desactiva.
 - Escríbenos a soporte@asteroitt.com para pedir que limitemos un uso concreto de tus datos.
   Te responderemos en los plazos de la sección 8.
 
@@ -326,6 +356,9 @@ personas) que un despacho o una persona usuaria sube o escribe en LiTT.
   despacho eligió, con su llave y bajo los términos de ese proveedor. Si ella o su despacho
   activan la búsqueda web o la lectura de escaneados, o si ella pide separar un expediente, el
   contenido necesario se envía también a esos servicios, en las mismas condiciones (sección 6).
+  En los proyectos con la casilla «Activar Donna en este proyecto» marcada, cada solicitud nueva y
+  sus documentos se envían a TypeSafe, para clasificarla, y al proveedor de IA de la ruta del chat
+  de ese espacio, con su llave, para proponer cómo atenderla (secciones 5 y 6).
 - **Derechos de los titulares.** Si recibimos una solicitud de un cliente o de un tercero sobre
   datos que un despacho subió, la remitiremos al despacho y le ayudaremos a atenderla.
 - **Fin del servicio.** Cuando el despacho borra contenido o su organización, LiTT lo suprime

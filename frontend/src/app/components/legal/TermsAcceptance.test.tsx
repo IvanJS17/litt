@@ -48,4 +48,13 @@ describe("TermsAcceptance", () => {
         // The box sits right beside its words: no wide margin between them.
         expect(screen.getByRole("checkbox").className).not.toMatch(/\bmr-3\b/);
     });
+
+    it("shows a short summary of what changed with the acceptance", () => {
+        render(<TermsAcceptance />);
+        const summary = screen.getByTestId("legal-change-summary");
+        expect(summary).toHaveTextContent("Changes to the Terms and Privacy Notice from November 20, 2026.");
+        expect(summary).toHaveTextContent("Donna comes to requests from retainer clients.");
+        expect(summary).toHaveTextContent("We also name ContextLex MX");
+        expect(summary).not.toHaveTextContent(/December|before that date/);
+    });
 });

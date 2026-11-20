@@ -46,6 +46,10 @@ export function TermsAcceptance() {
                 <p className="text-sm text-gray-600">
                     <LegalLinks message="intro" />
                 </p>
+                <div data-testid="legal-change-summary" className="space-y-1 rounded-lg bg-app-surface px-3 py-2 text-sm text-gray-800">
+                    <p className="font-medium">{t("changeTitle")}</p>
+                    <p>{t("changeBody")}</p>
+                </div>
                 <div>
                     <label className="flex cursor-pointer items-start gap-2 py-1 text-sm text-gray-800">
                         <input

@@ -2675,6 +2675,8 @@
     "simplifiedTitle": "Aviso de privacidad simplificado",
     "submit": "Aceptar y continuar",
     "title": "Términos y Aviso de privacidad",
+    "changeTitle": "Cambios a los Términos y al Aviso de Privacidad desde el 20 de noviembre de 2026.",
+    "changeBody": "Llega Donna a las solicitudes de los clientes de iguala. En los proyectos que tengan marcada la casilla «Activar Donna en este proyecto», cada solicitud nueva y el texto de sus documentos se enviarán automáticamente a TypeSafe, en Estados Unidos, para proponer su tipo, complejidad, urgencia y abogado, y al proveedor de IA que usa el chat del proyecto, con esa llave, para proponer una estrategia, preguntas y documentos. La casilla vendrá marcada en todos los proyectos. También nombramos a ContextLex MX, un servicio de consulta de leyes que opera la misma persona que opera LiTT, como conector opcional. Si no estás de acuerdo, puedes descargar tu contenido y borrar tu cuenta.",
     "checkRequired": "Marca la casilla para continuar."
   },
   "library": {
