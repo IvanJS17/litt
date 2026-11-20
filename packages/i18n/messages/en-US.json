@@ -1471,7 +1471,14 @@
       "invalid_rule_proposal": "Check the request: the reason must be text of up to 500 characters.",
       "proposal_already_decided": "This proposal was already decided. Reload the list to see its state.",
       "proposal_obsolete": "The cited text changed, so this proposal cannot be sent to legal. Ask for proposals again with the current version.",
-      "proposal_unknown_catalog_code": "That code is not a verified rule of the catalog of this LiTT release."
+      "proposal_unknown_catalog_code": "That code is not a verified rule of the catalog of this LiTT release.",
+      "donna_disabled": "Donna is off in this project. The project owner or a firm admin can turn it on.",
+      "donna_monthly_cap": "Donna's monthly limit for this firm has been reached. It resumes on the 1st of the month.",
+      "invalid_triage_decision": "That decision could not be recorded: check the value you chose.",
+      "triage_in_progress": "Donna is already analysing this request. Wait for it to finish.",
+      "triage_item_decided": "That suggestion was already decided.",
+      "triage_item_obsolete": "That suggestion belongs to an earlier analysis. Reload the request to see the latest.",
+      "triage_trainee": "People in training can see Donna's suggestions but cannot run or decide on them: that is for a responsible lawyer."
     },
     "couldnt": "Couldn't {action}",
     "couldntTryAgain": "LiTT couldn't {action}. Try again.",

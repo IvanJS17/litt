@@ -1259,7 +1259,7 @@
       "label": "Activar Donna en este proyecto",
       "enable": "Activar Donna en este proyecto",
       "help": "Con Donna, cada solicitud nueva de este proyecto y el texto de sus documentos se envían a TypeSafe (servicio de LiTT, en Estados Unidos) para proponer tipo, complejidad, urgencia y abogado, y al proveedor de IA del chat de este espacio, con su llave, para proponer estrategia, preguntas y documentos. Todo queda como propuesta hasta que un abogado la acepte.",
-      "readOnly": "Solo quien es dueño del proyecto o administra el despacho cambia este interruptor. Con Donna encendida, cada solicitud nueva se envía a TypeSafe y al proveedor de IA del despacho para proponer una clasificación y borradores.",
+      "readOnly": "Solo el propietario del proyecto o un administrador del despacho cambia este interruptor. Con Donna encendida, cada solicitud nueva se envía a TypeSafe y al proveedor de IA del despacho para proponer una clasificación y borradores.",
       "loading": "Leyendo el estado de Donna…"
     },
     "urgency": {
@@ -1272,7 +1272,7 @@
       "proposalsOnly": "Son propuestas. Nada se aplica, se asigna ni se envía al cliente hasta que un abogado lo acepte.",
       "usage": "Corridas del despacho este mes: {used} de {limit}",
       "analysing": "Donna está analizando la solicitud…",
-      "off": "Donna está apagada en este proyecto. Quien es dueño del proyecto o administra el despacho puede encenderla en los datos del proyecto.",
+      "off": "Donna está apagada en este proyecto. El propietario del proyecto o un administrador del despacho puede encenderla en los datos del proyecto.",
       "noRun": "Donna no analizó esta solicitud. Solo analiza las solicitudes nuevas; puedes pedirle que la analice ahora.",
       "capReached": "Límite mensual de Donna alcanzado para este despacho. Se reanuda el día 1.",
       "noDocuments": "La solicitud aún no tiene documentos: Donna leyó solo el título.",
@@ -1471,7 +1471,14 @@
       "invalid_rule_proposal": "Revisa la solicitud: el motivo debe ser texto de hasta 500 caracteres.",
       "proposal_already_decided": "Esta propuesta ya se decidió. Recarga la lista para ver su estado.",
       "proposal_obsolete": "El texto citado cambió, así que esta propuesta no se puede enviar a legal. Pide propuestas de nuevo con la versión actual.",
-      "proposal_unknown_catalog_code": "Ese código no es una regla verificada del catálogo de esta versión de LiTT."
+      "proposal_unknown_catalog_code": "Ese código no es una regla verificada del catálogo de esta versión de LiTT.",
+      "donna_disabled": "Donna está apagada en este proyecto. El propietario del proyecto o un administrador del despacho puede encenderla.",
+      "donna_monthly_cap": "Límite mensual de Donna alcanzado para este despacho. Se reanuda el día 1 del mes.",
+      "invalid_triage_decision": "No se pudo registrar esa decisión: revisa el valor que elegiste.",
+      "triage_in_progress": "Donna ya está analizando esta solicitud. Espera a que termine.",
+      "triage_item_decided": "Esa propuesta ya se decidió.",
+      "triage_item_obsolete": "Esa propuesta es de un análisis anterior. Recarga la solicitud para ver la más reciente.",
+      "triage_trainee": "Las personas en formación pueden ver las propuestas de Donna, pero no analizar ni decidir: eso le toca a un abogado responsable."
     },
     "couldnt": "No fue posible {action}",
     "couldntTryAgain": "No fue posible {action}. Inténtalo de nuevo.",

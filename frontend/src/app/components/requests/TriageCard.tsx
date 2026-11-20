@@ -36,6 +36,9 @@ type Props = {
   onStale: () => void;
 };
 
+/** The body of a decision. (`action` here is the decision, not a failure toast's phrase.) */
+const decision = (action: TriageDecisionInput["action"], rest: Omit<TriageDecisionInput, "action"> = {}): TriageDecisionInput => ({ action, ...rest });
+
 type Edit = { itemId: string; value: string; text: string; purpose: string };
 
 /**
@@ -172,7 +175,7 @@ export function TriageCard({ projectId, matterId, request, types, assignees, onC
   }
 
   function submitEdit(item: TriageItem, current: Edit) {
-    const input: TriageDecisionInput = { action: "edited" };
+    const input = decision("edited");
     if (item.kind === "type") Object.assign(input, { type_id: current.value, version: request.version });
     else if (item.kind === "complexity") Object.assign(input, { complexity: current.value, version: request.version });
     else if (item.kind === "urgency") Object.assign(input, { urgency: current.value });
@@ -193,7 +196,7 @@ export function TriageCard({ projectId, matterId, request, types, assignees, onC
           className="pointer-coarse:min-h-11"
           disabled={busy !== null}
           aria-busy={working}
-          onClick={() => void act(item.id, { action: "accepted", ...(changes ? { version: request.version } : {}) }, changes)}
+          onClick={() => void act(item.id, decision("accepted", changes ? { version: request.version } : {}), changes)}
         >
           {t("donna.card.accept")}
         </TextButtonUI>
@@ -205,7 +208,7 @@ export function TriageCard({ projectId, matterId, request, types, assignees, onC
           size="sm"
           className="pointer-coarse:min-h-11"
           disabled={busy !== null}
-          onClick={() => void act(item.id, { action: "discarded" }, false)}
+          onClick={() => void act(item.id, decision("discarded"), false)}
         >
           {t("donna.card.discard")}
         </TextButtonUI>
