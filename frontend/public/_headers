@@ -6,15 +6,20 @@
 # pages in src/app/lib/searchIndexing.ts's PUBLIC_INDEXABLE_PATHS allowlist.
 # Only matters for a Cloudflare Pages deploy (`npm run deploy`); the
 # Caddy/Docker production path serves next.config.ts's headers() instead
-# (docs/search-indexing.md).
+# (docs/search-indexing.md). Cloudflare Pages joins the values of every
+# header set by a matching rule, so re-declaring `X-Robots-Tag: index,
+# follow` on the public paths would combine with the blanket noindex into
+# "noindex, nofollow, index, follow" (the most restrictive wins) instead of
+# overriding it. `!` unsets a header a more general rule set, so the public
+# paths carry no X-Robots-Tag at all, same as production.
 /*
   X-Robots-Tag: noindex, nofollow
 
 /
-  X-Robots-Tag: index, follow
+  ! X-Robots-Tag
 
 /privacidad
-  X-Robots-Tag: index, follow
+  ! X-Robots-Tag
 
 /terminos
-  X-Robots-Tag: index, follow
+  ! X-Robots-Tag

@@ -24,6 +24,30 @@ export const PUBLIC_INDEXABLE_PATHS = ["/", "/privacidad", "/terminos"] as const
 
 export type PublicIndexablePath = (typeof PUBLIC_INDEXABLE_PATHS)[number];
 
+/**
+ * Static resources the public pages' HTML needs so a crawler can render
+ * them: the build-hashed JS/CSS/font bundle, the icons declared in
+ * `layout.tsx`'s `metadata.icons`, and the Open Graph/Twitter image. Google
+ * (and other renderer-based crawlers) fetches every resource a page
+ * references and checks each one against `robots.txt`; blocking these with
+ * the blanket `Disallow: /` made Google render the public pages unstyled
+ * and without their social image. `robots.ts` allows them as path
+ * *prefixes* (no `$` anchor), unlike `PUBLIC_INDEXABLE_PATHS`'s exact-path
+ * match: they are not pages themselves, so robots.txt only grants fetch
+ * access, while `next.config.ts`'s `X-Robots-Tag: noindex` (via
+ * `noindexHeaderSource()`) still keeps every one of them out of Google's
+ * own index as a listed URL.
+ */
+export const PUBLIC_RESOURCE_PATHS = [
+    "/_next/static/",
+    "/favicon.ico",
+    "/icon.svg",
+    "/apple-touch-icon.png",
+    "/link-image.jpg",
+    "/robots.txt",
+    "/sitemap.xml",
+] as const;
+
 export function isPublicIndexablePath(pathname: string): boolean {
     return (PUBLIC_INDEXABLE_PATHS as readonly string[]).includes(pathname);
 }
