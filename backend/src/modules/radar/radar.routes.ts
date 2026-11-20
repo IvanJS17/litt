@@ -94,6 +94,18 @@ const suggestLimiter = rateLimit({
   message: rateLimitedBody("Too many suggestion requests. Please try again later."),
 });
 
+// One all-documents read (S8c) is a PLAN of several calls, one request each, and
+// one run may need more than ten. It has its own lane (and its own, larger
+// maximum) so it neither starves nor is starved by single-version runs.
+const readLimiter = rateLimit({
+  windowMs: envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15) * 60 * 1000,
+  max: envInt("RATE_LIMIT_RULE_READ_MAX", 60),
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (_req, res) => String(res.locals.userId),
+  message: rateLimitedBody("Too many suggestion requests. Please try again later."),
+});
+
 // Declared before `/rules/:ruleKey/...`: "suggestions" is never a rule key.
 matterRadarRouter.get("/rules/suggestions", requireAuth, asyncRoute(async (req, res) => {
   send(res, await getRuleSuggestions(createServerSupabase(), matterActor(req, res)));
@@ -112,7 +124,7 @@ matterRadarRouter.post("/rules/suggestions/plan", requireAuth, requireMfaIfEnrol
   send(res, await planRuleRead(createServerSupabase(), { ...matterActor(req, res), body: req.body }));
 }));
 
-matterRadarRouter.post("/rules/suggestions/read", requireAuth, requireMfaIfEnrolled, suggestLimiter, asyncRoute(async (req, res) => {
+matterRadarRouter.post("/rules/suggestions/read", requireAuth, requireMfaIfEnrolled, readLimiter, asyncRoute(async (req, res) => {
   send(res, await readRuleBatch(createServerSupabase(), { ...matterActor(req, res), body: req.body }));
 }));
 

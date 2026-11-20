@@ -886,6 +886,12 @@ describe("people in training do not request or decide (owner decision 2026-11-19
         expect(res.body.suggestions).toHaveLength(1);
     });
 
+    it("answers route null to a trainee (like the proposals' route), and the route to the editor", async () => {
+        tables().training_stages.push({ org_id: ORG, trainee_user_id: EDITOR, practice: null, stage: "pasante" });
+        as(EDITOR);
+        expect((await request(app).get(`${listPath}/route`)).body).toEqual({ route: null });
+    });
+
     it("does not touch an editor with no stage, nor one trained in another organization", async () => {
         tables().training_stages.push({ org_id: OTHER_ORG, trainee_user_id: EDITOR, practice: null, stage: "pasante" });
         as(EDITOR);

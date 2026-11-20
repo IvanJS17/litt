@@ -175,7 +175,10 @@ never read its requests. What they get is **numbers**: `GET
 - `src/__tests__/integration/matterRequests.postgres.test.ts` (opt in with
   `MIKE_TEST_POSTGRES_CONTAINER`): the migration twice over the final schema,
   the retainer guard, constraints, insert-only events, RLS, no browser write,
-  account deletion with no foreign key to `auth.users`.
+  account deletion with no foreign key to `auth.users`. CI does not run the
+  `*.postgres.test.ts` suites (they are opt-in; CI runs `*.supabase.test.ts`):
+  run them by hand before a release that touches their migration (the same goes
+  for `requestTypePlaybooks.postgres.test.ts` and `radarSuggestAll.postgres.test.ts`).
 - `src/__tests__/integration/matterRequestCounts.routes.test.ts`: owner and admin allowed (no matter membership), editor, viewer, stranger, other firm and personal organization refused, nothing but numbers in the answer, audit before the answer, bad period/date. The function's grouping, medians, privileges and the absence of any title or matter name are in `matterRequests.postgres.test.ts`.
 - `src/application/exports/__tests__/buildJsonExport.matterRequests.test.ts`.
 - `frontend/src/app/components/requests/*.test.tsx`.

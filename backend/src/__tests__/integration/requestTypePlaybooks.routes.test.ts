@@ -171,6 +171,26 @@ describe("link, list and unlink", () => {
 });
 
 describe("what can be linked", () => {
+    it("still reads an open link when the firm has more ready playbooks than the option list holds", async () => {
+        as(OWNER);
+        // 501 playbooks named "A…" sort before "Arrendamiento"/"Confidencialidad": READ_2 falls outside the first 500.
+        for (let n = 0; n < 501; n += 1)
+            tables().playbooks.push({ id: id(1000 + n), org_id: ORG, visibility: "organization", status: "ready", name: `A${String(n).padStart(4, "0")}` });
+        tables().playbooks.find((row) => row.id === READY_2)!.name = "Zeta";
+        expect((await link(TYPE, READY_2)).status).toBe(201);
+        const read = await request(app).get(`${url}/playbooks`);
+        expect(read.body.available).toHaveLength(500);
+        expect(read.body.links.map((l: { playbook_id: string }) => l.playbook_id)).toEqual([READY_2]);
+    });
+
+    it("refuses a new link to an archived type with 404, but still unlinks one", async () => {
+        as(OWNER);
+        expect((await link()).status).toBe(201);
+        tables().matter_request_types.find((row) => row.id === TYPE)!.archived_at = new Date().toISOString();
+        expect((await link(TYPE, READY_2)).status).toBe(404);
+        expect((await unlink()).status).toBe(200);
+    });
+
     it("refuses a draft with 409", async () => {
         as(OWNER);
         const refused = await link(TYPE, DRAFT);

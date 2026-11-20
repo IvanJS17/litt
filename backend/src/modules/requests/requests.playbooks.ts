@@ -40,13 +40,15 @@ type PlaybookRow = { id: string; name: string };
 const LINK_COLUMNS = "type_id, playbook_id, linked_at";
 
 /** The ready playbooks shared with the firm: what can be linked, by name. */
-async function readyPlaybooks(db: Db, orgId: string): Promise<ServiceResult<PlaybookRow[]>> {
-  const { data, error } = await db
+async function readyPlaybooks(db: Db, orgId: string, ids?: string[]): Promise<ServiceResult<PlaybookRow[]>> {
+  let query = db
     .from("playbooks")
     .select("id, name")
     .eq("org_id", orgId)
     .eq("visibility", "organization")
-    .eq("status", "ready")
+    .eq("status", "ready");
+  if (ids) query = query.in("id", ids);
+  const { data, error } = await query
     .order("name", { ascending: true })
     .order("id", { ascending: true })
     .limit(MAX_OPTIONS);
@@ -54,14 +56,12 @@ async function readyPlaybooks(db: Db, orgId: string): Promise<ServiceResult<Play
   return ok((data ?? []) as unknown as PlaybookRow[]);
 }
 
-async function typeInOrg(db: Db, orgId: string, typeId: unknown): Promise<ServiceResult<string>> {
+async function typeInOrg(db: Db, orgId: string, typeId: unknown, openOnly = false): Promise<ServiceResult<string>> {
   if (typeof typeId !== "string" || !isUuid(typeId)) return failure("not_found", NOT_FOUND);
-  const { data, error } = await db
-    .from("matter_request_types")
-    .select("id")
-    .eq("id", typeId)
-    .eq("organization_id", orgId)
-    .maybeSingle();
+  // An archived type cannot get a new link; it can still be read and unlinked.
+  let query = db.from("matter_request_types").select("id").eq("id", typeId).eq("organization_id", orgId);
+  if (openOnly) query = query.is("archived_at", null);
+  const { data, error } = await query.maybeSingle();
   if (error) return internalFailure(error);
   if (!data) return failure("not_found", NOT_FOUND);
   return ok(typeId);
@@ -86,7 +86,12 @@ async function readLinks(
   if (error) return internalFailure(error);
   const playbooks = await readyPlaybooks(db, orgId);
   if (!playbooks.ok) return playbooks;
-  const names = new Map(playbooks.data.map((row) => [row.id, row.name]));
+  // Names come from the links' own ids, not from the capped option list: a
+  // firm with more than MAX_OPTIONS ready playbooks must not lose a link.
+  const linkedIds = [...new Set(((data ?? []) as unknown as LinkRow[]).map((row) => row.playbook_id))];
+  const linked = linkedIds.length ? await readyPlaybooks(db, orgId, linkedIds) : ok([] as PlaybookRow[]);
+  if (!linked.ok) return linked;
+  const names = new Map(linked.data.map((row) => [row.id, row.name]));
   // A link to a playbook that is gone, private or not ready reads as absent.
   const links: RequestTypePlaybook[] = ((data ?? []) as unknown as LinkRow[]).flatMap((row) => {
     const name = names.get(row.playbook_id);
@@ -130,7 +135,7 @@ export async function linkTypePlaybook(
 ): Promise<ServiceResult<RequestTypePlaybook>> {
   const who = await manager(db, actor);
   if (!who.ok) return who;
-  const type = await typeInOrg(db, who.data.orgId, actor.typeId);
+  const type = await typeInOrg(db, who.data.orgId, actor.typeId, true);
   if (!type.ok) return type;
   const playbookId = isRecord(actor.body) ? actor.body.playbook_id : undefined;
   if (typeof playbookId !== "string" || !isUuid(playbookId))
