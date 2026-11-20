@@ -2675,6 +2675,8 @@
     "simplifiedTitle": "Simplified privacy notice",
     "submit": "Accept and continue",
     "title": "Terms and Privacy Notice",
+    "changeTitle": "Changes to the Terms and Privacy Notice from November 20, 2026.",
+    "changeBody": "Donna comes to requests from retainer clients. In projects with the \"Activate Donna in this project\" box checked, each new request and the text of its documents will be sent automatically to TypeSafe, in the United States, to suggest its type, complexity, urgency and lawyer, and to the AI provider the project's chat uses, with that key, to suggest a strategy, questions and documents. The box will be checked in all projects. We also name ContextLex MX, a law lookup service run by the same person who runs LiTT, as an optional connector. If you disagree, you can download your content and delete your account.",
     "checkRequired": "Tick the box to continue."
   },
   "library": {

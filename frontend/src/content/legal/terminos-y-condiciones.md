@@ -1,8 +1,8 @@
 # Términos y Condiciones de LiTT (Beta)
 
-**Última actualización:** 16 de noviembre de 2026
+**Última actualización:** 20 de noviembre de 2026
 
-**Entrada en vigor:** 16 de noviembre de 2026
+**Entrada en vigor:** 20 de noviembre de 2026
 
 ## 1. Quiénes somos y qué regulan estos Términos
 
@@ -42,7 +42,8 @@ participes en la Beta.
   la beta abierta a despachos invitados. Dura hasta que LiTT la termine (cláusula 14.6). Si al
   terminar la Beta hay cobro, se aplica la cláusula 13.
 - **Asunto:** el espacio donde se reúnen los documentos, conversaciones y trabajos de un tema.
-  Puede ser privado, en cuyo caso solo lo ve su equipo (ver la cláusula 5).
+  En la aplicación se llama «proyecto». Puede ser privado, en cuyo caso solo lo ve su equipo
+  (ver la cláusula 5).
 - **Contenido:** todo lo que un Usuario o un despacho sube, escribe o crea en el Servicio:
   documentos, mensajes, instrucciones, playbooks, flujos de trabajo y revisiones.
 - **Resultado:** la respuesta, el análisis, el borrador o cualquier otro texto que el Servicio
@@ -65,8 +66,9 @@ participes en la Beta.
 ## 3. El Servicio
 
 LiTT permite, entre otras funciones, conversar con un asistente de IA sobre documentos, hacer
-revisiones tabulares de varios documentos, ejecutar flujos de trabajo y playbooks, trabajar desde
-Microsoft Word y acompañar la formación de pasantes y juniors con un mentor.
+revisiones tabulares de varios documentos, ejecutar flujos de trabajo y playbooks, llevar las
+solicitudes de los clientes de un despacho con propuestas de Donna, trabajar desde Microsoft Word
+y acompañar la formación de pasantes y juniors con un mentor.
 
 LiTT es una herramienta de software. **LiTT no es un despacho, no presta servicios jurídicos y no
 da asesoría jurídica.** El uso del Servicio no crea una relación abogado-cliente entre LiTT y
@@ -234,7 +236,63 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
     4. puedes apagarla en Ajustes → Privacidad y datos. Desde ese momento, LiTT deja de enviar a TypeSafe
        las citas de lo que el asistente genera a petición tuya; lo que TypeSafe ya recibió sigue lo dicho en
        el inciso 2. Si no quieres que las citas de un asunto salgan a TypeSafe, apágala antes de
-       trabajar en él (cláusula 8.4).
+       trabajar en él (cláusula 8.4). Apagarla no desactiva Donna en las solicitudes, que se
+       controla por asunto (cláusula 6.15).
+
+15. **Donna en las solicitudes.** En un asunto que recibe solicitudes de un cliente, Donna propone
+    cómo atender cada solicitud nueva. Solo funciona en los asuntos que tienen marcada la casilla
+    «Activar Donna en este proyecto». La casilla viene marcada en todos los asuntos, los nuevos y
+    los que ya existían. El dueño del asunto o un administrador del despacho
+    puede cambiarla en cualquier momento. Mientras esté marcada, cada vez que se crea una
+    solicitud en ese asunto, sin que nadie lo pida de nuevo:
+    1. **Clasificación con TypeSafe.** Para proponer el tipo de solicitud, su complejidad, su
+       urgencia y a cuál de los abogados del asunto que pueden llevarla conviene asignarla, LiTT
+       envía a TypeSafe AI, Inc., su encargado en Estados Unidos (cláusula 9.3.4): el título y, si
+       lo tiene, el texto de la solicitud; el texto de todos sus documentos, hasta el tope de tamaño
+       que indica la aplicación; la lista de tipos de solicitud del despacho; y, de cada abogado que
+       puede llevarla, un identificador interno y su función en el asunto, sin su nombre ni su
+       correo. Ese texto puede incluir datos personales e información confidencial de tus clientes.
+       La clasificación es un servicio de LiTT: no usa tu llave ni te cuesta. A lo que TypeSafe
+       recibe se aplica lo dicho en la cláusula 6.14.2;
+    2. **Propuestas con tu Proveedor de IA.** Para proponer una estrategia inicial, preguntas para
+       el cliente y documentos por redactar, LiTT envía el título y, si lo tiene, el texto de la
+       solicitud, el texto de sus documentos, con el mismo tope, y las listas de tipos de solicitud
+       y de playbooks del despacho al Proveedor de IA de la ruta que usa el chat en ese espacio, con
+       esa llave. No envía el perfil, la memoria ni el historial del chat de nadie. Se aplican las
+       cláusulas 6.1 a 6.5 y 6.9: ese proveedor trata la información bajo sus propios términos y
+       cobra esas llamadas a la llave que se use. Si no hay llave, esta parte no corre;
+    3. si los documentos pasan del tope, la aplicación dice cuáles no se leyeron. Si TypeSafe o el
+       Proveedor de IA fallan, esa parte queda sin propuesta: LiTT no la pide a otro servicio ni usa
+       otra llave;
+    4. todo lo que propone Donna es un Resultado (cláusula 7). Ninguna propuesta asigna la
+       solicitud, cambia sus datos ni se envía al cliente sin que un abogado del asunto la acepte.
+       La urgencia propuesta es una ayuda, aunque sea baja: no sustituye la lectura de la solicitud
+       por un abogado (cláusula 7.6);
+    5. marcar la casilla, o dejarla marcada, es la instrucción del despacho para que LiTT haga estos
+       envíos en ese asunto (cláusulas 5.6 y 9.3.1). Antes, valora si necesitas la autorización de
+       tu cliente y, en su caso, el consentimiento de los titulares de los datos (cláusulas 8.4 y
+       9.2); y
+    6. si se desmarca la casilla, LiTT deja de enviar las solicitudes nuevas de ese asunto. Lo que
+       TypeSafe y el Proveedor de IA ya recibieron sigue sus condiciones, y las propuestas ya hechas
+       se quedan en la solicitud. Desmarcarla no apaga la verificación de citas (cláusula 6.14).
+
+16. **ContextLex MX.** ContextLex MX es un servicio de consulta de legislación mexicana que opera
+    Iván Juárez Soria, la misma persona que opera LiTT, como un servicio distinto del Servicio,
+    con su propia cuenta, sus términos y su aviso de privacidad. Es un conector opcional. Si lo
+    conectas en LiTT con tu cuenta de ContextLex MX:
+    1. cada persona lo conecta con su propia cuenta y, al hacerlo, elige una de sus
+       organizaciones en ContextLex MX. Las consultas cuentan en los límites de esa organización,
+       conforme a los términos de ContextLex MX. LiTT no cobra ni paga esas consultas;
+    2. cuando el asistente consulta una ley, LiTT envía a ContextLex MX solo los datos de la
+       búsqueda que el asistente formula a partir de tu conversación: la ley, el artículo, el
+       texto de la búsqueda, la jurisdicción y la fecha. No le envía tus documentos ni el
+       historial del chat. ContextLex MX puede enviar el texto de la búsqueda a los proveedores
+       que nombra su aviso de privacidad. La aplicación muestra en cada cita lo que se buscó;
+    3. el texto que regresa ContextLex MX es una fuente para revisar, no una garantía de que la
+       norma esté vigente (cláusula 7.2). Si ContextLex MX falla, la respuesta lo indica; y
+    4. lo que dicen las cláusulas 6.4, 15.6 y 16.2.3 sobre que LiTT no controla a los conectores
+       no se aplica a ContextLex MX; la responsabilidad por ContextLex MX se rige por sus propios
+       términos.
 
 ## 7. La IA no sustituye el criterio profesional
 
@@ -300,9 +358,9 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
    2. guardar confidencialidad (cláusula 8);
    3. mantener medidas de seguridad administrativas, técnicas y físicas razonables;
    4. usar solo los proveedores que se listan en la sección 5 del Aviso de Privacidad: los de
-      infraestructura y TypeSafe, para la verificación de citas (cláusula 6.14). El despacho
-      autoriza su uso al aceptar estos Términos. LiTT avisará con anticipación cualquier cambio
-      en esa lista;
+      infraestructura y TypeSafe, para la verificación de citas (cláusula 6.14) y la clasificación
+      de solicitudes (cláusula 6.15.1). El despacho autoriza su uso al aceptar estos Términos. LiTT
+      avisará con anticipación cualquier cambio en esa lista;
    5. avisar al despacho sin demora de cualquier vulneración de seguridad que afecte su
       Contenido;
    6. remitir al despacho las solicitudes de titulares que reciba sobre su Contenido y ayudarle a
@@ -442,7 +500,7 @@ Si encuentras una vulnerabilidad, sigue la cláusula 8.8.
    entregan a clientes, y descargarlos con regularidad. LiTT no es un archivo ni un sistema de
    custodia de expedientes. Si no respaldas tu información, asumes el riesgo de perderla.
 6. **Servicios de terceros.** El Servicio depende de terceros que LiTT no controla: los
-   proveedores de hospedaje, almacenamiento, nombres de dominio, correo y verificación de citas que
+   proveedores de hospedaje, almacenamiento, nombres de dominio, correo, verificación de citas y clasificación de solicitudes que
    se listan en el Aviso de Privacidad; tu Proveedor de IA; Google y los demás conectores; y tu propia conexión. Sus
    fallas, interrupciones, cambios o incidentes pueden afectar el Servicio, y LiTT no responde por
    ellos (cláusula 16).
