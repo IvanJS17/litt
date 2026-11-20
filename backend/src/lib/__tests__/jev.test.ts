@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
     askJev,
     choiceQuestion,
-    jevCostUsd,
     JEV_MODEL,
     JEV_URL,
     JevError,
@@ -82,12 +81,6 @@ describe("the answers", () => {
         expect(readScore(answers, "urgencia", 3)).toBeNull();
         expect(readScore(answers, "fuera", 3)).toBeNull();
         expect(readNoul({ a: { type: "noul", noul: 1.5 } }, "a")).toBeNull();
-    });
-
-    it("costs the input tokens only: US$0.042 per million", () => {
-        expect(jevCostUsd(1_000_000)).toBe(0.042);
-        expect(jevCostUsd(2_000)).toBe(0.000084);
-        expect(jevCostUsd(null)).toBeNull();
     });
 });
 

@@ -16,8 +16,6 @@ import { AppError } from "./appError";
 export const JEV_URL = "https://api.typesafe.ai/v1/systemone";
 /** A versioned id, never `jev-latest`: aliases move and the thresholds were measured on this one. */
 export const JEV_MODEL = "jev-1.14.0";
-/** US$ per input token (US$0.042 per million); output tokens are not billed (docs.typesafe.ai/models.md). */
-export const JEV_USD_PER_INPUT_TOKEN = 0.042 / 1_000_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const RETRY_WAIT_MS = 1_000;
 const MAX_RETRY_WAIT_MS = 5_000;
@@ -68,11 +66,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 /** The platform's TypeSafe key, or null. Never log it. */
 export function jevApiKey(): string | null {
     return process.env.TYPESAFE_API_KEY?.trim() || null;
-}
-
-/** Cost of a call from the tokens it was billed for; null when the count is unknown. */
-export function jevCostUsd(inputTokens: number | null): number | null {
-    return inputTokens === null ? null : Math.round(inputTokens * JEV_USD_PER_INPUT_TOKEN * 1e8) / 1e8;
 }
 
 // ---- Question builders ---------------------------------------------------

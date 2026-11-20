@@ -23,9 +23,10 @@
 
 import crypto from "node:crypto";
 import { AppError } from "../../lib/appError";
+import { estimateCostUsd, meteredCompletion, recordAiCallUsage } from "../../lib/aiCallUsage";
 import { insertAuditEvent } from "../../lib/audit";
 import { loadVersionTextState } from "../../lib/documentTextCache";
-import { askJev, jevApiKey, jevCostUsd, JEV_MODEL, JevError } from "../../lib/jev";
+import { askJev, jevApiKey, JEV_MODEL, JevError } from "../../lib/jev";
 import { completeText } from "../../lib/llm";
 import { reportError } from "../../lib/observability/report";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
@@ -243,7 +244,21 @@ async function draft(
 
   let answer: string;
   try {
-    answer = await (deps.completeText ?? completeText)({
+    // Tokens and engine of the call go to ai_call_usage (lib/aiCallUsage), once it answered.
+    const metered = meteredCompletion(
+      db,
+      {
+        surface: TRIAGE_SURFACE,
+        userId: ctx.userId,
+        orgId: ctx.orgId,
+        matterId: ctx.matterId,
+        projectId: ctx.projectId,
+        provider: route.provider,
+        model: route.model,
+      },
+      deps.completeText ?? completeText,
+    );
+    answer = await metered({
       model: route.model,
       systemPrompt: buildTriageSystemPrompt(),
       user: buildTriageUserPrompt({ ...input, delimiter: crypto.randomBytes(12).toString("hex") }),
@@ -393,6 +408,20 @@ async function runTriage(db: Db, ctx: TriageContext, deps: TriageDeps): Promise<
         });
         const response = await (deps.askJev ?? askJev)(key, { state, questions: plan.questions });
         jev = { model: response.model, input: response.inputTokens, output: response.outputTokens };
+        await recordAiCallUsage(
+          db,
+          {
+            surface: JEV_SURFACE,
+            engine: "jev",
+            userId: ctx.userId,
+            orgId: ctx.orgId,
+            matterId: ctx.matterId,
+            projectId: ctx.projectId,
+            provider: "typesafe",
+            model: response.model,
+          },
+          { inputTokens: response.inputTokens, outputTokens: response.outputTokens },
+        );
         classification = readClassification(response, plan, types.data, candidates);
         classifyStatus = classification.schemaFailures >= Object.keys(plan.questions).length ? "invalid" : "ok";
         if (classification.schemaFailures > 0 && classifyStatus === "ok") classifyError = "partial";
@@ -434,7 +463,7 @@ async function runTriage(db: Db, ctx: TriageContext, deps: TriageDeps): Promise<
         jev_model: jev?.model ?? null,
         jev_input_tokens: jev?.input ?? null,
         jev_output_tokens: jev?.output ?? null,
-        jev_cost_usd: jevCostUsd(jev?.input ?? null),
+        jev_cost_usd: jev ? estimateCostUsd("jev", { inputTokens: jev.input, outputTokens: jev.output }) : null,
         generative_status: generative.status,
         generative_provider: generative.provider,
         generative_model: generative.model,

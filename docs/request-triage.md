@@ -105,6 +105,8 @@ prompt is fixed, has no tools, and delimits each document.
 All insert-only (update, delete and truncate raise), RLS read by the matter's roster, no
 foreign key to `auth.users`:
 
+- Each call of either engine also writes its tokens, engine and cost to `ai_call_usage`
+  through `lib/aiCallUsage` (surfaces `donna_triage_jev`, `donna_triage`; docs/ai-call-usage.md).
 - `matter_request_triage_runs`: engine, models, tokens, cost, hash of what was sent,
   characters, documents total/read/partial, ids of the versions read and not read,
   `quotes_rejected`, schema failures, duration. **No document text, no title.**

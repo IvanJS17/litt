@@ -447,6 +447,11 @@ describe("what is stored", () => {
         expect(stored).not.toContain("Contrato de arrendamiento");
         const run = tables().matter_request_triage_runs[0];
         expect(run).toMatchObject({ jev_model: JEV_MODEL, jev_input_tokens: 2_000, jev_output_tokens: 40, jev_cost_usd: 0.000084, generative_provider: "claude", generative_model: "claude-sonnet-5-5" });
+        // Tokens and engine of each call go to ai_call_usage through the shared meter (Jev here; the scripted AI route reports no usage).
+        const usage = tables().ai_call_usage;
+        expect(usage.find((row) => row.engine === "jev")).toMatchObject({ surface: "donna_triage_jev", provider: "typesafe", model: JEV_MODEL, input_tokens: 2_000, output_tokens: 40, cost_usd: 0.000084, org_id: ORG });
+        expect(usage.find((row) => row.engine === "byok")).toMatchObject({ surface: "donna_triage", provider: "claude", cost_usd: null });
+        expect(JSON.stringify(usage)).not.toContain(MARKER);
         expect(run.input_sha256).toMatch(/^[0-9a-f]{64}$/);
         expect(run.read_version_ids).toEqual([VERSION]);
         // A citation is a position and a hash, not the passage.
