@@ -970,6 +970,10 @@
       "workflows": "Flujos de trabajo",
       "connectAuthorize": "Conectar una app",
       "help": "Ayuda"
+    },
+    "pageDescription": {
+      "privacy": "Cómo LiTT recaba, usa y protege tus datos personales y los de tu despacho: aviso de privacidad conforme a la Ley Federal mexicana de Protección de Datos.",
+      "terms": "Condiciones de uso de LiTT: acceso por invitación, responsabilidades del despacho, límites del asistente de IA y cómo tratamos tu cuenta y tu contenido."
     }
   },
   "connect": {
@@ -2342,6 +2346,7 @@
     },
     "footer": {
       "legal": "LiTT es software libre bajo la licencia <agpl>GNU AGPL-3.0</agpl> y deriva de un proyecto de código abierto. Los avisos de derechos de autor y los créditos están en el <credits>código fuente</credits>. LiTT puede cometer errores; sus respuestas no son asesoría legal.",
+      "madeBy": "Hecho por <asteroitt>Asteroitt</asteroitt>.",
       "nav": "Legal y soporte",
       "privacy": "Aviso de privacidad",
       "support": "Soporte",
@@ -2373,7 +2378,7 @@
       "title": "Intake para áreas jurídicas internas (in-house)"
     },
     "meta": {
-      "description": "LiTT es un asistente jurídico con IA para despachos mexicanos chicos y medianos: lee los documentos del asunto, responde con la fuente, redacta en Word y revisa cientos de documentos en una tabla. Con tus llaves, tu modelo y, si quieres, en tus servidores.",
+      "description": "LiTT: asistente jurídico con IA para despachos chicos y medianos en México. Lee documentos, cita la fuente, redacta en Word y revisa contratos en tabla.",
       "title": "LiTT · Asistente jurídico con IA para despachos en México"
     },
     "nav": {

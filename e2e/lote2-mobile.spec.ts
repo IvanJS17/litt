@@ -294,14 +294,32 @@ test.describe("web app manifest and closed beta", () => {
         await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#151A26");
     });
 
-    test("robots.txt is text and turns crawlers away; every page says noindex", async ({ page, request }) => {
+    test("robots.txt allows the public pages and disallows the rest; only the public pages are indexable", async ({ page, request }) => {
         const robots = await request.get("/robots.txt");
         expect(robots.status()).toBe(200);
         expect(robots.headers()["content-type"]).toContain("text/plain");
         const text = await robots.text();
         expect(text).toMatch(/User-Agent: \*/i);
         expect(text).toMatch(/Disallow: \//);
+        expect(text).toMatch(/Allow: \/\$/);
+        expect(text).toMatch(/Allow: \/privacidad\$/);
+        expect(text).toMatch(/Allow: \/terminos\$/);
+        expect(text).toMatch(/Sitemap: .*\/sitemap\.xml/);
         expect(text).not.toContain("<html");
+
+        const sitemap = await request.get("/sitemap.xml");
+        expect(sitemap.status()).toBe(200);
+        const sitemapBody = await sitemap.text();
+        for (const path of ["/privacidad", "/terminos"]) expect(sitemapBody).toContain(path);
+
+        for (const path of ["/", "/privacidad", "/terminos"]) {
+            const response = await request.get(path);
+            expect(response.status(), path).toBe(200);
+            expect(response.headers()["x-robots-tag"], path).toBeUndefined();
+            await page.goto(path);
+            await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index, follow");
+        }
+
         const login = await request.get("/login");
         expect(login.headers()["x-robots-tag"]).toBe("noindex, nofollow");
         const manifest = await request.get("/manifest.webmanifest");

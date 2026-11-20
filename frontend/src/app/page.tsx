@@ -10,8 +10,9 @@ import { SITE_URL } from "@/app/lib/siteUrl";
 /**
  * The start page's own title and description (the root layout's template would
  * add " · LiTT" to a name, and this one already starts with it). The share
- * image is the app's `public/link-image.jpg`. Search engines stay turned away
- * while the beta is closed: `robots` is the layout's, untouched.
+ * image is the app's `public/link-image.jpg`. Public and indexable while the
+ * beta stays invitation-only (lib/searchIndexing.ts): overrides the layout's
+ * default noindex and sets its own canonical.
  */
 export async function generateMetadata(): Promise<Metadata> {
     const [t, locale] = await Promise.all([getTranslations("landing.meta"), getLocale()]);
@@ -20,6 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
         title: { absolute: title },
         description,
+        alternates: { canonical: SITE_URL },
+        robots: { index: true, follow: true },
         openGraph: {
             type: "website",
             url: SITE_URL,

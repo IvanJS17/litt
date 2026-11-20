@@ -51,7 +51,8 @@ describe("metadata", () => {
             images: [{ url: "/link-image.jpg" }],
         });
         expect(meta.twitter).toMatchObject({ images: ["/link-image.jpg"] });
-        // Indexing stays the layout's decision (closed beta).
-        expect(meta.robots).toBeUndefined();
+        // Public and indexable, with its own canonical (lib/searchIndexing.ts).
+        expect(meta.robots).toEqual({ index: true, follow: true });
+        expect(meta.alternates).toEqual({ canonical: "https://litt.asteroitt.com" });
     });
 });
