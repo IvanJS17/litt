@@ -1256,7 +1256,7 @@
   },
   "donna": {
     "project": {
-      "label": "Donna",
+      "label": "Turn on Donna in this project",
       "enable": "Turn on Donna in this project",
       "help": "With Donna, each new request in this project and the text of its documents are sent to TypeSafe (a LiTT service, in the United States) to suggest type, complexity, urgency and lawyer, and to this space's chat AI provider, with its key, to suggest strategy, questions and documents. Everything stays a suggestion until a lawyer accepts it.",
       "readOnly": "Only the project owner or a firm admin changes this switch. With Donna on, each new request is sent to TypeSafe and to the firm's AI provider to suggest a classification and drafts.",

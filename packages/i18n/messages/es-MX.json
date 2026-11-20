@@ -1256,7 +1256,7 @@
   },
   "donna": {
     "project": {
-      "label": "Donna",
+      "label": "Activar Donna en este proyecto",
       "enable": "Activar Donna en este proyecto",
       "help": "Con Donna, cada solicitud nueva de este proyecto y el texto de sus documentos se envían a TypeSafe (servicio de LiTT, en Estados Unidos) para proponer tipo, complejidad, urgencia y abogado, y al proveedor de IA del chat de este espacio, con su llave, para proponer estrategia, preguntas y documentos. Todo queda como propuesta hasta que un abogado la acepte.",
       "readOnly": "Solo quien es dueño del proyecto o administra el despacho cambia este interruptor. Con Donna encendida, cada solicitud nueva se envía a TypeSafe y al proveedor de IA del despacho para proponer una clasificación y borradores.",
