@@ -6503,7 +6503,22 @@ export async function decideTriageItem(
 
 /** The firm's month of Donna runs (owner or admin). */
 export async function getDonnaUsage(orgId: string): Promise<import("@mike/contracts").DonnaUsage> {
-    return apiRequest("organizations.manage", `/orgs/${encodeURIComponent(orgId)}/donna/usage`);
+    const usage = await apiRequest<import("@mike/contracts").DonnaUsage>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/donna/usage`,
+    );
+    const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+    const ok =
+        num(usage?.limit) &&
+        num(usage?.used) &&
+        num(usage?.remaining) &&
+        num(usage?.engines?.jev?.runs) &&
+        num(usage?.engines?.jev?.input_tokens) &&
+        num(usage?.engines?.jev?.cost_usd) &&
+        num(usage?.engines?.byok?.runs) &&
+        Array.isArray(usage?.projects);
+    if (!ok) throw new Error("Malformed Donna usage response");
+    return usage;
 }
 
 /** Mark or unmark the matter as a retainer (the matter owner). */
