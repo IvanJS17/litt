@@ -359,7 +359,7 @@ describe("one call of the plan (C4, C5, C6)", () => {
         expect(res.status).toBe(200);
         expect(h.llm.calls).toHaveLength(1);
         const call = h.llm.calls[0];
-        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "systemPrompt", "user"]);
+        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "onUsage", "systemPrompt", "user"]);
         expect(call.systemPrompt).toBe(buildReadAllSystemPrompt(catalogForSuggestions()));
         const user = String(call.user);
         const nonce = /DOCUMENTS ([0-9a-f]{24})>>>/.exec(user)![1];

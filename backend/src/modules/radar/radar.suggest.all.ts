@@ -30,6 +30,7 @@ import { AppError } from "../../lib/appError";
 import { selectInBatches } from "../../lib/batchedQuery";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { loadVersionTextState } from "../../lib/documentTextCache";
+import { meteredCompletion } from "../../lib/aiCallUsage";
 import { completeText } from "../../lib/llm";
 import { reportError } from "../../lib/observability/report";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
@@ -283,7 +284,10 @@ export async function readRuleBatch(
 
     let answer: string;
     try {
-      answer = await (dependencies.completeText ?? completeText)({
+      answer = await meteredCompletion(db, {
+        surface: READ_ALL_SURFACE, userId: actor.userId, orgId: access.data.organizationId, matterId: access.data.matterId,
+        projectId: access.data.projectId, provider: resolved.route.provider, model: resolved.route.model,
+      }, dependencies.completeText ?? completeText)({
         model: resolved.route.model,
         systemPrompt: buildReadAllSystemPrompt(catalogForSuggestions(catalog, raw)),
         user: buildReadAllPrompt(

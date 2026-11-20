@@ -28,6 +28,7 @@ import type {
 } from "@mike/contracts";
 import { AppError } from "../../lib/appError";
 import { loadVersionTextState } from "../../lib/documentTextCache";
+import { meteredCompletion } from "../../lib/aiCallUsage";
 import { completeText } from "../../lib/llm";
 import { reportError } from "../../lib/observability/report";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
@@ -213,7 +214,10 @@ export async function suggestRules(
 
     let answer: string;
     try {
-      answer = await (dependencies.completeText ?? completeText)({
+      answer = await meteredCompletion(db, {
+        surface: SUGGEST_SURFACE, userId: actor.userId, orgId: access.data.organizationId, matterId: access.data.matterId,
+        projectId: access.data.projectId, provider: resolved.route.provider, model: resolved.route.model,
+      }, dependencies.completeText ?? completeText)({
         model: resolved.route.model,
         systemPrompt: buildSuggestSystemPrompt(catalogForSuggestions(catalog, raw)),
         user: buildExtractionPrompt(text, crypto.randomBytes(12).toString("hex")),

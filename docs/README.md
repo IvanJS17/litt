@@ -44,6 +44,7 @@ Each line gives the feature and its state. "Flag" names the environment switch.
 - [Subagents](subagents.md) — delegated chat tasks on the user's routes. Shipped; flag `LITT_CHAT_SUBAGENTS` (compose default `enabled`).
 - [Web search](web-search.md) — provider search and page reading. Shipped; flag `LITT_CHAT_WEB_SEARCH` (compose default `enabled`).
 - [Citation support check](citation-support-check.md) — TypeSafe Jev in silent mode; per-person opt-out. Shipped; flag `LITT_CITATION_CHECK` (on in production, `disabled` in the repository defaults).
+- [AI call usage](ai-call-usage.md) — tokens, engine and (when priced) cost of each retainer AI call in `ai_call_usage`; base for the triage cap. Shipped.
 - [Tamper-evident exports](tamper-evident-exports.md) — document hashes and optional signed manifests. Shipped (no flag; signing key `MANIFEST_SIGNING_KEY`).
 - [Beta statistics](beta-stats.md) — counts for platform administrators, audited, no export. Shipped.
 - [Preset templates](preset-templates.md) — the preset contract catalog (ships empty in LiTT). Shipped, empty.

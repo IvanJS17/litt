@@ -43,6 +43,7 @@ import {
 } from "./registry";
 import type {
   ApiKeyName,
+  CompletionUsage,
   ConfiguredModel,
   Provider,
   ReasoningLevel,
@@ -74,6 +75,8 @@ type CompleteProviderParams = {
   maxTokens?: number;
   abortSignal?: AbortSignal;
   apiKeys?: UserApiKeys;
+  /** Called once with the provider's usage after the call answered (Donna triage T1). */
+  onUsage?: (usage: CompletionUsage) => void;
   /**
    * Chat the call belongs to (a turn, its title or an auxiliary call of it).
    * OpenCode Go takes it as the stable `x-opencode-session` of the conversation

@@ -16,6 +16,7 @@
 import crypto from "node:crypto";
 import type { ProfileExtraction, ProfileExtractionRoute } from "@mike/contracts";
 import { AppError } from "../../lib/appError";
+import { meteredCompletion } from "../../lib/aiCallUsage";
 import { completeText } from "../../lib/llm";
 import { reportError } from "../../lib/observability/report";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
@@ -196,7 +197,10 @@ export async function extractProfileFacts(
 
     let raw: string;
     try {
-      raw = await (dependencies.completeText ?? completeText)({
+      raw = await meteredCompletion(db, {
+        surface: EXTRACTION_SURFACE, userId: actor.userId, orgId: access.data.organizationId, matterId: access.data.matterId,
+        projectId: access.data.projectId, provider: resolved.route.provider, model: resolved.route.model,
+      }, dependencies.completeText ?? completeText)({
         model: resolved.route.model,
         systemPrompt: EXTRACT_SYSTEM_PROMPT,
         user: buildExtractionPrompt(text, crypto.randomBytes(12).toString("hex")),

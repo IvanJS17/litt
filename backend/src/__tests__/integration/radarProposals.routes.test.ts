@@ -248,7 +248,7 @@ describe("what is sent", () => {
         answer();
         await run();
         const call = h.llm.calls[0];
-        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "systemPrompt", "user"]);
+        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "onUsage", "systemPrompt", "user"]);
         expect(call.systemPrompt).toBe(buildProposeSystemPrompt(catalogCodes()));
         for (const rule of OBLIGATION_RULES) expect(String(call.systemPrompt)).toContain(`- ${rule.code}`);
         expect(String(call.user)).toContain(TEXT);

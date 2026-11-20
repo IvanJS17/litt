@@ -1,5 +1,5 @@
 import { completeWithProvider, streamWithProvider } from "./providers";
-import type { StreamChatParams, StreamChatResult, UserApiKeys } from "./types";
+import type { CompletionUsage, StreamChatParams, StreamChatResult, UserApiKeys } from "./types";
 
 export * from "./types";
 export * from "./models";
@@ -18,6 +18,7 @@ export async function completeText(params: {
     abortSignal?: AbortSignal;
     apiKeys?: UserApiKeys;
     conversationId?: string | null;
+    onUsage?: (usage: CompletionUsage) => void;
 }): Promise<string> {
     return completeWithProvider(params);
 }
