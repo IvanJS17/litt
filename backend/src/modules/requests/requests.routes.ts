@@ -8,12 +8,19 @@
 //     POST   /:requestId/rounds                 link a document version as a negotiation round
 //     DELETE /:requestId/rounds/:roundId        unlink a round (the document stays)
 //
+//     GET    /:requestId/triage                 Donna's card: what the last run proposed and what was decided
+//     POST   /:requestId/triage                 a new run at the lawyer's click (counts against the month's cap)
+//     POST   /:requestId/triage/items/:itemId/decision   accept, edit or discard one proposal
+//
 //   /orgs/:orgId/request-types   (requestTypesRouter)
 //     GET /, POST /, PATCH /:typeId
 //     GET /playbooks                           every open link of the firm and the playbooks that can be linked
 //     GET /:typeId/playbooks                   the links of one type
 //     POST /:typeId/playbooks                  link a ready playbook ({ playbook_id }), owner or admin
 //     DELETE /:typeId/playbooks/:playbookId    unlink it (the row is marked, the history stays)
+//
+//   /orgs/:orgId/donna   (donnaUsageRouter)
+//     GET /usage                               the month's runs, tokens and cost of Donna's triage, owner or admin
 //
 //   /orgs/:orgId/requests   (requestCountsRouter)
 //     GET /counts?period=month|quarter&date=YYYY-MM-DD   counts only, owner or admin
@@ -29,20 +36,28 @@ import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import {
   createMatterRequest,
   createRequestType,
+  decideTriageItem,
+  getDonnaUsage,
   getFirmRequestCounts,
   getMatterRequest,
+  getTriageCard,
   linkRound,
   linkTypePlaybook,
   listMatterRequests,
   listRequestTypes,
   listTypePlaybooks,
+  runTriageNow,
   unlinkRound,
   unlinkTypePlaybook,
   updateMatterRequest,
   updateRequestType,
 } from "./requests.service";
+import { DONNA_CAP_CODE } from "./requests.triage.shared";
 
 function send<T>(res: Response, result: ServiceResult<T>, status = 200) {
+  // The firm used up its month of Donna runs: a quota, not a conflict of state.
+  if (!result.ok && result.kind === "conflict" && result.code === DONNA_CAP_CODE)
+    return void res.status(429).json({ code: result.code, detail: result.detail });
   if (!result.ok) return void sendServiceFailure(res, result);
   res.status(status).json(result.data);
 }
@@ -92,6 +107,23 @@ requestsRouter.delete("/:requestId/rounds/:roundId", requireAuth, requireMfaIfEn
     ...matterActor(req, res),
     requestId: req.params.requestId,
     roundId: req.params.roundId,
+  }));
+}));
+
+requestsRouter.get("/:requestId/triage", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await getTriageCard(createServerSupabase(), { ...matterActor(req, res), requestId: req.params.requestId }));
+}));
+
+requestsRouter.post("/:requestId/triage", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+  send(res, await runTriageNow(createServerSupabase(), { ...matterActor(req, res), requestId: req.params.requestId }));
+}));
+
+requestsRouter.post("/:requestId/triage/items/:itemId/decision", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+  send(res, await decideTriageItem(createServerSupabase(), {
+    ...matterActor(req, res),
+    requestId: req.params.requestId,
+    itemId: req.params.itemId,
+    body: req.body,
   }));
 }));
 
@@ -158,3 +190,11 @@ requestCountsRouter.get("/counts", requireAuth, asyncRoute(async (req, res) => {
 }));
 
 requestCountsRouter.use(routerErrorHandler("[request-counts]"));
+
+export const donnaUsageRouter = Router({ mergeParams: true });
+
+donnaUsageRouter.get("/usage", requireAuth, asyncRoute(async (req, res) => {
+  send(res, await getDonnaUsage(createServerSupabase(), orgActor(req, res)));
+}));
+
+donnaUsageRouter.use(routerErrorHandler("[donna-usage]"));

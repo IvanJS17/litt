@@ -99,6 +99,11 @@ export interface Project {
   practice: string | null;
   /** Whether this project's shared memory.md is active. */
   memory_enabled: boolean;
+  /**
+   * Donna's switch: every new request of the project is triaged. On by default;
+   * absent in list rows, present in the project's detail (docs/request-triage.md).
+   */
+  donna_enabled?: boolean;
   created_at: string;
   updated_at: string;
   documents?: Document[];

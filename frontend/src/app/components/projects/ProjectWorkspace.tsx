@@ -467,6 +467,7 @@ export function ProjectWorkspaceProvider({
         cmNumber: string;
         practice: string;
         visibility?: ContentVisibility;
+        donnaEnabled?: boolean;
     }) {
         if (!canDo("access.manage")) {
             denyUnlessLoading({
@@ -484,6 +485,7 @@ export function ProjectWorkspaceProvider({
             cm_number: cmNumber,
             practice: practice || null,
             ...(values.visibility ? { visibility: values.visibility } : {}),
+            ...(values.donnaEnabled !== undefined ? { donna_enabled: values.donnaEnabled } : {}),
         });
         setProject((prev) =>
             prev
@@ -492,6 +494,7 @@ export function ProjectWorkspaceProvider({
                       name: updated.name,
                       cm_number: updated.cm_number,
                       practice: updated.practice,
+                      donna_enabled: updated.donna_enabled ?? prev.donna_enabled,
                       // A private matter stays private whatever the row's
                       // own column says (LiTT C2).
                       visibility: prev.private_matter

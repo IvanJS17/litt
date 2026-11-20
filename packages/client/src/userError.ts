@@ -259,6 +259,17 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // owner and editors write.
     request_version_conflict: "conflict",
     matter_write_required: "forbidden",
+    // Donna's triage of a request: the firm's month of runs is used up (429);
+    // Donna is off in the project; people in training read the card and do not
+    // decide on it; a run is already going; a proposal is decided once, and only
+    // the latest run's can be decided.
+    donna_monthly_cap: "rate_limited",
+    donna_disabled: "conflict",
+    triage_trainee: "forbidden",
+    triage_in_progress: "conflict",
+    triage_item_decided: "conflict",
+    triage_item_obsolete: "conflict",
+    invalid_triage_decision: "validation",
     // Requests, client profile and radar exist only on retainer matters (409).
     matter_not_retainer: "conflict",
     // Client profile: a fact needs a citation that is in the cited text; a

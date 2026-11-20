@@ -109,6 +109,10 @@ export function memoryDb(
                 filters.push((row) => String(row[column] ?? "") >= String(value));
                 return builder;
             },
+            lt: (column: string, value: unknown) => {
+                filters.push((row) => String(row[column] ?? "") < String(value));
+                return builder;
+            },
             lte: (column: string, value: unknown) => {
                 filters.push((row) => String(row[column] ?? "") <= String(value));
                 return builder;

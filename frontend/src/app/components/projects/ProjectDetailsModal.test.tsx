@@ -1,13 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MikeApiError, listOrgs } from "@/app/lib/mikeApi";
+import { MikeApiError, getProject, listOrgs } from "@/app/lib/mikeApi";
 import type { Project } from "@/app/components/shared/types";
 import { ProjectDetailsModal } from "./ProjectDetailsModal";
 
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
     listOrgs: vi.fn(),
+    getProject: vi.fn(),
 }));
 
 vi.mock("./ProjectPracticeField", () => ({
@@ -44,6 +45,8 @@ describe("ProjectDetailsModal", () => {
         vi.mocked(listOrgs).mockResolvedValue([
             { id: "org-1", name: "Elite Law LLP" } as never,
         ]);
+        // List rows do not carry Donna's switch; the detail does.
+        vi.mocked(getProject).mockResolvedValue({ ...project, donna_enabled: true } as never);
     });
 
     it("does not offer organisation-wide access on a private matter", async () => {
@@ -253,5 +256,51 @@ describe("ProjectDetailsModal", () => {
                 screen.queryByRole("group", { name: "Organisational Access" }),
             ).not.toBeInTheDocument();
         });
+    });
+});
+
+describe("Donna's switch in the project details", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(listOrgs).mockResolvedValue([{ id: "org-1", name: "Elite Law LLP" } as never]);
+        vi.mocked(getProject).mockResolvedValue({ ...project, donna_enabled: true } as never);
+    });
+
+    it("reads the project's setting, and sends only the change when the owner turns it off", async () => {
+        const user = userEvent.setup({ delay: null });
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        render(<ProjectDetailsModal open project={project} canEdit onClose={vi.fn()} onSave={onSave} />);
+        const donna = await screen.findByRole("switch", { name: "Turn on Donna in this project" });
+        expect(donna).toBeChecked();
+        expect(screen.getByText(/sent to TypeSafe/)).toBeInTheDocument();
+        await user.click(donna);
+        expect(donna).not.toBeChecked();
+        await user.click(screen.getByRole("button", { name: "Update" }));
+        expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ donnaEnabled: false }));
+    });
+
+    it("leaves the switch out of the save when only another detail changed", async () => {
+        const user = userEvent.setup({ delay: null });
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        render(<ProjectDetailsModal open project={project} canEdit onClose={vi.fn()} onSave={onSave} />);
+        await screen.findByRole("switch", { name: "Turn on Donna in this project" });
+        await user.clear(screen.getByLabelText("Project name"));
+        await user.type(screen.getByLabelText("Project name"), "Renamed");
+        await user.click(screen.getByRole("button", { name: "Update" }));
+        expect(onSave.mock.calls[0][0]).not.toHaveProperty("donnaEnabled");
+    });
+
+    it("shows it, unchangeable, to somebody who is not the project owner or a firm admin", async () => {
+        render(<ProjectDetailsModal open project={{ ...project, donna_enabled: false }} canEdit={false} onClose={vi.fn()} onSave={vi.fn()} />);
+        const donna = await screen.findByRole("switch", { name: "Turn on Donna in this project" });
+        expect(donna).toBeDisabled();
+        expect(donna).not.toBeChecked();
+        expect(screen.getByText(/Only the project owner or a firm admin changes this switch/)).toBeInTheDocument();
+    });
+
+    it("is not offered for a personal project", async () => {
+        render(<ProjectDetailsModal open project={{ ...project, org_id: null }} canEdit onClose={vi.fn()} onSave={vi.fn()} />);
+        await screen.findByLabelText("Organisation");
+        expect(screen.queryByRole("switch", { name: "Turn on Donna in this project" })).toBeNull();
     });
 });

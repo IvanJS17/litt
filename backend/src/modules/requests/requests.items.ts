@@ -36,6 +36,7 @@ import {
   VERSION_CONFLICT_CODE,
   type RequestRow,
 } from "./requests.shared";
+import { scheduleAutoTriage } from "./requests.triage.run";
 import { loadTypes } from "./requests.types";
 
 type Actor = {
@@ -235,6 +236,17 @@ export async function createMatterRequest(
         detail: { assignee_user_id: row.assignee_user_id, assignee_level: row.assignee_level },
       });
     }
+    // Donna reads the new request in the background (if the project's switch is
+    // on and the month's cap allows): creating it never waits for, or fails
+    // with, the triage.
+    scheduleAutoTriage(db, {
+      userId: actor.userId,
+      userEmail: actor.userEmail,
+      orgId: access.data.organizationId,
+      projectId: access.data.projectId,
+      matterId: access.data.matterId,
+      requestId: row.id,
+    });
     return detail(db, row);
   } catch (error) {
     return internalFailure(error);

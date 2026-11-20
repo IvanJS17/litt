@@ -422,6 +422,8 @@ export async function createProject(
     org_id?: string | null;
     visibility?: unknown;
     memory_enabled?: boolean;
+    /** Donna's switch (docs/request-triage.md); on when absent. */
+    donna_enabled?: unknown;
   },
 ): Promise<CreateProjectResult> {
   const { userId, name, cm_number, practice, org_id, memory_enabled } = args;
@@ -434,6 +436,10 @@ export async function createProject(
       detail: "memory_enabled must be a boolean",
     };
   }
+
+  if (args.donna_enabled !== undefined && typeof args.donna_enabled !== "boolean")
+    return { ok: false, kind: "validation", detail: "donna_enabled must be a boolean" };
+  const donnaEnabled = args.donna_enabled !== false;
 
   // Tenant assignment: an explicit org_id must be one the caller belongs to.
   // No org_id means a personal project — org_id stays NULL, which is still
@@ -496,11 +502,27 @@ export async function createProject(
         created: { id: (data as { id: string }).id },
       };
   }
+  // Born on (the column's default); a person who unchecked the box at creation
+  // turns it off here. Failing closed: if it cannot be saved the caller is told.
+  if (!donnaEnabled) {
+    const { error: donnaError } = await db
+      .from("projects")
+      .update({ donna_enabled: false })
+      .eq("id", (data as { id: string }).id);
+    if (donnaError)
+      return {
+        ok: false,
+        kind: "db_error",
+        error: donnaError,
+        created: { id: (data as { id: string }).id },
+      };
+  }
   return {
     ok: true,
     project: {
       ...data,
       visibility,
+      donna_enabled: donnaEnabled,
       memory_enabled: resolvedMemoryEnabled,
       documents: [],
       is_owner: true,
@@ -753,6 +775,12 @@ export async function updateProject(
   if (body.cm_number != null) updates.cm_number = body.cm_number;
   if ("practice" in body) {
     updates.practice = normalizeOptionalString(body.practice);
+  }  // Donna's switch (docs/request-triage.md): changed by the project owner or a
+  // firm admin, the same gate as every project setting (checked below).
+  if ("donna_enabled" in body) {
+    if (typeof body.donna_enabled !== "boolean")
+      return { ok: false, kind: "validation", detail: "donna_enabled must be a boolean" };
+    updates.donna_enabled = body.donna_enabled;
   }
   // Project settings and access edits are Owner-only: the creator, a direct
   // Owner grant on a personal project, or an Admin of the project's org.

@@ -177,7 +177,7 @@ projectsRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       detail:
         "shared_with is no longer supported; use the project access endpoints.",
     });
-  const { name, cm_number, practice, org_id, visibility, memory_enabled } =
+  const { name, cm_number, practice, org_id, visibility, memory_enabled, donna_enabled } =
     req.body as {
       name: string;
       cm_number?: string;
@@ -185,6 +185,7 @@ projectsRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       org_id?: string | null;
       visibility?: unknown;
       memory_enabled?: boolean;
+      donna_enabled?: unknown;
     };
   const db = createServerSupabase();
 
@@ -196,6 +197,7 @@ projectsRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     org_id,
     visibility,
     memory_enabled,
+    donna_enabled,
   });
   if (!result.ok) {
     if (result.kind === "db_error")

@@ -57,7 +57,7 @@ import { matterSettingsRouter, mattersRouter } from "./modules/matters/matters.r
 import { clientProfileRouter } from "./modules/client-profile/client-profile.routes";
 import { matterRadarRouter, radarTodayRouter, ruleProposalsRouter } from "./modules/radar/radar.routes";
 import { retainerReportRouter } from "./modules/retainer-report/retainer-report.routes";
-import { requestCountsRouter, requestsRouter, requestTypesRouter } from "./modules/requests/requests.routes";
+import { donnaUsageRouter, requestCountsRouter, requestsRouter, requestTypesRouter } from "./modules/requests/requests.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
   handleUnhandledError,
@@ -403,6 +403,7 @@ app.use("/orgs/:orgId/training/gym/cases", gymCasesRouter);
 app.use("/orgs/:orgId/firm-criteria", firmCriteriaRouter);
 app.use("/orgs/:orgId/request-types", requestTypesRouter);
 app.use("/orgs/:orgId/requests", requestCountsRouter);
+app.use("/orgs/:orgId/donna", donnaUsageRouter);
 app.use("/orgs/:orgId/radar", radarTodayRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);

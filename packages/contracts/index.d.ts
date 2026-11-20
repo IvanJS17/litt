@@ -2289,9 +2289,114 @@ export type MatterRequestEvent = {
     | "assigned"
     | "unassigned"
     | "round_linked"
-    | "round_unlinked";
+    | "round_unlinked"
+    | "triage_proposed"
+    | "triage_accepted"
+    | "triage_edited"
+    | "triage_discarded";
   detail: Record<string, unknown>;
   created_at: string;
+};
+
+// ---- Donna triage of a request (docs/request-triage.md) ----
+
+export type TriageUrgency = "low" | "normal" | "urgent";
+export type TriageKind =
+  | "type"
+  | "complexity"
+  | "urgency"
+  | "candidate"
+  | "strategy"
+  | "question"
+  | "document";
+export type TriageDecisionAction = "accepted" | "edited" | "discarded";
+
+export type TriageDecision = {
+  action: TriageDecisionAction;
+  actor_user_id: string | null;
+  created_at: string;
+  /** What the lawyer chose or wrote when editing. */
+  edited_type_id: string | null;
+  edited_enum: string | null;
+  edited_user_id: string | null;
+  edited_text: string | null;
+  edited_purpose: string | null;
+};
+
+export type TriageItem = {
+  id: string;
+  kind: TriageKind;
+  position: number;
+  /** type: a catalog type id. complexity/urgency: the enumeration. candidate: a matter member. */
+  type_id: string | null;
+  enum_value: string | null;
+  user_id: string | null;
+  /** The candidate's name or email, for display to the lawyer only. */
+  user_label: string | null;
+  /** A draft: a strategy step, a question, or the name of a document to draft. */
+  text: string | null;
+  purpose: string | null;
+  playbook: { id: string; name: string } | null;
+  confidence: number | null;
+  low_confidence: boolean;
+  forced_by_alarm: boolean;
+  /** The step rests on a passage of a document that was found in it. */
+  cited: boolean;
+  decision: TriageDecision | null;
+};
+
+export type TriageRun = {
+  id: string;
+  trigger: "auto" | "manual";
+  created_at: string;
+  /** unavailable: Jev did not answer («clasificación no disponible»); invalid: its answer did not fit. */
+  classify_status: "ok" | "unavailable" | "invalid";
+  /** no_key: the firm has no AI key, so the drafts did not run. */
+  generative_status: "ok" | "empty" | "no_key" | "unavailable" | "invalid";
+  docs_total: number;
+  docs_read: number;
+  docs_partial: number;
+  unread: { version_id: string; filename: string | null }[];
+  quotes_rejected: number;
+};
+
+export type TriageCard = {
+  /** The project's Donna switch. */
+  enabled: boolean;
+  /** The caller may accept, edit or discard (owner or editor of the matter, not in training). */
+  can_decide: boolean;
+  /** A run for this request is under way. */
+  pending: boolean;
+  usage: { used: number; limit: number };
+  run: TriageRun | null;
+  items: TriageItem[];
+  /** Playbooks linked to the suggested type (or the request's type when none was suggested). */
+  playbooks: { id: string; name: string }[];
+};
+
+export type TriageDecisionInput = {
+  action: TriageDecisionAction;
+  /** Needed to accept or edit a type or a complexity: it changes the request. */
+  version?: number;
+  type_id?: string;
+  complexity?: MatterRequestComplexity;
+  urgency?: TriageUrgency;
+  user_id?: string;
+  text?: string;
+  purpose?: string;
+};
+
+export type DonnaUsage = {
+  month: string;
+  limit: number;
+  used: number;
+  remaining: number;
+  engines: {
+    jev: { runs: number; input_tokens: number; output_tokens: number; cost_usd: number };
+    byok: { runs: number };
+  };
+  /** An opaque label per project («Proyecto 1»): a private matter's name is not shown outside its team. */
+  projects: { label: string; runs: number }[];
 };
 
 export type MatterRequestDetail = MatterRequest & {
