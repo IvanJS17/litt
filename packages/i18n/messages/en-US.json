@@ -970,6 +970,10 @@
       "workflows": "Workflows",
       "connectAuthorize": "Connect an app",
       "help": "Help"
+    },
+    "pageDescription": {
+      "privacy": "How LiTT collects, uses, shares, protects and lets you delete your personal data and your law firm's data, under Mexico's federal data protection law.",
+      "terms": "LiTT's terms of use: invitation-only access, your law firm's responsibilities, the AI assistant's limits and how LiTT handles your account and content."
     }
   },
   "connect": {
@@ -2342,6 +2346,7 @@
     },
     "footer": {
       "legal": "LiTT is free software under the <agpl>GNU AGPL-3.0</agpl> license and is derived from an open-source project. Copyright notices and credits are in the <credits>source code</credits>. LiTT can make mistakes; its answers are not legal advice.",
+      "madeBy": "Made by <asteroitt>Asteroitt</asteroitt>.",
       "nav": "Legal and support",
       "privacy": "Privacy notice",
       "support": "Support",
@@ -2373,7 +2378,7 @@
       "title": "Intake for in-house legal teams"
     },
     "meta": {
-      "description": "LiTT is an AI legal assistant for small and mid-sized Mexican law firms: it reads the documents in the matter, answers with the source, drafts in Word and reviews hundreds of documents in a table. With your keys, your model and, if you want, on your own servers.",
+      "description": "LiTT is an AI legal assistant for small and mid-sized Mexican law firms: it reads documents, cites the source, drafts in Word and reviews contracts in a table.",
       "title": "LiTT · AI legal assistant for law firms in Mexico"
     },
     "nav": {

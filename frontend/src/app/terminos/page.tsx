@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { pageTitle } from "@/app/lib/pageTitle";
+import { legalPageMeta } from "@/app/lib/legalPageMeta";
 import { LegalDocument } from "@/app/components/legal/LegalDocument";
 
-export const generateMetadata = pageTitle("terms");
+export const generateMetadata = legalPageMeta("terms", "/terminos");
 
 // Public, no session. Read at build time from the published text.
 export default function TermsPage() {

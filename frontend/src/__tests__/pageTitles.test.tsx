@@ -17,7 +17,14 @@ const APP = join(REPO, "frontend/src/app");
 const used = new Map<string, string[]>();
 for (const abs of sourceFiles(APP)) {
     if (/\.test\.tsx?$/.test(abs)) continue;
-    for (const m of readFileSync(abs, "utf8").matchAll(/generateMetadata = pageTitle\("(\w+)"\)/g)) {
+    const content = readFileSync(abs, "utf8");
+    // Two call sites read a pageTitle key: the plain helper, and
+    // legalPageMeta for the public legal pages (lib/legalPageMeta.ts),
+    // which also sets their canonical, description and indexable robots.
+    for (const m of content.matchAll(/generateMetadata = pageTitle\("(\w+)"\)/g)) {
+        used.set(m[1], [...(used.get(m[1]) ?? []), relative(APP, abs).split(sep).join("/")]);
+    }
+    for (const m of content.matchAll(/generateMetadata = legalPageMeta\("(\w+)"/g)) {
         used.set(m[1], [...(used.get(m[1]) ?? []), relative(APP, abs).split(sep).join("/")]);
     }
 }

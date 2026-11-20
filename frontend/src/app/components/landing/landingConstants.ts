@@ -48,3 +48,10 @@ export const AGPL_URL = "https://www.gnu.org/licenses/agpl-3.0.html";
 
 /** The README section with the upstream attribution and credits. */
 export const ATTRIBUTION_ANCHOR = "#attribution";
+
+/**
+ * LiTT's maker, credited in the footer ("Hecho por Asteroitt"/"Made by
+ * Asteroitt"), the same way ContextLex MX and eDigitt credit it (autorizado
+ * por Iván, 2026-11-19).
+ */
+export const ASTEROITT_PRODUCT_URL = "https://asteroitt.com/productos/litt/";

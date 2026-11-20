@@ -12,7 +12,6 @@ import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
 import { TEXT_SIZE_BOOT_SCRIPT } from "@/app/lib/textSize";
 import { TITLE_TEMPLATE } from "@/app/lib/documentTitle";
-import { SEARCH_INDEXING_ALLOWED } from "@/app/lib/searchIndexing";
 import { SITE_URL } from "@/app/lib/siteUrl";
 
 // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream, is
@@ -36,8 +35,9 @@ export async function generateMetadata(): Promise<Metadata> {
         // One with no name of its own keeps the full product title.
         title: { default: title, template: TITLE_TEMPLATE },
         description,
-        // Closed beta: no search engine lists LiTT (lib/searchIndexing.ts).
-        robots: SEARCH_INDEXING_ALLOWED ? undefined : { index: false, follow: false },
+        // Invitation-only beta: noindex by default. Each public, indexable
+        // page (lib/searchIndexing.ts) overrides this in its own metadata.
+        robots: { index: false, follow: false },
         // "Add to Home Screen" (app/manifest.ts): a full-screen app named
         // LiTT. The status bar stays the system's ("default"), because the
         // page is light or dark by the person's choice, not the system's.

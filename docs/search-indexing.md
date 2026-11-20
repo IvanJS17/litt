@@ -1,47 +1,44 @@
 # LiTT and search engines
 
-**Status:** Shipped in production (no flag).
-
-While the beta is closed, LiTT asks every search engine not to list it, at
-`litt.asteroitt.com`. Nothing here hides the site: a person with the address
-can still open it, and `robots.txt` is a request, not a lock. Access is
-controlled by the invitation (see `docs/` on beta invitations).
+**Status:** Shipped in production. LiTT is invitation-only; nobody signs up
+without an invite and the product itself does not open up. Google and AI
+crawlers may list the three pages anyone can already open without an
+account: the start page and the two legal pages.
 
 ## What is on now
 
-One switch, `SEARCH_INDEXING_ALLOWED` in
-`frontend/src/app/lib/searchIndexing.ts`, set to `false`. It drives:
+`PUBLIC_INDEXABLE_PATHS` in `frontend/src/app/lib/searchIndexing.ts`:
+`/`, `/privacidad` and `/terminos`. It drives:
 
 | Where | What it does |
 | --- | --- |
-| `frontend/src/app/robots.ts` | `/robots.txt` is served as `text/plain`: `User-agent: *` / `Disallow: /`. |
-| `frontend/next.config.ts` (`headers()`) | Every response from the web server carries `X-Robots-Tag: noindex, nofollow`. |
-| `frontend/src/app/layout.tsx` (`metadata.robots`) | Every page has `<meta name="robots" content="noindex, nofollow">`. |
-| `frontend/public/_headers` | The same `X-Robots-Tag` for a Cloudflare deploy (`npm run deploy`). It is not read by the Caddy/Docker production path. |
+| `frontend/src/app/robots.ts` | `/robots.txt`: `Allow` for exactly these paths (`$`-anchored, not a prefix), `Disallow` for the rest, plus `Sitemap`. |
+| `frontend/src/app/sitemap.ts` | `/sitemap.xml` lists exactly these three URLs. |
+| `frontend/next.config.ts` (`headers()`) | `X-Robots-Tag: noindex, nofollow` on every response except these paths, via `noindexHeaderSource()`. |
+| `frontend/src/app/layout.tsx` (`metadata.robots`) | `noindex, nofollow` by default; each public page's own `generateMetadata` (`page.tsx`, `privacidad/page.tsx`, `terminos/page.tsx` via `lib/legalPageMeta.ts`) overrides it to `index, follow` and sets its own `alternates.canonical`. |
+| `frontend/public/_headers` | The same split for a Cloudflare Pages deploy (`npm run deploy`); not read by the Caddy/Docker production path, kept in sync anyway. |
 
-`robots.txt` is a real route, so crawlers get 200 and a few bytes, not the
-404 page. There is no sitemap; `/sitemap.xml` is a plain 404.
+This is an **allowlist**, not "disallow these and allow the rest": a new
+route stays noindex by default, and must be added to
+`PUBLIC_INDEXABLE_PATHS` (and given its own `generateMetadata`) on purpose
+to become indexable. Everything else — login, signup, the app, every
+authenticated route, the API, and the `word.litt.asteroitt.com` and
+`mcp.litt.asteroitt.com` subdomains — stays blocked exactly as before.
 
-## When the beta opens: how to revert
+## Adding a public page later
 
-1. In `frontend/src/app/lib/searchIndexing.ts` set
-   `SEARCH_INDEXING_ALLOWED = true`. That alone turns `robots.txt` into
-   `Allow: /` and removes the header and the `<meta>`.
-2. In `frontend/public/_headers` delete the `/*` block with `X-Robots-Tag`
-   (only matters on a Cloudflare deploy; harmless to leave out of Docker).
-3. Decide what should be listed. Most of the app is behind a login and gives
-   a crawler nothing; the public pages are `/` (the start page), `/login`, `/terminos` and
-   `/privacidad`. If you want only those, change `robots.ts` to
-   `allow: ["/$", "/terminos", "/privacidad"]` with `disallow: "/"` and keep the
-   meta on the rest.
-4. Add a `sitemap.ts` if you want one (Next serves `app/sitemap.ts` at
-   `/sitemap.xml`).
-5. Deploy, then check from outside:
-   `curl -sI https://litt.asteroitt.com/login | grep -i x-robots` prints
-   nothing, and `curl -s https://litt.asteroitt.com/robots.txt` says `Allow`.
-6. Pages already seen by a crawler leave its index only after the crawler
-   revisits them with `noindex` in place, so do not lift the block and
-   re-impose it: a page that was listed once can take weeks to leave.
+1. Add its path to `PUBLIC_INDEXABLE_PATHS`.
+2. Give it its own `generateMetadata` with `alternates.canonical` and
+   `robots: { index: true, follow: true }` (see `lib/legalPageMeta.ts` for
+   the two legal pages, or `page.tsx` for the start page).
+3. `frontend/public/_headers` gets a matching `X-Robots-Tag: index, follow`
+   block for the new path.
+4. Verify from outside: `curl -sI https://litt.asteroitt.com/<path>` has no
+   `X-Robots-Tag`, and `curl -s https://litt.asteroitt.com/robots.txt` allows
+   it.
+5. A page already seen by a crawler while blocked leaves its index only
+   after the crawler revisits it with the block lifted, so do not flip a
+   path back and forth: that can take weeks to resolve either way.
 
-`frontend/src/__tests__/searchIndexing.test.ts` pins the closed state; flip
-its expectations in the same commit as the switch.
+`frontend/src/__tests__/searchIndexing.test.ts` pins this allowlist and the
+generated header pattern; update it in the same commit as any change here.

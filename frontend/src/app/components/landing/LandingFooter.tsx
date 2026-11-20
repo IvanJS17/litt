@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { SourceCodeLink } from "@/app/components/shared/SourceCodeLink";
-import { AGPL_URL, ATTRIBUTION_ANCHOR, SOURCE_REPOSITORY_URL, SUPPORT_EMAIL } from "./landingConstants";
+import { AGPL_URL, ASTEROITT_PRODUCT_URL, ATTRIBUTION_ANCHOR, SOURCE_REPOSITORY_URL, SUPPORT_EMAIL } from "./landingConstants";
 import { LANDING_FOCUS } from "./landingStyles";
 import { LandingLanguage } from "./LandingLanguage";
 
@@ -10,9 +10,10 @@ const FOOTER_LINK = `inline-flex min-h-11 items-center rounded-sm text-foregroun
 /**
  * The footer: the two links Google asks for (Aviso de privacidad, Términos y
  * condiciones), support, the source of the exact version running (AGPL-3.0 §13),
- * the license and the upstream credit in a sentence, and the language
- * control. The theme is the header's icon (and the phone menu's control); the
- * wordmark is not repeated here.
+ * the license and the upstream credit in a sentence, the "Hecho por
+ * Asteroitt" maker credit, and the language control. The theme is the
+ * header's icon (and the phone menu's control); the wordmark is not
+ * repeated here.
  */
 export function LandingFooter() {
     const t = useTranslations();
@@ -55,6 +56,19 @@ export function LandingFooter() {
                             credits: (chunks) => (
                                 <a
                                     href={`${SOURCE_REPOSITORY_URL}${ATTRIBUTION_ANCHOR}`}
+                                    {...outside}
+                                    className={`rounded-sm underline underline-offset-2 ${LANDING_FOCUS}`}
+                                >
+                                    {chunks}
+                                </a>
+                            ),
+                        })}
+                    </p>
+                    <p className="landing-pretty mt-1 max-w-[64ch] text-[0.9375rem]/[1.5]">
+                        {t.rich("landing.footer.madeBy", {
+                            asteroitt: (chunks) => (
+                                <a
+                                    href={ASTEROITT_PRODUCT_URL}
                                     {...outside}
                                     className={`rounded-sm underline underline-offset-2 ${LANDING_FOCUS}`}
                                 >

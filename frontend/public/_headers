@@ -2,7 +2,19 @@
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Closed beta: no search engine lists LiTT. Same switch as
-# src/app/lib/searchIndexing.ts; docs/search-indexing.md says how to lift it.
+# Invitation-only beta: ask crawlers not to list anything except the public
+# pages in src/app/lib/searchIndexing.ts's PUBLIC_INDEXABLE_PATHS allowlist.
+# Only matters for a Cloudflare Pages deploy (`npm run deploy`); the
+# Caddy/Docker production path serves next.config.ts's headers() instead
+# (docs/search-indexing.md).
 /*
   X-Robots-Tag: noindex, nofollow
+
+/
+  X-Robots-Tag: index, follow
+
+/privacidad
+  X-Robots-Tag: index, follow
+
+/terminos
+  X-Robots-Tag: index, follow
