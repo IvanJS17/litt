@@ -654,6 +654,7 @@ export async function createProject(
     org_id?: string,
     memory_enabled?: boolean,
     visibility?: ContentVisibility,
+    donna_enabled?: boolean,
 ): Promise<Project> {
     return apiRequest<Project>("projects.manage", "/projects", {
         method: "POST",
@@ -665,6 +666,7 @@ export async function createProject(
             org_id,
             memory_enabled,
             visibility,
+            donna_enabled,
         }),
     });
 }
@@ -1830,6 +1832,8 @@ export async function updateProject(
         cm_number?: string;
         practice?: string | null;
         visibility?: ContentVisibility;
+        /** Donna's switch; the project owner or a firm admin only. */
+        donna_enabled?: boolean;
     },
 ): Promise<Project> {
     return apiRequest<Project>("projects.manage", `/projects/${projectId}`, {
@@ -6458,6 +6462,63 @@ export async function unlinkMatterRequestRound(
         `${matterRequestsPath(projectId, matterId)}/requests/${encodeURIComponent(requestId)}/rounds/${encodeURIComponent(roundId)}`,
         { method: "DELETE" },
     );
+}
+
+// Donna's triage of a request (docs/request-triage.md)
+
+const triagePath = (projectId: string, matterId: string, requestId: string) =>
+    `${matterRequestsPath(projectId, matterId)}/requests/${encodeURIComponent(requestId)}/triage`;
+
+/** What Donna proposed for the request, and what was decided about each proposal. */
+export async function getTriageCard(
+    projectId: string,
+    matterId: string,
+    requestId: string,
+): Promise<import("@mike/contracts").TriageCard> {
+    return apiRequest("matter.requests", triagePath(projectId, matterId, requestId));
+}
+
+/** A new run at the lawyer's click; it counts against the firm's month (429 `donna_monthly_cap`). */
+export async function runTriage(
+    projectId: string,
+    matterId: string,
+    requestId: string,
+): Promise<import("@mike/contracts").TriageCard> {
+    return apiRequest("matter.requests", triagePath(projectId, matterId, requestId), jsonInit("POST", {}));
+}
+
+export async function decideTriageItem(
+    projectId: string,
+    matterId: string,
+    requestId: string,
+    itemId: string,
+    input: import("@mike/contracts").TriageDecisionInput,
+): Promise<import("@mike/contracts").TriageCard> {
+    return apiRequest(
+        "matter.requests",
+        `${triagePath(projectId, matterId, requestId)}/items/${encodeURIComponent(itemId)}/decision`,
+        jsonInit("POST", input),
+    );
+}
+
+/** The firm's month of Donna runs (owner or admin). */
+export async function getDonnaUsage(orgId: string): Promise<import("@mike/contracts").DonnaUsage> {
+    const usage = await apiRequest<import("@mike/contracts").DonnaUsage>(
+        "organizations.manage",
+        `/orgs/${encodeURIComponent(orgId)}/donna/usage`,
+    );
+    const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+    const ok =
+        num(usage?.limit) &&
+        num(usage?.used) &&
+        num(usage?.remaining) &&
+        num(usage?.engines?.jev?.runs) &&
+        num(usage?.engines?.jev?.input_tokens) &&
+        num(usage?.engines?.jev?.cost_usd) &&
+        num(usage?.engines?.byok?.runs) &&
+        Array.isArray(usage?.projects);
+    if (!ok) throw new Error("Malformed Donna usage response");
+    return usage;
 }
 
 /** Mark or unmark the matter as a retainer (the matter owner). */

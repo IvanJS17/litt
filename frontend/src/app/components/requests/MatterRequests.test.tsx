@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listDocumentVersions: vi.fn(),
   notifyError: vi.fn(),
+  getTriageCard: vi.fn(),
 }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
@@ -29,6 +30,7 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   setMatterRetainer: mocks.setMatterRetainer,
   getProject: mocks.getProject,
   listDocumentVersions: mocks.listDocumentVersions,
+  getTriageCard: mocks.getTriageCard,
 }));
 vi.mock("@/app/lib/userFacingError", () => ({
   notifyError: mocks.notifyError,
@@ -85,6 +87,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.listMatterRequests.mockResolvedValue(list());
   mocks.getMatterRequest.mockResolvedValue(detail());
+  mocks.getTriageCard.mockResolvedValue({
+    enabled: false,
+    can_decide: false,
+    pending: false,
+    usage: { used: 0, limit: 1000 },
+    run: null,
+    items: [],
+    playbooks: [],
+  });
   mocks.getProject.mockResolvedValue({ documents: [{ id: "doc-1", filename: "Arrendamiento.docx", status: "ready" }] });
   mocks.listDocumentVersions.mockResolvedValue({
     current_version_id: "ver-2",

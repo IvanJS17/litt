@@ -8,12 +8,13 @@ import {
     FieldLabel,
     FormTextInput,
 } from "@/app/components/ui/form-field";
+import { ToggleSwitchUI } from "@mike/ui";
 import { AccessVisibilityField } from "@/app/components/modals/AccessVisibilityField";
 import type {
     ContentVisibility,
     Project,
 } from "@/app/components/shared/types";
-import { listOrgs, type Org } from "@/app/lib/mikeApi";
+import { getProject, listOrgs, type Org } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { ProjectPracticeField } from "./ProjectPracticeField";
 import { useTranslations } from "next-intl";
@@ -31,6 +32,8 @@ interface ProjectDetailsModalProps {
         practice: string;
         /** Sent only for an organization's project, and only when changed. */
         visibility?: ContentVisibility;
+        /** Donna's switch: sent only for an organization's project, and only when changed. */
+        donnaEnabled?: boolean;
     }) => Promise<void>;
     onShareProject?: () => void;
 }
@@ -49,6 +52,9 @@ export function ProjectDetailsModal({
     const [practiceDraft, setPracticeDraft] = useState("");
     const [visibilityDraft, setVisibilityDraft] =
         useState<ContentVisibility>("private");
+    // Donna's switch. List rows do not carry it, so the project's detail is read once.
+    const [donnaCurrent, setDonnaCurrent] = useState<boolean | null>(null);
+    const [donnaDraft, setDonnaDraft] = useState(true);
     const [orgs, setOrgs] = useState<Org[]>([]);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -77,6 +83,32 @@ export function ProjectDetailsModal({
         projectVisibility,
     ]);
 
+    const projectDonna = project?.donna_enabled;
+    const projectOrgId = project?.org_id ?? null;
+    useEffect(() => {
+        if (!open || !projectId || !projectOrgId) return;
+        if (typeof projectDonna === "boolean") {
+            setDonnaCurrent(projectDonna);
+            setDonnaDraft(projectDonna);
+            return;
+        }
+        let cancelled = false;
+        setDonnaCurrent(null);
+        getProject(projectId)
+            .then((detail) => {
+                if (cancelled) return;
+                const enabled = detail.donna_enabled !== false;
+                setDonnaCurrent(enabled);
+                setDonnaDraft(enabled);
+            })
+            .catch(() => {
+                if (!cancelled) setDonnaCurrent(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, projectId, projectOrgId, projectDonna]);
+
     useEffect(() => {
         if (!open) return;
         let cancelled = false;
@@ -102,9 +134,10 @@ export function ProjectDetailsModal({
             trimmedCm !== (project.cm_number ?? "") ||
             trimmedPractice !== (project.practice ?? "") ||
             (!!project.org_id &&
-                visibilityDraft !== (project.visibility ?? "private"))
+                visibilityDraft !== (project.visibility ?? "private")) ||
+            (!!project.org_id && donnaCurrent !== null && donnaDraft !== donnaCurrent)
         );
-    }, [project, trimmedCm, trimmedName, trimmedPractice, visibilityDraft]);
+    }, [project, trimmedCm, trimmedName, trimmedPractice, visibilityDraft, donnaCurrent, donnaDraft]);
 
     // The select falls back to rendering its raw value when no option matches,
     // so a failed (or still pending) listOrgs used to show the organization's
@@ -145,7 +178,11 @@ export function ProjectDetailsModal({
                 visibilityDraft !== (project.visibility ?? "private")
                     ? { visibility: visibilityDraft }
                     : {}),
+                ...(project?.org_id && donnaCurrent !== null && donnaDraft !== donnaCurrent
+                    ? { donnaEnabled: donnaDraft }
+                    : {}),
             });
+            if (project?.org_id && donnaCurrent !== null) setDonnaCurrent(donnaDraft);
             setSaved(true);
         } catch (err: unknown) {
             // An intentional 4xx (a name conflict, a refusal) says something
@@ -288,6 +325,32 @@ export function ProjectDetailsModal({
                         resourceNoun="project"
                         disabled={!canEdit || saving}
                     />
+                ) : null}
+
+                {project.org_id ? (
+                    <div data-slot="donna-switch">
+                        <FieldLabel as="p">{t("donna.project.label")}</FieldLabel>
+                        {donnaCurrent === null ? (
+                            <p className="text-sm text-gray-500">{t("donna.project.loading")}</p>
+                        ) : (
+                            <ToggleSwitchUI
+                                checked={donnaDraft}
+                                onCheckedChange={(next) => {
+                                    setDonnaDraft(next);
+                                    setSaved(false);
+                                    setError(null);
+                                }}
+                                disabled={!canEdit || saving}
+                                aria-label={t("donna.project.enable")}
+                                aria-describedby="project-details-donna-help"
+                            >
+                                {donnaDraft ? t("projects.on") : t("projects.off")}
+                            </ToggleSwitchUI>
+                        )}
+                        <p id="project-details-donna-help" className="mt-1.5 text-xs text-gray-500">
+                            {canEdit ? t("donna.project.help") : t("donna.project.readOnly")}
+                        </p>
+                    </div>
                 ) : null}
             </div>
         </Modal>

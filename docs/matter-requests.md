@@ -65,7 +65,7 @@ Migration `20261116_30_litt_matter_requests.sql`.
 | `matter_request_types` | the firm's catalog. A default has `seed_key` and no `name` (the app words it in the reader's language); renaming stores a name. Archived, never deleted |
 | `matter_requests` | `title`, `type_id`, `complexity` (`routine`, `standard`, `complex`), `status`, `assignee_user_id` + `assignee_level`, `received_on`, `closed_on`, `version` |
 | `matter_request_rounds` | an existing `document_versions` row linked to a request with `round_number` and `round_date` |
-| `matter_request_events` | insert-only: `created`, `edited`, `status_changed`, `assigned`, `unassigned`, `round_linked`, `round_unlinked`, with field names, states and ids only (never the title) |
+| `matter_request_events` | insert-only: `created`, `edited`, `status_changed`, `assigned`, `unassigned`, `round_linked`, `round_unlinked`, and Donna's `triage_proposed`, `triage_accepted`, `triage_edited`, `triage_discarded` (docs/request-triage.md), with field names, states and ids only (never the title) |
 
 The states are `received`, `in_review`, `with_client`, `with_counterparty`,
 `closed` (signed or closed) and `cancelled`. `closed_on` is set exactly when the
@@ -130,7 +130,7 @@ involved: an owner or admin ticks **Suggested playbooks** under a type in
   gone, private or no longer shared reads as absent.
 - RLS: members of the firm read; every write is the backend's.
 - Archiving a type keeps its links (its selector is hidden; the links are not
-  deleted). The triage card will read these links in a later slice.
+  deleted). Donna's triage card reads these links (docs/request-triage.md).
 
 ## Firm counts
 
@@ -186,4 +186,5 @@ never read its requests. What they get is **numbers**: `GET
 ## Not here
 
 Hours, estimates or time tracking; a client entity; the public request form;
-notifications; classification of requests by a model; the client's own view.
+notifications; the client's own view. (Classification of requests by a model is
+Donna's triage: docs/request-triage.md.)

@@ -15,15 +15,14 @@
 // the quote nor TypeSafe's response text appears in a message or a log: every
 // failure is a static code (CitationSupportError.code).
 import { AppError } from "../appError";
+import { askJev, JEV_MODEL, JEV_URL, JevError, type JevDeps } from "../jev";
 
-export const TYPESAFE_URL = "https://api.typesafe.ai/v1/systemone";
-/** A versioned id, never `jev-latest`: aliases move and the bands were measured on this one. */
-export const JEV_MODEL = "jev-1.14.0";
+// The transport (URL, pinned model, redirect refusal, the one retry) is the
+// shared Jev client's; this file keeps the citation question and its bands.
+export const TYPESAFE_URL = JEV_URL;
+export { JEV_MODEL };
 export const QUESTION_VERSION = "noul-rico-v2";
 const QUESTION_NAME = "respalda";
-const REQUEST_TIMEOUT_MS = 30_000;
-const RETRY_WAIT_MS = 1_000;
-const MAX_RETRY_WAIT_MS = 5_000;
 
 /** p < 0.3 not supported, 0.3 to 0.7 review, p >= 0.7 supported. */
 export const NOT_SUPPORTED_BELOW = 0.3;
@@ -114,34 +113,10 @@ export type SupportAnswer = {
     inputTokens: number | null;
 };
 
-export type SupportDeps = {
-    fetch?: typeof fetch;
-    signal?: AbortSignal;
-    sleep?: (ms: number) => Promise<void>;
-    now?: () => number;
-    timeoutMs?: number;
-};
+export type SupportDeps = JevDeps;
 
-const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === "object" && !Array.isArray(value);
-
-function statusError(status: number): CitationSupportError {
-    if (status === 401) return new CitationSupportError("unauthorized", status);
-    if (status === 402) return new CitationSupportError("payment_required", status);
-    if (status === 403) return new CitationSupportError("forbidden", status);
-    if (status === 429) return new CitationSupportError("rate_limited", status);
-    if (status >= 500) return new CitationSupportError("unavailable", status);
-    return new CitationSupportError("rejected", status);
-}
-
-/** Seconds in Retry-After, capped; otherwise a short fixed wait. */
-function retryWait(response: Response): number {
-    const seconds = Number(response.headers.get("retry-after"));
-    return Number.isFinite(seconds) && seconds > 0
-        ? Math.min(seconds * 1_000, MAX_RETRY_WAIT_MS)
-        : RETRY_WAIT_MS;
-}
 
 /**
  * Ask Jev whether `state.cita` supports `state.afirmacion`. 401, 402 and 403
@@ -153,79 +128,21 @@ export async function askCitationSupport(
     state: SupportState,
     deps: SupportDeps = {},
 ): Promise<SupportAnswer> {
-    const doFetch = deps.fetch ?? fetch;
-    const sleep = deps.sleep ?? defaultSleep;
-    const now = deps.now ?? (() => performance.now());
-    const key = apiKey.trim();
-    if (!key) throw new CitationSupportError("unauthorized");
-    const body = JSON.stringify({
-        model: JEV_MODEL,
-        state,
-        questions: { [QUESTION_NAME]: SUPPORT_QUESTION },
-    });
-
-    for (let attempt = 0; ; attempt += 1) {
-        const started = now();
-        let response: Response;
-        try {
-            response = await doFetch(TYPESAFE_URL, {
-                method: "POST",
-                headers: {
-                    authorization: `Bearer ${key}`,
-                    "content-type": "application/json",
-                    accept: "application/json",
-                },
-                body,
-                // The key rides in a header, and fetch forwards custom headers
-                // across origins on a redirect. TypeSafe needs none.
-                redirect: "manual",
-                signal: AbortSignal.any([
-                    ...(deps.signal ? [deps.signal] : []),
-                    AbortSignal.timeout(deps.timeoutMs ?? REQUEST_TIMEOUT_MS),
-                ]),
-            });
-        } catch {
-            throw new CitationSupportError("network");
-        }
-        if (response.status !== 200) {
-            await response.body?.cancel().catch(() => undefined);
-            const error = statusError(response.status);
-            const retryable = error.code === "rate_limited" || error.code === "unavailable";
-            if (!retryable || attempt >= 1) throw error;
-            await sleep(retryWait(response));
-            continue;
-        }
-        let json: unknown;
-        try {
-            json = await response.json();
-        } catch {
-            throw new CitationSupportError("bad_response");
-        }
-        const latencyMs = Math.max(0, Math.round(now() - started));
-        return parseAnswer(json, latencyMs);
+    let response;
+    try {
+        response = await askJev(apiKey, { state, questions: { [QUESTION_NAME]: SUPPORT_QUESTION } }, deps);
+    } catch (error) {
+        if (error instanceof JevError) throw new CitationSupportError(error.code, error.status);
+        throw error;
     }
-}
-
-function parseAnswer(json: unknown, latencyMs: number): SupportAnswer {
-    const answers = isRecord(json) && isRecord(json.answers) ? json.answers : null;
-    const answer = answers && isRecord(answers[QUESTION_NAME]) ? answers[QUESTION_NAME] : null;
+    const answer = isRecord(response.answers[QUESTION_NAME]) ? response.answers[QUESTION_NAME] : null;
     const probability = answer && answer.type === "noul" ? answer.noul : null;
-    const model = isRecord(json) ? json.model : null;
-    if (
-        typeof probability !== "number" ||
-        !Number.isFinite(probability) ||
-        probability < 0 ||
-        probability > 1 ||
-        typeof model !== "string" ||
-        !model
-    )
+    if (typeof probability !== "number" || !Number.isFinite(probability) || probability < 0 || probability > 1)
         throw new CitationSupportError("bad_response");
-    const usage = isRecord(json) && isRecord(json.usage) ? json.usage : null;
-    const tokens = usage?.input_tokens;
     return {
         probability,
-        model: model.slice(0, 80),
-        latencyMs,
-        inputTokens: typeof tokens === "number" && Number.isInteger(tokens) && tokens >= 0 ? tokens : null,
+        model: response.model,
+        latencyMs: response.latencyMs,
+        inputTokens: response.inputTokens,
     };
 }

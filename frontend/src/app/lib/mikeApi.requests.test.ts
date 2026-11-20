@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createMatterRequest,
     createRequestType,
+    decideTriageItem,
+    getDonnaUsage,
+    getTriageCard,
+    runTriage,
     getMatterRequest,
     getRequestCounts,
     linkMatterRequestRound,
@@ -101,5 +105,48 @@ describe("matter requests API", () => {
     it.each([[{}], [[]], [null]])("treats %j as a failed catalog load", async (body) => {
         reply(body);
         await expect(listRequestTypes("o 1")).rejects.toThrow("Malformed");
+    });
+
+    const T = `${M}/requests/r%201/triage`;
+    it.each([
+        ["get triage", () => getTriageCard("p 1", "m 1", "r 1"), T, "GET", undefined],
+        ["run triage", () => runTriage("p 1", "m 1", "r 1"), T, "POST", {}],
+        ["decide item", () => decideTriageItem("p 1", "m 1", "r 1", "i 1", { decision: "accepted" } as never), `${T}/items/i%201/decision`, "POST", { decision: "accepted" }],
+    ] as const)("%s", async (_name, call, path, method, body) => {
+        reply({ items: [] });
+        expect(await call()).toEqual({ items: [] });
+        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe(path);
+        expect(init.method ?? "GET").toBe(method);
+        if (body) expect(JSON.parse(init.body as string)).toEqual(body);
+        else expect(init.body).toBeUndefined();
+    });
+
+    const usage = {
+        month: "2026-11",
+        limit: 1000,
+        used: 1,
+        remaining: 999,
+        engines: { jev: { runs: 1, input_tokens: 2, output_tokens: 3, cost_usd: 0.1 }, byok: { runs: 0 } },
+        projects: [],
+    };
+    it("reads the Donna usage of the firm", async () => {
+        reply(usage);
+        expect(await getDonnaUsage("o 1")).toEqual(usage);
+        expect(fetchMock.mock.calls[0][0]).toBe("/api/orgs/o%201/donna/usage");
+    });
+
+    it.each([
+        [[]],
+        [null],
+        [{}],
+        [{ ...usage, engines: {} }],
+        [{ ...usage, engines: { jev: usage.engines.jev } }],
+        [{ ...usage, engines: { ...usage.engines, jev: { runs: "1" } } }],
+        [{ ...usage, projects: {} }],
+        [{ ...usage, used: null }],
+    ])("treats %j as failed Donna usage", async (body) => {
+        reply(body);
+        await expect(getDonnaUsage("o 1")).rejects.toThrow("Malformed");
     });
 });

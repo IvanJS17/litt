@@ -31,6 +31,7 @@ import {
   TypeSelect,
 } from "./requestFields";
 import { TITLE_MAX } from "./requestOptions";
+import { TriageCard } from "./TriageCard";
 
 type Props = {
   projectId: string;
@@ -174,6 +175,16 @@ export function RequestDetail({ projectId, matterId, request, types, assignees, 
           </div>
         ) : null}
       </section>
+
+      <TriageCard
+        projectId={projectId}
+        matterId={matterId}
+        request={request}
+        types={types}
+        assignees={assignees}
+        onChanged={onChanged}
+        onStale={onStale}
+      />
 
       <RoundsSection
         projectId={projectId}

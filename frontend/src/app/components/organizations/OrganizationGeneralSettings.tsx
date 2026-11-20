@@ -43,6 +43,7 @@ import {
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LittMonogramPixel, PillButtonUI } from "@mike/ui";
 import { ManagedAccountsSetting } from "./ManagedAccountsSetting";
+import { DonnaUsageSettings } from "@/app/components/requests/DonnaUsageSettings";
 import { RequestCountsSettings } from "@/app/components/requests/RequestCountsSettings";
 import { RequestTypesSettings } from "@/app/components/requests/RequestTypesSettings";
 import { OrganizationFirmProfile } from "./OrganizationFirmProfile";
@@ -365,6 +366,7 @@ export function OrganizationGeneralSettings() {
       {org ? <OrganizationFirmProfile orgId={org.id} /> : null}
       {org ? <RequestTypesSettings orgId={org.id} /> : null}
       {org && canRename ? <RequestCountsSettings orgId={org.id} /> : null}
+      {org && canRename ? <DonnaUsageSettings orgId={org.id} /> : null}
 
       <section aria-labelledby="org-general-membership" className="space-y-3">
         <SettingsHeading id="org-general-membership">

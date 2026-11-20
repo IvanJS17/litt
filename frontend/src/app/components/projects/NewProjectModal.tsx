@@ -75,6 +75,8 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
     // — unless its creator makes it public on the details step.
     const [visibility, setVisibility] = useState<ContentVisibility>("private");
     const [memoryEnabled, setMemoryEnabled] = useState(true);
+    // Donna reads each new request of the project; checked unless the lawyer says otherwise.
+    const [donnaEnabled, setDonnaEnabled] = useState(true);
     const memoryEditedRef = useRef(false);
     const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -232,6 +234,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                               orgId,
                               memoryEnabled,
                               visibility,
+                              donnaEnabled,
                           )
                         : await createProject(
                               name.trim(),
@@ -260,6 +263,11 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                 )
                     await updateProject(project.id, { visibility });
                 project = { ...project, visibility };
+                // Same for Donna's box: an explicit opt-out is never lost to a retry.
+                if (retrying && (project.donna_enabled ?? true) !== donnaEnabled) {
+                    await updateProject(project.id, { donna_enabled: donnaEnabled });
+                    project = { ...project, donna_enabled: donnaEnabled };
+                }
             }
             createdProjectRef.current = project;
             setProjectExists(true);
@@ -426,6 +434,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                           : ("private" as const),
                 organization_name: organizationName,
                 memory_enabled: memoryEnabled,
+                ...(orgId !== PERSONAL_WORKSPACE ? { donna_enabled: donnaEnabled } : {}),
                 ...(orgId === PERSONAL_WORKSPACE && recipients.length > 0
                     ? { direct_grant_count: recipients.length }
                     : {}),
@@ -688,6 +697,26 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                 {memoryEnabled ? t("projects.on") : t("projects.off")}
                             </ToggleSwitchUI>
                         </div>
+
+                        {orgId !== PERSONAL_WORKSPACE ? (
+                            <div>
+                                <FieldLabel as="p">{t("donna.project.label")}</FieldLabel>
+                                <ToggleSwitchUI
+                                    checked={donnaEnabled}
+                                    onCheckedChange={setDonnaEnabled}
+                                    aria-label={t("donna.project.enable")}
+                                    aria-describedby="new-project-donna-help"
+                                >
+                                    {donnaEnabled ? t("projects.on") : t("projects.off")}
+                                </ToggleSwitchUI>
+                                <p
+                                    id="new-project-donna-help"
+                                    className="mt-1.5 text-xs text-gray-500"
+                                >
+                                    {t("donna.project.help")}
+                                </p>
+                            </div>
+                        ) : null}
                     </div>
                 ) : step === "access" ? (
                     <CreateAccessStep

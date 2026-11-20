@@ -114,6 +114,16 @@ async function signedIn(page: Page, s: Scenario) {
                 can_manage: manages,
             });
         }
+        if (p === `/orgs/${FIRM}/donna/usage`) {
+            return ok({
+                month: "2026-11",
+                limit: 1000,
+                used: 0,
+                remaining: 1000,
+                engines: { jev: { runs: 0, input_tokens: 0, output_tokens: 0, cost_usd: 0 }, byok: { runs: 0 } },
+                projects: [],
+            });
+        }
         if (p === `/orgs/${FIRM}/requests/counts`) {
             const zero = { total: 0, open: 0, closed: 0, cancelled: 0 };
             return ok({

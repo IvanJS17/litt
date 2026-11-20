@@ -45,6 +45,10 @@ export const REQUEST_EVENT_ACTIONS: readonly MatterRequestEvent["action"][] = [
   "unassigned",
   "round_linked",
   "round_unlinked",
+  "triage_proposed",
+  "triage_accepted",
+  "triage_edited",
+  "triage_discarded",
 ];
 
 export const TITLE_MAX = 160;

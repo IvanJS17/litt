@@ -223,7 +223,45 @@ describe("NewProjectModal sharing", () => {
         "org-1",
         true,
         "private",
+        true,
       ),
+    );
+  });
+
+  it("shows Donna's box checked, with what it sends, in an organization's project; unchecking it creates the project with Donna off", async () => {
+    activeWorkspace.id = "org-1";
+    const user = userEvent.setup({ delay: null });
+    renderModal();
+    const donna = screen.getByRole("switch", { name: "Turn on Donna in this project" });
+    expect(donna).toBeChecked();
+    expect(screen.getByText(/sent to TypeSafe/)).toBeInTheDocument();
+    await user.click(donna);
+    expect(donna).not.toBeChecked();
+    await user.type(screen.getByPlaceholderText("Add project name"), "P");
+    while (!screen.queryByRole("button", { name: "Create project" })) {
+      const next = screen.getByRole("button", { name: "Next" });
+      await waitFor(() => expect(next).toBeEnabled());
+      await user.click(next);
+    }
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await waitFor(() =>
+      expect(createProject).toHaveBeenCalledWith("P", undefined, undefined, "org-1", true, "private", false),
+    );
+  });
+
+  it("creates it with Donna on by default", async () => {
+    activeWorkspace.id = "org-1";
+    const user = userEvent.setup({ delay: null });
+    renderModal();
+    await user.type(screen.getByPlaceholderText("Add project name"), "P");
+    while (!screen.queryByRole("button", { name: "Create project" })) {
+      const next = screen.getByRole("button", { name: "Next" });
+      await waitFor(() => expect(next).toBeEnabled());
+      await user.click(next);
+    }
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await waitFor(() =>
+      expect(createProject).toHaveBeenCalledWith("P", undefined, undefined, "org-1", true, "private", true),
     );
   });
 
@@ -233,6 +271,12 @@ describe("NewProjectModal sharing", () => {
     expect(
       screen.queryByRole("group", { name: "Organisational Access" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers no Donna box for a personal project", () => {
+    activeWorkspace.id = "personal";
+    renderModal();
+    expect(screen.queryByRole("switch", { name: "Turn on Donna in this project" })).not.toBeInTheDocument();
   });
 
   it("starts a new project as personal in the personal workspace", async () => {
@@ -848,6 +892,7 @@ describe("NewProjectModal sharing", () => {
                 "org-1",
                 true,
                 "private",
+                true,
             ),
         );
         await waitFor(() =>
@@ -915,6 +960,7 @@ describe("NewProjectModal sharing", () => {
                 "org-1",
                 true,
                 "organization",
+                true,
             ),
         );
         await waitFor(() =>

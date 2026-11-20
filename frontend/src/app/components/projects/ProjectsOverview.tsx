@@ -419,6 +419,7 @@ export function ProjectsOverview() {
         name: string;
         cmNumber: string;
         practice: string;
+        donnaEnabled?: boolean;
     }) {
         if (!detailsProject) return;
         // The list rows carry the caller's merged access_role, so an
@@ -439,6 +440,7 @@ export function ProjectsOverview() {
             name,
             cm_number: cmNumber,
             practice: practice || null,
+            ...(values.donnaEnabled !== undefined ? { donna_enabled: values.donnaEnabled } : {}),
         });
         setProjects((prev) =>
             prev.map((project) =>
