@@ -411,4 +411,3 @@ export function parseGenerative(raw: string): Generative | null {
 export function isEmptyGenerative(value: Generative): boolean {
   return value.strategy.length === 0 && value.questions.length === 0 && value.documents.length === 0;
 }
-
