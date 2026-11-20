@@ -214,7 +214,8 @@ document, not that it **justifies** the rule: that judgement is the lawyer's.
 ### Who can request and decide
 
 An owner or editor **who is not in training**. A person with a training stage
-(`pasante` or `junior`, any practice area; the one resolver
+(`pasante` or `junior` that applies where they work: the stage of the
+project's practice area, or the one that covers all of them; the one resolver
 `resolveTrainingStage`, [`training.md`](training.md)) gets `403`
 `rule_suggestions_trainee` on the run, each decision and the batch, before any
 route, egress record or model call. They still read the radar and the
@@ -250,7 +251,7 @@ retainer matters only; an admin without a membership gets 404):
 | Route | Who |
 |---|---|
 | `GET /` | any active member: the suggestions with their state, and the versions a run can read (writers) |
-| `GET /route` | owner or editor: where the text would go, or `{ route: null }` |
+| `GET /route` | owner or editor who is not in training: where the text would go, or `{ route: null }` |
 | `POST /versions/:versionId/suggest` | owner or editor; MFA if enrolled; 10 runs per person per 15 minutes (`RATE_LIMIT_RULE_SUGGEST_MAX`, `RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES`) |
 | `POST /:suggestionId/accept`, `/discard` | owner or editor; body `{ reason? }` |
 | `POST /batch` | owner or editor; `{ action: "accept" \| "discard", suggestionIds (≤ 50), reason? }`: each id goes through the same decision as the single route, one event each, a partial result is normal |
@@ -336,7 +337,7 @@ keeps `catalog_match` and `new_rule_draft` rows exactly as before.
 | Route (under `/radar/rules/suggestions`) | Who |
 |---|---|
 | `POST /plan` | owner or editor not in training; `{ versionIds? }` |
-| `POST /read` | same; MFA if enrolled; same per-person limit as S8a (each call counts); `{ runId, versionIds }` |
+| `POST /read` | same; MFA if enrolled; its own per-person lane, 60 calls per 15 minutes (`RATE_LIMIT_RULE_READ_MAX`), apart from S8a's 10, because one full read is a plan of several calls; at the limit: `429 rate_limited`, resume later; `{ runId, versionIds }` |
 | `POST /questions/:questionId/answer` | same; `{ answer: "yes" \| "no" }` |
 
 ## Rule proposals

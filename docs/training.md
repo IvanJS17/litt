@@ -108,7 +108,8 @@ matter.
 
 ### What a person in training cannot do
 
-Beyond the turn rules, a person with a stage (any practice area) cannot:
+Beyond the turn rules, a person with a stage that applies where they work (their project's practice
+area, or the stage that covers all of them) cannot:
 
 - request or decide the AI's rule suggestions of a retainer matter (Radar), nor
   propose or decide rule proposals from a law text: `403`

@@ -6,6 +6,7 @@ import type { Row } from "../helpers/memoryDb";
 // the lane is per person, not per address, and a refusal costs nothing.
 const h = vi.hoisted(() => {
     process.env.RATE_LIMIT_RULE_SUGGEST_MAX = "3";
+    process.env.RATE_LIMIT_RULE_READ_MAX = "5";
     process.env.RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES = "15";
     return {
         caller: { id: "" },
@@ -74,5 +75,23 @@ describe("the rule suggestion lane", () => {
             expect((await request(app).get(`${base}/route`)).status).toBe(404);
             expect((await request(app).get(base)).status).toBe(404);
         }
+    });
+
+    it("gives an all-documents read (S8c) its own larger lane: more calls than the single run allows, then 429", async () => {
+        as(id(4));
+        const read = `/projects/${id(120)}/matters/${id(130)}/radar/rules/suggestions/read`;
+        // Five calls of one plan pass (the single-version lane stops at three); the sixth is refused.
+        for (let attempt = 0; attempt < 5; attempt += 1)
+            expect((await request(app).post(read).send({})).status).toBe(404);
+        const refused = await request(app).post(read).send({});
+        expect(refused.status).toBe(429);
+        expect(refused.body.code).toBe("rate_limited");
+        expect(refused.headers["ratelimit-limit"]).toBe("5");
+        // The lanes are apart: the single-version run of the same person still passes.
+        expect((await request(app).post(path).send({})).status).toBe(404);
+        // Another person has their own read lane.
+        as(id(5));
+        expect((await request(app).post(read).send({})).status).toBe(404);
+        expect(h.calls).toBe(0);
     });
 });

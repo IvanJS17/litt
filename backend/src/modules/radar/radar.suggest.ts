@@ -19,6 +19,7 @@
 
 import crypto from "node:crypto";
 import type {
+  ProfileExtractionRoute,
   ProfilePerson,
   RuleSuggestion,
   RuleSuggestionBatchResult,
@@ -99,8 +100,22 @@ export function catalogForSuggestions(
   return entries;
 }
 
-/** Whether the button can be offered: the route the chat would use here, for an owner or editor of a retainer matter. */
-export const getSuggestionRoute = getExtractionRoute;
+/**
+ * Whether the button can be offered: the route the chat would use here, for an
+ * owner or editor of a retainer matter who is not in training (a trainee gets
+ * null, like the proposals' route). getExtractionRoute itself is S6a's and is
+ * not changed.
+ */
+export async function getSuggestionRoute(db: Db, actor: Actor): Promise<ServiceResult<ProfileExtractionRoute | null>> {
+  try {
+    const access = await authorizeMatterMember(db, actor);
+    if (!access.ok) return access;
+    if (await isTraineeIn(db, actor.userId, access.data.organizationId, access.data.projectId)) return ok(null);
+    return getExtractionRoute(db, actor);
+  } catch (error) {
+    return internalFailure(error);
+  }
+}
 
 export async function getRuleSuggestions(
   db: Db,
