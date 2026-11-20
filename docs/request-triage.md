@@ -38,13 +38,17 @@ leaves LiTT: no matter name, client profile, memory, chat, other requests, file 
 people other than the candidates' function.
 
 > A request has no free-text body today (only a title), so «the text of the request» is its
-> documents. A document linked after the run is read on the next run («Volver a analizar»).
+> documents.
 
 ## When it runs
 
 - **Automatically** on creating a request, in the background (`scheduleAutoTriage`
   in `requests.triage.run.ts`; the creation never waits for it and never fails with it),
   when the project's switch is on and the month's cap is not reached.
+- **When a document is linked** to a request (a round), the same background run happens
+  again, with no button (`scheduleDocumentTriage`). A burst of links waits 5 s and makes one
+  run; a link while a run is going makes one more when it ends; and nothing runs when the
+  documents (ids and versions) are exactly those the last run saw. It counts against the cap.
 - A request that **already existed** is never analysed by itself: not when the switch is
   turned on, not when the card is opened.
 - **Manually** with «Analizar ahora» / «Volver a analizar» (owner or editor of the

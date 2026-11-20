@@ -12,6 +12,7 @@ import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serv
 import type { Db } from "../../lib/supabase";
 import { isUuid } from "../../lib/uuid";
 import { recordRequestEvent } from "./requests.events";
+import { scheduleDocumentTriage } from "./requests.triage.run";
 import {
   isIsoDate,
   isRecord,
@@ -198,6 +199,15 @@ export async function linkRound(
       actorUserId: actor.userId,
       action: "round_linked",
       detail: { round_number: roundNumber, document_id: found.document_id, version_id: versionId },
+    });
+    // Donna reads the new document too, in the background (docs/request-triage.md).
+    scheduleDocumentTriage(db, {
+      userId: actor.userId,
+      userEmail: actor.userEmail,
+      orgId: access.organizationId,
+      projectId: access.projectId,
+      matterId: access.matterId,
+      requestId,
     });
     return ok({
       ...(inserted as unknown as RoundRow),

@@ -92,7 +92,7 @@ export function TriageCard({ projectId, matterId, request, types, assignees, onC
       current = false;
       if (timer) clearTimeout(timer);
     };
-  }, [projectId, matterId, requestId, attempt, pending]);
+  }, [projectId, matterId, requestId, attempt, pending, request.round_count]);
 
   const refreshRequest = useCallback(async () => {
     onChanged(await getMatterRequest(projectId, matterId, requestId));

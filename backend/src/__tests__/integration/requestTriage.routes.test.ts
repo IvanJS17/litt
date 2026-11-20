@@ -112,7 +112,7 @@ vi.mock("../../lib/documentTextCache", async (importOriginal) => ({
 
 import { app } from "../../app";
 import { JEV_MODEL, JevError } from "../../lib/jev";
-import { settleTriageRuns } from "../../modules/requests/requests.service";
+import { flushDocumentTriage, settleTriageRuns, triageTiming } from "../../modules/requests/requests.service";
 import { DONNA_MONTHLY_RUN_CAP } from "../../modules/requests/requests.triage.shared";
 import { memoryDb } from "../helpers/memoryDb";
 
@@ -294,6 +294,88 @@ describe("the automatic run", () => {
         release();
         await settleTriageRuns();
         expect((await card(created.body.id)).body).toMatchObject({ pending: false, run: { classify_status: "ok" } });
+    });
+});
+
+describe("documents linked later are read by themselves", () => {
+    const link = (requestId: string, versionId: string) => request(app).post(`${base}/${requestId}/rounds`).send({ version_id: versionId });
+    const runs = () => tables().matter_request_triage_runs;
+    const read = async () => {
+        flushDocumentTriage();
+        await settleTriageRuns();
+    };
+    beforeEach(() => {
+        // A burst waits this long; the tests fire it by hand.
+        triageTiming.docDebounceMs = 60_000;
+    });
+
+    it("runs once after a document is linked, reading it, with no button", async () => {
+        const requestId = await createRequest(false);
+        expect(runs()).toHaveLength(1);
+        expect((await link(requestId, VERSION)).status).toBe(201);
+        expect(runs()).toHaveLength(1);
+        await read();
+        expect(runs()).toHaveLength(2);
+        expect(runs()[1]).toMatchObject({ trigger: "auto", docs_total: 1, docs_read: 1, read_version_ids: [VERSION] });
+        expect(h.jev.calls[1].request.state).toMatchObject({ documentos: [{ texto: expect.stringContaining(MARKER) }] });
+    });
+
+    it("makes one run for a burst of links, reading all of them", async () => {
+        const requestId = await createRequest(false);
+        await link(requestId, VERSION);
+        await link(requestId, VERSION2);
+        await read();
+        expect(runs()).toHaveLength(2);
+        expect(runs()[1]).toMatchObject({ docs_total: 2, docs_read: 2 });
+    });
+
+    it("does not run when the documents are the ones the last run saw", async () => {
+        const requestId = await createRequest(false);
+        await link(requestId, VERSION);
+        await read();
+        expect(runs()).toHaveLength(2);
+        const second = await link(requestId, VERSION2);
+        await request(app).delete(`${base}/${requestId}/rounds/${second.body.id}`);
+        await read();
+        expect(runs()).toHaveLength(2);
+    });
+
+    it("does not run when the project's switch is off", async () => {
+        const requestId = await createRequest(false);
+        tables().projects[0].donna_enabled = false;
+        await link(requestId, VERSION);
+        await read();
+        expect(runs()).toHaveLength(1);
+        expect(h.jev.calls).toHaveLength(1);
+    });
+
+    it("runs once more after a run in progress when a document arrives meanwhile", async () => {
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        h.jev.answer = () => gate.then(() => jevAnswer());
+        as(OWNER);
+        const created = await create();
+        const requestId = created.body.id as string;
+        await link(requestId, VERSION);
+        flushDocumentTriage();
+        expect(runs()).toHaveLength(0);
+        h.jev.answer = () => jevAnswer();
+        release();
+        await settleTriageRuns();
+        expect(runs()).toHaveLength(2);
+        expect(runs()[1]).toMatchObject({ docs_read: 1 });
+    });
+
+    it("counts against the monthly cap like any run, and stops at it", async () => {
+        const requestId = await createRequest(false);
+        for (let i = 0; i < DONNA_MONTHLY_RUN_CAP - 1; i += 1)
+            runs().push({ id: id(20_000 + i), org_id: ORG, project_id: PROJECT, created_at: new Date().toISOString(), classify_error: null, generative_status: "ok" });
+        await link(requestId, VERSION);
+        await read();
+        expect(runs()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
+        await link(requestId, VERSION2);
+        await read();
+        expect(runs()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
     });
 });
 

@@ -97,7 +97,7 @@ const NOT_FOUND = "Not found";
 const inFlight = new Map<string, Promise<unknown>>();
 
 export function isTriagePending(requestId: string): boolean {
-  return inFlight.has(requestId);
+  return inFlight.has(requestId) || docTimers.has(requestId);
 }
 
 /** Tests wait here for the background runs of the requests they created. */
@@ -337,10 +337,18 @@ export async function executeTriage(
     return await task;
   } finally {
     inFlight.delete(ctx.requestId);
+    if (dirty.delete(ctx.requestId)) fireDocumentTriage(ctx.requestId);
   }
 }
 
-async function runTriage(db: Db, ctx: TriageContext, deps: TriageDeps): Promise<ServiceResult<{ runId: string }>> {
+export const TRIAGE_UNCHANGED_CODE = "triage_unchanged";
+
+async function runTriage(
+  db: Db,
+  ctx: TriageContext,
+  deps: TriageDeps,
+  options: { onlyIfChanged?: boolean } = {},
+): Promise<ServiceResult<{ runId: string }>> {
   try {
     const started = Date.now();
     const now = deps.now?.() ?? new Date();
@@ -372,6 +380,25 @@ async function runTriage(db: Db, ctx: TriageContext, deps: TriageDeps): Promise<
     if (!types.ok) return types;
     if (!assignees.ok) return assignees;
     if (!rounds.ok) return rounds;
+
+    // A run caused by a document being linked has nothing to do when the documents
+    // are the very ones the last run saw (read or not): same ids, same versions.
+    if (options.onlyIfChanged) {
+      const { data: last, error: lastError } = await db
+        .from("matter_request_triage_runs")
+        .select("read_version_ids, unread_version_ids")
+        .eq("request_id", ctx.requestId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(1);
+      if (lastError) return internalFailure(lastError);
+      const previous = ((last ?? []) as unknown as { read_version_ids: string[] | null; unread_version_ids: string[] | null }[])[0];
+      if (previous) {
+        const before = [...(previous.read_version_ids ?? []), ...(previous.unread_version_ids ?? [])].sort().join(",");
+        const now = rounds.data.map((doc) => doc.versionId).sort().join(",");
+        if (before === now) return failure("conflict", "The documents are the ones the last run read.", TRIAGE_UNCHANGED_CODE);
+      }
+    }
 
     const selection = selectDocuments(rounds.data, request.title);
     const candidates: Candidate[] = assignees.data.map((one) => ({ user_id: one.user_id, role: one.role }));
@@ -539,5 +566,68 @@ export function scheduleAutoTriage(db: Db, ctx: Omit<TriageContext, "trigger">, 
   inFlight.set(ctx.requestId, task);
   void task.finally(() => {
     if (inFlight.get(ctx.requestId) === task) inFlight.delete(ctx.requestId);
+    if (dirty.delete(ctx.requestId)) fireDocumentTriage(ctx.requestId);
   });
+}
+
+// ---- Re-running when documents are linked ---------------------------------
+
+/** How long a burst of linked documents waits before the one run that reads them all. */
+export const triageTiming = { docDebounceMs: 5_000 };
+
+const docTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const docContexts = new Map<string, { db: Db; ctx: Omit<TriageContext, "trigger"> }>();
+const dirty = new Set<string>();
+
+/**
+ * A document was linked to the request: read it too, with no button. The same
+ * background run as on creation (switch on, cap, egress record), coalesced: a
+ * burst of links waits `docDebounceMs` and makes one run; a link while a run is
+ * going makes one more run when it ends; and a run is skipped when the documents
+ * are exactly those the last run saw. It counts against the monthly cap like any.
+ */
+export function scheduleDocumentTriage(db: Db, ctx: Omit<TriageContext, "trigger">): void {
+  const key = ctx.requestId;
+  docContexts.set(key, { db, ctx });
+  const waiting = docTimers.get(key);
+  if (waiting) clearTimeout(waiting);
+  const timer = setTimeout(() => fireDocumentTriage(key), triageTiming.docDebounceMs);
+  timer.unref?.();
+  docTimers.set(key, timer);
+}
+
+function fireDocumentTriage(key: string): void {
+  const waiting = docTimers.get(key);
+  if (waiting) clearTimeout(waiting);
+  docTimers.delete(key);
+  const entry = docContexts.get(key);
+  if (!entry) return;
+  if (inFlight.has(key)) {
+    dirty.add(key);
+    return;
+  }
+  docContexts.delete(key);
+  const task = (async () => {
+    try {
+      const result = await runTriage(entry.db, { ...entry.ctx, trigger: "auto" }, {}, { onlyIfChanged: true });
+      if (!result.ok && result.kind === "error")
+        reportError(new AppError("donna_triage.auto_failed", "[triage] automatic run failed", { cause: result.error }), {
+          tags: { operation: "requests.triage.documents" },
+        });
+    } catch (error) {
+      reportError(new AppError("donna_triage.auto_failed", "[triage] automatic run failed", { cause: error }), {
+        tags: { operation: "requests.triage.documents" },
+      });
+    }
+  })();
+  inFlight.set(key, task);
+  void task.finally(() => {
+    if (inFlight.get(key) === task) inFlight.delete(key);
+    if (dirty.delete(key)) fireDocumentTriage(key);
+  });
+}
+
+/** Tests: fire the waiting document runs now instead of after the debounce. */
+export function flushDocumentTriage(): void {
+  for (const key of [...docTimers.keys()]) fireDocumentTriage(key);
 }

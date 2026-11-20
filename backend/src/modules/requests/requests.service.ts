@@ -19,6 +19,6 @@ export {
 } from "./requests.types";
 export { decideTriageItem, runTriageNow } from "./requests.triage.act";
 export { getTriageCard } from "./requests.triage.read";
-export { settleTriageRuns } from "./requests.triage.run";
+export { flushDocumentTriage, settleTriageRuns, triageTiming } from "./requests.triage.run";
 export { getDonnaUsage } from "./requests.triage.usage";
 export { DONNA_MONTHLY_RUN_CAP } from "./requests.triage.shared";
