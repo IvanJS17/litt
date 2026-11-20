@@ -11,6 +11,9 @@
 //     GET  /rules/suggestions        the AI's rule suggestions and their decisions (any member)
 //     GET  /rules/suggestions/route  where a version's text would go (null: no button)
 //     POST /rules/suggestions/versions/:versionId/suggest   the space's AI suggests catalog rules from one version
+//     POST /rules/suggestions/plan   which documents a full read covers, grouped into calls (S8c)
+//     POST /rules/suggestions/read   ONE call of that plan: the space's AI reads those documents (S8c)
+//     POST /rules/suggestions/questions/:questionId/answer   the lawyer answers a yes/no question (never sent to the AI)
 //     POST /rules/suggestions/batch  accept or discard several (each one its own decision)
 //     POST /rules/suggestions/:suggestionId/{accept,discard}   the lawyer decides (owner or editor)
 //
@@ -30,6 +33,7 @@ import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import {
   acceptRuleSuggestion,
+  answerRuleQuestion,
   actOnRadarItem,
   decideRuleSuggestions,
   discardProposal,
@@ -42,6 +46,8 @@ import {
   getRuleProposals,
   getRuleSuggestions,
   getSuggestionRoute,
+  planRuleRead,
+  readRuleBatch,
   markProposalImplemented,
   proposeRules,
   sendProposalToLegal,
@@ -100,6 +106,18 @@ matterRadarRouter.get("/rules/suggestions/route", requireAuth, asyncRoute(async 
 
 matterRadarRouter.post("/rules/suggestions/versions/:versionId/suggest", requireAuth, requireMfaIfEnrolled, suggestLimiter, asyncRoute(async (req, res) => {
   send(res, await suggestRules(createServerSupabase(), { ...matterActor(req, res), versionId: req.params.versionId }));
+}));
+
+matterRadarRouter.post("/rules/suggestions/plan", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+  send(res, await planRuleRead(createServerSupabase(), { ...matterActor(req, res), body: req.body }));
+}));
+
+matterRadarRouter.post("/rules/suggestions/read", requireAuth, requireMfaIfEnrolled, suggestLimiter, asyncRoute(async (req, res) => {
+  send(res, await readRuleBatch(createServerSupabase(), { ...matterActor(req, res), body: req.body }));
+}));
+
+matterRadarRouter.post("/rules/suggestions/questions/:questionId/answer", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
+  send(res, await answerRuleQuestion(createServerSupabase(), { ...matterActor(req, res), questionId: req.params.questionId, body: req.body }));
 }));
 
 matterRadarRouter.post("/rules/suggestions/batch", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {

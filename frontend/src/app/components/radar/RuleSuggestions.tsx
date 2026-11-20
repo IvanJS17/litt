@@ -7,6 +7,7 @@ import { PillButtonUI, TextButtonUI } from "@mike/ui";
 import type {
   ObligationRule,
   ProfileExtractionRoute,
+  RuleQuestion,
   RuleSuggestion,
   RuleSuggestionRun,
   RuleSuggestions as RuleSuggestionsData,
@@ -16,6 +17,7 @@ import { FormTextInput } from "@/app/components/ui/form-field";
 import { LIQUID_SUBTLE_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-surface";
 import { extractionProviderName } from "@/app/components/profile/profileOptions";
 import {
+  answerRuleQuestion,
   decideRuleSuggestion,
   decideRuleSuggestions,
   getRuleSuggestionRoute,
@@ -24,6 +26,8 @@ import {
 } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useObligationWords } from "./obligationText";
+import { RuleQuestions } from "./RuleQuestions";
+import { RuleReadAll } from "./RuleReadAll";
 import {
   RuleSuggestionBatchBar,
   SUGGESTION_REASON_MAX,
@@ -66,6 +70,7 @@ function RunResult({ result }: { result: RuleSuggestionRun }) {
 function SuggestionCard({
   suggestion,
   rule,
+  authorName,
   canWrite,
   busy,
   selected,
@@ -76,6 +81,8 @@ function SuggestionCard({
 }: {
   suggestion: RuleSuggestion;
   rule: ObligationRule | null;
+  /** Who answered, for a suggestion that rests on the lawyer's answer. */
+  authorName: string | null;
   canWrite: boolean;
   busy: boolean;
   /** null: not part of the batch (decided or out of date). */
@@ -99,10 +106,13 @@ function SuggestionCard({
     : accepted
       ? t(rule?.active ? "radar.rules.suggest.status.acceptedActive" : "radar.rules.suggest.status.accepted")
       : t("radar.rules.suggest.status.pending");
-  const source = t("radar.rules.suggest.source", {
-    name: suggestion.source.filename ?? suggestion.source.document_id,
-    version: suggestion.source.version_number ?? "–",
-  });
+  const fromAnswer = suggestion.evidence === "lawyer_answer";
+  const source = suggestion.source
+    ? t("radar.rules.suggest.source", {
+        name: suggestion.source.filename ?? suggestion.source.document_id,
+        version: suggestion.source.version_number ?? "–",
+      })
+    : "";
   const stop = () => {
     setDiscarding(false);
     setReason("");
@@ -115,22 +125,30 @@ function SuggestionCard({
           <h4 id={`${id}-name`} className="min-w-0 break-words text-sm font-medium text-gray-900">
             {name}
           </h4>
-          <p className="text-xs text-gray-500">{t("radar.rules.suggest.aiLabel")}</p>
+          {fromAnswer ? null : <p className="text-xs text-gray-500">{t("radar.rules.suggest.aiLabel")}</p>}
         </div>
       </header>
-      <figure className="space-y-1 border-l-2 border-gray-300 pl-3">
-        <figcaption className="text-xs text-gray-500">
-          {source}
-          {suggestion.page ? ` · ${t("radar.rules.suggest.page", { page: suggestion.page })}` : ""}
-        </figcaption>
-        <blockquote className="break-words whitespace-pre-wrap text-sm text-gray-700" aria-label={t("radar.rules.suggest.quote")}>
-          {suggestion.quote}
-        </blockquote>
-      </figure>
-      <p className="break-words text-xs text-gray-600">
-        <span className="font-medium">{t("radar.rules.suggest.reasonLabel")}: </span>
-        {suggestion.reason}
-      </p>
+      {fromAnswer ? (
+        <p className="break-words text-sm text-gray-700">
+          {t("radar.rules.suggest.answerSource", { name: authorName ?? t("radar.rules.suggest.answerSourceUnknown") })}
+        </p>
+      ) : (
+        <>
+          <figure className="space-y-1 border-l-2 border-gray-300 pl-3">
+            <figcaption className="text-xs text-gray-500">
+              {source}
+              {suggestion.page ? ` · ${t("radar.rules.suggest.page", { page: suggestion.page })}` : ""}
+            </figcaption>
+            <blockquote className="break-words whitespace-pre-wrap text-sm text-gray-700" aria-label={t("radar.rules.suggest.quote")}>
+              {suggestion.quote}
+            </blockquote>
+          </figure>
+          <p className="break-words text-xs text-gray-600">
+            <span className="font-medium">{t("radar.rules.suggest.reasonLabel")}: </span>
+            {suggestion.reason}
+          </p>
+        </>
+      )}
       <p className={`break-words text-sm ${obsolete ? "text-amber-800" : "text-gray-900"}`}>{statusText}</p>
       {discarding ? (
         <div className="space-y-1">
@@ -219,6 +237,8 @@ export function RuleSuggestions({
   const [batchBusy, setBatchBusy] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [summary, setSummary] = useState<SuggestionBatchSummary | null>(null);
+  const [answering, setAnswering] = useState<string | null>(null);
+  const [answerNote, setAnswerNote] = useState<"yes" | "no" | null>(null);
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -265,6 +285,23 @@ export function RuleSuggestions({
     } finally {
       setRunning(false);
     }
+  }
+
+  async function answer(question: RuleQuestion, value: "yes" | "no") {
+    setAnswering(question.id);
+    setAnswerNote(null);
+    try {
+      await answerRuleQuestion(projectId, matterId, question.id, value);
+    } catch (error) {
+      notifyError(error, { action: tRef.current("radar.rules.suggest.questions.couldNotAnswer") });
+      await reload();
+      setAnswering(null);
+      return;
+    }
+    // The answer is saved: a failed refresh is reported as a refresh.
+    setAnswerNote(value);
+    await reload();
+    setAnswering(null);
   }
 
   async function accept(suggestion: RuleSuggestion) {
@@ -383,6 +420,23 @@ export function RuleSuggestions({
             <p className="text-xs text-gray-500">{t("radar.rules.suggest.readOnly")}</p>
           ) : null}
           {result ? <RunResult result={result} /> : null}
+          {canWrite && route ? (
+            <RuleReadAll
+              projectId={projectId}
+              matterId={matterId}
+              provider={extractionProviderName(route.provider)}
+              busy={busy}
+              onDone={load}
+            />
+          ) : null}
+          {canWrite ? (
+            <RuleQuestions questions={data.questions} rules={rules} busy={busy} answering={answering} onAnswer={(question, value) => void answer(question, value)} />
+          ) : null}
+          {answerNote ? (
+            <p role="status" className="text-sm text-gray-900">
+              {t(answerNote === "yes" ? "radar.rules.suggest.questions.answeredYes" : "radar.rules.suggest.questions.answeredNo")}
+            </p>
+          ) : null}
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-900">{t("radar.rules.suggest.listTitle")}</h4>
             {canWrite && decidable.length >= 2 ? (
@@ -404,6 +458,7 @@ export function RuleSuggestions({
                     <SuggestionCard
                       suggestion={suggestion}
                       rule={ruleOf(suggestion)}
+                      authorName={data.people.find((person) => person.user_id === suggestion.created_by)?.name ?? null}
                       canWrite={canWrite}
                       busy={busy}
                       selected={canWrite && decidable.length >= 2 && suggestion.effective_status === "pending" ? selected.has(suggestion.id) : null}

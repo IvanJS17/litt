@@ -180,8 +180,8 @@ describe("account export: profile facts", () => {
         // Matter work needs the matter; a rule proposal needs the project: the holder's own, and still open.
         expect(mine.suggestions.map((row) => row.id)).toEqual(["g1", "p1"]);
         expect(mine.events.map((row) => row.id)).toEqual(["d1", "d4", "d5"]);
-        expect(await loadUserRuleSuggestions(db, user, null, null)).toEqual({ suggestions: [], events: [] });
-        expect(await loadUserRuleSuggestions(db, "nobody", null, "org-current")).toEqual({ suggestions: [], events: [] });
+        expect(await loadUserRuleSuggestions(db, user, null, null)).toEqual({ suggestions: [], events: [], questions: [], answers: [] });
+        expect(await loadUserRuleSuggestions(db, "nobody", null, "org-current")).toEqual({ suggestions: [], events: [], questions: [], answers: [] });
         const firm = await buildUserAccountExport(db, user, "holder@example.test", "org-current");
         expect((firm.obligation_rule_suggestions as Row[]).map((row) => row.id)).toEqual(["g1", "p1"]);
         expect((firm.obligation_rule_suggestion_events as Row[]).map((row) => row.id)).toEqual(["d1", "d4", "d5"]);

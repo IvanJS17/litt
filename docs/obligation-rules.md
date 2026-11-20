@@ -264,6 +264,81 @@ verified", the quote with its file and version, the AI's explanation marked "not
 verified" and its state as plain text, with Accept and Discard (optional
 reason); two or more pending ones can be reviewed in a batch.
 
+### All documents and questions (S8c)
+
+**Status:** built (slice S8c); not deployed until a reviewed release says so. Legal
+conditions C1–C6 and C12–C15 of `respuesta-jev-contextlex-s8c-20261119.md`, point 3.
+S8a above keeps working unchanged (one version per click).
+
+In **Reglas**, "Leer todos los documentos del cliente (N)" reads the **current
+version of every live document of the matter** that has ready text (the lawyer may
+uncheck some, never forced to pick) and says which catalog rules may apply. It is
+manual: only the button starts it (C15); nothing is a job, a timer or a Donna
+checkbox. Only documents of the matter's own project are read, under the matter's
+permissions (owner or editor, not in training); documents of other matters never
+enter (C12).
+
+**Plan, then calls.** `POST .../rules/suggestions/plan` (`planRuleRead`, no model, no
+egress) groups **whole documents** into calls of at most **120,000 characters** of
+text each (`groupIntoBatches`, greedy in a fixed order: file name, then id). A
+document is never cut: one above 120,000 is **excluded and listed** ("too long"), as
+is one with no ready text. The UI shows, before the click and from that same plan,
+"The text of {n} documents in this matter will be sent to {provider} in {k} calls…"
+(C13). The UI then calls `POST .../rules/suggestions/read` once per call
+(`readRuleBatch`) with the same `runId`, showing "Call i of k"; the server
+re-checks that the call is at most 120,000 characters (422
+`suggestion_batch_too_large`) before any route, egress or call (C6). The result says
+"I reviewed N of M documents; not reviewed: …".
+
+**What leaves LiTT, per call** (C4): (1) the text of the documents of that call,
+numbered `doc_1`, `doc_2`… (opaque ids of that call, **no file names**, no internal
+ids); (2) the fixed instructions and the closed schema
+`{kind: suggestion, rule_code, document_id, quote, reason, page}` and
+`{kind: question, rule_code}`, at most 20 suggestions and 8 questions
+(`buildReadAllSystemPrompt`); (3) the list of **verified** catalog rules, the same
+in every call and matter (C5); (4) the technical data of the call. **Does not
+leave:** the lawyer's yes/no answers, the client profile, the matter or client
+name, file names, the account, other matters, instructions, memory or chats. One
+`llm.egress` record per call (surface `rule_suggestion_catalog_all`, with `run_id`
+and `document_count`; never content) **before** it. Same route, key and BYOK rule
+as S8a (C1–C3): never TypeSafe, LandingAI, OCR, web or Jev.
+
+**How each suggestion is checked:** as S8a, but `locateQuote` runs against **the
+document the model names** (`document_id`; an id that is not in the call is
+`discarded_invalid`). **Dedupe across calls is in code:** one suggestion per rule and
+run (`run_id`). A later call that finds the rule again keeps the **better citation**
+(one with a page, then the longer passage): the earlier suggestion gets a
+`discarded` event with no actor ("replaced by a better citation"); nothing is
+updated. Rules already on are dropped in code, never filtered from the list sent.
+
+**Questions (C14).** For a rule whose "applies when" depends on a fact the documents
+do not state, the model returns **only the rule code**. The question is **not model
+text**: the UI builds "Is the following true for this client? «{applies when}»" from
+the catalog's own words (`radar.rules.catalog.<code>.appliesWhen`). The code
+validates the rule is in the catalog, verified, off, not already suggested with a
+quote and not asked before (one question per rule and matter, at most 8 per call);
+otherwise `discarded_question_invalid`. The lawyer answers yes or no
+(`POST .../questions/:questionId/answer`, `answerRuleQuestion`, in
+`radar.questions.ts`, which imports no model, route or egress). **The answer is never
+sent to any AI.** A "yes" saves a pending suggestion with `flow = 'lawyer_answer'`
+(no quote, no document, no model words), shown as "According to the answer of
+{lawyer}"; accepting it opens the usual turn-on form and turns nothing on. A "no" is
+only recorded and is **never shown as "the rule does not apply"**, neither in the
+radar nor in the S7 report (no code reads the answers but the answer handler and the
+holder's own account export). A question is answered once.
+
+**Storage.** Migration `20261119_40_litt_rule_questions.sql`: `obligation_rule_questions`
+(the rule only, no text) and `obligation_rule_question_answers` (insert-only, one per
+question), and `obligation_rule_suggestions` gains `flow = 'lawyer_answer'`,
+`question_id` and `run_id`, with its document columns nullable and a shape check that
+keeps `catalog_match` and `new_rule_draft` rows exactly as before.
+
+| Route (under `/radar/rules/suggestions`) | Who |
+|---|---|
+| `POST /plan` | owner or editor not in training; `{ versionIds? }` |
+| `POST /read` | same; MFA if enrolled; same per-person limit as S8a (each call counts); `{ runId, versionIds }` |
+| `POST /questions/:questionId/answer` | same; `{ answer: "yes" \| "no" }` |
+
 ## Rule proposals
 
 **Status:** built (slice S8b); not deployed until a reviewed release says so.

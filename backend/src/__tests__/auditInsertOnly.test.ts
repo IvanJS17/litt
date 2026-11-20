@@ -34,6 +34,8 @@ const INSERT_ONLY_TABLES = [
     "matter_report_sent_events",
     "obligation_rule_suggestions",
     "obligation_rule_suggestion_events",
+    "obligation_rule_questions",
+    "obligation_rule_question_answers",
 ];
 
 describe("insert-only tables are insert-only in the backend", () => {

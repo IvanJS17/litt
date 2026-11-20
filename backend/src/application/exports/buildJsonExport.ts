@@ -913,6 +913,8 @@ export async function buildUserAccountExport(
         matter_report_sent_events: reportSentEvents,
         obligation_rule_suggestions: ruleSuggestions.suggestions,
         obligation_rule_suggestion_events: ruleSuggestions.events,
+        obligation_rule_questions: ruleSuggestions.questions,
+        obligation_rule_question_answers: ruleSuggestions.answers,
         audit_events: auditEvents,
     };
 }

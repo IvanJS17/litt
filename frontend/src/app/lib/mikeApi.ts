@@ -6803,6 +6803,7 @@ export async function getRuleSuggestions(
         typeof result.can_write !== "boolean" ||
         !Array.isArray(result.suggestions) ||
         !Array.isArray(result.versions) ||
+        !Array.isArray(result.questions) ||
         !Array.isArray(result.people)
     )
         throw new Error("Malformed rule suggestions response");
@@ -6855,6 +6856,91 @@ export async function suggestObligationRules(
         !result.suggestion_ids.every((id) => typeof id === "string")
     )
         throw new Error("Malformed rule suggestion run response");
+    return result;
+}
+
+const isCount = (value: unknown) => typeof value === "number" && Number.isInteger(value) && value >= 0;
+
+/**
+ * S8c: which current documents of the matter a full read covers, grouped as whole
+ * documents into calls of at most 120,000 characters, and what it leaves out.
+ * `versionIds` is the lawyer's selection (omitted: every current document). It
+ * reads text already extracted and sends nothing to any AI.
+ */
+export async function planRuleRead(
+    projectId: string,
+    matterId: string,
+    versionIds?: readonly string[],
+): Promise<import("@mike/contracts").RuleReadPlan> {
+    const result = await apiRequest<import("@mike/contracts").RuleReadPlan>(
+        "matter.radar",
+        `${ruleSuggestionsPath(projectId, matterId)}/plan`,
+        jsonInit("POST", versionIds ? { versionIds } : {}),
+    );
+    const documentOk = (one: unknown) => {
+        const row = one as { version_id?: unknown; chars?: unknown } | null;
+        return typeof row?.version_id === "string" && isCount(row.chars);
+    };
+    if (
+        !isCount(result?.max_chars) ||
+        !Array.isArray(result.batches) ||
+        !result.batches.every((batch) => isCount(batch?.chars) && Array.isArray(batch.documents) && batch.documents.every(documentOk)) ||
+        !Array.isArray(result.skipped) ||
+        !result.skipped.every(
+            (one) => typeof one?.version_id === "string" && (one.reason === "too_long" || one.reason === "no_text"),
+        )
+    )
+        throw new Error("Malformed rule read plan response");
+    return result;
+}
+
+/** One call of the plan: the space's AI reads those documents (synchronous, one egress record). */
+export async function readRuleBatch(
+    projectId: string,
+    matterId: string,
+    input: import("@mike/contracts").RuleReadBatchInput,
+): Promise<import("@mike/contracts").RuleReadBatchResult> {
+    const result = await apiRequest<import("@mike/contracts").RuleReadBatchResult>(
+        "matter.radar",
+        `${ruleSuggestionsPath(projectId, matterId)}/read`,
+        jsonInit("POST", input),
+    );
+    const counts = [
+        result?.suggested,
+        result?.discarded_unknown_rule,
+        result?.discarded_already_active,
+        result?.discarded_quote_not_found,
+        result?.discarded_duplicate,
+        result?.discarded_invalid,
+        result?.questions_asked,
+        result?.discarded_question_invalid,
+        result?.superseded,
+    ];
+    // A reply without its counts is a failed call, not "nothing was found".
+    if (!counts.every(isCount) || !Array.isArray(result.suggestion_ids) || !result.suggestion_ids.every((id) => typeof id === "string"))
+        throw new Error("Malformed rule read response");
+    return result;
+}
+
+/** The lawyer's answer to a yes/no question. It goes to LiTT only, never to an AI. */
+export async function answerRuleQuestion(
+    projectId: string,
+    matterId: string,
+    questionId: string,
+    answer: "yes" | "no",
+): Promise<import("@mike/contracts").RuleQuestionAnswerResult> {
+    const result = await apiRequest<import("@mike/contracts").RuleQuestionAnswerResult>(
+        "matter.radar",
+        `${ruleSuggestionsPath(projectId, matterId)}/questions/${encodeURIComponent(questionId)}/answer`,
+        jsonInit("POST", { answer }),
+    );
+    if (
+        typeof result?.question_id !== "string" ||
+        (result.answer !== "yes" && result.answer !== "no") ||
+        (result.suggestion !== null && typeof result.suggestion?.id !== "string") ||
+        (result.answer === "no" && result.suggestion !== null)
+    )
+        throw new Error("Malformed rule question answer response");
     return result;
 }
 

@@ -20,6 +20,9 @@ const mocks = vi.hoisted(() => ({
   run: vi.fn(),
   decide: vi.fn(),
   batch: vi.fn(),
+  plan: vi.fn(),
+  readBatch: vi.fn(),
+  answer: vi.fn(),
   notifyError: vi.fn(),
 }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
@@ -31,6 +34,9 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   suggestObligationRules: mocks.run,
   decideRuleSuggestion: mocks.decide,
   decideRuleSuggestions: mocks.batch,
+  planRuleRead: mocks.plan,
+  readRuleBatch: mocks.readBatch,
+  answerRuleQuestion: mocks.answer,
 }));
 vi.mock("@/app/lib/userFacingError", () => ({ notifyError: mocks.notifyError, errorCode: () => null }));
 
@@ -85,6 +91,8 @@ const suggestion = (over: Partial<RuleSuggestion> = {}): RuleSuggestion => ({
   quote: "se reunirán en asamblea general ordinaria una vez al año",
   reason: "El acta prevé una asamblea ordinaria anual.",
   page: null,
+  evidence: "document",
+  question_id: null,
   source: { document_id: "d1", version_id: "v1", version_number: 2, filename: "acta-constitutiva.pdf", start_char: 10, end_char: 70, text_sha256: "a".repeat(64) },
   status: "pending",
   stale_reason: null,
@@ -103,6 +111,7 @@ const list = (suggestions: RuleSuggestion[] = [], over: Partial<RuleSuggestionsD
   can_write: true,
   suggestions,
   versions: [{ document_id: "d1", version_id: "v1", version_number: 2, filename: "acta-constitutiva.pdf" }],
+  questions: [],
   people: [],
   ...over,
 });
@@ -137,6 +146,7 @@ beforeEach(() => {
     suggestion({ id, status: action === "accept" ? "accepted" : "discarded" }),
   );
   mocks.batch.mockResolvedValue({ results: [] });
+  mocks.plan.mockResolvedValue({ max_chars: 120000, batches: [], skipped: [] });
 });
 
 describe("the button and its help line", () => {
@@ -272,7 +282,7 @@ describe("asking for suggestions", () => {
 
   it("keeps a very long passage and file name inside the card", async () => {
     const quote = "cláusula ".repeat(300).trim();
-    mocks.list.mockResolvedValue(list([suggestion({ quote, source: { ...suggestion().source, filename: `${"acta-".repeat(40)}.pdf` } })]));
+    mocks.list.mockResolvedValue(list([suggestion({ quote, source: { ...suggestion().source!, filename: `${"acta-".repeat(40)}.pdf` } })]));
     view();
     const card = await (await panel()).findByRole("article", { name: NAME });
     expect(within(card).getByLabelText("Passage of the document")).toHaveTextContent(quote);

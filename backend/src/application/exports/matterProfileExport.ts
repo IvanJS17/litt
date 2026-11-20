@@ -143,13 +143,26 @@ export async function loadUserRuleSuggestions(
     userId: string,
     userEmail: string | null | undefined,
     orgId: string | null,
-): Promise<{ suggestions: Row[]; events: Row[] }> {
-    if (!orgId) return { suggestions: [], events: [] };
+): Promise<{ suggestions: Row[]; events: Row[]; questions: Row[]; answers: Row[] }> {
+    if (!orgId) return { suggestions: [], events: [], questions: [], answers: [] };
     const suggestions = await selectAllByKey<Row>("export obligation_rule_suggestions", () =>
         (db as any)
             .from("obligation_rule_suggestions")
-            .select("id, flow, org_id, matter_id, project_id, document_id, version_id, text_sha256, start_char, end_char, quote, page, rule_code, rule_version, ai_reason, draft, ai_provider, ai_model, created_by, created_at")
+            .select("id, flow, org_id, matter_id, project_id, document_id, version_id, text_sha256, start_char, end_char, quote, page, rule_code, rule_version, ai_reason, draft, ai_provider, ai_model, question_id, run_id, created_by, created_at")
             .eq("created_by", userId),
+    );
+    // S8c: the questions the holder was asked about and the answers the holder gave (never shown to any AI).
+    const questions = await selectAllByKey<Row>("export obligation_rule_questions", () =>
+        (db as any)
+            .from("obligation_rule_questions")
+            .select("id, org_id, matter_id, project_id, rule_code, rule_version, run_id, created_by, created_at")
+            .eq("created_by", userId),
+    );
+    const answers = await selectAllByKey<Row>("export obligation_rule_question_answers", () =>
+        (db as any)
+            .from("obligation_rule_question_answers")
+            .select("id, question_id, matter_id, answer, created_at")
+            .eq("actor_user_id", userId),
     );
     const events = await selectAllByKey<Row>("export obligation_rule_suggestion_events", () =>
         (db as any)
@@ -166,7 +179,7 @@ export async function loadUserRuleSuggestions(
         );
         for (const parent of parents) projectOf.set(parent.id as string, parent.project_id as string | null);
     }
-    const matterIds = [...new Set([...suggestions, ...events].map((row) => row.matter_id as string | null).filter((id): id is string => typeof id === "string"))];
+    const matterIds = [...new Set([...suggestions, ...events, ...questions, ...answers].map((row) => row.matter_id as string | null).filter((id): id is string => typeof id === "string"))];
     const readable = matterIds.length > 0 ? await readableMatterIds(db, userId, userEmail, orgId, matterIds) : new Set<string>();
     const projectIds = [...new Set([...projectOf.values()].filter((id): id is string => typeof id === "string"))];
     const openable = new Set<string>();
@@ -178,5 +191,7 @@ export async function loadUserRuleSuggestions(
     return {
         suggestions: sortRows(suggestions.filter((row) => keep(row, row.project_id as string | null))),
         events: sortRows(events.filter((row) => keep(row, projectOf.get(row.suggestion_id as string)))),
+        questions: sortRows(questions.filter((row) => keep(row, null))),
+        answers: sortRows(answers.filter((row) => keep(row, null))),
     };
 }
