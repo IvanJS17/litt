@@ -304,6 +304,9 @@ test.describe("web app manifest and closed beta", () => {
         expect(text).toMatch(/Allow: \/\$/);
         expect(text).toMatch(/Allow: \/privacidad\$/);
         expect(text).toMatch(/Allow: \/terminos\$/);
+        expect(text).toMatch(/Allow: \/_next\/static\//);
+        expect(text).toMatch(/Allow: \/favicon\.ico/);
+        expect(text).toMatch(/Allow: \/link-image\.jpg/);
         expect(text).toMatch(/Sitemap: .*\/sitemap\.xml/);
         expect(text).not.toContain("<html");
 
