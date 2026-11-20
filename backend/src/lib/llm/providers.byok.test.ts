@@ -169,6 +169,32 @@ describe("Google Vertex AI adapter", () => {
     expect(headers.get("authorization")).toBe("Bearer ya29.test");
   });
 
+  it("hands the provider's token usage to onUsage (Donna triage T1)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(anthropicMessageResponse()));
+    const onUsage = vi.fn();
+
+    await expect(
+      completeWithProvider({ model: "vertex/claude-opus-5-5@20260101", user: "x", apiKeys, onUsage }),
+    ).resolves.toBe("Review title");
+
+    expect(onUsage).toHaveBeenCalledTimes(1);
+    expect(onUsage).toHaveBeenCalledWith({ inputTokens: 5, outputTokens: 2 });
+  });
+
+  it("answers the same when onUsage throws", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(anthropicMessageResponse()));
+    await expect(
+      completeWithProvider({
+        model: "vertex/claude-opus-5-5@20260101",
+        user: "x",
+        apiKeys,
+        onUsage: () => {
+          throw new Error("boom");
+        },
+      }),
+    ).resolves.toBe("Review title");
+  });
+
   it("calls publisher/model ids over the partner-model endpoint", async () => {
     const fetchMock = vi.fn().mockResolvedValue(chatCompletionResponse());
     vi.stubGlobal("fetch", fetchMock);

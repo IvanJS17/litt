@@ -5,6 +5,7 @@ import type { LanguageModel, LanguageModelMiddleware, ToolSet } from "ai" with {
 };
 import type * as AiSdk from "ai" with { "resolution-mode": "import" };
 import type {
+  CompletionUsage,
   LlmMessage,
   NormalizedToolCall,
   NormalizedToolResult,
@@ -793,6 +794,7 @@ export async function completeAiSdkText(
     user: string;
     maxTokens?: number;
     abortSignal?: AbortSignal;
+    onUsage?: (usage: CompletionUsage) => void;
   },
   config: AiSdkAdapterConfig,
 ): Promise<string> {
@@ -826,6 +828,18 @@ export async function completeAiSdkText(
     // The provider's own error, unconverted (callers classify it), with
     // whose key was sent recorded on it for the reporting level.
     throw withKeySource(error, config.keySource, config.provider);
+  }
+  if (params.onUsage) {
+    // Recording usage never changes the answer: a callback that throws is ignored.
+    const usage = result.totalUsage ?? result.usage;
+    try {
+      params.onUsage({
+        inputTokens: usage?.inputTokens ?? null,
+        outputTokens: usage?.outputTokens ?? null,
+      });
+    } catch {
+      /* usage is a record, not part of the answer */
+    }
   }
   return result.text;
 }

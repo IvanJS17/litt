@@ -80,6 +80,9 @@ export type StreamCallbacks = {
 
 export type TokenUsage = { inputTokens: number; outputTokens: number };
 
+/** What a one-shot completion reports: null is a count the provider did not give. */
+export type CompletionUsage = { inputTokens: number | null; outputTokens: number | null };
+
 export type ProviderWebSearchEvent =
     | { kind: "search_started"; id: string; query?: string }
     | {

@@ -62,6 +62,7 @@ vi.mock("../../lib/llm", async (importOriginal) => ({
     completeText: vi.fn(async (params: Record<string, unknown>) => {
         h.llm.calls.push(params);
         if (h.llm.error) throw h.llm.error;
+        (params.onUsage as ((u: { inputTokens: number; outputTokens: number }) => void) | undefined)?.({ inputTokens: 321, outputTokens: 45 });
         return h.llm.answer;
     }),
 }));
@@ -410,6 +411,34 @@ describe("what a run suggests", () => {
     });
 });
 
+describe("tokens and engine per call (Donna triage T1)", () => {
+    it("records the usage of a successful call with its route, and nothing of the text", async () => {
+        as(EDITOR);
+        answer();
+        await run();
+        const usage = tables().ai_call_usage ?? [];
+        expect(usage).toHaveLength(1);
+        expect(usage[0]).toMatchObject({
+            surface: "rule_suggestion_catalog",
+            engine: "byok",
+            input_tokens: 321,
+            output_tokens: 45,
+            cost_usd: null,
+            user_id: EDITOR,
+        });
+        expect(usage[0].provider).toEqual(expect.any(String));
+        expect(usage[0].model).toEqual(expect.any(String));
+        expect(JSON.stringify(usage)).not.toContain(TEXT);
+    });
+
+    it("records nothing when the provider call fails", async () => {
+        as(EDITOR);
+        h.llm.error = new Error("down");
+        await run();
+        expect(tables().ai_call_usage ?? []).toHaveLength(0);
+    });
+});
+
 describe("what is sent (C4, C5)", () => {
     it("sends the fixed prompt with the verified catalog and the version's text, and nothing else", async () => {
         as(EDITOR);
@@ -417,7 +446,7 @@ describe("what is sent (C4, C5)", () => {
         await run();
         expect(h.llm.calls).toHaveLength(1);
         const call = h.llm.calls[0];
-        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "systemPrompt", "user"]);
+        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "onUsage", "systemPrompt", "user"]);
         expect(call.systemPrompt).toBe(buildSuggestSystemPrompt(catalogForSuggestions()));
         const user = String(call.user);
         const nonce = /DOCUMENT ([0-9a-f]{24})>>>/.exec(user)![1];

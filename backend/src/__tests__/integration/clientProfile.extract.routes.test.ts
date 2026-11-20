@@ -383,7 +383,7 @@ describe("what is sent (C4)", () => {
         expect(h.llm.calls).toHaveLength(1);
         const call = h.llm.calls[0];
         // Exactly these parameters: no tools, no history, no conversation id.
-        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "systemPrompt", "user"]);
+        expect(Object.keys(call).sort()).toEqual(["abortSignal", "apiKeys", "maxTokens", "model", "onUsage", "systemPrompt", "user"]);
         expect(call.systemPrompt).toBe(EXTRACT_SYSTEM_PROMPT);
         expect(call.model).toBe("claude-sonnet-5-5");
         const user = String(call.user);
