@@ -232,7 +232,7 @@ export async function mcpConnectionFingerprint(
     connector: ConnectorRow,
     oauthGrantId: string | null,
 ) {
-    const config = decryptAuthConfig(connector);
+    const config = usableAuthConfig(connector);
     // Use a slow, asynchronous derivation for potentially low-entropy custom
     // credentials. The application key also prevents offline guessing from
     // a fingerprint alone without blocking the request event loop.
@@ -286,19 +286,29 @@ export function toConnectorSummary(
     oauthToken?: OAuthTokenRow | null,
     toolCount = tools.length,
 ): McpConnectorSummary {
-    const authConfig = decryptAuthConfig(connector);
+    const stored = decryptAuthConfig(connector);
+    const fits = credentialsFitUrl(stored, connector.server_url);
+    const authConfig = fits ? stored : {};
     return {
         id: connector.id,
         name: connector.name,
         transport: connector.transport,
         serverUrl: connector.server_url,
-        authType: connector.auth_type ?? "none",
+        authType:
+            connector.auth_type === "bearer" && !fits
+                ? "none"
+                : (connector.auth_type ?? "none"),
         enabled: connector.enabled,
         requireWriteApproval: connector.require_write_approval === true,
         readOnly: connector.read_only === true,
-        hasAuthConfig: !!connector.encrypted_auth_config,
+        hasAuthConfig: !!connector.encrypted_auth_config && fits,
         customHeaderKeys: Object.keys(authConfig.headers ?? {}),
-        oauthConnected: !!oauthToken?.encrypted_access_token,
+        // A sign-in counts only for the origin it was issued for, as when
+        // it is presented.
+        oauthConnected:
+            !!oauthToken?.encrypted_access_token &&
+            !!oauthToken.resource &&
+            originOf(oauthToken.resource) === originOf(connector.server_url),
         toolPolicy: connector.tool_policy ?? {},
         tools: tools.map((tool) => ({
             ...toToolSummary(tool),
@@ -365,6 +375,30 @@ export async function validateRemoteMcpUrl(
     return url.toString();
 }
 
+/** The origin of a server URL, or null when it cannot be parsed. */
+export function originOf(serverUrl: string): string | null {
+    try {
+        return new URL(serverUrl).origin;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The credentials of a connector as they may be used for an outgoing request:
+ * only when they were entered for the origin of the connector's current server
+ * URL. Credentials stamped for another origin count as absent. A config with
+ * no stamp (written before origins were recorded) is used as it is.
+ */
+export function usableAuthConfig(row: ConnectorRow): McpConnectorAuthConfig {
+    const config = decryptAuthConfig(row);
+    return credentialsFitUrl(config, row.server_url) ? config : {};
+}
+
+function credentialsFitUrl(config: McpConnectorAuthConfig, serverUrl: string) {
+    return !config.origin || config.origin === originOf(serverUrl);
+}
+
 export function headersForAuth(config: McpConnectorAuthConfig) {
     const headers: Record<string, string> = {};
     for (const [key, value] of Object.entries(config.headers ?? {})) {
@@ -421,6 +455,7 @@ export function authConfigPatch(config: McpConnectorAuthConfig): Record<string, 
     return encryptJson({
         ...(hasBearer ? { bearerToken: config.bearerToken?.trim() } : {}),
         ...(hasHeaders ? { headers: config.headers } : {}),
+        ...(config.origin ? { origin: config.origin } : {}),
     });
 }
 

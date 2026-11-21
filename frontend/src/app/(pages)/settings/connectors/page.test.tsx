@@ -228,6 +228,42 @@ describe("ConnectorsPage OAuth poll cancellation", () => {
         expect(vi.mocked(getMcpConnector).mock.calls.length).toBe(callsBefore);
     });
 
+    it("hears the result page when the API is served from another origin than the web app", async () => {
+        // The result page is the web app's own gateway route, so its message
+        // comes from the web origin even though the API origin differs.
+        await reachAuthStepAndFirstPoll();
+        const message = (origin: string, data: unknown) =>
+            window.dispatchEvent(
+                new MessageEvent("message", { origin, data }),
+            );
+
+        await act(async () => {
+            message("https://unrelated.example", {
+                type: "mcp_oauth_result",
+                success: false,
+                detail: "from an unrelated page",
+            });
+            await flushMicrotasks();
+        });
+        expect(screen.getByText(/Authentication required/i)).toBeTruthy();
+
+        await act(async () => {
+            message(window.location.origin, {
+                type: "mcp_oauth_result",
+                success: false,
+                detail: "Connector authorization could not be completed.",
+            });
+            await flushMicrotasks();
+        });
+        expect(screen.queryByText(/Authentication required/i)).toBeNull();
+        // The wait ended: no further polling.
+        const callsAfter = vi.mocked(getMcpConnector).mock.calls.length;
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(vi.mocked(getMcpConnector).mock.calls.length).toBe(callsAfter);
+    });
+
     it("stops polling and closes the modal when the user cancels", async () => {
         await reachAuthStepAndFirstPoll();
         const callsBefore = vi.mocked(getMcpConnector).mock.calls.length;

@@ -590,8 +590,10 @@ describe("startUserMcpConnectorOAuth", () => {
         loadConnectorMock.mockResolvedValue(connector);
         authMock.mockImplementation(async (provider: DbMcpOAuthProvider) => {
             // The SDK's DCR step, followed by the redirect request.
+            // The SDK stamps what it registers with the server it used.
             await provider.saveClientInformation({
                 client_id: "dcr-client-id",
+                issuer: "https://as.example.com",
             });
             await provider.redirectToAuthorization(new URL(AUTH_URL));
             return "REDIRECT";
@@ -624,6 +626,7 @@ describe("startUserMcpConnectorOAuth", () => {
         );
         await expect(callbackProvider.clientInformation()).resolves.toEqual({
             client_id: "dcr-client-id",
+            issuer: "https://as.example.com",
         });
     });
 

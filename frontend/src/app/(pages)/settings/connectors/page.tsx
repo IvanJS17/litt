@@ -840,7 +840,14 @@ function WorkspaceConnectors({
           window.removeEventListener("message", onMessage);
         };
         const onMessage = (event: MessageEvent<McpOAuthPopupMessage>) => {
-          if (event.origin !== expectedCallbackOrigin) return;
+          // The result page is served by this app's own gateway, so its
+          // message comes from this origin; the API origin is accepted too
+          // for a deployment that serves the page itself.
+          if (
+            event.origin !== window.location.origin &&
+            event.origin !== expectedCallbackOrigin
+          )
+            return;
           if (event.data?.type !== "mcp_oauth_result") return;
           if (
             event.data.connectorId &&
