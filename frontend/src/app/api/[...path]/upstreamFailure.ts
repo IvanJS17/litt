@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 /**
  * Connection-level failures: the Next server could not reach the backend at
  * all (stopped, restarting, wrong host, network down). Node's fetch reports
@@ -44,6 +46,23 @@ const HOP_BY_HOP_HEADERS = [
     "host",
     "content-length",
 ];
+
+/** Header the edge proxy sets to prove it observed the client address. */
+export const EDGE_HEADER = "x-litt-edge";
+
+/**
+ * True only when `LITT_EDGE_SECRET` is set and the request carries it in
+ * `x-litt-edge`. Only then is the request's `x-forwarded-for` the address
+ * the edge proxy observed rather than a claim by whoever called this server.
+ */
+export function fromTrustedEdge(incoming: Headers): boolean {
+    const secret = process.env.LITT_EDGE_SECRET ?? "";
+    const presented = incoming.get(EDGE_HEADER);
+    if (!secret || presented === null) return false;
+    const a = Buffer.from(presented);
+    const b = Buffer.from(secret);
+    return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /** Headers minus everything that belongs to this connection. */
 export function forwardableHeaders(incoming: Headers): Headers {
