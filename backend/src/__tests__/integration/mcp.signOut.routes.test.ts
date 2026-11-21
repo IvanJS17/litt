@@ -260,6 +260,16 @@ describe("when the person's identity cannot be read at a global sign-out", () =>
         expect((await mcpCall(token!.body.access_token)).status).toBe(200);
     });
 
+    it("an answer whose person has no id is a failure too", async () => {
+        const { token } = await connect();
+        h.lookup = { data: { user: {} }, error: null } as unknown as typeof h.lookup;
+        const res = await request(app).post("/auth/logout").set("Origin", WEB).set("Cookie", SESSION_COOKIE).send({ scope: "global" });
+        expect(res.status).toBe(500);
+        expect(h.authCalls).toEqual(["signOut:global"]);
+        expect(stampOf()).toBeNull();
+        expect((await mcpCall(token!.body.access_token)).status).toBe(200);
+    });
+
     it.each([
         ["there is no session", authError("AuthSessionMissingError", 400)],
         ["the session is no longer valid", authError("AuthApiError", 401)],
@@ -373,5 +383,23 @@ describe.each([
         expect(code.body.error).toBe("invalid_grant");
         const grant = h.state!.tables.mcp_grants.at(-1)!;
         expect(Date.parse(grant.created_at as string)).toBeLessThanOrEqual(Date.parse(stampOf() as string));
+    });
+});
+
+describe("the approval of a connection", () => {
+    it("takes its arrival time before the session is checked", async () => {
+        const { mcpConsentRouter } = await import("../../modules/mcp/mcp.routes.js");
+        const { requireAuth } = await import("../../middleware/auth.js");
+        type Handler = (req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => void;
+        type Layer = { route?: { path: string; methods: Record<string, boolean>; stack: { handle: Handler }[] } };
+        const route = (mcpConsentRouter as unknown as { stack: Layer[] }).stack
+            .map((layer) => layer.route)
+            .find((r) => r?.path === "/authorizations/:requestId/decision" && r.methods.post);
+        const handlers = route!.stack.map((layer) => layer.handle);
+        const sessionCheck = handlers.indexOf(requireAuth as unknown as Handler);
+        expect(sessionCheck).toBeGreaterThan(0);
+        const res = { locals: {} as Record<string, unknown> };
+        for (const handler of handlers.slice(0, sessionCheck)) handler({}, res, () => {});
+        expect(Number.isNaN(Date.parse(String(res.locals.arrivedAt)))).toBe(false);
     });
 });

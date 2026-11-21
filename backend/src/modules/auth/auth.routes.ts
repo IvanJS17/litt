@@ -470,12 +470,12 @@ authRouter.get("/session", requireAuth, asyncRoute(async (_req, res) => {
 /**
  * Who is signing out, for the sign-out that ends connected applications.
  * A person -> their id. A recognised "no session" answer -> null (nothing to
- * end). Anything else, including an answer with neither person nor error,
- * means we could not tell.
+ * end). Anything else, including an answer with neither an identified person
+ * nor an error, means we could not tell.
  */
 async function whoIsSigningOut(client: ReturnType<typeof createRequestSupabase>): Promise<string | null> {
   const { data, error } = await client.auth.getUser();
-  if (data.user) return data.user.id;
+  if (data.user?.id) return data.user.id;
   if (error) {
     const failure = authErrorShape(error);
     const status = failure?.status ?? 0;
