@@ -125,7 +125,6 @@ import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { resetMcpChatOutcomesForTests } from "../../modules/mcp/mcp.chatSink";
 import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
-import { registerLegalVersion } from "../../lib/managedAccounts";
 import {
     buildWorld,
     DOC_PRIVATE,
@@ -156,7 +155,6 @@ beforeEach(() => {
     resetGrantBudgets();
     resetMcpChatOutcomesForTests();
     resetAssistantTurnRunsForTests();
-    registerLegalVersion("test-terms");
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", "http://localhost:3000");

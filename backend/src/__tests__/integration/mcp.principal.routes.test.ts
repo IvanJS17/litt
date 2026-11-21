@@ -83,7 +83,6 @@ import { memoryDb } from "../helpers/memoryDb";
 import { resetGrantBudgets, takeGrantBudget } from "../../modules/mcp/mcp.limits";
 import { mcpConfig } from "../../modules/mcp/mcp.config";
 import { revalidatePrincipal } from "../../modules/mcp/mcp.principal";
-import { registerLegalVersion } from "../../lib/managedAccounts";
 
 const ISSUER = "https://mcp.test.example";
 const RESOURCE = `${ISSUER}/mcp`;
@@ -119,7 +118,6 @@ beforeEach(() => {
     h.caller = { id: "user-1", email: "ana@firm.example" };
     h.ran = [];
     resetGrantBudgets();
-    registerLegalVersion("test-terms");
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", "http://localhost:3000");
@@ -231,6 +229,15 @@ describe("live revalidation on every call", () => {
     it("answers 403 personal_workspace_disabled when a managed account's grant only had Personal", async () => {
         const { access } = await connect({ workspaces: ["personal"] });
         tables().user_profiles.push({ user_id: "user-1", created_by_org_id: ORG, terms_accepted_version: "test-terms" });
+        tables().organizations.find((o) => o.id === ORG)!.managed_accounts = true;
+        const res = await call(access, "whoami");
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe("personal_workspace_disabled");
+    });
+
+    it.each(["older-terms", null])("refuses a personal-only grant of a managed account whatever legal version it accepted (%s)", async (accepted) => {
+        const { access } = await connect({ workspaces: ["personal"] });
+        tables().user_profiles.push({ user_id: "user-1", created_by_org_id: ORG, terms_accepted_version: accepted });
         tables().organizations.find((o) => o.id === ORG)!.managed_accounts = true;
         const res = await call(access, "whoami");
         expect(res.status).toBe(403);

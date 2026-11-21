@@ -101,14 +101,13 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
     // 2. The account.
     const profile = await db
         .from("user_profiles")
-        .select("account_deletion_requested_at, created_by_org_id, terms_accepted_version")
+        .select("account_deletion_requested_at, created_by_org_id")
         .eq("user_id", grant.user_id)
         .maybeSingle();
     if (profile.error) throw dbFailure("account state lookup failed", profile.error);
     const account = profile.data as {
         account_deletion_requested_at?: string | null;
         created_by_org_id?: string | null;
-        terms_accepted_version?: string | null;
     } | null;
     if (account?.account_deletion_requested_at)
         return deny(401, "account_deletion_pending", "This account is being deleted.");
@@ -120,7 +119,6 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
             db,
             grant.user_id,
             account?.created_by_org_id,
-            account?.terms_accepted_version,
         );
     } catch (error) {
         throw dbFailure("managed account lookup failed", error);
