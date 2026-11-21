@@ -428,6 +428,40 @@ to the task pane using a request-bound, encrypted, single-use database ticket
 that expires after two minutes. Apply
 `20260825_01_auth_handoff_tickets.sql` before enabling this flow.
 
+#### Client address behind a reverse proxy
+
+The per-IP rate limits key on the client address the backend derives from
+`X-Forwarded-For`. The backend trusts exactly one hop in front of it
+(`TRUST_PROXY_HOPS`, default `1`): the web server or the Word add-in server,
+which forward a single client address. Those two servers accept an address from
+their own caller only when the request carries the `X-Litt-Edge` header and its
+value equals their `LITT_EDGE_SECRET` environment variable (compared in
+constant time). Otherwise they use the address of the connecting peer, ignore
+any `X-Forwarded-For` they received and remove `X-Litt-Edge` before calling the
+backend.
+
+- **No proxy in front of the web server or the add-in server** (for example
+  local development, or Compose publishing the port directly): configure
+  nothing. With `LITT_EDGE_SECRET` unset nothing is trusted and the connecting
+  peer is the client.
+- **Your own reverse proxy**: choose a random value for `LITT_EDGE_SECRET`
+  (`openssl rand -hex 32`), set it on the web server and the add-in server, and
+  make the proxy overwrite (not append to) the headers it sends to them:
+  `X-Forwarded-For` with the single client address it observed, and
+  `X-Litt-Edge` with the same value. For example, in nginx:
+  `proxy_set_header X-Forwarded-For $remote_addr;` and
+  `proxy_set_header X-Litt-Edge <secret>;`; in Caddy:
+  `header_up X-Forwarded-For {client_ip}` and
+  `header_up X-Litt-Edge {env.LITT_EDGE_SECRET}`. Do not use
+  `$proxy_add_x_forwarded_for`. If a CDN sits in front of your proxy, tell the
+  proxy which CDN ranges to trust and which header carries the visitor address,
+  so that the single address it forwards is the visitor's.
+- If the secret differs between the proxy and the servers, or is missing on one
+  side, the servers fall back to the proxy's own address: every visitor shares
+  one rate-limit budget. That is safe but disruptive; fix the value.
+- Leave `TRUST_PROXY_HOPS` at `1` unless you add another hop between the web
+  server (or add-in server) and the backend.
+
 The first deployment intentionally signs out sessions created by older builds:
 the web app deletes legacy Supabase local/session-storage entries and the Word
 add-in deletes legacy OfficeRuntime access/refresh tokens. Users authenticate
@@ -834,7 +868,10 @@ docker run --rm -p 3200:3200 \
 
 Put an HTTPS ingress or reverse proxy in front of port 3200. The included host
 serves `dist/` and streams `/api/*` to the backend while preserving cookies,
-`Set-Cookie`, `Origin`, request bodies, and SSE responses.
+`Set-Cookie`, `Origin`, request bodies, and SSE responses. If the proxy should
+supply the client address for rate limiting, it must send one address and the
+shared `LITT_EDGE_SECRET`; see
+[Client address behind a reverse proxy](#client-address-behind-a-reverse-proxy).
 
 ## Background jobs and Redis
 
