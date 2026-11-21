@@ -582,6 +582,13 @@ confirms with a button and the backend verifies server-side
 (`POST /api/auth/verify-otp`), so the link works in any browser. GoTrue caches
 templates for up to 10 minutes: restart `auth` after deploying new templates.
 
+Every link GoTrue mails carries a value derived from a numeric one-time code.
+The stacks in this repository set `GOTRUE_MAILER_OTP_LENGTH=10` (`otp_length`
+in `backend/supabase/config.toml`), the longest code GoTrue v2.189.0 accepts;
+its default is 6. The validity (`GOTRUE_MAILER_OTP_EXP`, 24 hours by default)
+is left unchanged because invitations are often opened hours after they are
+sent. Links mailed before the setting changed keep working until they expire.
+
 Review the Supabase email templates after changing the public Site URL, and
 test every link against the deployed frontend before inviting users. Existing
 deployments must also apply the latest migration so confirmed email changes are

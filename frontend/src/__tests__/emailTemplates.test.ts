@@ -3,7 +3,7 @@
 // Spanish subject. A kind without a template falls back to GoTrue's generic
 // English mail, which reads as phishing from a legal product.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -63,5 +63,23 @@ describe("GoTrue mail templates (production)", () => {
     it("the reauthentication mail shows the code", () => {
         const html = readFileSync(join(REPO, "frontend/public/email-templates/reauthentication.html"), "utf8");
         expect(html).toContain("{{ .Token }}");
+    });
+
+    // The value in every mail link is derived from a numeric code. GoTrue
+    // defaults to 6 digits and accepts at most 10 (a larger setting falls back
+    // to 6); every stack that runs GoTrue must set 10 explicitly.
+    it("every stack that runs GoTrue sets the longest e-mail code", () => {
+        const composeFiles = [".", "deploy/prod"].flatMap((dir) =>
+            readdirSync(join(REPO, dir))
+                .filter((name) => /^(docker-)?compose.*\.ya?ml$/.test(name))
+                .map((name) => join(dir, name)),
+        );
+        const withGoTrue = composeFiles.filter((file) => readFileSync(join(REPO, file), "utf8").includes("supabase/gotrue"));
+        expect(withGoTrue.sort()).toEqual(["compose.staging.yml", "deploy/prod/compose.yaml", "docker-compose.yml"]);
+        for (const file of withGoTrue) {
+            // Anchored to the start of the line: a commented-out setting does not count.
+            expect(readFileSync(join(REPO, file), "utf8"), file).toMatch(/^\s+GOTRUE_MAILER_OTP_LENGTH: ['"]?10['"]?\s*$/m);
+        }
+        expect(readFileSync(join(REPO, "backend/supabase/config.toml"), "utf8")).toMatch(/^otp_length = 10$/m);
     });
 });

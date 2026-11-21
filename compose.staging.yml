@@ -49,6 +49,7 @@ services:
       GOTRUE_MAILER_AUTOCONFIRM: 'true'
       GOTRUE_EXTERNAL_GOOGLE_ENABLED: 'false'
       GOTRUE_PASSWORD_MIN_LENGTH: '10'
+      GOTRUE_MAILER_OTP_LENGTH: '10'
     depends_on:
       db:
         condition: service_healthy
