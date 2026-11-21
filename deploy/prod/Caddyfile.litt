@@ -2,15 +2,19 @@
 # LiTT — litt.asteroitt.com (producción).
 # Bloque administrado por el paquete deploy/prod: editar SOLO entre los
 # marcadores, validar y recargar el Caddy compartido (ver README.md §Caddy).
-# Dirección del cliente: cada reverse_proxy hacia litt:3000 o litt-word:3200
-# manda UNA sola dirección en X-Forwarded-For ({client_ip}) y el secreto del
-# borde en X-Litt-Edge. LITT_EDGE_SECRET debe existir también en el entorno del
+# Dirección del cliente: cada reverse_proxy hacia litt:3000, litt-word:3200 o
+# litt-auth:8000 manda UNA sola dirección en X-Forwarded-For ({client_ip}) y el
+# secreto del borde en X-Litt-Edge. LITT_EDGE_SECRET debe existir también en el entorno del
 # contenedor del Caddy compartido (README.md §Dirección del cliente).
 litt.asteroitt.com {
 	encode zstd gzip
-	# Enlaces de los correos de GoTrue: solo esta ruta llega a auth-edge.
+	# Enlaces de invitación de GoTrue: solo esta ruta llega a auth-edge, que
+	# usa la dirección y el secreto para limitar por visitante.
 	handle /auth/v1/verify {
-		reverse_proxy litt-auth:8000
+		reverse_proxy litt-auth:8000 {
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Litt-Edge {env.LITT_EDGE_SECRET}
+		}
 	}
 	reverse_proxy litt:3000 {
 		# Preservar Host público + X-Forwarded-Host: sin esto, Next standalone
