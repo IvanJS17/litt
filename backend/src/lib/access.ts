@@ -977,6 +977,62 @@ export async function filterAccessibleDocumentIds(
     return accessibleIds;
 }
 
+/** Of `documentIds`, those filed in `projectId` (a missing document is in no project). */
+export async function documentIdsInProject(
+    db: Db,
+    documentIds: readonly string[],
+    projectId: string,
+): Promise<Set<string>> {
+    const inProject = new Set<string>();
+    for (const batch of chunkArray([...new Set(documentIds)], 50)) {
+        const { data, error } = await db
+            .from("documents")
+            .select("id, project_id")
+            .in("id", batch);
+        if (error) {
+            throw new Error("Document project lookup failed", { cause: error });
+        }
+        for (const doc of (data ?? []) as { id: string; project_id: string | null }[]) {
+            if (doc.project_id === projectId) inProject.add(doc.id);
+        }
+    }
+    return inProject;
+}
+
+export type DerivedReader = {
+    userId: string;
+    userEmail: string | null | undefined;
+};
+
+/**
+ * Keep the derived copies (a chat message that quotes documents, a review
+ * cell, a memory line) whose every source document the reader can open now.
+ * Authorization when the copy was made is not authorization to read it later:
+ * the person may have left the firm, been walled out of the matter, or the
+ * document may be gone.
+ *
+ * `sourcesOf(item)` returns the item's source document ids, or null when its
+ * provenance is unknown; unknown is withheld. An item with no sources is not
+ * derived from a document and is kept. One lookup covers the whole batch; a
+ * lookup that fails throws, so the caller fails closed.
+ */
+export async function keepReadableDerived<T>(
+    db: Db,
+    reader: DerivedReader,
+    items: readonly T[],
+    sourcesOf: (item: T) => readonly string[] | null,
+): Promise<T[]> {
+    const sources = items.map(sourcesOf);
+    const ids = [...new Set(sources.flatMap((list) => list ?? []))];
+    const readable = new Set(
+        await filterAccessibleDocumentIds(ids, reader.userId, reader.userEmail, db),
+    );
+    return items.filter((_, index) => {
+        const list = sources[index];
+        return list !== null && list.every((id) => readable.has(id));
+    });
+}
+
 const ACCESSIBLE_PROJECTS_PAGE_SIZE = 1000;
 /** Guards a runaway loop, not a product limit. */
 const ACCESSIBLE_PROJECTS_MAX_PAGES = 200;

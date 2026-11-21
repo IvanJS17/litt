@@ -252,6 +252,23 @@ vi.mock("../../lib/access", async (importOriginal) => ({
     checkProjectAccess: (...args: unknown[]) => checkProjectAccess(...args),
     filterAccessibleDocumentIds: (...args: unknown[]) =>
         filterAccessibleDocumentIds(...args),
+    // The gate calls the verdict inside its own module, which this mock does
+    // not reach: answer it from the mocked verdict.
+    keepReadableDerived: async (
+        _db: unknown,
+        reader: { userId: string; userEmail: string | null | undefined },
+        items: unknown[],
+        sourcesOf: (item: unknown) => string[] | null,
+    ) => {
+        const sources = items.map(sourcesOf);
+        const ids = [...new Set(sources.flatMap((list) => list ?? []))];
+        const readable = new Set(
+            ids.length
+                ? await filterAccessibleDocumentIds(ids, reader.userId, reader.userEmail)
+                : [],
+        );
+        return items.filter((_, i) => sources[i]?.every((id) => readable.has(id)));
+    },
     ensureDocAccess: vi.fn(async () => ({ ok: true, isCreator: true })),
     listAccessibleProjectIds: vi.fn(async () => []),
     getOrgRole: vi.fn(async () => null),

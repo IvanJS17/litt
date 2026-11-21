@@ -21,6 +21,8 @@ function tables(): Record<string, Row[]> {
             { org_id: "org-a", user_id: userId, role: "member" },
             { org_id: "org-b", user_id: userId, role: "member" },
         ],
+        chats: [{ id: "c1", user_id: userId, org_id: "org-a", project_id: null }],
+        word_chats: [{ id: "w1", user_id: userId }],
         training_backing_checks: [
             check({}),
             check({ id: "b2", org_id: "org-b", chat_id: null, word_chat_id: "w1", message_id: "m2", created_at: "2026-01-02T00:00:00Z" }),

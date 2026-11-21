@@ -6,9 +6,12 @@ import {
     createSharedRowAccessChecker,
     type OrgRole,
 } from "../../lib/access";
+import { readableChatMessages } from "../../lib/chatReadAccess";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import { type Db } from "../../lib/supabase";
+import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "../../lib/trainingNotes";
+import { openableWorkMatters, workPlace } from "../../lib/trainingWork";
 import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents, loadUserRuleSuggestions } from "./matterProfileExport";
 import { loadUserMatterRequests } from "./matterRequestsExport";
 import {
@@ -217,8 +220,16 @@ async function loadUserChats(
         createSharedRowAccessChecker("chat", userId, userEmail, db),
     );
     const chatIds = idsFrom(chats);
-    const messages = await selectByIds(db, "chat_messages", "chat_id", chatIds);
-    return { chats, messages };
+    const all = await selectByIds(db, "chat_messages", "chat_id", chatIds);
+    // Chat access is not document access: an answer that quotes a document the
+    // holder can no longer open, or the attachment itself, stays behind; what
+    // the holder typed stays. A chat with anything withheld loses its title,
+    // which was written from the chat.
+    const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all);
+    return {
+        chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
+        messages,
+    };
 }
 
 async function loadUserWordChats(db: Db, userId: string) {
@@ -484,6 +495,65 @@ export const TRAINING_EXPORT_EXCLUDED: Record<string, string> = {
     training_version_approvals:
         "Insert-only evidence about a document version (document_version_id, content hash, approver), not learning data of the holder: it has no trainee column, hangs from no membership and records another person's decision. The holder's sealed drafts are in their documents.",
 };
+
+/**
+ * Work a person did inside a matter carries that matter's confidentiality
+ * (lib/trainingWork.ts). A training row's matter is its own project, else the
+ * project of its chat or tabular review; a row with no matter is the holder's
+ * alone. Of `rows`, keep those whose matter the holder can open now, and
+ * those with no matter. A row whose chat or review can no longer be found
+ * cannot be placed, so it is withheld.
+ */
+async function openableTrainingRows(
+    db: Db,
+    rows: Row[],
+    userId: string,
+    userEmail: string | null | undefined,
+): Promise<Row[]> {
+    if (rows.length === 0) return rows;
+    const GONE = Symbol("gone");
+    const places = new Map<string, Promise<string | null | typeof GONE>>();
+    const placeOf = (key: string, load: () => Promise<string | null | typeof GONE>) => {
+        let pending = places.get(key);
+        if (!pending) places.set(key, (pending = load()));
+        return pending;
+    };
+    const matterOf = async (row: Row): Promise<string | null | typeof GONE> => {
+        if (typeof row.project_id === "string") return row.project_id;
+        for (const [surface, column] of Object.entries(TURN_NOTE_CHAT_COLUMN) as [TurnNoteSurface, string][]) {
+            const chatId = row[column];
+            if (typeof chatId !== "string") continue;
+            return placeOf(`${surface}:${chatId}`, async () => {
+                const place = await workPlace(db, surface, chatId);
+                if (!place.ok) throw place.error;
+                return place.place ? place.place.projectId : GONE;
+            });
+        }
+        if (typeof row.tabular_review_id === "string") {
+            const reviewId = row.tabular_review_id;
+            return placeOf(`review:${reviewId}`, async () => {
+                const { data, error } = await (db as any)
+                    .from("tabular_reviews")
+                    .select("id, project_id")
+                    .eq("id", reviewId)
+                    .maybeSingle();
+                if (error) throw error;
+                return data ? ((data.project_id as string | null) ?? null) : GONE;
+            });
+        }
+        return null;
+    };
+    const matters = await mapWithConcurrency(rows, 8, matterOf);
+    const openable = await openableWorkMatters(db, {
+        projectIds: uniqueIds(matters.filter((matter): matter is string => typeof matter === "string")),
+        actorId: userId,
+        actorEmail: userEmail ?? null,
+    });
+    return rows.filter((_, index) => {
+        const matter = matters[index];
+        return matter === null || (typeof matter === "string" && openable.has(matter));
+    });
+}
 
 export async function buildUserAccountExport(
     db: Db,
@@ -808,6 +878,43 @@ export async function buildUserAccountExport(
         }),
     ]);
 
+    // The training rows made from a matter the holder can no longer open stay
+    // behind, as that matter's chats, documents and requests do.
+    const keepOpenable = (rows: Row[]) => openableTrainingRows(db, rows, userId, userEmail);
+    const [
+        turnNotes,
+        workReviews,
+        urgencyPasses,
+        backingChecks,
+        reviewAudits,
+        readings,
+        criteriaContrasts,
+    ] = await Promise.all([
+        keepOpenable(trainingNotes),
+        keepOpenable(trainingWorkReviews),
+        keepOpenable(trainingUrgencyPasses),
+        keepOpenable(trainingBackingChecks),
+        keepOpenable(trainingReviewAudits),
+        keepOpenable(trainingReadings),
+        keepOpenable(trainingCriteriaContrasts),
+    ]);
+    // A defense hangs from a work review: what was derived from a withheld
+    // review goes with it. A retake is built from turn notes: one built from a
+    // withheld note goes too.
+    const keptReviewIds = new Set(idsFrom(workReviews));
+    const defenses = trainingDefenses.map((row) =>
+        typeof row.work_review_id === "string" && !keptReviewIds.has(row.work_review_id)
+            ? { ...row, questions: null, outcome_note: null }
+            : row,
+    );
+    const keptNoteIds = new Set(idsFrom(turnNotes));
+    const allNoteIds = new Set(idsFrom(trainingNotes));
+    const retakes = trainingRetakes.filter((row) =>
+        (Array.isArray(row.source_note_ids) ? (row.source_note_ids as unknown[]) : []).every(
+            (id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id),
+        ),
+    );
+
     // Retainer requests that name the holder, in matters they can still open.
     const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId);
     const profileFacts = await loadUserProfileFacts(db, userId, userEmail, orgId);
@@ -843,7 +950,7 @@ export async function buildUserAccountExport(
         selectByIds(db, "project_subfolders", "project_id", projectIds),
         selectByIds(db, "document_versions", "document_id", documentIds),
         selectByIds(db, "document_edits", "document_id", documentIds),
-        selectByIds(db, "tabular_cells", "review_id", reviewIds),
+        loadReadableReviewCells(db, reviewIds, userId, userEmail),
     ]);
 
     return {
@@ -891,15 +998,15 @@ export async function buildUserAccountExport(
             [TRAINING_EXPORT_KEYS.training_mentors]: trainingMentor,
             [TRAINING_EXPORT_KEYS.training_pupils]: trainingPupil,
             [TRAINING_EXPORT_KEYS.training_stages]: trainingStages,
-            [TRAINING_EXPORT_KEYS.training_turn_notes]: trainingNotes,
-            [TRAINING_EXPORT_KEYS.training_work_reviews]: trainingWorkReviews,
-            [TRAINING_EXPORT_KEYS.training_defenses]: trainingDefenses,
-            [TRAINING_EXPORT_KEYS.training_urgency_passes]: trainingUrgencyPasses,
-            [TRAINING_EXPORT_KEYS.training_backing_checks]: trainingBackingChecks,
-            [TRAINING_EXPORT_KEYS.training_review_audits]: trainingReviewAudits,
-            [TRAINING_EXPORT_KEYS.training_readings]: trainingReadings,
-            [TRAINING_EXPORT_KEYS.training_retakes]: trainingRetakes,
-            [TRAINING_EXPORT_KEYS.training_criteria_contrasts]: trainingCriteriaContrasts,
+            [TRAINING_EXPORT_KEYS.training_turn_notes]: turnNotes,
+            [TRAINING_EXPORT_KEYS.training_work_reviews]: workReviews,
+            [TRAINING_EXPORT_KEYS.training_defenses]: defenses,
+            [TRAINING_EXPORT_KEYS.training_urgency_passes]: urgencyPasses,
+            [TRAINING_EXPORT_KEYS.training_backing_checks]: backingChecks,
+            [TRAINING_EXPORT_KEYS.training_review_audits]: reviewAudits,
+            [TRAINING_EXPORT_KEYS.training_readings]: readings,
+            [TRAINING_EXPORT_KEYS.training_retakes]: retakes,
+            [TRAINING_EXPORT_KEYS.training_criteria_contrasts]: criteriaContrasts,
             [TRAINING_EXPORT_KEYS.training_gym_attempts]: trainingGymAttempts,
             [TRAINING_EXPORT_KEYS.training_gym_cases]: trainingGymCases,
         },

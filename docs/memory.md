@@ -101,6 +101,11 @@ the answer being shown to the user.
   memory.
 - A project curator runs separately and never receives app memory. This
   prevents private app context from being copied into project memory.
+- Project memory is read by the whole project, so its curator learns only from
+  messages derived entirely from documents of that project that the person
+  whose turn it was can still open. A message whose sources cannot be
+  determined (an older message that names a document without recording which)
+  teaches the project nothing. Memory already written is not rewritten.
 - When facts conflict, the current conversation wins over project memory, and
   project memory wins over app memory.
 - Shared-audience model calls never receive a participant's private app memory.

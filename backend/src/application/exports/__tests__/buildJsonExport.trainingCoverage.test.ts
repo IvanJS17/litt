@@ -74,6 +74,10 @@ describe("account export: every training_* table has a decision", () => {
         const rows: Record<string, Row[]> = {
             organizations: [{ id: "org-a", kind: "team" }],
             org_members: [{ org_id: "org-a", user_id: holder, role: "member" }],
+            // The matter each generated row names, open to the holder.
+            projects: [{ id: "x-project_id", user_id: holder, org_id: null, visibility: "private", archived_at: null }],
+            chats: [{ id: "x-chat_id", user_id: holder, org_id: "org-a", project_id: null }],
+            tabular_reviews: [{ id: "x-tabular_review_id", user_id: holder, org_id: "org-a", project_id: null }],
         };
         for (const table of Object.keys(TRAINING_EXPORT_KEYS)) {
             const row: Row = {};

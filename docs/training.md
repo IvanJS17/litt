@@ -151,6 +151,12 @@ another person's id (the mentor who corrected a verdict, generated or reviewed
 something, granted a pass or set a stage) nor a credential reference; the one
 mentor id it keeps is the holder's own mentor in `as_pupil`.
 
+Work done inside a matter carries the matter's confidentiality: a training row
+made from a matter the holder can no longer open (its project, or the project
+of its chat or review) is left out of the export, a defense of a withheld work
+review keeps its outcome but not the text derived from it, and a retake built
+from a withheld note is left out. Rows with no matter stay.
+
 | Table | Layer | Export key (`training.…`) | When the holder leaves |
 |---|---|---|---|
 | `training_mentors` | 1 | `mentor_designations` | deleted with the membership |
