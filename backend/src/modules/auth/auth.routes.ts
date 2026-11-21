@@ -25,7 +25,8 @@ import {
 import { betaMode, canSignUp } from "../../lib/platformAccess";
 import { recordCreatingOrgOfSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
-import { isAuthUpstreamFailure } from "../../lib/authUpstream";
+import { markSessionsEnded } from "../mcp/mcp.service";
+import { authErrorShape, isAuthUpstreamFailure } from "../../lib/authUpstream";
 import { AppError } from "../../lib/appError";
 import { reportError, setOperation } from "../../lib/observability/report";
 import { requestOriginIsWordAddin } from "../../lib/origins";
@@ -468,9 +469,36 @@ authRouter.get("/session", requireAuth, asyncRoute(async (_req, res) => {
 
 authRouter.post("/logout", asyncRoute(async (req, res) => {
   setOperation("auth.session");
+  const scope = req.body?.scope === "global" ? "global" : "local";
+  let connectionsFailure: unknown = null;
   try {
     const client = createRequestSupabase(req, res);
-    await signOut(client, req.body?.scope === "global" ? "global" : "local");
+    if (scope === "global") {
+      // Signing out everywhere ends the connected applications too. The
+      // sign-out itself still goes ahead if that could not be recorded, and
+      // the failure is answered once the sessions are over.
+      try {
+        const { data, error } = await client.auth.getUser();
+        if (data.user) {
+          await markSessionsEnded(createServerSupabase(), data.user.id, "signed_out_everywhere");
+        } else if (error) {
+          // No session (or one GoTrue refuses) means nothing to end; any other
+          // failure, a rate limit included, means we could not tell who is
+          // signing out.
+          const failure = authErrorShape(error);
+          const status = failure?.status ?? 0;
+          const noSession =
+            !isAuthUpstreamFailure(error) &&
+            (failure?.name === "AuthSessionMissingError" ||
+              (failure?.name === "AuthApiError" && status >= 400 && status < 500 && status !== 429));
+          if (!noSession)
+            throw new AppError("auth.supabase_unavailable", "could not tell who is signing out", { cause: error });
+        }
+      } catch (error) {
+        connectionsFailure = error;
+      }
+    }
+    await signOut(client, scope);
   } catch (error) {
     // Local cookie removal must not depend on the upstream revocation request,
     // but a GoTrue that cannot revoke sessions is an outage worth seeing.
@@ -484,6 +512,7 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
   } finally {
     clearRequestAuthCookies(req, res);
   }
+  if (connectionsFailure) throw connectionsFailure;
   res.status(204).end();
 }));
 
@@ -511,8 +540,17 @@ authRouter.patch("/password", requireAuth, asyncRoute(async (req, res) => {
   const { data, error } = await updatePassword(client, parsed.data.password);
   if (error || !data.user) return authError(res, error);
   if (parsed.data.signOut) {
+    // Connected applications end with the sessions. If that cannot be
+    // recorded the sessions still end, and the failure is answered after.
+    let connectionsFailure: unknown = null;
+    try {
+      await markSessionsEnded(createServerSupabase(), res.locals.userId as string, "password_recovery_sign_out");
+    } catch (error) {
+      connectionsFailure = error;
+    }
     await signOut(client, "global");
     clearRequestAuthCookies(req, res);
+    if (connectionsFailure) throw connectionsFailure;
   }
   res.json({ user: publicAuthUser(data.user) });
 }));

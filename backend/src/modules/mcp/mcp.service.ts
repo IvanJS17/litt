@@ -2,3 +2,4 @@
 // The HTTP surface is mounted from mcp.routes.ts (app.ts).
 
 export { mcpConfig, mcpConfigurationProblem, MCP_SCOPES } from "./mcp.config";
+export { markSessionsEnded } from "./mcp.grants";

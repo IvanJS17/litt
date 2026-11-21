@@ -214,6 +214,7 @@ export async function decideConsent(
             workspaces,
             default_workspace: defaultWorkspace,
             mfa_verified_at: args.mfaVerified ? nowIso() : null,
+            created_at: nowIso(),
             expires_at: nowIso(config.grantMaxAgeSeconds),
         });
         if (grantInsert.error)

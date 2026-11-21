@@ -12,7 +12,7 @@ import { mcpConfig } from "./mcp.config";
 import { newSecret, sha256Hex, verifyPkceS256 } from "./mcp.crypto";
 import { recordMcpAudit, tryRecordMcpAudit } from "./mcp.audit";
 import { resolveClient } from "./mcp.clients";
-import { grantIsLive, loadGrant, revokeGrant } from "./mcp.grants";
+import { grantIsCurrent, grantIsLive, grantPredatesSignOut, loadGrant, revokeGrant } from "./mcp.grants";
 import { nowIso, oauthFail, oauthOk, type GrantRow, type OAuthResult } from "./mcp.shared";
 
 export type TokenResponse = {
@@ -127,7 +127,7 @@ export async function exchangeAuthorizationCode(
     const grant = await loadGrant(db, row.grant_id);
     if (
         !grant ||
-        !grantIsLive(grant) ||
+        !(await grantIsCurrent(db, grant)) ||
         grant.client_id !== client_id ||
         Date.parse(row.expires_at) <= Date.now() ||
         row.redirect_uri !== redirect_uri
@@ -195,7 +195,7 @@ export async function refreshTokens(
         return invalidGrant("The refresh token is invalid, expired or revoked.");
     }
 
-    if (!grantIsLive(grant) || Date.parse(token.expires_at) <= Date.now())
+    if (!(await grantIsCurrent(db, grant)) || Date.parse(token.expires_at) <= Date.now())
         return invalidGrant("The refresh token is invalid, expired or revoked.");
     if (scope) {
         const wanted = scope.split(/\s+/).filter(Boolean);
@@ -261,12 +261,15 @@ export async function verifyAccessToken(db: Db, token: string): Promise<Verified
 
     const profile = await db
         .from("user_profiles")
-        .select("account_deletion_requested_at")
+        .select("account_deletion_requested_at, sessions_ended_at")
         .eq("user_id", grant.user_id)
         .maybeSingle();
     if (profile.error) throw dbFailure("account state lookup failed", profile.error);
-    if ((profile.data as { account_deletion_requested_at?: string | null } | null)
-        ?.account_deletion_requested_at)
+    const account = profile.data as {
+        account_deletion_requested_at?: string | null;
+        sessions_ended_at?: string | null;
+    } | null;
+    if (account?.account_deletion_requested_at || grantPredatesSignOut(grant, account?.sessions_ended_at))
         return null;
 
     if (!grant.last_used_at || Date.now() - Date.parse(grant.last_used_at) > LAST_USED_REFRESH_MS) {
