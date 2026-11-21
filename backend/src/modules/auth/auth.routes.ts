@@ -146,7 +146,15 @@ authRouter.post("/login", asyncRoute(async (req, res) => {
   try {
     const client = createRequestSupabase(req, res);
     const { data, error } = await signInWithPassword(client, parsed.data);
-    if (error || !data.user || !data.session) return authError(res, error);
+    if (error || !data.user || !data.session) {
+      // Read by the sign-in account limiters in app.ts: only a refused
+      // email/password counts toward them. Any other failure (an unconfirmed
+      // address, a suspended account, a provider outage) is not a wrong guess.
+      if (describeAuthProviderError(error, "").code === "invalid_credentials") {
+        res.locals.loginCredentialRejected = true;
+      }
+      return authError(res, error);
+    }
     res.json({ user: publicAuthUser(data.user) });
   } catch (error) {
     authError(res, error);

@@ -184,6 +184,11 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // A large JSON body is read only after the caller is authenticated (app.ts),
+  // so a request can reach this middleware twice. Resolve it once: a second
+  // pass would repeat the identity lookup and present a cookie refresh token
+  // the first pass just rotated.
+  if (res.locals.authResolved === true) return next();
   const auth = req.headers.authorization ?? "";
   const admin = getAdminClient(res);
   if (!admin) return;
@@ -360,6 +365,7 @@ export async function requireAuth(
   if (!(await enforceLoginMfaIfEnabled(req, res, admin, token))) {
     return;
   }
+  res.locals.authResolved = true;
   next();
 }
 
