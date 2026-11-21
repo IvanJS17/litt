@@ -287,7 +287,7 @@ export async function requireAuth(
 
   const { data: deletionProfile, error: deletionError } = await admin
     .from("user_profiles")
-    .select("account_deletion_requested_at, created_by_org_id, terms_accepted_version")
+    .select("account_deletion_requested_at, created_by_org_id")
     .eq("user_id", user.id)
     .maybeSingle();
   if (deletionError) {
@@ -314,8 +314,6 @@ export async function requireAuth(
       user.id,
       (deletionProfile as { created_by_org_id?: string | null } | null)
         ?.created_by_org_id,
-      (deletionProfile as { terms_accepted_version?: string | null } | null)
-        ?.terms_accepted_version,
     );
   } catch (error) {
     // Fail closed: an unreadable verdict must not open the personal space.

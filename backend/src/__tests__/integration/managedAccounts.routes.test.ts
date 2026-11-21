@@ -117,6 +117,26 @@ describe("a managed account", () => {
         expect(res.body.code).toBe("personal_workspace_disabled");
     });
 
+    it.each(["older", null])("is refused the personal workspace whatever legal version it has accepted (%s)", async (accepted) => {
+        h.state!.tables.user_profiles[0].terms_accepted_version = accepted;
+        const res = await personalList();
+        expect(res.status).toBe(403);
+        expect(res.body.code).toBe("personal_workspace_disabled");
+    });
+
+    it("reports terms to accept and the managed state together, and keeps the notice after acceptance", async () => {
+        h.state!.tables.user_profiles[0].terms_accepted_version = "older";
+        const before = await request(app).get("/user/profile").set(...AUTH);
+        expect(before.body.termsRequired).toBe(true);
+        expect(before.body.personalWorkspaceDisabled).toBe(true);
+        h.state!.tables.user_profiles[0].terms_accepted_version = LEGAL_VERSION;
+        const after = await request(app).get("/user/profile").set(...AUTH);
+        expect(after.body.termsRequired).toBe(false);
+        expect(after.body.personalWorkspaceDisabled).toBe(true);
+        expect(after.body.managedByFirmName).toBe("Despacho Aurora");
+        expect(after.body.managedNoticePending).toBe(true);
+    });
+
     it("can close the 'now managed' notice", async () => {
         const res = await request(app).post("/user/managed-notice/dismiss").set(...AUTH).set("Origin", ORIGIN);
         expect(res.status).toBe(204);
@@ -158,11 +178,6 @@ describe("everyone else keeps the personal workspace", () => {
         expect((await personalList()).body.code).not.toBe("personal_workspace_disabled");
         h.state!.tables.organizations[0].managed_accounts = true;
         expect((await personalList()).status).toBe(403);
-    });
-
-    it("waits for the new legal version to be accepted", async () => {
-        h.state!.tables.user_profiles[0].terms_accepted_version = "older";
-        expect((await personalList()).body.code).not.toBe("personal_workspace_disabled");
     });
 });
 

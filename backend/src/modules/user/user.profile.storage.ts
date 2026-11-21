@@ -1,5 +1,4 @@
 // user profile storage — implementation behind the module facade.
-import { registerLegalVersion } from "../../lib/managedAccounts";
 import { type Db } from "./user.shared";
 
 export const MONTHLY_CREDIT_LIMIT = 999999;
@@ -352,6 +351,3 @@ async function selectProfileLegacy(
     }
     return legacy;
 }
-
-// Managed accounts apply only after this version is accepted (lib/managedAccounts.ts).
-registerLegalVersion(LEGAL_VERSION);
