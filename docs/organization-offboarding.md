@@ -26,8 +26,9 @@ which opens into the types of work and then the items, so an owner can hand
 over or delete everything a person left, one type, or a selection. A departed
 member whose account has since been deleted is listed as a former member,
 without a name. Reassigning assigns an owner and removes the expiry date.
-Archived content is excluded from ordinary access, including access by
-organization owners; it must be reassigned first. Removal previews show counts for private work and never
+Reassigning and deleting archived work both require the second factor when
+the owner has enrolled one. Archived content is excluded from ordinary access,
+including access by organization owners; it must be reassigned first. Removal previews show counts for private work and never
 expose its titles to administrators.
 
 Connectors a member added for the organization (MCP servers, Google Drive,
@@ -253,3 +254,19 @@ The audit pagination and lifecycle review fixes ship in
 before deploying the backend. Organization username searches stay within the
 organization's audit actors, and ordinary pages resolve resource access only
 for the selected events. Sensitive title searches and sorts redact first.
+
+## Second factor on organization changes
+
+Every change under `/orgs/:orgId` goes through `requireOrgMutation` in
+`backend/src/modules/orgs/orgs.routes.ts`: sign-in, the personal-organization
+refusal and `requireMfaIfEnrolled`. When the acting account has a second
+factor enrolled and has not verified it in the current session, the API answers
+`403 mfa_verification_required` and writes nothing. The web app then asks for
+the code and repeats the action. Accounts without a second factor are not
+asked. This covers renaming, the logo, roles, removing members (leaving the
+organization oneself included), invitations (create, cancel, resend), archive
+recovery and deletion, the scan classes and every firm setting. Reads keep
+plain sign-in. `orgs.routes.stepUp.test.ts` fails if a write route is added to
+that router without it; routes that other modules mount under `/orgs/:orgId`
+are outside that test. The
+platform invitation routes (`/platform/invitations`) follow the same rule.
