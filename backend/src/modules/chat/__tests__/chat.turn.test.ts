@@ -380,6 +380,29 @@ describe("runChatTurn against a sink that is not HTTP", () => {
         );
     });
 
+    it("hands a connected app's tool capabilities to the engine, and none for a turn the web starts", async () => {
+        mocks.runLLMStream.mockResolvedValue({
+            fullText: "ok",
+            events: [{ type: "content", text: "ok" }],
+            citations: [],
+        });
+        const narrowed = await startChatTurn(db, {
+            userId: "u1",
+            userEmail: "u1@test.local",
+            requestId: undefined,
+            parsed,
+            allowedCapabilities: ["read"],
+        });
+        if (!narrowed.ok) throw new Error("turn must start");
+        await runChatTurn(db, narrowed.started, memorySink(narrowed.started).sink);
+        expect(mocks.runLLMStream.mock.calls[0][0]).toMatchObject({ allowedCapabilities: ["read"] });
+
+        resetAssistantTurnRunsForTests();
+        const web = await start();
+        await runChatTurn(db, web, memorySink(web).sink);
+        expect(mocks.runLLMStream.mock.calls[1][0].allowedCapabilities).toBeUndefined();
+    });
+
     it("reports a failed generation as one error frame and [DONE], and releases memory", async () => {
         mocks.runLLMStream.mockRejectedValue(new Error("provider down"));
         const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

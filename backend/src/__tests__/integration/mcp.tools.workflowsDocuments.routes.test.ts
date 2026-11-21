@@ -20,7 +20,7 @@ const h = vi.hoisted(() => ({
     state: null as null | { db: unknown; tables: Record<string, Record<string, unknown>[]>; failNext: (t: string, o: string, e: unknown) => void },
     stored: new Map<string, { size: number; contentType: string }>(),
     // chat
-    started: [] as { parsed: Record<string, any>; origin: unknown }[], // eslint-disable-line @typescript-eslint/no-explicit-any
+    started: [] as { parsed: Record<string, any>; origin: unknown; allowedCapabilities?: string[] }[], // eslint-disable-line @typescript-eslint/no-explicit-any
     outcome: "ok" as "ok" | "hang",
     // tabular
     defaultModel: "claude-sonnet-4-5" as string | null,
@@ -93,10 +93,10 @@ vi.mock("../../modules/chat/chat.turn", async (importOriginal) => {
     const refuse = (status: number, detail: string, code?: string) => ({ ok: false as const, status, detail, ...(code ? { code } : {}) });
     return {
         ...original,
-        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; parsed: Record<string, any> & { chatId: string | null; model?: string; orgId?: unknown; project: { projectId: string | null }; training: { attempt?: unknown } }; origin?: { grantId: string; label: string } }) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; parsed: Record<string, any> & { chatId: string | null; model?: string; orgId?: unknown; project: { projectId: string | null }; training: { attempt?: unknown } }; origin?: { grantId: string; label: string }; allowedCapabilities?: string[] }) => { // eslint-disable-line @typescript-eslint/no-explicit-any
             const { parsed, userId } = args;
             const email = args.userEmail ?? "";
-            h.started.push({ parsed, origin: args.origin });
+            h.started.push({ parsed, origin: args.origin, allowedCapabilities: args.allowedCapabilities });
             if (parsed.model === "no-key-model") return refuse(400, "Anthropic (Claude) API key is not configured.", "missing_api_key");
             let chatId = parsed.chatId;
             let orgId: string | null;
@@ -654,6 +654,21 @@ describe("list_quick_actions", () => {
 // ---------------------------------------------------------------------------
 // run_workflow — assistant workflows (a conversation of LiTT's assistant)
 // ---------------------------------------------------------------------------
+
+describe("run_workflow and run_quick_action: the assistant keeps the connection's permissions", () => {
+    it("gives the assistant only what the connection's permissions allow: read always, run with litt.run, write with litt.write, and never the person's connectors", async () => {
+        as("owner");
+        const capabilitiesFor = async (scopes: string[], tool: string, args: object) => {
+            h.started = [];
+            const out = await callTool(await connect({ scopes }), tool, args);
+            expect(out.ok).toBe(true);
+            return h.started[0].allowedCapabilities;
+        };
+        // Running needs litt.run; the chat inside a run keeps only what the connection holds.
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.run"], "run_workflow", { workflow_id: WF_ASSIST })).toEqual(["read", "run"]);
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.run", "litt.write"], "run_quick_action", { quick_action_id: QA_MAIN })).toEqual(["read", "run", "write"]);
+    });
+});
 
 describe("run_workflow: assistant workflow", () => {
     it("opens a conversation with the workflow on the message and the documents attached, and answers", async () => {

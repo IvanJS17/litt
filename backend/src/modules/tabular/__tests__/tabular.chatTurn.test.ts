@@ -1,0 +1,97 @@
+/**
+ * The tabular review chat turn without HTTP: what a turn started by a
+ * connected application hands the assistant engine (its connection's tool
+ * capabilities), and that the web route's turn hands none.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+    prepareTabularChat: vi.fn(),
+    runLLMStream: vi.fn(),
+}));
+
+vi.mock("../tabular.chats", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../tabular.chats")>()),
+    prepareTabularChat: (...args: unknown[]) => mocks.prepareTabularChat(...args),
+}));
+vi.mock("../../chat/chat.service", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../chat/chat.service")>()),
+    runLLMStream: (...args: unknown[]) => mocks.runLLMStream(...args),
+}));
+vi.mock("../../../lib/memory/schedule", () => ({
+    releaseMemoryConversationTurn: vi.fn(async () => undefined),
+    scheduleMemoryConsolidation: vi.fn(async () => ({ job_id: "job-1" })),
+}));
+
+import type { Db } from "../../../lib/supabase";
+import { parseTabularChatRequest, runTabularChatTurn, startTabularChatTurn } from "../tabular.chatTurn";
+
+const db = {} as Db;
+
+const parsed = (() => {
+    const result = parseTabularChatRequest({ messages: [{ role: "user", content: "hello" }], model: "test-model" });
+    if (!result.ok) throw new Error("fixture request must parse");
+    return result.value;
+})();
+
+async function start(allowedCapabilities?: Parameters<typeof startTabularChatTurn>[1]["allowedCapabilities"]) {
+    const turn = await startTabularChatTurn(db, {
+        userId: "u1",
+        userEmail: "u1@test.local",
+        reviewId: "r1",
+        parsed,
+        ...(allowedCapabilities ? { allowedCapabilities } : {}),
+    });
+    if (!turn.ok) throw new Error("turn must start");
+    return turn.started;
+}
+
+const sink = () => ({
+    id: "turn-1",
+    signal: new AbortController().signal,
+    write: () => true,
+    finish: vi.fn(),
+    touch: () => {},
+    stopReason: null,
+});
+
+beforeEach(() => {
+    mocks.runLLMStream.mockReset();
+    mocks.runLLMStream.mockResolvedValue({ fullText: "ok", events: [{ type: "content", text: "ok" }] });
+    mocks.prepareTabularChat.mockReset();
+    mocks.prepareTabularChat.mockResolvedValue({
+        ok: true,
+        data: {
+            reviewTitle: null,
+            tabularStore: { cells: [] },
+            chatId: null,
+            chatTitle: null,
+            isFirstExchange: false,
+            model: "test-model",
+            reasoningLevel: "high",
+            titleModel: "test-model",
+            apiKeys: {},
+            orgId: null,
+            apiMessages: [],
+            inputMessageId: "m1",
+            sourceDocumentIds: [],
+            readableMemoryProjectId: null,
+            writableMemoryProjectId: null,
+            memorySharedAudience: false,
+            memoryTurn: null,
+            trainingNote: null,
+            trainingPlan: null,
+            trainingEgress: async () => {},
+        },
+    });
+});
+
+describe("runTabularChatTurn", () => {
+    it("hands a connected app's tool capabilities to the engine, and none for a turn the web starts", async () => {
+        await runTabularChatTurn(db, await start(["read"]), sink());
+        expect(mocks.runLLMStream.mock.calls[0][0]).toMatchObject({ allowedCapabilities: ["read"] });
+
+        await runTabularChatTurn(db, await start(), sink());
+        expect(mocks.runLLMStream.mock.calls[1][0].allowedCapabilities).toBeUndefined();
+    });
+});

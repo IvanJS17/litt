@@ -22,7 +22,7 @@ const h = vi.hoisted(() => ({
     outcome: "ok" as "ok" | "error" | "hang",
     gate: null as null | Promise<void>,
     answer: "",
-    started: [] as { parsed: Record<string, unknown>; origin: unknown; userEmail: unknown }[],
+    started: [] as { parsed: Record<string, unknown>; origin: unknown; userEmail: unknown; allowedCapabilities?: string[] }[],
     sinks: [] as unknown[],
 }));
 
@@ -56,10 +56,10 @@ vi.mock("../../modules/chat/chat.turn", async (importOriginal) => {
     const refuse = (status: number, detail: string, code?: string) => ({ ok: false as const, status, detail, ...(code ? { code } : {}) });
     return {
         ...original,
-        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; requestId?: string; parsed: Record<string, unknown> & { chatId: string | null; model?: string; orgId?: unknown; project: { projectId: string | null }; training: { attempt?: unknown } }; origin?: { grantId: string; label: string } }) => {
+        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; requestId?: string; parsed: Record<string, unknown> & { chatId: string | null; model?: string; orgId?: unknown; project: { projectId: string | null }; training: { attempt?: unknown } }; origin?: { grantId: string; label: string }; allowedCapabilities?: string[] }) => {
             const { parsed, userId } = args;
             const email = args.userEmail ?? "";
-            h.started.push({ parsed, origin: args.origin, userEmail: args.userEmail });
+            h.started.push({ parsed, origin: args.origin, userEmail: args.userEmail, allowedCapabilities: args.allowedCapabilities });
             if (parsed.model === "no-key-model") return refuse(400, "Anthropic (Claude) API key is not configured.", "missing_api_key");
                         let chatId = parsed.chatId;
             let orgId: string | null;
@@ -320,6 +320,20 @@ describe("start_chat", () => {
         expect(callRows().at(-1)).toMatchObject({ tool: "start_chat", outcome: "ok", mode: "B" });
     });
 
+    it("gives the assistant only what the connection's permissions allow: read always, run with litt.run, write with litt.write, and never the person's connectors", async () => {
+        as("editor");
+        const capabilitiesFor = async (scopes: string[]) => {
+            h.started = [];
+            const reply = await callTool(await connect({ scopes }), "start_chat", { message: "hola", matter_id: PROJECT_PUBLIC });
+            expect(reply.ok).toBe(true);
+            return h.started[0].allowedCapabilities;
+        };
+        expect(await capabilitiesFor(["litt.read", "litt.chat"])).toEqual(["read"]);
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.write"])).toEqual(["read", "write"]);
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.run"])).toEqual(["read", "run"]);
+        expect(await capabilitiesFor(ALL_SCOPES)).toEqual(["read", "run", "write"]);
+    });
+
     it("starts a standalone conversation in the named workspace, or in the default one", async () => {
         as("owner");
         const token = await connect({ workspaces: [ORG, "personal"] });
@@ -404,8 +418,17 @@ describe("send_chat_message and the start + poll lifecycle", () => {
         ]);
         // A conversation that began in LiTT keeps its origin.
         expect(h.started[0].origin).toBeUndefined();
+        // The connection's permissions, not the conversation's origin, set what the assistant may do.
+        expect(h.started[0].allowedCapabilities).toEqual(["read", "run", "write"]);
         expect(tables().chats.find((c) => c.id === WEB_CHAT)!.origin).toBe("web");
         expect(tables().chat_messages.filter((m) => m.chat_id === WEB_CHAT && m.author_user_id === PEOPLE.owner.id)).toHaveLength(4);
+    });
+
+    it("narrows a message in an existing conversation the same way", async () => {
+        as("owner");
+        const reply = await callTool(await connect({ scopes: ["litt.read", "litt.chat"] }), "send_chat_message", { chat_id: WEB_CHAT, message: "otra" });
+        expect(reply.ok).toBe(true);
+        expect(h.started[0].allowedCapabilities).toEqual(["read"]);
     });
 
     it("answers generating when the answer is slow; get_chat_turn follows it, a second message is refused, and it completes", async () => {

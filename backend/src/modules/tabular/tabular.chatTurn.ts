@@ -35,6 +35,7 @@ import {
     TABULAR_TOOLS,
     throwIfTurnStopped,
     type ChatMessage,
+    type ToolCapability,
     parseOptionalModel,
     parseOptionalReasoning,
 } from "../chat/chat.service";
@@ -87,6 +88,8 @@ export type StartedTabularChatTurn = {
     prepared: PreparedTabularChat;
     request: Pick<ParsedTabularChatRequest, "lastUserContent" | "reviewTitle" | "projectName">;
     assistantMessageId: string;
+    /** The tool capabilities of a turn a connected app started; absent: all. */
+    allowedCapabilities?: readonly ToolCapability[];
 };
 
 /**
@@ -176,6 +179,8 @@ export async function startTabularChatTurn(
         userEmail: string | undefined;
         reviewId: string;
         parsed: ParsedTabularChatRequest;
+        /** The tools this turn may use when a connected app starts it; the web passes none. */
+        allowedCapabilities?: readonly ToolCapability[];
     },
 ): Promise<StartTabularChatTurnResult> {
     const { userId, userEmail, reviewId, parsed } = args;
@@ -233,6 +238,7 @@ export async function startTabularChatTurn(
                 projectName: parsed.projectName,
             },
             assistantMessageId,
+            ...(args.allowedCapabilities ? { allowedCapabilities: args.allowedCapabilities } : {}),
         },
     };
 }
@@ -312,6 +318,7 @@ export async function runTabularChatTurn(
             db,
             write,
             extraTools: TABULAR_TOOLS,
+            allowedCapabilities: started.allowedCapabilities,
             trainingPlan: trainingEnginePlan(trainingPlan),
             tabularStore,
             buildCitations: (text) =>
