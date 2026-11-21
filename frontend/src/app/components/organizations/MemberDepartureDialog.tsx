@@ -1,5 +1,6 @@
 "use client";
 
+import { useMfaStepUp } from "@/app/components/popups/useMfaStepUp";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Modal } from "@/app/components/modals/Modal";
@@ -68,6 +69,7 @@ export function MemberDepartureDialog({
   onDone: (result: MemberDepartureResult) => void;
 }) {
   const t = useTranslations();
+  const mfa = useMfaStepUp();
   const [handover, setHandover] = useState<OrgMemberHandover | null>(null);
   const [loadedMembers, setLoadedMembers] = useState<OrgMember[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -178,7 +180,9 @@ export function MemberDepartureDialog({
     const results: PromiseSettledResult<void>[] = [];
     for (const member of departing) {
       try {
-        await removeOrgMember(orgId, member.user_id, owed > 0 ? selectedSuccessor : undefined);
+        await mfa.run(() =>
+          removeOrgMember(orgId, member.user_id, owed > 0 ? selectedSuccessor : undefined),
+        );
         results.push({ status: "fulfilled", value: undefined });
       } catch (reason) {
         results.push({ status: "rejected", reason });
@@ -196,6 +200,8 @@ export function MemberDepartureDialog({
   }
 
   return (
+    <>
+    {mfa.popup}
     <Modal
       open
       onClose={() => {
@@ -339,5 +345,6 @@ export function MemberDepartureDialog({
         )}
       </div>
     </Modal>
+    </>
   );
 }

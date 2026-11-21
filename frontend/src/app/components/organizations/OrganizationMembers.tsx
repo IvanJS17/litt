@@ -1,5 +1,6 @@
 "use client";
 
+import { useMfaStepUp } from "@/app/components/popups/useMfaStepUp";
 import { UserAvatar } from "@/app/components/ui/user-avatar";
 
 import {
@@ -158,6 +159,7 @@ export function OrganizationMembers({
   initialTab?: "all" | "departed";
 }) {
   const t = useTranslations();
+  const mfa = useMfaStepUp();
   const router = useRouter();
   const { user } = useAuth();
   const { refreshOrganizations } = useWorkspace();
@@ -340,7 +342,7 @@ export function OrganizationMembers({
     setBusyMemberId(member.user_id);
     setActionError(null);
     try {
-      await updateOrgMember(orgId, member.user_id, role);
+      await mfa.run(() => updateOrgMember(orgId, member.user_id, role));
       setMembers((current) =>
         current.map((row) =>
           row.user_id === member.user_id ? { ...row, role } : row,
@@ -472,6 +474,7 @@ export function OrganizationMembers({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {mfa.popup}
       <PageHeader
         loading={loading}
         breadcrumbs={[
