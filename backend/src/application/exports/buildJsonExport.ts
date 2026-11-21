@@ -4,6 +4,7 @@ import {
     checkWorkflowAccess,
     createDocumentAccessChecker,
     createSharedRowAccessChecker,
+    keepReadableDerived,
     type OrgRole,
 } from "../../lib/access";
 import { readableChatMessages } from "../../lib/chatReadAccess";
@@ -179,6 +180,15 @@ async function loadReadableTabularTranscripts(
     userId: string,
     userEmail?: string | null,
 ) {
+    return (await loadReadableTabularTranscriptsJudged(db, chats, userId, userEmail)).result;
+}
+
+async function loadReadableTabularTranscriptsJudged(
+    db: Db,
+    chats: Record<string, unknown>[],
+    userId: string,
+    userEmail?: string | null,
+) {
     const all = await selectCompleteChatMessages(db, idsFrom(chats), "*");
     const messages = await filterReadableChatMessages(
         db,
@@ -186,7 +196,10 @@ async function loadReadableTabularTranscripts(
         userId,
         userEmail,
     );
-    return { chats: withReadableTitles(chats, all, messages), messages };
+    return {
+        result: { chats: withReadableTitles(chats, all, messages), messages },
+        judged: judgeChats(all, messages),
+    };
 }
 
 async function loadUserReviews(
@@ -211,6 +224,16 @@ async function loadUserChats(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
+    return (await loadUserChatsJudged(db, userId, userEmail, orgId)).result;
+}
+
+/** The holder's chats as exported, with the verdict on each message that training records follow. */
+async function loadUserChatsJudged(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: ExportWorkspace,
+) {
     const candidates = await selectAll(db, "chats", {
         filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
         order: ["created_at"],
@@ -227,8 +250,11 @@ async function loadUserChats(
     // which was written from the chat.
     const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all);
     return {
-        chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
-        messages,
+        result: {
+            chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
+            messages,
+        },
+        judged: judgeChats(all, messages),
     };
 }
 
@@ -256,6 +282,15 @@ async function loadUserTabularChats(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
+    return (await loadUserTabularChatsJudged(db, userId, userEmail, orgId)).result;
+}
+
+async function loadUserTabularChatsJudged(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: ExportWorkspace,
+) {
     const candidates = await selectAll(db, "tabular_review_chats", {
         filter: (query) => query.eq("user_id", userId),
         order: ["created_at"],
@@ -274,7 +309,7 @@ async function loadUserTabularChats(
         createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
     );
     const reviewIds = new Set(idsFrom(readableReviews));
-    return loadReadableTabularTranscripts(
+    return loadReadableTabularTranscriptsJudged(
         db,
         candidates.filter(
             (chat) =>
@@ -496,6 +531,65 @@ export const TRAINING_EXPORT_EXCLUDED: Record<string, string> = {
         "Insert-only evidence about a document version (document_version_id, content hash, approver), not learning data of the holder: it has no trainee column, hangs from no membership and records another person's decision. The holder's sealed drafts are in their documents.",
 };
 
+/** Per chat, its stored messages oldest first, each with whether the export withheld it. */
+type ChatJudgement = Map<string, { id: string; role: unknown; withheld: boolean }[]>;
+
+function judgeChats(all: Row[], readable: Row[], into: ChatJudgement = new Map()): ChatJudgement {
+    const kept = new Set(idsFrom(readable));
+    for (const message of all) {
+        const chatId = message.chat_id as string;
+        if (!into.has(chatId)) into.set(chatId, []);
+        into.get(chatId)!.push({ id: message.id as string, role: message.role, withheld: !kept.has(message.id as string) });
+    }
+    return into;
+}
+
+/**
+ * A training row made from a chat is made from its answers: from the answer of
+ * its turn when it records the message, else from every answer of the chat.
+ * It may leave only if those answers did. `message_id` is the person's own
+ * message for a turn note (the answer is what follows it) and the answer
+ * itself for a backing check or a criteria contrast.
+ */
+function madeFromReadableAnswers(judged: ChatJudgement, row: Row): boolean {
+    const chatId = [row.chat_id, row.tabular_chat_id].find((id): id is string => typeof id === "string");
+    const messages = chatId ? judged.get(chatId) : undefined;
+    // Word chats are not yet judged, and a chat with no stored message has no answer to withhold.
+    if (!messages) return true;
+    const at = messages.findIndex((message) => message.id === row.message_id);
+    let answers = messages.filter((message) => message.role === "assistant");
+    if (at >= 0 && messages[at].role === "assistant") answers = [messages[at]];
+    else if (at >= 0) {
+        // The person's message: the answers that follow it, up to their next message.
+        answers = [];
+        for (const message of messages.slice(at + 1)) {
+            if (message.role === "user") break;
+            if (message.role === "assistant") answers.push(message);
+        }
+    }
+    return answers.every((message) => !message.withheld);
+}
+
+/** Judge the chats training rows name that the export did not list (archived, or of another workspace). */
+async function judgeUnlistedChats(
+    db: Db,
+    judged: ChatJudgement,
+    rows: Row[],
+    reader: { userId: string; userEmail: string | null | undefined },
+) {
+    const wanted = (column: string) => uniqueIds(rows.map((row) => row[column]).filter((id): id is string => typeof id === "string" && !judged.has(id)));
+    const [chatIds, tabularIds] = [wanted("chat_id"), wanted("tabular_chat_id")];
+    if (chatIds.length) {
+        const all = await selectByIds(db, "chat_messages", "chat_id", chatIds);
+        judgeChats(all, (await readableChatMessages(db, reader, all)).messages, judged);
+    }
+    if (tabularIds.length) {
+        const all = await selectCompleteChatMessages(db, tabularIds, "*");
+        judgeChats(all, await filterReadableChatMessages(db, all, reader.userId, reader.userEmail), judged);
+    }
+    for (const id of [...chatIds, ...tabularIds]) if (!judged.has(id)) judged.set(id, []);
+}
+
 /**
  * Work a person did inside a matter carries that matter's confidentiality
  * (lib/trainingWork.ts). A training row's matter is its own project, else the
@@ -578,8 +672,8 @@ export async function buildUserAccountExport(
         hiddenWorkflows,
         workflowSharesByUser,
         workflowSharesWithUser,
-        assistantChats,
-        tabularChats,
+        assistantLoaded,
+        tabularLoaded,
         tabularReviews,
         sharedProjects,
         sharedTabularReviews,
@@ -667,8 +761,8 @@ export async function buildUserAccountExport(
                   [],
               )
             : Promise.resolve([]),
-        loadUserChats(db, userId, userEmail, orgId),
-        loadUserTabularChats(db, userId, userEmail, orgId),
+        loadUserChatsJudged(db, userId, userEmail, orgId),
+        loadUserTabularChatsJudged(db, userId, userEmail, orgId),
         loadUserReviews(db, userId, userEmail, orgId),
         normalizedEmail
             ? (async () => {
@@ -879,41 +973,62 @@ export async function buildUserAccountExport(
     ]);
 
     // The training rows made from a matter the holder can no longer open stay
-    // behind, as that matter's chats, documents and requests do.
+    // behind, as that matter's chats, documents and requests do. So do those
+    // made from a chat answer or a document the holder can no longer read: the
+    // verdict on each chat message was reached once, with the chats above.
+    const reader = { userId, userEmail };
+    const judged: ChatJudgement = new Map([...assistantLoaded.judged, ...tabularLoaded.judged]);
+    await judgeUnlistedChats(db, judged, [...trainingNotes, ...trainingWorkReviews, ...trainingBackingChecks, ...trainingCriteriaContrasts], reader);
     const keepOpenable = (rows: Row[]) => openableTrainingRows(db, rows, userId, userEmail);
+    const keepFromChats = async (rows: Row[]) => (await keepOpenable(rows)).filter((row) => madeFromReadableAnswers(judged, row));
     const [
         turnNotes,
         workReviews,
         urgencyPasses,
         backingChecks,
         reviewAudits,
-        readings,
+        openReadings,
         criteriaContrasts,
     ] = await Promise.all([
-        keepOpenable(trainingNotes),
-        keepOpenable(trainingWorkReviews),
+        keepFromChats(trainingNotes),
+        keepFromChats(trainingWorkReviews),
         keepOpenable(trainingUrgencyPasses),
-        keepOpenable(trainingBackingChecks),
+        keepFromChats(trainingBackingChecks),
         keepOpenable(trainingReviewAudits),
         keepOpenable(trainingReadings),
-        keepOpenable(trainingCriteriaContrasts),
+        keepFromChats(trainingCriteriaContrasts),
     ]);
+    // A reading is of a document: through that document's access. One whose
+    // document was deleted keeps what the person wrote and its result, not the
+    // passages and comparison drawn from the document.
+    const readings = (
+        await keepReadableDerived(db, reader, openReadings, (row) =>
+            typeof row.document_id === "string" ? [row.document_id] : [],
+        )
+    ).map((row) => (typeof row.document_id === "string" ? row : { ...row, machine_findings: null, comparison: null }));
     // A defense hangs from a work review: what was derived from a withheld
-    // review goes with it. A retake is built from turn notes: one built from a
-    // withheld note goes too.
+    // review goes with it, and from none recorded (a practice-area defense is
+    // drawn from several works that are not recorded; a deleted review looks
+    // the same). A retake is built from turn notes: one built from a withheld
+    // note goes too; one whose notes no longer exist loses its question and
+    // contrast but keeps the person's answer and its result.
     const keptReviewIds = new Set(idsFrom(workReviews));
     const defenses = trainingDefenses.map((row) =>
-        typeof row.work_review_id === "string" && !keptReviewIds.has(row.work_review_id)
-            ? { ...row, questions: null, outcome_note: null }
-            : row,
+        typeof row.work_review_id === "string" && keptReviewIds.has(row.work_review_id)
+            ? row
+            : { ...row, questions: null, outcome_note: null },
     );
     const keptNoteIds = new Set(idsFrom(turnNotes));
     const allNoteIds = new Set(idsFrom(trainingNotes));
-    const retakes = trainingRetakes.filter((row) =>
-        (Array.isArray(row.source_note_ids) ? (row.source_note_ids as unknown[]) : []).every(
-            (id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id),
-        ),
-    );
+    const noteIdsOf = (row: Row) => (Array.isArray(row.source_note_ids) ? (row.source_note_ids as unknown[]) : []);
+    const retakes = trainingRetakes
+        .filter((row) => noteIdsOf(row).every((id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id)))
+        .map((row) => {
+            const ids = noteIdsOf(row);
+            return ids.length > 0 && ids.every((id) => typeof id === "string" && allNoteIds.has(id))
+                ? row
+                : { ...row, question: null, contrast: null };
+        });
 
     // Retainer requests that name the holder, in matters they can still open.
     const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId);
@@ -984,10 +1099,10 @@ export async function buildUserAccountExport(
                 typeof row.workflow_id === "string" &&
                 exportedWorkflowIds.has(row.workflow_id),
         ),
-        chats: assistantChats,
+        chats: assistantLoaded.result,
         tabular_reviews: tabularReviews,
         tabular_cells: tabularCells,
-        tabular_review_chats: tabularChats,
+        tabular_review_chats: tabularLoaded.result,
         ...playbooks,
         shared_access: {
             projects: sharedProjects,

@@ -32,6 +32,10 @@ function tables(deniedFor: string | null = holder): Record<string, Row[]> {
             { org_id: "org", user_id: "partner", role: "owner" },
         ],
         projects: [project("p-denied"), project("p-open")],
+        documents: [
+            { id: "doc-1", user_id: "partner", project_id: "p-denied", org_id: "org", archived_at: null },
+            { id: "doc-2", user_id: "partner", project_id: "p-open", org_id: "org", archived_at: null },
+        ],
         project_org_access_overrides: deniedFor
             ? [{ project_id: "p-denied", org_id: "org", user_id: deniedFor, role: "deny" }]
             : [],
@@ -108,6 +112,8 @@ describe("account export: training rows of a matter the holder can no longer ope
         expect(ids(t.backing_checks)).toEqual(want("bk-open", "bk-none"));
         expect(ids(t.review_audits)).toEqual(want("au-open"));
         expect(ids(t.readings)).toEqual(want("rd-open", "rd-free"));
+        // A reading whose document is gone loses the passages drawn from it.
+        expect(t.readings.find((row: Row) => row.id === "rd-free")).toMatchObject({ machine_findings: null });
         expect(ids(t.criteria_contrasts)).toEqual(want("cc-open"));
         // A retake built from a withheld note is withheld with it.
         expect(ids(t.retakes)).toEqual(want("rk-open"));
@@ -115,7 +121,8 @@ describe("account export: training rows of a matter the holder can no longer ope
         const defenses = Object.fromEntries(t.defenses.map((row: Row) => [row.id, row]));
         expect(defenses["df-denied"]).toMatchObject({ questions: null, outcome_note: null });
         expect(defenses["df-open"]).toMatchObject({ questions: ["QUESTION-df-open"], outcome_note: "NOTE-df-open" });
-        expect(defenses["df-free"]).toMatchObject({ questions: ["QUESTION-df-free"], outcome_note: "NOTE-df-free" });
+        // One that records no review has no recorded source: it loses its derived text and keeps its result.
+        expect(defenses["df-free"]).toMatchObject({ questions: null, outcome_note: null, outcome: "approved" });
         // None of the text made from the matter is anywhere in the training section.
         expect(JSON.stringify(t)).not.toMatch(/(ATTEMPT|CONTRAST|PROPOSED|CONCLUSION|PASS|LINT|PASSAGE|BRIEF|QUESTION|NOTE|Q)-[a-z-]*denied/);
     });

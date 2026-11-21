@@ -103,9 +103,16 @@ the answer being shown to the user.
   prevents private app context from being copied into project memory.
 - Project memory is read by the whole project, so its curator learns only from
   messages derived entirely from documents of that project that the person
-  whose turn it was can still open. A message whose sources cannot be
-  determined (an older message that names a document without recording which)
-  teaches the project nothing. Memory already written is not rewritten.
+  whose turn it was can still open. The sources of an assistant answer are the
+  documents it attaches, cites, reads (a playbook review included), creates, edits or copies, and the ones
+  its searches returned (the `doc_search` event records their ids), those of
+  delegated work included, and those of every earlier message of the chat. A
+  message whose sources cannot be determined teaches the project nothing: a
+  document named without an id, a search stored before its ids were recorded
+  (whatever its scope), a workflow file that cannot be traced to a workflow.
+  The files of a workflow are not filed in a project: a turn that used one is
+  learned from while the person can still use that workflow. Memory already
+  written is not rewritten.
 - When facts conflict, the current conversation wins over project memory, and
   project memory wins over app memory.
 - Shared-audience model calls never receive a participant's private app memory.

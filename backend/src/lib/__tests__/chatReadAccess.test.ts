@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatMessageSources, readableChatMessages } from "../chatReadAccess";
+import { cumulativeChatSourceRefs, readableChatMessages } from "../chatReadAccess";
 
 type Row = Record<string, unknown>;
 
@@ -38,13 +38,16 @@ const docs = (): Row[] => [
 ];
 const reader = { userId: "reader", userEmail: "reader@example.test" };
 const ids = (rows: Row[]) => rows.map((row) => row.id);
+// The versions one message names, read on its own and strictly.
+const refsOf = (message: Row) => cumulativeChatSourceRefs([message])[0];
+const sourcesOf = (message: Row) => refsOf(message) && [...new Set(refsOf(message)!.map((ref) => ref.documentId))];
 
 const user = (id: string, over: Row = {}): Row => ({ id, chat_id: "c1", role: "user", content: `typed ${id}`, files: null, ...over });
 const assistant = (id: string, over: Row = {}): Row => ({ id, chat_id: "c1", role: "assistant", content: [{ type: "content", text: `answer ${id}` }], citations: null, ...over });
 
-describe("chatMessageSources", () => {
+describe("the documents a message names", () => {
     it("names the documents a message attaches, cites, reads, finds, creates, edits and copies", () => {
-        const sources = chatMessageSources(
+        const sources = sourcesOf(
             assistant("a", {
                 citations: [{ type: "citation_data", document_id: DOC_MINE }],
                 content: [
@@ -57,14 +60,60 @@ describe("chatMessageSources", () => {
         expect(sources && [...sources].sort()).toEqual([
             DOC_MINE, DOC_WALLED, DOC_GONE, "00000000-0000-4000-8000-000000000004",
         ].sort());
-        expect(chatMessageSources(user("u", { files: [{ filename: "x.docx", document_id: DOC_MINE }] }))).toEqual([DOC_MINE]);
-        expect(chatMessageSources(user("plain"))).toEqual([]);
+        expect(sourcesOf(user("u", { files: [{ filename: "x.docx", document_id: DOC_MINE }] }))).toEqual([DOC_MINE]);
+        expect(sourcesOf(user("plain"))).toEqual([]);
     });
 
     it("is unknown when a message names a document without an identifier", () => {
-        expect(chatMessageSources(assistant("a", { content: [{ type: "doc_read", filename: "old.docx" }] }))).toBeNull();
-        expect(chatMessageSources(user("u", { files: [{ filename: "x.docx" }] }))).toBeNull();
-        expect(chatMessageSources(assistant("a", { citations: [{ type: "citation_data", doc_id: "doc-0" }] }))).toBeNull();
+        expect(sourcesOf(assistant("a", { content: [{ type: "doc_read", filename: "old.docx" }] }))).toBeNull();
+        expect(sourcesOf(user("u", { files: [{ filename: "x.docx" }] }))).toBeNull();
+        expect(sourcesOf(assistant("a", { citations: [{ type: "citation_data", doc_id: "doc-0" }] }))).toBeNull();
+    });
+});
+
+describe("the versions a message names", () => {
+    const V1 = "00000000-0000-4000-8000-0000000000a1";
+    it("keeps the version each reference names, from citations, events, delegated events and copies", () => {
+        const refs = refsOf(
+            assistant("a", {
+                citations: [
+                    { document_id: DOC_MINE, version_number: 2 },
+                    { document: { document_id: DOC_WALLED, version_id: V1, version_number: 3 } },
+                ],
+                content: [
+                    { type: "doc_find", document_id: DOC_MINE, version_id: V1, version_number: 1 },
+                    { type: "delegation", events: [{ type: "doc_edited", document_id: DOC_GONE }] },
+                    { type: "doc_replicated", copies: [{ document_id: DOC_WALLED, version_id: V1 }] },
+                ],
+            }),
+        );
+        expect(refs).toEqual(
+            expect.arrayContaining([
+                { documentId: DOC_MINE, versionId: null, versionNumber: 2 },
+                { documentId: DOC_WALLED, versionId: V1, versionNumber: 3 },
+                { documentId: DOC_MINE, versionId: V1, versionNumber: 1 },
+                { documentId: DOC_GONE, versionId: null, versionNumber: null },
+                { documentId: DOC_WALLED, versionId: V1, versionNumber: null },
+            ]),
+        );
+        expect(refs).toHaveLength(5);
+    });
+});
+
+describe("cumulativeChatSourceRefs", () => {
+    it("carries what earlier messages of the same chat named, per chat, and unknown onward", () => {
+        const out = cumulativeChatSourceRefs([
+            assistant("a1", { chat_id: "c1", citations: [{ document_id: DOC_MINE, version_number: 1 }] }),
+            assistant("a2", { chat_id: "c1" }),
+            assistant("b1", { chat_id: "c2" }),
+            assistant("a3", { chat_id: "c1", citations: [{ filename: "x" }] }),
+            assistant("a4", { chat_id: "c1" }),
+        ]);
+        expect(out[0]).toEqual([{ documentId: DOC_MINE, versionId: null, versionNumber: 1 }]);
+        expect(out[1]).toEqual(out[0]);
+        expect(out[2]).toEqual([]);
+        expect(out[3]).toBeNull();
+        expect(out[4]).toBeNull();
     });
 });
 
@@ -125,5 +174,46 @@ describe("readableChatMessages", () => {
         await expect(
             readableChatMessages(db, reader, [assistant("a1", { citations: [{ document_id: DOC_MINE }] })]),
         ).rejects.toThrow();
+    });
+});
+
+describe("assistant searches as sources", () => {
+    const search = (over: Row = {}) => ({ type: "doc_search", search_id: "s", scope: "library", query: "fee", offset: 0, ...over });
+
+    it("names the documents a search returned, delegated searches included", () => {
+        const direct = assistant("a", { content: [search({ match_count: 2, document_ids: [DOC_MINE, DOC_WALLED] })] });
+        expect(sourcesOf(direct)?.slice().sort()).toEqual([DOC_MINE, DOC_WALLED].sort());
+        const delegated = assistant("a", { content: [{ type: "delegation", events: [search({ match_count: 1, document_ids: [DOC_GONE] })] }] });
+        expect(sourcesOf(delegated)).toEqual([DOC_GONE]);
+        expect(refsOf(direct)).toHaveLength(2);
+    });
+
+    it("is unknown when a search lists an identifier that names no document", () => {
+        expect(sourcesOf(assistant("a", { content: [search({ match_count: 1, document_ids: ["no-id"] })] }))).toBeNull();
+    });
+
+    it("a search that returned nothing names nothing", () => {
+        expect(sourcesOf(assistant("a", { content: [search({ match_count: 0 })] }))).toEqual([]);
+    });
+});
+
+describe("a search stored without its documents, read without a gate", () => {
+    const search = (over: Row = {}) => ({ type: "doc_search", search_id: "s", scope: "library", query: "fee", offset: 0, ...over });
+    const read = (event: Row, chat = "c1") => cumulativeChatSourceRefs([assistant("a", { chat_id: chat, content: [event] })])[0];
+
+    it("is unknown provenance when it had results, whatever its scope", () => {
+        expect(read(search({ match_count: 3 }))).toBeNull();
+        expect(read(search({ scope: "project", match_count: 3 }))).toBeNull();
+        expect(read(search({ scope: "document", match_count: 1 }))).toBeNull();
+    });
+
+    it("names nothing when it returned nothing or failed", () => {
+        expect(read(search({ match_count: 0 }))).toEqual([]);
+        expect(read(search({ error_code: "unavailable" }))).toEqual([]);
+    });
+
+    it("still reads a workflow's file reference as unknown", () => {
+        expect(read({ type: "doc_read", filename: "f.docx" })).toBeNull();
+        expect(cumulativeChatSourceRefs([assistant("a", { citations: [{ document_id: "workflow-asset-00000000-0000-4000-8000-0000000000e2-1" }] })])[0]).toBeNull();
     });
 });

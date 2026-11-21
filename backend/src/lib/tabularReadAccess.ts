@@ -265,18 +265,11 @@ export async function filterMemoryEvidenceMessages<T extends { id: string }>(
     projectId: string | null,
 ): Promise<T[]> {
     if (!messages.length) return messages;
-    const { data, error } = await db
-        .from("tabular_review_chat_messages")
-        .select("id, source_document_ids")
-        .in(
-            "id",
-            messages.map((message) => message.id),
-        );
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as {
-        id: string;
-        source_document_ids: unknown;
-    }[];
+    const rows = await selectInBatches<{ id: string; source_document_ids: unknown }>(
+        "memory evidence provenance",
+        messages.map((message) => message.id),
+        (batch) => db.from("tabular_review_chat_messages").select("id, source_document_ids").in("id", batch),
+    );
     const inProject = projectId
         ? await documentIdsInProject(
               db,

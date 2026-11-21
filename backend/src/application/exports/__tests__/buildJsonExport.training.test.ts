@@ -17,6 +17,7 @@ function tables(): Record<string, Row[]> {
         ],
         // The matters the holder's work was done in, all open to them.
         projects: [{ id: "proj-1", user_id: userId, org_id: null, visibility: "private", archived_at: null }],
+        documents: [{ id: "doc-1", user_id: userId, project_id: "proj-1", org_id: null, archived_at: null }],
         chats: [
             { id: "c1", user_id: userId, org_id: "org-a", project_id: "proj-1" },
             { id: "c2", user_id: other, org_id: "org-a", project_id: null },

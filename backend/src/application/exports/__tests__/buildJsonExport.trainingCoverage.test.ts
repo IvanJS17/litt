@@ -76,6 +76,7 @@ describe("account export: every training_* table has a decision", () => {
             org_members: [{ org_id: "org-a", user_id: holder, role: "member" }],
             // The matter each generated row names, open to the holder.
             projects: [{ id: "x-project_id", user_id: holder, org_id: null, visibility: "private", archived_at: null }],
+            documents: [{ id: "x-document_id", user_id: holder, project_id: "x-project_id", org_id: null, archived_at: null }],
             chats: [{ id: "x-chat_id", user_id: holder, org_id: "org-a", project_id: null }],
             tabular_reviews: [{ id: "x-tabular_review_id", user_id: holder, org_id: "org-a", project_id: null }],
         };
