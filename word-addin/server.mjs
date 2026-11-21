@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
@@ -67,7 +68,31 @@ function publicProtocol(req) {
   return req.socket.encrypted ? "https" : "http";
 }
 
-function proxyApi(req, res, backend) {
+// The edge proxy proves itself with a per-deployment secret in this header;
+// only then is its X-Forwarded-For (the one client address it resolved) kept.
+const EDGE_HEADER = "x-litt-edge";
+
+function fromTrustedEdge(req, edgeSecret) {
+  const presented = req.headers[EDGE_HEADER];
+  if (!edgeSecret || typeof presented !== "string") return false;
+  const a = Buffer.from(presented);
+  const b = Buffer.from(edgeSecret);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function clientAddress(req, edgeSecret) {
+  const claimed = req.headers["x-forwarded-for"];
+  if (
+    fromTrustedEdge(req, edgeSecret) &&
+    typeof claimed === "string" &&
+    claimed
+  )
+    return claimed;
+  // Any other peer is the client itself: its own claim is never relayed.
+  return (req.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
+}
+
+function proxyApi(req, res, backend, edgeSecret) {
   const incoming = new URL(req.url ?? "/", "http://word-addin.invalid");
   if (
     incoming.pathname !== "/api" &&
@@ -80,6 +105,8 @@ function proxyApi(req, res, backend) {
 
   const headers = { ...req.headers };
   for (const name of HOP_BY_HOP) delete headers[name];
+  headers["x-forwarded-for"] = clientAddress(req, edgeSecret);
+  delete headers[EDGE_HEADER];
   headers.host = backend.host;
   headers["x-forwarded-host"] = req.headers.host ?? "";
   headers["x-forwarded-proto"] = publicProtocol(req);
@@ -173,6 +200,7 @@ export function createWordAddinServer(options = {}) {
   const backend = configuredBackend(
     options.backendOrigin ?? process.env.WORD_ADDIN_BACKEND_ORIGIN,
   );
+  const edgeSecret = options.edgeSecret ?? process.env.LITT_EDGE_SECRET ?? "";
   return http.createServer((req, res) => {
     if (req.url === "/health") {
       res.writeHead(200, {
@@ -182,7 +210,7 @@ export function createWordAddinServer(options = {}) {
       return;
     }
     if (req.url === "/api" || req.url?.startsWith("/api/")) {
-      proxyApi(req, res, backend);
+      proxyApi(req, res, backend, edgeSecret);
       return;
     }
     if (req.method !== "GET" && req.method !== "HEAD") {
