@@ -78,7 +78,7 @@ beforeEach(() => {
   }));
   mocks.createOrgInvitation.mockResolvedValue({ email_sent: true });
   mocks.cancelOrgInvitation.mockResolvedValue(undefined);
-  mocks.resendOrgInvitation.mockResolvedValue(undefined);
+  mocks.resendOrgInvitation.mockResolvedValue({ email_sent: true });
   mocks.deleteOrg.mockResolvedValue(undefined);
 });
 
@@ -157,7 +157,7 @@ describe("InviteOrganizationMemberModal", () => {
 
     expect(
       await screen.findByText(
-        "We couldn't send the email. Tell them to sign in to LiTT with that email",
+        "We didn't send an email. If they already have an account, they'll see the invitation when they sign in to LiTT; if not, ask them to sign up with that email and we'll send them the link.",
       ),
     ).toBeInTheDocument();
   });
@@ -237,6 +237,54 @@ describe("CreateOrganizationModal: invitations that did not go out", () => {
   });
 });
 
+describe("InviteOrganizationMemberModal: resending", () => {
+  const pending = {
+    id: "inv-1",
+    org_id: "org-1",
+    email: "partner@firm.example",
+    role: "member",
+    invited_by: "me",
+    status: "pending",
+    expires_at: "2026-12-01T00:00:00Z",
+    created_at: "2026-10-01T00:00:00Z",
+    accepted_at: null,
+    declined_at: null,
+    cancelled_at: null,
+  } as const;
+
+  async function resend(result: { email_sent: boolean }) {
+    mocks.resendOrgInvitation.mockResolvedValue(result);
+    const user = userEvent.setup();
+    render(
+      <InviteOrganizationMemberModal
+        open
+        org={org}
+        invitations={[pending]}
+        onClose={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Resend invitation to partner@firm.example" }),
+    );
+  }
+
+  it("says the invitation was resent when the mail went out", async () => {
+    await resend({ email_sent: true });
+    expect(await screen.findByText("Invitation resent to partner@firm.example.")).toBeInTheDocument();
+  });
+
+  it("does not say so when the mail could not be sent", async () => {
+    await resend({ email_sent: false });
+    expect(
+      await screen.findByText(
+        "We didn't send an email. If they already have an account, they'll see the invitation when they sign in to LiTT; if not, ask them to sign up with that email and we'll send them the link.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Invitation resent to partner@firm.example.")).not.toBeInTheDocument();
+  });
+});
+
 describe("InviteOrganizationMemberModal: a refused address", () => {
   it("says the person is already a member, not the server's text", async () => {
     mocks.createOrgInvitation.mockRejectedValue(
@@ -288,7 +336,8 @@ describe("when the server asks for the second factor", () => {
     ["cancel", "Cancel invitation to ana@firm.example", mocks.cancelOrgInvitation],
   ])("repeats a %s once it is verified", async (_action, label, call) => {
     const user = userEvent.setup();
-    call.mockRejectedValueOnce(needsSecondFactor()).mockResolvedValueOnce(undefined);
+    // The resend answers with the invitation; the cancel answers with nothing the screen reads.
+    call.mockRejectedValueOnce(needsSecondFactor()).mockResolvedValueOnce({ email_sent: true });
     const onChanged = vi.fn();
     render(
       <InviteOrganizationMemberModal

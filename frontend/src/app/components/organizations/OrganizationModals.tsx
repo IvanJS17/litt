@@ -348,8 +348,10 @@ export function InviteOrganizationMemberModal({
     let successNotice: string | null = null;
     try {
       if (action === "resend") {
-        await mfa.run(() => resendOrgInvitation(org.id, invitation.id));
-        successNotice = t("organizations.organizationModals.invitationResentTo", { email: invitation.email });
+        const resent = await mfa.run(() => resendOrgInvitation(org.id, invitation.id));
+        successNotice = resent.email_sent === false
+          ? t("access.invite.notSent")
+          : t("organizations.organizationModals.invitationResentTo", { email: invitation.email });
       } else {
         await mfa.run(() => cancelOrgInvitation(org.id, invitation.id));
         successNotice = t("organizations.organizationModals.invitationToCancelled", { email: invitation.email });
