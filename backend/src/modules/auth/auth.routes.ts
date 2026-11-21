@@ -467,33 +467,40 @@ authRouter.get("/session", requireAuth, asyncRoute(async (_req, res) => {
   res.json({ user: publicAuthUser(user) });
 }));
 
+/**
+ * Who is signing out, for the sign-out that ends connected applications.
+ * A person -> their id. A recognised "no session" answer -> null (nothing to
+ * end). Anything else, including an answer with neither person nor error,
+ * means we could not tell.
+ */
+async function whoIsSigningOut(client: ReturnType<typeof createRequestSupabase>): Promise<string | null> {
+  const { data, error } = await client.auth.getUser();
+  if (data.user) return data.user.id;
+  if (error) {
+    const failure = authErrorShape(error);
+    const status = failure?.status ?? 0;
+    const noSession =
+      !isAuthUpstreamFailure(error) &&
+      (failure?.name === "AuthSessionMissingError" ||
+        (failure?.name === "AuthApiError" && status >= 400 && status < 500 && status !== 429));
+    if (noSession) return null;
+  }
+  throw new AppError("auth.supabase_unavailable", "could not tell who is signing out", { cause: error });
+}
+
 authRouter.post("/logout", asyncRoute(async (req, res) => {
   setOperation("auth.session");
   const scope = req.body?.scope === "global" ? "global" : "local";
   let connectionsFailure: unknown = null;
+  let signingOut: string | null = null;
   try {
     const client = createRequestSupabase(req, res);
+    // Signing out everywhere ends the connected applications too, once the
+    // sessions are revoked. The sign-out goes ahead whatever the lookup says,
+    // and a failure to record it is answered after the sessions are over.
     if (scope === "global") {
-      // Signing out everywhere ends the connected applications too. The
-      // sign-out itself still goes ahead if that could not be recorded, and
-      // the failure is answered once the sessions are over.
       try {
-        const { data, error } = await client.auth.getUser();
-        if (data.user) {
-          await markSessionsEnded(createServerSupabase(), data.user.id, "signed_out_everywhere");
-        } else if (error) {
-          // No session (or one GoTrue refuses) means nothing to end; any other
-          // failure, a rate limit included, means we could not tell who is
-          // signing out.
-          const failure = authErrorShape(error);
-          const status = failure?.status ?? 0;
-          const noSession =
-            !isAuthUpstreamFailure(error) &&
-            (failure?.name === "AuthSessionMissingError" ||
-              (failure?.name === "AuthApiError" && status >= 400 && status < 500 && status !== 429));
-          if (!noSession)
-            throw new AppError("auth.supabase_unavailable", "could not tell who is signing out", { cause: error });
-        }
+        signingOut = await whoIsSigningOut(client);
       } catch (error) {
         connectionsFailure = error;
       }
@@ -510,6 +517,14 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
     reportError(failure, { level: "warning", tags: { component: "http" } });
     console.error("[auth/logout] upstream sign-out failed", failure);
   } finally {
+    // Stamped after the sign-out, whether or not it succeeded.
+    if (signingOut) {
+      try {
+        await markSessionsEnded(createServerSupabase(), signingOut, "signed_out_everywhere");
+      } catch (error) {
+        connectionsFailure = error;
+      }
+    }
     clearRequestAuthCookies(req, res);
   }
   if (connectionsFailure) throw connectionsFailure;
@@ -540,17 +555,22 @@ authRouter.patch("/password", requireAuth, asyncRoute(async (req, res) => {
   const { data, error } = await updatePassword(client, parsed.data.password);
   if (error || !data.user) return authError(res, error);
   if (parsed.data.signOut) {
-    // Connected applications end with the sessions. If that cannot be
-    // recorded the sessions still end, and the failure is answered after.
-    let connectionsFailure: unknown = null;
+    // Connected applications end with the sessions: stamped once they are
+    // revoked. If that cannot be recorded the sessions are still over, and
+    // the failure is answered after the cookies are cleared.
+    let failure: unknown = null;
+    try {
+      await signOut(client, "global");
+    } catch (error) {
+      failure = error;
+    }
     try {
       await markSessionsEnded(createServerSupabase(), res.locals.userId as string, "password_recovery_sign_out");
     } catch (error) {
-      connectionsFailure = error;
+      failure ??= error;
     }
-    await signOut(client, "global");
     clearRequestAuthCookies(req, res);
-    if (connectionsFailure) throw connectionsFailure;
+    if (failure) throw failure;
   }
   res.json({ user: publicAuthUser(data.user) });
 }));

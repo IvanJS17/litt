@@ -135,6 +135,8 @@ export type ConsentDecision = {
     requestId: string;
     userId: string;
     personalWorkspaceDisabled: boolean;
+    /** When the request arrived, before the session was checked; the connection is dated from it. */
+    arrivedAt: string;
     /** The person approved with MFA (`aal2`) while having it enrolled. */
     mfaVerified: boolean;
     decision: "approve" | "deny";
@@ -214,7 +216,7 @@ export async function decideConsent(
             workspaces,
             default_workspace: defaultWorkspace,
             mfa_verified_at: args.mfaVerified ? nowIso() : null,
-            created_at: nowIso(),
+            created_at: args.arrivedAt,
             expires_at: nowIso(config.grantMaxAgeSeconds),
         });
         if (grantInsert.error)

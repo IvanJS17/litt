@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../../lib/supabase";
 import { memoryDb, type Row } from "../../../__tests__/helpers/memoryDb";
 import { sha256Hex } from "../mcp.crypto";
-import { grantPredatesSignOut } from "../mcp.grants";
+import { grantPredatesSignOut, markSessionsEnded } from "../mcp.grants";
 import { revalidatePrincipal } from "../mcp.principal";
 import { verifyAccessToken } from "../mcp.tokens";
 import type { GrantRow } from "../mcp.shared";
@@ -97,5 +97,38 @@ describe("the gate of a connection made before the last global sign-out", () => 
             const refused = await revalidatePrincipal(db, "grant-1");
             expect(refused).toMatchObject({ ok: false, status: 401, code: "invalid_token" });
         }
+    });
+});
+
+describe("markSessionsEnded", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("revokes the connections made before the stamp and leaves one made after it alone", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-11-21T10:00:00.000Z"));
+        const grant = (id: string, created_at: string) => ({
+            id,
+            user_id: "user-1",
+            client_id: "client-1",
+            created_at,
+            expires_at: "2999-01-01T00:00:00.000Z",
+            revoked_at: null,
+        });
+        const tables: Record<string, Row[]> = {
+            mcp_grants: [
+                grant("before", "2026-11-21T09:00:00.000Z"),
+                grant("same", "2026-11-21T10:00:00.000Z"),
+                grant("after", "2026-11-21T10:00:05.000Z"),
+            ],
+            mcp_oauth_tokens: [],
+            mcp_oauth_audit: [],
+            user_profiles: [{ user_id: "user-1", sessions_ended_at: null }],
+        };
+        await markSessionsEnded(memoryDb(tables).db, "user-1", "signed_out_everywhere");
+        expect(tables.user_profiles[0].sessions_ended_at).toBe("2026-11-21T10:00:00.000Z");
+        const revoked = Object.fromEntries(tables.mcp_grants.map((g) => [g.id, g.revoked_at ?? null]));
+        expect(revoked.before).not.toBeNull();
+        expect(revoked.same).not.toBeNull();
+        expect(revoked.after).toBeNull();
     });
 });

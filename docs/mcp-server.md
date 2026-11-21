@@ -82,13 +82,13 @@ database on every call, so revoking takes effect on the next one.
 
 Signing out everywhere (`POST /auth/logout` with `scope: "global"`) and setting a
 new password with the sign-out option (the account-recovery page) also end the
-person's connections: `user_profiles.sessions_ended_at` is stamped when the
+person's connections: `user_profiles.sessions_ended_at` is stamped once the
 sessions are revoked (if it cannot be written the sessions still end and the request answers `500`), and a connection made at or before it is refused as
 `401 invalid_token` / `invalid_grant` at the token check, the refresh, the code
 exchange and the per-call gate, so its access and refresh tokens and any
 unredeemed code stop working; the connections are then also revoked in the
 records (`revoked_reason` `signed_out_everywhere` or `password_recovery_sign_out`, one `grant_revoked` audit event
-each), best effort: the stamp is what ends them. A connection approved afterwards works. A sign-out
+each), best effort: the stamp is what ends them. A connection is dated from the arrival of its approval request, so one whose request arrived before the sign-out is ended by it; one approved afterwards works. A sign-out
 on one device, or a password change without the sign-out option, does not end them.
 
 `/mcp` without a token answers `401` with

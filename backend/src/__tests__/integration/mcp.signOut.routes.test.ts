@@ -18,16 +18,49 @@ const h = vi.hoisted(() => ({
     authCalls: [] as string[],
     // What the identity lookup answers; null is the signed-in caller.
     lookup: null as null | { data: { user: null }; error: unknown },
+    // The stamp as it was when the identity service was asked to sign out.
+    stampAtSignOut: undefined as unknown,
+    signOutFails: false,
+    // Runs once, at the first read of the consent request by a decision.
+    onFirstRead: null as null | (() => Promise<void>),
 }));
 
 vi.mock("../../lib/supabase", () => ({
-    createServerSupabase: vi.fn(() => h.state!.db),
+    createServerSupabase: vi.fn(() => {
+        const db = h.state!.db as { from: (table: string) => Record<string, unknown> };
+        return {
+            ...db,
+            from: (table: string) => {
+                const builder = db.from(table);
+                if (table !== "mcp_oauth_requests" || !h.onFirstRead) return builder;
+                const proxy: unknown = new Proxy(builder, {
+                    get: (target, prop) => {
+                        const value = target[prop as string] as (...args: unknown[]) => unknown;
+                        if (prop === "maybeSingle")
+                            return async () => {
+                                const run = h.onFirstRead;
+                                h.onFirstRead = null;
+                                await run?.();
+                                return value.call(target);
+                            };
+                        return (...args: unknown[]) => {
+                            const result = value.apply(target, args);
+                            return result === target ? proxy : result;
+                        };
+                    },
+                });
+                return proxy;
+            },
+        };
+    }),
 }));
 const fakeAuthClient = () => ({
     auth: {
         getUser: async () => h.lookup ?? { data: { user: { id: h.caller.id, email: h.caller.email } }, error: null },
         signOut: async ({ scope }: { scope: string }) => {
             h.authCalls.push(`signOut:${scope}`);
+            h.stampAtSignOut = h.state!.tables.user_profiles[0].sessions_ended_at;
+            if (h.signOutFails) return { error: Object.assign(new Error("boom"), { __isAuthError: true, name: "AuthRetryableFetchError", status: 503 }) };
             return { error: null };
         },
         updateUser: async () => ({ data: { user: { id: h.caller.id, email: h.caller.email } }, error: null }),
@@ -91,6 +124,9 @@ beforeEach(() => {
     h.caller = { id: "user-1", email: "ana@firm.example" };
     h.authCalls = [];
     h.lookup = null;
+    h.stampAtSignOut = undefined;
+    h.signOutFails = false;
+    h.onFirstRead = null;
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", WEB);
@@ -98,7 +134,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 /** Register a client, approve the consent, and (unless `redeem` is false) redeem the code. */
-async function connect(redeem = true) {
+async function connect(redeem = true, duringDecision?: () => Promise<void>) {
     const reg = await request(app)
         .post("/oauth/register")
         .send({ client_name: "Claude", redirect_uris: [REDIRECT], token_endpoint_auth_method: "none" });
@@ -118,6 +154,7 @@ async function connect(redeem = true) {
         })
         .redirects(0);
     const requestId = new URL(auth.headers.location).searchParams.get("request")!;
+    if (duringDecision) h.onFirstRead = duringDecision;
     const decision = await request(app)
         .post(`/mcp-connect/authorizations/${requestId}/decision`)
         .send({ decision: "approve", workspaces: ["personal"], scopes: ["litt.read", "litt.chat"] });
@@ -210,6 +247,7 @@ describe("when the person's identity cannot be read at a global sign-out", () =>
         ["the identity service is overloaded", authError("AuthRetryableFetchError", 503)],
         ["the identity service fails on its own", authError("AuthRetryableFetchError", 500)],
         ["the identity service is limiting requests", authError("AuthApiError", 429)],
+        ["the answer names neither a person nor an error", null],
     ])("%s: the sessions end, the cookies clear, and the failure is not hidden", async (_label, error) => {
         const { token } = await connect();
         h.lookup = { data: { user: null }, error };
@@ -291,5 +329,49 @@ describe.each([
         expect(h.state!.tables.mcp_grants[0].revoked_at ?? null).toBeNull();
         expect((await mcpCall(token!.body.access_token)).status).toBe(401);
         expect((await refresh(clientId, token!.body.refresh_token)).status).toBe(400);
+    });
+});
+
+describe.each([
+    ["signing out everywhere", globalLogout, 204],
+    ["recovering the password with the sign-out option", recovery, 200],
+] as const)("the order of %s", (_name, endSessions, failedStatus) => {
+    it("stamps only once the identity service has ended the sessions", async () => {
+        await connect();
+        await later();
+        expect((await endSessions()).status).toBeLessThan(300);
+        expect(h.authCalls).toEqual(["signOut:global"]);
+        expect(h.stampAtSignOut).toBeNull();
+        expect(stampOf()).toEqual(expect.any(String));
+    });
+
+    it("stamps even when the identity service reports a failure, answering as it did before", async () => {
+        const { token } = await connect();
+        h.signOutFails = true;
+        await later();
+        const res = await endSessions();
+        expect(h.stampAtSignOut).toBeNull();
+        expect(stampOf()).toEqual(expect.any(String));
+        expect((await mcpCall(token!.body.access_token)).status).toBe(401);
+        expect(res.status).toBe(failedStatus);
+    });
+});
+
+describe.each([
+    ["signing out everywhere", globalLogout],
+    ["recovering the password with the sign-out option", recovery],
+] as const)("a connection approved while %s runs", (_name, endSessions) => {
+    it("is refused when the request arrived before the sign-out, however late it is stored", async () => {
+        await later();
+        const pending = await connect(false, async () => {
+            // The session check has passed; the sign-out now runs to the end.
+            await later();
+            expect((await endSessions()).status).toBeLessThan(300);
+        });
+        const code = await pending.exchange();
+        expect(code.status).toBe(400);
+        expect(code.body.error).toBe("invalid_grant");
+        const grant = h.state!.tables.mcp_grants.at(-1)!;
+        expect(Date.parse(grant.created_at as string)).toBeLessThanOrEqual(Date.parse(stampOf() as string));
     });
 });
