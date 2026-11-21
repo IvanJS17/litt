@@ -387,12 +387,9 @@ orgsRouter.delete(
     }),
 );
 
-// POST /orgs/:orgId/invitations/:invitationId/resend — refresh expiry.
-//
-// The repository has no outbound email infrastructure, so "resend" moves the
-// expiry window rather than re-delivering a message; the invitation surfaces
-// in-app through GET /user/invitations either way. Wiring a mailer in would
-// mean adding a dependency this PR deliberately does not take on.
+// POST /orgs/:orgId/invitations/:invitationId/resend — refresh expiry and ask
+// the identity service to mail the invitation link again (email_sent says
+// whether it did; an address with an account sees the invitation in-app).
 orgsRouter.post(
     "/:orgId/invitations/:invitationId/resend",
     requireOrgMutation,
@@ -407,7 +404,10 @@ orgsRouter.post(
             invitationId: req.params.invitationId,
         });
         if (!result.ok) return sendOrgFailure(res, result);
-        res.json(result.invitation);
+        const email_sent = await sendSignupInvite(db, String(result.invitation.email), {
+            createdByOrgId: req.params.orgId,
+        });
+        res.json({ ...result.invitation, email_sent });
     }),
 );
 

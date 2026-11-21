@@ -23,7 +23,7 @@ import {
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
 import { betaMode, canSignUp } from "../../lib/platformAccess";
-import { recordCreatingOrgOfSignup } from "../../lib/inviteEmail";
+import { inviteAdmittedSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
 import { isAuthUpstreamFailure } from "../../lib/authUpstream";
 import { AppError } from "../../lib/appError";
@@ -169,6 +169,17 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
     return inviteOnly(res);
 
   try {
+    // Closed beta: the address is admitted by an invitation or the
+    // administrator list, not by anything the caller proved, so the caller
+    // does not choose its password here. The invitation link goes to the
+    // mailbox and the person sets the password from it. The answer is the
+    // same whether or not the address already has an account or was just
+    // mailed.
+    if (betaMode()) {
+      const invited = await inviteAdmittedSignup(createServerSupabase(), parsed.data.email);
+      if (invited.kind === "failed") return authError(res, invited.error);
+      return res.status(201).json({ user: null, requiresEmailConfirmation: true });
+    }
     const client = createRequestSupabase(req, res);
     const { data, error } = await signUpWithPassword(
       client,
@@ -176,10 +187,6 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
       callbackUrl(req, req.body?.next, "/onboarding/profile"),
     );
     if (error || !data.user) return authError(res, error);
-    // Closed beta: an invited email registers on its own; that organization's
-    // invitation is what created the account (managed accounts).
-    if (betaMode())
-      await recordCreatingOrgOfSignup(createServerSupabase(), data.user, parsed.data.email);
     res.status(201).json({
       user: publicAuthUser(data.user),
       requiresEmailConfirmation: !data.session,
