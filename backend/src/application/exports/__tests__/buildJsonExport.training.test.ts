@@ -15,6 +15,15 @@ function tables(): Record<string, Row[]> {
             { org_id: "org-a", user_id: userId, role: "member" },
             { org_id: "org-b", user_id: userId, role: "member" },
         ],
+        // The matters the holder's work was done in, all open to them.
+        projects: [{ id: "proj-1", user_id: userId, org_id: null, visibility: "private", archived_at: null }],
+        documents: [{ id: "doc-1", user_id: userId, project_id: "proj-1", org_id: null, archived_at: null }],
+        chats: [
+            { id: "c1", user_id: userId, org_id: "org-a", project_id: "proj-1" },
+            { id: "c2", user_id: other, org_id: "org-a", project_id: null },
+        ],
+        word_chats: [{ id: "w1", user_id: userId }],
+        tabular_reviews: [{ id: "tr1", user_id: userId, org_id: "org-a", project_id: null }],
         training_mentors: [
             { org_id: "org-a", user_id: userId, designated_by: "boss" },
             { org_id: "org-a", user_id: other, designated_by: "boss" },

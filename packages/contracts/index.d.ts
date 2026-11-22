@@ -367,6 +367,8 @@ export type DocumentSearchEvent = {
   query: string;
   offset: number;
   match_count?: number;
+  /** The documents whose text or names the search returned; absent on searches stored before it was recorded. */
+  document_ids?: string[];
   next_offset?: number | null;
   coverage?: {
     total_versions: number;

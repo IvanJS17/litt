@@ -21,6 +21,10 @@ function tables(): Record<string, Row[]> {
             { org_id: "org-a", user_id: userId, role: "member" },
             { org_id: "org-b", user_id: userId, role: "member" },
         ],
+        chats: [
+            { id: "c1", user_id: userId, org_id: "org-a", project_id: null },
+            { id: "c2", user_id: userId, org_id: "org-b", project_id: null },
+        ],
         training_criteria_contrasts: [
             contrast({}),
             contrast({ id: "k2", org_id: "org-b", chat_id: "c2", message_id: "m2", created_at: "2026-01-02T00:00:00Z" }),

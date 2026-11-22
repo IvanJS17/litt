@@ -151,6 +151,33 @@ another person's id (the mentor who corrected a verdict, generated or reviewed
 something, granted a pass or set a stage) nor a credential reference; the one
 mentor id it keeps is the holder's own mentor in `as_pupil`.
 
+Work done inside a matter carries the matter's confidentiality, and a record
+follows the sources of what it was made from. In the export:
+
+- A row made from a matter the holder can no longer open (its project, or the
+  project of its chat or review) is left out.
+- A row made from a chat is left out when the answer it was made from is not
+  readable under the rule the export applies to chats: a turn note (the
+  person's message and the answer that follows it), a backing check and a
+  criteria contrast (their message), a work review (it records only the chat:
+  every answer of the chat must be readable). This covers assistant and
+  tabular-review chats, listed in the export or not; Word chats are not
+  judged yet.
+- A reading is of a document and goes through that document's access. One
+  whose document was deleted keeps what the person wrote and its result, not
+  the passages and comparison drawn from the document.
+- A defense keeps its outcome and the person's results but loses its questions
+  and note unless the work review it records is itself exported. One that
+  records no review has no recorded source (a practice-area defense is drawn
+  from several works that are not recorded, and a deleted review leaves the
+  same trace), so it loses them too.
+- A retake built from a withheld note is left out; one whose notes no longer
+  exist loses its question and contrast and keeps the person's answer and its
+  result.
+- Urgency passes and review audits hold no text drawn from a source (a matter
+  reference and a note of the mentor; digests and marks) and follow the matter
+  only. Mentors, pupils, stages and gym rows have no source.
+
 | Table | Layer | Export key (`training.…`) | When the holder leaves |
 |---|---|---|---|
 | `training_mentors` | 1 | `mentor_designations` | deleted with the membership |

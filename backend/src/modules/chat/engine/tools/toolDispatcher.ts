@@ -655,7 +655,7 @@ export async function runToolCalls(
         { readIdentity },
       );
       const filename = docStore.get(docId)?.filename;
-      const documentId = docIndex?.[docId]?.document_id;
+      const documentId = docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id;
       if (readIdentity && turnReadState) {
         turnReadState.set(readIdentity.key, readIdentity);
       }
@@ -776,8 +776,11 @@ export async function runToolCalls(
         return { ...publicMatch, doc_id: docId };
       });
       const content = JSON.stringify({ ok: true, ...result.data, matches });
+      // The documents whose text or names went to the model, so what is built
+      // from them can be checked against the reader's access later.
       finishSearch({ match_count: matches.length, next_offset: result.data.next_offset,
-        coverage: result.data.coverage });
+        coverage: result.data.coverage,
+        ...(matches.length ? { document_ids: [...new Set(result.data.matches.map((match) => match.document_id))] } : {}) });
       toolResults.push({ role: "tool", tool_call_id: tc.id,
         content: nonce ? spotlight(content, nonce) : content });
     } else if (tc.function.name === "find_in_document") {
@@ -838,7 +841,7 @@ export async function runToolCalls(
         docsFound.push({
           filename,
           document_id:
-            readIdentity?.documentId ?? docIndex?.[docId]?.document_id,
+            readIdentity?.documentId ?? docIndex?.[docId]?.document_id ?? docInfo?.asset_document_id,
           version_id: readIdentity?.versionId ?? null,
           version_number: readIdentity?.versionNumber ?? null,
           query,
@@ -904,7 +907,7 @@ export async function runToolCalls(
           `--- ${docId} ---\n${citationReminder(docId, filename, promptFilename)}${sourceNotice ? `\n${sourceNotice}` : ""}\n\n${fencedContent}`,
         );
         if (docStore.get(docId)) {
-          const documentId = docIndex?.[docId]?.document_id;
+          const documentId = docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id;
           docsRead.push({
             filename,
             document_id: readIdentity?.documentId ?? documentId,
@@ -1004,6 +1007,14 @@ export async function runToolCalls(
             // and its suggestions are not saved as a version.
             signal: options.signal,
           });
+          // The findings quote the stored document: record it, at the version reviewed.
+          if (indexed)
+            docsRead.push({
+              filename: docInfo.filename,
+              document_id: indexed.document_id,
+              version_id: indexed.version_id ?? null,
+              version_number: indexed.version_number ?? null,
+            });
           const annotations = run.findings.flatMap((finding) =>
             finding.edit ? [finding.edit] : [],
           );
@@ -1134,6 +1145,7 @@ export async function runToolCalls(
             file_type: asset.file_type,
             filename: asset.filename,
             source_kind: "workflow_asset",
+            asset_document_id: asset.asset_id,
           });
           assetHandles.push({
             doc_id: docId,

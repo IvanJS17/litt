@@ -24,7 +24,11 @@
 // recorded). Unknown is withheld from every reader and taints the rest of the
 // chat, because there is no evidence of what it was derived from.
 
-import { filterAccessibleDocumentIds } from "./access";
+import {
+    documentIdsInProject,
+    filterAccessibleDocumentIds,
+    keepReadableDerived,
+} from "./access";
 import { selectAllByKey, selectAllPages, selectInBatches } from "./batchedQuery";
 import type { Db } from "./supabase";
 
@@ -217,16 +221,7 @@ export async function filterReadableChatMessages<T extends ProvenancedMessage>(
     userId: string,
     userEmail: string | null | undefined,
 ): Promise<T[]> {
-    const known = messages.filter((message) => provenanceOf(message) !== null);
-    const ids = [...new Set(known.flatMap((m) => provenanceOf(m) ?? []))];
-    const readable = new Set(
-        ids.length
-            ? await filterAccessibleDocumentIds(ids, userId, userEmail, db)
-            : [],
-    );
-    return known.filter((message) =>
-        (provenanceOf(message) ?? []).every((id) => readable.has(id)),
-    );
+    return keepReadableDerived(db, { userId, userEmail }, messages, provenanceOf);
 }
 
 /**
@@ -270,42 +265,29 @@ export async function filterMemoryEvidenceMessages<T extends { id: string }>(
     projectId: string | null,
 ): Promise<T[]> {
     if (!messages.length) return messages;
-    const { data, error } = await db
-        .from("tabular_review_chat_messages")
-        .select("id, source_document_ids")
-        .in(
-            "id",
-            messages.map((message) => message.id),
-        );
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as {
-        id: string;
-        source_document_ids: unknown;
-    }[];
-    const readable = await filterReadableChatMessages(
-        db,
-        rows,
-        actorUserId,
-        actorEmail,
+    const rows = await selectInBatches<{ id: string; source_document_ids: unknown }>(
+        "memory evidence provenance",
+        messages.map((message) => message.id),
+        (batch) => db.from("tabular_review_chat_messages").select("id, source_document_ids").in("id", batch),
     );
-    let allowed = readable;
-    if (projectId) {
-        const ids = [
-            ...new Set(readable.flatMap((m) => provenanceOf(m) ?? [])),
-        ];
-        const { data: docs, error: docsError } = ids.length
-            ? await db.from("documents").select("id, project_id").in("id", ids)
-            : { data: [], error: null };
-        if (docsError) throw new Error(docsError.message);
-        const inProject = new Set(
-            ((docs ?? []) as { id: string; project_id: string | null }[])
-                .filter((doc) => doc.project_id === projectId)
-                .map((doc) => doc.id),
-        );
-        allowed = readable.filter((message) =>
-            (provenanceOf(message) ?? []).every((id) => inProject.has(id)),
-        );
-    }
+    const inProject = projectId
+        ? await documentIdsInProject(
+              db,
+              rows.flatMap((row) => provenanceOf(row) ?? []),
+              projectId,
+          )
+        : null;
+    const allowed = await keepReadableDerived(
+        db,
+        { userId: actorUserId, userEmail: actorEmail },
+        rows,
+        (row) => {
+            const sources = provenanceOf(row);
+            return sources && inProject && !sources.every((id) => inProject.has(id))
+                ? null
+                : sources;
+        },
+    );
     const allowedIds = new Set(allowed.map((row) => row.id));
     return messages.filter((message) => allowedIds.has(message.id));
 }

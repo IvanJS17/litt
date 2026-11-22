@@ -1,4 +1,6 @@
 import { wordChatHasWorkspaceAttachments } from "../../lib/wordWorkspace";
+import { filterChatMemoryEvidence } from "../../lib/chatReadAccess";
+import { filterMemoryEvidenceMessages } from "../../lib/tabularReadAccess";
 import { randomUUID } from "node:crypto";
 import { checkProjectAccess, ensureChatAccess, ensureReviewAccess, projectHasSharedAudience } from "../../lib/access";
 import { hasDirectContentGrants } from "../../lib/contentAccess";
@@ -72,6 +74,8 @@ type CuratorConversation = {
   appOrgId: string | null;
   actorEmail: string | null;
   messages: MemoryCuratorStoredMessage[];
+  /** What project memory, read by every project member, may learn from. */
+  projectMessages: MemoryCuratorStoredMessage[];
 };
 
 type CuratorPersonalisation = NonNullable<
@@ -463,6 +467,41 @@ export async function loadEligibleMemoryMessages(
   });
 }
 
+/**
+ * The messages project memory may learn from. Project memory is read by every
+ * member of the project, so it learns only from messages derived entirely from
+ * documents of that project which the person whose turn it was can still open;
+ * a message whose provenance is unknown teaches the project nothing.
+ */
+export async function projectMemoryEvidence(
+  db: Db,
+  state: { surface: string; conversation_id: string },
+  messages: MemoryCuratorStoredMessage[],
+  actor: { userId: string; email: string | null },
+  projectId: string | null,
+): Promise<MemoryCuratorStoredMessage[]> {
+  if (!projectId) return [];
+  if (state.surface === "chat") {
+    return filterChatMemoryEvidence(
+      db,
+      messages,
+      state.conversation_id,
+      { userId: actor.userId, userEmail: actor.email },
+      projectId,
+    );
+  }
+  if (state.surface === "tabular") {
+    return filterMemoryEvidenceMessages(
+      db,
+      messages,
+      actor.userId,
+      actor.email,
+      projectId,
+    );
+  }
+  return [];
+}
+
 async function loadConversation(
   db: Db,
   state: ConsolidationState,
@@ -632,6 +671,16 @@ async function loadConversation(
     appOrgId,
     actorEmail: email,
     messages,
+    projectMessages:
+      projectId && projectWritable
+        ? await projectMemoryEvidence(
+            db,
+            state,
+            messages,
+            { userId: state.actor_user_id, email },
+            projectId,
+          )
+        : [],
   };
 }
 
@@ -1447,7 +1496,7 @@ export async function handleMemoryConsolidation(
         conversation.projectId,
       );
       const projectTranscript = buildMemoryCuratorTranscript(
-        conversation.messages,
+        conversation.projectMessages,
         state.actor_user_id,
         "project",
         {
