@@ -279,6 +279,9 @@ jobs:
       - name: Start backend API
         run: npm run dev --prefix backend &
       - name: Start web (production server)
+        # The page policy lets the browser upload to this storage origin.
+        env:
+          R2_PUBLIC_ENDPOINT_URL: http://localhost:9000
         run: npm run start --prefix frontend > /tmp/e2e-next.log 2>&1 &
 
       - name: Wait for servers

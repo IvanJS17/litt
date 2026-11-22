@@ -467,6 +467,17 @@ the web app deletes legacy Supabase local/session-storage entries and the Word
 add-in deletes legacy OfficeRuntime access/refresh tokens. Users authenticate
 once to establish the new cookie; tokens are not copied through JavaScript.
 
+### Browser protection headers
+
+The web app and the Word add-in server send a Content Security Policy, HSTS,
+`X-Content-Type-Options`, a referrer policy and (web app only) frame denial on
+every response; see `frontend/src/app/lib/securityHeaders.ts` and
+`word-addin/server.mjs`. The policy lets the browser connect to the storage
+origin taken from `R2_PUBLIC_ENDPOINT_URL` (falling back to `R2_ENDPOINT_URL`),
+so the frontend process needs the same value the backend signs URLs against
+(the bundled `docker-compose.yml` passes it). `LITT_CSP_REPORT_ONLY=true` makes
+the policy report instead of enforce; `deploy/prod/README.md` has the details.
+
 ### Object-storage CORS for direct uploads
 
 LiTT's upload-session API gives an authenticated browser a short-lived signed

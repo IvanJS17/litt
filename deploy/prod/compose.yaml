@@ -377,6 +377,12 @@ services:
       # Secreto compartido con el Caddy: solo con él se acepta la dirección del
       # cliente que reenvía (README §Dirección del cliente).
       LITT_EDGE_SECRET: ${LITT_EDGE_SECRET:?required}
+      # Política de contenido de las páginas (README §Cabeceras de seguridad):
+      # el origen del almacén al que el navegador sube con URL firmadas, el
+      # mismo valor que firma el backend, y el interruptor que la deja solo en
+      # modo de reporte (vacío = se aplica).
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:?required}
+      LITT_CSP_REPORT_ONLY: ${LITT_CSP_REPORT_ONLY:-}
     healthcheck:
       test:
       - CMD
@@ -412,6 +418,9 @@ services:
       WORD_ADDIN_BACKEND_ORIGIN: http://litt-backend:3001
       # Mismo secreto que litt-web y el Caddy (README §Dirección del cliente).
       LITT_EDGE_SECRET: ${LITT_EDGE_SECRET:?required}
+      # Igual que litt-web: origen del almacén y modo de reporte de la política.
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:?required}
+      LITT_CSP_REPORT_ONLY: ${LITT_CSP_REPORT_ONLY:-}
     healthcheck:
       test:
       - CMD

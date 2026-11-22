@@ -8,6 +8,88 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const defaultDistRoot = fileURLToPath(new URL("./dist/", import.meta.url));
 
+// The pane runs inside Word, so Microsoft's own origins must be allowed to
+// frame it. Microsoft publishes no fixed list of the pages that frame an
+// add-in: `cloud.microsoft` is the unified domain Word on the web is served
+// from (learn.microsoft.com/microsoft-365/enterprise/cloud-microsoft-domain);
+// the rest are the hosts it has been served from and embedded in. Check the
+// pane in Word on the web after changing this list.
+export const OFFICE_FRAME_ANCESTORS = Object.freeze([
+  "https://*.cloud.microsoft",
+  "https://*.officeapps.live.com",
+  "https://onedrive.live.com",
+  "https://*.office.com",
+  "https://*.office365.com",
+  "https://*.microsoft365.com",
+  "https://*.sharepoint.com",
+]);
+
+// Office.js is loaded from Microsoft's CDN by every page (see src/*/*.html).
+export const OFFICE_SCRIPT_ORIGINS = Object.freeze([
+  "https://appsforoffice.microsoft.com",
+]);
+
+// Browser protection headers. The web app sends the same values from
+// frontend/src/app/lib/securityHeaders.ts (frontend/src/__tests__/
+// wordAddinHeaders.test.ts pins the two lists together); this image ships only
+// this file, so they cannot be imported.
+const HSTS = "max-age=31536000; includeSubDomains";
+
+function storageOrigin(env) {
+  const raw = env.R2_PUBLIC_ENDPOINT_URL?.trim() || env.R2_ENDPOINT_URL?.trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.origin
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+// The policy of the pane's pages. No inline script (webpack emits external
+// files and Office.js is a Microsoft script), so scripts need no nonce. Styles
+// keep 'unsafe-inline': style-loader injects <style> elements. Office frames
+// the pane, so there is no X-Frame-Options (it cannot name several origins).
+export function protectionHeaders(env, secure) {
+  const storage = storageOrigin(env);
+  const directives = [
+    ["default-src", "'self'"],
+    ["script-src", "'self'", ...OFFICE_SCRIPT_ORIGINS],
+    ["style-src", "'self'", "'unsafe-inline'"],
+    ["img-src", "'self'", "data:", "blob:", ...(storage ? [storage] : [])],
+    ["font-src", "'self'", "data:"],
+    [
+      "connect-src",
+      "'self'",
+      ...OFFICE_SCRIPT_ORIGINS,
+      ...(storage ? [storage] : []),
+    ],
+    ["worker-src", "'self'", "blob:"],
+    ["object-src", "'none'"],
+    ["base-uri", "'self'"],
+    ["form-action", "'self'"],
+    ["frame-ancestors", "'self'", ...OFFICE_FRAME_ANCESTORS],
+    ...(secure ? [["upgrade-insecure-requests"]] : []),
+  ];
+  const reportOnly = ["1", "true"].includes(
+    env.LITT_CSP_REPORT_ONLY?.trim().toLowerCase() ?? "",
+  );
+  return {
+    "strict-transport-security": HSTS,
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy":
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    [reportOnly
+      ? "content-security-policy-report-only"
+      : "content-security-policy"]: directives
+      .map((parts) => parts.join(" "))
+      .join("; "),
+  };
+}
+
 function configuredBackend(input) {
   if (!input?.trim()) {
     throw new Error("WORD_ADDIN_BACKEND_ORIGIN is required");
@@ -201,7 +283,14 @@ export function createWordAddinServer(options = {}) {
     options.backendOrigin ?? process.env.WORD_ADDIN_BACKEND_ORIGIN,
   );
   const edgeSecret = options.edgeSecret ?? process.env.LITT_EDGE_SECRET ?? "";
+  const env = options.env ?? process.env;
   return http.createServer((req, res) => {
+    // Set before routing, so every answer below (pages, assets, errors, the
+    // API proxy) has them; a header the backend sends itself replaces ours.
+    for (const [name, value] of Object.entries(
+      protectionHeaders(env, publicProtocol(req) === "https"),
+    ))
+      res.setHeader(name, value);
     if (req.url === "/health") {
       res.writeHead(200, {
         "content-type": "application/json; charset=utf-8",
