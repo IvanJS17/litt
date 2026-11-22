@@ -4,6 +4,7 @@
 
 import { randomBytes } from "node:crypto";
 import { normalizeEmail } from "./access";
+import { trimChars } from "./modelJsonFence";
 import type { Db } from "./supabase";
 import { safeError } from "./safeError";
 
@@ -42,7 +43,7 @@ const LOOKUP_MAX_PAGES = 10;
  */
 async function findIdentity(address: string): Promise<Identity | null> {
   const email = address.trim().toLowerCase();
-  const base = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "");
+  const base = trimChars(process.env.SUPABASE_URL ?? "", "", "/", Infinity);
   const key = process.env.SUPABASE_SECRET_KEY ?? "";
   if (!base || !key) throw new Error("identity service not configured");
   for (let page = 1; page <= LOOKUP_MAX_PAGES; page++) {
