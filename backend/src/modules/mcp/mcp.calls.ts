@@ -60,8 +60,8 @@ export async function recordMcpAuditEvent(
         principal: McpPrincipal;
         tool: string;
         workspace: string | null;
-        /** Ids of what the call touches (never names, text or arguments). */
-        refs?: McpAuditRefs;
+        /** Ids of what the call touches (never names, text or arguments), as `authoriseAuditRefs` cut them down. */
+        refs?: AuthorisedAuditRefs;
     },
 ): Promise<void> {
     await insertAuditEvent(db, {
@@ -77,6 +77,8 @@ export async function recordMcpAuditEvent(
             client_id: args.principal.clientId,
             workspace: args.workspace,
             mode: args.principal.mode,
+            // Which kinds of reference were left out (never their ids).
+            ...(args.refs?.dropped.length ? { refs_dropped: args.refs.dropped } : {}),
             ...(args.refs?.versionId ? { version_id: args.refs.versionId } : {}),
             ...(args.refs?.playbookId ? { playbook_id: args.refs.playbookId } : {}),
             ...(args.refs?.workflowId ? { workflow_id: args.refs.workflowId } : {}),
@@ -94,6 +96,19 @@ export type McpAuditRefs = {
     playbookId?: string | null;
     workflowId?: string | null;
     reviewId?: string | null;
+};
+
+/**
+ * Refs that `authoriseAuditRefs` (mcp.auditRefs.ts) has checked against the
+ * person, the connection and the call's workspace. The mark is not exported,
+ * so plain refs do not type-check as these: short of a cast, only that
+ * function makes one.
+ */
+declare const authorised: unique symbol;
+export type AuthorisedAuditRefs = McpAuditRefs & {
+    readonly [authorised]: true;
+    /** The kinds (`matter`, `document`, `conversation`) whose id was left out. */
+    readonly dropped: readonly string[];
 };
 
 /**

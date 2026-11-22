@@ -182,7 +182,12 @@ person, client, workspace, mode, outcome (`ok`, `error`, `denied`,
 results, so no document text, key or token can reach it; refusals (scope, rate,
 workspace, revalidation) are recorded as well. A tool declared `audit: "strict"`
 (it writes, spends or takes document text out) first writes an `audit_events`
-row with `surface = 'mcp'` and does not run if that insert fails. Like
+row with `surface = 'mcp'` and does not run if that insert fails. The row is
+filed under the workspace the call runs in and names a matter, a document or a
+conversation only when the person may open it, the connection covers its
+workspace and it lies in that workspace (`authoriseAuditRefs`, mcp.auditRefs.ts);
+any other reference is left out of the row, which notes only its kind
+(`refs_dropped`), never its id. Like
 `mcp_oauth_audit` it keeps no foreign key, so the history outlives the account.
 
 `mcp_oauth_audit` is insert-only (the database refuses UPDATE and DELETE). It
@@ -325,7 +330,7 @@ with a real Claude). No base64 upload yet.
 **Audit.** Each call writes `mcp_tool_calls` (no arguments, no content). Tools that
 take document text out (`read_document`, `search_documents`) or add content (the
 upload tools, `create_matter`, `create_note_document`) also write `audit_events` (`surface = 'mcp'`, with the matter or
-document id, never a name or text) before running. `create_matter` writes a second row,
+document id the call was authorised to act on, never a name or text) before running. `create_matter` writes a second row,
 `mcp.create_matter.created`, with the new matter's id (best effort: the matter already exists). Document text additionally
 writes `mcp.client_ai_egress` (document, version, characters, client) before it is
 returned; if that cannot be written the text is not returned.

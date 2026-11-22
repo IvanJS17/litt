@@ -349,6 +349,18 @@ describe("send_tabular_chat_message", () => {
         expect(audits().find((a) => a.action === "mcp.send_tabular_chat_message")).toMatchObject({ chat_id: WEB_THREAD });
     });
 
+    it("does not record a conversation id the person cannot open as the thread it wrote to", async () => {
+        const OTHER_ORG_CHAT = "ffffffff-0000-4000-8000-0000000000f9";
+        tables().chats ??= [];
+        tables().chats.push({ id: OTHER_ORG_CHAT, user_id: PEOPLE.outsider.id, project_id: null, org_id: ORG2, title: null, model: "claude-sonnet-4-5", origin: "web", created_at: "2026-11-10T10:00:00Z", updated_at: "2026-11-10T10:00:00Z" });
+        as("owner");
+        const token = await connect();
+        expect((await callTool(token, "send_tabular_chat_message", { review_id: REVIEW_PUBLIC, chat_id: OTHER_ORG_CHAT, message: "hola" })).code).toBe("not_found");
+        const row = audits().find((a) => a.action === "mcp.send_tabular_chat_message");
+        expect(row).toMatchObject({ chat_id: null, detail: expect.objectContaining({ review_id: REVIEW_PUBLIC, refs_dropped: ["conversation"] }) });
+        expect(JSON.stringify(row)).not.toContain(OTHER_ORG_CHAT);
+    });
+
     it("a thread is written by its author only: a colleague reads it but starts their own", async () => {
         as("editor");
         const token = await connect();
