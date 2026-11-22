@@ -41,7 +41,7 @@ describe("BetaInvitationsSection", () => {
 
     it.each([
         [true, "We emailed them the invitation"],
-        [false, "We couldn't send the email. Tell them to sign in to LiTT with that email"],
+        [false, "We didn't send an email. If they already have an account, they'll see the invitation when they sign in to LiTT; if not, ask them to sign up with that email and we'll send them the link."],
     ])("invites by email and reports email_sent=%s", async (emailSent, notice) => {
         mocks.create.mockResolvedValue({ ...pending, email_sent: emailSent });
         const user = userEvent.setup();

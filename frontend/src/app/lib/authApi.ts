@@ -164,7 +164,8 @@ export async function login(email: string, password: string) {
 
 export async function signup(email: string, password: string, next: string) {
     return authRequest<{
-        user: AuthUser;
+        // Null in the closed beta: the link goes to the mailbox instead.
+        user: AuthUser | null;
         requiresEmailConfirmation: boolean;
     }>("auth.signup", "/signup", {
         method: "POST",

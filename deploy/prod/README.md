@@ -679,6 +679,28 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   comas): con valor, el registro exige invitación (de despacho o de plataforma)
   o ser administrador, `POST /auth/oauth` se cierra y solo los administradores
   o quien tenga una invitación de plataforma crean despacho; vacío = abierto.
+  En ese modo el registro no crea la cuenta con la contraseña que escribe quien
+  llama: GoTrue manda el enlace de invitación al correo y la contraseña se
+  define desde ese enlace (igual que con las invitaciones), y «reenviar
+  invitación» vuelve a mandar ese correo. Una segunda petición de registro para
+  la misma dirección en menos de 10 minutos no manda otro correo (el enlace ya
+  enviado sigue valiendo).
+  **Una sola vez tras desplegar este cambio, solo en despliegues por invitación**
+  (no en uno con registro abierto, donde una cuenta sin confirmar con contraseña
+  es lo normal para quien aún no abre su correo; por eso no es una migración y
+  LiTT no escribe en el esquema de GoTrue): las cuentas que nunca se
+  confirmaron dejan de tener contraseña, así que la única entrada es un enlace
+  enviado al correo. Contar y limpiar:
+
+  ```bash
+  cd /srv/litt; C="docker compose --env-file .env -f deploy/prod/compose.yaml"
+  $C exec -T db psql -U supabase_admin -d postgres -tAc "select count(*) from auth.users where email_confirmed_at is null and encrypted_password <> ''"
+  $C exec -T db psql -U supabase_admin -d postgres -tAc "update auth.users set encrypted_password = '' where email_confirmed_at is null and encrypted_password <> ''"
+  ```
+
+  Repetirlo no hace daño (la segunda vez actualiza 0 filas) y no toca cuentas
+  confirmadas. Quien ya tenía un enlace viejo lo abre y entra sin contraseña
+  (la fija desde «Recuperar contraseña» o con una invitación nueva).
 - **Login con Google**: deshabilitado (requiere credenciales de sistema).
 - **Documentos en R2** (`litt-docs`): el respaldo NO los incluye (política de
   borrado definitivo sin retención oculta); R2 es el almacén durable.
