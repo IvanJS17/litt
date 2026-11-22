@@ -1,5 +1,6 @@
 "use client";
 
+import { useMfaStepUp } from "@/app/components/popups/useMfaStepUp";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { OrganizationSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
@@ -23,6 +24,7 @@ export function OrganizationScanReading() {
   const t = useTranslations();
   const router = useRouter();
   const { orgId, org } = useOrganizationSettings();
+  const mfa = useMfaStepUp();
 
   if (org && !isOrgAdmin(org.role))
     return (
@@ -43,11 +45,14 @@ export function OrganizationScanReading() {
     );
 
   return (
-    <SplitClassesCard
-      title={t("settings.splitClasses.title")}
-      intro={t("settings.splitClasses.orgIntro")}
-      load={() => getOrgSplitClasses(orgId)}
-      save={(classes) => saveOrgSplitClasses(orgId, classes)}
-    />
+    <>
+      <SplitClassesCard
+        title={t("settings.splitClasses.title")}
+        intro={t("settings.splitClasses.orgIntro")}
+        load={() => getOrgSplitClasses(orgId)}
+        save={(classes) => mfa.run(() => saveOrgSplitClasses(orgId, classes))}
+      />
+      {mfa.popup}
+    </>
   );
 }

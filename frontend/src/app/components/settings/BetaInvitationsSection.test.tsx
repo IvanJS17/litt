@@ -9,7 +9,16 @@ const mocks = vi.hoisted(() => ({
     remove: vi.fn(),
 }));
 
+vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
+    MfaVerificationPopup: ({ open, onVerified }: { open: boolean; onVerified: () => void }) =>
+        open ? (
+            <button type="button" onClick={onVerified}>
+                Verify MFA
+            </button>
+        ) : null,
+}));
 vi.mock("@/app/lib/mikeApi", () => ({
+    isMfaRequiredError: (error: { code?: string }) => error.code === "mfa_verification_required",
     listPlatformInvitations: mocks.list,
     createPlatformInvitation: mocks.create,
     deletePlatformInvitation: mocks.remove,
@@ -58,5 +67,41 @@ describe("BetaInvitationsSection", () => {
         );
 
         await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith("inv-1"));
+    });
+
+    describe("when the server asks for the second factor", () => {
+        const needsSecondFactor = () =>
+            Object.assign(new Error("MFA verification required"), { code: "mfa_verification_required" });
+
+        it("invites once it is verified", async () => {
+            mocks.create
+                .mockRejectedValueOnce(needsSecondFactor())
+                .mockResolvedValueOnce({ ...pending, email_sent: true });
+            const user = userEvent.setup();
+            render(<BetaInvitationsSection />);
+
+            await user.type(await screen.findByLabelText("Invitee's email"), "new@firm.example");
+            await user.click(screen.getByRole("button", { name: "Invite" }));
+            await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
+
+            await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(2));
+            expect(await screen.findByText("We emailed them the invitation")).toBeInTheDocument();
+        });
+
+        it("cancels an invitation once it is verified", async () => {
+            mocks.remove
+                .mockRejectedValueOnce(needsSecondFactor())
+                .mockResolvedValueOnce(undefined);
+            const user = userEvent.setup();
+            render(<BetaInvitationsSection />);
+
+            await user.click(await screen.findByRole("button", { name: "Cancel invitation" }));
+            await user.click(
+                within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel invitation" }),
+            );
+            await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
+
+            await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(2));
+        });
     });
 });

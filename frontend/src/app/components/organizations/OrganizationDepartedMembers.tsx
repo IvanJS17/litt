@@ -19,7 +19,7 @@ import {
 import { Modal } from "@/app/components/modals/Modal";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
 import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
-import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPopup";
+import { useMfaStepUp } from "@/app/components/popups/useMfaStepUp";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import {
   ChatSkeuoIcon,
@@ -53,7 +53,6 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { LIQUID_GLASS_HOVER_CLASS } from "@/app/components/ui/liquid-surface";
 import {
   deleteOrgDepartureArchives,
-  isMfaRequiredError,
   listOrgDepartures,
   reassignOrgDepartureArchives,
   type OrgDeparture,
@@ -247,7 +246,7 @@ export function OrganizationDepartedMembers({
   const [reassigning, setReassigning] = useState<Target | null>(null);
   const [successor, setSuccessor] = useState("");
   const [deleting, setDeleting] = useState<Target | null>(null);
-  const [mfaTarget, setMfaTarget] = useState<Target | null>(null);
+  const mfa = useMfaStepUp();
   const [working, setWorking] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   // Fixed for the visit, so a row's "in 12 days" does not change under it.
@@ -354,10 +353,8 @@ export function OrganizationDepartedMembers({
     if (!reassigning || !successor) return;
     setWorking(true);
     try {
-      const result = await reassignOrgDepartureArchives(
-        orgId,
-        reassigning.ids,
-        successor,
+      const result = await mfa.run(() =>
+        reassignOrgDepartureArchives(orgId, reassigning.ids, successor),
       );
       const owner = members.find((member) => member.user_id === successor);
       setReassigning(null);
@@ -383,7 +380,7 @@ export function OrganizationDepartedMembers({
   async function remove(target: Target) {
     setWorking(true);
     try {
-      const result = await deleteOrgDepartureArchives(orgId, target.ids);
+      const result = await mfa.run(() => deleteOrgDepartureArchives(orgId, target.ids));
       setDeleting(null);
       setSelectedIds([]);
       if (result.unresolved > 0)
@@ -394,8 +391,7 @@ export function OrganizationDepartedMembers({
       await load();
     } catch (error) {
       setDeleting(null);
-      if (isMfaRequiredError(error)) setMfaTarget(target);
-      else setFailure(userFacingApiError(error, t("organizations.organizationDepartedMembers.couldNotDeleteThisWork")));
+      setFailure(userFacingApiError(error, t("organizations.organizationDepartedMembers.couldNotDeleteThisWork")));
     } finally {
       setWorking(false);
     }
@@ -868,15 +864,7 @@ export function OrganizationDepartedMembers({
           if (deleting) void remove(deleting);
         }}
       />
-      <MfaVerificationPopup
-        open={mfaTarget !== null}
-        onCancel={() => setMfaTarget(null)}
-        onVerified={() => {
-          const target = mfaTarget;
-          setMfaTarget(null);
-          if (target) void remove(target);
-        }}
-      />
+      {mfa.popup}
       <WarningPopup
         open={failure !== null || (loadError !== null && list !== null)}
         title={

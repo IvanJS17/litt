@@ -1,5 +1,6 @@
 "use client";
 
+import { useMfaStepUp } from "@/app/components/popups/useMfaStepUp";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Trash2, Upload } from "lucide-react";
@@ -74,6 +75,7 @@ export function OrganizationGeneralSettings() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [working, setWorking] = useState<Pending | null>(null);
   const [mfaPending, setMfaPending] = useState(false);
+  const mfa = useMfaStepUp();
   const [failure, setFailure] = useState<{
     title: string;
     message: string;
@@ -121,7 +123,7 @@ export function OrganizationGeneralSettings() {
     if (!org || logoBusy) return;
     setLogoBusy("upload");
     try {
-      const saved = await saveOrgLogo(org.id, dataUrl);
+      const saved = await mfa.run(() => saveOrgLogo(org.id, dataUrl));
       setOrg({ ...org, logo_updated_at: saved.logo_updated_at });
       // The sidebar shows it too.
       void refreshOrganizations();
@@ -142,7 +144,7 @@ export function OrganizationGeneralSettings() {
     if (!org || logoBusy) return;
     setLogoBusy("remove");
     try {
-      await deleteOrgLogo(org.id);
+      await mfa.run(() => deleteOrgLogo(org.id));
       setLogoFile(null);
       setLogoEditing(false);
       setOrg({ ...org, logo_updated_at: null });
@@ -172,7 +174,7 @@ export function OrganizationGeneralSettings() {
     if (trimmedName === org.name) return;
     setNameStatus("saving");
     try {
-      const updated = await updateOrg(org.id, trimmedName);
+      const updated = await mfa.run(() => updateOrg(org.id, trimmedName));
       setOrg({ ...updated, member_count: org.member_count });
       setNameStatus("saved");
       // The sidebar and the workspace switcher show the name too.
@@ -470,6 +472,7 @@ export function OrganizationGeneralSettings() {
         }}
         onConfirm={() => void confirm()}
       />
+      {mfa.popup}
       <MfaVerificationPopup
         open={mfaPending}
         onCancel={() => setMfaPending(false)}

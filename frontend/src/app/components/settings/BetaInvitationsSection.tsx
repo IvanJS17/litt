@@ -1,5 +1,6 @@
 "use client";
 
+import { useMfaStepUp } from "@/app/components/popups/useMfaStepUp";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { GlassCardUI, PillButtonUI } from "@mike/ui";
@@ -21,6 +22,7 @@ export function BetaInvitationsSection() {
   const [invitations, setInvitations] = useState<PlatformInvitation[] | null>(null);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const mfa = useMfaStepUp();
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toCancel, setToCancel] = useState<PlatformInvitation | null>(null);
@@ -46,7 +48,7 @@ export function BetaInvitationsSection() {
     setError(null);
     setNotice(null);
     try {
-      const created = await createPlatformInvitation(trimmed);
+      const created = await mfa.run(() => createPlatformInvitation(trimmed));
       setNotice(t(created.email_sent ? "access.invite.sent" : "access.invite.notSent"));
       setEmail("");
     } catch (err) {
@@ -64,7 +66,7 @@ export function BetaInvitationsSection() {
     setError(null);
     setNotice(null);
     try {
-      await deletePlatformInvitation(target.id);
+      await mfa.run(() => deletePlatformInvitation(target.id));
     } catch (err) {
       setError(userFacingApiError(err, t("access.beta.loadError")));
     }
@@ -165,6 +167,7 @@ export function BetaInvitationsSection() {
         onConfirm={() => void cancel()}
         onCancel={() => setToCancel(null)}
       />
+      {mfa.popup}
     </section>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMfaStepUp } from "@/app/components/popups/useMfaStepUp";
 import { useEffect, useState } from "react";
 import { Loader2, RotateCw, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -67,6 +68,7 @@ export function CreateOrganizationModal({
   onCreated: (org: Org) => void;
 }) {
   const t = useTranslations();
+  const mfa = useMfaStepUp();
   const [name, setName] = useState("");
   const [memberEmails, setMemberEmails] = useState<string[]>([]);
   const [createdOrg, setCreatedOrg] = useState<Org | null>(null);
@@ -108,7 +110,7 @@ export function CreateOrganizationModal({
       const reasons = new Map<string, InvitationIssueReason>();
       await settleBulkRequests(memberEmails, async (email) => {
         try {
-          const invitation = await createOrgInvitation(org.id, email, "member");
+          const invitation = await mfa.run(() => createOrgInvitation(org.id, email, "member"));
           if (invitation?.email_sent === false) reasons.set(email, "email_not_sent");
           return invitation;
         } catch (failure) {
@@ -269,6 +271,7 @@ export function CreateOrganizationModal({
         }
         onClose={() => setError(null)}
       />
+      {mfa.popup}
     </>
   );
 }
@@ -287,6 +290,7 @@ export function InviteOrganizationMemberModal({
   onChanged: () => Promise<void> | void;
 }) {
   const t = useTranslations();
+  const mfa = useMfaStepUp();
   const [role, setRole] = useState<InvitableOrgRole>("member");
   // Inviting somebody as an admin is appointing one, which only an owner may
   // do, so an admin is offered Member alone and the picker has nothing to ask.
@@ -313,7 +317,7 @@ export function InviteOrganizationMemberModal({
     setNotice(null);
     let sent: boolean;
     try {
-      sent = Boolean((await createOrgInvitation(org.id, email, role)).email_sent);
+      sent = Boolean((await mfa.run(() => createOrgInvitation(org.id, email, role))).email_sent);
     } catch (err) {
       const reason = invitationIssueReason(err);
       setError(
@@ -344,10 +348,10 @@ export function InviteOrganizationMemberModal({
     let successNotice: string | null = null;
     try {
       if (action === "resend") {
-        await resendOrgInvitation(org.id, invitation.id);
+        await mfa.run(() => resendOrgInvitation(org.id, invitation.id));
         successNotice = t("organizations.organizationModals.invitationResentTo", { email: invitation.email });
       } else {
-        await cancelOrgInvitation(org.id, invitation.id);
+        await mfa.run(() => cancelOrgInvitation(org.id, invitation.id));
         successNotice = t("organizations.organizationModals.invitationToCancelled", { email: invitation.email });
       }
       setNotice(successNotice);
@@ -493,6 +497,7 @@ export function InviteOrganizationMemberModal({
         message={error}
         onClose={() => setError(null)}
       />
+      {mfa.popup}
     </>
   );
 }

@@ -233,6 +233,26 @@ describe("renaming", () => {
     expect(mocks.refreshOrganizations).toHaveBeenCalledTimes(1);
   });
 
+  it("asks for a second factor when the server requires one, then saves the name", async () => {
+    const user = userEvent.setup();
+    mocks.updateOrg
+      .mockRejectedValueOnce(new MikeApiError({
+        message: "MFA verification required",
+        status: 403,
+        code: "mfa_verification_required",
+      }))
+      .mockResolvedValueOnce({ ...orgAs("owner"), name: "Elite Law Group" });
+    render(<OrganizationGeneralSettings />);
+
+    await user.clear(nameField());
+    await user.type(nameField(), "Elite Law Group");
+    await user.tab();
+    await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
+
+    await waitFor(() => expect(mocks.updateOrg).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Saved")).toBeInTheDocument();
+  });
+
   it("saves on Enter too", async () => {
     const user = userEvent.setup();
     mocks.updateOrg.mockResolvedValue({ ...orgAs("owner"), name: "Renamed" });
@@ -553,6 +573,50 @@ describe("the organization's logo", () => {
     fireEvent.click(edit);
     expect(screen.getByRole("dialog", { name: "Logo" })).toHaveTextContent(LOGO);
     expect(screen.getByRole("button", { name: "Remove logo" })).toBeEnabled();
+  });
+
+  it("asks for a second factor when the server requires one, then saves the logo", async () => {
+    const user = userEvent.setup();
+    mocks.saveOrgLogo
+      .mockRejectedValueOnce(new MikeApiError({
+        message: "MFA verification required",
+        status: 403,
+        code: "mfa_verification_required",
+      }))
+      .mockResolvedValueOnce({ logo_updated_at: "2026-10-12T10:00:00Z" });
+    render(<OrganizationGeneralSettings />);
+
+    await pick(user);
+    await user.click(screen.getByRole("button", { name: "Save framed logo" }));
+    await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
+
+    await waitFor(() => expect(mocks.saveOrgLogo).toHaveBeenCalledTimes(2));
+    expect(mocks.setOrg).toHaveBeenCalledWith(
+      expect.objectContaining({ logo_updated_at: "2026-10-12T10:00:00Z" }),
+    );
+  });
+
+  it("asks for a second factor when the server requires one, then removes the logo", async () => {
+    const user = userEvent.setup();
+    mocks.org = { ...orgAs("owner"), logo_updated_at: "2026-10-12T10:00:00Z" };
+    mocks.getOrgLogo.mockResolvedValue(LOGO);
+    mocks.deleteOrgLogo
+      .mockRejectedValueOnce(new MikeApiError({
+        message: "MFA verification required",
+        status: 403,
+        code: "mfa_verification_required",
+      }))
+      .mockResolvedValueOnce(undefined);
+    render(<OrganizationGeneralSettings />);
+
+    await user.click(screen.getByRole("button", { name: "Edit logo" }));
+    await user.click(screen.getByRole("button", { name: "Remove logo" }));
+    await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
+
+    await waitFor(() => expect(mocks.deleteOrgLogo).toHaveBeenCalledTimes(2));
+    expect(mocks.setOrg).toHaveBeenCalledWith(
+      expect.objectContaining({ logo_updated_at: null }),
+    );
   });
 
   it("removes the logo and tells the sidebar", async () => {

@@ -37,6 +37,23 @@ vi.mock("@/app/contexts/WorkspaceContext", () => ({
 vi.mock("@/app/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "me", email: "me@firm.example" } }),
 }));
+vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
+  MfaVerificationPopup: ({
+    open,
+    onVerified,
+    onCancel,
+  }: {
+    open: boolean;
+    onVerified: () => void;
+    onCancel: () => void;
+  }) =>
+    open ? (
+      <div role="alertdialog" aria-label="Second factor">
+        <button type="button" onClick={onVerified}>Verify second factor</button>
+        <button type="button" onClick={onCancel}>Decline second factor</button>
+      </div>
+    ) : null,
+}));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
   getOrg: mocks.getOrg,
@@ -525,6 +542,110 @@ describe("OrganizationMembers", () => {
     expect(
       screen.getByRole("button", { name: "Change role for Jane Lee" }),
     ).toHaveClass("bg-interactive-soft-strong", "text-interactive");
+  });
+
+  describe("when the server asks for the second factor", () => {
+    const needsSecondFactor = () =>
+      new MikeApiError({
+        message: "MFA verification required",
+        status: 403,
+        code: "mfa_verification_required",
+      });
+    const verify = async (user: ReturnType<typeof userEvent.setup>) =>
+      user.click(
+        await within(await screen.findByRole("alertdialog")).findByRole(
+          "button",
+          { name: "Verify second factor" },
+        ),
+      );
+
+    it("repeats a role change once it is verified", async () => {
+      const user = userEvent.setup();
+      mocks.updateOrgMember
+        .mockRejectedValueOnce(needsSecondFactor())
+        .mockResolvedValueOnce({});
+      render(<OrganizationMembers orgId="org-1" />);
+      await screen.findByText("Jane Lee");
+
+      await user.click(
+        screen.getByRole("button", { name: "Change role for Jane Lee" }),
+      );
+      await user.click(screen.getByRole("menuitem", { name: "Admin" }));
+      expect(mocks.updateOrgMember).toHaveBeenCalledTimes(1);
+      await verify(user);
+
+      await waitFor(() => expect(mocks.updateOrgMember).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+
+    it("repeats a member's removal once it is verified", async () => {
+      const user = userEvent.setup();
+      mocks.removeOrgMember
+        .mockRejectedValueOnce(needsSecondFactor())
+        .mockResolvedValueOnce(undefined);
+      render(<OrganizationMembers orgId="org-1" />);
+      await screen.findByText("Jane Lee");
+
+      await user.click(screen.getByRole("checkbox", { name: "Select Jane Lee" }));
+      await user.click(screen.getByRole("button", { name: "Actions" }));
+      await user.click(screen.getByRole("menuitem", { name: "Remove member" }));
+      const dialog = await screen.findByRole("dialog");
+      const remove = within(dialog).getByRole("button", { name: "Remove" });
+      await waitFor(() => expect(remove).toBeEnabled());
+      await user.click(remove);
+      await verify(user);
+
+      await waitFor(() => expect(mocks.removeOrgMember).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(screen.queryByText("Jane Lee")).not.toBeInTheDocument(),
+      );
+    });
+
+    it("repeats an invitation once it is verified", async () => {
+      const user = userEvent.setup();
+      mocks.createOrgInvitation
+        .mockRejectedValueOnce(needsSecondFactor())
+        .mockResolvedValueOnce({ email_sent: true });
+      render(<OrganizationMembers orgId="org-1" />);
+      await screen.findByText("William Chen");
+
+      await user.click(screen.getByRole("button", { name: "Add member" }));
+      await waitFor(() => {
+        const dialog = screen.getByRole("dialog");
+        expect(dialog.contains(document.activeElement)).toBe(true);
+      });
+      await user.type(
+        screen.getByPlaceholderText("Invite by email…"),
+        "new@firm.example",
+      );
+      await user.click(screen.getByRole("button", { name: "Add" }));
+      await verify(user);
+
+      await waitFor(() => expect(mocks.createOrgInvitation).toHaveBeenCalledTimes(2));
+      expect(
+        await screen.findByText("We emailed them the invitation"),
+      ).toBeInTheDocument();
+    });
+
+    it("leaves a role unchanged and says so when the prompt is declined", async () => {
+      const user = userEvent.setup();
+      mocks.updateOrgMember.mockRejectedValue(needsSecondFactor());
+      render(<OrganizationMembers orgId="org-1" />);
+      await screen.findByText("Jane Lee");
+
+      await user.click(
+        screen.getByRole("button", { name: "Change role for Jane Lee" }),
+      );
+      await user.click(screen.getByRole("menuitem", { name: "Admin" }));
+      await user.click(
+        await screen.findByRole("button", { name: "Decline second factor" }),
+      );
+
+      expect(mocks.updateOrgMember).toHaveBeenCalledTimes(1);
+      expect(
+        await screen.findByRole("button", { name: "Change role for Jane Lee" }),
+      ).toHaveClass("bg-gray-100", "text-gray-600");
+    });
   });
 
   it("shows last-owner failures with the warning primitive", async () => {

@@ -447,7 +447,8 @@ describe("a personal organization", () => {
     it("is refused by every route that names an organization, including ones added later", () => {
         // The cases above are the routes that exist today. This reads the
         // router itself, so a new /:orgId route cannot be added without the
-        // guard: each must use requireOrgAuth, never requireAuth alone.
+        // guard: each must use requireOrgAuth (reads) or requireOrgMutation
+        // (writes, which add the second factor), never requireAuth alone.
         const source = readFileSync(
             resolve(__dirname, "../../modules/orgs/orgs.routes.ts"),
             "utf8",
@@ -458,7 +459,13 @@ describe("a personal organization", () => {
             ),
         ].map(([, path, guard]) => ({ path, guard }));
         expect(routes.length).toBeGreaterThanOrEqual(21);
-        expect(routes.filter((route) => route.guard !== "requireOrgAuth")).toEqual(
+        expect(
+            routes.filter(
+                (route) =>
+                    route.guard !== "requireOrgAuth" &&
+                    route.guard !== "requireOrgMutation",
+            ),
+        ).toEqual(
             [],
         );
     });

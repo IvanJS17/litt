@@ -2,7 +2,7 @@
 // routes are for platform administrators only.
 
 import { Router, type NextFunction, type Request, type Response } from "express";
-import { requireAuth } from "../../middleware/auth";
+import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
 import { isPlatformAdmin } from "../../lib/platformAccess";
@@ -52,7 +52,7 @@ platformRouter.get("/invitations", requireAuth, requirePlatformAdmin, asyncRoute
   res.json(result.data);
 }));
 
-platformRouter.post("/invitations", requireAuth, requirePlatformAdmin, asyncRoute(async (req, res) => {
+platformRouter.post("/invitations", requireAuth, requirePlatformAdmin, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
   const result = await createInvitation(createServerSupabase(), {
     userId: res.locals.userId,
     email: req.body?.email,
@@ -61,7 +61,7 @@ platformRouter.post("/invitations", requireAuth, requirePlatformAdmin, asyncRout
   res.status(201).json(result.data);
 }));
 
-platformRouter.delete("/invitations/:id", requireAuth, requirePlatformAdmin, asyncRoute(async (req, res) => {
+platformRouter.delete("/invitations/:id", requireAuth, requirePlatformAdmin, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
   const result = await deleteInvitation(createServerSupabase(), { userId: res.locals.userId }, req.params.id);
   if (!result.ok) return sendServiceFailure(res, result);
   res.status(204).send();
