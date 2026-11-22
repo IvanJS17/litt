@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { rateLimitedBody } from "./lib/httpError";
 import { createHash } from "node:crypto";
+import http from "node:http";
+import { PassThrough } from "node:stream";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -66,15 +68,142 @@ import {
 import { configuredAllowedOrigins } from "./lib/origins";
 import { envInt, sourceCommit } from "./lib/runtimeConfig";
 import { requestDiagnostics } from "./middleware/requestDiagnostics";
+import { requireAuth } from "./middleware/auth";
 
 export const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
-// Ceiling for JSON API requests. File bytes upload directly to object storage;
-// only small upload-session manifests and control requests reach Express.
-// The clients keep a copy as JSON_BODY_LIMIT_BYTES in
-// packages/client/src/requestLimits.ts; change both together.
+// Ceiling for JSON API requests from an authenticated caller. The clients keep
+// a copy as JSON_BODY_LIMIT_BYTES in packages/client/src/requestLimits.ts;
+// change both together.
 const JSON_BODY_LIMIT = "50mb";
+// What any caller, signed in or not, makes the API read before it has been
+// authenticated. The clients never send more than this unauthenticated, so
+// the number has no client copy.
+const PREAUTH_JSON_BODY_BYTES = 1024 * 1024;
+
+// No client compresses a request body, so a compressed one is refused (415)
+// instead of being inflated to the parser's limit from a few kilobytes.
+function jsonBodyParser(limit: number | string): express.RequestHandler {
+  const parse = express.json({ limit, inflate: false });
+  return (req, res, next) =>
+    parse(req, res, (error?: unknown) => {
+      if ((error as { type?: unknown } | undefined)?.type === "encoding.unsupported") {
+        return void res.status(415).json({
+          code: "unsupported_content_encoding",
+          detail: "Compressed request bodies are not accepted.",
+        });
+      }
+      next(error);
+    });
+}
+const preAuthJson = jsonBodyParser(PREAUTH_JSON_BODY_BYTES);
+const authenticatedJson = jsonBodyParser(JSON_BODY_LIMIT);
+
+// requireAuth resolves a request once, so the router's own requireAuth does not
+// look the caller up again.
+function authenticateThenReadAll(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+  paused = false,
+) {
+  requireAuth(req as never, res, (error?: unknown) => {
+    if (error) return next(error);
+    authenticatedJson(req, res, next);
+    // The parser has attached its listeners; a stream paused while it was
+    // buffered ahead of authentication does not flow on its own.
+    if (paused) req.resume();
+  }).catch(next);
+}
+
+// A body no larger than the pre-auth cap is parsed for everyone. A larger one
+// is read only after the caller has been authenticated. Anything that is not
+// JSON is not read here.
+function jsonBodyAdmission(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  // A parser earlier on the path (the Word tool-result one) has read the body:
+  // nothing is left on the stream to wait for.
+  if (!req.readable) return next();
+  const declared = Number(req.headers["content-length"] ?? Number.NaN);
+  const encoding = req.headers["content-encoding"]?.toLowerCase();
+  const compressed = encoding !== undefined && encoding !== "identity";
+  if (
+    (Number.isFinite(declared) && declared <= PREAUTH_JSON_BODY_BYTES) ||
+    compressed || // refused by the parser before it reads anything
+    !req.is("application/json")
+  ) {
+    return preAuthJson(req, res, next);
+  }
+  if (!Number.isFinite(declared)) return admitUndeclaredBody(req, res, next);
+  authenticateThenReadAll(req, res, next);
+}
+
+// A body whose length is not declared (a chunked request: the web gateway
+// streams bodies without a content-length) is read until it ends or passes the
+// pre-auth cap. One that ends within the cap is an ordinary small body and is
+// parsed by the pre-auth parser, anonymous or not. One that passes the cap is
+// handed back to the stream untouched, then read only after authentication.
+function admitUndeclaredBody(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  const stop = () => {
+    req.off("data", onData);
+    req.off("end", onEnd);
+    req.off("error", onError);
+    req.off("close", onClose);
+  };
+  function onData(chunk: Buffer) {
+    chunks.push(chunk);
+    size += chunk.length;
+    if (size <= PREAUTH_JSON_BODY_BYTES) return;
+    req.pause();
+    stop();
+    req.unshift(Buffer.concat(chunks));
+    // Refused before the body was read: discard the rest, as Node does for any
+    // unread body, so the connection is not left stuck behind it.
+    res.once("finish", () => {
+      if (!req.complete) req.resume();
+    });
+    authenticateThenReadAll(req, res, next, true);
+  }
+  function onEnd() {
+    stop();
+    // The parser reads a stream that carries the same headers with a declared
+    // length, so it gives the results and errors it gives for any small body.
+    const body = new PassThrough() as PassThrough & {
+      headers: http.IncomingHttpHeaders;
+      body?: unknown;
+    };
+    const { "transfer-encoding": _chunked, ...headers } = req.headers;
+    body.headers = { ...headers, "content-length": String(size) };
+    body.end(Buffer.concat(chunks));
+    preAuthJson(body as never, res, (error?: unknown) => {
+      if (error) return next(error);
+      req.body = body.body;
+      next();
+    });
+  }
+  function onError(error: Error) {
+    stop();
+    next(error);
+  }
+  // The caller left: nobody is waiting for an answer.
+  function onClose() {
+    stop();
+  }
+  req.on("data", onData);
+  req.on("end", onEnd);
+  req.on("error", onError);
+  req.on("close", onClose);
+}
 
 function minutes(value: number): number {
   return value * 60 * 1000;
@@ -91,6 +220,7 @@ function makeLimiter(options: {
   skip?: (req: express.Request) => boolean;
   keyGenerator?: (req: express.Request) => string;
   skipSuccessfulRequests?: boolean;
+  requestWasSuccessful?: (req: express.Request, res: express.Response) => boolean;
 }) {
   return rateLimit({
     windowMs: options.windowMs,
@@ -100,6 +230,9 @@ function makeLimiter(options: {
     skip: (req) => req.method === "OPTIONS" || options.skip?.(req) === true,
     keyGenerator: options.keyGenerator,
     skipSuccessfulRequests: options.skipSuccessfulRequests,
+    ...(options.requestWasSuccessful
+      ? { requestWasSuccessful: options.requestWasSuccessful }
+      : {}),
     // A machine code lets clients classify the failure without parsing
     // prose; the detail stays specific to the lane that was exhausted.
     message: rateLimitedBody(
@@ -117,12 +250,25 @@ const TOOL_RESULT_PATH = "/word-chat/tool-result";
 const generalLimiter = makeLimiter({
   windowMs: minutes(envInt("RATE_LIMIT_GENERAL_WINDOW_MINUTES", 15)),
   max: envInt("RATE_LIMIT_GENERAL_MAX", 300),
-  // Upload status polling has its own authenticated per-user limiter. Keep it
-  // and the dedicated Word tool-result lane out of the shared IP budget.
+  // Upload status polling has its own authenticated per-user limiter and
+  // address lane (uploadSessionIpLimiter). Keep them and the dedicated Word
+  // tool-result lane out of the shared IP budget.
   skip: (req) =>
     req.path === TOOL_RESULT_PATH ||
     req.path === "/upload-sessions" ||
     req.path.startsWith("/upload-sessions/"),
+});
+
+// Requests to /upload-sessions without a signed-in user are counted per
+// address before the router, at the general lane's ceiling. Signed-in calls,
+// including status polling, are not counted here: the per-user lanes in the
+// router bound those.
+const uploadSessionIpLimiter = makeLimiter({
+  windowMs: minutes(envInt("RATE_LIMIT_UPLOAD_SESSION_IP_WINDOW_MINUTES", 15)),
+  max: envInt("RATE_LIMIT_UPLOAD_SESSION_IP_MAX", 300),
+  message: "Too many upload requests. Please try again later.",
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: (_req, res) => typeof res.locals.userId === "string",
 });
 
 const toolResultLimiter = makeLimiter({
@@ -173,22 +319,52 @@ const authLoginIpLimiter = makeLimiter({
   skipSuccessfulRequests: true,
 });
 
+// Only a credential the identity provider refused spends an account budget:
+// the auth router sets res.locals.loginCredentialRejected at that point.
+// Origin and schema refusals, provider outages, an unconfirmed address and
+// successful sign-ins never presented a wrong credential.
+const loginWasNotCredentialRefusal = (
+  _req: express.Request,
+  res: express.Response,
+) => res.locals.loginCredentialRejected !== true;
+
+function loginAccountDigest(req: express.Request): string | null {
+  const email =
+    typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  return email ? createHash("sha256").update(email).digest("hex") : null;
+}
+
+function loginClient(req: express.Request): string {
+  return ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "unknown");
+}
+
+// Per (account, client): one caller's refusals cannot spend the budget another
+// caller needs to sign in to the same account.
 const authLoginAccountLimiter = makeLimiter({
   windowMs: minutes(envInt("RATE_LIMIT_AUTH_ACCOUNT_WINDOW_MINUTES", 15)),
   max: envInt("RATE_LIMIT_AUTH_ACCOUNT_MAX", 10),
   message: "Too many login attempts. Please try again later.",
   skipSuccessfulRequests: true,
+  requestWasSuccessful: loginWasNotCredentialRefusal,
   keyGenerator: (req) => {
-    const email =
-      typeof req.body?.email === "string"
-        ? req.body.email.trim().toLowerCase()
-        : "";
-    if (!email) {
-      return `ip:${ipKeyGenerator(
-        req.ip ?? req.socket.remoteAddress ?? "unknown",
-      )}`;
-    }
-    return `email:${createHash("sha256").update(email).digest("hex")}`;
+    const digest = loginAccountDigest(req);
+    return digest
+      ? `email:${digest}:${loginClient(req)}`
+      : `ip:${loginClient(req)}`;
+  },
+});
+
+// Across clients, against guessing spread over many addresses: much larger
+// than the lane above so it adds friction without being a lockout of its own.
+const authLoginAccountGlobalLimiter = makeLimiter({
+  windowMs: minutes(envInt("RATE_LIMIT_AUTH_ACCOUNT_WINDOW_MINUTES", 15)),
+  max: envInt("RATE_LIMIT_AUTH_ACCOUNT_GLOBAL_MAX", 100),
+  message: "Too many login attempts. Please try again later.",
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: loginWasNotCredentialRefusal,
+  keyGenerator: (req) => {
+    const digest = loginAccountDigest(req);
+    return digest ? `email:${digest}` : `ip:${loginClient(req)}`;
   },
 });
 
@@ -286,6 +462,7 @@ app.use(
 );
 
 app.use(generalLimiter);
+app.use("/upload-sessions", uploadSessionIpLimiter);
 
 app.post("/auth/login", authLoginIpLimiter);
 app.post(["/auth/signup", "/auth/password-reset"], authEmailLimiter);
@@ -300,10 +477,11 @@ app.post("/word-chat", chatLimiter);
 // Own limiter lane plus a tight body cap: the largest legitimate payload is
 // one live document read, which the backend truncates at 200k characters
 // anyway — 2mb leaves headroom for UTF-8 and JSON escaping while keeping the
-// global 50mb ceiling out of reach of this endpoint. This parser runs before
-// the global one; body-parser skips a request whose body is already parsed,
-// so the smaller limit wins for this path.
-app.post(TOOL_RESULT_PATH, toolResultLimiter, express.json({ limit: "2mb" }));
+// 50mb ceiling out of reach of this endpoint. This parser runs before the
+// general one; body-parser skips a request whose body is already parsed, so
+// the smaller limit wins for this path. The route is for signed-in callers
+// only, so the session is checked before the body is read.
+app.post(TOOL_RESULT_PATH, toolResultLimiter, requireAuth, jsonBodyParser("2mb"));
 app.post("/projects/:projectId/chat", chatLimiter);
 app.post("/tabular-review/:reviewId/chat", chatLimiter);
 app.post("/tabular-review/:reviewId/generate", chatLimiter);
@@ -367,11 +545,11 @@ app.delete("/user/chats", dataDeleteLimiter);
 app.delete("/user/projects", dataDeleteLimiter);
 app.delete("/user/tabular-reviews", dataDeleteLimiter);
 
-app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(jsonBodyAdmission);
 
 // Body-aware account throttling complements the per-IP login limiter. The key
 // is a one-way digest, so email addresses never enter the limiter store.
-app.post("/auth/login", authLoginAccountLimiter);
+app.post("/auth/login", authLoginAccountGlobalLimiter, authLoginAccountLimiter);
 
 app.use("/auth", authRouter);
 app.use("/mcp-connect", mcpConsentRouter);

@@ -205,6 +205,11 @@ export type StreamChatParams = {
      * limit ends with an answer instead of an unanswered tool call.
      */
     finishWithoutToolsOnLastStep?: boolean;
+    /**
+     * Output limit of each step, for a caller that parses the answer and
+     * bounds its size. Never raises the operator's or the adapter's ceiling.
+     */
+    maxOutputTokens?: number;
 };
 
 export type StreamChatResult = {

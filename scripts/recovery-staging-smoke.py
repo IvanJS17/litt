@@ -231,7 +231,8 @@ class Runner:
         values = {'STAGING_OWNER': self.owner, 'STAGING_PROXY_PORT': str(self.port),
                   'STAGING_PUBLIC_URL': self.origin, 'STAGING_DISABLE_SIGNUP': 'false'}
         for name in ('POSTGRES_PASSWORD', 'JWT_SECRET', 'DOWNLOAD_SIGNING_SECRET',
-                     'USER_API_KEYS_ENCRYPTION_SECRET', 'S3_ACCESS_KEY', 'S3_SECRET_KEY'):
+                     'USER_API_KEYS_ENCRYPTION_SECRET', 'S3_ACCESS_KEY', 'S3_SECRET_KEY',
+                     'LITT_EDGE_SECRET'):
             values['STAGING_' + name] = secrets.token_hex(32)
         for role, key in (('anon', 'STAGING_SUPABASE_ANON_KEY'),
                           ('service_role', 'STAGING_SUPABASE_SERVICE_ROLE_KEY')):

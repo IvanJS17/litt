@@ -14,6 +14,7 @@
  */
 
 import type { ProfileFactKind } from "@mike/contracts";
+import { unwrapFencedAnswer } from "../../lib/modelJsonFence";
 import { normalizeDate, parseNoticePeriod } from "./client-profile.dates";
 import { cleanText, isRecord, LABEL_MAX, QUOTE_MAX, type ParsedFact } from "./client-profile.shared";
 
@@ -83,11 +84,8 @@ export type ExtractedItem = {
 
 /** The JSON array of an answer, or null when it is not one. A code fence around it is tolerated. */
 export function readModelArray(raw: string): unknown[] | null {
-  let text = raw.trim();
-  const fenced = /^```[a-zA-Z]*\s*([\s\S]*?)\s*```$/.exec(text);
-  if (fenced) text = fenced[1].trim();
   try {
-    const parsed: unknown = JSON.parse(text);
+    const parsed: unknown = JSON.parse(unwrapFencedAnswer(raw));
     return Array.isArray(parsed) ? parsed : null;
   } catch {
     return null;

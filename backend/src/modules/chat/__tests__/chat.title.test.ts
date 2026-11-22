@@ -10,6 +10,8 @@ vi.mock("../../../lib/observability/report", () => ({ reportError }));
 
 import { generateAssistantChatTitle, logChatTitleFailure } from "../chat.title";
 import { UserFacingError } from "../../../lib/userFacingError";
+import { expectLinearCostAsync } from "../../../__tests__/helpers/linearCost";
+import { MODEL_TEXT_MAX_CHARS } from "../../../lib/modelJsonFence";
 
 describe("logChatTitleFailure", () => {
     const apiCallError = (statusCode: number) =>
@@ -159,5 +161,24 @@ describe("generateAssistantChatTitle", () => {
                 message: "Hello",
             }),
         ).resolves.toBe("x".repeat(80));
+    });
+});
+
+describe("generateAssistantChatTitle on a long answer", () => {
+    const titleFor = async (answer: string) => {
+        completeText.mockResolvedValue(answer);
+        return generateAssistantChatTitle({ model: "title-model", message: "Hello" });
+    };
+
+    it("trims trailing punctuation in linear time", async () => {
+        await expectLinearCostAsync((n) => titleFor("Title" + ".".repeat(n) + "x"), { small: 2_000, large: 64_000 });
+    });
+    it("keeps the same title for ordinary answers", async () => {
+        await expect(titleFor('"Quoted title?!"')).resolves.toBe("Quoted title");
+        await expect(titleFor("...")).resolves.toBe("Misc. Query");
+        await expect(titleFor("T".repeat(200))).resolves.toBe("T".repeat(80));
+    });
+    it("falls back to the default title for an answer over the shared bound", async () => {
+        await expect(titleFor("T".repeat(MODEL_TEXT_MAX_CHARS + 1))).resolves.toBe("Misc. Query");
     });
 });

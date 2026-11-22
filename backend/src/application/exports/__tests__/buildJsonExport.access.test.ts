@@ -269,6 +269,41 @@ describe("exports enforce current read access", () => {
         expect(ids(result.tabular_cells)).toEqual(["cell-readable"]);
     });
 
+    it("account export carries only the cells of rows whose source documents the holder can read", async () => {
+        const tables: Record<string, Row[]> = {
+            tabular_reviews: [resource("review-own")],
+            tabular_review_rows: [
+                { id: "row-readable", review_id: "review-own", document_id: "document-personal", sort_index: 0 },
+                { id: "row-elsewhere", review_id: "review-own", document_id: "document-elsewhere", sort_index: 1 },
+                // Fed by two documents, one of them no longer readable.
+                { id: "row-mixed", review_id: "review-own", document_id: "document-personal", sort_index: 2 },
+            ],
+            tabular_review_row_sources: [
+                { row_id: "row-mixed", document_id: "document-personal", sort_index: 0 },
+                { row_id: "row-mixed", document_id: "document-elsewhere", sort_index: 1 },
+            ],
+            tabular_cells: [
+                { id: "cell-readable", review_id: "review-own", row_id: "row-readable" },
+                { id: "cell-elsewhere", review_id: "review-own", row_id: "row-elsewhere" },
+                { id: "cell-mixed", review_id: "review-own", row_id: "row-mixed" },
+            ],
+            documents: [
+                resource("document-personal"),
+                resource("document-elsewhere", { user_id: "colleague", org_id: "other-org" }),
+            ],
+            organizations: [{ id: "other-org", kind: "team" }],
+        };
+        const { db } = makeExportDb(tables);
+        const account = await buildUserAccountExport(db, userId, email, null);
+        expect(ids(account.tabular_reviews)).toEqual(["review-own"]);
+        expect(ids(account.tabular_cells)).toEqual(["cell-readable"]);
+
+        // Access to the source returns the cells: nothing else changed.
+        tables.documents = [resource("document-personal"), resource("document-elsewhere")];
+        const restored = await buildUserAccountExport(db, userId, email, null);
+        expect(ids(restored.tabular_cells).sort()).toEqual(["cell-elsewhere", "cell-mixed", "cell-readable"]);
+    });
+
     it("does not treat stale direct project grants as organization membership", async () => {
         const { db } = makeExportDb({
             projects: [resource("team-project", { user_id: "colleague", org_id: "departed-org", visibility: "organization" })],

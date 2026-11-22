@@ -83,6 +83,7 @@ import {
 } from "../contextBuilders";
 import type { Db } from "../../../../lib/supabase";
 import { renderTableCells } from "./tableCells";
+import { isToolAllowed, type ToolCapability } from "./toolCapabilities";
 
 /**
  * Report a server-side tool's failure and return what to log for it. The
@@ -297,6 +298,11 @@ export async function runToolCalls(
      */
     allowDocumentMutation?: boolean;
     /**
+     * What a turn driven by a connected app may use (toolCapabilities.ts); a
+     * call to any other tool is refused before it runs. Omitted: no limit.
+     */
+    allowedCapabilities?: readonly ToolCapability[];
+    /**
      * The turn's abort signal. Calls run one after another, so a turn stopped
      * by Stop or a stream deadline starts none of the batch's remaining tools
      * (their document edits, creations and connector writes included).
@@ -427,6 +433,17 @@ export async function runToolCalls(
       args = JSON.parse(tc.function.arguments || "{}");
     } catch {
       /* ignore */
+    }
+
+    if (!isToolAllowed(tc.function.name, options.allowedCapabilities)) {
+      toolResults.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        content: JSON.stringify({
+          error: `Tool '${tc.function.name}' is not available.`,
+        }),
+      });
+      continue;
     }
 
     const isConnectorTool =
@@ -638,7 +655,7 @@ export async function runToolCalls(
         { readIdentity },
       );
       const filename = docStore.get(docId)?.filename;
-      const documentId = docIndex?.[docId]?.document_id;
+      const documentId = docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id;
       if (readIdentity && turnReadState) {
         turnReadState.set(readIdentity.key, readIdentity);
       }
@@ -759,8 +776,11 @@ export async function runToolCalls(
         return { ...publicMatch, doc_id: docId };
       });
       const content = JSON.stringify({ ok: true, ...result.data, matches });
+      // The documents whose text or names went to the model, so what is built
+      // from them can be checked against the reader's access later.
       finishSearch({ match_count: matches.length, next_offset: result.data.next_offset,
-        coverage: result.data.coverage });
+        coverage: result.data.coverage,
+        ...(matches.length ? { document_ids: [...new Set(result.data.matches.map((match) => match.document_id))] } : {}) });
       toolResults.push({ role: "tool", tool_call_id: tc.id,
         content: nonce ? spotlight(content, nonce) : content });
     } else if (tc.function.name === "find_in_document") {
@@ -821,7 +841,7 @@ export async function runToolCalls(
         docsFound.push({
           filename,
           document_id:
-            readIdentity?.documentId ?? docIndex?.[docId]?.document_id,
+            readIdentity?.documentId ?? docIndex?.[docId]?.document_id ?? docInfo?.asset_document_id,
           version_id: readIdentity?.versionId ?? null,
           version_number: readIdentity?.versionNumber ?? null,
           query,
@@ -887,7 +907,7 @@ export async function runToolCalls(
           `--- ${docId} ---\n${citationReminder(docId, filename, promptFilename)}${sourceNotice ? `\n${sourceNotice}` : ""}\n\n${fencedContent}`,
         );
         if (docStore.get(docId)) {
-          const documentId = docIndex?.[docId]?.document_id;
+          const documentId = docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id;
           docsRead.push({
             filename,
             document_id: readIdentity?.documentId ?? documentId,
@@ -987,6 +1007,14 @@ export async function runToolCalls(
             // and its suggestions are not saved as a version.
             signal: options.signal,
           });
+          // The findings quote the stored document: record it, at the version reviewed.
+          if (indexed)
+            docsRead.push({
+              filename: docInfo.filename,
+              document_id: indexed.document_id,
+              version_id: indexed.version_id ?? null,
+              version_number: indexed.version_number ?? null,
+            });
           const annotations = run.findings.flatMap((finding) =>
             finding.edit ? [finding.edit] : [],
           );
@@ -1117,6 +1145,7 @@ export async function runToolCalls(
             file_type: asset.file_type,
             filename: asset.filename,
             source_kind: "workflow_asset",
+            asset_document_id: asset.asset_id,
           });
           assetHandles.push({
             doc_id: docId,

@@ -26,6 +26,8 @@ const PROVIDER_REASONS: Array<[string, RegExp]> = [
   // Anthropic answers an empty prepaid balance with a 400 invalid_request_error, not a 402.
   ['credit_balance', /\byour credit balance is too low\b/i],
 ];
+/** How much of a provider's message is read for its reason: they open with it, and the text is the provider's to size. */
+const PROVIDER_MESSAGE_CHARS = 4_096;
 /** @ai-sdk/gateway's own instance marker (GatewayError.isInstance); its classes are not exported. */
 const GATEWAY_ERROR = Symbol.for('vercel.ai.gateway.error');
 
@@ -163,7 +165,8 @@ export function diagnosticErrorTags(error: unknown): Record<string, string | num
           ? [record(record(record(item.cause).data).error).type, item.type].find(type => typeof type === 'string' && ENUMS.provider_error_type!.has(type))
           : record(record(item.data).error).type ?? item.type;
         if (typeof providerType === 'string' && ENUMS.provider_error_type!.has(providerType) && tags.provider_error_type === undefined) tags.provider_error_type = providerType;
-        const reason = typeof item.message === 'string' ? PROVIDER_REASONS.find(([, pattern]) => pattern.test(item.message as string))?.[0] : undefined;
+        const message = typeof item.message === 'string' ? item.message.slice(0, PROVIDER_MESSAGE_CHARS) : undefined;
+        const reason = message === undefined ? undefined : PROVIDER_REASONS.find(([, pattern]) => pattern.test(message))?.[0];
         if (reason && tags.provider_reason === undefined) tags.provider_reason = reason;
       }
       // AppError identity: the thrower's own static label, never a dependency property.

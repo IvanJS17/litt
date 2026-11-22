@@ -1,6 +1,7 @@
 import { accessSync, constants, statSync } from "node:fs";
 import path from "node:path";
 import { extractionIsolated, extractionLauncher } from "./extraction/limits";
+import { trimChars } from "./modelJsonFence";
 
 function required(env: NodeJS.ProcessEnv, names: readonly string[]): string {
   for (const name of names) {
@@ -180,7 +181,7 @@ export function supabaseSessionConfiguration(
 export function configuredApiPublicUrl(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  return required(env, ["API_PUBLIC_URL"]).replace(/\/+$/, "");
+  return trimChars(required(env, ["API_PUBLIC_URL"]), "", "/", Infinity);
 }
 
 export function authHandoffEncryptionSecret(

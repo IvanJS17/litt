@@ -48,7 +48,6 @@ import { checkWorkflowAccess } from "../../lib/access";
 import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
-import { registerLegalVersion } from "../../lib/managedAccounts";
 import {
     buildWorld,
     ORG,
@@ -71,7 +70,6 @@ beforeEach(() => {
     h.listFails = false;
     resetGrantBudgets();
     resetAssistantTurnRunsForTests();
-    registerLegalVersion("test-terms");
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", "http://localhost:3000");

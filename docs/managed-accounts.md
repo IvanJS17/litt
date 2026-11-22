@@ -19,15 +19,18 @@ An account is managed while **all** of these hold, read live on every request
 1. `user_profiles.created_by_org_id` names a firm (the firm whose invitation
    created the account). Set once, by the backend, only when the invitation
    made the account (`inviteUserByEmail` in `lib/inviteEmail.ts`, and
-   closed-beta sign-up on a firm's invitation in `auth.routes.ts`). Both require
+   closed-beta sign-up on a firm's invitation, via `inviteAdmittedSignup`). Both require
    an account created in the last two minutes, so an account that existed before
    the invitation stays `NULL`. The platform's own invitations set nothing.
 2. That firm has `organizations.managed_accounts = true` and is not deleted.
 3. The person is still an active member of that firm.
-4. The person has accepted the current legal version
-   (`terms_accepted_version = LEGAL_VERSION`). Before that, `termsRequired`
-   keeps them out of the app and the mode does not apply; the version is
-   registered by `modules/user/user.profile.storage.ts`.
+
+The legal version the person has accepted is not part of the rule. The
+restriction holds from the moment the firm turns the setting on, whatever
+version the person has accepted, on every server path. Accepting the current
+terms is what makes the app show the notice below; it does not activate the
+restriction. A person who still has terms to accept sees the terms screen
+first, then the notice.
 
 Consequences, by construction:
 

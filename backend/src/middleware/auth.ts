@@ -184,6 +184,11 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // A large JSON body is read only after the caller is authenticated (app.ts),
+  // so a request can reach this middleware twice. Resolve it once: a second
+  // pass would repeat the identity lookup and present a cookie refresh token
+  // the first pass just rotated.
+  if (res.locals.authResolved === true) return next();
   const auth = req.headers.authorization ?? "";
   const admin = getAdminClient(res);
   if (!admin) return;
@@ -287,7 +292,7 @@ export async function requireAuth(
 
   const { data: deletionProfile, error: deletionError } = await admin
     .from("user_profiles")
-    .select("account_deletion_requested_at, created_by_org_id, terms_accepted_version")
+    .select("account_deletion_requested_at, created_by_org_id")
     .eq("user_id", user.id)
     .maybeSingle();
   if (deletionError) {
@@ -314,8 +319,6 @@ export async function requireAuth(
       user.id,
       (deletionProfile as { created_by_org_id?: string | null } | null)
         ?.created_by_org_id,
-      (deletionProfile as { terms_accepted_version?: string | null } | null)
-        ?.terms_accepted_version,
     );
   } catch (error) {
     // Fail closed: an unreadable verdict must not open the personal space.
@@ -360,6 +363,7 @@ export async function requireAuth(
   if (!(await enforceLoginMfaIfEnabled(req, res, admin, token))) {
     return;
   }
+  res.locals.authResolved = true;
   next();
 }
 

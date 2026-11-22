@@ -4,7 +4,32 @@ const { jsonrepair } = require("jsonrepair") as {
   jsonrepair: (text: string) => string;
 };
 
+import { assertBoundedText, BoundedTextError, stripCodeFence } from "../modelJsonFence";
 import type { NormalizedToolCall } from "./types";
+
+/**
+ * The most a tool call's arguments may hold to be repaired rather than refused:
+ * the size at which the engine stops putting a call's arguments before a
+ * person for approval. The repair is not linear on every damaged shape.
+ */
+export const TOOL_ARGUMENT_REPAIR_MAX_CHARS = 200_000;
+
+function repairToolJson(text: string): string {
+  return jsonrepair(assertBoundedText(text, TOOL_ARGUMENT_REPAIR_MAX_CHARS));
+}
+
+/**
+ * The JSON value of a tool call's text. Text that is valid JSON is read as it
+ * is, whatever its size up to the shared bound (linear); only text that is not
+ * is repaired, and only up to `TOOL_ARGUMENT_REPAIR_MAX_CHARS`.
+ */
+function parseToolJson(text: string): unknown {
+  try {
+    return JSON.parse(assertBoundedText(text));
+  } catch {
+    return JSON.parse(repairToolJson(text));
+  }
+}
 
 // Tolerance for models that describe tool calls in prose instead of emitting
 // them as structured tool-call fields. Self-hosted builds of Qwen, DeepSeek,
@@ -198,7 +223,7 @@ export function parseTextToolCalls(
     if (xmlStyleCall) return [xmlStyleCall];
     try {
       const candidate = normalizeQwenToolMapSyntax(extractJsonCandidate(body));
-      const parsed = JSON.parse(jsonrepair(candidate)) as unknown;
+      const parsed = parseToolJson(candidate);
       const rows = Array.isArray(parsed) ? parsed : [parsed];
       const parsedCalls = rows.flatMap(
         (row, rowIndex): NormalizedToolCall[] => {
@@ -364,7 +389,7 @@ function parseLooseTextToolCall(
       extractJsonCandidate(candidate),
     );
     try {
-      const parsed = JSON.parse(jsonrepair(repaired));
+      const parsed = parseToolJson(repaired);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         Object.assign(input, parsed);
       }
@@ -413,7 +438,7 @@ export function parseToolScalar(value: string): unknown {
   if (/^(?:null|none)$/i.test(trimmed)) return null;
   if (/^[\[{]/.test(trimmed)) {
     try {
-      return JSON.parse(jsonrepair(trimmed));
+      return parseToolJson(trimmed);
     } catch {
       // Preserve the original string when a nested value is not JSON-like.
     }
@@ -427,11 +452,15 @@ export function normalizeQwenToolMapSyntax(value: string): string {
     .replace(/^(\s*\{\s*"[^"]+")\s*:{2,}/, "$1:");
 }
 
+/** The JSON value inside a model's text; "" when the text is over the shared bound. */
 export function extractJsonCandidate(value: string): string {
-  const cleaned = value
-    .replace(/^\s*```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/i, "")
-    .trim();
+  let cleaned: string;
+  try {
+    cleaned = stripCodeFence(value);
+  } catch (error) {
+    if (error instanceof BoundedTextError) return "";
+    throw error;
+  }
   const start = cleaned.search(/[\[{]/);
   if (start < 0) return cleaned;
 

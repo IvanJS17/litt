@@ -135,8 +135,8 @@ export function buildWorld() {
             { id: ROW_PRIVATE, review_id: REVIEW_PRIVATE, label: "demanda.pdf", row_type: "document", document_id: DOC_PRIVATE, source_document_ids: [DOC_PRIVATE], sort_index: 0 },
         ],
         tabular_cells: [
-            { id: "77777777-0000-4000-8000-000000000001", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 0, content: JSON.stringify({ summary: "$10,000 MXN mensuales", flag: "green", reasoning: "Cláusula primera" }), citations: [{ document_id: DOC_PUBLIC, quote: "renta mensual de $10,000 MXN" }], status: "done", generation_id: null },
-            { id: "77777777-0000-4000-8000-000000000002", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 1, content: null, citations: null, status: "pending", generation_id: null },
+            { id: "77777777-0000-4000-8000-000000000001", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 0, content: JSON.stringify({ summary: "$10,000 MXN mensuales", flag: "green", reasoning: "Cláusula primera" }), citations: [{ document_id: DOC_PUBLIC, quote: "renta mensual de $10,000 MXN" }], status: "done", generation_id: null, created_at: "2026-11-05T10:00:00Z" },
+            { id: "77777777-0000-4000-8000-000000000002", review_id: REVIEW_PUBLIC, row_id: ROW_PUBLIC, document_id: DOC_PUBLIC, column_index: 1, content: null, citations: null, status: "pending", generation_id: null, created_at: "2026-11-05T10:00:00Z" },
         ],
         chats: [],
         chat_messages: [],

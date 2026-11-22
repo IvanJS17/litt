@@ -9,7 +9,7 @@ import {
     personalWorkspaceDisabledFor,
     withRequestPrincipal,
 } from "./managedAccounts";
-import { registerLegalVersion, managedAccountState, dismissManagedNotice, ownDataRightsScope } from "./managedAccounts";
+import { managedAccountState, dismissManagedNotice, ownDataRightsScope } from "./managedAccounts";
 import { checkProjectAccess, ensureChatAccess, ensureDocAccess, ensureReviewAccess, resolveContentOrgId, resolveStandaloneOrgId } from "./access";
 import { getEffectiveApiKeyStatus, getEffectiveApiKeys, getUserApiKeyStatus, getUserApiKeys } from "./providerCredentials/store";
 import { saveApiKey, setApiKeyEnabled } from "../modules/user/user.apiKeys";
@@ -189,24 +189,6 @@ describe("the seams where personal scope is chosen", () => {
             });
         });
         expect(await resolveContentOrgId(db, { projectId: "personal-project" })).toEqual({ ok: true, orgId: null });
-    });
-});
-
-describe("the legal version comes first", () => {
-    it("applies only after the person accepted the current version", async () => {
-        registerLegalVersion("v2");
-        try {
-            const { db, tables } = world();
-            const profile = tables.user_profiles.find((p) => p.user_id === "invited")!;
-            profile.terms_accepted_version = "v1";
-            expect(await isManagedAccount(db, "invited")).toBe(false);
-            profile.terms_accepted_version = "v2";
-            expect(await isManagedAccount(db, "invited")).toBe(true);
-            profile.terms_accepted_version = null;
-            expect(await isManagedAccount(db, "invited")).toBe(false);
-        } finally {
-            registerLegalVersion(null as unknown as string);
-        }
     });
 });
 

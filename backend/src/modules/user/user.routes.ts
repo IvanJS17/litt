@@ -872,9 +872,26 @@ userRouter.post(
     }),
 );
 
+// The provider may send the browser to an API origin that cannot see the web
+// session cookie. Relay only the OAuth parameters to the fixed frontend
+// gateway; completion there requires the same signed-in user who started the
+// flow.
 // GET /user/mcp-connectors/oauth/callback
-userRouter.get("/mcp-connectors/oauth/callback", asyncRoute(async (req, res) => {
+userRouter.get("/mcp-connectors/oauth/callback", (req, res) => {
+    const finish = new URL(frontendUrl("/api/user/mcp-connectors/oauth/finish"));
+    for (const key of ["state", "code", "error", "iss", "scope"]) {
+        if (typeof req.query[key] === "string")
+            finish.searchParams.set(key, req.query[key]);
+    }
+    res.set("Cache-Control", "no-store")
+        .set("Referrer-Policy", "no-referrer")
+        .redirect(303, finish.toString());
+});
+
+// GET /user/mcp-connectors/oauth/finish
+userRouter.get("/mcp-connectors/oauth/finish", requireAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
     setOperation("mcp.connect");
+    res.set("Cache-Control", "no-store").set("Referrer-Policy", "no-referrer");
     const nonce = crypto.randomBytes(16).toString("base64");
     const state = typeof req.query.state === "string" ? req.query.state : "";
     const code = typeof req.query.code === "string" ? req.query.code : "";
@@ -885,7 +902,12 @@ userRouter.get("/mcp-connectors/oauth/callback", asyncRoute(async (req, res) => 
         if (error) throw new Error(error);
         if (!state || !code)
             throw new Error("OAuth callback is missing state or code.");
-        const result = await completeUserMcpConnectorOAuth(state, code, db);
+        const result = await completeUserMcpConnectorOAuth(
+            res.locals.userId as string,
+            state,
+            code,
+            db,
+        );
         res.set(mcpOAuthPopupHeaders(nonce))
             .type("html")
             .send(

@@ -56,17 +56,21 @@ import { withSseKeepAlive } from "./streamLiveness";
 import { vertexAuthClient } from "./vertexAuth";
 import { UserFacingError } from "../userFacingError";
 import { randomBytes } from "node:crypto";
+import { trimChars } from "../modelJsonFence";
 import { sourceCommit } from "../runtimeConfig";
 
+/** A base URL from the environment without the slashes at its end; undefined when unset. */
+const trimmedBaseUrl = (value: string | undefined) => (value === undefined ? undefined : trimChars(value.trim(), "", "/", Infinity));
+
 const OPENROUTER_BASE_URL =
-  process.env.OPENROUTER_BASE_URL?.trim().replace(/\/+$/, "") ||
+  trimmedBaseUrl(process.env.OPENROUTER_BASE_URL) ||
   "https://openrouter.ai/api/v1";
 
 const OPENCODE_GO_BASE_URL =
-  process.env.OPENCODE_GO_BASE_URL?.trim().replace(/\/+$/, "") ||
+  trimmedBaseUrl(process.env.OPENCODE_GO_BASE_URL) ||
   "https://opencode.ai/zen/go/v1";
 const VERCEL_GATEWAY_BASE_URL =
-  process.env.VERCEL_AI_GATEWAY_BASE_URL?.trim().replace(/\/+$/, "");
+  trimmedBaseUrl(process.env.VERCEL_AI_GATEWAY_BASE_URL);
 
 type CompleteProviderParams = {
   model: string;

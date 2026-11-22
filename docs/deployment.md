@@ -428,10 +428,55 @@ to the task pane using a request-bound, encrypted, single-use database ticket
 that expires after two minutes. Apply
 `20260825_01_auth_handoff_tickets.sql` before enabling this flow.
 
+#### Client address behind a reverse proxy
+
+The per-IP rate limits key on the client address the backend derives from
+`X-Forwarded-For`. The backend trusts exactly one hop in front of it
+(`TRUST_PROXY_HOPS`, default `1`): the web server or the Word add-in server,
+which forward a single client address. Those two servers accept an address from
+their own caller only when the request carries the `X-Litt-Edge` header and its
+value equals their `LITT_EDGE_SECRET` environment variable (compared in
+constant time). Otherwise they use the address of the connecting peer, ignore
+any `X-Forwarded-For` they received and remove `X-Litt-Edge` before calling the
+backend.
+
+- **No proxy in front of the web server or the add-in server** (for example
+  local development, or Compose publishing the port directly): configure
+  nothing. With `LITT_EDGE_SECRET` unset nothing is trusted and the connecting
+  peer is the client.
+- **Your own reverse proxy**: choose a random value for `LITT_EDGE_SECRET`
+  (`openssl rand -hex 32`), set it on the web server and the add-in server, and
+  make the proxy overwrite (not append to) the headers it sends to them:
+  `X-Forwarded-For` with the single client address it observed, and
+  `X-Litt-Edge` with the same value. For example, in nginx:
+  `proxy_set_header X-Forwarded-For $remote_addr;` and
+  `proxy_set_header X-Litt-Edge <secret>;`; in Caddy:
+  `header_up X-Forwarded-For {client_ip}` and
+  `header_up X-Litt-Edge {env.LITT_EDGE_SECRET}`. Do not use
+  `$proxy_add_x_forwarded_for`. If a CDN sits in front of your proxy, tell the
+  proxy which CDN ranges to trust and which header carries the visitor address,
+  so that the single address it forwards is the visitor's.
+- If the secret differs between the proxy and the servers, or is missing on one
+  side, the servers fall back to the proxy's own address: every visitor shares
+  one rate-limit budget. That is safe but disruptive; fix the value.
+- Leave `TRUST_PROXY_HOPS` at `1` unless you add another hop between the web
+  server (or add-in server) and the backend.
+
 The first deployment intentionally signs out sessions created by older builds:
 the web app deletes legacy Supabase local/session-storage entries and the Word
 add-in deletes legacy OfficeRuntime access/refresh tokens. Users authenticate
 once to establish the new cookie; tokens are not copied through JavaScript.
+
+### Browser protection headers
+
+The web app and the Word add-in server send a Content Security Policy, HSTS,
+`X-Content-Type-Options`, a referrer policy and (web app only) frame denial on
+every response; see `frontend/src/app/lib/securityHeaders.ts` and
+`word-addin/server.mjs`. The policy lets the browser connect to the storage
+origin taken from `R2_PUBLIC_ENDPOINT_URL` (falling back to `R2_ENDPOINT_URL`),
+so the frontend process needs the same value the backend signs URLs against
+(the bundled `docker-compose.yml` passes it). `LITT_CSP_REPORT_ONLY=true` makes
+the policy report instead of enforce; `deploy/prod/README.md` has the details.
 
 ### Object-storage CORS for direct uploads
 
@@ -511,12 +556,50 @@ completion endpoint. The client retries that control request and then polls the
 session, whose status is derived from its file rows; there is no separate
 session-wide completion request.
 
+A session's owner may write to its destination (project, workflow, document
+or own space) only while their access holds, not only when the session was
+opened: completing a file, signing new upload URLs and the worker, right
+before it writes the document, the new version or the replacement, each ask
+again and answer as the opening would. A file whose owner lost access fails
+for good with `destination_unavailable` (not retried), writes nothing, and its
+uploaded bytes are removed with the other failed files by a cleanup job that
+runs no sooner than the period after which a running upload job is reclaimed,
+and that, when it runs, skips every object a stored document version points at
+(a retried job that refuses after an earlier attempt stored its version leaves
+that version and its objects alone; if the lookup fails the job deletes nothing
+and is retried). An attempt that no longer holds its job checks this before
+each storage write and before creating the version, and ends without writing
+and without queueing a cleanup. What remains possible: an attempt that
+stalls between its last check and the end of the version-creating call for
+longer than that period can still store a version whose objects a cleanup
+already removed; the database function that creates the version does not check
+the job. Objects an attempt copied before it lost its job stay in storage,
+unreferenced, when no later attempt stores the version; no job removes them. A
+session nobody completes is swept when it expires. A check whose own database read
+failed is not a refusal: the worker retries the job and the HTTP steps answer a
+server error. A retried job never rewrites the owner or placement of a
+document row an earlier attempt created.
+
 Upload sessions accept at most 50 supported files, 100 MB per file, and 2 GB
 in total. Users may run multiple independent upload sessions concurrently and,
 by default, may create at most 50 sessions per hour. Upload-session mutation,
 polling, and hourly creation limits can be overridden with the
 `RATE_LIMIT_UPLOAD_SESSION_*` environment variables documented in
 `backend/.env.example`; missing or invalid values use the documented defaults.
+`/upload-sessions` requests without a signed-in user are also counted per
+client address before the router (`RATE_LIMIT_UPLOAD_SESSION_IP_MAX`, default
+300 per 15 minutes, the general lane's ceiling). Signed-in calls, including
+status polling, are bounded only by the per-user limits.
+
+Before a caller is authenticated the API reads only a JSON body of at most
+1 MB, and it never reads a compressed request body (`415
+unsupported_content_encoding`). A larger body (up to 50 MB) is read only after
+the caller has been authenticated. Password sign-in failures are limited per
+(account, client address) (`RATE_LIMIT_AUTH_ACCOUNT_MAX`, default 10) and, much
+more loosely, per account across clients (`RATE_LIMIT_AUTH_ACCOUNT_GLOBAL_MAX`,
+default 100); only a refused email/password counts. Once the account-wide
+ceiling is reached, sign-in for that account answers 429 from every address
+until the window ends.
 Sessions that update the same mutable document version remain mutually
 exclusive. Sessions
 expire after 30 minutes, extended by a further 30 minutes each time a file
@@ -581,6 +664,13 @@ confirmation and email-change templates do not use it: they link to
 confirms with a button and the backend verifies server-side
 (`POST /api/auth/verify-otp`), so the link works in any browser. GoTrue caches
 templates for up to 10 minutes: restart `auth` after deploying new templates.
+
+Every link GoTrue mails carries a value derived from a numeric one-time code.
+The stacks in this repository set `GOTRUE_MAILER_OTP_LENGTH=10` (`otp_length`
+in `backend/supabase/config.toml`), the longest code GoTrue v2.189.0 accepts;
+its default is 6. The validity (`GOTRUE_MAILER_OTP_EXP`, 24 hours by default)
+is left unchanged because invitations are often opened hours after they are
+sent. Links mailed before the setting changed keep working until they expire.
 
 Review the Supabase email templates after changing the public Site URL, and
 test every link against the deployed frontend before inviting users. Existing
@@ -834,7 +924,10 @@ docker run --rm -p 3200:3200 \
 
 Put an HTTPS ingress or reverse proxy in front of port 3200. The included host
 serves `dist/` and streams `/api/*` to the backend while preserving cookies,
-`Set-Cookie`, `Origin`, request bodies, and SSE responses.
+`Set-Cookie`, `Origin`, request bodies, and SSE responses. If the proxy should
+supply the client address for rate limiting, it must send one address and the
+shared `LITT_EDGE_SECRET`; see
+[Client address behind a reverse proxy](#client-address-behind-a-reverse-proxy).
 
 ## Background jobs and Redis
 

@@ -2,7 +2,9 @@ import { BACKEND_REPORTING_OWNER } from "@mike/client";
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import {
+    EDGE_HEADER,
     forwardableHeaders,
+    fromTrustedEdge,
     guardUpstreamBody,
     upstreamUnreachableCode,
 } from "./upstreamFailure";
@@ -36,6 +38,11 @@ async function proxy(request: NextRequest, context: RouteContext) {
         upstreamUrl.search = request.nextUrl.search;
 
         const headers = forwardableHeaders(request.headers);
+        // Next keeps a caller-supplied X-Forwarded-For, so only the edge
+        // proxy's value may travel; anything else is a claim. The backend
+        // then keys on this hop's own address.
+        if (!fromTrustedEdge(request.headers)) headers.delete("x-forwarded-for");
+        headers.delete(EDGE_HEADER);
         // Mint correlation here rather than trusting a caller-supplied ID.
         // The backend logs the same ID even if its response never arrives.
         headers.set("x-request-id", requestId);
@@ -70,6 +77,7 @@ async function proxy(request: NextRequest, context: RouteContext) {
             requestId = upstreamRequestId;
         }
         responseHeaders.set("x-request-id", requestId);
+        responseHeaders.delete(EDGE_HEADER);
         // Fetch implementations may transparently decompress the response.
         responseHeaders.delete("content-encoding");
         responseHeaders.delete("content-length");

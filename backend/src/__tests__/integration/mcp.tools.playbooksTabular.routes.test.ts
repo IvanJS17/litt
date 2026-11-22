@@ -148,6 +148,11 @@ vi.mock("../../modules/tabular/tabular.reviews", async (importOriginal) => {
                 if (!access.ok) return failure("not_found", "Project not found");
                 if (!can(access.projectRole, "content.edit")) return failure("forbidden", "You do not have permission to write in this project.");
             }
+            // The service's own placement rule, not a stand-in for it.
+            const { findDocumentsOutsideWorkspace, DOCUMENT_WORKSPACE_MISMATCH_CODE, DOCUMENT_WORKSPACE_MISMATCH_DETAIL } = await import("../../lib/documentWorkspace.js");
+            const project = input.project_id ? tables().projects.find((p) => p.id === input.project_id) : undefined;
+            const placed = await findDocumentsOutsideWorkspace(db(), input.document_ids, ((project?.org_id ?? input.org_id) as string | null | undefined) ?? null);
+            if (placed.length > 0) return failure("validation", DOCUMENT_WORKSPACE_MISMATCH_DETAIL, DOCUMENT_WORKSPACE_MISMATCH_CODE);
             const review = { id: randomUUID(), user_id: input.userId, project_id: input.project_id ?? null, org_id: input.org_id ?? null, title: input.title ?? null, model: input.model, columns_config: input.columns_config, document_ids: input.document_ids, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
             tables().tabular_reviews.push(review);
             return { ok: true as const, data: { ...review, is_owner: true, access_role: "owner" } };
@@ -224,7 +229,6 @@ vi.mock("../../modules/tabular/tabular.generation", async (importOriginal) => {
 import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { signTicket } from "../../modules/mcp/mcp.tickets";
-import { registerLegalVersion } from "../../lib/managedAccounts";
 import {
     buildWorld,
     DOC_HELD,
@@ -243,6 +247,7 @@ import {
     ROW_PUBLIC,
     RULE_RENT,
     RULE_TERM,
+    VERSION_HELD,
     VERSION_PUBLIC,
     type PersonName,
 } from "../helpers/mcpToolsWorld";
@@ -264,7 +269,6 @@ beforeEach(() => {
     h.runGate = null;
     h.stopMidway = false;
     resetGrantBudgets();
-    registerLegalVersion("test-terms");
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", "http://localhost:3000");
@@ -1014,5 +1018,345 @@ describe("review fixes", () => {
         expect(out.data.progress).toMatchObject({ pending: 1 });
         const status = await callTool(token, "get_tabular_run_status", { review_id: REVIEW_PUBLIC });
         expect(status.data.status).toBe(out.data.status);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// What a result carries stays inside the connection's workspaces and the firm's
+// hold on a trainee's unapproved draft
+// ---------------------------------------------------------------------------
+
+describe("results respect the connection's workspaces", () => {
+    const FOREIGN_DOC = randomUUID();
+    const FOREIGN_ASSET = randomUUID();
+    const FOREIGN_WORKFLOW = randomUUID();
+    const FOREIGN_NAME = "expediente-cliente-b.docx";
+    const document = (id: string, extra: Record<string, unknown>) => ({
+        id, project_id: null, org_id: ORG2, user_id: PEOPLE.narrow.id, status: "ready", folder_id: null, library_kind: "file",
+        archived_at: null, current_version_id: `${id.slice(0, 8)}-0000-4000-8000-0000000000ff`, created_at: "2026-11-03T10:00:00Z", updated_at: "2026-11-05T10:00:00Z", ...extra,
+    });
+    const seedForeign = () => {
+        const t = tables();
+        t.workflows = [{ id: FOREIGN_WORKFLOW, org_id: ORG2, visibility: "organization", user_id: PEOPLE.outsider.id }];
+        for (const doc of [document(FOREIGN_DOC, {}), document(FOREIGN_ASSET, { workflow_id: FOREIGN_WORKFLOW, user_id: PEOPLE.outsider.id })])
+            t.documents.push(doc);
+        for (const id of [FOREIGN_DOC, FOREIGN_ASSET])
+            t.document_versions.push({ id: `${id.slice(0, 8)}-0000-4000-8000-0000000000ff`, document_id: id, storage_path: `p/${id}`, pdf_storage_path: null, source: "upload", version_number: 1, filename: FOREIGN_NAME, file_type: "docx", size_bytes: 10, page_count: 1, textless_page_count: 0, content_sha256: "d".repeat(64), training_stage: null, deleted_at: null, text_revision: "r", created_at: "2026-11-03T10:00:00Z" });
+    };
+    const columns = [{ name: "Resumen", prompt: "Resume." }];
+
+    describe("create_tabular_review", () => {
+        it("refuses a document of a workspace the connection does not cover, and builds nothing", async () => {
+            seedForeign();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const before = tables().tabular_reviews.length;
+            for (const id of [FOREIGN_ASSET, FOREIGN_DOC]) {
+                const out = await callTool(token, "create_tabular_review", { title: "t", document_ids: [DOC_PUBLIC, id], columns, workspace: ORG });
+                expect(out.ok).toBe(false);
+                expect(out.code).toBe("not_found");
+            }
+            expect(tables().tabular_reviews).toHaveLength(before);
+        });
+
+        it("refuses a covered document that lives in another workspace than the review", async () => {
+            seedForeign();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG, ORG2] });
+            const out = await callTool(token, "create_tabular_review", { title: "t", document_ids: [FOREIGN_ASSET], columns, workspace: ORG });
+            expect(out.code).toBe("document_workspace_mismatch");
+        });
+
+        it("still builds a review over documents of its own workspace", async () => {
+            seedForeign();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const out = await callTool(token, "create_tabular_review", { title: "t", document_ids: [DOC_PUBLIC], columns, workspace: ORG });
+            expect(out.ok).toBe(true);
+            expect(out.data).toMatchObject({ workspace: ORG, document_count: 1 });
+        });
+    });
+
+    describe("a review the web built over another firm's workflow file", () => {
+        const seedRow = () => {
+            seedForeign();
+            const review = tables().tabular_reviews.find((r) => r.id === REVIEW_PUBLIC)!;
+            (review.document_ids as string[]).push(FOREIGN_ASSET);
+            tables().tabular_review_rows.push({ id: "88888888-0000-4000-8000-0000000000f1", review_id: REVIEW_PUBLIC, label: FOREIGN_NAME, row_type: "document", document_id: FOREIGN_ASSET, source_document_ids: [FOREIGN_ASSET], sort_index: 1 });
+            tables().tabular_cells.push({ id: "77777777-0000-4000-8000-0000000000f1", review_id: REVIEW_PUBLIC, row_id: "88888888-0000-4000-8000-0000000000f1", document_id: FOREIGN_ASSET, column_index: 0, content: JSON.stringify({ summary: "TEXTO-DEL-OTRO-DESPACHO", flag: "green", reasoning: "r" }), citations: null, status: "done", generation_id: null, created_at: "2026-11-05T10:00:00Z" });
+        };
+
+        it("does not show its row or cells to a connection that does not cover that firm", async () => {
+            seedRow();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const review = await callTool(token, "get_tabular_review", { review_id: REVIEW_PUBLIC });
+            expect(review.data.row_count).toBe(1);
+            expect(review.raw).not.toContain(FOREIGN_NAME);
+            expect(review.raw).not.toContain(FOREIGN_ASSET);
+            const cells = await callTool(token, "read_tabular_cells", { review_id: REVIEW_PUBLIC });
+            expect(cells.raw).not.toContain("TEXTO-DEL-OTRO-DESPACHO");
+            expect(cells.data.cells.map((c: { document_id: string }) => c.document_id)).toEqual([DOC_PUBLIC, DOC_PUBLIC]);
+            const status = await callTool(token, "get_tabular_run_status", { review_id: REVIEW_PUBLIC });
+            expect(status.data.progress.total).toBe(2);
+        });
+
+        it("shows it to a connection that covers both firms", async () => {
+            seedRow();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG, ORG2] });
+            const review = await callTool(token, "get_tabular_review", { review_id: REVIEW_PUBLIC });
+            expect(review.data.row_count).toBe(2);
+            const cells = await callTool(token, "read_tabular_cells", { review_id: REVIEW_PUBLIC });
+            expect(cells.raw).toContain("TEXTO-DEL-OTRO-DESPACHO");
+        });
+
+        it("leaves the rows of the review's own workspace alone for the firm's owner", async () => {
+            as("owner");
+            const token = await connect({ workspaces: [ORG] });
+            const review = await callTool(token, "get_tabular_review", { review_id: REVIEW_PUBLIC });
+            expect(review.data.rows.map((r: { document_id: string }) => r.document_id)).toEqual([DOC_PUBLIC]);
+        });
+    });
+
+    describe("playbook runs of a document outside the connection's workspaces", () => {
+        const runRow = (status: "completed" | "running" | "failed", documentId: string | null, name: string | null) => {
+            const base = tables().playbooks.find((p) => p.id === PLAYBOOK_READY)!;
+            const now = new Date().toISOString();
+            const id = randomUUID();
+            tables().playbook_runs.push({
+                id, playbook_id: PLAYBOOK_READY, content_json: base.content_json, user_id: PEOPLE.narrow.id, model: "claude-sonnet-4-5",
+                document_name: name, document_id: documentId, edited_version_id: null, review_mode: "strict", review_scope: "full",
+                status, summary: status === "completed" ? "resumen" : null,
+                findings_json: status === "completed" ? [{ id: "f1", topicId: null, ruleId: "rule-renta", ruleName: "Renta", status: "acceptable", quote: "q", location: "", analysis: "a", suggestedText: "", insertAfter: "" }] : [],
+                error: status === "failed" ? `No se pudo leer ${name}` : null, started_at: now, completed_at: status === "running" ? null : now, created_at: now, updated_at: now,
+            });
+            return id;
+        };
+
+        it("get_playbook_run and list_playbook_runs withhold the document for every status", async () => {
+            seedForeign();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const runs = (["completed", "running", "failed"] as const).map((status) => runRow(status, FOREIGN_DOC, FOREIGN_NAME));
+            const deleted = runRow("completed", null, FOREIGN_NAME);
+            for (const id of [...runs, deleted]) {
+                const out = await callTool(token, "get_playbook_run", { run_id: id });
+                expect(out.ok).toBe(true);
+                expect(out.raw, id).not.toContain(FOREIGN_NAME);
+                expect(out.raw).not.toContain(FOREIGN_DOC);
+                expect(out.data).toMatchObject({ document_id: null, document_name: null });
+                expect(out.data.finding_count).toBeUndefined();
+            }
+            const listed = await callTool(token, "list_playbook_runs", {});
+            expect(listed.data.runs).toHaveLength(4);
+            expect(listed.raw).not.toContain(FOREIGN_NAME);
+            expect(listed.raw).not.toContain(FOREIGN_DOC);
+            expect(listed.data.runs.every((r: { finding_count: unknown }) => r.finding_count === null)).toBe(true);
+        });
+
+        it("labels a run over pasted text as such, without a file: it has no document and no name", async () => {
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const pasted = runRow("completed", null, null);
+            const gone = runRow("completed", null, FOREIGN_NAME);
+            const out = await callTool(token, "get_playbook_run", { run_id: pasted });
+            expect(out.data).toMatchObject({ document_id: null, document_name: null, document_source: "pasted_text" });
+            expect(out.data.document_withheld).toBeUndefined();
+            const listed = await callTool(token, "list_playbook_runs", {});
+            expect(listed.data.runs.find((r: { run_id: string }) => r.run_id === pasted)).toMatchObject({ document_source: "pasted_text" });
+            // A run whose name is kept but whose document is gone may be a file of another workspace: still withheld, still no label.
+            const other = await callTool(token, "get_playbook_run", { run_id: gone });
+            expect(other.data).toMatchObject({ document_name: null, document_withheld: true });
+            expect(other.data.document_source).toBeUndefined();
+        });
+
+        it("cannot be started over pasted text or a file with no stored document: both review tools need a document id", async () => {
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const before = h.queued.length;
+            for (const name of ["run_playbook_review", "prepare_playbook_review"]) {
+                const out = await callTool(token, name, { playbook_id: PLAYBOOK_READY, text: "Texto pegado de un contrato." });
+                expect(out.ok, name).toBe(false);
+                expect(out.code, name).toBe("invalid_params");
+            }
+            expect(h.queued).toHaveLength(before);
+        });
+
+        it("still shows a run of a covered document, and shows the foreign one to a connection that covers its workspace", async () => {
+            seedForeign();
+            as("narrow");
+            const own = runRow("completed", DOC_PUBLIC, "contrato.docx");
+            const foreign = runRow("failed", FOREIGN_DOC, FOREIGN_NAME);
+            const narrow = await connect({ workspaces: [ORG] });
+            expect((await callTool(narrow, "get_playbook_run", { run_id: own })).data).toMatchObject({ document_id: DOC_PUBLIC, document_name: "contrato.docx", finding_count: 1 });
+            const both = await connect({ workspaces: [ORG, ORG2] });
+            expect((await callTool(both, "get_playbook_run", { run_id: foreign })).data).toMatchObject({ document_id: FOREIGN_DOC, document_name: FOREIGN_NAME });
+            const listed = await callTool(both, "list_playbook_runs", {});
+            expect(listed.data.runs.find((r: { run_id: string }) => r.run_id === own)).toMatchObject({ document_name: "contrato.docx", finding_count: 1 });
+        });
+    });
+});
+
+describe("results respect the firm's hold on a trainee's unapproved draft", () => {
+    const approve = () => tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+    const HELD_WORDS = "PALABRAS-DEL-BORRADOR";
+    const heldRun = () => {
+        const base = tables().playbooks.find((p) => p.id === PLAYBOOK_READY)!;
+        const now = new Date().toISOString();
+        const id = randomUUID();
+        tables().playbook_runs.push({
+            id, playbook_id: PLAYBOOK_READY, content_json: base.content_json, user_id: PEOPLE.owner.id, model: "claude-sonnet-4-5",
+            document_name: "borrador.docx", document_id: DOC_HELD, edited_version_id: null, review_mode: "strict", review_scope: "full",
+            status: "completed", summary: `Resumen ${HELD_WORDS}`,
+            findings_json: [{ id: "f1", topicId: null, ruleId: "rule-renta", ruleName: "Renta", status: "acceptable", quote: HELD_WORDS, location: "", analysis: "a", suggestedText: "", insertAfter: "" }],
+            error: null, started_at: now, completed_at: now, created_at: now, updated_at: now,
+        });
+        return id;
+    };
+    const heldCell = () => {
+        const review = tables().tabular_reviews.find((r) => r.id === REVIEW_PUBLIC)!;
+        (review.document_ids as string[]).push(DOC_HELD);
+        tables().tabular_review_rows.push({ id: "88888888-0000-4000-8000-0000000000f2", review_id: REVIEW_PUBLIC, label: "borrador.docx", row_type: "document", document_id: DOC_HELD, source_document_ids: [DOC_HELD], sort_index: 1 });
+        tables().tabular_cells.push({ id: "77777777-0000-4000-8000-0000000000f2", review_id: REVIEW_PUBLIC, row_id: "88888888-0000-4000-8000-0000000000f2", document_id: DOC_HELD, column_index: 0, content: JSON.stringify({ summary: HELD_WORDS, flag: "green", reasoning: "r" }), citations: [{ document_id: DOC_HELD, quote: HELD_WORDS }], status: "done", generation_id: null, created_at: "2026-11-05T10:00:00Z" });
+    };
+
+    it("get_playbook_run withholds the findings of a held draft and records no egress; they come back once approved", async () => {
+        as("owner");
+        const token = await connect();
+        const id = heldRun();
+        const held = await callTool(token, "get_playbook_run", { run_id: id });
+        expect(held.raw).not.toContain(HELD_WORDS);
+        expect(held.data).toMatchObject({ details_withheld: true, withheld_until_approved: true });
+        expect(egress()).toHaveLength(0);
+        approve();
+        const released = await callTool(token, "get_playbook_run", { run_id: id });
+        expect(released.raw).toContain(HELD_WORDS);
+        expect(egress()).toHaveLength(1);
+    });
+
+    it("read_tabular_cells withholds the cells of a held draft, keeps the others and records egress only for those", async () => {
+        as("owner");
+        const token = await connect();
+        heldCell();
+        const held = await callTool(token, "read_tabular_cells", { review_id: REVIEW_PUBLIC });
+        expect(held.raw).not.toContain(HELD_WORDS);
+        const heldRow = held.data.cells.find((c: { document_id: string }) => c.document_id === DOC_HELD);
+        expect(heldRow).toMatchObject({ data: null, withheld_until_approved: true });
+        expect(held.raw).toContain("renta mensual de $10,000 MXN");
+        expect(egress().map((e) => (e.detail as { version_id: string }).version_id)).toEqual([VERSION_PUBLIC]);
+        approve();
+        const released = await callTool(token, "read_tabular_cells", { review_id: REVIEW_PUBLIC });
+        expect(released.raw).toContain(HELD_WORDS);
+    });
+});
+
+// A cell records only when it was made, not the version it was read from. It can be
+// regenerated later (keeping that date) from whichever version is current then, and a
+// version that was replaced can become current again. So a cell's text comes from some
+// version that still existed at or after its date: it is withheld when any such version
+// is held, whichever one is current.
+describe("a cell and the versions of its document", () => {
+    const HELD_WORDS = "PALABRAS-DEL-BORRADOR";
+    const V2 = "cccccccc-0000-4000-8000-0000000000a2";
+    const V3 = "cccccccc-0000-4000-8000-0000000000a3";
+    const ROW = "88888888-0000-4000-8000-0000000000f3";
+    const approve = () => tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+    type Later = { id: string; n: number; at: string; deleted?: string; held?: boolean };
+    // VERSION_HELD is v1 (held, 4 Nov); `later` are its successors; `current` is the one the document points at.
+    const seed = (cells: Record<string, unknown>[], later: Later[], current: string = VERSION_HELD, v1Deleted: string | null = null) => {
+        const t = tables();
+        const v1 = t.document_versions.find((v) => v.id === VERSION_HELD)!;
+        v1.deleted_at = v1Deleted;
+        for (const v of later)
+            t.document_versions.push({ ...v1, id: v.id, version_number: v.n, training_stage: v.held ? "pasante" : null, content_sha256: v.id.slice(-1).repeat(64), created_at: v.at, deleted_at: v.deleted ?? null });
+        t.documents.find((d) => d.id === DOC_HELD)!.current_version_id = current;
+        (t.tabular_reviews.find((r) => r.id === REVIEW_PUBLIC)!.document_ids as string[]).push(DOC_HELD);
+        t.tabular_review_rows.push({ id: ROW, review_id: REVIEW_PUBLIC, label: "borrador.docx", row_type: "document", document_id: DOC_HELD, source_document_ids: [DOC_HELD], sort_index: 1 });
+        cells.forEach((cell, index) => t.tabular_cells.push({ id: `77777777-0000-4000-8000-0000000001a${index}`, review_id: REVIEW_PUBLIC, row_id: ROW, document_id: DOC_HELD, column_index: index, content: JSON.stringify({ summary: `${HELD_WORDS}-${index}`, flag: "green", reasoning: "r" }), citations: null, status: "done", generation_id: null, ...cell }));
+    };
+    const read = async (token: string) => {
+        const out = await callTool(token, "read_tabular_cells", { review_id: REVIEW_PUBLIC });
+        return new Map<number, { data: unknown; withheld_until_approved?: boolean }>(out.data.cells.filter((c: { row_id: string }) => c.row_id === ROW).map((c: { column_index: number }) => [c.column_index, c]));
+    };
+    const heldOnes = (cells: Map<number, { data: unknown }>) => [...cells].filter(([, c]) => c.data === null).map(([i]) => i).sort();
+    const plainV2 = { id: V2, n: 2, at: "2026-11-07T10:00:00Z" };
+
+    it("holds a cell made before or after the plain version that replaced a held draft, as long as the draft is in the history", async () => {
+        seed([{ created_at: "2026-11-05T10:00:00Z" }, { created_at: "2026-11-08T10:00:00Z" }, { created_at: null }], [plainV2], V2);
+        as("owner");
+        const token = await connect();
+        const cells = await read(token);
+        expect(cells.get(0)).toMatchObject({ data: null, withheld_until_approved: true });
+        expect(cells.get(1)).toMatchObject({ data: null, withheld_until_approved: true });
+        expect(cells.get(2)).toMatchObject({ data: null, withheld_until_approved: true });
+        approve();
+        const released = await read(token);
+        expect(heldOnes(released)).toEqual([2]);
+    });
+
+    it("holds a cell, regenerated or new, when the version that replaced the draft was deleted and the draft is current again", async () => {
+        seed([{ created_at: "2026-11-08T10:00:00Z" }, { created_at: "2026-11-10T10:00:00Z" }], [{ ...plainV2, deleted: "2026-11-09T10:00:00Z" }]);
+        as("owner");
+        const token = await connect();
+        const held = await read(token);
+        expect(heldOnes(held)).toEqual([0, 1]);
+        expect(egress().filter((e) => (e.detail as { document_id?: string }).document_id === DOC_HELD)).toHaveLength(0);
+        approve();
+        expect(heldOnes(await read(token))).toEqual([]);
+    });
+
+    it("holds a cell whose text may come from a draft that has since been deleted, and again from a draft that came back", async () => {
+        // v1 held; v2 plain, deleted on 7 Nov (v1 current again); the cell of 6 Nov was regenerated from v1 and the mentor's v3 followed.
+        seed([{ created_at: "2026-11-06T10:00:00Z" }], [{ id: V2, n: 2, at: "2026-11-05T10:00:00Z", deleted: "2026-11-07T10:00:00Z" }, { id: V3, n: 3, at: "2026-11-09T10:00:00Z" }], V3);
+        as("owner");
+        const token = await connect();
+        expect(heldOnes(await read(token))).toEqual([0]);
+        approve();
+        expect(heldOnes(await read(token))).toEqual([]);
+    });
+
+    it("holds the cell of a trainee's own history, where deleting versions brings an older plain one back as current", async () => {
+        // v0 plain (3 Nov, current), v1 held deleted on 9 Nov, v2 plain deleted on 7 Nov; the cell of 6 Nov was regenerated from v1 before it went.
+        const V0 = "cccccccc-0000-4000-8000-0000000000a0";
+        seed([{ created_at: "2026-11-06T10:00:00Z" }], [{ id: V0, n: 0, at: "2026-11-03T10:00:00Z" }, { id: V2, n: 2, at: "2026-11-05T10:00:00Z", deleted: "2026-11-07T10:00:00Z" }], V0, "2026-11-09T10:00:00Z");
+        as("owner");
+        const token = await connect();
+        expect(heldOnes(await read(token))).toEqual([0]);
+    });
+
+    it("releases a cell made after the draft was deleted, holds one made up to that moment, and releases both once the draft is approved", async () => {
+        const deleted = "2026-11-06T10:00:00Z";
+        seed([{ created_at: "2026-11-05T10:00:00Z" }, { created_at: deleted }, { created_at: "2026-11-08T10:00:00Z" }], [plainV2], V2, deleted);
+        as("owner");
+        const token = await connect();
+        // The moment of the deletion itself is withheld: equal times count.
+        expect(heldOnes(await read(token))).toEqual([0, 1]);
+        approve();
+        expect(heldOnes(await read(token))).toEqual([]);
+    });
+
+    it("records no egress for a cell it withholds", async () => {
+        seed([{ created_at: "2026-11-05T10:00:00Z" }], [plainV2], V2);
+        as("owner");
+        const token = await connect();
+        await read(token);
+        expect(egress().filter((e) => (e.detail as { document_id?: string }).document_id === DOC_HELD)).toHaveLength(0);
+    });
+});
+
+describe("a review row whose document is gone", () => {
+    const ROW = "88888888-0000-4000-8000-0000000000f4";
+    it("is not shown to a connection: its workspace can no longer be told", async () => {
+        const t = tables();
+        t.tabular_review_rows.push({ id: ROW, review_id: REVIEW_PUBLIC, label: "expediente-borrado.docx", row_type: "document", document_id: null, source_document_ids: [], sort_index: 1 });
+        t.tabular_cells.push({ id: "77777777-0000-4000-8000-0000000001b0", review_id: REVIEW_PUBLIC, row_id: ROW, document_id: null, column_index: 0, content: JSON.stringify({ summary: "TEXTO-DE-LA-FILA-BORRADA", flag: "green", reasoning: "r" }), citations: null, status: "done", generation_id: null, created_at: "2026-11-05T10:00:00Z" });
+        as("owner");
+        const token = await connect();
+        const review = await callTool(token, "get_tabular_review", { review_id: REVIEW_PUBLIC });
+        expect(review.data.row_count).toBe(1);
+        expect(review.raw).not.toContain("expediente-borrado");
+        const cells = await callTool(token, "read_tabular_cells", { review_id: REVIEW_PUBLIC });
+        expect(cells.raw).not.toContain("TEXTO-DE-LA-FILA-BORRADA");
     });
 });

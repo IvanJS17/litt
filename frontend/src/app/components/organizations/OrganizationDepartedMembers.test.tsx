@@ -337,6 +337,37 @@ describe("reassigning", () => {
     expect(mocks.listOrgDepartures).toHaveBeenCalledTimes(2);
   });
 
+  it("asks for a second factor when the server requires one, then reassigns", async () => {
+    mocks.reassignOrgDepartureArchives.mockRejectedValueOnce(
+      new MikeApiError({
+        message: "MFA verification required",
+        status: 403,
+        code: "mfa_verification_required",
+      }),
+    );
+    const user = userEvent.setup();
+    renderView();
+    await screen.findByText("Jane Lee");
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Jane Lee" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Reassign…" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Reassign" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
+
+    await waitFor(() =>
+      expect(mocks.reassignOrgDepartureArchives).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() =>
+      expect(mocks.notifySuccess).toHaveBeenCalledWith(
+        "Reassigned to William Chen.",
+      ),
+    );
+  });
+
   it("hands over one type of work on its own", async () => {
     const user = userEvent.setup();
     renderView();

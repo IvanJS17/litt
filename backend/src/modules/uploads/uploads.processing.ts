@@ -59,6 +59,8 @@ import {
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { ExtractionBusyError, ExtractionLimitError, withBackgroundExtraction } from "../../lib/extraction/isolated";
 import { isAllocationFailure } from "../../lib/extraction/limits";
+import { PersonalWorkspaceDisabledError } from "../../lib/managedAccounts";
+import { sessionDestinationWritable } from "./uploads.access";
 import { MAX_UPLOAD_SIZE_BYTES, UPLOAD_VERIFICATION_LEASE_SECONDS } from "./uploads.manifest";
 
 type UploadSessionRow = {
@@ -129,6 +131,9 @@ const TERMINAL_UPLOAD_ERROR_CODES = new Set([
   // again — it can only put it back, which is the bug this code prevents.
   "document_deleted",
   "document_changed",
+  // The owner may no longer write to the destination. Retrying cannot change
+  // that, and a retry is exactly what must not write.
+  "destination_unavailable",
 ]);
 
 /**
@@ -155,6 +160,52 @@ class ChangedDocumentError extends AppError {
   constructor(readonly orphanedKeys: string[] = []) {
     super("upload.document_changed", "document_changed");
   }
+}
+
+/**
+ * The session's owner may no longer write to its destination (membership,
+ * matter wall, role, or the destination is gone). Terminal: the job writes
+ * nothing, and the bytes it already copied are handed to cleanup.
+ */
+class DestinationUnavailableError extends AppError {
+  constructor(readonly orphanedKeys: string[] = []) {
+    super("upload.destination_unavailable", "upload_destination_unavailable");
+  }
+}
+
+/** Resolves while this attempt still holds its job; throws once it does not. */
+type HoldsJob = () => Promise<void>;
+
+/**
+ * The worker acts on the session owner's authority, so it proves that
+ * authority again right before it writes: the answer at the opening, or at
+ * the completion, is not the answer now.
+ */
+async function requireWritableDestination(
+  db: Db,
+  session: UploadSessionRow,
+  file: UploadFileRow,
+  orphanedKeys: (string | null)[] = [],
+  holdsJob?: HoldsJob,
+): Promise<void> {
+  // An attempt whose job was taken over writes nothing: the live attempt owns
+  // the same keys. Ending here is not a refusal, so no cleanup is queued.
+  await holdsJob?.();
+  const keys = orphanedKeys.filter((key): key is string => !!key);
+  let writable;
+  try {
+    writable = await sessionDestinationWritable(db, session, [file]);
+  } catch (error) {
+    // A personal workspace closed by the person's firm is a refusal, not a
+    // fault to retry.
+    if (error instanceof PersonalWorkspaceDisabledError)
+      throw new DestinationUnavailableError(keys);
+    throw error;
+  }
+  if (writable.ok) return;
+  // A lookup that failed is not a verdict: let the job retry it.
+  if (writable.kind === "internal") throw writable.error;
+  throw new DestinationUnavailableError(keys);
 }
 
 class InvalidPdfFileError extends Error {
@@ -450,6 +501,7 @@ async function processCreatedDocument(
   session: UploadSessionRow,
   file: UploadFileRow,
   artifact: SealedFileArtifact,
+  holdsJob?: HoldsJob,
 ) {
   const destination = session.destination;
   const scope = destination.scope as
@@ -482,6 +534,8 @@ async function processCreatedDocument(
   const documentId = file.resource_id;
   const versionId = file.id;
 
+  await requireWritableDestination(db, session, file, [], holdsJob);
+
   // A document created inside an org project belongs to the organization —
   // the org_id stamp is an authorization input, so a failed lookup must fail
   // the job (the durable worker retries) rather than quietly filing a firm's
@@ -506,7 +560,7 @@ async function processCreatedDocument(
     orgId = (destination.org_id as string | null | undefined) ?? null;
   }
 
-  // The upsert below is what makes a retry idempotent — and, on a retry, what
+  // The insert below is what makes a retry idempotent — and, on a retry, what
   // would silently RESURRECT a document the user deleted while this job was
   // running. Only a row this job already wrote can have been deleted: the
   // marker on the file row is set right after a successful upsert, so
@@ -528,6 +582,11 @@ async function processCreatedDocument(
       ]);
   }
 
+  // Insert-only (ON CONFLICT DO NOTHING): the row is created if it is absent,
+  // and a row an earlier attempt wrote is left exactly as it is now. Its
+  // owner and placement may have changed since (the creator left, it was
+  // archived, transferred or moved), and the session's snapshot of them must
+  // never be written back over that.
   const { error: documentError } = await db.from("documents").upsert(
     {
       id: documentId,
@@ -540,9 +599,19 @@ async function processCreatedDocument(
       library_folder_id: libraryFolderId,
       workflow_id: workflowId,
     },
-    { onConflict: "id" },
+    { onConflict: "id", ignoreDuplicates: true },
   );
   if (documentError) throw documentError;
+  if (file.document_created_at) {
+    // A retry finds the row the way an earlier failure left it. Put it back to
+    // "processing" by id, touching nothing else.
+    const { error: resumeError } = await db
+      .from("documents")
+      .update({ status: "processing", updated_at: new Date().toISOString() })
+      .eq("id", documentId)
+      .eq("status", "error");
+    if (resumeError) throw resumeError;
+  }
 
   // Remember that the row now exists before writing anything else, so a
   // retry after any later failure checks for deletion instead of recreating.
@@ -558,6 +627,7 @@ async function processCreatedDocument(
   }
 
   const sourcePath = storageKey(session.user_id, documentId, file.filename);
+  await holdsJob?.();
   await copyFile(file.sealed_storage_path, sourcePath);
   const pdfPath = await buildPdfRendition({
     sourceFilePath: artifact.filePath,
@@ -574,6 +644,7 @@ async function processCreatedDocument(
       ? await countTextlessPdfPages(artifact.filePath)
       : null;
 
+  await requireWritableDestination(db, session, file, [], holdsJob);
   const { error: versionError } = await createDocumentVersion(db, {
     authorship: { kind: "author", userId: session.user_id },
     id: versionId,
@@ -602,12 +673,12 @@ async function processCreatedDocument(
       updated_at: new Date().toISOString(),
     })
     .eq("id", documentId)
-    .eq("user_id", session.user_id)
     .select("*")
-    .single();
-  if (updateError || !document) {
-    throw updateError ?? new Error("document_update_returned_no_data");
-  }
+    .maybeSingle();
+  if (updateError) throw updateError;
+  // The version above is committed and current, so its objects are not handed
+  // to cleanup: only a document that is gone is reported as such.
+  if (!document) throw new DeletedDocumentError(documentId);
 
   await queueScanReadingOnUpload(db, {
     documentId,
@@ -649,6 +720,7 @@ async function processNewDocumentVersion(
   session: UploadSessionRow,
   file: UploadFileRow,
   artifact: SealedFileArtifact,
+  holdsJob?: HoldsJob,
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = file.resource_id;
@@ -662,6 +734,7 @@ async function processNewDocumentVersion(
     versionSlug,
     file.filename,
   );
+  await requireWritableDestination(db, session, file, [], holdsJob);
   await copyFile(file.sealed_storage_path, sourcePath);
   // An editor save (base_version_id) only persists the source: no eager PDF.
   const baseVersionId = session.destination.base_version_id as
@@ -686,6 +759,7 @@ async function processNewDocumentVersion(
       ? await countTextlessPdfPages(artifact.filePath)
       : null;
 
+  await requireWritableDestination(db, session, file, [sourcePath, pdfPath], holdsJob);
   const { data: version, error } = await createDocumentVersion(db, {
     authorship: { kind: "author", userId: session.user_id },
     id: versionId,
@@ -749,9 +823,11 @@ async function processReplacementDocumentVersion(
   session: UploadSessionRow,
   file: UploadFileRow,
   artifact: SealedFileArtifact,
+  holdsJob?: HoldsJob,
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = session.destination.version_id as string;
+  await requireWritableDestination(db, session, file, [], holdsJob);
   const { data: current, error: currentError } = await db
     .from("document_versions")
     .select(
@@ -794,6 +870,7 @@ async function processReplacementDocumentVersion(
     versionSlug,
     file.filename,
   );
+  await holdsJob?.();
   await copyFile(file.sealed_storage_path, sourcePath);
   // Editor saves only persist the source. Clearing the previous rendition in
   // the same update prevents serving stale PDF content; lifecycle cleanup
@@ -815,6 +892,7 @@ async function processReplacementDocumentVersion(
     file.file_type === "pdf"
       ? await countTextlessPdfPages(artifact.filePath)
       : null;
+  await requireWritableDestination(db, session, file, [sourcePath, pdfPath], holdsJob);
   const { data: updated, error } = await updateDocumentVersion(
     db,
     documentId,
@@ -854,6 +932,7 @@ export async function processUploadFile(
   db: Db,
   session: UploadSessionRow,
   file: UploadFileRow,
+  holdsJob?: HoldsJob,
 ) {
   const artifact = await requireSealedFile(file);
   try {
@@ -863,15 +942,16 @@ export async function processUploadFile(
     if (file.file_type === "docx") await validateDocxFile(artifact);
     switch (session.purpose) {
       case "document_create":
-        return await processCreatedDocument(db, session, file, artifact);
+        return await processCreatedDocument(db, session, file, artifact, holdsJob);
       case "document_version_create":
-        return await processNewDocumentVersion(db, session, file, artifact);
+        return await processNewDocumentVersion(db, session, file, artifact, holdsJob);
       case "document_version_replace":
         return await processReplacementDocumentVersion(
           db,
           session,
           file,
           artifact,
+          holdsJob,
         );
       case "workflow_reference_create":
         // Complete upload sessions created by the previous release using the
@@ -888,6 +968,7 @@ export async function processUploadFile(
           },
           file,
           artifact,
+          holdsJob,
         );
       case "workflow_reference_replace":
         // A former replacement is retained as a new version so history is not
@@ -904,6 +985,7 @@ export async function processUploadFile(
           },
           file,
           artifact,
+          holdsJob,
         );
     }
   } finally {
@@ -956,7 +1038,6 @@ async function markCreatedDocumentFailed(
     .from("documents")
     .update({ status: "error", updated_at: new Date().toISOString() })
     .eq("id", file.resource_id)
-    .eq("user_id", session.user_id)
     .eq("status", "processing");
   if (error) throw error;
 }
@@ -976,7 +1057,6 @@ async function removeFailedCreatedDocument(
     .from("documents")
     .delete()
     .eq("id", file.resource_id)
-    .eq("user_id", session.user_id)
     .eq("status", "error")
     .is("current_version_id", null)
     .select("id")
@@ -1115,7 +1195,9 @@ export async function processUploadJob(
       let result: unknown;
       try {
         markStage("process-file");
-        result = await processUploadFile(db, typedSession, file);
+        result = await processUploadFile(db, typedSession, file, () =>
+          heartbeatJob(db, jobId, workerId),
+        );
       } catch (error) {
         // A failed timer heartbeat makes ownership uncertain. Re-prove the
         // lease before recording even a failure result.
@@ -1132,11 +1214,13 @@ export async function processUploadJob(
         terminalProcessingFailure =
           error instanceof DeletedDocumentError ||
           error instanceof ChangedDocumentError ||
+          error instanceof DestinationUnavailableError ||
           error instanceof InvalidPdfFileError ||
           error instanceof InvalidMarkdownFileError ||
           (error instanceof DocxValidationError && error.code !== "processing_failed");
         if (
           !(error instanceof ChangedDocumentError) &&
+          !(error instanceof DestinationUnavailableError) &&
           !(error instanceof InvalidPdfFileError) &&
           !(error instanceof InvalidMarkdownFileError) &&
           !(error instanceof DocxValidationError && error.code === "invalid_docx_package")
@@ -1168,6 +1252,7 @@ export async function processUploadJob(
             error_code: error instanceof ChangedDocumentError
               ? "document_changed"
               : error instanceof DeletedDocumentError ? "document_deleted"
+              : error instanceof DestinationUnavailableError ? "destination_unavailable"
               : error instanceof InvalidPdfFileError ? "invalid_pdf_file"
               : error instanceof InvalidMarkdownFileError ? "invalid_markdown_file"
               : error instanceof DocxValidationError ? error.code
@@ -1177,10 +1262,20 @@ export async function processUploadJob(
           .eq("id", file.id)
           .eq("session_id", typedSession.id);
         if (updateError) throw updateError;
-        if (error instanceof DeletedDocumentError || error instanceof ChangedDocumentError) {
+        if (
+          error instanceof DeletedDocumentError ||
+          error instanceof ChangedDocumentError ||
+          error instanceof DestinationUnavailableError
+        ) {
           // Durable, best-effort: these objects have no row pointing at them
           // any more, so this job is the last place that knows their keys.
-          await enqueueStorageCleanup(db, error.orphanedKeys);
+          // Whether a version stores these keys is decided when the cleanup
+          // runs, and not before the period after which an attempt that lost
+          // its lease would have been replaced and has ended.
+          await enqueueStorageCleanup(db, error.orphanedKeys, [], {
+            unlessUsedByVersion: true,
+            notBefore: new Date(Date.now() + UPLOAD_JOB_LEASE_SECONDS * 1000).toISOString(),
+          });
         }
         await markCreatedDocumentFailed(db, typedSession, file);
         await heartbeatJob(db, jobId, workerId);

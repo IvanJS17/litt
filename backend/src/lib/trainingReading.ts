@@ -14,6 +14,7 @@
 
 import type { TrainingReadingComparison, TrainingReadingMachineFinding } from "@mike/contracts";
 import { fenced } from "./promptFence";
+import { unwrapFencedJsonBlock } from "./modelJsonFence";
 
 /** A reading is offered again this many days after the last one was sent. */
 export const READING_INTERVAL_DAYS = 30;
@@ -126,10 +127,9 @@ export function buildComparePrompt(
 
 function parseJsonObject(text: string): Record<string, unknown> | null {
     // A single ```json fence around the object is tolerated, nothing else.
-    const body = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*)\n```$/i, "$1").trim();
     let parsed: unknown;
     try {
-        parsed = JSON.parse(body);
+        parsed = JSON.parse(unwrapFencedJsonBlock(text));
     } catch {
         return null;
     }

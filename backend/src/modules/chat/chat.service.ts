@@ -2,7 +2,7 @@
 export {
   getAccessibleChat,
 } from "./chat.access";
-export { getChatMessages } from "./chat.messages";
+export { getAttachmentsOfChats, getChatMessages, getMessagesOfChats } from "./chat.messages";
 export {
   withChatOrigin,
   chatOriginColumns,
@@ -108,6 +108,7 @@ export {
   buildDocContext,
   buildWordChatSystemPrompt,
   withoutEmptyAssistantReservations,
+  type ToolCapability,
 } from "./engine/index";
 export { generateAssistantChatTitle, logChatTitleFailure } from "./chat.title";
 

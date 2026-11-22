@@ -8,7 +8,6 @@ import { reportError } from "../observability/report";
 import { createServerSupabase } from "../supabase";
 import {
     authConfigPatch,
-    decryptAuthConfig,
     guardedFetch,
     headersForAuth,
     loadConnector,
@@ -16,6 +15,7 @@ import {
     normalizeJsonSchema,
     openaiToolName,
     toConnectorSummary,
+    usableAuthConfig,
     isMcpWriteTool,
     mcpToolRequiresWriteAccess,
     mcpConnectionFingerprint,
@@ -57,7 +57,7 @@ async function withMcpClient<T>(
     db: Db = createServerSupabase(),
 ): Promise<T> {
     await validateRemoteMcpUrl(connector.server_url);
-    const authConfig = decryptAuthConfig(connector);
+    const authConfig = usableAuthConfig(connector);
     const authProvider =
         connector.auth_type === "oauth"
             ? new DbMcpOAuthProvider(
@@ -229,6 +229,7 @@ export async function createUserMcpConnector(
     const serverUrl = await validateRemoteMcpUrl(input.serverUrl.trim());
     const headers = validateCustomHeaders(input.headers);
     const auth = authConfigPatch({
+        origin: new URL(serverUrl).origin,
         ...(input.bearerToken?.trim()
             ? { bearerToken: input.bearerToken.trim() }
             : {}),
@@ -275,8 +276,31 @@ export async function updateUserMcpConnector(
         if (!name) throw new Error("Connector name is required.");
         update.name = name;
     }
+    const needsCurrent =
+        typeof input.serverUrl === "string" ||
+        "bearerToken" in input ||
+        "headers" in input;
+    const current = needsCurrent
+        ? await loadConnector(userId, connectorId, db)
+        : null;
     if (typeof input.serverUrl === "string") {
         update.server_url = await validateRemoteMcpUrl(input.serverUrl.trim());
+    }
+    // Stored credentials (bearer token, header values, OAuth grant) belong to
+    // the origin they were entered or issued for: moving the connector to
+    // another origin starts it without them, and whatever the same request
+    // supplies replaces them.
+    const originChanged =
+        !!current &&
+        typeof update.server_url === "string" &&
+        new URL(update.server_url).origin !== new URL(current.server_url).origin;
+    if (originChanged) {
+        const { error: grantError } = await db
+            .from("user_mcp_oauth_tokens")
+            .delete()
+            .eq("connector_id", connectorId);
+        if (grantError) throw grantError;
+        Object.assign(update, authConfigPatch({}), { auth_type: "none" });
     }
     if (typeof input.enabled === "boolean") {
         update.enabled = input.enabled;
@@ -286,12 +310,16 @@ export async function updateUserMcpConnector(
         update.require_write_approval = input.requireWriteApproval;
     }
     if ("bearerToken" in input || "headers" in input) {
-        const current = await loadConnector(userId, connectorId, db).catch(
-            () => null,
-        );
-        const nextConfig: McpConnectorAuthConfig = current
-            ? decryptAuthConfig(current)
-            : {};
+        // Credentials already stored are kept only while they still belong
+        // to the origin of the row this request read; what is written is
+        // stamped with the origin it is entered for.
+        const nextConfig: McpConnectorAuthConfig =
+            current && !originChanged ? usableAuthConfig(current) : {};
+        const stampedUrl =
+            typeof update.server_url === "string"
+                ? update.server_url
+                : current?.server_url;
+        if (stampedUrl) nextConfig.origin = new URL(stampedUrl).origin;
         if ("bearerToken" in input) {
             if (input.bearerToken?.trim()) {
                 nextConfig.bearerToken = input.bearerToken.trim();
@@ -304,7 +332,8 @@ export async function updateUserMcpConnector(
         }
         Object.assign(update, authConfigPatch(nextConfig));
         if (nextConfig.bearerToken?.trim()) update.auth_type = "bearer";
-        else if (current?.auth_type !== "oauth") update.auth_type = "none";
+        else if (originChanged || current?.auth_type !== "oauth")
+            update.auth_type = "none";
     }
 
     const { data, error } = await db
@@ -321,6 +350,7 @@ export async function updateUserMcpConnector(
 }
 
 export async function completeUserMcpConnectorOAuth(
+    completingUserId: string,
     state: string,
     code: string,
     db: Db = createServerSupabase(),
@@ -330,6 +360,7 @@ export async function completeUserMcpConnectorOAuth(
     connector: McpConnectorSummary;
 }> {
     const completed = await completeMcpConnectorOAuthAuthorization(
+        completingUserId,
         state,
         code,
         db,

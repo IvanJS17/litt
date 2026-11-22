@@ -116,7 +116,6 @@ vi.mock("../../lib/extraction/isolated", async (importOriginal) => {
 import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { heavyInFlight } from "../../modules/mcp/mcp.heavy";
-import { registerLegalVersion } from "../../lib/managedAccounts";
 import { buildWorld, DOC_PRIVATE, DOC_PUBLIC, ORG, ORG2, PEOPLE, PROJECT_PUBLIC, type PersonName } from "../helpers/mcpToolsWorld";
 import { DEFAULT_SPLIT_CLASSES } from "../../lib/ocr/splitClasses";
 import { buildSplitMarkdown, estimateSplitCost } from "../../lib/ocr/pages";
@@ -186,7 +185,6 @@ beforeEach(() => {
     h.jobs = [];
     h.enqueueFails = false;
     resetGrantBudgets();
-    registerLegalVersion("test-terms");
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", "http://localhost:3000");

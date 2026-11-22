@@ -80,6 +80,17 @@ authorization code). A token works only at this server's resource, for a live
 connection, for an account that is not being deleted; the check reads the
 database on every call, so revoking takes effect on the next one.
 
+Signing out everywhere (`POST /auth/logout` with `scope: "global"`) and setting a
+new password with the sign-out option (the account-recovery page) also end the
+person's connections: `user_profiles.sessions_ended_at` is stamped once the
+sessions are revoked (if it cannot be written the sessions still end and the request answers `500`), and a connection made at or before it is refused as
+`401 invalid_token` / `invalid_grant` at the token check, the refresh, the code
+exchange and the per-call gate, so its access and refresh tokens and any
+unredeemed code stop working; the connections are then also revoked in the
+records (`revoked_reason` `signed_out_everywhere` or `password_recovery_sign_out`, one `grant_revoked` audit event
+each), best effort: the stamp is what ends them. A connection is dated from the arrival of its approval request, so one whose request arrived before the sign-out is ended by it; one approved afterwards works. A sign-out
+on one device, or a password change without the sign-out option, does not end them.
+
 `/mcp` without a token answers `401` with
 `WWW-Authenticate: Bearer resource_metadata="…", scope="litt.read litt.run litt.write litt.chat"`.
 
@@ -182,7 +193,12 @@ person, client, workspace, mode, outcome (`ok`, `error`, `denied`,
 results, so no document text, key or token can reach it; refusals (scope, rate,
 workspace, revalidation) are recorded as well. A tool declared `audit: "strict"`
 (it writes, spends or takes document text out) first writes an `audit_events`
-row with `surface = 'mcp'` and does not run if that insert fails. Like
+row with `surface = 'mcp'` and does not run if that insert fails. The row is
+filed under the workspace the call runs in and names a matter, a document or a
+conversation only when the person may open it, the connection covers its
+workspace and it lies in that workspace (`authoriseAuditRefs`, mcp.auditRefs.ts);
+any other reference is left out of the row, which notes only its kind
+(`refs_dropped`), never its id. Like
 `mcp_oauth_audit` it keeps no foreign key, so the history outlives the account.
 
 `mcp_oauth_audit` is insert-only (the database refuses UPDATE and DELETE). It
@@ -256,6 +272,8 @@ Names are at most 64 characters; reads and writes are separate tools.
 
 **Donna tools** (`mcp.tools.donna.ts`). `matter_id` is the id `find_matters` returns; the matter row's id the facades also need comes from the project detail the web page reads. Same rules as the web routes: project access (private matters closed to non-members), an **active matter membership** (an organization owner or admin without one gets `not_found`), a matter outside the connection's workspaces is `not_found`, a viewer reads requests, profile and radar, and only an owner or editor reads the report (`forbidden`). A public or non-retainer matter answers `matter_not_retainer` (the web answers an empty `retainer: false`, or 404 for the report). Apprentices (pasantes) may call them: they are read tools and need no mode B; quotes of their held versions are withheld. Results carry LiTT `url`s, cap their lists and mark titles and labels as data.
 
+**What the assistant may do in a turn a connection starts.** `litt.chat` lets an application talk to LiTT's assistant; it does not hand the assistant more than the connection holds. Every turn started or continued from a connection (`start_chat`, `send_chat_message`, `start_project_chat`, `send_project_chat_message`, `send_tabular_chat_message`, and the conversations `run_workflow` and `run_quick_action` open) carries the connection's capabilities into the engine, and the assistant's tools are decided there, once, for the turn and for the subagents it spawns: it can always read and search the person's documents, write documents and versions (`edit_document`, `replicate_document`, `generate_docx`, `generate_excel`, `generate_ppt`) only with `litt.write`, run a playbook review (`run_playbook`) only with `litt.run` and `litt.write`, and never use the person's connected third-party services (remote MCP servers, Google tools): no scope names them. A tool the connection may not use is not offered to the model and is refused if the model names it anyway ("Tool is not available"); nothing is written or called. Each tool declares what it does in `toolCapabilities.ts`, and a tool nobody declared is refused for these turns by default. A turn started in LiTT's web app or the Word add-in is not narrowed. The assistant does not ask the person questions (`ask_inputs`) in these turns, so a turn a connection starts never ends as `needs_input`; `needs_input` is the state of a turn the person started in the web app, which the application may still poll, and it is answered there.
+
 **Chat tools need `litt.chat`, reads included.** `list_chats`, `get_chat` and `get_chat_turn` also require `litt.chat`, not `litt.read`: a read-only connection must not expose chat history. A chat's `origin_label` (the app's registered name, free text) is returned as untrusted data like titles; `origin_grant_id` is never returned.
 
 **Same permissions as the web.** A tool calls the service functions the web
@@ -272,11 +290,124 @@ matrix (owner, editor, viewer, admin outside a private matter, apprentice, other
 firm, a person whose connection does not cover the firm) over a public and a
 private matter and compares every tool with its web route.
 
+The fence also applies to what a result is built from. A tabular review made
+through `create_tabular_review` holds only documents of its own workspace, and a
+document outside the workspaces the connection covers answers `not_found` (a
+covered document of another workspace, `document_workspace_mismatch`). When a
+review built in the web holds files of a workspace the connection does not
+cover, or a single-document row whose document no longer exists,
+`get_tabular_review`,
+`read_tabular_cells`, `get_tabular_run_status` and the review's other tools leave
+those rows out. `get_playbook_run` and `list_playbook_runs` do not name a run's
+document (id, file name, edit version, error text, finding counts) when it lies
+outside the connection's workspaces or is gone; the run answers
+`document_withheld: true`.
+
+A conversation's answers are text derived from the documents the assistant read,
+found, cited, edited, created or copied, and from those of every earlier message
+of the same conversation, because a later answer can repeat an earlier one. An
+answer, its citations and the names of its documents leave through a connection
+only if all of those documents lie inside the workspaces it covers; otherwise
+the turn (or the message in a transcript) comes back with
+`code: content_outside_connection` and `withheld_outside_connection: true`, and
+no text, citation or file name. An answer whose documents cannot be identified is
+withheld the same way. This applies to `start_chat`, `send_chat_message`,
+`get_chat_turn`, `get_chat`, the project chat tools, `run_workflow` and
+`run_quick_action`. What the person typed is not withheld. The documents a
+search returned are recorded with the answer, so a search counts like a read. A
+read that names no document cannot be placed and is unknown; so is a search
+stored before its documents were recorded (unless it found nothing or failed):
+the answer that holds one, and every later answer of that conversation, is
+withheld. A workflow's own file is a document of its workflow, judged where the
+workflow lives; a read of one stored before its document was recorded names no
+document and is withheld the same way. The conversations a connection reads are
+the assistant's own; the live document of the Word pane is never stored in them.
+
+A conversation's title is written from what the person typed (or renamed it
+to) and the names of the files attached to their messages; it never carries an
+answer or a document's text. `list_chats` and `get_chat` therefore return it
+only when every file attached to a person's message in that conversation (in a
+shared conversation, any participant's) may leave: inside the connection's workspaces, not an unapproved trainee draft,
+and naming a document (an attachment with no document is withheld too).
+Otherwise it is `null`. Only those attachments are read, in batches of
+conversations and without any message text, so the cost of a page of
+`list_chats` does not grow with the length of the conversations. What an answer
+drew on does not hold the title.
+
+Every decision about an answer reads the conversation completely (past the
+database's row limit) and an error while reading is an error for the caller,
+never a release. A turn is reported from its stored message and judged with that
+message's own sources; a message the complete read does not find is withheld as
+unknown provenance.
+
+A tabular review's conversation is answered from every row the person can read,
+not from what the connection covers. So a review that holds any document outside
+the connection's workspaces, or a single-document row whose document is gone, is
+not chatted with
+through that connection: `send_tabular_chat_message` and `list_tabular_chats`
+answer `content_outside_connection` before anything starts, and
+`get_tabular_chat_turn` withholds the stored answer. The hold below is judged on
+all the documents of the review, not on the rows the connection covers. A stored
+answer is judged by both what the review holds now and what the answer itself was
+built from: the thread records the documents behind each message, cumulative over
+the thread, so removing a row or replacing a draft afterwards does not release an
+answer written over it, and an answer whose sources are unknown is withheld.
+
 **Text from documents is data.** `read_document` and the excerpts of
 `search_documents` are wrapped in `<<<LITT_UNTRUSTED_DOCUMENT_TEXT token>>> … <<<END_… token>>>`
 with a random token per call and a fixed notice that the text is not instructions.
 A pasante's draft that a mentor has not approved is not returned
-(`training_approval_required`, and withheld from search results).
+(`training_approval_required`, and withheld from search results). What is built
+from it is withheld too, within the limits stated below: the findings of a
+playbook run, the cells of a tabular review and the answers of a conversation
+come back as `withheld_until_approved: true` (a turn also carries
+`code: training_approval_required`) until the mentor approves it. For a
+conversation that covers every document its answer drew on, including those it
+only searched in, edited, created or copied, and those of earlier messages of the
+conversation.
+
+A review's cell records when it was made but not the version it was made from. It
+can be made again later (keeping that date) from whichever version is current
+then, and a replaced version can become current again when the later one is
+deleted. So no version is inferred: a cell is withheld when any version of its
+document that was not deleted before the cell's date (not deleted, or deleted at
+or after it; versions made later included) is an unapproved draft. A stored
+answer of a review's conversation is composed from the cells as they were when
+it was written, which may since have been replaced, so no date is knowable: it
+is withheld when any version its documents have ever had, deleted or not, is an
+unapproved draft (besides what the review holds now and the workspaces the
+connection covers). A cell with no date, a document with no versions or no row,
+an unreadable date and a failed read are withheld.
+
+What this costs a firm: while a trainee's unapproved draft remains in a
+document's history, the cells of that document (those made before the draft
+existed included, unless the draft was deleted before the cell was made) and the
+answers of review conversations about that document do not leave through a
+connection.
+They come back when a mentor approves that draft. A draft that is not the
+current version can still be approved: the approval accepts any version of the
+document that is not deleted, and the version list offers it to a lawyer of the
+matter or the trainee's mentor. A deleted draft cannot be approved. For cells,
+deleting the draft and then removing and adding the document again to the review
+makes its cells anew, dated after the deletion, and they leave. A review
+conversation's answers about the document stay withheld after the draft is
+deleted (deleted versions count), the new ones too; approve the draft before
+deleting it.
+
+Limits of the hold on cells and review answers. A cell and a review answer do
+not record the documents, versions or bytes they were made from, so two cases
+are judged by what exists now rather than by what the text was made from: a
+cell of a row that groups several documents is judged by the documents the row
+holds now, and a version whose content was changed in place is judged by its
+current content and approval. Recording what each cell and answer was made from
+is the planned change that makes the hold exact and removes the cost above.
+
+`get_playbook_run` and `list_playbook_runs` label a run over text the person
+pasted (no document and no name) `document_source: "pasted_text"`; a run that
+lost its document but kept a name is still `document_withheld: true`. Both
+review tools (`run_playbook_review`, `prepare_playbook_review`) need a stored
+document, so a connection never starts a run over pasted text; such a run is one
+the person made in the web, and it never carried findings or a summary here.
 Offsets count Unicode characters, the unit of the database's search offsets, so a
 passage is cited as `version_id` + `start_char`/`end_char`.
 
@@ -325,7 +456,7 @@ with a real Claude). No base64 upload yet.
 **Audit.** Each call writes `mcp_tool_calls` (no arguments, no content). Tools that
 take document text out (`read_document`, `search_documents`) or add content (the
 upload tools, `create_matter`, `create_note_document`) also write `audit_events` (`surface = 'mcp'`, with the matter or
-document id, never a name or text) before running. `create_matter` writes a second row,
+document id the call was authorised to act on, never a name or text) before running. `create_matter` writes a second row,
 `mcp.create_matter.created`, with the new matter's id (best effort: the matter already exists). Document text additionally
 writes `mcp.client_ai_egress` (document, version, characters, client) before it is
 returned; if that cannot be written the text is not returned.

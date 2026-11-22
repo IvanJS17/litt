@@ -38,6 +38,7 @@ import {
     followTurn,
     messageSchema,
     startRefusal,
+    turnCapabilities,
 } from "./mcp.tools.chat";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
 import { idSchema, loadDocument, matterWorkspace } from "./mcp.toolkit";
@@ -109,6 +110,7 @@ async function runProjectTurn(
         origin: args.chatId
             ? undefined
             : { grantId: call.principal.grantId, label: await clientNameOf(call.db, call.principal.clientId) },
+        allowedCapabilities: turnCapabilities(call),
     });
     if (!started.ok) startRefusal(started);
     const turn = started.started;

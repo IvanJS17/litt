@@ -12,7 +12,7 @@
 // its ordering is delicate. Only the NON-streaming logic and the pre-stream
 // DB preparation live here. `prepareChatStream` returns the prepared data the
 // route needs to run the stream; it does not stream.
-import { selectInBatches } from "../../lib/batchedQuery";
+import { selectAllByKey, selectInBatches, sortRows } from "../../lib/batchedQuery";
 import { readReviewRefs, reviewRefsOf } from "../../lib/citationSupport";
 import { type Db } from "../../lib/supabase";
 import { withDelegationEvents, withoutEmptyAssistantReservations } from "./engine/index";
@@ -162,4 +162,56 @@ export async function getChatMessages(
             ? { ...m, review_refs: reviewRefsOf(reviewRefs, m.id) }
             : m,
     );
+}
+
+/**
+ * What a reader judging many chats at once needs of their messages (the
+ * content, files and citations that name documents): every message of the
+ * given chats, complete past the gateway's row limit and read in batches
+ * of chats, oldest first. No hydration, and no read of the chats' access: the
+ * caller has authorised them.
+ */
+export async function getMessagesOfChats(
+    db: Db,
+    chatIds: string[],
+): Promise<Record<string, unknown>[]> {
+    const rows = await selectInBatches<Record<string, unknown>>(
+        "chat messages",
+        chatIds,
+        (batch) =>
+            selectAllByKey<Record<string, unknown>>("chat messages", () =>
+                db
+                    .from("chat_messages")
+                    .select("id, chat_id, role, content, files, citations, created_at")
+                    .in("chat_id", batch),
+            ),
+    );
+    return sortRows(rows, "created_at");
+}
+
+/**
+ * What a reader judging the files attached to the people's messages of many
+ * chats needs: the person's messages that attach files, with the files and
+ * nothing else (no text), complete past the gateway's row limit and read in
+ * batches of chats, oldest first. A failed read throws. As `getMessagesOfChats`,
+ * the caller has authorised the chats.
+ */
+export async function getAttachmentsOfChats(
+    db: Db,
+    chatIds: string[],
+): Promise<Record<string, unknown>[]> {
+    const rows = await selectInBatches<Record<string, unknown>>(
+        "chat attachments",
+        chatIds,
+        (batch) =>
+            selectAllByKey<Record<string, unknown>>("chat attachments", () =>
+                db
+                    .from("chat_messages")
+                    .select("id, chat_id, role, files, created_at")
+                    .eq("role", "user")
+                    .not("files", "is", null)
+                    .in("chat_id", batch),
+            ),
+    );
+    return sortRows(rows, "created_at");
 }

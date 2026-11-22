@@ -128,6 +128,12 @@ export async function extractRowColumns(args: {
      * cell this run saved. Never awaited, never throws into the run.
      */
     citationCheck?: TabularCellCheck;
+    /**
+     * A run that outlives its request asks, before it marks cells and before
+     * it saves or announces each result, whether it may still write. False
+     * means stop: nothing more is written or streamed for this row.
+     */
+    stillAuthorized?: () => Promise<boolean>;
 }): Promise<ExtractRowResult> {
     const {
         db,
@@ -171,6 +177,7 @@ export async function extractRowColumns(args: {
         return { processed, received: new Set(), missing: processed.map((col) => col.index), error };
     }
     if (abortSignal?.aborted) return untouched();
+    if (args.stillAuthorized && !(await args.stillAuthorized())) return untouched();
 
     // Mark each outstanding column "generating" (insert the cell if it's new)
     // and announce it, so the grid shows spinners immediately.
@@ -231,6 +238,9 @@ export async function extractRowColumns(args: {
             markdown,
             processed,
             async (columnIndex, result) => {
+                // A result this run may no longer save is dropped, and its
+                // column is handed back with the others the run did not finish.
+                if (args.stillAuthorized && !(await args.stillAuthorized())) return;
                 received.add(columnIndex);
                 const query = db
                     .from("tabular_cells")

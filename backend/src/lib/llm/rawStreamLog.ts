@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdir, open } from "fs/promises";
 import type { FileHandle } from "fs/promises";
 import path from "path";
+import { trimChars } from "../modelJsonFence";
 
 type RawStreamEntry = {
   timestamp: string;
@@ -23,7 +24,7 @@ function rawStreamLogDir(): string | null {
 }
 
 function safeFilePart(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return trimChars(value.replace(/[^a-zA-Z0-9._-]+/g, "-"), "-", "-", Infinity);
 }
 
 function stringifyJson(value: unknown) {

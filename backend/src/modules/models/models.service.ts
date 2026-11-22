@@ -28,6 +28,7 @@ export type {
 
 import type { Db } from "../../lib/supabase";
 import { ollamaAuthHeaders as authHeaders } from "../../lib/llm/providers";
+import { trimChars } from "../../lib/modelJsonFence";
 import { configuredEndpointSummaries } from "../../lib/llm/registry";
 import { getEffectiveApiKeys, getUserApiKeys } from "../../lib/providerCredentials/index";
 
@@ -143,10 +144,12 @@ export async function listOpenRouterModels(
         // Honor the same base-URL override as the chat adapter so a proxy or
         // test double sees the catalog request too (read per request, like
         // the Vercel catalog below, so tests and re-configuration work).
-        const baseUrl = (
-            process.env.OPENROUTER_BASE_URL?.trim() ||
-            "https://openrouter.ai/api/v1"
-        ).replace(/\/+$/, "");
+        const baseUrl = trimChars(
+            process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1",
+            "",
+            "/",
+            Infinity,
+        );
         const response = await fetch(
             `${baseUrl}/models?output_modalities=text&supported_parameters=tools&sort=most-popular&limit=1000`,
             {
@@ -207,10 +210,12 @@ export async function listVercelModels(
             );
         }
 
-        const baseUrl = (
-            process.env.VERCEL_AI_GATEWAY_BASE_URL?.trim() ||
-            "https://ai-gateway.vercel.sh/v1"
-        ).replace(/\/+$/, "");
+        const baseUrl = trimChars(
+            process.env.VERCEL_AI_GATEWAY_BASE_URL?.trim() || "https://ai-gateway.vercel.sh/v1",
+            "",
+            "/",
+            Infinity,
+        );
         const response = await fetch(`${baseUrl}/models`, {
             signal: AbortSignal.timeout(15_000),
         });
@@ -302,10 +307,12 @@ export async function listOpenCodeGoModels(
 
         // Read per request, like the catalogs above, so a proxy override or a
         // test double is picked up without a restart.
-        const baseUrl = (
-            process.env.OPENCODE_GO_BASE_URL?.trim() ||
-            "https://opencode.ai/zen/go/v1"
-        ).replace(/\/+$/, "");
+        const baseUrl = trimChars(
+            process.env.OPENCODE_GO_BASE_URL?.trim() || "https://opencode.ai/zen/go/v1",
+            "",
+            "/",
+            Infinity,
+        );
         const response = await fetch(`${baseUrl}/models`, {
             headers: { Authorization: `Bearer ${key}` },
             signal: AbortSignal.timeout(15_000),

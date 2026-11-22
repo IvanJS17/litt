@@ -20,6 +20,7 @@ import {
 import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
 import { consumeAuthHandoff, issueAuthHandoff } from "../../lib/authHandoff";
 import { UI_LOCALES } from "../../lib/uiLocale";
+import { trimChars } from "../../lib/modelJsonFence";
 import { supabaseSessionConfiguration } from "../../lib/runtimeConfig";
 
 // ---------------------------------------------------------------------------
@@ -222,7 +223,7 @@ export async function googleSignInEnabled(
     const { url, key } = supabaseSessionConfiguration();
     if (!url) return null;
     const response = await fetch(
-      `${url.replace(/\/+$/, "")}/auth/v1/settings`,
+      `${trimChars(url, "", "/", Infinity)}/auth/v1/settings`,
       {
         headers: key ? { apikey: key } : {},
         signal: AbortSignal.timeout(GOTRUE_SETTINGS_TIMEOUT_MS),

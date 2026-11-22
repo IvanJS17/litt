@@ -81,7 +81,19 @@ to a disposable local Supabase container; it creates and drops its own database.
 ## Search activity
 
 The assistant emits `doc_search_start` and `doc_search` with a per-call search ID.
-The completed event is retained in conversation history. The pre-response timeline
+The completed event is retained in conversation history, with the ids of the
+documents whose text or names the search returned (`document_ids`): what an
+answer is built from is checked against the reader's access whenever the chat
+is exported or learned from. A search stored before that was recorded has no
+ids. One that returned nothing or failed names no document. In an account
+export, an old search of the project or of one document does not withhold the
+answer: this is a stated limit, because neither is judged anywhere else (a
+document moved or deleted since is not) and withholding them would remove from
+every export the answers of anyone who used search in a matter before the
+change. An old library, templates or other search with results cannot be traced
+to a document, so the answer is left out of the export (and the later answers
+and title of that chat with it). Project memory learns from none of them.
+Answers stored from now on always record what a search returned. The pre-response timeline
 shows a collapsed search dropdown labelled with the query and scope. Expanding it
 shows only the match count for that page. Failed searches show a safe error instead
 of a count. The failure code and message are retained in history, distinguishing

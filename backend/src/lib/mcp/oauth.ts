@@ -2,7 +2,9 @@ import crypto from "crypto";
 import {
     auth as runMcpOAuth,
     type OAuthClientProvider,
+    type OAuthDiscoveryState,
 } from "@modelcontextprotocol/sdk/client/auth.js";
+import { checkResourceAllowed } from "@modelcontextprotocol/sdk/shared/auth-utils.js";
 import type {
     OAuthClientInformationMixed,
     OAuthClientMetadata,
@@ -13,16 +15,21 @@ import { createServerSupabase } from "../supabase";
 import {
     authConfigPatch,
     base64Url,
-    decryptAuthConfig,
     decryptString,
     encryptString,
     guardedFetch,
     loadConnector,
+    originOf,
     stateHash,
+    usableAuthConfig,
     validateRemoteMcpUrl,
 } from "./client";
 import { ConnectorSetupError } from "./errors";
-import { mcpOAuthProviderFor } from "./providers";
+import {
+    mcpOAuthProviderFor,
+    operatorClientMayReach,
+    operatorTokenEndpointAllowed,
+} from "./providers";
 import {
     CLIENT_INFO,
     OAUTH_STATE_TTL_MS,
@@ -395,6 +402,18 @@ export async function refreshOAuthAccessToken(row: OAuthTokenRow, db: Db) {
     if (!refreshToken || !row.token_endpoint || !row.client_id) {
         throw new McpOAuthRequiredError("OAuth reconnect is required for this MCP server.");
     }
+    // Same rules as tokens() and the discovery hook: a grant with no recorded
+    // resource is not used, and a provider's client secret goes only to that
+    // provider's token endpoint.
+    const provider = row.resource ? mcpOAuthProviderFor(row.resource) : null;
+    if (
+        !row.resource ||
+        (provider &&
+            oauthClientEnvFor(row.resource).clientId &&
+            !operatorTokenEndpointAllowed(provider, row.token_endpoint))
+    ) {
+        throw new McpOAuthRequiredError("OAuth reconnect is required for this MCP server.");
+    }
     const clientSecret = decryptString(
         row.encrypted_client_secret,
         row.client_secret_iv,
@@ -485,8 +504,22 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
     }
 
     async clientInformation(): Promise<OAuthClientInformationMixed | undefined> {
+        // The operator's pre-configured client is presented only while the
+        // connector URL is a host of the provider it was issued for; it is
+        // read from configuration, never from a per-person row.
+        const env = oauthClientEnvFor(this.connector.server_url);
+        if (env.clientId) {
+            return {
+                client_id: env.clientId,
+                ...(env.clientSecret ? { client_secret: env.clientSecret } : {}),
+            };
+        }
         const token = await loadOAuthToken(this.connector.id, this.db);
-        if (token?.client_id) {
+        // A registration is presented only to the authorization server it was
+        // made with (the SDK discards it for any other). One with no recorded
+        // server is not reused: the person reconnects and it is registered
+        // again.
+        if (token?.client_id && token.authorization_server) {
             const clientSecret = decryptString(
                 token.encrypted_client_secret,
                 token.client_secret_iv,
@@ -495,17 +528,19 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
             return {
                 client_id: token.client_id,
                 ...(clientSecret ? { client_secret: clientSecret } : {}),
+                issuer: token.authorization_server,
             };
         }
-        const env = oauthClientEnvFor(this.connector.server_url);
-        if (!env.clientId) return undefined;
-        return {
-            client_id: env.clientId,
-            ...(env.clientSecret ? { client_secret: env.clientSecret } : {}),
-        };
+        return undefined;
     }
 
     async saveClientInformation(info: OAuthClientInformationMixed) {
+        // The SDK hands back the operator's client after a token exchange so
+        // it can stamp it; it stays in configuration only.
+        const env = oauthClientEnvFor(this.connector.server_url);
+        if (env.clientId && info.client_id === env.clientId) return;
+        const existing = await loadOAuthToken(this.connector.id, this.db);
+        const issuer = typeof info.issuer === "string" ? info.issuer : null;
         const clientSecret =
             "client_secret" in info && typeof info.client_secret === "string"
                 ? info.client_secret
@@ -514,6 +549,18 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
             connector_id: this.connector.id,
             client_id: info.client_id,
             ...tokenSecretPatch("client_secret", clientSecret),
+            authorization_server: issuer,
+            // Tokens issued by another authorization server are not kept
+            // under this registration.
+            ...((existing?.authorization_server ?? null) !== issuer
+                ? {
+                      ...tokenSecretPatch("access_token"),
+                      ...tokenSecretPatch("refresh_token"),
+                      token_type: null,
+                      scope: null,
+                      expires_at: null,
+                  }
+                : {}),
             updated_at: new Date().toISOString(),
         };
         const { error } = await this.db
@@ -522,9 +569,40 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
         if (error) throw error;
     }
 
+    async saveDiscoveryState(state: OAuthDiscoveryState) {
+        // The operator's client secret goes only to the provider's own
+        // authorization server and token endpoint, never to whatever the
+        // metadata of a provider-domain URL (or a redirect it met) names. The
+        // SDK calls this after every discovery and before it reads the client,
+        // so it holds for the code exchange, refresh and re-discovery alike.
+        const provider = mcpOAuthProviderFor(this.connector.server_url);
+        if (!provider || !oauthClientEnvFor(this.connector.server_url).clientId)
+            return;
+        if (
+            !operatorClientMayReach(
+                provider,
+                state.authorizationServerUrl,
+                state.authorizationServerMetadata?.token_endpoint,
+            )
+        ) {
+            throw new Error(
+                "The authorization server is not the one this provider's OAuth client was issued for.",
+            );
+        }
+    }
+
     async tokens(): Promise<OAuthTokens | undefined> {
         const row = await loadOAuthToken(this.connector.id, this.db);
         if (!row?.encrypted_access_token) return undefined;
+        // A grant is presented only to the server it was issued for.
+        // A grant that records no server cannot be bound to one, so it is
+        // not used either: the person reconnects.
+        if (
+            !row.resource ||
+            originOf(row.resource) !== originOf(this.connector.server_url)
+        ) {
+            return undefined;
+        }
         const accessToken = decryptString(
             row.encrypted_access_token,
             row.access_token_iv,
@@ -540,10 +618,15 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
         const expiresIn = expiresAt
             ? Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
             : undefined;
+        // The SDK refuses to present a stamped grant to another authorization
+        // server. A refresh token with no recorded issuer cannot be bound, so
+        // it is never handed out: the person reconnects once.
+        const issuer = row.authorization_server || null;
         return {
             access_token: accessToken,
             token_type: row.token_type ?? "Bearer",
-            ...(refreshToken ? { refresh_token: refreshToken } : {}),
+            ...(refreshToken && issuer ? { refresh_token: refreshToken } : {}),
+            ...(issuer ? { issuer } : {}),
             ...(row.scope ? { scope: row.scope } : {}),
             ...(expiresIn !== undefined ? { expires_in: expiresIn } : {}),
         };
@@ -551,7 +634,10 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
 
     async saveTokens(tokens: OAuthTokens) {
         const existing = await loadOAuthToken(this.connector.id, this.db);
-        const existingRefresh = existing
+        const issuer = typeof tokens.issuer === "string" ? tokens.issuer : null;
+        // A refresh token is carried over only from the same issuer.
+        const existingRefresh =
+            existing && issuer && existing.authorization_server === issuer
             ? decryptString(
                   existing.encrypted_refresh_token,
                   existing.refresh_token_iv,
@@ -559,7 +645,6 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
               )
             : null;
         const env = oauthClientEnvFor(this.connector.server_url);
-        const clientInfo = await this.clientInformation();
         const expiresIn =
             typeof tokens.expires_in === "number" ? tokens.expires_in : null;
         const row = {
@@ -575,14 +660,7 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
             expires_at: expiresIn
                 ? new Date(Date.now() + expiresIn * 1000).toISOString()
                 : null,
-            client_id: clientInfo?.client_id ?? null,
-            ...tokenSecretPatch(
-                "client_secret",
-                "client_secret" in (clientInfo ?? {}) &&
-                    typeof clientInfo?.client_secret === "string"
-                    ? clientInfo.client_secret
-                    : undefined,
-            ),
+            authorization_server: issuer,
             resource: new URL(this.connector.server_url).toString(),
             updated_at: new Date().toISOString(),
         };
@@ -590,12 +668,18 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
             .from("user_mcp_oauth_tokens")
             .upsert(row, { onConflict: "connector_id" });
         if (error) throw error;
-        const authConfig = decryptAuthConfig(this.connector);
+        // Header values are written back stamped with the origin of the row
+        // this provider was built from: if the server moved meanwhile, they
+        // no longer match it and are not used.
+        const authConfig = usableAuthConfig(this.connector);
         const { error: connectorError } = await this.db
             .from("user_mcp_connectors")
             .update({
                 auth_type: "oauth",
-                ...authConfigPatch({ headers: authConfig.headers }),
+                ...authConfigPatch({
+                    headers: authConfig.headers,
+                    origin: new URL(this.connector.server_url).origin,
+                }),
                 updated_at: new Date().toISOString(),
             })
             .eq("id", this.connector.id)
@@ -663,6 +747,19 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
     async validateResourceURL(serverUrl: string | URL, resource?: string) {
         await validateRemoteMcpUrl(String(serverUrl));
         if (!resource) return undefined;
+        // The metadata must describe this server (RFC 9728): same origin, a
+        // path equal to or a prefix of the connector URL. A hook replaces the
+        // SDK's own check, so it is repeated here.
+        if (
+            !checkResourceAllowed({
+                requestedResource: serverUrl,
+                configuredResource: resource,
+            })
+        ) {
+            throw new Error(
+                "Protected resource metadata does not match the MCP server URL.",
+            );
+        }
         await validateRemoteMcpUrl(resource);
         return new URL(resource);
     }
@@ -789,6 +886,7 @@ export async function startUserMcpConnectorOAuth(
 }
 
 export async function completeMcpConnectorOAuthAuthorization(
+    completingUserId: string,
     state: string,
     code: string,
     db: Db = createServerSupabase(),
@@ -797,6 +895,9 @@ export async function completeMcpConnectorOAuthAuthorization(
         .from("user_mcp_oauth_states")
         .select("*")
         .eq("state_hash", stateHash(state))
+        // The state proves a link, not who started the flow: only that
+        // person may redeem a code against it.
+        .eq("user_id", completingUserId)
         .gt("expires_at", new Date().toISOString())
         .maybeSingle();
     if (error) throw error;

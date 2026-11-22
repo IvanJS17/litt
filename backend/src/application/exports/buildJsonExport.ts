@@ -4,11 +4,15 @@ import {
     checkWorkflowAccess,
     createDocumentAccessChecker,
     createSharedRowAccessChecker,
+    keepReadableDerived,
     type OrgRole,
 } from "../../lib/access";
+import { readableChatMessages } from "../../lib/chatReadAccess";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import { type Db } from "../../lib/supabase";
+import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "../../lib/trainingNotes";
+import { openableWorkMatters, workPlace } from "../../lib/trainingWork";
 import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents, loadUserRuleSuggestions } from "./matterProfileExport";
 import { loadUserMatterRequests } from "./matterRequestsExport";
 import {
@@ -176,6 +180,15 @@ async function loadReadableTabularTranscripts(
     userId: string,
     userEmail?: string | null,
 ) {
+    return (await loadReadableTabularTranscriptsJudged(db, chats, userId, userEmail)).result;
+}
+
+async function loadReadableTabularTranscriptsJudged(
+    db: Db,
+    chats: Record<string, unknown>[],
+    userId: string,
+    userEmail?: string | null,
+) {
     const all = await selectCompleteChatMessages(db, idsFrom(chats), "*");
     const messages = await filterReadableChatMessages(
         db,
@@ -183,7 +196,10 @@ async function loadReadableTabularTranscripts(
         userId,
         userEmail,
     );
-    return { chats: withReadableTitles(chats, all, messages), messages };
+    return {
+        result: { chats: withReadableTitles(chats, all, messages), messages },
+        judged: judgeChats(all, messages),
+    };
 }
 
 async function loadUserReviews(
@@ -208,6 +224,16 @@ async function loadUserChats(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
+    return (await loadUserChatsJudged(db, userId, userEmail, orgId)).result;
+}
+
+/** The holder's chats as exported, with the verdict on each message that training records follow. */
+async function loadUserChatsJudged(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: ExportWorkspace,
+) {
     const candidates = await selectAll(db, "chats", {
         filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
         order: ["created_at"],
@@ -217,8 +243,19 @@ async function loadUserChats(
         createSharedRowAccessChecker("chat", userId, userEmail, db),
     );
     const chatIds = idsFrom(chats);
-    const messages = await selectByIds(db, "chat_messages", "chat_id", chatIds);
-    return { chats, messages };
+    const all = await selectByIds(db, "chat_messages", "chat_id", chatIds);
+    // Chat access is not document access: an answer that quotes a document the
+    // holder can no longer open, or the attachment itself, stays behind; what
+    // the holder typed stays. A chat with anything withheld loses its title,
+    // which was written from the chat.
+    const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all);
+    return {
+        result: {
+            chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
+            messages,
+        },
+        judged: judgeChats(all, messages),
+    };
 }
 
 async function loadUserWordChats(db: Db, userId: string) {
@@ -245,6 +282,15 @@ async function loadUserTabularChats(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
+    return (await loadUserTabularChatsJudged(db, userId, userEmail, orgId)).result;
+}
+
+async function loadUserTabularChatsJudged(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    orgId: ExportWorkspace,
+) {
     const candidates = await selectAll(db, "tabular_review_chats", {
         filter: (query) => query.eq("user_id", userId),
         order: ["created_at"],
@@ -263,7 +309,7 @@ async function loadUserTabularChats(
         createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
     );
     const reviewIds = new Set(idsFrom(readableReviews));
-    return loadReadableTabularTranscripts(
+    return loadReadableTabularTranscriptsJudged(
         db,
         candidates.filter(
             (chat) =>
@@ -485,6 +531,124 @@ export const TRAINING_EXPORT_EXCLUDED: Record<string, string> = {
         "Insert-only evidence about a document version (document_version_id, content hash, approver), not learning data of the holder: it has no trainee column, hangs from no membership and records another person's decision. The holder's sealed drafts are in their documents.",
 };
 
+/** Per chat, its stored messages oldest first, each with whether the export withheld it. */
+type ChatJudgement = Map<string, { id: string; role: unknown; withheld: boolean }[]>;
+
+function judgeChats(all: Row[], readable: Row[], into: ChatJudgement = new Map()): ChatJudgement {
+    const kept = new Set(idsFrom(readable));
+    for (const message of all) {
+        const chatId = message.chat_id as string;
+        if (!into.has(chatId)) into.set(chatId, []);
+        into.get(chatId)!.push({ id: message.id as string, role: message.role, withheld: !kept.has(message.id as string) });
+    }
+    return into;
+}
+
+/**
+ * A training row made from a chat is made from its answers: from the answer of
+ * its turn when it records the message, else from every answer of the chat.
+ * It may leave only if those answers did. `message_id` is the person's own
+ * message for a turn note (the answer is what follows it) and the answer
+ * itself for a backing check or a criteria contrast.
+ */
+function madeFromReadableAnswers(judged: ChatJudgement, row: Row): boolean {
+    const chatId = [row.chat_id, row.tabular_chat_id].find((id): id is string => typeof id === "string");
+    const messages = chatId ? judged.get(chatId) : undefined;
+    // Word chats are not yet judged, and a chat with no stored message has no answer to withhold.
+    if (!messages) return true;
+    const at = messages.findIndex((message) => message.id === row.message_id);
+    let answers = messages.filter((message) => message.role === "assistant");
+    if (at >= 0 && messages[at].role === "assistant") answers = [messages[at]];
+    else if (at >= 0) {
+        // The person's message: the answers that follow it, up to their next message.
+        answers = [];
+        for (const message of messages.slice(at + 1)) {
+            if (message.role === "user") break;
+            if (message.role === "assistant") answers.push(message);
+        }
+    }
+    return answers.every((message) => !message.withheld);
+}
+
+/** Judge the chats training rows name that the export did not list (archived, or of another workspace). */
+async function judgeUnlistedChats(
+    db: Db,
+    judged: ChatJudgement,
+    rows: Row[],
+    reader: { userId: string; userEmail: string | null | undefined },
+) {
+    const wanted = (column: string) => uniqueIds(rows.map((row) => row[column]).filter((id): id is string => typeof id === "string" && !judged.has(id)));
+    const [chatIds, tabularIds] = [wanted("chat_id"), wanted("tabular_chat_id")];
+    if (chatIds.length) {
+        const all = await selectByIds(db, "chat_messages", "chat_id", chatIds);
+        judgeChats(all, (await readableChatMessages(db, reader, all)).messages, judged);
+    }
+    if (tabularIds.length) {
+        const all = await selectCompleteChatMessages(db, tabularIds, "*");
+        judgeChats(all, await filterReadableChatMessages(db, all, reader.userId, reader.userEmail), judged);
+    }
+    for (const id of [...chatIds, ...tabularIds]) if (!judged.has(id)) judged.set(id, []);
+}
+
+/**
+ * Work a person did inside a matter carries that matter's confidentiality
+ * (lib/trainingWork.ts). A training row's matter is its own project, else the
+ * project of its chat or tabular review; a row with no matter is the holder's
+ * alone. Of `rows`, keep those whose matter the holder can open now, and
+ * those with no matter. A row whose chat or review can no longer be found
+ * cannot be placed, so it is withheld.
+ */
+async function openableTrainingRows(
+    db: Db,
+    rows: Row[],
+    userId: string,
+    userEmail: string | null | undefined,
+): Promise<Row[]> {
+    if (rows.length === 0) return rows;
+    const GONE = Symbol("gone");
+    const places = new Map<string, Promise<string | null | typeof GONE>>();
+    const placeOf = (key: string, load: () => Promise<string | null | typeof GONE>) => {
+        let pending = places.get(key);
+        if (!pending) places.set(key, (pending = load()));
+        return pending;
+    };
+    const matterOf = async (row: Row): Promise<string | null | typeof GONE> => {
+        if (typeof row.project_id === "string") return row.project_id;
+        for (const [surface, column] of Object.entries(TURN_NOTE_CHAT_COLUMN) as [TurnNoteSurface, string][]) {
+            const chatId = row[column];
+            if (typeof chatId !== "string") continue;
+            return placeOf(`${surface}:${chatId}`, async () => {
+                const place = await workPlace(db, surface, chatId);
+                if (!place.ok) throw place.error;
+                return place.place ? place.place.projectId : GONE;
+            });
+        }
+        if (typeof row.tabular_review_id === "string") {
+            const reviewId = row.tabular_review_id;
+            return placeOf(`review:${reviewId}`, async () => {
+                const { data, error } = await (db as any)
+                    .from("tabular_reviews")
+                    .select("id, project_id")
+                    .eq("id", reviewId)
+                    .maybeSingle();
+                if (error) throw error;
+                return data ? ((data.project_id as string | null) ?? null) : GONE;
+            });
+        }
+        return null;
+    };
+    const matters = await mapWithConcurrency(rows, 8, matterOf);
+    const openable = await openableWorkMatters(db, {
+        projectIds: uniqueIds(matters.filter((matter): matter is string => typeof matter === "string")),
+        actorId: userId,
+        actorEmail: userEmail ?? null,
+    });
+    return rows.filter((_, index) => {
+        const matter = matters[index];
+        return matter === null || (typeof matter === "string" && openable.has(matter));
+    });
+}
+
 export async function buildUserAccountExport(
     db: Db,
     userId: string,
@@ -508,8 +672,8 @@ export async function buildUserAccountExport(
         hiddenWorkflows,
         workflowSharesByUser,
         workflowSharesWithUser,
-        assistantChats,
-        tabularChats,
+        assistantLoaded,
+        tabularLoaded,
         tabularReviews,
         sharedProjects,
         sharedTabularReviews,
@@ -597,8 +761,8 @@ export async function buildUserAccountExport(
                   [],
               )
             : Promise.resolve([]),
-        loadUserChats(db, userId, userEmail, orgId),
-        loadUserTabularChats(db, userId, userEmail, orgId),
+        loadUserChatsJudged(db, userId, userEmail, orgId),
+        loadUserTabularChatsJudged(db, userId, userEmail, orgId),
         loadUserReviews(db, userId, userEmail, orgId),
         normalizedEmail
             ? (async () => {
@@ -808,6 +972,64 @@ export async function buildUserAccountExport(
         }),
     ]);
 
+    // The training rows made from a matter the holder can no longer open stay
+    // behind, as that matter's chats, documents and requests do. So do those
+    // made from a chat answer or a document the holder can no longer read: the
+    // verdict on each chat message was reached once, with the chats above.
+    const reader = { userId, userEmail };
+    const judged: ChatJudgement = new Map([...assistantLoaded.judged, ...tabularLoaded.judged]);
+    await judgeUnlistedChats(db, judged, [...trainingNotes, ...trainingWorkReviews, ...trainingBackingChecks, ...trainingCriteriaContrasts], reader);
+    const keepOpenable = (rows: Row[]) => openableTrainingRows(db, rows, userId, userEmail);
+    const keepFromChats = async (rows: Row[]) => (await keepOpenable(rows)).filter((row) => madeFromReadableAnswers(judged, row));
+    const [
+        turnNotes,
+        workReviews,
+        urgencyPasses,
+        backingChecks,
+        reviewAudits,
+        openReadings,
+        criteriaContrasts,
+    ] = await Promise.all([
+        keepFromChats(trainingNotes),
+        keepFromChats(trainingWorkReviews),
+        keepOpenable(trainingUrgencyPasses),
+        keepFromChats(trainingBackingChecks),
+        keepOpenable(trainingReviewAudits),
+        keepOpenable(trainingReadings),
+        keepFromChats(trainingCriteriaContrasts),
+    ]);
+    // A reading is of a document: through that document's access. One whose
+    // document was deleted keeps what the person wrote and its result, not the
+    // passages and comparison drawn from the document.
+    const readings = (
+        await keepReadableDerived(db, reader, openReadings, (row) =>
+            typeof row.document_id === "string" ? [row.document_id] : [],
+        )
+    ).map((row) => (typeof row.document_id === "string" ? row : { ...row, machine_findings: null, comparison: null }));
+    // A defense hangs from a work review: what was derived from a withheld
+    // review goes with it, and from none recorded (a practice-area defense is
+    // drawn from several works that are not recorded; a deleted review looks
+    // the same). A retake is built from turn notes: one built from a withheld
+    // note goes too; one whose notes no longer exist loses its question and
+    // contrast but keeps the person's answer and its result.
+    const keptReviewIds = new Set(idsFrom(workReviews));
+    const defenses = trainingDefenses.map((row) =>
+        typeof row.work_review_id === "string" && keptReviewIds.has(row.work_review_id)
+            ? row
+            : { ...row, questions: null, outcome_note: null },
+    );
+    const keptNoteIds = new Set(idsFrom(turnNotes));
+    const allNoteIds = new Set(idsFrom(trainingNotes));
+    const noteIdsOf = (row: Row) => (Array.isArray(row.source_note_ids) ? (row.source_note_ids as unknown[]) : []);
+    const retakes = trainingRetakes
+        .filter((row) => noteIdsOf(row).every((id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id)))
+        .map((row) => {
+            const ids = noteIdsOf(row);
+            return ids.length > 0 && ids.every((id) => typeof id === "string" && allNoteIds.has(id))
+                ? row
+                : { ...row, question: null, contrast: null };
+        });
+
     // Retainer requests that name the holder, in matters they can still open.
     const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId);
     const profileFacts = await loadUserProfileFacts(db, userId, userEmail, orgId);
@@ -843,7 +1065,7 @@ export async function buildUserAccountExport(
         selectByIds(db, "project_subfolders", "project_id", projectIds),
         selectByIds(db, "document_versions", "document_id", documentIds),
         selectByIds(db, "document_edits", "document_id", documentIds),
-        selectByIds(db, "tabular_cells", "review_id", reviewIds),
+        loadReadableReviewCells(db, reviewIds, userId, userEmail),
     ]);
 
     return {
@@ -877,10 +1099,10 @@ export async function buildUserAccountExport(
                 typeof row.workflow_id === "string" &&
                 exportedWorkflowIds.has(row.workflow_id),
         ),
-        chats: assistantChats,
+        chats: assistantLoaded.result,
         tabular_reviews: tabularReviews,
         tabular_cells: tabularCells,
-        tabular_review_chats: tabularChats,
+        tabular_review_chats: tabularLoaded.result,
         ...playbooks,
         shared_access: {
             projects: sharedProjects,
@@ -891,15 +1113,15 @@ export async function buildUserAccountExport(
             [TRAINING_EXPORT_KEYS.training_mentors]: trainingMentor,
             [TRAINING_EXPORT_KEYS.training_pupils]: trainingPupil,
             [TRAINING_EXPORT_KEYS.training_stages]: trainingStages,
-            [TRAINING_EXPORT_KEYS.training_turn_notes]: trainingNotes,
-            [TRAINING_EXPORT_KEYS.training_work_reviews]: trainingWorkReviews,
-            [TRAINING_EXPORT_KEYS.training_defenses]: trainingDefenses,
-            [TRAINING_EXPORT_KEYS.training_urgency_passes]: trainingUrgencyPasses,
-            [TRAINING_EXPORT_KEYS.training_backing_checks]: trainingBackingChecks,
-            [TRAINING_EXPORT_KEYS.training_review_audits]: trainingReviewAudits,
-            [TRAINING_EXPORT_KEYS.training_readings]: trainingReadings,
-            [TRAINING_EXPORT_KEYS.training_retakes]: trainingRetakes,
-            [TRAINING_EXPORT_KEYS.training_criteria_contrasts]: trainingCriteriaContrasts,
+            [TRAINING_EXPORT_KEYS.training_turn_notes]: turnNotes,
+            [TRAINING_EXPORT_KEYS.training_work_reviews]: workReviews,
+            [TRAINING_EXPORT_KEYS.training_defenses]: defenses,
+            [TRAINING_EXPORT_KEYS.training_urgency_passes]: urgencyPasses,
+            [TRAINING_EXPORT_KEYS.training_backing_checks]: backingChecks,
+            [TRAINING_EXPORT_KEYS.training_review_audits]: reviewAudits,
+            [TRAINING_EXPORT_KEYS.training_readings]: readings,
+            [TRAINING_EXPORT_KEYS.training_retakes]: retakes,
+            [TRAINING_EXPORT_KEYS.training_criteria_contrasts]: criteriaContrasts,
             [TRAINING_EXPORT_KEYS.training_gym_attempts]: trainingGymAttempts,
             [TRAINING_EXPORT_KEYS.training_gym_cases]: trainingGymCases,
         },

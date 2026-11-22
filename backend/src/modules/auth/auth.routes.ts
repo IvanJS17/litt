@@ -23,9 +23,10 @@ import {
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
 import { betaMode, canSignUp } from "../../lib/platformAccess";
-import { recordCreatingOrgOfSignup } from "../../lib/inviteEmail";
+import { inviteAdmittedSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
-import { isAuthUpstreamFailure } from "../../lib/authUpstream";
+import { markSessionsEnded } from "../mcp/mcp.service";
+import { authErrorShape, isAuthUpstreamFailure } from "../../lib/authUpstream";
 import { AppError } from "../../lib/appError";
 import { reportError, setOperation } from "../../lib/observability/report";
 import { requestOriginIsWordAddin } from "../../lib/origins";
@@ -146,7 +147,15 @@ authRouter.post("/login", asyncRoute(async (req, res) => {
   try {
     const client = createRequestSupabase(req, res);
     const { data, error } = await signInWithPassword(client, parsed.data);
-    if (error || !data.user || !data.session) return authError(res, error);
+    if (error || !data.user || !data.session) {
+      // Read by the sign-in account limiters in app.ts: only a refused
+      // email/password counts toward them. Any other failure (an unconfirmed
+      // address, a suspended account, a provider outage) is not a wrong guess.
+      if (describeAuthProviderError(error, "").code === "invalid_credentials") {
+        res.locals.loginCredentialRejected = true;
+      }
+      return authError(res, error);
+    }
     res.json({ user: publicAuthUser(data.user) });
   } catch (error) {
     authError(res, error);
@@ -169,6 +178,17 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
     return inviteOnly(res);
 
   try {
+    // Closed beta: the address is admitted by an invitation or the
+    // administrator list, not by anything the caller proved, so the caller
+    // does not choose its password here. The invitation link goes to the
+    // mailbox and the person sets the password from it. The answer is the
+    // same whether or not the address already has an account or was just
+    // mailed.
+    if (betaMode()) {
+      const invited = await inviteAdmittedSignup(createServerSupabase(), parsed.data.email);
+      if (invited.kind === "failed") return authError(res, invited.error);
+      return res.status(201).json({ user: null, requiresEmailConfirmation: true });
+    }
     const client = createRequestSupabase(req, res);
     const { data, error } = await signUpWithPassword(
       client,
@@ -176,10 +196,6 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
       callbackUrl(req, req.body?.next, "/onboarding/profile"),
     );
     if (error || !data.user) return authError(res, error);
-    // Closed beta: an invited email registers on its own; that organization's
-    // invitation is what created the account (managed accounts).
-    if (betaMode())
-      await recordCreatingOrgOfSignup(createServerSupabase(), data.user, parsed.data.email);
     res.status(201).json({
       user: publicAuthUser(data.user),
       requiresEmailConfirmation: !data.session,
@@ -466,11 +482,45 @@ authRouter.get("/session", requireAuth, asyncRoute(async (_req, res) => {
   res.json({ user: publicAuthUser(user) });
 }));
 
+/**
+ * Who is signing out, for the sign-out that ends connected applications.
+ * A person -> their id. A recognised "no session" answer -> null (nothing to
+ * end). Anything else, including an answer with neither an identified person
+ * nor an error, means we could not tell.
+ */
+async function whoIsSigningOut(client: ReturnType<typeof createRequestSupabase>): Promise<string | null> {
+  const { data, error } = await client.auth.getUser();
+  if (data.user?.id) return data.user.id;
+  if (error) {
+    const failure = authErrorShape(error);
+    const status = failure?.status ?? 0;
+    const noSession =
+      !isAuthUpstreamFailure(error) &&
+      (failure?.name === "AuthSessionMissingError" ||
+        (failure?.name === "AuthApiError" && status >= 400 && status < 500 && status !== 429));
+    if (noSession) return null;
+  }
+  throw new AppError("auth.supabase_unavailable", "could not tell who is signing out", { cause: error });
+}
+
 authRouter.post("/logout", asyncRoute(async (req, res) => {
   setOperation("auth.session");
+  const scope = req.body?.scope === "global" ? "global" : "local";
+  let connectionsFailure: unknown = null;
+  let signingOut: string | null = null;
   try {
     const client = createRequestSupabase(req, res);
-    await signOut(client, req.body?.scope === "global" ? "global" : "local");
+    // Signing out everywhere ends the connected applications too, once the
+    // sessions are revoked. The sign-out goes ahead whatever the lookup says,
+    // and a failure to record it is answered after the sessions are over.
+    if (scope === "global") {
+      try {
+        signingOut = await whoIsSigningOut(client);
+      } catch (error) {
+        connectionsFailure = error;
+      }
+    }
+    await signOut(client, scope);
   } catch (error) {
     // Local cookie removal must not depend on the upstream revocation request,
     // but a GoTrue that cannot revoke sessions is an outage worth seeing.
@@ -482,8 +532,17 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
     reportError(failure, { level: "warning", tags: { component: "http" } });
     console.error("[auth/logout] upstream sign-out failed", failure);
   } finally {
+    // Stamped after the sign-out, whether or not it succeeded.
+    if (signingOut) {
+      try {
+        await markSessionsEnded(createServerSupabase(), signingOut, "signed_out_everywhere");
+      } catch (error) {
+        connectionsFailure = error;
+      }
+    }
     clearRequestAuthCookies(req, res);
   }
+  if (connectionsFailure) throw connectionsFailure;
   res.status(204).end();
 }));
 
@@ -511,8 +570,22 @@ authRouter.patch("/password", requireAuth, asyncRoute(async (req, res) => {
   const { data, error } = await updatePassword(client, parsed.data.password);
   if (error || !data.user) return authError(res, error);
   if (parsed.data.signOut) {
-    await signOut(client, "global");
+    // Connected applications end with the sessions: stamped once they are
+    // revoked. If that cannot be recorded the sessions are still over, and
+    // the failure is answered after the cookies are cleared.
+    let failure: unknown = null;
+    try {
+      await signOut(client, "global");
+    } catch (error) {
+      failure = error;
+    }
+    try {
+      await markSessionsEnded(createServerSupabase(), res.locals.userId as string, "password_recovery_sign_out");
+    } catch (error) {
+      failure ??= error;
+    }
     clearRequestAuthCookies(req, res);
+    if (failure) throw failure;
   }
   res.json({ user: publicAuthUser(data.user) });
 }));

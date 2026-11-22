@@ -107,6 +107,7 @@ describe("extractRowColumns", () => {
                 rows: Array.from({ length: 5 }, (_, index) => ({ ...ROW, id: `row-${index}` })),
                 cellMap: new Map(), model: "m", apiKeys: {}, generationId: "gen-1",
                 abortSignal: new AbortController().signal, onError,
+                orgId: null, authorization: null, stop: () => undefined,
                 write: (line) => { frames.push(JSON.parse(line.slice(6))); return true; },
             });
             expect(complete).toBe(true);

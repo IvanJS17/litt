@@ -47,6 +47,12 @@ import {
 } from "./tools/webSearchTools";
 import { METHODOLOGY_SYSTEM_PROMPT, METHODOLOGY_TOOL } from "./tools/methodologyTool";
 import {
+  holdsCapability,
+  isToolAllowed,
+  withAllowedTools,
+  type ToolCapability,
+} from "./tools/toolCapabilities";
+import {
   FIRM_CRITERIA_TOOL,
   FIRM_CRITERIA_TOOL_NAME,
   runFirmCriteriaCall,
@@ -345,6 +351,14 @@ export async function runLLMStream(params: {
    */
   allowDocumentMutation?: boolean;
   /**
+   * The capabilities this turn's tools may have (see tools/toolCapabilities.ts).
+   * Omitted: no limit, as in the web app and Word. A turn started by a
+   * connected application passes what its connection was granted; a tool that
+   * needs more, or that nobody declared, is neither offered nor run, in the
+   * turn's subagents either. It can only narrow the turn.
+   */
+  allowedCapabilities?: readonly ToolCapability[];
+  /**
    * What a training turn asks of this engine (lib/trainingTurn): extra system
    * text and tool limits. It can only narrow the turn, never widen it.
    */
@@ -434,6 +448,7 @@ export async function runLLMStream(params: {
     includeAskInputs: requestedAskInputs = true,
     connectorApprovals = false,
     allowDocumentMutation: requestedDocumentMutation = true,
+    allowedCapabilities,
     trainingPlan,
     workflowStore,
     tabularStore,
@@ -470,7 +485,9 @@ export async function runLLMStream(params: {
     : subagentRoutes;
   const includeAskInputs = requestedAskInputs && trainingPlan?.includeAskInputs !== false;
   const allowDocumentMutation =
-    requestedDocumentMutation && trainingPlan?.allowDocumentMutation !== false;
+    requestedDocumentMutation &&
+    trainingPlan?.allowDocumentMutation !== false &&
+    holdsCapability(allowedCapabilities, "write");
   // Only frames that carry replay options pass a second argument.
   const write = (chunk: string, opts?: StreamRunWriteOptions) =>
     opts
@@ -481,6 +498,8 @@ export async function runLLMStream(params: {
   const connectorTools =
     subagentRun?.connectorTools ??
     (await (async () => {
+      // A turn a connected app drives never reaches the person's connectors.
+      if (!holdsCapability(allowedCapabilities, "connector")) return [];
       const owner = { userId, orgId: await teamOrgIdOf(db, orgId) };
       return [
         ...(await buildUserMcpTools(owner, db)),
@@ -527,9 +546,12 @@ export async function runLLMStream(params: {
   // never shown is a tool it will not plan around. The second half is in
   // `runTools` below, because "not advertised" is not "not callable" — a
   // model can name a tool from memory.
-  const permittedTools = allowDocumentMutation
-    ? advertisedTools
-    : withoutDocumentMutatingTools(advertisedTools);
+  const permittedTools = withAllowedTools(
+    allowDocumentMutation
+      ? advertisedTools
+      : withoutDocumentMutatingTools(advertisedTools),
+    allowedCapabilities,
+  );
   const activeTools = isSubagent
     ? permittedTools.filter(
         (tool) => !SUBAGENT_EXCLUDED_TOOL_NAMES.has(toolName(tool) ?? ""),
@@ -802,6 +824,7 @@ export async function runLLMStream(params: {
         includeAskInputs: false,
         connectorApprovals: canPauseForApproval,
         allowDocumentMutation,
+        allowedCapabilities,
         emitDone: false,
       }),
   });
@@ -1054,6 +1077,7 @@ export async function runLLMStream(params: {
         const permittedCalls = calls.filter(
           (c) =>
             (allowDocumentMutation || !isDocumentMutatingTool(c.name)) &&
+            isToolAllowed(c.name, allowedCapabilities) &&
             (!isSubagent || !SUBAGENT_EXCLUDED_TOOL_NAMES.has(c.name)),
         );
         const webCalls = permittedCalls.filter((c) => webToolNames.has(c.name));
@@ -1148,6 +1172,7 @@ export async function runLLMStream(params: {
               methodology: offerMethodology,
               personMessage: lastPersonMessage,
               allowDocumentMutation,
+              allowedCapabilities,
               signal,
               results: batch,
             },

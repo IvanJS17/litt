@@ -21,7 +21,8 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 |---|---|
 | `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, litt-web, litt-word) |
 | `gateway.conf` | Fachada interna de Supabase (gotrue+postgrest) para el backend |
-| `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` (enlaces de los correos) |
+| `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` del tipo `invite` (enlace del correo de invitación), con límite por visitante |
+| `auth-edge.test.sh` | Prueba de `auth-edge.conf` con un nginx real y un upstream de mentira (`bash deploy/prod/auth-edge.test.sh`; se omite sin Docker; CI no la corre) |
 | `Caddyfile.litt` | Bloques de `litt.asteroitt.com`, `word.litt.asteroitt.com` y `mcp.litt.asteroitt.com` para el Caddy compartido (marcadores `# BEGIN/END litt`) |
 | `.env.example` | Contrato de variables (copiar a `/srv/litt/.env`, 600) |
 | `supabase-jwt.py` | Generador de las llaves JWT `anon` / `service_role` |
@@ -118,8 +119,8 @@ host (`HOST-RULES.md` §3–§5):
    a que todo servicio de larga vida esté corriendo, healthy si tiene healthcheck (`rest`
    no tiene), a que `/health` reporte el SHA y a que `litt-word` sirva un `manifest.xml`
    cuyo panel apunta a `WORD_ADDIN_URL` del `.env` (una imagen construida con otra URL
-   pública aborta el deploy). Sin `WORD_ADDIN_URL` en el `.env`, el script aborta antes
-   de cargar nada.
+   pública aborta el deploy). Sin `WORD_ADDIN_URL` ni `LITT_EDGE_SECRET` en el `.env`, el script aborta
+   antes de cargar nada.
 6. Solo entonces aplica la retención: imagen viva + 1 anterior, retirando el resto por tag
    explícito. Nunca usa `docker system/image/volume/builder prune`.
 
@@ -241,11 +242,13 @@ $C ps                                # todo healthy
 ## 5. Caddy compartido (quirúrgico)
 
 El bloque manda todo a `litt:3000` (servicio `litt-web`), salvo `/auth/v1/verify`, que va
-a `litt-auth:8000` (`auth-edge`). Esa es la ruta de los enlaces que llegan por
-correo para confirmar la cuenta, recuperar la contraseña, aceptar una
-invitación o cambiar el correo. `auth-edge` responde 404 a cualquier otra ruta,
-así que la red del Caddy compartido no alcanza el signup, el token, la API
-admin ni PostgREST.
+a `litt-auth:8000` (`auth-edge`). Esa es la ruta del enlace del correo de
+invitación. Los correos de confirmación, recuperación y cambio de correo apuntan
+a `/auth/confirm` (§Decisiones y pendientes) y no usan esa ruta. `auth-edge`
+responde 404 a cualquier otra ruta y a cualquier consulta que no sea
+exactamente `token=…&type=invite[&redirect_to=…]`, así que la red del Caddy
+compartido no alcanza el signup, el token, la API admin ni PostgREST, y GoTrue
+no recibe otro tipo de enlace por aquí.
 
 Un deploy normal no toca el Caddyfile. Para cambiar el bloque `litt` hay que seguir
 `HOST-RULES.md` §1: respaldar `/srv/edge/conf/Caddyfile` y probar **todos** sus dominios
@@ -272,6 +275,172 @@ su nombre como alias en todas sus redes, así que esos servicios deben tener nom
 únicos en el host (`frontend`, `backend` y `web` ya son de otras apps) y sus llamadas
 internas usan alias propios (`litt-backend`, `litt-gotrue`). Antes de agregar un
 servicio a esa red, revisar `docker network inspect edge`.
+
+## Dirección del cliente (límites por IP)
+
+El backend limita por IP (inicio de sesión, registro, correos, MCP y el límite
+general) y toma la dirección del último valor de `X-Forwarded-For` que le manda
+el salto de la app (`litt-web` o `litt-word`); por eso `compose.yaml` fija
+`TRUST_PROXY_HOPS: '1'`. El Caddy y una CDN no cuentan como saltos: el salto de
+la app reenvía exactamente una dirección.
+
+**Secreto del borde.** `LITT_EDGE_SECRET` es un valor aleatorio que el Caddy
+compartido manda en `X-Litt-Edge` (con `X-Forwarded-For {client_ip}`, ver
+`Caddyfile.litt`). `litt-web` y `litt-word` solo aceptan la dirección que
+reciben si ese encabezado coincide con su propia variable; en cualquier otro caso
+usan la dirección del contenedor que les habló, ignoran su `X-Forwarded-For` y
+nunca reenvían `X-Litt-Edge`. Debe tener **el mismo valor en dos lugares**:
+`/srv/litt/.env` (compose no arranca sin él) y el entorno del contenedor
+`edge-caddy-1` (el compose de `/srv/edge`, fuera de este repositorio). Se genera
+con `openssl rand -hex 32` y no se imprime ni se copia a Git.
+
+**Orden seguro del despliegue.**
+
+1. Poner `LITT_EDGE_SECRET` en `/srv/litt/.env` y en el entorno del Caddy
+   compartido, y recrear `edge-caddy-1` para que lo lea (`caddy reload` no
+   actualiza el entorno del proceso).
+2. Aplicar el bloque nuevo de `Caddyfile.litt` con el procedimiento de §5. Las
+   imágenes anteriores siguen funcionando igual: reciben la dirección única y
+   copian `X-Litt-Edge` al backend por la red interna, que no lo registra. Por
+   eso conviene no dejar pasar tiempo entre este paso y el siguiente.
+3. Desplegar las imágenes nuevas (§1), que ya leen el secreto. Ese `up -d`
+   recrea `auth-edge` (cambia su entorno y su plantilla); cualquier cambio
+   posterior solo a `auth-edge.conf` exige recrearlo a mano para que lo lea:
+   `$C up -d --force-recreate auth-edge`.
+
+El bloque del Caddy y `auth-edge` dependen de la misma cadena: el orden de los
+pasos 1 a 3 sirve también para `/auth/v1/verify`, y aquí no es opcional. Si el
+Caddy no manda el secreto cuando `auth-edge` ya lo exige, todos los visitantes
+comparten un solo cupo (el de la dirección del Caddy): unas pocas solicitudes
+de cualquiera bastan para que las invitaciones de los demás respondan 429
+mientras dure ese estado. Se nota en el log de `auth-edge`
+(`$C logs auth-edge | grep 'limiting requests'` muestra la dirección del Caddy
+en vez de la de un visitante); se corrige completando los pasos 1 y 2.
+
+**Límite en `/auth/v1/verify` (`auth-edge`).** `auth-edge` también recibe
+`LITT_EDGE_SECRET` (compose no arranca sin él) y usa la misma regla: con
+`X-Litt-Edge` igual al secreto toma la dirección de `X-Forwarded-For` que manda
+el Caddy; en cualquier otro caso usa la dirección TCP de quien llama y ignora su
+`X-Forwarded-For` (un contenedor vecino de la red `edge` que le hable directo
+queda limitado por su propia dirección). A GoTrue nunca le llega `X-Litt-Edge`;
+su `X-Forwarded-For` es esa dirección. Si la variable queda vacía nadie es de
+confianza; si no está definida, nginx no arranca (compose ya lo impide). El
+límite es de 10 solicitudes por minuto por dirección, con una ráfaga de 10 más;
+el resto recibe 429. Una persona que abre su invitación hace una solicitud (un
+escáner de correo o un reintento suman pocas); una oficina entera detrás de una
+sola dirección tendría que abrir más de 20 invitaciones en el mismo minuto para
+notarlo. El límite acota el volumen por visitante; no es la única protección de
+los enlaces. Los valores están en `auth-edge.conf` (`rate=10r/m`, `burst=10`).
+Un 429 no gasta la invitación: el mismo enlace funciona al reintentar. Si GoTrue
+no pudiera descargar las plantillas de LiTT usaría las suyas, cuyos enlaces de
+confirmación, recuperación y cambio de correo apuntan a esta ruta y aquí reciben
+404; hay que restablecer las plantillas (`$C restart auth`) y pedir el correo de
+nuevo.
+
+**Falla por secreto ausente o distinto** (en `.env` o en el Caddy): los saltos
+tratan al Caddy como no confiable y el backend ve la dirección del salto, no la
+del visitante. Todos los visitantes comparten un solo cupo de límite por IP:
+falla del lado seguro, pero molesta (llegan 429 a todos). Se corrige igualando el
+valor.
+
+**Comprobación posterior (solo lectura).** Sin imprimir el secreto:
+`docker exec edge-caddy-1 sh -c 'test -n "$LITT_EDGE_SECRET" && echo definido'`;
+`docker exec litt-litt-web-1 sh -c 'test -n "$LITT_EDGE_SECRET" && echo definido'`
+(y `litt-litt-word-1`); comparar `sha256sum` de los tres valores (cada contenedor
+con `printf %s "$LITT_EDGE_SECRET" | sha256sum`), que deben ser iguales;
+`caddy validate`; y desde dos redes distintas, `curl -s -o /dev/null -w '%{http_code}\n'
+https://litt.asteroitt.com/api/health` debe responder 200 sin 429 para ninguna.
+La comparación de `sha256sum` es la que detecta un valor distinto antes de que
+alguien reciba un 429.
+
+El Caddy en nivel de log `debug` escribe los encabezados que manda, incluido
+`X-Litt-Edge`: no activarlo en producción, o rotar el secreto después.
+
+**Rotación.** Generar un valor nuevo; ponerlo en `/srv/litt/.env` y en el entorno
+del Caddy; recrear `litt-web` y `litt-word` (`$C up -d litt-web litt-word`) y
+`edge-caddy-1` en la misma ventana. Entre ambos pasos hay una ventana corta en la
+que se aplica la falla descrita arriba. No hay periodo de convivencia de dos
+valores.
+
+**El día que se encienda Cloudflare** hacen falta dos cambios más, ambos en el
+servidor y fuera de este repositorio:
+
+1. En las opciones globales del Caddy compartido, **antes** de activar el
+   proxy de Cloudflare:
+
+   ```
+   {
+       servers {
+           trusted_proxies static <rangos de Cloudflare>
+           client_ip_headers CF-Connecting-IP
+       }
+   }
+   ```
+
+   Con eso `{client_ip}` es el visitante real; sin ello sería la dirección de
+   Cloudflare. El bloque es global: aplica a todos los sitios de ese Caddy, no
+   solo a los de LiTT.
+2. **Después** de activar el proxy, cerrar 80/443 a todo lo que no sea
+   Cloudflare (firewall del host), para que el tráfico público entre solo por
+   Cloudflare.
+
+El orden acordado es desplegar primero esta cadena y después encender
+Cloudflare. Queda aparte, sin hacer aquí, mover `litt-web`, `litt-word` y
+`auth-edge` a una red de ingreso solo de LiTT (hoy comparten `edge` con otras apps).
+
+## Cabeceras de seguridad de las páginas
+
+Las páginas de la web y del complemento de Word (no el Caddy) envían estas
+cabeceras; el código las define, así que un deploy normal no toca el Caddyfile:
+
+| Cabecera | Valor |
+|---|---|
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (sin `preload`) |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | cámara, micrófono, geolocalización, pagos y USB desactivados |
+| `X-Frame-Options` | `DENY` en la web (el complemento de Word no la envía: Word lo enmarca) |
+| `Content-Security-Policy` | web: `frontend/src/proxy.ts` (un nonce por petición) y `frontend/src/app/lib/securityHeaders.ts`; complemento: `word-addin/server.mjs` |
+
+En `/api/*` de la web, estas cabeceras reemplazan a las del backend con el mismo
+nombre (HSTS, marco), salvo `Referrer-Policy`, que ahí conserva el valor del
+backend (`no-referrer`); en el proxy del complemento prevalecen las del
+backend. El Caddy no
+agrega ninguna de estas cabeceras: no repetirlas en `Caddyfile.litt`, porque una
+copia con otro valor se sumaría a la del código (dos `Content-Security-Policy`
+se aplican las dos).
+
+**Variables** (las leen `litt-web` y `litt-word`; `compose.yaml` ya las pasa):
+
+- `R2_ENDPOINT_URL`: de ahí sale el origen del almacén al que el navegador
+  sube y baja archivos con URL firmadas (`connect-src` e `img-src`). Este
+  `compose.yaml` no pasa `R2_PUBLIC_ENDPOINT_URL` a ningún servicio; el código
+  la prefiere cuando existe (como el backend), y así la usa el entorno local.
+  Si el valor no coincide con el que firma el backend, las subidas de archivos
+  fallan en el navegador.
+- `LITT_CSP_REPORT_ONLY` (vacío por defecto = la política **se aplica**).
+  Con `true` o `1` la política se envía como `Content-Security-Policy-Report-Only`:
+  el navegador solo anota las violaciones en su consola y no bloquea nada.
+  Es el retroceso sin cambio de código si una pantalla se rompe tras un deploy:
+  poner `LITT_CSP_REPORT_ONLY=true` en `/srv/litt/.env` y recrear los
+  contenedores (`$C up -d litt-web litt-word`). `X-Frame-Options` y el resto de
+  las cabeceras siguen aplicándose. No hay endpoint de reportes.
+
+Comprobación tras un deploy (`/connect/authorize` y `/login` deben traer
+`frame-ancestors 'none'` y `X-Frame-Options: DENY`; el panel de Word, un
+`frame-ancestors` con los orígenes de Office y ningún `X-Frame-Options`):
+
+```bash
+curl -sI https://litt.asteroitt.com/login | grep -i 'content-security\|x-frame\|strict-transport'
+curl -sI https://word.litt.asteroitt.com/taskpane.html | grep -i 'content-security\|x-frame\|strict-transport'
+```
+
+Los orígenes de Microsoft que pueden enmarcar el panel
+(`OFFICE_FRAME_ANCESTORS` en `word-addin/server.mjs`) no salen de una lista
+oficial: Microsoft no publica una para las páginas que enmarcan un complemento.
+Abrir el panel en Word en la web (desde OneDrive y desde SharePoint) y en Word de
+escritorio antes de dar el deploy por bueno; si la consola del navegador reporta
+un origen que falta, agregarlo a esa lista.
 
 ## 6. DNS
 
@@ -333,13 +502,14 @@ como una página que el navegador arma al cargar, así que el HTML que devuelve
 3. Repetir en Ajustes → Acerca de y en el add-in de Word (Ajustes).
 Luego: abrir en el navegador y crear la cuenta del owner. Debe llegar el
 correo de confirmación de `LiTT <no-reply@asteroitt.com>`, con un enlace a
-`https://litt.asteroitt.com/auth/v1/verify…` que, al abrirlo, regresa a la app
+`https://litt.asteroitt.com/auth/confirm…` que, al abrirlo, regresa a la app
 con la cuenta confirmada. Si no llega, revisar `$C logs auth` (sin imprimir el
 `.env`). Después, dar de alta la llave de IA (Ajustes) y subir un documento de
 prueba. Comprobar también «Olvidé mi contraseña» con la misma cuenta.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com/auth/v1/signup   # 404 (auth-edge solo expone /verify)
+curl -s -o /dev/null -w '%{http_code}\n' 'https://litt.asteroitt.com/auth/v1/verify?token=x&type=recovery'   # 404 (solo type=invite)
 ```
 
 ### Publicar el release de producción
@@ -452,6 +622,12 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   las páginas de Drive (solo accesibles por URL manual) y el backend responde
   `drivePublicationUnavailable` de forma fail-closed. El workstream del conector
   real (self-serve) reescribirá esas páginas cuando se apruebe.
+- **Código de los enlaces de correo**: `compose.yaml` fija
+  `GOTRUE_MAILER_OTP_LENGTH=10`, el máximo de GoTrue v2.189.0 (el default es 6).
+  La vigencia (`GOTRUE_MAILER_OTP_EXP`, 24 h por default) no cambia: las
+  invitaciones se abren horas después. Los enlaces enviados antes del cambio
+  siguen sirviendo hasta que venzan; basta recrear `auth`
+  (`docker compose up -d auth`).
 - **Correo del sistema (SMTP)**: lo envía GoTrue desde `LiTT
   <no-reply@asteroitt.com>`, por el puerto 587 de
   `svgs440.serverneubox.com.mx`, el nombre del servidor Neubox, que es para el
@@ -467,8 +643,8 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   fija `SSL: port == 465` en `NewDialer`; con `SSL` en falso, `Dial` abre la
   conexión sin cifrar y, si el servidor anuncia la extensión `STARTTLS`, llama a
   `StartTLS`. Es decir, en el 587 hay STARTTLS cuando el servidor lo ofrece; si
-  no lo ofreciera, gomail seguiría sin cifrar. Los enlaces apuntan a
-  `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app.
+  no lo ofreciera, gomail seguiría sin cifrar. El enlace de invitación apunta a
+  `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresa a la app.
   **Recuperación de contraseña, confirmación de registro y cambio de correo**:
   los enlaces de estos tres correos no pasan por `/auth/v1/verify` (PKCE exige
   el mismo navegador que inició el flujo); apuntan a
@@ -503,6 +679,28 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   comas): con valor, el registro exige invitación (de despacho o de plataforma)
   o ser administrador, `POST /auth/oauth` se cierra y solo los administradores
   o quien tenga una invitación de plataforma crean despacho; vacío = abierto.
+  En ese modo el registro no crea la cuenta con la contraseña que escribe quien
+  llama: GoTrue manda el enlace de invitación al correo y la contraseña se
+  define desde ese enlace (igual que con las invitaciones), y «reenviar
+  invitación» vuelve a mandar ese correo. Una segunda petición de registro para
+  la misma dirección en menos de 10 minutos no manda otro correo (el enlace ya
+  enviado sigue valiendo).
+  **Una sola vez tras desplegar este cambio, solo en despliegues por invitación**
+  (no en uno con registro abierto, donde una cuenta sin confirmar con contraseña
+  es lo normal para quien aún no abre su correo; por eso no es una migración y
+  LiTT no escribe en el esquema de GoTrue): las cuentas que nunca se
+  confirmaron dejan de tener contraseña, así que la única entrada es un enlace
+  enviado al correo. Contar y limpiar:
+
+  ```bash
+  cd /srv/litt; C="docker compose --env-file .env -f deploy/prod/compose.yaml"
+  $C exec -T db psql -U supabase_admin -d postgres -tAc "select count(*) from auth.users where email_confirmed_at is null and encrypted_password <> ''"
+  $C exec -T db psql -U supabase_admin -d postgres -tAc "update auth.users set encrypted_password = '' where email_confirmed_at is null and encrypted_password <> ''"
+  ```
+
+  Repetirlo no hace daño (la segunda vez actualiza 0 filas) y no toca cuentas
+  confirmadas. Quien ya tenía un enlace viejo lo abre y entra sin contraseña
+  (la fija desde «Recuperar contraseña» o con una invitación nueva).
 - **Login con Google**: deshabilitado (requiere credenciales de sistema).
 - **Documentos en R2** (`litt-docs`): el respaldo NO los incluye (política de
   borrado definitivo sin retención oculta); R2 es el almacén durable.

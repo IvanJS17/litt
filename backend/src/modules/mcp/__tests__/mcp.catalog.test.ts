@@ -180,7 +180,9 @@ describe("MCP catalog", () => {
         const read = orgs.slice(orgs.indexOf('orgsRouter.get("/:orgId/profile"'), orgs.indexOf('orgsRouter.put(\n    "/:orgId/profile"'));
         expect(read.length).toBeGreaterThan(50);
         expect(read).not.toContain("requireMfaIfEnrolled");
-        expect(orgs.slice(orgs.indexOf('orgsRouter.put(\n    "/:orgId/profile"'), orgs.indexOf('orgsRouter.put(\n    "/:orgId/profile"') + 200)).toContain("requireMfaIfEnrolled");
+        expect(read).not.toContain("requireOrgMutation");
+        expect(orgs.slice(orgs.indexOf('orgsRouter.put(\n    "/:orgId/profile"'), orgs.indexOf('orgsRouter.put(\n    "/:orgId/profile"') + 200)).toContain("requireOrgMutation");
+        // requireOrgMutation is [requireAuth, refusePersonalOrg, requireMfaIfEnrolled]; orgs.routes.stepUp.test.ts checks every write carries it.
     });
 
     it("makes every background tool register its hold: a tool that forgets would free its slot when the call ends (design §9.4)", () => {

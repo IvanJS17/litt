@@ -22,7 +22,7 @@
       "tab": "Invitaciones a la beta"
     },
     "invite": {
-      "notSent": "No pudimos enviar el correo. Avísale que entre a LiTT con ese correo",
+      "notSent": "No enviamos correo. Si ya tiene cuenta, verá la invitación al entrar a LiTT; si no, pídele que se registre con ese correo y le enviaremos el enlace.",
       "sent": "Le enviamos un correo con la invitación"
     },
     "noOrgInvite": "Pide una invitación a tu despacho",
@@ -525,7 +525,7 @@
     },
     "checkEmail": {
       "checkYourEmail": "Revisa tu correo",
-      "confirmationSent": "Enviamos un enlace de confirmación a tu correo electrónico. Confirma tu dirección antes de iniciar sesión.",
+      "confirmationSent": "Enviamos un enlace a tu correo electrónico. Ábrelo para confirmar tu dirección y terminar de configurar tu cuenta.",
       "returnToLogin": "Volver al inicio de sesión"
     },
     "confirm": {

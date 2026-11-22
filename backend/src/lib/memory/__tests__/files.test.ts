@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { expectLinearCost } from "../../../__tests__/helpers/linearCost";
 import { AppError } from "../../appError";
 import {
   ensureMemoryFile,
+  MEMORY_MAX_BYTES,
+  MEMORY_MAX_RAW_CHARS,
   MemoryConversationNotQuietError,
   MemoryDisabledError,
   MemoryEpochSupersededError,
@@ -454,4 +457,79 @@ describe("wipeMemoryFiles", () => {
     // m50..m54 were still wiped individually before m55 stopped the cleanup.
     expect(calls.slice(2).map(([, id]) => id)).toEqual(["m50", "m51", "m52", "m53", "m54", "m55"]);
   });
+});
+
+describe("normalizeMemoryMarkdown on long text", () => {
+    const rejects = (value: string) => {
+        try {
+            normalizeMemoryMarkdown(value);
+        } catch (error) {
+            return error instanceof MemoryValidationError;
+        }
+        return false;
+    };
+
+    it("checks the links of a long tag in linear time", () => {
+        // Cubic cost: the sizes stay small enough to measure before the bound.
+        expectLinearCost((n) => normalizeMemoryMarkdown("<".repeat(n) + " href=" + " ".repeat(n) + "x"), { small: 48, large: 1_536 });
+        expectLinearCost((n) => normalizeMemoryMarkdown("<" + " ".repeat(n) + "x"), { small: 1_000, large: 16_000 });
+        expectLinearCost((n) => normalizeMemoryMarkdown("<a href=" + " ".repeat(n) + "x"), { small: 1_000, large: 16_000 });
+        expectLinearCost((n) => normalizeMemoryMarkdown("<a onx" + " ".repeat(n) + "x"), { small: 1_000, large: 16_000 });
+        expectLinearCost((n) => normalizeMemoryMarkdown("a" + " ".repeat(n) + "b"), { small: 1_000, large: 16_000 });
+    });
+    it("rejects text over the size bound before scanning it", () => {
+        expect(rejects("<".repeat(70_000))).toBe(true);
+        expect(rejects("a" + " ".repeat(70_000) + "b")).toBe(true);
+        expectLinearCost((n) => rejects("<".repeat(n)), { small: 1_000, large: 32_000 });
+    });
+    it("accepts a long tag that is not executable", () => {
+        expect(normalizeMemoryMarkdown("<".repeat(4_096) + " href=" + " ".repeat(4_096) + "x")).toHaveLength(8_199);
+        expect(normalizeMemoryMarkdown("<" + "\t".repeat(16_000) + "x")).toHaveLength(16_002);
+    });
+    it("still rejects executable HTML in its usual forms", () => {
+        const bad = [
+            "<script>x</script>",
+            "< / script>",
+            "<IFRAME src=x>",
+            '<a href="javascript:x">y</a>',
+            "<a href = ' javascript : x'>y</a>",
+            "<a href=javascript:x>",
+            "<a HREF=DATA:text/html,x>",
+            '<img src="data : text/html;base64,x">',
+            '<svg xlink:href="javascript:x">',
+            '<a href="vbscript:x">y</a>',
+            "<a href = ' VBScript : x'>y</a>",
+            '<svg xlink:href="vbscript:x">',
+            "<p onclick=x>",
+            '<p class="a" onMouseOver = "x">',
+            "text <b>ok</b> <a onfocus=x>",
+        ];
+        for (const value of bad) expect(rejects(value), value).toBe(true);
+        const good = ['<a href="https://example.com">y</a>', "<b>ok</b> on = 3 and href = 4", "1 < 2 and 3 > 2, onward=1", "<a href='data:image/png'>", "vbscript: in plain text", '<a href="https://example.com/vbscript:x">y</a>'];
+        for (const value of good) expect(rejects(value), value).toBe(false);
+    });
+    it("holds a file to its size in bytes, not only in characters", () => {
+        expect(rejects("a".repeat(MEMORY_MAX_BYTES + 1))).toBe(true);
+        expect(normalizeMemoryMarkdown("a".repeat(MEMORY_MAX_BYTES))).toHaveLength(MEMORY_MAX_BYTES);
+        // Two bytes a character: within the characters of a file, over its bytes.
+        expect(rejects("é".repeat(MEMORY_MAX_BYTES / 2 + 1))).toBe(true);
+        expect(normalizeMemoryMarkdown("é".repeat(MEMORY_MAX_BYTES / 2))).toHaveLength(MEMORY_MAX_BYTES / 2);
+    });
+    it("holds the text as written to a bound, even when it would shrink to little", () => {
+        // Blank lines normalize to nothing, so only the bound on the raw text refuses this.
+        expect(normalizeMemoryMarkdown(" ".repeat(MEMORY_MAX_RAW_CHARS))).toBe("");
+        expect(rejects(" ".repeat(MEMORY_MAX_RAW_CHARS + 1))).toBe(true);
+        expect(rejects("\t".repeat(MEMORY_MAX_RAW_CHARS + 1))).toBe(true);
+    });
+    it("refuses each tag that can run or embed something, in either form", () => {
+        const tags = ["script", "iframe", "object", "embed", "form", "input", "button", "svg", "math", "style", "link", "meta", "base"];
+        for (const tag of tags) {
+            expect(rejects(`<${tag}>`), tag).toBe(true);
+            expect(rejects(`text </${tag.toUpperCase()} > text`), tag).toBe(true);
+        }
+        expect(rejects("<b>strong</b> and <em>emphasis</em> and <svgfoo>")).toBe(false);
+    });
+    it("keeps the trailing-blank handling", () => {
+        expect(normalizeMemoryMarkdown("a  \r\nb \t\n   \nc\t\t")).toBe("a  \nb\n\nc");
+    });
 });

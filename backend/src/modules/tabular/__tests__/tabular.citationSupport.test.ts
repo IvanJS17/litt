@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { expectLinearCost, expectLinearCostAsync } from "../../../__tests__/helpers/linearCost";
+import { MODEL_TEXT_MAX_CHARS } from "../../../lib/modelJsonFence";
 import {
     cellCitationInputs,
     chatCitationInputs,
@@ -219,5 +221,51 @@ describe("where the tabular check runs code", () => {
         await new Promise((resolve) => setTimeout(resolve, 20));
         expect(deleted).toEqual([["tabular_cell_id", "c"]]);
         expect(tables).toEqual(["citation_support_checks"]);
+    });
+});
+
+describe("citation markers in a long cell", () => {
+    const cell = (text: string) => ({ summary: text, flag: "green" as const, reasoning: "" });
+    const read = (text: string) => cellCitationInputs({ result: cell(text), markdown, sourceDocumentIds: [DOC] });
+
+    it("reads a cell made of opening brackets in linear time", () => {
+        expectLinearCost((n) => read("[[".repeat(n) + "]"), { small: 2_000, large: 64_000 });
+        expectLinearCost((n) => read("[[a" + "[".repeat(n)), { small: 2_000, large: 64_000 });
+    });
+    it("cleans each cell of a chat answer in linear time", async () => {
+        const annotations = Array.from({ length: 8 }, (_, i) => ({ ref: i + 1, col_index: 0, row_index: 0, quote: "q" }));
+        await expectLinearCostAsync(
+            (n) => {
+                const store = {
+                    columns: [{ index: 0 }],
+                    documents: [{ id: DOC }],
+                    cells: new Map([[`0:${DOC}`, cell("[[".repeat(n) + "]")]]),
+                } as unknown as Parameters<typeof chatCitationInputs>[0]["store"];
+                return chatCitationInputs({ fullText: "A [1] [2].", annotations, store });
+            },
+            { small: 2_000, large: 64_000 },
+        );
+    });
+    it("cleans a cell once for however many annotations cite it", async () => {
+        let reads = 0;
+        const counted = {
+            get summary() {
+                reads += 1;
+                return "The term is ten days [[page:1||quote:ten days]].";
+            },
+            flag: "green" as const,
+            reasoning: "",
+        };
+        const store = {
+            columns: [{ index: 0 }],
+            documents: [{ id: DOC }],
+            cells: new Map([[`0:${DOC}`, counted]]),
+        } as unknown as Parameters<typeof chatCitationInputs>[0]["store"];
+        const annotations = Array.from({ length: 12 }, (_, i) => ({ ref: i + 1, col_index: 0, row_index: 0, quote: "q" }));
+        await chatCitationInputs({ fullText: "A [1] [2] [3].", annotations, store });
+        expect(reads).toBe(1);
+    });
+    it("skips a cell over the shared bound", () => {
+        expect(read(`[[document:${DOC}||page:1||quote:${CLAUSE}]]` + "x".repeat(MODEL_TEXT_MAX_CHARS + 1))).toEqual([]);
     });
 });

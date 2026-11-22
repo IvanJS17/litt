@@ -103,7 +103,7 @@ it("streams and retains search scope, page counts and incomplete coverage withou
   const { frames, result } = await searchActivity();
   expect(frames).toEqual([
     { type: "doc_search_start", search_id: "search-call", scope: "library", query: "clause", offset: 10 },
-    { type: "doc_search", search_id: "search-call", scope: "library", query: "clause", offset: 10, match_count: 1, next_offset: 11, coverage },
+    { type: "doc_search", search_id: "search-call", scope: "library", query: "clause", offset: 10, match_count: 1, next_offset: 11, coverage, document_ids: ["document"] },
   ]);
   expect(result.documentSearchEvents).toEqual([frames[1]]);
   expect(JSON.stringify(frames)).not.toContain("private/source");
@@ -244,4 +244,18 @@ it("completes reads when stored text cannot be read, including missing context a
     mocks.read.mockReset();
   }
   expect(mocks.download).not.toHaveBeenCalled();
+});
+
+it("records on the search event the documents whose text or names it returned, once each", async () => {
+  const other = { ...match, document_id: "other", version_id: "other-version", revision: "other-revision" };
+  const again = { ...match, version_id: "newer", revision: "newer-revision" };
+  mocks.find.mockResolvedValue({ ok: true, data: { matches: [match, other, again], next_offset: null, coverage } });
+  const { frames, result } = await searchActivity();
+  expect(result.documentSearchEvents[0]).toMatchObject({ type: "doc_search", match_count: 3, document_ids: ["document", "other"] });
+  expect(frames[1]).toMatchObject({ document_ids: ["document", "other"] });
+});
+it("records no documents on a search that failed", async () => {
+  mocks.find.mockResolvedValue({ ok: false, kind: "validation", detail: "Choose a scope" });
+  const { result } = await searchActivity();
+  expect(result.documentSearchEvents[0]).not.toHaveProperty("document_ids");
 });

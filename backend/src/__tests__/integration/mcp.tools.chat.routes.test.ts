@@ -22,7 +22,7 @@ const h = vi.hoisted(() => ({
     outcome: "ok" as "ok" | "error" | "hang",
     gate: null as null | Promise<void>,
     answer: "",
-    started: [] as { parsed: Record<string, unknown>; origin: unknown; userEmail: unknown }[],
+    started: [] as { parsed: Record<string, unknown>; origin: unknown; userEmail: unknown; allowedCapabilities?: string[] }[],
     sinks: [] as unknown[],
 }));
 
@@ -56,10 +56,10 @@ vi.mock("../../modules/chat/chat.turn", async (importOriginal) => {
     const refuse = (status: number, detail: string, code?: string) => ({ ok: false as const, status, detail, ...(code ? { code } : {}) });
     return {
         ...original,
-        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; requestId?: string; parsed: Record<string, unknown> & { chatId: string | null; model?: string; orgId?: unknown; project: { projectId: string | null }; training: { attempt?: unknown } }; origin?: { grantId: string; label: string } }) => {
+        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; requestId?: string; parsed: Record<string, unknown> & { chatId: string | null; model?: string; orgId?: unknown; project: { projectId: string | null }; training: { attempt?: unknown } }; origin?: { grantId: string; label: string }; allowedCapabilities?: string[] }) => {
             const { parsed, userId } = args;
             const email = args.userEmail ?? "";
-            h.started.push({ parsed, origin: args.origin, userEmail: args.userEmail });
+            h.started.push({ parsed, origin: args.origin, userEmail: args.userEmail, allowedCapabilities: args.allowedCapabilities });
             if (parsed.model === "no-key-model") return refuse(400, "Anthropic (Claude) API key is not configured.", "missing_api_key");
                         let chatId = parsed.chatId;
             let orgId: string | null;
@@ -116,7 +116,7 @@ vi.mock("../../modules/chat/chat.turn", async (importOriginal) => {
                 sink.finish();
                 return;
             }
-            message.content = [{ type: "doc_read", filename: "contrato.docx" }, { type: "doc_read", filename: "anexo.docx" }, { type: "content", text: answer }];
+            message.content = [{ type: "doc_read", filename: "contrato.docx", document_id: "bbbbbbbb-0000-4000-8000-000000000001", version_number: 1 }, { type: "doc_read", filename: "anexo.docx", document_id: "bbbbbbbb-0000-4000-8000-000000000001", version_number: 1 }, { type: "content", text: answer }];
             message.citations = [{ type: "citation_data", ref: 1, document_id: "bbbbbbbb-0000-4000-8000-000000000001", filename: "contrato.docx", page: 1, version_number: 1, quote: "renta mensual de $10,000 MXN" }];
             const chat = tables().chats.find((c) => c.id === started.prepared.chatId)!;
             chat.title ??= "Renta del contrato";
@@ -130,15 +130,16 @@ import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { resetMcpChatOutcomesForTests } from "../../modules/mcp/mcp.chatSink";
 import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
-import { registerLegalVersion } from "../../lib/managedAccounts";
 import {
     buildWorld,
+    DOC_HELD,
     DOC_PUBLIC,
     ORG,
     ORG2,
     PEOPLE,
     PROJECT_PRIVATE,
     PROJECT_PUBLIC,
+    VERSION_HELD,
     type PersonName,
 } from "../helpers/mcpToolsWorld";
 
@@ -160,7 +161,6 @@ beforeEach(() => {
     resetGrantBudgets();
     resetMcpChatOutcomesForTests();
     resetAssistantTurnRunsForTests();
-    registerLegalVersion("test-terms");
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", "http://localhost:3000");
@@ -320,6 +320,20 @@ describe("start_chat", () => {
         expect(callRows().at(-1)).toMatchObject({ tool: "start_chat", outcome: "ok", mode: "B" });
     });
 
+    it("gives the assistant only what the connection's permissions allow: read always, run with litt.run, write with litt.write, and never the person's connectors", async () => {
+        as("editor");
+        const capabilitiesFor = async (scopes: string[]) => {
+            h.started = [];
+            const reply = await callTool(await connect({ scopes }), "start_chat", { message: "hola", matter_id: PROJECT_PUBLIC });
+            expect(reply.ok).toBe(true);
+            return h.started[0].allowedCapabilities;
+        };
+        expect(await capabilitiesFor(["litt.read", "litt.chat"])).toEqual(["read"]);
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.write"])).toEqual(["read", "write"]);
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.run"])).toEqual(["read", "run"]);
+        expect(await capabilitiesFor(ALL_SCOPES)).toEqual(["read", "run", "write"]);
+    });
+
     it("starts a standalone conversation in the named workspace, or in the default one", async () => {
         as("owner");
         const token = await connect({ workspaces: [ORG, "personal"] });
@@ -404,8 +418,17 @@ describe("send_chat_message and the start + poll lifecycle", () => {
         ]);
         // A conversation that began in LiTT keeps its origin.
         expect(h.started[0].origin).toBeUndefined();
+        // The connection's permissions, not the conversation's origin, set what the assistant may do.
+        expect(h.started[0].allowedCapabilities).toEqual(["read", "run", "write"]);
         expect(tables().chats.find((c) => c.id === WEB_CHAT)!.origin).toBe("web");
         expect(tables().chat_messages.filter((m) => m.chat_id === WEB_CHAT && m.author_user_id === PEOPLE.owner.id)).toHaveLength(4);
+    });
+
+    it("narrows a message in an existing conversation the same way", async () => {
+        as("owner");
+        const reply = await callTool(await connect({ scopes: ["litt.read", "litt.chat"] }), "send_chat_message", { chat_id: WEB_CHAT, message: "otra" });
+        expect(reply.ok).toBe(true);
+        expect(h.started[0].allowedCapabilities).toEqual(["read"]);
     });
 
     it("answers generating when the answer is slow; get_chat_turn follows it, a second message is refused, and it completes", async () => {
@@ -765,5 +788,557 @@ describe("GET /mcp-connect/grants/:id/activity", () => {
         await request(app).delete(`/mcp-connect/grants/${grantId()}`);
         const row = tables().chats.find((c) => c.id === started.data.chat_id)!;
         expect(row).toMatchObject({ origin: "mcp", origin_label: "Claude" });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// A trainee's draft a mentor has not approved does not leave LiTT in an answer
+// ---------------------------------------------------------------------------
+
+describe("answers built on a held draft", () => {
+    const WORDS = "PALABRAS-DEL-BORRADOR";
+    const READ_ID = "f0000000-0000-4000-8000-0000000000b1";
+    const CITED_ID = "f0000000-0000-4000-8000-0000000000b2";
+    const approve = () => tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+    const seed = () =>
+        tables().chat_messages.push(
+            // Read the draft and cited nothing.
+            { id: READ_ID, chat_id: WEB_CHAT, role: "assistant", content: [{ type: "doc_read", filename: "borrador.docx", document_id: DOC_HELD, version_id: VERSION_HELD, version_number: 1 }, { type: "content", text: `Resumen: ${WORDS}` }], citations: null, author_user_id: PEOPLE.owner.id, created_at: "2026-11-12T10:00:00Z" },
+            // Cited it by document and version number.
+            { id: CITED_ID, chat_id: WEB_CHAT, role: "assistant", content: [{ type: "content", text: `Dice: ${WORDS}` }], citations: [{ type: "citation_data", ref: 1, document_id: DOC_HELD, filename: "borrador.docx", page: 1, version_number: 1, quote: WORDS }], author_user_id: PEOPLE.owner.id, created_at: "2026-11-12T10:00:01Z" },
+        );
+
+    it("get_chat_turn withholds the answer and quotes of a turn that read or cited a held draft, and returns them once approved", async () => {
+        as("owner");
+        const token = await connect();
+        seed();
+        for (const turn of [READ_ID, CITED_ID]) {
+            const held = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn });
+            expect(held.raw, turn).not.toContain(WORDS);
+            expect(held.data).toMatchObject({ withheld_until_approved: true, code: "training_approval_required" });
+            expect(held.data.answer).toBeUndefined();
+        }
+        expect(tables().audit_events.filter((a) => a.action === "mcp.chat_egress")).toHaveLength(0);
+        approve();
+        for (const turn of [READ_ID, CITED_ID]) expect((await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn })).raw).toContain(WORDS);
+    });
+
+    it("get_chat withholds the text of those messages only", async () => {
+        as("owner");
+        const token = await connect();
+        seed();
+        const held = await callTool(token, "get_chat", { chat_id: WEB_CHAT });
+        expect(held.raw).not.toContain(WORDS);
+        const byId = new Map<string, { text: string; withheld_until_approved?: boolean }>(held.data.messages.map((m: { id: string; text: string }) => [m.id, m]));
+        expect(byId.get(READ_ID)).toMatchObject({ withheld_until_approved: true });
+        expect(byId.get("f0000000-0000-4000-8000-000000000002")!.text).toContain("Son $10,000 MXN.");
+        approve();
+        expect((await callTool(token, "get_chat", { chat_id: WEB_CHAT })).raw).toContain(WORDS);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// An answer leaves through a connection only when everything it drew on does
+// ---------------------------------------------------------------------------
+
+describe("answers and the connection's workspaces", () => {
+    const FOREIGN_DOC = "f1f1f1f1-0000-4000-8000-000000000001";
+    const FOREIGN_VERSION = "f1f1f1f1-0000-4000-8000-0000000000ff";
+    const FOREIGN_NAME = "expediente-otro-despacho.docx";
+    const FOREIGN_TEXT = "TEXTO-DEL-OTRO-DESPACHO";
+    const HELD_WORDS = "PALABRAS-DEL-BORRADOR";
+    const id = (n: number) => `f0000000-0000-4000-8000-0000000002${String(n).padStart(2, "0")}`;
+    const answer = (messageId: string, content: unknown[], citations: unknown[] | null = null) => {
+        const n = tables().chat_messages.length;
+        tables().chat_messages.push({ id: messageId, chat_id: WEB_CHAT, role: "assistant", content, citations, author_user_id: PEOPLE.owner.id, created_at: `2026-11-12T10:${String(10 + n).padStart(2, "0")}:00Z` });
+    };
+    const seedForeign = () => {
+        const t = tables();
+        t.documents.push({ id: FOREIGN_DOC, project_id: null, org_id: ORG2, user_id: PEOPLE.narrow.id, status: "ready", folder_id: null, library_kind: "file", archived_at: null, current_version_id: FOREIGN_VERSION, created_at: "2026-11-03T10:00:00Z", updated_at: "2026-11-05T10:00:00Z" });
+        t.document_versions.push({ id: FOREIGN_VERSION, document_id: FOREIGN_DOC, storage_path: "p/f", pdf_storage_path: null, source: "upload", version_number: 1, filename: FOREIGN_NAME, file_type: "docx", size_bytes: 10, page_count: 1, textless_page_count: 0, content_sha256: "d".repeat(64), training_stage: null, deleted_at: null, text_revision: "r", created_at: "2026-11-03T10:00:00Z" });
+    };
+    const citesForeign = (text = FOREIGN_TEXT) => [{ type: "citation_data", ref: 1, document_id: FOREIGN_DOC, filename: FOREIGN_NAME, page: 1, version_number: 1, quote: text }];
+    const both = async (token: string, turn: string) => ({
+        turn: await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn }),
+        chat: await callTool(token, "get_chat", { chat_id: WEB_CHAT, limit: 30 }),
+    });
+    const messageOf = (chat: ToolAnswer, messageId: string) => chat.data.messages.find((m: { id: string }) => m.id === messageId);
+
+    it("withholds the answer, its citations and the document's name when it cites a document outside the connection", async () => {
+        seedForeign();
+        answer(id(1), [{ type: "content", text: `Según el otro despacho: ${FOREIGN_TEXT}` }], citesForeign());
+        as("narrow");
+        const token = await connect({ workspaces: [ORG] });
+        const turn = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: id(1) });
+        expect(tables().audit_events.filter((a) => a.action === "mcp.chat_egress")).toHaveLength(0);
+        const chat = await callTool(token, "get_chat", { chat_id: WEB_CHAT, limit: 30 });
+        for (const raw of [turn.raw, chat.raw]) {
+            expect(raw).not.toContain(FOREIGN_TEXT);
+            expect(raw).not.toContain(FOREIGN_NAME);
+            expect(raw).not.toContain(FOREIGN_DOC);
+        }
+        expect(turn.data).toMatchObject({ withheld_outside_connection: true, code: "content_outside_connection" });
+        expect(turn.data.answer).toBeUndefined();
+        expect(turn.data.citations).toBeUndefined();
+        expect(messageOf(chat, id(1))).toMatchObject({ text: expect.not.stringContaining(FOREIGN_TEXT), withheld_outside_connection: true });
+    });
+
+    it("returns it to a connection that covers both workspaces", async () => {
+        seedForeign();
+        answer(id(1), [{ type: "content", text: `Según el otro despacho: ${FOREIGN_TEXT}` }], citesForeign());
+        as("narrow");
+        const token = await connect({ workspaces: [ORG, ORG2] });
+        const { turn, chat } = await both(token, id(1));
+        expect(turn.raw).toContain(FOREIGN_TEXT);
+        expect(chat.raw).toContain(FOREIGN_TEXT);
+    });
+
+    it("counts the documents a turn only searched in, edited or created, not just those it cited", async () => {
+        seedForeign();
+        answer(id(1), [{ type: "doc_find", filename: FOREIGN_NAME, document_id: FOREIGN_DOC, version_id: FOREIGN_VERSION, version_number: 1, query: "renta", total_matches: 1 }, { type: "content", text: `Encontré: ${FOREIGN_TEXT}` }]);
+        answer(id(2), [{ type: "doc_edited", filename: FOREIGN_NAME, document_id: FOREIGN_DOC, version_id: FOREIGN_VERSION, version_number: 1, annotations: [] }, { type: "content", text: `Cambié: ${FOREIGN_TEXT}` }]);
+        as("narrow");
+        const token = await connect({ workspaces: [ORG] });
+        for (const turn of [id(1), id(2)]) {
+            const out = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn });
+            expect(out.raw, turn).not.toContain(FOREIGN_TEXT);
+            expect(out.data).toMatchObject({ code: "content_outside_connection" });
+        }
+    });
+
+    it("withholds what follows an answer that drew on such a document, because it can repeat it", async () => {
+        seedForeign();
+        answer(id(1), [{ type: "content", text: "Primero." }], citesForeign());
+        answer(id(2), [{ type: "content", text: `Como dije antes: ${FOREIGN_TEXT}` }]);
+        as("narrow");
+        const token = await connect({ workspaces: [ORG] });
+        const { turn, chat } = await both(token, id(2));
+        expect(turn.raw).not.toContain(FOREIGN_TEXT);
+        expect(turn.data).toMatchObject({ code: "content_outside_connection" });
+        // What the person typed, and what came before the document, stays.
+        expect(messageOf(chat, "f0000000-0000-4000-8000-000000000002").text).toContain("Son $10,000 MXN.");
+        expect(messageOf(chat, id(2))).toMatchObject({ withheld_outside_connection: true });
+    });
+
+    it("withholds an answer whose sources cannot be told, and one that names a document that is gone", async () => {
+        const GONE = "f1f1f1f1-0000-4000-8000-0000000000aa";
+        answer(id(1), [{ type: "content", text: "Texto sin origen conocido." }], [{ type: "citation_data", ref: 1, filename: "x.docx", quote: "q" }]);
+        answer(id(2), [{ type: "content", text: "Texto de un documento borrado." }], [{ type: "citation_data", ref: 1, document_id: GONE, filename: "y.docx", quote: "q" }]);
+        as("owner");
+        const token = await connect({ workspaces: [ORG] });
+        for (const turn of [id(1), id(2)]) {
+            const out = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn });
+            expect(out.data, turn).toMatchObject({ code: "content_outside_connection" });
+            expect(out.data.answer).toBeUndefined();
+        }
+    });
+
+    it("a reply to a new message in a chat whose earlier answers drew on such a document is withheld too", async () => {
+        seedForeign();
+        answer(id(1), [{ type: "content", text: "Primero." }], citesForeign());
+        as("narrow");
+        const token = await connect({ workspaces: [ORG] });
+        const sent = await callTool(token, "send_chat_message", { chat_id: WEB_CHAT, message: "¿Y el plazo?" });
+        expect(sent.ok).toBe(true);
+        expect(sent.data).toMatchObject({ code: "content_outside_connection" });
+        expect(sent.data.answer).toBeUndefined();
+        expect(sent.raw).not.toContain("La renta pactada");
+    });
+
+    it("still returns the answer of a chat that drew only on covered, released documents", async () => {
+        answer(id(1), [{ type: "doc_read", filename: "contrato.docx", document_id: DOC_PUBLIC, version_number: 1 }, { type: "content", text: "La renta es de $10,000 MXN." }], [{ type: "citation_data", ref: 1, document_id: DOC_PUBLIC, filename: "contrato.docx", page: 1, version_number: 1, quote: "renta mensual de $10,000 MXN" }]);
+        as("owner");
+        const token = await connect();
+        const { turn, chat } = await both(token, id(1));
+        expect(turn.raw).toContain("$10,000");
+        expect(chat.raw).toContain("$10,000");
+        expect(turn.data.code).toBeUndefined();
+    });
+
+    describe("a trainee's draft a mentor has not approved", () => {
+        const approve = () => tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+        const NAMES = { filename: "borrador.docx", document_id: DOC_HELD, version_id: VERSION_HELD, version_number: 1 };
+
+        it("is held for a turn that only searched in it or edited it, and released on approval", async () => {
+            answer(id(1), [{ type: "doc_find", ...NAMES, query: "renta", total_matches: 1 }, { type: "content", text: `Encontré: ${HELD_WORDS}` }]);
+            answer(id(2), [{ type: "doc_edited", ...NAMES, annotations: [] }, { type: "content", text: `Cambié: ${HELD_WORDS}` }]);
+            as("owner");
+            const token = await connect();
+            for (const turn of [id(1), id(2)]) {
+                const out = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn });
+                expect(out.raw, turn).not.toContain(HELD_WORDS);
+                expect(out.data).toMatchObject({ withheld_until_approved: true, code: "training_approval_required" });
+            }
+            approve();
+            for (const turn of [id(1), id(2)]) expect((await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn })).raw).toContain(HELD_WORDS);
+        });
+
+        it("is held for a turn that created or replicated from it", async () => {
+            answer(id(1), [{ type: "doc_created", filename: "nuevo.docx", document_id: DOC_HELD, version_id: VERSION_HELD, version_number: 1 }, { type: "content", text: `Creé: ${HELD_WORDS}` }]);
+            answer(id(2), [{ type: "doc_replicated", filename: "borrador.docx", count: 1, copies: [{ new_filename: "copia.docx", document_id: DOC_HELD, version_id: VERSION_HELD }] }, { type: "content", text: `Copié: ${HELD_WORDS}` }]);
+            as("owner");
+            const token = await connect();
+            for (const turn of [id(1), id(2)]) expect((await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn })).raw, turn).not.toContain(HELD_WORDS);
+        });
+
+        it("stays held in later answers of the chat, which can repeat it", async () => {
+            answer(id(1), [{ type: "doc_find", ...NAMES, query: "renta", total_matches: 1 }, { type: "content", text: "Primero." }]);
+            answer(id(2), [{ type: "content", text: `Como dije: ${HELD_WORDS}` }]);
+            as("owner");
+            const token = await connect();
+            const out = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: id(2) });
+            expect(out.raw).not.toContain(HELD_WORDS);
+            expect(out.data).toMatchObject({ withheld_until_approved: true });
+        });
+
+        it("judges a cited version by its own number, not by the document's current one", async () => {
+            const V2 = "cccccccc-0000-4000-8000-0000000000a2";
+            const v1 = tables().document_versions.find((v) => v.id === VERSION_HELD)!;
+            tables().document_versions.push({ ...v1, id: V2, version_number: 2, training_stage: null, content_sha256: "e".repeat(64), created_at: "2026-11-07T10:00:00Z" });
+            tables().documents.find((d) => d.id === DOC_HELD)!.current_version_id = V2;
+            answer(id(2), [{ type: "content", text: `Dice: ${HELD_WORDS}` }], [{ type: "citation_data", ref: 1, document_id: DOC_HELD, filename: "borrador.docx", page: 1, version_number: 1, quote: HELD_WORDS }]);
+            as("owner");
+            const token = await connect();
+            expect((await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: id(2) })).raw).not.toContain(HELD_WORDS);
+        });
+    });
+
+    // Only a chat of the chat tables is read here; the Word pane keeps its own chats, no tool reads them,
+    // so a read that names no document is not a file open in Word: it cannot be placed.
+    describe("a read that names no document, and the searches of an answer", () => {
+        const ASSET = "abababab-0000-4000-8000-000000000001";
+        const ASSET_V = "abababab-0000-4000-8000-0000000000ff";
+        const WORKFLOW = "abababab-0000-4000-8000-0000000000aa";
+        const seedAsset = (stage: "pasante" | null) => {
+            const t = tables();
+            t.workflows = [...(t.workflows ?? []), { id: WORKFLOW, org_id: ORG, user_id: PEOPLE.owner.id, visibility: "organization", type: "assistant", title: "Flujo" }];
+            t.documents.push({ id: ASSET, project_id: null, org_id: ORG, workflow_id: WORKFLOW, user_id: PEOPLE.apprentice.id, status: "ready", folder_id: null, library_kind: "workflow_asset", archived_at: null, current_version_id: ASSET_V, created_at: "2026-11-03T10:00:00Z", updated_at: "2026-11-05T10:00:00Z" });
+            t.document_versions.push({ id: ASSET_V, document_id: ASSET, storage_path: "p/a", pdf_storage_path: null, source: "upload", version_number: 1, filename: "plantilla.docx", file_type: "docx", size_bytes: 10, page_count: 1, textless_page_count: 0, content_sha256: "e".repeat(64), training_stage: stage, deleted_at: null, text_revision: "r", created_at: "2026-11-03T10:00:00Z" });
+        };
+        const turnOf = async (token: string, turn: string) => callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn });
+
+        it("withholds an answer stored with a read that names no document, in the turn and in the transcript", async () => {
+            seedAsset("pasante");
+            answer(id(1), [{ type: "doc_read", filename: "plantilla-pasante.docx", version_id: null, version_number: null }, { type: "content", text: `Según la plantilla: ${HELD_WORDS}` }]);
+            as("owner");
+            const token = await connect();
+            const turn = await turnOf(token, id(1));
+            expect(turn.raw).not.toContain(HELD_WORDS);
+            expect(turn.data).toMatchObject({ code: "content_outside_connection" });
+            const chat = await callTool(token, "get_chat", { chat_id: WEB_CHAT, limit: 30 });
+            expect(chat.raw).not.toContain(HELD_WORDS);
+            expect(messageOf(chat, id(1))).toMatchObject({ withheld_outside_connection: true });
+        });
+
+        it("judges a read of a workflow's file that carries its document by that document: held while a trainee's, released once approved", async () => {
+            seedAsset("pasante");
+            answer(id(1), [{ type: "doc_read", filename: "plantilla.docx", document_id: ASSET, version_id: ASSET_V, version_number: 1 }, { type: "content", text: `Según la plantilla: ${HELD_WORDS}` }]);
+            as("owner");
+            const token = await connect();
+            expect((await turnOf(token, id(1))).data).toMatchObject({ code: "training_approval_required" });
+            tables().training_version_approvals.push({ document_version_id: ASSET_V, content_sha256: "e".repeat(64) });
+            expect((await turnOf(token, id(1))).raw).toContain(HELD_WORDS);
+        });
+
+        it("withholds an answer built only on a search that returned a held draft or a document outside the connection", async () => {
+            seedForeign();
+            answer(id(1), [{ type: "doc_search", query: "renta", scope: "all", match_count: 1, document_ids: [DOC_HELD] }, { type: "content", text: `Encontré: ${HELD_WORDS}` }]);
+            answer(id(2), [{ type: "doc_search", query: "renta", scope: "all", match_count: 1, document_ids: [FOREIGN_DOC] }, { type: "content", text: `Encontré: ${FOREIGN_TEXT}` }]);
+            as("owner");
+            const owner = await connect({ workspaces: [ORG] });
+            expect((await turnOf(owner, id(1))).data).toMatchObject({ code: "training_approval_required" });
+            const outside = await turnOf(owner, id(2));
+            expect(outside.raw).not.toContain(FOREIGN_TEXT);
+            expect(outside.data).toMatchObject({ code: "content_outside_connection" });
+            tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+            expect((await turnOf(owner, id(1))).raw).toContain(HELD_WORDS);
+        });
+
+        it("lets through an answer whose search returned covered, released documents or nothing", async () => {
+            answer(id(1), [{ type: "doc_search", query: "renta", scope: "all", match_count: 1, document_ids: [DOC_PUBLIC] }, { type: "content", text: "La renta es de $10,000 MXN." }]);
+            answer(id(2), [{ type: "doc_search", query: "nada", scope: "all", match_count: 0 }, { type: "content", text: "No encontré nada." }]);
+            as("owner");
+            const token = await connect();
+            expect((await turnOf(token, id(1))).raw).toContain("$10,000");
+            expect((await turnOf(token, id(2))).raw).toContain("No encontré nada.");
+        });
+
+        it("withholds an answer stored with a search that did not record its documents, and what follows it", async () => {
+            answer(id(1), [{ type: "doc_search", query: "renta", scope: "all", match_count: 3 }, { type: "content", text: `Encontré: ${HELD_WORDS}` }]);
+            answer(id(2), [{ type: "content", text: `Como dije: ${HELD_WORDS}` }]);
+            as("owner");
+            const token = await connect();
+            for (const turn of [id(1), id(2)]) {
+                const out = await turnOf(token, turn);
+                expect(out.raw, turn).not.toContain(HELD_WORDS);
+                expect(out.data).toMatchObject({ code: "content_outside_connection" });
+            }
+        });
+    });
+
+    // A title is written from what the person typed and the names of the files attached to
+    // the person's messages, nothing of the assistant's answers or of the documents' text.
+    // So it leaves when every attachment of the chat's own messages may: inside the connection,
+    // not a held draft, and naming a document.
+    describe("a chat's title", () => {
+        const TITLE_NAME = "expediente-otro-despacho.docx";
+        const chatWith = (chatId: string, rows: Record<string, unknown>[], title = "Revisión") => {
+            tables().chats.push({ id: chatId, user_id: PEOPLE.owner.id, project_id: PROJECT_PUBLIC, org_id: ORG, title, model: "claude-sonnet-4-5", origin: "web", created_at: "2026-11-10T09:00:00Z", updated_at: "2026-11-10T12:00:00Z" });
+            rows.forEach((row, index) => tables().chat_messages.push({ chat_id: chatId, author_user_id: PEOPLE.owner.id, citations: null, created_at: `2026-11-10T09:0${index}:00Z`, ...row }));
+        };
+        const chatId = (n: number) => `ffffffff-0000-4000-8000-0000000000a${n}`;
+        const mid2 = (n: number) => `f0000000-0000-4000-8000-0000000004${String(n).padStart(2, "0")}`;
+        const attach = (n: number, files: Record<string, unknown>[], later: Record<string, unknown>[] = []) =>
+            chatWith(chatId(n), [{ id: mid2(n), role: "user", content: "Revisa este archivo", files }, ...later], `Revisión ${n}`);
+        const seedChats = () => {
+            seedForeign();
+            // Attached to the person's message: another firm's file, a held draft, a file that names no document, a covered one, one attached later in the chat.
+            attach(1, [{ filename: TITLE_NAME, document_id: FOREIGN_DOC }]);
+            attach(2, [{ filename: "borrador.docx", document_id: DOC_HELD }]);
+            attach(3, [{ filename: "suelto.docx" }]);
+            attach(4, [{ filename: "contrato.docx", document_id: DOC_PUBLIC }]);
+            chatWith(chatId(5), [{ id: mid2(50), role: "user", content: "hola" }, { id: mid2(51), role: "assistant", content: [{ type: "content", text: "x" }] }, { id: mid2(52), role: "user", content: "y este", files: [{ filename: TITLE_NAME, document_id: FOREIGN_DOC }] }], "Revisión 5");
+            // The assistant read or cited what the connection may not have; the person attached nothing.
+            chatWith(chatId(6), [{ id: mid2(60), role: "assistant", content: [{ type: "content", text: "x" }], citations: citesForeign() }], "Análisis de lo que pidió");
+            chatWith(chatId(7), [{ id: mid2(70), role: "assistant", content: [{ type: "doc_read", filename: "borrador.docx", document_id: DOC_HELD, version_id: VERSION_HELD, version_number: 1 }, { type: "content", text: "x" }] }], "Resumen del asunto");
+        };
+        const titles = (list: ToolAnswer) => new Map<string, unknown>(list.data.chats.map((c: { chat_id: string; title: unknown }) => [c.chat_id, c.title]));
+
+        it("is returned by list_chats and get_chat unless a file attached to one of the person's messages may not leave", async () => {
+            seedChats();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const byChat = titles(await callTool(token, "list_chats", { workspace: ORG }));
+            for (const n of [1, 2, 3, 5]) expect(byChat.get(chatId(n)), String(n)).toBeNull();
+            for (const chat of [WEB_CHAT, chatId(4), chatId(6), chatId(7)]) expect(byChat.get(chat), chat).not.toBeNull();
+            const list = await callTool(token, "list_chats", { workspace: ORG });
+            expect(list.raw).not.toContain(TITLE_NAME);
+            for (const n of [1, 2, 3, 5]) {
+                const out = await callTool(token, "get_chat", { chat_id: chatId(n) });
+                expect(out.data.chat.title, String(n)).toBeNull();
+                expect(out.raw).not.toContain(TITLE_NAME);
+            }
+            for (const n of [4, 6, 7]) expect((await callTool(token, "get_chat", { chat_id: chatId(n) })).data.chat.title, String(n)).not.toBeNull();
+            // The draft is approved: its title comes back. The other firm's, with a connection that covers it.
+            tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+            expect(titles(await callTool(token, "list_chats", { workspace: ORG })).get(chatId(2))).not.toBeNull();
+            const both = await connect({ workspaces: [ORG, ORG2] });
+            const all = titles(await callTool(both, "list_chats", { workspace: ORG }));
+            for (const n of [1, 5]) expect(all.get(chatId(n)), String(n)).not.toBeNull();
+            expect(all.get(chatId(3))).toBeNull();
+        });
+
+        it("is judged on the attachments of every chat of a page, also past the gateway's row limit, and reads no message content", async () => {
+            seedForeign();
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const t = tables();
+            const uid = (p: string, n: number) => `${p}-0000-4000-8000-${String(n).padStart(12, "0")}`;
+            for (let c = 0; c < 4; c++) {
+                const chat = uid("c0c0c0c0", c);
+                t.chats.push({ id: chat, user_id: PEOPLE.narrow.id, project_id: null, org_id: ORG, title: `T${c}`, model: "m", origin: "web", created_at: "2026-11-12T10:00:00Z", updated_at: `2026-11-13T10:0${9 - c}:00Z` });
+                // 700 messages each, half of them the person's and attaching a file: the four chats together hold more of those than the gateway returns at once.
+                for (let m = 0; m < 700; m++)
+                    t.chat_messages.push({ id: uid("c1c1c1c1", c * 1000 + m), chat_id: chat, role: m % 2 ? "assistant" : "user", author_user_id: PEOPLE.narrow.id, created_at: new Date(Date.UTC(2026, 10, 12, 11, 0, 0) + m * 1000).toISOString(), content: m % 2 ? [{ type: "content", text: "ok" }] : "hola", citations: null, ...(m % 2 ? {} : { files: [{ filename: "contrato.docx", document_id: c === 3 && m === 698 ? FOREIGN_DOC : DOC_PUBLIC }] }) });
+            }
+            const selects: string[] = [];
+            const db = h.state!.db as { from: (table: string) => Record<string, unknown> };
+            const original = db.from.bind(db);
+            const cap = 1000;
+            db.from = (table: string) => {
+                const q = original(table) as Record<string, (...a: unknown[]) => unknown>;
+                if (table === "chat_messages") {
+                    const select = q.select.bind(q);
+                    q.select = (columns: unknown) => (selects.push(String(columns)), select(columns));
+                }
+                // The gateway's row limit: a response carries at most `cap` rows.
+                const then = q.then as unknown as (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise<unknown>;
+                (q as Record<string, unknown>).then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
+                    then((r: unknown) => res(Array.isArray((r as { data?: unknown })?.data) ? { ...(r as object), data: ((r as { data: unknown[] }).data).slice(0, cap) } : r), rej);
+                return q;
+            };
+            let list: ToolAnswer;
+            try {
+                list = await callTool(token, "list_chats", { workspace: ORG, limit: 50 });
+            } finally {
+                db.from = original;
+            }
+            const byChat = titles(list);
+            expect(byChat.get(uid("c0c0c0c0", 3))).toBeNull();
+            for (const c of [0, 1, 2]) expect(byChat.get(uid("c0c0c0c0", c)), String(c)).not.toBeNull();
+            expect(list.raw).not.toContain(TITLE_NAME);
+            expect(selects.length).toBeGreaterThan(0);
+            expect(selects.filter((columns) => columns === "*" || /\bcontent\b/.test(columns))).toEqual([]);
+        });
+
+        it("is decided for a whole page in a bounded number of reads: the reads that judge it do not grow with the chats", async () => {
+            seedForeign();
+            const many = (n: number) => {
+                tables().chats = tables().chats.filter((c) => c.id === WEB_CHAT || c.id === PRIVATE_CHAT);
+                tables().chat_messages = tables().chat_messages.filter((m) => m.chat_id === WEB_CHAT || m.chat_id === PRIVATE_CHAT);
+                for (let i = 0; i < n; i++) {
+                    const chat = `ffffffff-0000-4000-8000-${String(1000 + i).padStart(12, "0")}`;
+                    chatWith(chat, [0, 1, 2, 3].map((k) => ({ id: `f0000000-0000-4000-8000-${String(10000 + i * 10 + k).padStart(12, "0")}`, role: k % 2 ? "assistant" : "user", content: k % 2 ? [{ type: "content", text: "x" }] : "hola", ...(k === 0 ? { files: [{ filename: "contrato.docx", document_id: i % 2 ? DOC_PUBLIC : FOREIGN_DOC }] } : {}) })));
+                }
+            };
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            // The reads of the tables the decision uses; the chat list's own access checks are not part of it.
+            const decisionReads = async () => {
+                const db = h.state!.db as { from: (t: string) => unknown };
+                const original = db.from.bind(db);
+                const tally: Record<string, number> = {};
+                db.from = (table: string) => {
+                    tally[table] = (tally[table] ?? 0) + 1;
+                    return original(table);
+                };
+                try {
+                    const out = await callTool(token, "list_chats", { workspace: ORG, limit: 50 });
+                    const own = Object.entries(tally).filter(([table]) => ["chat_messages", "documents", "document_versions", "training_version_approvals", "workflows"].includes(table));
+                    return { out, reads: own.reduce((sum, [, n]) => sum + n, 0), tally };
+                } finally {
+                    db.from = original;
+                }
+            };
+            many(3);
+            const few = await decisionReads();
+            many(40);
+            const lots = await decisionReads();
+            expect(lots.out.data.chats.length).toBeGreaterThan(30);
+            const titled = lots.out.data.chats.filter((c: { title: unknown }) => c.title !== null).length;
+            expect(titled).toBeGreaterThan(0);
+            expect(titled).toBeLessThan(lots.out.data.chats.length);
+            expect(lots.reads).toBeLessThanOrEqual(few.reads);
+            expect(lots.reads).toBeLessThan(20);
+            console.info(`list_chats decision reads: 3 chats=${few.reads} ${JSON.stringify(few.tally)}; 40 chats=${lots.reads} ${JSON.stringify(lots.tally)}`);
+        });
+    });
+
+    // The turn reported is read from the stored message, and a turn that has text always has one
+    // (the reservation is written before the turn starts and filled before the run ends). The
+    // chat is read completely and by a reader that fails loudly: an answer past the gateway's row
+    // limit is judged with its own sources, and a read that fails is an error, not a release.
+    describe("reading the chat to judge an answer", () => {
+        const HELD_READ = { type: "doc_read", filename: "borrador.docx", document_id: DOC_HELD, version_id: VERSION_HELD, version_number: 1 };
+        const turnOf = (token: string, turn: string) => callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: turn });
+        const gateway = (rule: (table: string, nth: number) => "ok" | "fail", cap = 1000) => {
+            const db = h.state!.db as { from: (table: string) => Record<string, unknown> };
+            const original = db.from.bind(db);
+            const seen: Record<string, number> = {};
+            db.from = (table: string) => {
+                seen[table] = (seen[table] ?? 0) + 1;
+                const nth = seen[table];
+                const q = original(table) as Record<string, unknown>;
+                const then = q.then as (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise<unknown>;
+                q.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
+                    rule(table, nth) === "fail"
+                        ? Promise.resolve({ data: null, error: { message: "statement timeout", code: "57014" } }).then(res, rej)
+                        : then((r: unknown) => res(Array.isArray((r as { data?: unknown })?.data) ? { ...(r as object), data: ((r as { data: unknown[] }).data).slice(0, cap) } : r), rej);
+                return q;
+            };
+            return () => {
+                db.from = original;
+            };
+        };
+
+        it("judges an answer stored after the gateway's row limit with its own read of a held draft", async () => {
+            as("owner");
+            const token = await connect();
+            const base = Date.UTC(2026, 10, 12, 12, 0, 0);
+            const at = (n: number) => new Date(base + n * 1000).toISOString();
+            // 1000 earlier messages that name no document, then the answer that read the draft.
+            for (let n = 0; n < 1000; n++)
+                tables().chat_messages.push({ id: `f0000000-0000-4000-8000-${String(100000 + n).padStart(12, "0")}`, chat_id: WEB_CHAT, role: n % 2 ? "assistant" : "user", author_user_id: PEOPLE.owner.id, created_at: at(n), content: n % 2 ? [{ type: "content", text: "ok" }] : "hola", citations: null });
+            tables().chat_messages.push({ id: id(1), chat_id: WEB_CHAT, role: "assistant", author_user_id: PEOPLE.owner.id, created_at: at(2000), content: [HELD_READ, { type: "content", text: `Leí ${HELD_WORDS}` }], citations: null });
+            const restore = gateway(() => "ok");
+            try {
+                const held = await turnOf(token, id(1));
+                expect(held.raw).not.toContain(HELD_WORDS);
+                expect(held.data).toMatchObject({ code: "training_approval_required" });
+                tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+                expect((await turnOf(token, id(1))).raw).toContain(HELD_WORDS);
+            } finally {
+                restore();
+            }
+        });
+
+        it("is an error, never a release, when the chat's messages cannot be read", async () => {
+            as("owner");
+            const token = await connect();
+            answer(id(1), [HELD_READ, { type: "content", text: `Leí ${HELD_WORDS}` }]);
+            // The turn's own read succeeds; every later read of the chat's messages fails.
+            const restore = gateway((table, nth) => (table === "chat_messages" && nth >= 2 ? "fail" : "ok"));
+            try {
+                const failed = await turnOf(token, id(1));
+                expect(failed.ok).toBe(false);
+                expect(failed.raw).not.toContain(HELD_WORDS);
+                const listed = await callTool(token, "list_chats", { workspace: ORG });
+                expect(listed.raw).not.toContain("Revisión de renta");
+            } finally {
+                restore();
+            }
+            expect((await turnOf(token, id(1))).data).toMatchObject({ code: "training_approval_required" });
+        });
+
+        it("withholds a turn whose own message is not among the chat's stored messages", async () => {
+            as("owner");
+            const token = await connect();
+            answer(id(1), [HELD_READ, { type: "content", text: `Leí ${HELD_WORDS}` }]);
+            // The turn's own read finds it; the read of the whole chat no longer does (it was removed in between).
+            const db = h.state!.db as { from: (table: string) => Record<string, unknown> };
+            const original = db.from.bind(db);
+            let reads = 0;
+            db.from = (table: string) => {
+                const q = original(table) as Record<string, unknown>;
+                if (table !== "chat_messages") return q;
+                const nth = ++reads;
+                const then = q.then as (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise<unknown>;
+                q.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
+                    then((r: unknown) => res(nth >= 2 && Array.isArray((r as { data?: unknown })?.data) ? { ...(r as object), data: [] } : r), rej);
+                return q;
+            };
+            try {
+                const out = await turnOf(token, id(1));
+                expect(out.raw).not.toContain(HELD_WORDS);
+                expect(out.data).toMatchObject({ code: "content_outside_connection" });
+            } finally {
+                db.from = original;
+            }
+        });
+    });
+
+    describe("cost of reading a transcript", () => {
+        const countQueries = async (token: string, run: () => Promise<unknown>) => {
+            const db = h.state!.db as { from: (t: string) => unknown };
+            const original = db.from.bind(db);
+            let count = 0;
+            db.from = (table: string) => {
+                count++;
+                return original(table);
+            };
+            try {
+                await run();
+            } finally {
+                db.from = original;
+            }
+            return count;
+        };
+        const fill = (citations: number) => {
+            tables().chat_messages = tables().chat_messages.filter((m) => m.chat_id !== WEB_CHAT);
+            const cites = Array.from({ length: citations }, (_, i) => ({ type: "citation_data", ref: i, document_id: DOC_PUBLIC, filename: "contrato.docx", page: 1, version_number: 1, quote: "q" }));
+            for (let i = 0; i < 30; i++) answer(id(i), [{ type: "content", text: `m${i}` }], cites);
+        };
+
+        it("reads the same number of times for 300 repeated citations as for 3: each distinct document is resolved once", async () => {
+            as("owner");
+            const token = await connect();
+            fill(3);
+            await callTool(token, "get_chat", { chat_id: WEB_CHAT, limit: 30 });
+            const few = await countQueries(token, () => callTool(token, "get_chat", { chat_id: WEB_CHAT, limit: 30 }));
+            fill(300);
+            const many = await countQueries(token, () => callTool(token, "get_chat", { chat_id: WEB_CHAT, limit: 30 }));
+            expect(many).toBe(few);
+            expect(many).toBeLessThan(80);
+        });
     });
 });

@@ -20,6 +20,7 @@ import {
     assistantText,
     getAccessibleChat,
     getChatMessages,
+    getMessagesOfChats,
     listChats,
     loadChatHistory,
     parseChatTurnRequest,
@@ -29,11 +30,13 @@ import {
     stopChatTurn,
     type ChatTurnState,
     type StartChatTurnFailure,
+    type ToolCapability,
 } from "../chat/chat.service";
 import { createMcpChatSink, turnErrorMessage } from "./mcp.chatSink";
 import { recordMcpChatEgress } from "./mcp.calls";
 import { clientNameOf } from "./mcp.grants";
 import { PERSONAL_WORKSPACE } from "./mcp.principal";
+import { chatReleases, chatTurnRelease, titleReleases, withheldFields, type Release } from "./mcp.release";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
 import {
     cursorSchema,
@@ -130,6 +133,21 @@ export function startRefusal(failure: StartChatTurnFailure): never {
     throw new McpToolError(code, failure.detail, suggestion);
 }
 
+/**
+ * What the assistant's own tools may do in a turn this connection starts or
+ * continues: read always, run reviews with litt.run, write documents with
+ * litt.write, and never use the person's third-party connectors (no scope
+ * names them). Every tool that starts a turn passes this to the turn, so the
+ * assistant is simply not given the rest.
+ */
+export function turnCapabilities(call: McpCall): ToolCapability[] {
+    const { scopes } = call.principal;
+    const capabilities: ToolCapability[] = ["read"];
+    if (scopes.includes("litt.run")) capabilities.push("run");
+    if (scopes.includes("litt.write")) capabilities.push("write");
+    return capabilities;
+}
+
 // ---------------------------------------------------------------------------
 // One turn: start, wait a little, report
 // ---------------------------------------------------------------------------
@@ -148,7 +166,20 @@ export async function presentTurn(
     workspace: string,
     state: ChatTurnState,
     window: { offset: number; limitChars: number },
+    /** Already decided by a caller whose answer is not judged on the chat's own messages (a review's thread). */
+    given?: Release,
 ) {
+    // The one place that decides whether a stored answer leaves through this connection.
+    const release = given ?? (state.text || state.citations.length ? await chatTurnRelease(call, chatId, state.messageId) : { ok: true as const });
+    if (!release.ok)
+        return {
+            chat_id: chatId,
+            turn_id: state.messageId,
+            assistant_message_id: state.messageId,
+            status: state.status,
+            ...withheldFields(release),
+            notice: UNTRUSTED_NOTICE,
+        };
     const errorMessage = state.errorMessage ?? (state.status === "failed" ? turnErrorMessage(state.messageId) : null);
     const slice = windowOf(state.text, window.offset, window.limitChars);
     const citations = state.citations
@@ -258,6 +289,7 @@ export async function runTurn(
         origin: args.chatId
             ? undefined
             : { grantId: call.principal.grantId, label: await clientNameOf(call.db, call.principal.clientId) },
+        allowedCapabilities: turnCapabilities(call),
     });
     if (!started.ok) startRefusal(started);
     const turn = started.started;
@@ -488,12 +520,16 @@ export const listChatsTool = defineMcpTool({
             .filter((row) => !args.origin || row.origin === args.origin);
         const offset = decodeCursor(args.cursor);
         const limit = args.limit ?? DEFAULT_PAGE;
+        const page = matching.slice(offset, offset + limit);
+        // A title is written from what the person typed and the names of the files attached to
+        // their messages: it leaves when those files may. One decision for the whole page.
+        const releases = await titleReleases(call, page.map((row) => row.id));
         return mcpText({
             workspace,
-            chats: matching.slice(offset, offset + limit).map((row) => ({
+            chats: page.map((row) => ({
                 chat_id: row.id,
                 // A title is written by a person or a model: data, not a request.
-                title: row.title ? untrusted(row.title) : null,
+                title: row.title && releases.get(row.id)?.ok ? untrusted(row.title) : null,
                 matter_id: row.project_id,
                 matter_name: row.project_name ? untrusted(row.project_name) : null,
                 model: row.model,
@@ -531,13 +567,22 @@ export const getChatTool = defineMcpTool({
         // The cursor is how many messages lie before the page.
         const end = args.cursor ? Math.min(decodeCursor(args.cursor), messages.length) : messages.length;
         const start = Math.max(0, end - (args.limit ?? TRANSCRIPT_DEFAULT_MESSAGES));
-        const page = messages.slice(start, end).map((message) => {
-            const text = message.role === "assistant" ? assistantText(message) : typeof message.content === "string" ? message.content : "";
+        const slice = messages.slice(start, end);
+        // What leaves is judged on the whole chat, read completely and without swallowing an error;
+        // the transcript itself is the page the person sees.
+        const releases = await chatReleases(call, await getMessagesOfChats(call.db, [args.chat_id]), new Set(slice.map((message) => String(message.id))));
+        const titleRelease = (await titleReleases(call, [args.chat_id])).get(args.chat_id);
+        const page = slice.map((message) => {
+            // An answer built on documents that may not leave stays in LiTT, in a transcript too.
+            const release = releases.get(String(message.id));
+            const withheld = release && !release.ok ? release : null;
+            const text = withheld ? "" : message.role === "assistant" ? assistantText(message) : typeof message.content === "string" ? message.content : "";
             return {
                 id: String(message.id),
                 role: String(message.role),
                 created_at: typeof message.created_at === "string" ? message.created_at : null,
                 text,
+                withheld,
             };
         });
         const returned = page.reduce((sum, message) => sum + Math.min(message.text.length, TRANSCRIPT_MESSAGE_CHARS), 0);
@@ -554,7 +599,7 @@ export const getChatTool = defineMcpTool({
         return mcpText({
             chat: {
                 chat_id: chat.id,
-                title: chat.title ? untrusted(chat.title) : null,
+                title: chat.title && titleRelease?.ok ? untrusted(chat.title) : null,
                 matter_id: chat.project_id,
                 workspace: workspaceOf(chat.org_id),
                 model: chat.model,
@@ -570,6 +615,7 @@ export const getChatTool = defineMcpTool({
                 created_at: message.created_at,
                 text: untrusted(message.text.slice(0, TRANSCRIPT_MESSAGE_CHARS)),
                 truncated: message.text.length > TRANSCRIPT_MESSAGE_CHARS,
+                ...(message.withheld ? withheldFields(message.withheld) : {}),
             })),
             total_messages: messages.length,
             next_cursor: start > 0 ? encodeCursor(start) : null,

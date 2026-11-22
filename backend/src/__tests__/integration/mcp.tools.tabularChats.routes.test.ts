@@ -24,7 +24,7 @@ const h = vi.hoisted(() => ({
     outcome: "ok" as "ok" | "error" | "hang",
     gate: null as null | Promise<void>,
     answer: "",
-    started: [] as { parsed: Record<string, any>; reviewId: string }[], // eslint-disable-line @typescript-eslint/no-explicit-any
+    started: [] as { parsed: Record<string, any>; reviewId: string; allowedCapabilities?: string[] }[], // eslint-disable-line @typescript-eslint/no-explicit-any
     sinks: [] as unknown[],
 }));
 
@@ -60,7 +60,7 @@ vi.mock("../../modules/tabular/tabular.reviews", async (importOriginal) => {
             if (!review) return failure("not_found", "Review not found");
             const access = await checkProjectAccess(String(review.project_id), args.userId, args.userEmail ?? "", db);
             if (!access.ok) return failure("not_found", "Review not found");
-            return { ok: true as const, data: { review: { ...review, is_owner: access.isCreator, access_role: access.projectRole }, cells: [], rows: [], documents: [] } };
+            return { ok: true as const, data: { review: { ...review, is_owner: access.isCreator, access_role: access.projectRole }, cells: [], rows: tables().tabular_review_rows.filter((r) => r.review_id === review.id), documents: tables().documents.filter((d) => (review.document_ids as string[]).includes(String(d.id))).map((d) => ({ id: d.id, current_version_id: d.current_version_id })) } };
         }),
     };
 });
@@ -75,9 +75,9 @@ vi.mock("../../modules/tabular/tabular.chatTurn", async (importOriginal) => {
     const tables = () => h.state!.tables;
     return {
         ...original,
-        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; reviewId: string; parsed: Record<string, unknown> & { chatId?: string; model?: string; messages: { content: string }[]; training: { attempt?: unknown } } }) => {
+        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; reviewId: string; parsed: Record<string, unknown> & { chatId?: string; model?: string; messages: { content: string }[]; training: { attempt?: unknown } }; allowedCapabilities?: string[] }) => {
             const { parsed, userId, reviewId } = args;
-            h.started.push({ parsed, reviewId });
+            h.started.push({ parsed, reviewId, allowedCapabilities: args.allowedCapabilities });
             if (parsed.model === "no-key-model") return statusFailure(400, { code: "missing_api_key", detail: "Anthropic (Claude) API key is not configured." });
             const review = tables().tabular_reviews.find((r) => r.id === reviewId);
             if (!review) return failure("not_found", "Review not found");
@@ -138,16 +138,17 @@ import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { resetMcpChatOutcomesForTests } from "../../modules/mcp/mcp.chatSink";
 import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
-import { registerLegalVersion } from "../../lib/managedAccounts";
 import {
     buildWorld,
     DOC_PRIVATE,
+    DOC_HELD,
     DOC_PUBLIC,
     ORG,
     REVIEW_PRIVATE,
     REVIEW_PUBLIC,
     ORG2,
     PEOPLE,
+    VERSION_HELD,
     type PersonName,
 } from "../helpers/mcpToolsWorld";
 
@@ -171,7 +172,6 @@ beforeEach(() => {
     resetGrantBudgets();
     resetMcpChatOutcomesForTests();
     resetAssistantTurnRunsForTests();
-    registerLegalVersion("test-terms");
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", "http://localhost:3000");
@@ -302,6 +302,20 @@ describe("tools/list for the review chat", () => {
 // send_tabular_chat_message
 // ---------------------------------------------------------------------------
 
+describe("send_tabular_chat_message and the connection's permissions", () => {
+    it("gives the assistant only what the connection's permissions allow: read always, run with litt.run, write with litt.write, and never the person's connectors", async () => {
+        as("editor");
+        const capabilitiesFor = async (scopes: string[]) => {
+            h.started = [];
+            const reply = await callTool(await connect({ scopes }), "send_tabular_chat_message", { review_id: REVIEW_PUBLIC, message: "hola" });
+            expect(reply.ok).toBe(true);
+            return h.started[0].allowedCapabilities;
+        };
+        expect(await capabilitiesFor(["litt.read", "litt.chat"])).toEqual(["read"]);
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.run", "litt.write"])).toEqual(["read", "run", "write"]);
+    });
+});
+
 describe("send_tabular_chat_message", () => {
     it("opens a thread the way the web panel does and returns the answer as untrusted data with its cell citations", async () => {
         as("editor");
@@ -347,6 +361,18 @@ describe("send_tabular_chat_message", () => {
             { role: "user", content: "¿Y el plazo?" },
         ]);
         expect(audits().find((a) => a.action === "mcp.send_tabular_chat_message")).toMatchObject({ chat_id: WEB_THREAD });
+    });
+
+    it("does not record a conversation id the person cannot open as the thread it wrote to", async () => {
+        const OTHER_ORG_CHAT = "ffffffff-0000-4000-8000-0000000000f9";
+        tables().chats ??= [];
+        tables().chats.push({ id: OTHER_ORG_CHAT, user_id: PEOPLE.outsider.id, project_id: null, org_id: ORG2, title: null, model: "claude-sonnet-4-5", origin: "web", created_at: "2026-11-10T10:00:00Z", updated_at: "2026-11-10T10:00:00Z" });
+        as("owner");
+        const token = await connect();
+        expect((await callTool(token, "send_tabular_chat_message", { review_id: REVIEW_PUBLIC, chat_id: OTHER_ORG_CHAT, message: "hola" })).code).toBe("not_found");
+        const row = audits().find((a) => a.action === "mcp.send_tabular_chat_message");
+        expect(row).toMatchObject({ chat_id: null, detail: expect.objectContaining({ review_id: REVIEW_PUBLIC, refs_dropped: ["conversation"] }) });
+        expect(JSON.stringify(row)).not.toContain(OTHER_ORG_CHAT);
     });
 
     it("a thread is written by its author only: a colleague reads it but starts their own", async () => {
@@ -608,5 +634,199 @@ describe("parity: the review chat tools allow and deny what the web's review cha
         await request(app).delete(`/mcp-connect/grants/${grantId()}`);
         const res = await rpc(token, "tools/call", { name: "list_tabular_chats", arguments: { review_id: REVIEW_PUBLIC } });
         expect(res.status).toBe(401);
+    });
+});
+
+// A review whose documents include a trainee's draft a mentor has not approved:
+// its thread's answers may have read it, so they stay in LiTT until it is approved.
+describe("a review thread over a held draft", () => {
+    it("withholds the answer, and returns it once the draft is approved", async () => {
+        as("owner");
+        const token = await connect();
+        const review = tables().tabular_reviews.find((r) => r.id === REVIEW_PUBLIC)!;
+        (review.document_ids as string[]).push(DOC_HELD);
+        const held = await callTool(token, "get_tabular_chat_turn", { review_id: REVIEW_PUBLIC, chat_id: WEB_THREAD, turn_id: WEB_ANSWER });
+        expect(held.raw).not.toContain("$10,000 MXN");
+        expect(held.data).toMatchObject({ withheld_until_approved: true, code: "training_approval_required" });
+        tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+        const released = await callTool(token, "get_tabular_chat_turn", { review_id: REVIEW_PUBLIC, chat_id: WEB_THREAD, turn_id: WEB_ANSWER });
+        expect(released.data.answer).toContain("$10,000 MXN");
+    });
+});
+
+// A review's thread is composed from every row the person can read, not from what
+// the connection covers: a review with any document outside the connection's
+// workspaces is not chatted with, nor its thread read, through that connection.
+describe("a review thread and the connection's workspaces", () => {
+    const FOREIGN_DOC = "f1f1f1f1-0000-4000-8000-000000000001";
+    const FOREIGN_VERSION = "f1f1f1f1-0000-4000-8000-0000000000ff";
+    const FOREIGN_ROW = "88888888-0000-4000-8000-0000000000f1";
+    const seedForeign = (stage: "pasante" | null = null) => {
+        const t = tables();
+        t.documents.push({ id: FOREIGN_DOC, project_id: null, org_id: ORG2, user_id: PEOPLE.narrow.id, status: "ready", folder_id: null, library_kind: "file", archived_at: null, current_version_id: FOREIGN_VERSION, created_at: "2026-11-03T10:00:00Z", updated_at: "2026-11-05T10:00:00Z" });
+        t.document_versions.push({ id: FOREIGN_VERSION, document_id: FOREIGN_DOC, storage_path: "p/f", pdf_storage_path: null, source: "upload", version_number: 1, filename: "otro.docx", file_type: "docx", size_bytes: 10, page_count: 1, textless_page_count: 0, content_sha256: "d".repeat(64), training_stage: stage, deleted_at: null, text_revision: "r", created_at: "2026-11-03T10:00:00Z" });
+        const review = t.tabular_reviews.find((r) => r.id === REVIEW_PUBLIC)!;
+        (review.document_ids as string[]).push(FOREIGN_DOC);
+        t.tabular_review_rows.push({ id: FOREIGN_ROW, review_id: REVIEW_PUBLIC, label: "otro.docx", row_type: "document", document_id: FOREIGN_DOC, source_document_ids: [FOREIGN_DOC], sort_index: 1 });
+    };
+    const read = (token: string) => callTool(token, "get_tabular_chat_turn", { review_id: REVIEW_PUBLIC, chat_id: WEB_THREAD, turn_id: WEB_ANSWER });
+
+    it("withholds a stored answer, and refuses to list threads or to start a turn, while the review holds a document outside the connection", async () => {
+        seedForeign();
+        as("narrow");
+        const token = await connect({ workspaces: [ORG] });
+        const turn = await read(token);
+        expect(turn.raw).not.toContain("$10,000 MXN");
+        expect(turn.raw).not.toContain("contrato.docx");
+        expect(turn.data).toMatchObject({ withheld_outside_connection: true, code: "content_outside_connection" });
+        const listed = await callTool(token, "list_tabular_chats", { review_id: REVIEW_PUBLIC });
+        expect(listed.code).toBe("content_outside_connection");
+        const sent = await callTool(token, "send_tabular_chat_message", { review_id: REVIEW_PUBLIC, chat_id: WEB_THREAD, message: "¿Y el plazo?" });
+        expect(sent.code).toBe("content_outside_connection");
+        const fresh = await callTool(token, "send_tabular_chat_message", { review_id: REVIEW_PUBLIC, message: "¿Y el plazo?" });
+        expect(fresh.code).toBe("content_outside_connection");
+        expect(h.started).toHaveLength(0);
+    });
+
+    it("works as before for a connection that covers every workspace of the review", async () => {
+        seedForeign();
+        as("narrow");
+        const token = await connect({ workspaces: [ORG, ORG2] });
+        expect((await read(token)).data.answer).toContain("$10,000 MXN");
+        expect((await callTool(token, "list_tabular_chats", { review_id: REVIEW_PUBLIC })).ok).toBe(true);
+        expect((await callTool(token, "send_tabular_chat_message", { review_id: REVIEW_PUBLIC, message: "¿Y el plazo?" })).ok).toBe(true);
+    });
+
+    it("looks at the held drafts of the whole review, also those outside the connection", async () => {
+        seedForeign("pasante");
+        as("narrow");
+        const narrow = await connect({ workspaces: [ORG] });
+        expect((await read(narrow)).raw).not.toContain("$10,000 MXN");
+        const both = await connect({ workspaces: [ORG, ORG2] });
+        expect((await read(both)).data).toMatchObject({ withheld_until_approved: true, code: "training_approval_required" });
+        tables().training_version_approvals.push({ document_version_id: FOREIGN_VERSION, content_sha256: "d".repeat(64) });
+        expect((await read(both)).data.answer).toContain("$10,000 MXN");
+    });
+
+    it("treats a review with a row whose document is gone as unknown, for a connection", async () => {
+        tables().tabular_review_rows.push({ id: FOREIGN_ROW, review_id: REVIEW_PUBLIC, label: "borrado.docx", row_type: "document", document_id: null, source_document_ids: [], sort_index: 1 });
+        as("owner");
+        const token = await connect();
+        const turn = await read(token);
+        expect(turn.raw).not.toContain("$10,000 MXN");
+        expect(turn.data).toMatchObject({ code: "content_outside_connection" });
+    });
+
+    describe("an answer already stored is judged by what it was built from", () => {
+        const OLD = "f0000000-0000-4000-8000-000000000071";
+        const NEXT = "f0000000-0000-4000-8000-000000000072";
+        const store = (id: string, text: string, sources: string[] | null, at: string) =>
+            tables().tabular_review_chat_messages.push({ id, chat_id: WEB_THREAD, role: "assistant", content: [{ type: "content", text }], annotations: [{ type: "tabular_citation", ref: 1, col_index: 0, row_index: 1, col_name: "Renta", doc_name: "otro.docx", quote: text }], source_document_ids: sources, created_at: at });
+        const removeRow = (docId: string) => {
+            const review = tables().tabular_reviews.find((r) => r.id === REVIEW_PUBLIC)!;
+            review.document_ids = (review.document_ids as string[]).filter((id) => id !== docId);
+            tables().tabular_review_rows = tables().tabular_review_rows.filter((r) => r.document_id !== docId);
+        };
+        const addHeldRow = () => {
+            (tables().tabular_reviews.find((r) => r.id === REVIEW_PUBLIC)!.document_ids as string[]).push(DOC_HELD);
+            tables().tabular_review_rows.push({ id: FOREIGN_ROW, review_id: REVIEW_PUBLIC, label: "borrador.docx", row_type: "document", document_id: DOC_HELD, source_document_ids: [DOC_HELD], sort_index: 1 });
+        };
+        const turn = (token: string, id = OLD) => callTool(token, "get_tabular_chat_turn", { review_id: REVIEW_PUBLIC, chat_id: WEB_THREAD, turn_id: id });
+
+        it("keeps withholding an answer built on a document outside the connection after the row that held it is removed", async () => {
+            seedForeign();
+            store(OLD, "Según TEXTO-DEL-OTRO-DESPACHO", [DOC_PUBLIC, FOREIGN_DOC], "2026-11-10T10:05:00Z");
+            store(NEXT, "Repito: TEXTO-DEL-OTRO-DESPACHO", [DOC_PUBLIC], "2026-11-10T10:06:00Z");
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            expect((await turn(token)).data).toMatchObject({ code: "content_outside_connection" });
+            removeRow(FOREIGN_DOC);
+            for (const id of [OLD, NEXT]) {
+                const after = await turn(token, id);
+                expect(after.raw, id).not.toContain("TEXTO-DEL-OTRO-DESPACHO");
+                expect(after.raw, id).not.toContain("otro.docx");
+                expect(after.data, id).toMatchObject({ code: "content_outside_connection" });
+            }
+            // What the review holds now is covered again: listing and starting work, and the earlier answer still reads.
+            expect((await callTool(token, "list_tabular_chats", { review_id: REVIEW_PUBLIC })).ok).toBe(true);
+            expect((await turn(token, WEB_ANSWER)).data.answer).toContain("$10,000 MXN");
+        });
+
+        it("withholds an answer whose sources were not recorded, and the ones after it", async () => {
+            store(OLD, "Sin origen conocido", null, "2026-11-10T10:05:00Z");
+            store(NEXT, "Y después", [DOC_PUBLIC], "2026-11-10T10:06:00Z");
+            as("owner");
+            const token = await connect();
+            // The service already hides a message of unknown sources from every reader; the next one inherits the doubt.
+            expect((await turn(token, OLD)).code).toBe("not_found");
+            expect((await turn(token, NEXT)).data).toMatchObject({ code: "content_outside_connection" });
+            expect((await turn(token, WEB_ANSWER)).data.answer).toContain("$10,000 MXN");
+        });
+
+        it("keeps withholding an answer built on a held draft after the row is removed, until the draft is approved", async () => {
+            addHeldRow();
+            store(OLD, "Borrador dice PALABRAS-DEL-BORRADOR", [DOC_PUBLIC, DOC_HELD], "2026-11-10T10:05:00Z");
+            as("owner");
+            const token = await connect();
+            expect((await turn(token)).data).toMatchObject({ code: "training_approval_required" });
+            removeRow(DOC_HELD);
+            const after = await turn(token);
+            expect(after.raw).not.toContain("PALABRAS-DEL-BORRADOR");
+            expect(after.data).toMatchObject({ withheld_until_approved: true, code: "training_approval_required" });
+            tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+            expect((await turn(token)).data.answer).toContain("PALABRAS-DEL-BORRADOR");
+        });
+
+        // An answer is composed from the cells as they were when it was written, and those cells may
+        // since have been made again from another version, so no lower bound is knowable: it is
+        // withheld when any version its documents ever had is held, deleted or not, current or not.
+        const V2 = "cccccccc-0000-4000-8000-0000000000a2";
+        const plainV2 = (current = true) => {
+            const v1 = tables().document_versions.find((v) => v.id === VERSION_HELD)!;
+            tables().document_versions.push({ ...v1, id: V2, version_number: 2, training_stage: null, content_sha256: "e".repeat(64), created_at: "2026-11-07T10:00:00Z" });
+            if (current) tables().documents.find((d) => d.id === DOC_HELD)!.current_version_id = V2;
+        };
+        const approveHeld = () => tables().training_version_approvals.push({ document_version_id: VERSION_HELD, content_sha256: "c".repeat(64) });
+
+        it("withholds an answer over a document that had a held version, whichever version is current and whenever the answer was written, until the draft is approved", async () => {
+            addHeldRow();
+            plainV2();
+            // The cells were made from v1; the mentor's plain v2 came on 7 Nov and the cells were not made again; the thread first drew on the document afterwards.
+            store(OLD, "La celda dice PALABRAS-DEL-BORRADOR", [DOC_PUBLIC, DOC_HELD], "2026-11-08T10:00:00Z");
+            store(NEXT, "Y repito: PALABRAS-DEL-BORRADOR", [DOC_PUBLIC, DOC_HELD], "2026-11-09T10:00:00Z");
+            as("owner");
+            const token = await connect();
+            for (const id of [OLD, NEXT]) {
+                const held = await turn(token, id);
+                expect(held.raw, id).not.toContain("PALABRAS-DEL-BORRADOR");
+                expect(held.data, id).toMatchObject({ code: "training_approval_required" });
+            }
+            approveHeld();
+            for (const id of [OLD, NEXT]) expect((await turn(token, id)).data.answer, id).toContain("PALABRAS-DEL-BORRADOR");
+        });
+
+        it("withholds an answer written after the draft was deleted, because its cells may have been made from it", async () => {
+            addHeldRow();
+            plainV2();
+            tables().document_versions.find((v) => v.id === VERSION_HELD)!.deleted_at = "2026-11-06T10:00:00Z";
+            store(OLD, "Dice PALABRAS-DEL-BORRADOR", [DOC_PUBLIC, DOC_HELD], "2026-11-10T10:00:00Z");
+            as("owner");
+            const token = await connect();
+            const held = await turn(token);
+            expect(held.raw).not.toContain("PALABRAS-DEL-BORRADOR");
+            expect(held.data).toMatchObject({ code: "training_approval_required" });
+            approveHeld();
+            expect((await turn(token)).data.answer).toContain("PALABRAS-DEL-BORRADOR");
+        });
+
+        it("lets through an answer over a document none of whose versions was ever held", async () => {
+            addHeldRow();
+            approveHeld();
+            plainV2();
+            store(OLD, "Dice una cosa", [DOC_PUBLIC, DOC_HELD], "2026-11-10T10:00:00Z");
+            as("owner");
+            const token = await connect();
+            expect((await turn(token)).data.answer).toContain("Dice una cosa");
+        });
     });
 });

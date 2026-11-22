@@ -17,13 +17,13 @@ import {
     type CitationSupportInput,
 } from "../../lib/citationSupport";
 import { citationCheckApiKey } from "../../lib/chatFeatureGates";
+import { BoundedTextError, replaceInlineCitations } from "../../lib/modelJsonFence";
 import { verifyQuoteAgainstSource } from "../chat/chat.service";
 import type { TabularCellStore } from "../chat/chat.service";
 import { LEGAL_VERSION } from "../user/user.service";
 import type { CellResult, Db } from "./tabular.shared";
 
-/** `[[document:ID||page:N||quote:...]]`, `[[page:N||quote:...]]` or the spreadsheet form. */
-const INLINE_CITATION = /\[\[((?:[^\[\]]|\[[^\]]*\])+)\]\]/g;
+/** Inline markers are `[[document:ID||page:N||quote:...]]`, `[[page:N||quote:...]]` or the spreadsheet form. */
 const SOURCE_HEADER = "Source document ID: ";
 const SECTION_END = "\n\n---\n\n## Source document:";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -70,14 +70,20 @@ export function cellCitationInputs(args: {
         if (!field) continue;
         const found = new Map<number, InlineCitation>();
         // Each citation marker becomes a plain [n], so the sentence it ends is
-        // found the way the chat finds it.
-        const prose = field.replace(INLINE_CITATION, (marker, metadata: string) => {
-            const citation = parseInlineCitation(metadata);
-            if (!citation) return marker;
-            ref += 1;
-            found.set(ref, citation);
-            return `[${ref}]`;
-        });
+        // found the way the chat finds it. A cell over the shared bound is not checked.
+        let prose: string;
+        try {
+            prose = replaceInlineCitations(field, (marker, metadata) => {
+                const citation = parseInlineCitation(metadata);
+                if (!citation) return marker;
+                ref += 1;
+                found.set(ref, citation);
+                return `[${ref}]`;
+            });
+        } catch (error) {
+            if (error instanceof BoundedTextError) continue;
+            throw error;
+        }
         for (const [n, citation] of found) {
             if (inputs.length >= MAX_CHECKED_CITATIONS) return inputs;
             const documentId =
@@ -115,11 +121,18 @@ export function cellCitationInputs(args: {
 }
 
 /** What a cell looks like to the review chat: its words without the citation markers. */
-const plainCell = (cell: { summary: string; reasoning?: string }) =>
-    [cell.summary, cell.reasoning ?? ""]
-        .map((part) => part.replace(INLINE_CITATION, (marker, metadata: string) => (parseInlineCitation(metadata) ? "" : marker)))
-        .filter(Boolean)
-        .join("\n");
+const plainCell = (cell: { summary: string; reasoning?: string }) => {
+    try {
+        return [cell.summary, cell.reasoning ?? ""]
+            .map((part) => replaceInlineCitations(part, (marker, metadata) => (parseInlineCitation(metadata) ? "" : marker)))
+            .filter(Boolean)
+            .join("\n");
+    } catch (error) {
+        // A cell over the shared bound is not a source to quote from.
+        if (error instanceof BoundedTextError) return "";
+        throw error;
+    }
+};
 
 /**
  * One input per citation of a tabular chat answer. Those citations quote the
@@ -134,11 +147,20 @@ export async function chatCitationInputs(args: {
     // col_index and row_index are positions (the COL/ROW numbers of the
     // prompt); the store keys cells by the column's own index, which has gaps
     // once a column is deleted.
+    // Each cell is cleaned once per answer, however many annotations cite it.
+    const cleaned = new Map<string, string>();
     const cellText = (annotation: { col_index: number; row_index: number }) => {
         const column = args.store.columns[annotation.col_index];
         const document = args.store.documents[annotation.row_index];
-        const cell = column && document ? args.store.cells.get(`${column.index}:${document.id}`) : null;
-        return cell ? plainCell(cell) : "";
+        if (!column || !document) return "";
+        const key = `${column.index}:${document.id}`;
+        let text = cleaned.get(key);
+        if (text === undefined) {
+            const cell = args.store.cells.get(key);
+            text = cell ? plainCell(cell) : "";
+            cleaned.set(key, text);
+        }
+        return text;
     };
     const citations = args.annotations.flatMap((annotation) => {
         if (!annotation || typeof annotation.ref !== "number" || typeof annotation.quote !== "string") return [];

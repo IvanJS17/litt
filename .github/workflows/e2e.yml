@@ -254,8 +254,10 @@ jobs:
             echo "RATE_LIMIT_UPLOAD_SESSION_MUTATION_MAX=100000"
             echo "RATE_LIMIT_UPLOAD_SESSION_POLL_MAX=100000"
             echo "RATE_LIMIT_UPLOAD_SESSION_CREATE_MAX_PER_HOUR=100000"
+            echo "RATE_LIMIT_UPLOAD_SESSION_IP_MAX=100000"
             echo "RATE_LIMIT_AUTH_LOGIN_MAX=100000"
             echo "RATE_LIMIT_AUTH_ACCOUNT_MAX=100000"
+            echo "RATE_LIMIT_AUTH_ACCOUNT_GLOBAL_MAX=100000"
             echo "RATE_LIMIT_AUTH_EMAIL_MAX=100000"
             echo "RATE_LIMIT_AUTH_FLOW_MAX=100000"
             echo "RATE_LIMIT_AUTH_MFA_MAX=100000"
@@ -279,6 +281,9 @@ jobs:
       - name: Start backend API
         run: npm run dev --prefix backend &
       - name: Start web (production server)
+        # The page policy lets the browser upload to this storage origin.
+        env:
+          R2_PUBLIC_ENDPOINT_URL: http://localhost:9000
         run: npm run start --prefix frontend > /tmp/e2e-next.log 2>&1 &
 
       - name: Wait for servers

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ownerlessRpcResult } from "../helpers/ownerlessRpc";
 import { handoverRpcResult } from "../helpers/handoverRpc";
+import { fakeIdentityService } from "../helpers/fakeIdentityService";
 
 // ---------------------------------------------------------------------------
 // Organizations, invitations and project organization overrides, over HTTP.
@@ -271,6 +272,9 @@ function query(table: string) {
     return builder;
 }
 
+const inviteMail = vi.hoisted(() => vi.fn());
+const updateIdentity = vi.hoisted(() => vi.fn());
+const idp = fakeIdentityService();
 vi.mock("../../lib/supabase", () => ({
     createServerSupabase: vi.fn(() => ({
         from: (t: string) => query(t),
@@ -320,6 +324,7 @@ vi.mock("../../lib/supabase", () => ({
                     data: { user: { id: currentUser.id } },
                     error: null,
                 }),
+            admin: { inviteUserByEmail: inviteMail, updateUserById: updateIdentity },
         },
     })),
 }));
@@ -355,6 +360,16 @@ const as = (id: string, email: string) => {
 beforeEach(() => {
     vi.clearAllMocks();
     resetState();
+    idp.reset();
+    inviteMail.mockReset().mockImplementation(idp.invite);
+    updateIdentity.mockReset().mockImplementation(idp.updateUserById);
+    vi.stubEnv("SUPABASE_URL", "http://identity.test");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "service-key");
+    vi.stubGlobal("fetch", vi.fn(idp.fetch));
+});
+afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
 });
 
 // ---------------------------------------------------------------------------
@@ -447,7 +462,8 @@ describe("a personal organization", () => {
     it("is refused by every route that names an organization, including ones added later", () => {
         // The cases above are the routes that exist today. This reads the
         // router itself, so a new /:orgId route cannot be added without the
-        // guard: each must use requireOrgAuth, never requireAuth alone.
+        // guard: each must use requireOrgAuth (reads) or requireOrgMutation
+        // (writes, which add the second factor), never requireAuth alone.
         const source = readFileSync(
             resolve(__dirname, "../../modules/orgs/orgs.routes.ts"),
             "utf8",
@@ -458,7 +474,13 @@ describe("a personal organization", () => {
             ),
         ].map(([, path, guard]) => ({ path, guard }));
         expect(routes.length).toBeGreaterThanOrEqual(21);
-        expect(routes.filter((route) => route.guard !== "requireOrgAuth")).toEqual(
+        expect(
+            routes.filter(
+                (route) =>
+                    route.guard !== "requireOrgAuth" &&
+                    route.guard !== "requireOrgMutation",
+            ),
+        ).toEqual(
             [],
         );
     });
@@ -928,6 +950,67 @@ describe("organization invitations", () => {
         expect(new Date(res.body.expires_at).getTime()).toBeGreaterThan(
             Date.now(),
         );
+    });
+
+    it("resend mails the invitation link again and says whether it went out", async () => {
+        const created = await invite("new@hire.example");
+        expect(idp.mails).toHaveLength(1);
+        const res = await request(app)
+            .post(`/orgs/org-1/invitations/${created.body.id}/resend`)
+            .set(...AUTH);
+        expect(res.status).toBe(200);
+        // A signed-in firm administrator is not held to the anonymous cool-down.
+        expect(idp.mails).toHaveLength(2);
+        expect(res.body.email_sent).toBe(true);
+
+        idp.seed("new@hire.example", { confirmed: true });
+        const again = await request(app)
+            .post(`/orgs/org-1/invitations/${created.body.id}/resend`)
+            .set(...AUTH);
+        expect(again.status).toBe(200);
+        expect(again.body.email_sent).toBe(false);
+    });
+
+    describe("an address whose unconfirmed identity already holds a password", () => {
+        const OLD = "password-from-someone-else";
+        const resend = async () => {
+            const created = await invite("new@hire.example");
+            idp.seed("new@hire.example", { password: OLD });
+            idp.mails.length = 0;
+            return request(app).post(`/orgs/org-1/invitations/${created.body.id}/resend`).set(...AUTH);
+        };
+
+        it("is replaced before the mail when the firm invites", async () => {
+            idp.seed("new@hire.example", { password: OLD });
+            const res = await invite("new@hire.example");
+            expect(res.body.email_sent).toBe(true);
+            expect(updateIdentity).toHaveBeenCalledTimes(1);
+            expect(updateIdentity.mock.invocationCallOrder[0]).toBeLessThan(inviteMail.mock.invocationCallOrder[0]);
+            expect(idp.openLink("new@hire.example")).toBe(true);
+            expect(idp.canSignIn("new@hire.example", OLD)).toBe(false);
+        });
+
+        it("is replaced before the mail when the firm resends", async () => {
+            const res = await resend();
+            expect(res.body.email_sent).toBe(true);
+            expect(idp.openLink("new@hire.example")).toBe(true);
+            expect(idp.canSignIn("new@hire.example", OLD)).toBe(false);
+        });
+
+        it("is untouched when the identity is confirmed", async () => {
+            idp.seed("new@hire.example", { password: OLD, confirmed: true });
+            expect((await invite("new@hire.example")).body.email_sent).toBe(false);
+            expect(updateIdentity).not.toHaveBeenCalled();
+            expect(idp.canSignIn("new@hire.example", OLD)).toBe(true);
+        });
+
+        it("sends no mail when it cannot be replaced", async () => {
+            vi.spyOn(console, "warn").mockImplementation(() => {});
+            updateIdentity.mockResolvedValue({ data: null, error: { message: "boom" } });
+            const res = await resend();
+            expect(res.body.email_sent).toBe(false);
+            expect(idp.mails).toHaveLength(0);
+        });
     });
 
     it("claim-after-signup: an invitation predating the account still lands", async () => {

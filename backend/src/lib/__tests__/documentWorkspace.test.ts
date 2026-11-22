@@ -38,6 +38,16 @@ describe("findDocumentsOutsideWorkspace", () => {
         fake.done();
     });
 
+    it("reports a document that cannot be found as outside only when asked to", async () => {
+        const present = { table: "documents", data: [doc("firm-file", { org_id: FIRM })] };
+        const lenient = scriptedDb([present, organizations]);
+        expect(await findDocumentsOutsideWorkspace(lenient.db, ["firm-file", "gone"], FIRM)).toEqual([]);
+        const strict = scriptedDb([present, organizations]);
+        expect(await findDocumentsOutsideWorkspace(strict.db, ["firm-file", "gone"], FIRM, { reportMissing: true })).toEqual(["gone"]);
+        const none = scriptedDb([{ table: "documents", data: [] }]);
+        expect(await findDocumentsOutsideWorkspace(none.db, ["gone"], FIRM, { reportMissing: true })).toEqual(["gone"]);
+    });
+
     it("keeps an organization's documents out of Personal, and personal ones out of an organization", async () => {
         const documents = {
             table: "documents",

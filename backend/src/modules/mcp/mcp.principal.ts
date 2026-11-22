@@ -15,7 +15,7 @@ import { managedByCreatingOrg, PERSONAL_WORKSPACE_DISABLED_DETAIL } from "../../
 import { readAuthorizationStamp } from "../../lib/authorizationEpoch";
 import { isTrainingStage } from "../../lib/training";
 import { MCP_SCOPES, type McpScope } from "./mcp.config";
-import { grantIsLive, loadGrant } from "./mcp.grants";
+import { grantIsLive, grantPredatesSignOut, loadGrant } from "./mcp.grants";
 
 export const PERSONAL_WORKSPACE = "personal";
 
@@ -101,15 +101,17 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
     // 2. The account.
     const profile = await db
         .from("user_profiles")
-        .select("account_deletion_requested_at, created_by_org_id, terms_accepted_version")
+        .select("account_deletion_requested_at, created_by_org_id, sessions_ended_at")
         .eq("user_id", grant.user_id)
         .maybeSingle();
     if (profile.error) throw dbFailure("account state lookup failed", profile.error);
     const account = profile.data as {
         account_deletion_requested_at?: string | null;
         created_by_org_id?: string | null;
-        terms_accepted_version?: string | null;
+        sessions_ended_at?: string | null;
     } | null;
+    if (grantPredatesSignOut(grant, account?.sessions_ended_at))
+        return deny(401, "invalid_token", "The connection was revoked or has expired.");
     if (account?.account_deletion_requested_at)
         return deny(401, "account_deletion_pending", "This account is being deleted.");
 
@@ -120,7 +122,6 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
             db,
             grant.user_id,
             account?.created_by_org_id,
-            account?.terms_accepted_version,
         );
     } catch (error) {
         throw dbFailure("managed account lookup failed", error);

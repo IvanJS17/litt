@@ -30,6 +30,23 @@ const mocks = vi.hoisted(() => ({
   createOrg: vi.fn(),
 }));
 
+vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
+  MfaVerificationPopup: ({
+    open,
+    onVerified,
+    onCancel,
+  }: {
+    open: boolean;
+    onVerified: () => void;
+    onCancel: () => void;
+  }) =>
+    open ? (
+      <div role="alertdialog" aria-label="Second factor">
+        <button type="button" onClick={onVerified}>Verify second factor</button>
+        <button type="button" onClick={onCancel}>Decline second factor</button>
+      </div>
+    ) : null,
+}));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
   createOrgInvitation: mocks.createOrgInvitation,
@@ -61,7 +78,7 @@ beforeEach(() => {
   }));
   mocks.createOrgInvitation.mockResolvedValue({ email_sent: true });
   mocks.cancelOrgInvitation.mockResolvedValue(undefined);
-  mocks.resendOrgInvitation.mockResolvedValue(undefined);
+  mocks.resendOrgInvitation.mockResolvedValue({ email_sent: true });
   mocks.deleteOrg.mockResolvedValue(undefined);
 });
 
@@ -140,7 +157,7 @@ describe("InviteOrganizationMemberModal", () => {
 
     expect(
       await screen.findByText(
-        "We couldn't send the email. Tell them to sign in to LiTT with that email",
+        "We didn't send an email. If they already have an account, they'll see the invitation when they sign in to LiTT; if not, ask them to sign up with that email and we'll send them the link.",
       ),
     ).toBeInTheDocument();
   });
@@ -220,6 +237,54 @@ describe("CreateOrganizationModal: invitations that did not go out", () => {
   });
 });
 
+describe("InviteOrganizationMemberModal: resending", () => {
+  const pending = {
+    id: "inv-1",
+    org_id: "org-1",
+    email: "partner@firm.example",
+    role: "member",
+    invited_by: "me",
+    status: "pending",
+    expires_at: "2026-12-01T00:00:00Z",
+    created_at: "2026-10-01T00:00:00Z",
+    accepted_at: null,
+    declined_at: null,
+    cancelled_at: null,
+  } as const;
+
+  async function resend(result: { email_sent: boolean }) {
+    mocks.resendOrgInvitation.mockResolvedValue(result);
+    const user = userEvent.setup();
+    render(
+      <InviteOrganizationMemberModal
+        open
+        org={org}
+        invitations={[pending]}
+        onClose={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Resend invitation to partner@firm.example" }),
+    );
+  }
+
+  it("says the invitation was resent when the mail went out", async () => {
+    await resend({ email_sent: true });
+    expect(await screen.findByText("Invitation resent to partner@firm.example.")).toBeInTheDocument();
+  });
+
+  it("does not say so when the mail could not be sent", async () => {
+    await resend({ email_sent: false });
+    expect(
+      await screen.findByText(
+        "We didn't send an email. If they already have an account, they'll see the invitation when they sign in to LiTT; if not, ask them to sign up with that email and we'll send them the link.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Invitation resent to partner@firm.example.")).not.toBeInTheDocument();
+  });
+});
+
 describe("InviteOrganizationMemberModal: a refused address", () => {
   it("says the person is already a member, not the server's text", async () => {
     mocks.createOrgInvitation.mockRejectedValue(
@@ -245,5 +310,76 @@ describe("InviteOrganizationMemberModal: a refused address", () => {
     expect(
       await screen.findByText("new@firm.example is already a member of this organization."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("when the server asks for the second factor", () => {
+  const needsSecondFactor = () =>
+    new MikeApiError({
+      message: "MFA verification required",
+      status: 403,
+      code: "mfa_verification_required",
+    });
+  const verify = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(
+      await screen.findByRole("button", { name: "Verify second factor" }),
+    );
+  const pending = {
+    id: "inv-1",
+    email: "ana@firm.example",
+    role: "member",
+    status: "pending",
+  };
+
+  it.each([
+    ["resend", "Resend invitation to ana@firm.example", mocks.resendOrgInvitation],
+    ["cancel", "Cancel invitation to ana@firm.example", mocks.cancelOrgInvitation],
+  ])("repeats a %s once it is verified", async (_action, label, call) => {
+    const user = userEvent.setup();
+    // The resend answers with the invitation; the cancel answers with nothing the screen reads.
+    call.mockRejectedValueOnce(needsSecondFactor()).mockResolvedValueOnce({ email_sent: true });
+    const onChanged = vi.fn();
+    render(
+      <InviteOrganizationMemberModal
+        open
+        org={{ ...org, role: "owner" }}
+        invitations={[pending] as never}
+        onClose={vi.fn()}
+        onChanged={onChanged}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: label }));
+    await verify(user);
+
+    await waitFor(() => expect(call).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  });
+
+  it("invites the addresses of a new organization once it is verified, asking once", async () => {
+    const user = userEvent.setup();
+    const created = { ...org, id: "org-2", name: "New Chambers" };
+    mocks.createOrg.mockResolvedValue(created);
+    mocks.createOrgInvitation
+      .mockRejectedValueOnce(needsSecondFactor())
+      .mockRejectedValueOnce(needsSecondFactor())
+      .mockResolvedValue({ email_sent: true });
+    const onCreated = vi.fn();
+    render(<CreateOrganizationModal open onClose={vi.fn()} onCreated={onCreated} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
+    });
+    await user.type(screen.getByLabelText("Organization name"), "New Chambers");
+    for (const email of ["a@firm.example", "b@firm.example"]) {
+      await user.type(screen.getByPlaceholderText("Add member by email…"), email);
+      await user.click(screen.getByRole("button", { name: "Add" }));
+    }
+    await user.click(screen.getByRole("button", { name: "Create" }));
+    await verify(user);
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
+    expect(mocks.createOrgInvitation).toHaveBeenCalledTimes(4);
+    expect(screen.queryByText("Some invitations were not sent")).not.toBeInTheDocument();
   });
 });
