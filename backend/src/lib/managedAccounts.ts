@@ -51,13 +51,6 @@ export function findPersonalWorkspaceDisabled(
     return null;
 }
 
-// The current legal version belongs to the user module, which lib/ may not
-// import; that module registers it when it loads (user.profile.storage.ts).
-let currentLegalVersion: string | null = null;
-export function registerLegalVersion(version: string): void {
-    currentLegalVersion = version;
-}
-
 /** Postgres "undefined column", directly or as PostgREST reports it. */
 function isMissingColumn(error: { code?: string | null }): boolean {
     return error.code === "42703" || error.code === "PGRST204";
@@ -66,25 +59,16 @@ function isMissingColumn(error: { code?: string | null }): boolean {
 /**
  * Whether the account is managed by the organization that created it:
  * `createdByOrgId` has the setting on and `userId` is still a member of it.
- * A read failure throws; answering "no" would open the personal space.
+ * A read failure throws; answering "no" would open the personal space. The
+ * legal version the person accepted plays no part: the restriction holds from
+ * the moment the firm turns it on.
  */
 export async function managedByCreatingOrg(
     db: Db,
     userId: string,
     createdByOrgId: string | null | undefined,
-    termsAcceptedVersion?: string | null,
 ): Promise<boolean> {
     if (!createdByOrgId) return false;
-    // The mode applies only once the person has accepted the current legal
-    // version (it is what tells them about it). Until then `termsRequired`
-    // keeps them out of the app. `undefined`: a database without the terms
-    // column, which never asks for acceptance.
-    if (
-        currentLegalVersion !== null &&
-        termsAcceptedVersion !== undefined &&
-        termsAcceptedVersion !== currentLegalVersion
-    )
-        return false;
     const [organization, membership] = await Promise.all([
         db
             .from("organizations")
@@ -118,7 +102,7 @@ export async function isManagedAccount(
 ): Promise<boolean> {
     const { data, error } = await db
         .from("user_profiles")
-        .select("created_by_org_id, terms_accepted_version")
+        .select("created_by_org_id")
         .eq("user_id", userId)
         .maybeSingle();
     if (error) {
@@ -130,8 +114,6 @@ export async function isManagedAccount(
         userId,
         (data as { created_by_org_id?: string | null } | null)
             ?.created_by_org_id,
-        (data as { terms_accepted_version?: string | null } | null)
-            ?.terms_accepted_version,
     );
 }
 
@@ -151,7 +133,7 @@ export async function managedAccountState(
     const none = { managed: false, firm: null, noticePending: false };
     const { data, error } = await db
         .from("user_profiles")
-        .select("created_by_org_id, managed_notice_seen_org_id, terms_accepted_version")
+        .select("created_by_org_id, managed_notice_seen_org_id")
         .eq("user_id", userId)
         .maybeSingle();
     if (error) {
@@ -161,10 +143,9 @@ export async function managedAccountState(
     const row = data as {
         created_by_org_id?: string | null;
         managed_notice_seen_org_id?: string | null;
-        terms_accepted_version?: string | null;
     } | null;
     const orgId = row?.created_by_org_id;
-    if (!orgId || !(await managedByCreatingOrg(db, userId, orgId, row?.terms_accepted_version)))
+    if (!orgId || !(await managedByCreatingOrg(db, userId, orgId)))
         return none;
     const { data: org, error: orgError } = await db
         .from("organizations")
