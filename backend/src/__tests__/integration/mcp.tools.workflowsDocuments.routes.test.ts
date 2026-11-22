@@ -1199,3 +1199,102 @@ describe("convert_document", () => {
         expect((await rpc(token, "tools/call", { name: "convert_document", arguments: { document_id: DOC_PUBLIC, target: "markdown" } })).status).toBe(429);
     });
 });
+
+// ---------------------------------------------------------------------------
+// The audit entry of a call names only what the call was authorised to act on
+// ---------------------------------------------------------------------------
+
+describe("audit entries of calls that name a matter or a document", () => {
+    // Another organization's matter and document. The in-memory database does
+    // not run the trigger that derives a row's organization from its matter or
+    // document, so the rows are checked on the fields that trigger reads: a
+    // row with no matter, document or organization of its own cannot be filed
+    // anywhere else.
+    const PROJECT_FOREIGN = "aaaaaaaa-0000-4000-8000-0000000000f1";
+    const DOC_FOREIGN = "bbbbbbbb-0000-4000-8000-0000000000f1";
+    const foreign = () => {
+        tables().projects.push({ id: PROJECT_FOREIGN, user_id: PEOPLE.outsider.id, org_id: ORG2, name: "Asunto ajeno", cm_number: null, practice: null, visibility: "organization", archived_at: null, created_at: "2026-11-02T10:00:00Z", updated_at: "2026-11-02T10:00:00Z" });
+        tables().documents.push({ id: DOC_FOREIGN, project_id: PROJECT_FOREIGN, org_id: ORG2, user_id: PEOPLE.outsider.id, status: "ready", folder_id: null, library_kind: "file", archived_at: null, current_version_id: null, created_at: "2026-11-02T10:00:00Z", updated_at: "2026-11-02T10:00:00Z" });
+    };
+    const search = (token: string, args: object) => callTool(token, "search_documents", { query: "renta", scope: "library", ...args });
+    const clean = (row: Record<string, unknown> | undefined) => {
+        expect(row).toBeDefined();
+        expect(row).toMatchObject({ surface: "mcp", user_id: PEOPLE.editor.id, status: "completed", project_id: null, document_id: null, chat_id: null });
+        const dump = JSON.stringify(row);
+        for (const id of [PROJECT_FOREIGN, DOC_FOREIGN, ORG2]) expect(dump).not.toContain(id);
+    };
+
+    it("does not file a personal-workspace search under the organization of the ids it names", async () => {
+        foreign();
+        as("editor");
+        const token = await connect({ workspaces: ["personal", ORG] });
+        const out = await search(token, { workspace: "personal", matter_id: PROJECT_FOREIGN, document_id: DOC_FOREIGN });
+        expect(out.ok).toBe(true);
+        const rows = TOOL_AUDIT("search_documents");
+        expect(rows).toHaveLength(1);
+        clean(rows[0]);
+        expect(rows[0].org_id ?? null).toBeNull();
+        expect(rows[0].detail).toMatchObject({ workspace: "personal", refs_dropped: ["document", "matter"] });
+    });
+
+    it("files a search in the person's own organization under that organization, without the foreign ids", async () => {
+        foreign();
+        as("editor");
+        const token = await connect({ workspaces: ["personal", ORG] });
+        expect((await search(token, { workspace: ORG, matter_id: PROJECT_FOREIGN, document_id: DOC_FOREIGN })).ok).toBe(true);
+        const rows = TOOL_AUDIT("search_documents");
+        clean(rows[0]);
+        expect(rows[0]).toMatchObject({ org_id: ORG });
+    });
+
+    it("does not file a quick action that names a foreign document under that document's organization", async () => {
+        foreign();
+        as("editor");
+        const token = await connect({ workspaces: ["personal", ORG] });
+        await callTool(token, "run_quick_action", { quick_action_id: QA_OF_EDITOR, workspace: "personal", document_id: DOC_FOREIGN });
+        const rows = TOOL_AUDIT("run_quick_action");
+        expect(rows).toHaveLength(1);
+        clean(rows[0]);
+        expect(rows[0].org_id ?? null).toBeNull();
+    });
+
+    it("leaves no entry for a call refused before the audit, and none that names the refused ids", async () => {
+        foreign();
+        as("editor");
+        const token = await connect({ workspaces: ["personal", ORG] });
+        expect((await callTool(token, "run_quick_action", { quick_action_id: QA_OF_EDITOR, matter_id: PROJECT_FOREIGN, document_id: DOC_FOREIGN })).code).toBe("not_found");
+        expect((await search(token, { scope: "matter", matter_id: PROJECT_FOREIGN })).code).toBe("not_found");
+        expect(audits()).toEqual([]);
+        expect(JSON.stringify(tables().mcp_tool_calls)).not.toContain(PROJECT_FOREIGN);
+    });
+
+    it("keeps the person's own matter and document when the call was authorised to act on them", async () => {
+        as("editor");
+        const token = await connect({ workspaces: ["personal", ORG] });
+        expect((await search(token, { workspace: ORG, matter_id: PROJECT_PUBLIC, document_id: DOC_PUBLIC })).ok).toBe(true);
+        expect((await search(token, { scope: "matter", matter_id: PROJECT_PUBLIC })).ok).toBe(true);
+        expect((await search(token, { scope: "document", document_id: DOC_PUBLIC })).ok).toBe(true);
+        expect(TOOL_AUDIT("search_documents")).toEqual([
+            expect.objectContaining({ org_id: ORG, project_id: PROJECT_PUBLIC, document_id: DOC_PUBLIC }),
+            expect.objectContaining({ org_id: ORG, project_id: PROJECT_PUBLIC, document_id: null }),
+            expect.objectContaining({ org_id: ORG, project_id: null, document_id: DOC_PUBLIC }),
+        ]);
+        expect(JSON.stringify(TOOL_AUDIT("search_documents"))).not.toContain("refs_dropped");
+    });
+
+    it("leaves out even the person's own matter and document when the call runs in another workspace", async () => {
+        as("editor");
+        const token = await connect({ workspaces: ["personal", ORG] });
+        expect((await search(token, { workspace: "personal", matter_id: PROJECT_PUBLIC, document_id: DOC_PUBLIC })).ok).toBe(true);
+        expect(TOOL_AUDIT("search_documents")).toEqual([
+            expect.objectContaining({ org_id: null, project_id: null, document_id: null, detail: expect.objectContaining({ workspace: "personal", refs_dropped: ["document", "matter"] }) }),
+        ]);
+    });
+
+    it("records the matter and document of a quick action the person may run on them", async () => {
+        as("editor");
+        const token = await connect({ workspaces: ["personal", ORG] });
+        expect((await callTool(token, "run_quick_action", { quick_action_id: QA_OF_EDITOR, document_id: DOC_PUBLIC, matter_id: PROJECT_PUBLIC })).ok).toBe(true);
+        expect(TOOL_AUDIT("run_quick_action")).toEqual([expect.objectContaining({ org_id: ORG, project_id: PROJECT_PUBLIC, document_id: DOC_PUBLIC })]);
+    });
+});

@@ -36,6 +36,7 @@ import {
     type McpAuditRefs,
     type McpCallOutcome,
 } from "./mcp.calls";
+import { authoriseAuditRefs } from "./mcp.auditRefs";
 import { takeGrantBudget, type McpLane } from "./mcp.limits";
 import { acquireHeavySlot, type HeavyClass, type HeavyHold, type HeavyLease } from "./mcp.heavy";
 import { loadConfirmedEmail, modeOf, type McpMode, type McpPrincipal } from "./mcp.principal";
@@ -251,7 +252,8 @@ async function runToolInPrincipal(tool: AnyMcpTool, principal: McpPrincipal, arg
                     principal,
                     tool: tool.name,
                     workspace,
-                    refs: tool.auditRefs?.(args),
+                    // Only what this call was authorised to act on in its workspace.
+                    refs: await authoriseAuditRefs(callOf(), workspace, tool.auditRefs?.(args)),
                 });
             } catch (error) {
                 reportError(error, { tags: { component: "mcp", operation: "mcp.audit_event" } });

@@ -13,6 +13,7 @@ import {
     getProjectsOverview,
 } from "../projects/projects.service";
 import { reportError } from "../../lib/observability/report";
+import { authoriseAuditRefs } from "./mcp.auditRefs";
 import { recordMcpAuditEvent } from "./mcp.calls";
 import { mcpConfig } from "./mcp.config";
 import { defineMcpTool, mcpText, McpToolError } from "./mcp.tools";
@@ -260,7 +261,7 @@ export const createMatter = defineMcpTool({
                 principal: call.principal,
                 tool: "create_matter.created",
                 workspace,
-                refs: { projectId: project.id },
+                refs: await authoriseAuditRefs(call, workspace, { projectId: project.id }),
             });
         } catch (error) {
             reportError(error, { tags: { component: "mcp", operation: "mcp.audit_event" } });
