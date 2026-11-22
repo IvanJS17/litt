@@ -32,7 +32,7 @@ import { listRecentToolCalls } from "./mcp.calls";
 import { listChatsCreatedByGrant } from "../chat/chat.service";
 import { authorizationServerMetadata, protectedResourceMetadata } from "./mcp.metadata";
 import { authenticateMcpRequest, mcpNodeHandler, preflightMcp } from "./mcp.endpoint";
-import type { OAuthResult } from "./mcp.shared";
+import { nowIso, type OAuthResult } from "./mcp.shared";
 import { exchangeAuthorizationCode, refreshTokens, revokeByToken } from "./mcp.tokens";
 
 const problem = mcpConfigurationProblem();
@@ -305,6 +305,14 @@ mcpConsentRouter.get(
 
 mcpConsentRouter.post(
     "/authorizations/:requestId/decision",
+    // A request is checked against a session that is still valid only before
+    // a sign-out, and the sign-out stamp is taken after it. The connection is
+    // dated from the arrival of the request, so one whose request arrived
+    // before a sign-out is always dated at or before its stamp.
+    (_req, res, next) => {
+        res.locals.arrivedAt = nowIso();
+        next();
+    },
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
@@ -318,6 +326,7 @@ mcpConsentRouter.post(
             requestId: String(req.params.requestId),
             userId: res.locals.userId as string,
             personalWorkspaceDisabled: res.locals.personalWorkspaceDisabled === true,
+            arrivedAt: res.locals.arrivedAt as string,
             mfaVerified: body.decision === "approve" ? await hasMfaEnrolled(db, res.locals.token as string) : false,
             decision: body.decision,
             workspaces: workspaceChoices(body.workspaces),

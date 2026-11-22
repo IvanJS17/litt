@@ -2,6 +2,7 @@
 
 import type { Db } from "../../lib/supabase";
 import { AppError } from "../../lib/appError";
+import { reportError } from "../../lib/observability/report";
 import { tryRecordMcpAudit } from "./mcp.audit";
 import { nowIso, type GrantRow } from "./mcp.shared";
 
@@ -10,6 +11,68 @@ export const GRANT_COLUMNS =
 
 export function grantIsLive(grant: GrantRow): boolean {
     return !grant.revoked_at && Date.parse(grant.expires_at) > Date.now();
+}
+
+/**
+ * A connection made before the person last signed out everywhere (or
+ * recovered their password with the sign-out option) is over, whatever its
+ * own expiry says: it is a credential of the account like a session.
+ * `endedAt` is `user_profiles.sessions_ended_at`; connections made after it
+ * are unaffected.
+ */
+export function grantPredatesSignOut(grant: GrantRow, endedAt: string | null | undefined): boolean {
+    return !!endedAt && Date.parse(grant.created_at) <= Date.parse(endedAt);
+}
+
+async function loadSessionsEndedAt(db: Db, userId: string): Promise<string | null> {
+    const { data, error } = await db
+        .from("user_profiles")
+        .select("sessions_ended_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+    if (error) throw new AppError("mcp.db_failed", "[mcp] account state lookup failed", { cause: error });
+    return (data as { sessions_ended_at?: string | null } | null)?.sessions_ended_at ?? null;
+}
+
+/** Live, and not made before the person's last global sign-out. */
+export async function grantIsCurrent(db: Db, grant: GrantRow): Promise<boolean> {
+    return grantIsLive(grant) && !grantPredatesSignOut(grant, await loadSessionsEndedAt(db, grant.user_id));
+}
+
+/**
+ * Record that the person's sessions all ended now, which ends every
+ * connection made until now (see grantPredatesSignOut), then revoke those
+ * connections so their rows, tokens and audit trail say so. A failure to
+ * write the stamp surfaces (the caller still ends the sessions, then answers
+ * the failure): a sign-out that could not end the connections must not look
+ * complete.
+ */
+export async function markSessionsEnded(db: Db, userId: string, reason: string): Promise<void> {
+    const stamp = nowIso();
+    const { data, error } = await db
+        .from("user_profiles")
+        .update({ sessions_ended_at: stamp })
+        .eq("user_id", userId)
+        .select("user_id");
+    if (error) throw new AppError("mcp.db_failed", "[mcp] sign-out stamp failed", { cause: error });
+    if (((data ?? []) as unknown[]).length === 0)
+        throw new AppError("mcp.db_failed", "[mcp] sign-out stamp found no account");
+    // Bookkeeping only: the stamp already ended the connections, so a failure
+    // here is reported and never fails the request.
+    try {
+        const live = await db
+            .from("mcp_grants")
+            .select(GRANT_COLUMNS)
+            .eq("user_id", userId)
+            .is("revoked_at", null);
+        if (live.error) throw live.error;
+        for (const grant of (live.data ?? []) as GrantRow[])
+            if (grantPredatesSignOut(grant, stamp)) await revokeGrant(db, { grantId: grant.id, userId, reason });
+    } catch (failure) {
+        reportError(new AppError("mcp.db_failed", "[mcp] sign-out grant revocation failed", { cause: failure }), {
+            tags: { component: "mcp", operation: "mcp.sign_out_revoke" },
+        });
+    }
 }
 
 export async function loadGrant(db: Db, grantId: string): Promise<GrantRow | null> {
@@ -118,7 +181,10 @@ export async function listGrantsForUser(db: Db, userId: string): Promise<GrantSu
         .is("revoked_at", null)
         .order("created_at", { ascending: false });
     if (error) throw new AppError("mcp.db_failed", "[mcp] grant list failed", { cause: error });
-    const grants = ((data ?? []) as GrantRow[]).filter(grantIsLive);
+    const endedAt = await loadSessionsEndedAt(db, userId);
+    const grants = ((data ?? []) as GrantRow[]).filter(
+        (g) => grantIsLive(g) && !grantPredatesSignOut(g, endedAt),
+    );
     if (grants.length === 0) return [];
     const clients = await db
         .from("mcp_oauth_clients")

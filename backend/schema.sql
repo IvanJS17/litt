@@ -12,6 +12,9 @@ create extension if not exists "pg_trgm";
 
 create table if not exists public.user_profiles (
   account_deletion_requested_at timestamptz,
+  -- LiTT: when the person last ended all their sessions; connections to the
+  -- MCP server made at or before it are over (20261121_10).
+  sessions_ended_at timestamptz,
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,
   email text,
@@ -23411,5 +23414,6 @@ insert into public.schema_migrations (filename) values
   ('20261119_40_litt_rule_questions.sql'),
   ('20261119_50_litt_request_type_playbooks.sql'),
   ('20261119_60_litt_ai_call_usage.sql'),
-  ('20261119_80_litt_donna_triage.sql')
+  ('20261119_80_litt_donna_triage.sql'),
+  ('20261121_10_litt_sessions_ended_at.sql')
 on conflict (filename) do nothing;

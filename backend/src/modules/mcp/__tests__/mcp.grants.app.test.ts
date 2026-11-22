@@ -60,7 +60,10 @@ describe("listGrantsForUser", () => {
         const db = {
             from: (table: string) => ({
                 select: () => ({
-                    eq: () => ({ is: () => ({ order: async () => ({ data: grants, error: null }) }) }),
+                    eq: () => ({
+                        is: () => ({ order: async () => ({ data: grants, error: null }) }),
+                        maybeSingle: async () => ({ data: { sessions_ended_at: null }, error: null }),
+                    }),
                     in: async () => ({ data: table === "mcp_oauth_clients" ? names : [], error: null }),
                 }),
             }),
