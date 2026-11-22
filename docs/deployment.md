@@ -562,6 +562,20 @@ by default, may create at most 50 sessions per hour. Upload-session mutation,
 polling, and hourly creation limits can be overridden with the
 `RATE_LIMIT_UPLOAD_SESSION_*` environment variables documented in
 `backend/.env.example`; missing or invalid values use the documented defaults.
+`/upload-sessions` requests without a signed-in user are also counted per
+client address before the router (`RATE_LIMIT_UPLOAD_SESSION_IP_MAX`, default
+300 per 15 minutes, the general lane's ceiling). Signed-in calls, including
+status polling, are bounded only by the per-user limits.
+
+Before a caller is authenticated the API reads only a JSON body of at most
+1 MB, and it never reads a compressed request body (`415
+unsupported_content_encoding`). A larger body (up to 50 MB) is read only after
+the caller has been authenticated. Password sign-in failures are limited per
+(account, client address) (`RATE_LIMIT_AUTH_ACCOUNT_MAX`, default 10) and, much
+more loosely, per account across clients (`RATE_LIMIT_AUTH_ACCOUNT_GLOBAL_MAX`,
+default 100); only a refused email/password counts. Once the account-wide
+ceiling is reached, sign-in for that account answers 429 from every address
+until the window ends.
 Sessions that update the same mutable document version remain mutually
 exclusive. Sessions
 expire after 30 minutes, extended by a further 30 minutes each time a file
