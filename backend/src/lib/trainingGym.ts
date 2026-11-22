@@ -14,6 +14,7 @@ import type {
     TrainingGymScore,
 } from "@mike/contracts";
 import { fenced } from "./promptFence";
+import { unwrapFencedJsonBlock } from "./modelJsonFence";
 
 export const GYM_KINDS: readonly TrainingGymErrorKind[] = [
     "superseded_thesis",
@@ -178,10 +179,9 @@ export function parseGymDraft(
     raw: string,
     args: { practice: string; count: number },
 ): TrainingGymCaseBody | null {
-    const body = raw.trim().replace(/^```(?:json)?\s*\n([\s\S]*)\n```$/i, "$1").trim();
     let parsed: unknown;
     try {
-        parsed = JSON.parse(body);
+        parsed = JSON.parse(unwrapFencedJsonBlock(raw));
     } catch {
         return null;
     }

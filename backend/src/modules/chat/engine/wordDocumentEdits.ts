@@ -1,3 +1,4 @@
+import { findTaggedBlocks } from "../../../lib/modelJsonFence";
 import type { Db } from "../../../lib/supabase";
 
 export type { WordEditApplyMode } from "@mike/contracts";
@@ -18,8 +19,6 @@ interface ContentPart {
   blockIndex?: number;
   sourceEvent: Record<string, unknown>;
 }
-
-const COMPLETE_JSON_EDITS = /<EDITS>\s*([\s\S]*?)\s*<\/EDITS>/gi;
 
 export const WORD_EDIT_FORMATS: ReadonlySet<string> = new Set([
   "bold",
@@ -189,17 +188,18 @@ export function projectWordDocumentEditEvents(events: unknown[]): {
     }
 
     const text = event.text;
-    const matcher = new RegExp(COMPLETE_JSON_EDITS.source, "gi");
     let cursor = 0;
-    let match: RegExpExecArray | null;
-    while ((match = matcher.exec(text)) !== null) {
-      const prose = cleanProse(text.slice(cursor, match.index));
+    // A text over the shared bound throws `BoundedTextError`: no answer a
+    // model writes is that long, and a turn whose edits cannot be read fails
+    // (the failure of a turn that cannot be saved) rather than show them as text.
+    for (const block of findTaggedBlocks(text, "EDITS")) {
+      const prose = cleanProse(text.slice(cursor, block.start));
       if (prose) {
         parts.push({ kind: "content", text: prose, sourceEvent: event });
       }
       let rows: unknown = null;
       try {
-        rows = JSON.parse(match[1] ?? "");
+        rows = JSON.parse(block.inner);
       } catch {
         rows = null;
       }
@@ -219,7 +219,7 @@ export function projectWordDocumentEditEvents(events: unknown[]): {
           blockIndex += 1;
         }
       }
-      cursor = matcher.lastIndex;
+      cursor = block.end;
     }
 
     const tail = cleanProse(text.slice(cursor));

@@ -52,6 +52,7 @@ vi.mock("../../documents/documents.service", async (original) => ({
 }));
 
 import { blankPlaybookContent, reviewWithPlaybook } from "../playbooks.operations";
+import { COMPLETION_REASONING_HEADROOM_TOKENS } from "../../../lib/llm/aiSdk";
 import {
   addPlaybookSourceFromDocument,
   addPlaybookSourceFromUpload,
@@ -408,6 +409,24 @@ describe("reviews with supplementary documents", () => {
     expect(toolResults[0]).toContain("Personal data stays in the EU.");
     expect(toolResults[1]).toMatch(/no supplementary document has that id/i);
     expect(toolResults[1]).not.toContain("Secret");
+  });
+
+  it("asks for the output limit of the review without documents, plus the reasoning allowance", async () => {
+    const withSources = database({ playbooks: [book()], playbook_sources: [source()] });
+    streamChatWithTools.mockResolvedValue({ fullText: JSON.stringify({ summary: "ok", findings: [] }) });
+    completeText.mockResolvedValue(JSON.stringify({ summary: "ok", findings: [] }));
+    const review = (db: Db) =>
+      reviewWithPlaybook({ userId: "owner", playbookId: "book", documentText: "Contract", model: "claude-opus-5", reviewMode: "strict", db });
+
+    await review(withSources.db);
+    await review(database({ playbooks: [book()] }).db);
+
+    const limitOfSingleCall = completeText.mock.calls.at(-1)?.[0].maxTokens;
+    expect(limitOfSingleCall).toBeGreaterThan(0);
+    // The streaming call has no reasoning allowance of its own, so the caller adds it.
+    expect(streamChatWithTools.mock.calls.at(-1)?.[0].maxOutputTokens).toBe(
+      limitOfSingleCall + COMPLETION_REASONING_HEADROOM_TOKENS,
+    );
   });
 
   it("keeps the single-call review when there is nothing to read", async () => {

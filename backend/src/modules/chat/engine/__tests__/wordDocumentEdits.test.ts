@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { projectWordDocumentEditEvents } from "../wordDocumentEdits";
+import { expectLinearCost } from "../../../../__tests__/helpers/linearCost";
+import { BoundedTextError, charsForTokens, MODEL_TEXT_MAX_CHARS } from "../../../../lib/modelJsonFence";
+import { persistWordDocumentEdits, projectWordDocumentEditEvents } from "../wordDocumentEdits";
 
 describe("projectWordDocumentEditEvents", () => {
   it("keeps prose and edit references in exact source order", () => {
@@ -197,4 +199,38 @@ describe("projectWordDocumentEditEvents with tool-proposed edits", () => {
     expect(result.edits).toEqual([]);
     expect(result.parts).toEqual([]);
   });
+});
+
+describe("projectWordDocumentEditEvents on a long answer", () => {
+    const project = (text: string) => projectWordDocumentEditEvents([{ type: "content", text }]);
+
+    it("finds no edits in an unclosed block in linear time", () => {
+        // Cubic cost: the sizes stay small enough to measure before the bound.
+        expectLinearCost((n) => project("<EDITS>" + " ".repeat(n) + "x"), { small: 48, large: 1_536 });
+        expectLinearCost((n) => project("<EDITS>".repeat(n)), { small: 500, large: 16_000 });
+        expect(project("<EDITS>".repeat(16_000)).edits).toEqual([]);
+    });
+    it("reads many closed blocks in linear time", () => {
+        expectLinearCost((n) => project("a <edits> [] </EDITS> ".repeat(n)), { small: 500, large: 8_000 });
+    });
+    it("keeps the prose around a closed block and reads the rows inside", () => {
+        const row = { type: "edit_data", kind: "edit", deleted_text: "plazo", inserted_text: "término", reason: "Precisión" };
+        const got = project(`Antes.\n\n<edits>\n  ${JSON.stringify([row])}\n</EDITS> Después.`);
+        expect(got.edits).toHaveLength(1);
+        expect(got.parts.filter((part) => part.kind === "content").map((part) => part.text)).toEqual(["Antes.", "Después."]);
+    });
+    it("refuses an answer over the shared bound instead of showing its edits as text", () => {
+        const over = "<EDITS>[]</EDITS>" + "x".repeat(MODEL_TEXT_MAX_CHARS);
+        expect(() => project(over)).toThrow(BoundedTextError);
+    });
+    it("reads an answer of the largest size a model can write", () => {
+        const row = { type: "edit_data", kind: "edit", deleted_text: "a", inserted_text: "b", reason: "r" };
+        const largest = "x".repeat(charsForTokens(128_000) - 200) + `<EDITS>${JSON.stringify([row])}</EDITS>`;
+        expect(project(largest).edits).toHaveLength(1);
+    });
+    it("fails the persisting of an answer over the shared bound, as any failed save does", async () => {
+        const events = [{ type: "content", text: "<EDITS>[]</EDITS>" + "x".repeat(MODEL_TEXT_MAX_CHARS) }];
+        const db = { from: () => { throw new Error("nothing is written"); } } as unknown as Parameters<typeof persistWordDocumentEdits>[0]["db"];
+        await expect(persistWordDocumentEdits({ db, messageId: "m1", events, applyMode: "approval" })).rejects.toBeInstanceOf(BoundedTextError);
+    });
 });

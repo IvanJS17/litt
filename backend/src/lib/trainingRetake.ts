@@ -18,6 +18,7 @@
 
 import type { TrainingVerdictValue } from "@mike/contracts";
 import { legalReferences } from "./legalReferences";
+import { unwrapFencedJsonBlock } from "./modelJsonFence";
 import { fenced } from "./promptFence";
 import { contrastSections } from "./trainingNotes";
 
@@ -122,9 +123,8 @@ export function buildRetakeQuestionPrompt(
 }
 
 function parseJsonObject(text: string): Record<string, unknown> | null {
-    const body = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*)\n```$/i, "$1").trim();
     try {
-        const parsed: unknown = JSON.parse(body);
+        const parsed: unknown = JSON.parse(unwrapFencedJsonBlock(text));
         return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
     } catch {
         return null;

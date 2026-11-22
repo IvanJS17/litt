@@ -17,6 +17,7 @@ import { enqueueDbJob } from "../../../../lib/dbq/enqueue";
 import type { Db } from "../../../../lib/supabase";
 import { buildDownloadUrl } from "../../../../lib/downloadTokens";
 import { isVersionHeld } from "../../../../lib/trainingRelease";
+import { bulletListMarker, letteredListMarker, numberedListMarker } from "../../../../lib/modelJsonFence";
 import {
   contentSha256,
   loadActiveVersion,
@@ -229,27 +230,27 @@ export async function generateDocx(
     const stripManualNumbering = (
       value: string,
     ): { text: string; levelFromPrefix: number | null } => {
-      const match = value.trim().match(/^(\d+(?:\.\d+)*)(?:[.)])?\s+(.+)$/);
+      const match = numberedListMarker(value.trim());
       if (!match) return { text: value.trim(), levelFromPrefix: null };
       return {
-        text: match[2].trim(),
-        levelFromPrefix: match[1].split(".").length - 1,
+        text: match.text.trim(),
+        levelFromPrefix: match.marker.split(".").length - 1,
       };
     };
     const parseManualListMarker = (
       value: string,
     ): { text: string; levelOffset: number | null } => {
       const trimmed = value.trim();
-      const match = trimmed.match(/^(\(([a-z]+)\)|([a-z]+)[.)])\s+(.+)$/i);
+      const match = letteredListMarker(trimmed);
       if (!match) return { text: trimmed, levelOffset: null };
-      const marker = (match[2] ?? match[3] ?? "").toLowerCase();
+      const marker = match.marker.toLowerCase();
       const isRoman =
         marker === "i" ||
         (marker.length > 1 &&
           /^(?:m{0,4}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))$/i.test(
             marker,
           ));
-      return { text: match[4].trim(), levelOffset: isRoman ? 3 : 2 };
+      return { text: match.text.trim(), levelOffset: isRoman ? 3 : 2 };
     };
     const normalizeHeadingText = (value: string) =>
       value
@@ -434,8 +435,8 @@ export async function generateDocx(
         for (const line of section.content.split("\n")) {
           const trimmed = line.trim();
           if (!trimmed) continue;
-          const bulletMatch = trimmed.match(/^[-•*]\s+(.+)/);
-          const rawText = bulletMatch ? bulletMatch[1].trim() : trimmed;
+          const bulletMatch = bulletListMarker(trimmed);
+          const rawText = bulletMatch !== null ? bulletMatch.trim() : trimmed;
           const manualList = parseManualListMarker(rawText);
           const numeric = stripManualNumbering(rawText);
           const inferredLevel =

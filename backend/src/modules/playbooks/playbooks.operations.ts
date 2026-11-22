@@ -33,6 +33,8 @@ export type {
 import crypto from "node:crypto";
 import { AppError } from "../../lib/appError";
 import { safeError } from "../../lib/safeError";
+import { COMPLETION_REASONING_HEADROOM_TOKENS } from "../../lib/llm/aiSdk";
+import { BoundedTextError, charsForTokens, stripCodeFence } from "../../lib/modelJsonFence";
 const { jsonrepair } = require("jsonrepair") as {
   jsonrepair: (text: string) => string;
 };
@@ -227,11 +229,27 @@ function parseJson(value: unknown): unknown {
   }
 }
 
+/** What a playbook review asks a model to write at the most (an import, a draft and the rest ask 16,000). */
+const REVIEW_MAX_OUTPUT_TOKENS = 20_000;
+
+/**
+ * The most a malformed answer may hold to be repaired rather than refused:
+ * the longest answer these calls can get, one cut at their output limit (the
+ * review's, plus the allowance for models that always reason). The repair is
+ * not linear on every damaged shape, so it reads no more than that.
+ */
+export const PLAYBOOK_REPAIR_MAX_CHARS = charsForTokens(REVIEW_MAX_OUTPUT_TOKENS + COMPLETION_REASONING_HEADROOM_TOKENS);
+
 export function parseModelJson(raw: string): unknown {
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "");
+  let cleaned: string;
+  try {
+    cleaned = stripCodeFence(raw);
+  } catch (error) {
+    if (error instanceof BoundedTextError) {
+      throw new PlaybookModelOutputError("The model's answer is too long to read.");
+    }
+    throw error;
+  }
   try {
     return JSON.parse(cleaned);
   } catch {
@@ -242,6 +260,11 @@ export function parseModelJson(raw: string): unknown {
       try {
         return JSON.parse(slice);
       } catch {
+        if (slice.length > PLAYBOOK_REPAIR_MAX_CHARS) {
+          throw new PlaybookModelOutputError(
+            "The model did not return structured JSON.",
+          );
+        }
         return JSON.parse(jsonrepair(slice));
       }
     }
@@ -2452,7 +2475,7 @@ export async function runPlaybookReview(
           model: work.model,
           systemPrompt: REVIEW_SYSTEM_PROMPT,
           user: prompt,
-          maxTokens: 20_000,
+          maxTokens: REVIEW_MAX_OUTPUT_TOKENS,
           apiKeys: keys,
           abortSignal: signal,
         });
@@ -2597,6 +2620,10 @@ async function completeReviewWithSources(args: {
     messages: [{ role: "user", content: args.prompt }],
     tools: [READ_SOURCE_TOOL],
     maxIterations: 8,
+    // The limit of the review without documents. The one-shot call adds the
+    // reasoning allowance itself; this one does not, so it is asked for here.
+    maxOutputTokens:
+      REVIEW_MAX_OUTPUT_TOKENS + COMPLETION_REASONING_HEADROOM_TOKENS,
     apiKeys: args.apiKeys,
     abortSignal: args.signal,
     runTools: (calls) =>

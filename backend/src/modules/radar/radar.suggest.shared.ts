@@ -13,6 +13,7 @@
  * DATA: the answer is only ever read through the schema below.
  */
 
+import { BoundedTextError, replaceTags } from "../../lib/modelJsonFence";
 import { cleanText, isRecord } from "../client-profile/client-profile.service";
 
 /** Most suggestions one run keeps: the catalog's size, and no more is read. */
@@ -68,11 +69,23 @@ export function buildSuggestSystemPrompt(catalog: readonly CatalogEntryForPrompt
 
 export type SuggestedItem = { ruleCode: string; quote: string; reason: string; page: number | null };
 
+/** The text with its tags replaced by a space; null when it is over the shared bound. */
+function withoutTags(value: string): string | null {
+  try {
+    return replaceTags(value, " ");
+  } catch (error) {
+    if (error instanceof BoundedTextError) return null;
+    throw error;
+  }
+}
+
 /** The explanation as plain text: no markup, one line, control characters gone. */
 export function plainReason(value: unknown): string | null {
   if (typeof value !== "string") return null;
+  const stripped = withoutTags(value);
+  if (stripped === null) return null;
   // eslint-disable-next-line no-control-regex
-  const text = oneLine(value.replace(/<[^>]*>/g, " ").replace(/[\u0000-\u001f\u007f]/g, " "));
+  const text = oneLine(stripped.replace(/[\u0000-\u001f\u007f]/g, " "));
   return cleanText(text, SUGGESTION_REASON_MAX);
 }
 

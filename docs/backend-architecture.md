@@ -316,6 +316,51 @@ Each rule has an explicit allowlist in the test. Adding an entry is a reviewed
 decision and needs a comment saying why; the ratchet for rule 4 records the
 remaining inline queries per routes file and only ever goes down.
 
+## Text from a model or a stored field
+
+Text that a model wrote, or that is stored as free text, is parsed on a thread
+many requests share, so it is scanned in one place: `lib/modelJsonFence.ts`.
+Its primitives (code fences, inline citation markers, tags and links, tagged
+blocks, front matter, labelled lines, trimming) scan in time proportional to
+the text, and refuse text over the limit their caller passes before they read
+it, with a `BoundedTextError` the caller turns into the failure it already has
+for unreadable text. Front matter is the exception: the text may be of any
+size and only the lines inside a bounded window are read. Do not add a regular expression with nested or overlapping
+quantifiers over such text; add a primitive there.
+
+The limits follow what the product asks of models, at five characters a token
+at most (`charsForTokens`):
+
+- `MODEL_TEXT_MAX_CHARS` (1 MiB) bounds every scan of a model answer: the
+  largest output ceiling of any model the product knows is 128,000 tokens
+  (640,000 characters). The scans are linear, so it is generous.
+- `jsonrepair` is not linear on every damaged shape, so each caller bounds what
+  it repairs by what it can legitimately get: a playbook review, import,
+  draft or correction by its largest request (20,000 tokens plus the allowance
+  for models that always reason: `PLAYBOOK_REPAIR_MAX_CHARS`), a text-form tool
+  call by the size of arguments the engine puts before a person for approval
+  (`TOOL_ARGUMENT_REPAIR_MAX_CHARS`). Over it the caller fails the way it does
+  for an answer that is not JSON. Text that `JSON.parse` accepts is read
+  directly, whatever its size up to `MODEL_TEXT_MAX_CHARS`; only text that does
+  not parse reaches the repair and its limit.
+- A caller whose answer is over its limit reaches the failure the feature
+  already has (an import or review that did not return structured JSON, a Word
+  turn that could not be saved, an extraction that did not answer with the
+  expected list), never an empty success.
+
+`backend/src/__tests__/regexShapes.test.ts` fails on five shapes in a literal
+pattern: a quantified group that repeats inside itself or whose alternatives
+start alike, an unbounded run anchored only at the end of the text (`\s+$`,
+also when a group, a lookahead for the end or a word boundary wraps it), two
+unbounded runs side by side that can match the same characters
+(`\s*(.*?)\s*$`), and a run that can contain the character the pattern starts
+with, followed by something mandatory (`<a>[\s\S]*?<\/a>`). Patterns that still
+hold one are in its ratchet list, with how many times each appears in its file;
+the list only shrinks. It cannot see a pattern built at run time (their number
+is fixed in the test), a string passed to `.match()`, a bounded repetition, a
+backreference, how long the input is: every parser of such text also needs a
+cost test (`expectLinearCost`) and a size limit.
+
 ## The shared kernel (`lib/`)
 
 `lib/` holds two kinds of code:

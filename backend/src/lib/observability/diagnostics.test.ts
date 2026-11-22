@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { diagnosticErrorTags } from "./diagnostics";
+import { expectLinearCost } from "../../__tests__/helpers/linearCost";
 
 describe("diagnosticErrorTags", () => {
   it("keeps a known storage operation and its dependency cause", () => {
@@ -98,5 +99,27 @@ describe("diagnosticErrorTags", () => {
     expect(
       diagnosticErrorTags(new TypeError("Failed to fetch private document")),
     ).toEqual({});
+  });
+});
+
+describe("the reason of a provider's refusal", () => {
+  const refusal = (message: string) => ({ name: "AI_APICallError", message });
+
+  it("is read from an ordinary message", () => {
+    expect(diagnosticErrorTags(refusal("prompt is too long: 250000 tokens > 200000 maximum")).provider_reason).toBe("prompt_too_long");
+    expect(diagnosticErrorTags(refusal("The image could not be decoded: unsupported format")).provider_reason).toBe("invalid_image");
+    expect(diagnosticErrorTags(refusal("tools.0.custom.input_schema: JSON schema is invalid")).provider_reason).toBe("invalid_tool_schema");
+    expect(diagnosticErrorTags(refusal("Your credit balance is too low to access the API")).provider_reason).toBe("credit_balance");
+    expect(diagnosticErrorTags(refusal("upstream unavailable")).provider_reason).toBeUndefined();
+  });
+
+  it("is read from the start of a long message", () => {
+    expect(diagnosticErrorTags(refusal(`prompt is too long ${"x".repeat(200_000)}`)).provider_reason).toBe("prompt_too_long");
+  });
+
+  it("costs time linear in the length of the message", () => {
+    const SIZE = { small: 4_000, large: 128_000 };
+    expectLinearCost((n) => diagnosticErrorTags(refusal("image ".repeat(n / 6))), SIZE);
+    expectLinearCost((n) => diagnosticErrorTags(refusal("tool".repeat(n / 4))), SIZE);
   });
 });

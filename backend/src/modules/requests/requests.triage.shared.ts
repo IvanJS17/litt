@@ -15,6 +15,7 @@
 
 import type { MatterRequestComplexity, MatterRequestTypeSeed, TriageUrgency } from "@mike/contracts";
 import { choiceQuestion, noulQuestion, readChoice, readNoul, readScore, scoreQuestion, type JevQuestion, type JevResponse } from "../../lib/jev";
+import { unwrapFencedAnswer } from "../../lib/modelJsonFence";
 import { MAX_EXTRACT_TEXT_CHARS } from "../client-profile/client-profile.service";
 
 /** Runs a firm may start per calendar month (Mexico City). One constant, easy to adjust. */
@@ -366,12 +367,9 @@ function line(value: unknown, max: number): string | null {
  * first ones.
  */
 export function parseGenerative(raw: string): Generative | null {
-  let text = raw.trim();
-  const fenced = /^```[a-zA-Z]*\s*([\s\S]*?)\s*```$/.exec(text);
-  if (fenced) text = fenced[1].trim();
   let value: unknown;
   try {
-    value = JSON.parse(text);
+    value = JSON.parse(unwrapFencedAnswer(raw));
   } catch {
     return null;
   }
