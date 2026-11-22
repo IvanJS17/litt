@@ -15,9 +15,11 @@ const EXECUTABLE_TAGS: ReadonlySet<string> = new Set([
   "script", "iframe", "object", "embed", "form", "input", "button", "svg", "math", "style", "link", "meta", "base",
 ]);
 
+const SCRIPT_SCHEMES: ReadonlySet<string> = new Set(["javascript", "vbscript"]);
+
 /** Whether a link target runs script or opens an HTML document. */
 const isScriptLink = ({ scheme, detail }: LinkTarget) =>
-  scheme === "javascript" || (scheme === "data" && detail === "text/html");
+  SCRIPT_SCHEMES.has(scheme) || (scheme === "data" && detail === "text/html");
 
 function splitTrailingBlanks(line: string): [string, string] {
   let end = line.length;

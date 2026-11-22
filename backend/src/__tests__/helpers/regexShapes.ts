@@ -1,6 +1,6 @@
 // A small static reader of regular-expression source, for the test that keeps
 // super-linear shapes out of backend code (`regexShapes.test.ts`). It parses
-// the pattern itself (no dependency) and reports four shapes:
+// the pattern itself (no dependency) and reports five shapes:
 //
 //   - "nested-quantifier": a group repeated without bound whose body repeats
 //     something itself, such as `(a+)+` or `(?:x|\[[^\]]*\])+`;
@@ -14,7 +14,11 @@
 //   - "adjacent-quantifiers": two unbounded runs side by side, or with only
 //     optional parts between them, that can match the same characters
 //     (`\s*\s*`, `.*.*`, `\s*(.*?)\s*$`, `[^>]*>?[^>]*`): the characters can
-//     be shared out between them in many ways.
+//     be shared out between them in many ways;
+//   - "unclosed-scan": a pattern that starts with a character, reads an
+//     unbounded run that can contain that same character, and then needs
+//     something to close it (`<[^>]+>`): without the close, each of those
+//     characters starts a read to the end.
 //
 // The characters a single-character part can match are found by asking the
 // engine itself about every UTF-16 unit (every code point under the `u` and

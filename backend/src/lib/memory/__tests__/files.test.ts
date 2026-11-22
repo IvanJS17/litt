@@ -497,12 +497,15 @@ describe("normalizeMemoryMarkdown on long text", () => {
             "<a HREF=DATA:text/html,x>",
             '<img src="data : text/html;base64,x">',
             '<svg xlink:href="javascript:x">',
+            '<a href="vbscript:x">y</a>',
+            "<a href = ' VBScript : x'>y</a>",
+            '<svg xlink:href="vbscript:x">',
             "<p onclick=x>",
             '<p class="a" onMouseOver = "x">',
             "text <b>ok</b> <a onfocus=x>",
         ];
         for (const value of bad) expect(rejects(value), value).toBe(true);
-        const good = ['<a href="https://example.com">y</a>', "<b>ok</b> on = 3 and href = 4", "1 < 2 and 3 > 2, onward=1", "<a href='data:image/png'>"];
+        const good = ['<a href="https://example.com">y</a>', "<b>ok</b> on = 3 and href = 4", "1 < 2 and 3 > 2, onward=1", "<a href='data:image/png'>", "vbscript: in plain text", '<a href="https://example.com/vbscript:x">y</a>'];
         for (const value of good) expect(rejects(value), value).toBe(false);
     });
     it("holds a file to its size in bytes, not only in characters", () => {

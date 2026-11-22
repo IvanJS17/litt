@@ -3,9 +3,12 @@
  * field, is scanned. That text is not under our control and is parsed on a
  * thread many requests share, so every scan here
  *
- *   1. refuses text over a size limit before it reads a single character
- *      (`BoundedTextError`: the caller turns it into the failure it already
- *      has for text it cannot read), and
+ *   1. refuses text over the limit its caller passes before it reads a single
+ *      character (`BoundedTextError`: the caller turns it into the failure it
+ *      already has for text it cannot read). Two primitives take text of any
+ *      size on purpose: `splitFrontMatter` (it reads the lines of a bounded
+ *      window) and `trimChars` when a caller passes `Infinity` for a short
+ *      value of its own, such as a setting or a file name; and
  *   2. is plain scanning (`indexOf`, one pass, a lookup table), so its cost is
  *      proportional to the size of the text, never worse.
  *

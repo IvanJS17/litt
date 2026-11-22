@@ -317,9 +317,10 @@ Text that a model wrote, or that is stored as free text, is parsed on a thread
 many requests share, so it is scanned in one place: `lib/modelJsonFence.ts`.
 Its primitives (code fences, inline citation markers, tags and links, tagged
 blocks, front matter, labelled lines, trimming) scan in time proportional to
-the text, and refuse text over a size limit before they read it, with a
-`BoundedTextError` the caller turns into the failure it already has for
-unreadable text. Do not add a regular expression with nested or overlapping
+the text, and refuse text over the limit their caller passes before they read
+it, with a `BoundedTextError` the caller turns into the failure it already has
+for unreadable text. Front matter is the exception: the text may be of any
+size and only the lines inside a bounded window are read. Do not add a regular expression with nested or overlapping
 quantifiers over such text; add a primitive there.
 
 The limits follow what the product asks of models, at five characters a token
