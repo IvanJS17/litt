@@ -10,6 +10,9 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { checkProjectAccess, resolveContentOrgId } from "../../lib/access";
 import { AppError } from "../../lib/appError";
+import { chunkArray } from "../../lib/arrays";
+import { ID_FILTER_BATCH_SIZE } from "../../lib/batchedQuery";
+import { findDocumentsOutsideWorkspace } from "../../lib/documentWorkspace";
 import { UUID_PATTERN } from "../../lib/uuid";
 import { getDocument } from "../documents/documents.service";
 import { PERSONAL_WORKSPACE } from "./mcp.principal";
@@ -164,6 +167,31 @@ export async function loadDocument(
     }
     if (!inGrant(call, orgId)) throw notFound("The document");
     return { doc, workspace: workspaceOf(orgId) };
+}
+
+/**
+ * Of `documentIds`, those that lie outside the workspaces this connection
+ * covers (a workflow's own files count where the workflow lives), or outside
+ * `within` when a tool names the one workspace it works in. The batch form of
+ * the fence `loadDocument` applies to one document: what builds a result from
+ * several documents asks here instead of deciding for itself.
+ *
+ * Asked in batches, so a long list is answered whole. A document that cannot
+ * be found cannot be placed, so it counts as outside, and a failed read throws.
+ * With no workspace covered, everything is outside.
+ */
+export async function documentsOutsideGrant(call: McpCall, documentIds: readonly string[], within?: string): Promise<Set<string>> {
+    const granted = call.principal.workspaces.map((w) => w.id);
+    const workspaces = within === undefined ? granted : granted.filter((id) => id === within);
+    let outside = [...new Set(documentIds)];
+    for (const workspace of workspaces) {
+        const notHere = new Set<string>();
+        for (const batch of chunkArray(outside, ID_FILTER_BATCH_SIZE))
+            for (const id of await findDocumentsOutsideWorkspace(call.db, batch, workspace === PERSONAL_WORKSPACE ? null : workspace, { includeWorkflowAssets: true, reportMissing: true }))
+                notHere.add(id);
+        outside = outside.filter((id) => notHere.has(id));
+    }
+    return new Set(outside);
 }
 
 export const documentWorkspace = async (call: McpCall, documentId: string): Promise<string> =>

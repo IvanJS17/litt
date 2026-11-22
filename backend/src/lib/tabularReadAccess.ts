@@ -145,6 +145,24 @@ function provenanceOf(message: ProvenancedMessage): string[] | null {
     return ids.filter((id): id is string => typeof id === "string");
 }
 
+/**
+ * For each message (every message of ONE chat, oldest first), the documents
+ * behind it and everything before it: what the message can repeat. null once
+ * a message of unknown provenance is reached, and for every one after it.
+ */
+export function cumulativeSourceDocumentIds(
+    messages: ProvenancedMessage[],
+): (string[] | null)[] {
+    const seen = new Set<string>();
+    let unknown = false;
+    return messages.map((message) => {
+        const own = provenanceOf(message);
+        if (own === null) unknown = true;
+        else for (const id of own) seen.add(id);
+        return unknown ? null : [...seen].sort();
+    });
+}
+
 const CHAT_MESSAGES_PAGE_SIZE = 1000;
 
 /**

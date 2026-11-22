@@ -37,7 +37,8 @@ import {
 } from "../tabular/tabular.service";
 import { createMcpChatSink, turnErrorMessage } from "./mcp.chatSink";
 import { ANSWER_MAX_PAGE_CHARS, ANSWER_PAGE_CHARS, attemptSchema, confidenceSchema, messageSchema, presentTurn, turnCapabilities } from "./mcp.tools.chat";
-import { refuse, reviewWorkspace } from "./mcp.tools.tabular";
+import { refuse, reviewAnswerRelease, reviewChatRelease, reviewWorkspace } from "./mcp.tools.tabular";
+import { outsideConnectionError } from "./mcp.release";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
 import {
     cursorSchema,
@@ -69,6 +70,12 @@ async function readMessages(call: McpCall, reviewId: string, chatId: string): Pr
         refuse(listed);
     }
     return listed.data as unknown as StoredMessage[];
+}
+
+/** Refuses before any work when the review holds documents the connection does not cover. */
+async function assertChatable(call: McpCall, reviewId: string): Promise<void> {
+    const release = await reviewChatRelease(call, reviewId);
+    if (!release.ok && release.reason === "outside_connection") throw outsideConnectionError("This review");
 }
 
 const eventsOf = (message: StoredMessage): { type?: unknown; message?: unknown }[] =>
@@ -149,6 +156,9 @@ export const sendTabularChatMessage = defineMcpTool({
     auditRefs: (args) => ({ reviewId: args.review_id, chatId: args.chat_id }),
     resolveWorkspace: (args, call) => reviewWorkspace(call, args.review_id),
     handler: async (args, call) => {
+        // The assistant reads every row the person can; a review holding documents the
+        // connection does not cover is not chatted with through it.
+        await assertChatable(call, args.review_id);
         const userEmail = (await call.userEmail()) || undefined;
         // The thread must be one of this review that the person may write to:
         // the same gate the web's rename and delete use.
@@ -216,7 +226,7 @@ export const sendTabularChatMessage = defineMcpTool({
         if (!state) throw serviceFailure("read review chat turn");
         return mcpText({
             review_id: args.review_id,
-            ...(await presentTurn(call, chatId, call.workspace!, state, { offset: 0, limitChars: ANSWER_PAGE_CHARS })),
+            ...(await presentTurn(call, chatId, call.workspace!, state, { offset: 0, limitChars: ANSWER_PAGE_CHARS }, await reviewAnswerRelease(call, args.review_id, chatId, turnId))),
         });
     },
 });
@@ -250,10 +260,14 @@ export const getTabularChatTurn = defineMcpTool({
         if (!state) throw notFound("That response");
         return mcpText({
             review_id: args.review_id,
-            ...(await presentTurn(call, args.chat_id, call.workspace!, state, {
-                offset: args.offset ?? 0,
-                limitChars: args.limit_chars ?? ANSWER_PAGE_CHARS,
-            })),
+            ...(await presentTurn(
+                call,
+                args.chat_id,
+                call.workspace!,
+                state,
+                { offset: args.offset ?? 0, limitChars: args.limit_chars ?? ANSWER_PAGE_CHARS },
+                await reviewAnswerRelease(call, args.review_id, args.chat_id, args.turn_id),
+            )),
         });
     },
 });
@@ -313,6 +327,7 @@ export const listTabularChatsTool = defineMcpTool({
     audit: "call",
     resolveWorkspace: (args, call) => reviewWorkspace(call, args.review_id),
     handler: async (args, call) => {
+        await assertChatable(call, args.review_id);
         const listed = await listTabularReviewChats(call.db, {
             reviewId: args.review_id,
             userId: call.principal.userId,

@@ -62,6 +62,7 @@ import {
 import { generateChatTitle } from "./tabular.extract";
 import { filterReadableReviewRows, loadReviewCells, loadReviewRows } from "./tabular.rows";
 import {
+    cumulativeSourceDocumentIds,
     filterReadableChatMessages,
     nextTurnSourceDocumentIds,
     selectCompleteChatMessages,
@@ -573,6 +574,57 @@ export async function listTabularReviewChatMessages(
                     : message,
         ),
     };
+}
+
+/**
+ * What each message of a thread can repeat: the documents behind it and every
+ * message before it (`sources`; null once any is of unknown provenance), with
+ * the moment it was written. Complete and unfiltered, because a later answer
+ * can repeat what a message the reader cannot see drew on; whoever uses it
+ * decides who may read what (the gate here is the thread's read access).
+ */
+export async function listTabularReviewChatSources(
+    db: Db,
+    args: {
+        reviewId: string;
+        chatId: string;
+        userId: string;
+        userEmail: string | undefined;
+    },
+): Promise<
+    TabularResult<
+        { id: string; created_at: string | null; sources: string[] | null }[]
+    >
+> {
+    const gate = await ensureReviewChatReadAccess(
+        db,
+        args.reviewId,
+        args.chatId,
+        args.userId,
+        args.userEmail,
+    );
+    if (!gate.ok) return gate;
+    try {
+        const messages = await selectCompleteChatMessages(
+            db,
+            [args.chatId],
+            "id, created_at, source_document_ids",
+        );
+        const sources = cumulativeSourceDocumentIds(messages);
+        return {
+            ok: true,
+            data: messages.map((message, index) => ({
+                id: String(message.id),
+                created_at:
+                    typeof message.created_at === "string"
+                        ? message.created_at
+                        : null,
+                sources: sources[index],
+            })),
+        };
+    } catch (error) {
+        return internalFailure(error);
+    }
 }
 
 // ---------------------------------------------------------------------------
