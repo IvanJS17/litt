@@ -135,3 +135,15 @@ export function staticProtectionHeaders(): { key: string; value: string }[] {
 export function protectionHeadersRule(): { source: string; headers: { key: string; value: string }[] } {
     return { source: PROTECTION_HEADER_SOURCE, headers: staticProtectionHeaders() };
 }
+
+/**
+ * Under /api the gateway relays what the backend answers, and the backend asks
+ * for no referrer at all. A rule listed after the protection rule replaces its
+ * header of the same name, so those answers keep the backend's value.
+ */
+export const API_HEADER_SOURCE = "/api/:path*";
+export const API_REFERRER_POLICY = "no-referrer";
+
+export function apiHeadersRule(): { source: string; headers: { key: string; value: string }[] } {
+    return { source: API_HEADER_SOURCE, headers: [{ key: "Referrer-Policy", value: API_REFERRER_POLICY }] };
+}

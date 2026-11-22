@@ -368,7 +368,8 @@ cabeceras; el código las define, así que un deploy normal no toca el Caddyfile
 | `Content-Security-Policy` | web: `frontend/src/proxy.ts` (un nonce por petición) y `frontend/src/app/lib/securityHeaders.ts`; complemento: `word-addin/server.mjs` |
 
 En `/api/*` de la web, estas cabeceras reemplazan a las del backend con el mismo
-nombre (HSTS, referrer, marco); en el proxy del complemento prevalecen las del
+nombre (HSTS, marco), salvo `Referrer-Policy`, que ahí conserva el valor del
+backend (`no-referrer`); en el proxy del complemento prevalecen las del
 backend. El Caddy no
 agrega ninguna de estas cabeceras: no repetirlas en `Caddyfile.litt`, porque una
 copia con otro valor se sumaría a la del código (dos `Content-Security-Policy`
@@ -376,9 +377,10 @@ se aplican las dos).
 
 **Variables** (las leen `litt-web` y `litt-word`; `compose.yaml` ya las pasa):
 
-- `R2_ENDPOINT_URL` (y `R2_PUBLIC_ENDPOINT_URL` si existe, que tiene prioridad,
-  igual que en el backend): de ahí sale el origen del almacén al que el
-  navegador sube y baja archivos con URL firmadas (`connect-src` e `img-src`).
+- `R2_ENDPOINT_URL`: de ahí sale el origen del almacén al que el navegador
+  sube y baja archivos con URL firmadas (`connect-src` e `img-src`). Este
+  `compose.yaml` no pasa `R2_PUBLIC_ENDPOINT_URL` a ningún servicio; el código
+  la prefiere cuando existe (como el backend), y así la usa el entorno local.
   Si el valor no coincide con el que firma el backend, las subidas de archivos
   fallan en el navegador.
 - `LITT_CSP_REPORT_ONLY` (vacío por defecto = la política **se aplica**).

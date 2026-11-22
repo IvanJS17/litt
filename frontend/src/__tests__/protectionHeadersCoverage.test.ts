@@ -16,7 +16,7 @@ import { join, relative, resolve, sep } from "node:path";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { describe, expect, it } from "vitest";
 import { PUBLIC_INDEXABLE_PATHS, noindexHeaderSource } from "@/app/lib/searchIndexing";
-import { staticProtectionHeaders } from "@/app/lib/securityHeaders";
+import { API_HEADER_SOURCE, API_REFERRER_POLICY, staticProtectionHeaders } from "@/app/lib/securityHeaders";
 import { config as proxyConfig } from "@/proxy";
 import nextConfig from "../../next.config";
 
@@ -128,6 +128,43 @@ describe("the protection headers rule", () => {
         const rule = rules.find((r) => r.headers.some((h) => h.key === "Strict-Transport-Security"))!;
         const missed = everyRoute.filter((path) => !matches(rule.source, path));
         expect(missed).toEqual([]);
+    });
+});
+
+describe("what the backend answers through the API gateway", () => {
+    // Rules apply in order and a later one replaces an earlier header of the same name.
+    async function referrerPolicyFor(path: string) {
+        let value: string | undefined;
+        for (const rule of await headerRules()) {
+            if (!matches(rule.source, path)) continue;
+            for (const header of rule.headers) if (header.key === "Referrer-Policy") value = header.value;
+        }
+        return value;
+    }
+
+    it("keeps the backend's own referrer policy", async () => {
+        for (const path of ["/api/any/thing", "/api/health", "/api/user/integrations/gmail/oauth/callback", "/api/"]) {
+            expect(await referrerPolicyFor(path)).toBe(API_REFERRER_POLICY);
+        }
+        expect(API_REFERRER_POLICY).toBe("no-referrer");
+    });
+
+    it("leaves the pages with the web's referrer policy", async () => {
+        for (const path of ["/", "/login", "/connect/authorize", "/settings", "/apiary", "/this/page/does/not/exist"]) {
+            expect(await referrerPolicyFor(path)).toBe("strict-origin-when-cross-origin");
+        }
+    });
+
+    it("is a rule with no conditions that sets nothing else", async () => {
+        const rules = await headerRules();
+        const api = rules.filter((rule) => rule.source === API_HEADER_SOURCE);
+        expect(api).toHaveLength(1);
+        expect(api[0].headers).toEqual([{ key: "Referrer-Policy", value: API_REFERRER_POLICY }]);
+        expect(api[0]).not.toHaveProperty("has");
+        expect(api[0]).not.toHaveProperty("missing");
+        // After the protection rule: the order decides which value is sent.
+        const protection = rules.findIndex((rule) => rule.headers.some((h) => h.key === "Strict-Transport-Security"));
+        expect(rules.indexOf(api[0])).toBeGreaterThan(protection);
     });
 });
 

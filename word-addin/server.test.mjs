@@ -311,7 +311,7 @@ test("storage and the report-only switch come from the environment", async () =>
     const response = await fetch(`${origin}/taskpane.html`);
     assert.equal(response.headers.get("content-security-policy"), null);
     const policy = directives(response.headers.get("content-security-policy-report-only") ?? "");
-    assert.ok(policy.get("connect-src").includes("https://storage.example.test"));
+    assert.ok(new Set(policy.get("connect-src")).has("https://storage.example.test"));
     assert.deepEqual(policy.get("frame-ancestors"), ["'self'", ...OFFICE_FRAME_ANCESTORS]);
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   } finally {
