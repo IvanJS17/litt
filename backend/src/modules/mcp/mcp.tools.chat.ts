@@ -29,6 +29,7 @@ import {
     stopChatTurn,
     type ChatTurnState,
     type StartChatTurnFailure,
+    type ToolCapability,
 } from "../chat/chat.service";
 import { createMcpChatSink, turnErrorMessage } from "./mcp.chatSink";
 import { recordMcpChatEgress } from "./mcp.calls";
@@ -128,6 +129,21 @@ export function startRefusal(failure: StartChatTurnFailure): never {
                 ? "A conversation keeps the model it started with; start a new conversation to use another."
                 : undefined;
     throw new McpToolError(code, failure.detail, suggestion);
+}
+
+/**
+ * What the assistant's own tools may do in a turn this connection starts or
+ * continues: read always, run reviews with litt.run, write documents with
+ * litt.write, and never use the person's third-party connectors (no scope
+ * names them). Every tool that starts a turn passes this to the turn, so the
+ * assistant is simply not given the rest.
+ */
+export function turnCapabilities(call: McpCall): ToolCapability[] {
+    const { scopes } = call.principal;
+    const capabilities: ToolCapability[] = ["read"];
+    if (scopes.includes("litt.run")) capabilities.push("run");
+    if (scopes.includes("litt.write")) capabilities.push("write");
+    return capabilities;
 }
 
 // ---------------------------------------------------------------------------
@@ -258,6 +274,7 @@ export async function runTurn(
         origin: args.chatId
             ? undefined
             : { grantId: call.principal.grantId, label: await clientNameOf(call.db, call.principal.clientId) },
+        allowedCapabilities: turnCapabilities(call),
     });
     if (!started.ok) startRefusal(started);
     const turn = started.started;

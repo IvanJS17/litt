@@ -83,6 +83,7 @@ import {
 } from "../contextBuilders";
 import type { Db } from "../../../../lib/supabase";
 import { renderTableCells } from "./tableCells";
+import { isToolAllowed, type ToolCapability } from "./toolCapabilities";
 
 /**
  * Report a server-side tool's failure and return what to log for it. The
@@ -297,6 +298,11 @@ export async function runToolCalls(
      */
     allowDocumentMutation?: boolean;
     /**
+     * What a turn driven by a connected app may use (toolCapabilities.ts); a
+     * call to any other tool is refused before it runs. Omitted: no limit.
+     */
+    allowedCapabilities?: readonly ToolCapability[];
+    /**
      * The turn's abort signal. Calls run one after another, so a turn stopped
      * by Stop or a stream deadline starts none of the batch's remaining tools
      * (their document edits, creations and connector writes included).
@@ -427,6 +433,17 @@ export async function runToolCalls(
       args = JSON.parse(tc.function.arguments || "{}");
     } catch {
       /* ignore */
+    }
+
+    if (!isToolAllowed(tc.function.name, options.allowedCapabilities)) {
+      toolResults.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        content: JSON.stringify({
+          error: `Tool '${tc.function.name}' is not available.`,
+        }),
+      });
+      continue;
     }
 
     const isConnectorTool =

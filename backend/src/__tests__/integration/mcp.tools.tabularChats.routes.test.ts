@@ -24,7 +24,7 @@ const h = vi.hoisted(() => ({
     outcome: "ok" as "ok" | "error" | "hang",
     gate: null as null | Promise<void>,
     answer: "",
-    started: [] as { parsed: Record<string, any>; reviewId: string }[], // eslint-disable-line @typescript-eslint/no-explicit-any
+    started: [] as { parsed: Record<string, any>; reviewId: string; allowedCapabilities?: string[] }[], // eslint-disable-line @typescript-eslint/no-explicit-any
     sinks: [] as unknown[],
 }));
 
@@ -75,9 +75,9 @@ vi.mock("../../modules/tabular/tabular.chatTurn", async (importOriginal) => {
     const tables = () => h.state!.tables;
     return {
         ...original,
-        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; reviewId: string; parsed: Record<string, unknown> & { chatId?: string; model?: string; messages: { content: string }[]; training: { attempt?: unknown } } }) => {
+        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; reviewId: string; parsed: Record<string, unknown> & { chatId?: string; model?: string; messages: { content: string }[]; training: { attempt?: unknown } }; allowedCapabilities?: string[] }) => {
             const { parsed, userId, reviewId } = args;
-            h.started.push({ parsed, reviewId });
+            h.started.push({ parsed, reviewId, allowedCapabilities: args.allowedCapabilities });
             if (parsed.model === "no-key-model") return statusFailure(400, { code: "missing_api_key", detail: "Anthropic (Claude) API key is not configured." });
             const review = tables().tabular_reviews.find((r) => r.id === reviewId);
             if (!review) return failure("not_found", "Review not found");
@@ -299,6 +299,20 @@ describe("tools/list for the review chat", () => {
 // ---------------------------------------------------------------------------
 // send_tabular_chat_message
 // ---------------------------------------------------------------------------
+
+describe("send_tabular_chat_message and the connection's permissions", () => {
+    it("gives the assistant only what the connection's permissions allow: read always, run with litt.run, write with litt.write, and never the person's connectors", async () => {
+        as("editor");
+        const capabilitiesFor = async (scopes: string[]) => {
+            h.started = [];
+            const reply = await callTool(await connect({ scopes }), "send_tabular_chat_message", { review_id: REVIEW_PUBLIC, message: "hola" });
+            expect(reply.ok).toBe(true);
+            return h.started[0].allowedCapabilities;
+        };
+        expect(await capabilitiesFor(["litt.read", "litt.chat"])).toEqual(["read"]);
+        expect(await capabilitiesFor(["litt.read", "litt.chat", "litt.run", "litt.write"])).toEqual(["read", "run", "write"]);
+    });
+});
 
 describe("send_tabular_chat_message", () => {
     it("opens a thread the way the web panel does and returns the answer as untrusted data with its cell citations", async () => {

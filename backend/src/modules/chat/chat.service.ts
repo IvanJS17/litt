@@ -108,6 +108,7 @@ export {
   buildDocContext,
   buildWordChatSystemPrompt,
   withoutEmptyAssistantReservations,
+  type ToolCapability,
 } from "./engine/index";
 export { generateAssistantChatTitle, logChatTitleFailure } from "./chat.title";
 

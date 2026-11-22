@@ -47,6 +47,7 @@ import {
     stripTransientAssistantEvents,
     throwIfTurnStopped,
     writeApprovedConnectorFrames,
+    type ToolCapability,
     PROJECT_EXTRA_TOOLS,
     parseChatMessages,
     parseOptionalAskInputsResponse,
@@ -112,6 +113,8 @@ export type StartedProjectChatTurn = {
     /** The assistant row the answer lands in. */
     turnMessageId: string;
     subagentRuns: ReturnType<typeof createSubagentRunStore>;
+    /** The tool capabilities of a turn a connected app started; absent: all. */
+    allowedCapabilities?: readonly ToolCapability[];
 };
 
 export type StartProjectChatTurnFailure =
@@ -199,6 +202,8 @@ export async function startProjectChatTurn(
         parsed: ParsedProjectChatRequest;
         /** The connected app a NEW chat is started from; the web passes none. */
         origin?: ChatOrigin;
+        /** The tools this turn may use when a connected app starts it; the web passes none. */
+        allowedCapabilities?: readonly ToolCapability[];
     },
 ): Promise<{ ok: true; started: StartedProjectChatTurn } | StartProjectChatTurnFailure> {
     const { userId, userEmail, requestId, projectId, parsed } = args;
@@ -284,6 +289,7 @@ export async function startProjectChatTurn(
                 inputMessageId,
                 turnMessageId,
                 subagentRuns,
+                ...(args.allowedCapabilities ? { allowedCapabilities: args.allowedCapabilities } : {}),
             },
         };
     } finally {
@@ -445,6 +451,7 @@ export async function runProjectChatTurn(
                 // (read_document, find_in_document, list/fetch_documents and the
                 // workflow tools) and lose only the writers.
                 allowDocumentMutation,
+                allowedCapabilities: started.allowedCapabilities,
                 trainingPlan: trainingEnginePlan(trainingPlan),
                 workflowStore,
                 webSearch,
