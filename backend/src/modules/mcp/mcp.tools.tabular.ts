@@ -16,9 +16,11 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { getActiveStreamRun } from "../../lib/streamRuns";
+import { heldSince } from "../../lib/trainingRelease";
 import {
     createTabularReview,
     getTabularReviewDetail,
+    listTabularReviewChatSources,
     listTabularReviews,
     prepareTabularGenerate,
     preparedGenerateFailure,
@@ -34,6 +36,7 @@ import {
     cursorSchema,
     decodeCursor,
     DEFAULT_PAGE,
+    documentsOutsideGrant,
     encodeCursor,
     idSchema,
     inGrant,
@@ -47,6 +50,7 @@ import {
     waitFor,
     workspaceOf,
 } from "./mcp.toolkit";
+import { decideReleases, decideReleasesSince, type Release } from "./mcp.release";
 import { recordEgressOrFail } from "./mcp.tools.documents";
 
 /** Text of cells per page of read_tabular_cells (the whole result stays under the net). */
@@ -65,6 +69,7 @@ type Cell = {
     content: { summary: string; flag?: string; reasoning?: string } | null;
     citations?: unknown;
     review_refs?: unknown;
+    created_at?: string | null;
 };
 type ColumnConfig = { index: number; name: string; prompt?: string; format?: string };
 type Review = Record<string, unknown> & {
@@ -108,8 +113,10 @@ function suggestion(code: string): string | undefined {
     }
 }
 
-/** The review with its rows and cells, once the person can open it AND the grant covers its workspace. */
-async function loadReview(call: McpCall, reviewId: string): Promise<{ detail: Detail; workspace: string }> {
+const rowDocs = (row: Row) => row.source_document_ids ?? (row.document_id ? [row.document_id] : []);
+
+/** The review as the person reads it, once the grant covers the review's own workspace. */
+async function loadReviewWhole(call: McpCall, reviewId: string): Promise<{ detail: Detail; workspace: string }> {
     const found = await getTabularReviewDetail(call.db, {
         reviewId,
         userId: call.principal.userId,
@@ -127,7 +134,80 @@ async function loadReview(call: McpCall, reviewId: string): Promise<{ detail: De
     return { detail, workspace };
 }
 
+/**
+ * The review with its rows and cells, once the person can open it AND the grant
+ * covers its workspace. A review the web built may hold a workflow's files from
+ * another workspace, or a row whose document is gone: those rows (and their
+ * cells and documents) are not here, because where their document lies cannot
+ * be shown to be inside the connection.
+ */
+async function loadReview(call: McpCall, reviewId: string): Promise<{ detail: Detail; workspace: string }> {
+    const { detail, workspace } = await loadReviewWhole(call, reviewId);
+    const outside = await documentsOutsideGrant(call, detail.rows.flatMap(rowDocs));
+    const covered = (row: Row) => rowDocs(row).length > 0 && !rowDocs(row).some((id) => outside.has(id));
+    if (outside.size > 0 || !detail.rows.every(covered)) {
+        detail.rows = detail.rows.filter(covered);
+        const kept = new Set(detail.rows.map((row) => row.id));
+        detail.cells = detail.cells.filter((cell) => kept.has(cell.row_id));
+        detail.documents = detail.documents.filter((doc) => !outside.has(doc.id));
+    }
+    return { detail, workspace };
+}
+
 export const reviewWorkspace = async (call: McpCall, reviewId: string) => (await loadReview(call, reviewId)).workspace;
+
+/**
+ * Whether the thread of a review may be chatted with, or read, through this
+ * connection. The assistant answers from every row the PERSON can read, not
+ * from what the connection covers, and the stored answers can cite any of
+ * them: so a review that holds any document outside the connection's
+ * workspaces, a row whose document is gone, or a held draft of any workspace
+ * does not leave. This looks at all of the review, not at what the grant leaves.
+ */
+export async function reviewChatRelease(call: McpCall, reviewId: string): Promise<Release> {
+    const { detail } = await loadReviewWhole(call, reviewId);
+    const rows = detail.rows.map(rowDocs);
+    const sources = rows.some((docs) => docs.length === 0)
+        ? null
+        : [...new Set([...rows.flat(), ...detail.documents.map((doc) => doc.id)])].map((documentId) => ({ documentId }));
+    return (await decideReleases(call, [sources]))[0];
+}
+
+/**
+ * Whether one stored answer of a review's thread may leave through this
+ * connection: both what the review holds NOW (`reviewChatRelease`: the
+ * assistant composes from every row, so a review with anything outside the
+ * connection does not leave) and what the answer was itself built from. The
+ * thread's messages record their sources, cumulative over the thread, so
+ * removing a row or superseding a draft afterwards does not release an
+ * answer written over it; unknown sources are withheld. An answer is composed
+ * from the cells as they were when it was written, and those may since have
+ * been made again from another version, so it is held when any version its
+ * documents ever had is held (`heldSince`, whole history). An answer not
+ * stored yet has no text to show; it is judged on the whole thread so far.
+ * Outside the connection is reported before held.
+ */
+export async function reviewAnswerRelease(call: McpCall, reviewId: string, chatId: string, messageId: string): Promise<Release> {
+    const review = await reviewChatRelease(call, reviewId);
+    const listed = await listTabularReviewChatSources(call.db, {
+        reviewId,
+        chatId,
+        userId: call.principal.userId,
+        userEmail: (await call.userEmail()) || undefined,
+    });
+    if (!listed.ok) {
+        if (listed.kind === "error") throw serviceFailure("read the thread's sources", listed.error);
+        if (listed.kind === "status" || listed.kind === "not_found") throw notFound("The conversation");
+        refuse(listed);
+    }
+    const messages = listed.data;
+    const found = messages.findIndex((message) => message.id === messageId);
+    const answer = found >= 0 ? messages[found] : messages[messages.length - 1];
+    const sources = answer ? answer.sources : [];
+    const [own] = await decideReleasesSince(call, [sources && { documentIds: sources, wholeHistory: true }]);
+    const decisions = [review, own];
+    return decisions.find((d) => !d.ok && d.reason === "outside_connection") ?? decisions.find((d) => !d.ok) ?? { ok: true };
+}
 
 function progressOf(detail: Detail) {
     const columns = detail.review.columns_config ?? [];
@@ -238,6 +318,15 @@ export async function createReviewFor(
     const userId = call.principal.userId;
     const workspace = call.workspace!;
     const orgId = workspace === "personal" ? null : workspace;
+    // The review holds only documents of its own workspace, and the connection must cover them.
+    const outsideGrant = await documentsOutsideGrant(call, args.documentIds);
+    if (outsideGrant.size > 0) throw notFound("The document");
+    if ((await documentsOutsideGrant(call, args.documentIds, workspace)).size > 0)
+        throw new McpToolError(
+            "document_workspace_mismatch",
+            "That document is in another workspace than the one this review is in.",
+            "Pick documents of the same workspace (or matter) as the review.",
+        );
     const model = args.model || (await savedTabularModel(call.db, userId, orgId)) || undefined;
     const created = await createTabularReview(call.db, {
         userId,
@@ -397,14 +486,26 @@ export const readTabularCells = defineMcpTool({
             page.push({ cell, text });
             chars += text.length;
         }
+        // A pasante's draft a mentor has not approved stays in LiTT, in its cells too. A cell
+        // records no version, only when it was made: it is held when any version of its
+        // document not deleted before then is (see heldSince).
+        const pairs = page.flatMap(({ cell }): { cell: Cell; documentId: string | null }[] => {
+            const row = rowsById.get(cell.row_id);
+            const sources = cell.document_id ? [cell.document_id] : row ? rowDocs(row) : [];
+            return sources.length > 0 ? sources.map((documentId) => ({ cell, documentId })) : [{ cell, documentId: null }];
+        });
+        const judged = pairs.filter((pair): pair is { cell: Cell; documentId: string } => pair.documentId !== null);
+        const heldPair = await heldSince(call.db, judged.map(({ cell, documentId }) => ({ documentId, since: cell.created_at })));
+        const withheld = new Set<Cell>(pairs.filter((pair) => pair.documentId === null).map((pair) => pair.cell));
+        judged.forEach(({ cell }, index) => heldPair[index] && withheld.add(cell));
+        const versions = new Map(detail.documents.map((doc) => [doc.id, doc.current_version_id ?? doc.id]));
         // Record, per document, the text about to leave before it leaves.
         const perDocument = new Map<string, number>();
         for (const { cell, text } of page) {
             const row = rowsById.get(cell.row_id);
             const documentId = cell.document_id ?? row?.document_id ?? row?.source_document_ids?.[0];
-            if (documentId) perDocument.set(documentId, (perDocument.get(documentId) ?? 0) + text.length);
+            if (documentId && !withheld.has(cell)) perDocument.set(documentId, (perDocument.get(documentId) ?? 0) + text.length);
         }
-        const versions = new Map(detail.documents.map((doc) => [doc.id, doc.current_version_id ?? doc.id]));
         for (const [documentId, characters] of perDocument)
             await recordEgressOrFail(call, documentId, versions.get(documentId) ?? documentId, characters);
 
@@ -419,7 +520,8 @@ export const readTabularCells = defineMcpTool({
                     column_index: cell.column_index,
                     column_name: columns.get(cell.column_index)?.name ?? null,
                     status: cell.status,
-                    data: cell.content ? untrusted(text, token) : null,
+                    data: cell.content && !withheld.has(cell) ? untrusted(text, token) : null,
+                    ...(withheld.has(cell) ? { withheld_until_approved: true } : {}),
                 };
             }),
             next_cursor: offset + page.length < wanted.length ? encodeCursor(offset + page.length) : null,

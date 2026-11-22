@@ -2,7 +2,7 @@
 export {
   getAccessibleChat,
 } from "./chat.access";
-export { getChatMessages } from "./chat.messages";
+export { getAttachmentsOfChats, getChatMessages, getMessagesOfChats } from "./chat.messages";
 export {
   withChatOrigin,
   chatOriginColumns,

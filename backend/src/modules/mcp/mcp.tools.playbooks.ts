@@ -14,6 +14,8 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { loadActiveVersion } from "../../lib/documentVersions";
+import { isSourceHeld } from "../../lib/trainingRelease";
+import { TRAINING_APPROVAL_REQUIRED_CODE } from "../../lib/httpError";
 import { readStoredDocumentText } from "../documents/documents.service";
 import {
     getPlaybook,
@@ -35,6 +37,7 @@ import {
     cursorSchema,
     decodeCursor,
     DEFAULT_PAGE,
+    documentsOutsideGrant,
     documentWorkspace,
     encodeCursor,
     idSchema,
@@ -260,6 +263,18 @@ type RunView = {
 };
 
 /**
+ * A run over text the person pasted has no document and was never given a name;
+ * one that keeps a name but lost its document may have been a file of another
+ * workspace, so only the first can be labelled as pasted text.
+ */
+const pastedText = (run: RunView) => !run.documentId && !run.documentName;
+
+/** Whether the run's document is one this connection covers: a run with no document id (pasted text, or a deleted file) is not. */
+async function runDocumentCovered(call: McpCall, run: RunView): Promise<boolean> {
+    return !!run.documentId && !(await documentsOutsideGrant(call, [run.documentId])).size;
+}
+
+/**
  * A run as the client gets it. The findings quote the reviewed document, so
  * their text is returned as untrusted data, a page at a time, and recorded as
  * data leaving LiTT; a run whose document the person can no longer open shows
@@ -272,12 +287,15 @@ async function presentRun(
     cursor: string | undefined,
     limit: number,
 ) {
+    // A run of a document this connection does not cover (or whose document is gone)
+    // does not name it, whatever the run's status.
+    const covered = await runDocumentCovered(call, run);
     const base = {
         run_id: run.id,
         playbook_id: run.playbookId,
         playbook_name: playbookName,
-        document_id: run.documentId,
-        document_name: run.documentName,
+        document_id: covered ? run.documentId : null,
+        document_name: covered ? run.documentName : null,
         status: run.status,
         review_mode: run.reviewMode,
         review_scope: run.reviewScope,
@@ -286,7 +304,8 @@ async function presentRun(
         model: run.model,
         started_at: run.startedAt,
         completed_at: run.completedAt,
-        edited_version_id: run.editedVersionId,
+        edited_version_id: covered ? run.editedVersionId : null,
+        ...(covered ? {} : pastedText(run) ? { document_source: "pasted_text" } : { document_withheld: true }),
     };
     if (run.status === "running")
         return {
@@ -294,7 +313,8 @@ async function presentRun(
             poll_after_s: POLL_AFTER_SECONDS,
             next_step: `The review is still running in LiTT. Ask again with get_playbook_run in ${POLL_AFTER_SECONDS} seconds.`,
         };
-    if (run.status !== "completed") return { ...base, error: run.error };
+    if (run.status !== "completed") return { ...base, error: covered ? run.error : null };
+    if (!covered || !run.documentId) return { ...base, findings: [], details_withheld: true };
 
     const offset = decodeCursor(cursor);
     const summary = {
@@ -302,19 +322,23 @@ async function presentRun(
         finding_count: run.findings.length,
         counts: run.findings.reduce<Record<string, number>>((acc, f) => ({ ...acc, [f.status]: (acc[f.status] ?? 0) + 1 }), {}),
     };
-    if (!run.documentId) return { ...summary, summary_text: null, findings: [], details_withheld: true };
     let versionId: string;
+    let reviewedVersionId: string | null;
     try {
         const { doc } = await loadDocument(call, run.documentId);
         // The egress names the version the findings were written against, not the one the document has now.
-        versionId = (await findReviewedVersionId(call.db, run.documentId, run.startedAt).catch((cause: unknown) => {
+        reviewedVersionId = (await findReviewedVersionId(call.db, run.documentId, run.startedAt).catch((cause: unknown) => {
             throw serviceFailure("find the reviewed version", cause);
-        })) ?? (doc.current_version_id as string | null) ?? run.documentId;
+        })) ?? (doc.current_version_id as string | null);
+        versionId = reviewedVersionId ?? run.documentId;
     } catch (error) {
         if (error instanceof McpToolError && error.code === "not_found")
-            return { ...summary, findings: [], details_withheld: true };
+            return { ...base, document_id: null, document_name: null, edited_version_id: null, document_withheld: true, findings: [], details_withheld: true };
         throw error;
     }
+    // A pasante's draft a mentor has not approved stays in LiTT, in a review's findings too.
+    if (await isSourceHeld(call.db, { documentId: run.documentId, versionId: reviewedVersionId }))
+        return { ...summary, summary_text: null, findings: [], details_withheld: true, code: TRAINING_APPROVAL_REQUIRED_CODE, withheld_until_approved: true };
 
     const page: RunFinding[] = [];
     let chars = (run.summary ?? "").length;
@@ -486,19 +510,23 @@ export const listPlaybookRuns = defineMcpTool({
         const matching = runs.filter((run) => !args.playbook_id || run.playbookId === args.playbook_id);
         const offset = decodeCursor(args.cursor);
         const limit = args.limit ?? DEFAULT_PAGE;
+        const page = matching.slice(offset, offset + limit);
+        const outside = await documentsOutsideGrant(call, page.flatMap((run) => (run.documentId ? [run.documentId] : [])));
+        const covered = (run: RunView) => !!run.documentId && !outside.has(run.documentId);
         return mcpText({
             workspace,
-            runs: matching.slice(offset, offset + limit).map((run) => ({
+            runs: page.map((run) => ({
                 run_id: run.id,
                 playbook_id: run.playbookId,
                 playbook_name: run.playbookName,
-                document_id: run.documentId,
-                document_name: run.documentName,
+                document_id: covered(run) ? run.documentId : null,
+                document_name: covered(run) ? run.documentName : null,
+                ...(covered(run) ? {} : pastedText(run) ? { document_source: "pasted_text" } : { document_withheld: true }),
                 status: run.status,
                 review_mode: run.reviewMode,
                 review_scope: run.reviewScope,
                 executor: run.model === "client_ai" ? "client_ai" : "litt",
-                finding_count: run.findings.length,
+                finding_count: covered(run) ? run.findings.length : null,
                 started_at: run.startedAt,
                 completed_at: run.completedAt,
             })),

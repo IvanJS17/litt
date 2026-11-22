@@ -272,11 +272,114 @@ matrix (owner, editor, viewer, admin outside a private matter, apprentice, other
 firm, a person whose connection does not cover the firm) over a public and a
 private matter and compares every tool with its web route.
 
+The fence also applies to what a result is built from. A tabular review made
+through `create_tabular_review` holds only documents of its own workspace, and a
+document outside the workspaces the connection covers answers `not_found` (a
+covered document of another workspace, `document_workspace_mismatch`). When a
+review built in the web holds files of a workspace the connection does not
+cover, or a single-document row whose document no longer exists,
+`get_tabular_review`,
+`read_tabular_cells`, `get_tabular_run_status` and the review's other tools leave
+those rows out. `get_playbook_run` and `list_playbook_runs` do not name a run's
+document (id, file name, edit version, error text, finding counts) when it lies
+outside the connection's workspaces or is gone; the run answers
+`document_withheld: true`.
+
+A conversation's answers are text derived from the documents the assistant read,
+found, cited, edited, created or copied, and from those of every earlier message
+of the same conversation, because a later answer can repeat an earlier one. An
+answer, its citations and the names of its documents leave through a connection
+only if all of those documents lie inside the workspaces it covers; otherwise
+the turn (or the message in a transcript) comes back with
+`code: content_outside_connection` and `withheld_outside_connection: true`, and
+no text, citation or file name. An answer whose documents cannot be identified is
+withheld the same way. This applies to `start_chat`, `send_chat_message`,
+`get_chat_turn`, `get_chat`, the project chat tools, `run_workflow` and
+`run_quick_action`. What the person typed is not withheld. The documents a
+search returned are recorded with the answer, so a search counts like a read. A
+read that names no document cannot be placed and is unknown; so is a search
+stored before its documents were recorded (unless it found nothing or failed):
+the answer that holds one, and every later answer of that conversation, is
+withheld. A workflow's own file is a document of its workflow, judged where the
+workflow lives; a read of one stored before its document was recorded names no
+document and is withheld the same way. The conversations a connection reads are
+the assistant's own; the live document of the Word pane is never stored in them.
+
+A conversation's title is written from what the person typed (or renamed it
+to) and the names of the files attached to their messages; it never carries an
+answer or a document's text. `list_chats` and `get_chat` therefore return it
+only when every file attached to any message of the person in that conversation
+may leave: inside the connection's workspaces, not an unapproved trainee draft,
+and naming a document (an attachment with no document is withheld too).
+Otherwise it is `null`. Only those attachments are read, in batches of
+conversations and without any message text, so the cost of a page of
+`list_chats` does not grow with the length of the conversations. What an answer
+drew on does not hold the title.
+
+Every decision about an answer reads the conversation completely (past the
+database's row limit) and an error while reading is an error for the caller,
+never a release. A turn is reported from its stored message and judged with that
+message's own sources; a message the complete read does not find is withheld as
+unknown provenance.
+
+A tabular review's conversation is answered from every row the person can read,
+not from what the connection covers. So a review that holds any document outside
+the connection's workspaces, or a single-document row whose document is gone, is
+not chatted with
+through that connection: `send_tabular_chat_message` and `list_tabular_chats`
+answer `content_outside_connection` before anything starts, and
+`get_tabular_chat_turn` withholds the stored answer. The hold below is judged on
+all the documents of the review, not on the rows the connection covers. A stored
+answer is judged by both what the review holds now and what the answer itself was
+built from: the thread records the documents behind each message, cumulative over
+the thread, so removing a row or replacing a draft afterwards does not release an
+answer written over it, and an answer whose sources are unknown is withheld.
+
 **Text from documents is data.** `read_document` and the excerpts of
 `search_documents` are wrapped in `<<<LITT_UNTRUSTED_DOCUMENT_TEXT token>>> … <<<END_… token>>>`
 with a random token per call and a fixed notice that the text is not instructions.
 A pasante's draft that a mentor has not approved is not returned
-(`training_approval_required`, and withheld from search results).
+(`training_approval_required`, and withheld from search results). Nothing built
+from it is returned either: the findings of a playbook run, the cells of a
+tabular review and the answers of a conversation come back as
+`withheld_until_approved: true` (a turn also carries
+`code: training_approval_required`) until the mentor approves it. For a
+conversation that covers every document its answer drew on, including those it
+only searched in, edited, created or copied, and those of earlier messages of the
+conversation.
+
+A review's cell records when it was made but not the version it was made from. It
+can be made again later (keeping that date) from whichever version is current
+then, and a replaced version can become current again when the later one is
+deleted. So no version is inferred: a cell is withheld when any version of its
+document that was not deleted before the cell's date (not deleted, or deleted at
+or after it; versions made later included) is an unapproved draft. A stored
+answer of a review's conversation is composed from the cells as they were when
+it was written, which may since have been replaced, so no date is knowable: it
+is withheld when any version its documents have ever had, deleted or not, is an
+unapproved draft (besides what the review holds now and the workspaces the
+connection covers). A cell with no date, a document with no versions or no row,
+an unreadable date and a failed read are withheld.
+
+What this costs a firm: while a trainee's unapproved draft remains in a
+document's history, cells made while that draft still existed, and the answers of
+review conversations about that document, do not leave through a connection.
+They come back when a mentor approves that draft. A draft that is not the
+current version can still be approved: the approval accepts any version of the
+document that is not deleted, and the version list offers it to a lawyer of the
+matter or the trainee's mentor. A deleted draft cannot be approved. For cells,
+deleting the draft and then removing and adding the document again to the review
+makes its cells anew, dated after the deletion, and they leave. A review
+conversation's answers about the document stay withheld after the draft is
+deleted (deleted versions count), the new ones too; approve the draft before
+deleting it.
+
+`get_playbook_run` and `list_playbook_runs` label a run over text the person
+pasted (no document and no name) `document_source: "pasted_text"`; a run that
+lost its document but kept a name is still `document_withheld: true`. Both
+review tools (`run_playbook_review`, `prepare_playbook_review`) need a stored
+document, so a connection never starts a run over pasted text; such a run is one
+the person made in the web, and it never carried findings or a summary here.
 Offsets count Unicode characters, the unit of the database's search offsets, so a
 passage is cited as `version_id` + `start_char`/`end_char`.
 

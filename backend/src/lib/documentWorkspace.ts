@@ -31,7 +31,9 @@ type DocumentPlacement = {
 /**
  * Of `documentIds`, those that live in a different workspace from the one
  * `orgId` names — an organization's id as stored on the chat, review,
- * project or workflow, or null. Ids that name no document are not reported.
+ * project or workflow, or null. Ids that name no document are not reported,
+ * unless `reportMissing` is set: then a document that cannot be found cannot
+ * be placed and is reported as outside.
  *
  * A read failure throws: answering "none" would wave the documents through.
  */
@@ -39,7 +41,7 @@ export async function findDocumentsOutsideWorkspace(
     db: Db,
     documentIds: string[],
     orgId: string | null | undefined,
-    options: { includeWorkflowAssets?: boolean } = {},
+    options: { includeWorkflowAssets?: boolean; reportMissing?: boolean } = {},
 ): Promise<string[]> {
     const ids = [...new Set(documentIds)];
     if (ids.length === 0) return [];
@@ -48,10 +50,12 @@ export async function findDocumentsOutsideWorkspace(
         .select("id, project_id, workflow_id, org_id")
         .in("id", ids);
     if (error) throw new Error("Failed to read the documents' workspaces");
+    const found = new Set(((data ?? []) as DocumentPlacement[]).map((document) => document.id));
+    const missing = options.reportMissing ? ids.filter((id) => !found.has(id)) : [];
     const documents = ((data ?? []) as DocumentPlacement[]).filter(
         (document) => options.includeWorkflowAssets || !document.workflow_id,
     );
-    if (documents.length === 0) return [];
+    if (documents.length === 0) return missing;
 
     // A project document follows its project, whatever its own column says.
     const projectIds = [
@@ -96,9 +100,12 @@ export async function findDocumentsOutsideWorkspace(
     const workspaceOf = (stored: string | null | undefined) =>
         stored && teamOrgIds.has(stored) ? stored : null;
     const workspace = workspaceOf(orgId);
-    return documents
-        .filter((document) => workspaceOf(storedOrg(document)) !== workspace)
-        .map((document) => document.id);
+    return [
+        ...missing,
+        ...documents
+            .filter((document) => workspaceOf(storedOrg(document)) !== workspace)
+            .map((document) => document.id),
+    ];
 }
 
 type MessageWithFiles = {

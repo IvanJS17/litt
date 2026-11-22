@@ -51,6 +51,7 @@ export {
     ensureReviewChatReadAccess,
     ensureReviewChatWriteAccess,
     listTabularReviewChatMessages,
+    listTabularReviewChatSources,
     listTabularReviewChats,
     type ReviewChatSummary,
 } from "./tabular.chats";
