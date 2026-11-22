@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 // Self-hosted Inter, Newsreader and Departure Mono; sets --font-inter,
 // --font-newsreader and --font-departure-mono.
@@ -84,6 +85,9 @@ export default async function RootLayout({
 }>) {
     // The locale request.ts resolved (cookie, browser, es-MX) and its catalog.
     const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
+    // The nonce src/proxy.ts chose for this request: the policy lets this
+    // inline script run only with it.
+    const nonce = (await headers()).get("x-nonce") ?? undefined;
     // The two files a Spanish or English page really draws (the latin subset of
     // Inter and of Newsreader's roman), fetched with the HTML so the text does
     // not jump when the letters arrive. The rest stay lazy: fonts.css loads
@@ -97,6 +101,7 @@ export default async function RootLayout({
         <html lang={locale} suppressHydrationWarning>
             <head>
                 <script
+                    nonce={nonce}
                     dangerouslySetInnerHTML={{
                         __html: `${TEXT_SIZE_BOOT_SCRIPT};${THEME_BOOT_SCRIPT}`,
                     }}

@@ -410,6 +410,11 @@ services:
         GIT_SHA: ${GIT_SHA:-}
     environment:
       - API_BASE_URL=${API_BASE_URL:-http://backend:3001}
+      # The storage origin the page's content security policy lets the browser
+      # upload to: the same value the backend signs URLs against (above).
+      - R2_PUBLIC_ENDPOINT_URL=${R2_PUBLIC_ENDPOINT_URL:-http://localhost:${STORAGE_PORT:-9000}}
+      # `true` makes the policy report violations instead of enforcing them.
+      - LITT_CSP_REPORT_ONLY=${LITT_CSP_REPORT_ONLY:-}
     ports:
       # Dokploy's own dashboard occupies 3000 — set FRONTEND_PORT there.
       - "${FRONTEND_PORT:-3000}:3000"

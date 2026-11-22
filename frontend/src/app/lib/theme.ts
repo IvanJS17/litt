@@ -77,9 +77,8 @@ export function applyTheme(theme: Theme): ResolvedTheme | null {
  * Runs inline in <head>, before the first paint, so a returning dark-mode
  * user never sees the light loader, and an Automático one gets what the device
  * asks for. It must do what applyTheme does, minus the live listener (the
- * profile's provider starts that). A constant (no user input), and the web app
- * sends no Content-Security-Policy (only backend-served pages do), so it needs
- * no nonce or hash; the value read from storage is only compared, never
- * written into the page.
+ * profile's provider starts that). A constant (no user input); the layout
+ * gives it the request's nonce, which the Content-Security-Policy requires. The
+ * value read from storage is only compared, never written into the page.
  */
 export const THEME_BOOT_SCRIPT = `try{var p=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(p==="dark"||(p==="system"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)){var d=document.documentElement;d.classList.add("dark");d.style.colorScheme="dark"}}catch(e){}var m=document.createElement("meta");m.name="theme-color";m.content=document.documentElement.classList.contains("dark")?${JSON.stringify(THEME_COLOR_DARK)}:${JSON.stringify(THEME_COLOR_LIGHT)};document.head.appendChild(m)`;

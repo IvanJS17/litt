@@ -5,6 +5,7 @@ import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
 import type { resolveSourceCommit as ResolveSourceCommit } from "@mike/client";
 import { NOINDEX_DIRECTIVE, noindexHeaderSource } from "./src/app/lib/searchIndexing";
+import { protectionHeadersRule } from "./src/app/lib/securityHeaders";
 
 // The repository root: the parent of this directory, here and in the Docker
 // image (frontend/Dockerfile mirrors the layout at /app/frontend and
@@ -63,22 +64,12 @@ const nextConfig: NextConfig = {
                 source: noindexHeaderSource(),
                 headers: [{ key: "X-Robots-Tag", value: NOINDEX_DIRECTIVE }],
             },
+            // Browser protection on every path, with none of the exclusions
+            // above (lib/securityHeaders.ts; the policy itself is src/proxy.ts).
+            protectionHeadersRule(),
         ];
     },
-    async redirects() {
-        return [
-            {
-                source: "/account",
-                destination: "/settings",
-                permanent: true,
-            },
-            {
-                source: "/account/:path*",
-                destination: "/settings/:path*",
-                permanent: true,
-            },
-        ];
-    },
+    // /account and /account/* move permanently to /settings in src/proxy.ts.
     skipTrailingSlashRedirect: true,
 };
 

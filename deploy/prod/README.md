@@ -353,6 +353,58 @@ El orden acordado es desplegar primero esta cadena y después encender
 Cloudflare. Queda aparte, sin hacer aquí, mover `litt-web`, `litt-word` y
 `auth-edge` a una red de ingreso solo de LiTT (hoy comparten `edge` con otras apps).
 
+## Cabeceras de seguridad de las páginas
+
+Las páginas de la web y del complemento de Word (no el Caddy) envían estas
+cabeceras; el código las define, así que un deploy normal no toca el Caddyfile:
+
+| Cabecera | Valor |
+|---|---|
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (sin `preload`) |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | cámara, micrófono, geolocalización, pagos y USB desactivados |
+| `X-Frame-Options` | `DENY` en la web (el complemento de Word no la envía: Word lo enmarca) |
+| `Content-Security-Policy` | web: `frontend/src/proxy.ts` (un nonce por petición) y `frontend/src/app/lib/securityHeaders.ts`; complemento: `word-addin/server.mjs` |
+
+En `/api/*` de la web, estas cabeceras reemplazan a las del backend con el mismo
+nombre (HSTS, referrer, marco); en el proxy del complemento prevalecen las del
+backend. El Caddy no
+agrega ninguna de estas cabeceras: no repetirlas en `Caddyfile.litt`, porque una
+copia con otro valor se sumaría a la del código (dos `Content-Security-Policy`
+se aplican las dos).
+
+**Variables** (las leen `litt-web` y `litt-word`; `compose.yaml` ya las pasa):
+
+- `R2_ENDPOINT_URL` (y `R2_PUBLIC_ENDPOINT_URL` si existe, que tiene prioridad,
+  igual que en el backend): de ahí sale el origen del almacén al que el
+  navegador sube y baja archivos con URL firmadas (`connect-src` e `img-src`).
+  Si el valor no coincide con el que firma el backend, las subidas de archivos
+  fallan en el navegador.
+- `LITT_CSP_REPORT_ONLY` (vacío por defecto = la política **se aplica**).
+  Con `true` o `1` la política se envía como `Content-Security-Policy-Report-Only`:
+  el navegador solo anota las violaciones en su consola y no bloquea nada.
+  Es el retroceso sin cambio de código si una pantalla se rompe tras un deploy:
+  poner `LITT_CSP_REPORT_ONLY=true` en `/srv/litt/.env` y recrear los
+  contenedores (`$C up -d litt-web litt-word`). `X-Frame-Options` y el resto de
+  las cabeceras siguen aplicándose. No hay endpoint de reportes.
+
+Comprobación tras un deploy (`/connect/authorize` y `/login` deben traer
+`frame-ancestors 'none'` y `X-Frame-Options: DENY`; el panel de Word, un
+`frame-ancestors` con los orígenes de Office y ningún `X-Frame-Options`):
+
+```bash
+curl -sI https://litt.asteroitt.com/login | grep -i 'content-security\|x-frame\|strict-transport'
+curl -sI https://word.litt.asteroitt.com/taskpane.html | grep -i 'content-security\|x-frame\|strict-transport'
+```
+
+Los orígenes de Microsoft que pueden enmarcar el panel
+(`OFFICE_FRAME_ANCESTORS` en `word-addin/server.mjs`) no salen de una lista
+oficial: Microsoft no publica una para las páginas que enmarcan un complemento.
+Abrir el panel en Word en la web (desde OneDrive y desde SharePoint) y en Word de
+escritorio antes de dar el deploy por bueno; si la consola del navegador reporta
+un origen que falta, agregarlo a esa lista.
+
 ## 6. DNS
 
 Registro `A litt` → `78.47.184.224` en Cloudflare (igual que `contextlexmx`).
