@@ -9,6 +9,7 @@ import {
     type UserApiKeys,
 } from "../../lib/llm";
 import { AppError } from "../../lib/appError";
+import { stripCodeFence } from "../../lib/modelJsonFence";
 import { reportModelFailure } from "../../lib/llm/providerFailureReport";
 import { formatPromptSuffix } from "./tabular.prompt";
 import { type CellResult, type Column } from "./tabular.shared";
@@ -62,12 +63,7 @@ The "summary" field must contain only the extracted value with inline citations 
         return null;
     }
     try {
-        const parsed = JSON.parse(
-            raw
-                .replace(/^```(?:json)?\n?/i, "")
-                .replace(/\n?```$/, "")
-                .trim(),
-        ) as {
+        const parsed = JSON.parse(stripCodeFence(raw)) as {
             summary?: unknown;
             value?: unknown;
             flag?: unknown;

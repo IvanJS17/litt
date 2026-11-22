@@ -13,6 +13,7 @@
 
 import type { TrainingDefenseQuestion, TrainingReviewItem, TrainingWorkSignals } from "@mike/contracts";
 import { legalReferences } from "./legalReferences";
+import { unwrapFencedJsonBlock } from "./modelJsonFence";
 import { completeText, type UserApiKeys } from "./llm";
 import { fenced } from "./promptFence";
 
@@ -132,10 +133,9 @@ export function parseWorkReview(
     noteIds: readonly string[],
 ): { ai_corrected: TrainingReviewItem[]; doubts: TrainingReviewItem[] } | null {
     // A single ```json fence around the object is tolerated, nothing else.
-    const body = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*)\n```$/i, "$1").trim();
     let parsed: unknown;
     try {
-        parsed = JSON.parse(body);
+        parsed = JSON.parse(unwrapFencedJsonBlock(text));
     } catch {
         return null;
     }
@@ -187,10 +187,9 @@ export { legalReferences };
  * wrote and the contrasts marked).
  */
 export function parseDefenseQuestions(text: string, inputText: string): TrainingDefenseQuestion[] | null {
-    const body = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*)\n```$/i, "$1").trim();
     let parsed: unknown;
     try {
-        parsed = JSON.parse(body);
+        parsed = JSON.parse(unwrapFencedJsonBlock(text));
     } catch {
         return null;
     }

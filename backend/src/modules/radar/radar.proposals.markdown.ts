@@ -12,6 +12,8 @@
  * are escaped so the table holds and the rendered cell reads as stored).
  */
 
+import { trimChars } from "../../lib/modelJsonFence";
+
 export const EXPORT_LEGEND =
   "Borrador sin verificar. No se puede usar hasta que legal lo verifique y se agregue al catálogo. La cita se comprobó solo contra el texto subido, no contra la fuente oficial. El plazo lo propuso la IA y no está verificado.";
 export const TO_FILL = "por llenar";
@@ -97,14 +99,12 @@ function row(index: number, proposal: ExportProposal): string {
 
 /** The file name: `propuestas-reglas-<proyecto>-<AAAAMMDD>.md`, ASCII and safe in a header. */
 export function exportFileName(projectName: string, exportedAt: string): string {
-  const slug =
-    projectName
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "proyecto";
+  const dashed = projectName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  const slug = trimChars(dashed, "-", "-", Infinity).slice(0, 60) || "proyecto";
   // The firm's calendar day, not UTC: an export at 19:00 in Mexico City is still today.
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date(exportedAt));
   return `propuestas-reglas-${slug}-${day.replace(/-/g, "")}.md`;

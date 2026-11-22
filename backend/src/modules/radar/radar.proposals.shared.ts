@@ -12,6 +12,7 @@
  * answer is only ever read through the schema below.
  */
 
+import { BoundedTextError, replaceTags } from "../../lib/modelJsonFence";
 import { cleanText, isRecord } from "../client-profile/client-profile.service";
 
 export const MAX_PROPOSALS = 25;
@@ -102,8 +103,16 @@ export function writesCalendarDate(text: string): boolean {
 /** The text as plain, one-line text: no markup, control characters gone. */
 function plain(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;
+  let stripped: string;
+  try {
+    stripped = replaceTags(value, " ");
+  } catch (error) {
+    // Text over the shared bound is not plain text.
+    if (error instanceof BoundedTextError) return null;
+    throw error;
+  }
   // eslint-disable-next-line no-control-regex
-  return cleanText(oneLine(value.replace(/<[^>]*>/g, " ").replace(/[\u0000-\u001f\u007f]/g, " ")), max);
+  return cleanText(oneLine(stripped.replace(/[\u0000-\u001f\u007f]/g, " ")), max);
 }
 
 /** One item of the answer if it fits the closed schema exactly, else null. */

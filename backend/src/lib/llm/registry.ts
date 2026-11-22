@@ -5,6 +5,7 @@ import type {
   Provider,
   UserApiKeys,
 } from "./types";
+import { trimChars } from "../modelJsonFence";
 
 // Deployment-declared models. The static catalog in models.ts covers the
 // hosted providers Mike ships with; this registry is how an operator adds a
@@ -301,7 +302,7 @@ function parseConfiguredModel(value: unknown): ConfiguredModel | null {
     id,
     provider: "openai-compatible",
     location: record.location,
-    baseUrl: baseUrl.replace(/\/+$/, ""),
+    baseUrl: trimChars(baseUrl, "", "/", Infinity),
     ...(label ? { label } : {}),
     ...(apiModel ? { apiModel } : {}),
     ...(apiKeyEnv ? { apiKeyEnv } : {}),

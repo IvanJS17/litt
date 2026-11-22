@@ -24,6 +24,7 @@
 
 import type { TrainingStage } from "@mike/contracts";
 import { legalReferences } from "../legalReferences";
+import { unwrapFencedJsonBlock } from "../modelJsonFence";
 import { completeText, type UserApiKeys } from "../llm";
 import { fenced, promptNonce } from "../promptFence";
 import type { Db } from "../supabase";
@@ -225,10 +226,9 @@ export function parseBackingConclusions(
     answer: string,
     citations: readonly BackingCitation[],
 ): StoredConclusion[] | null {
-    const body = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*)\n```$/i, "$1").trim();
     let parsed: unknown;
     try {
-        parsed = JSON.parse(body);
+        parsed = JSON.parse(unwrapFencedJsonBlock(text));
     } catch {
         return null;
     }

@@ -1,4 +1,5 @@
 import { abortable } from "../../lib/abortable";
+import { BoundedTextError, trimChars } from "../../lib/modelJsonFence";
 import { completeText, type UserApiKeys } from "../../lib/llm";
 import {
     providerFailureKind,
@@ -108,10 +109,13 @@ function isTitleTimeout(error: unknown): boolean {
 const TITLE_FALLBACK = "Misc. Query";
 
 function normalizeGeneratedTitle(raw: string): string {
-    const title = raw
-        .trim()
-        .replace(/^["'`]+|["'`.,:;!?]+$/g, "")
-        .trim();
+    let title: string;
+    try {
+        title = trimChars(raw.trim(), "\"'`", "\"'`.,:;!?").trim();
+    } catch (error) {
+        if (error instanceof BoundedTextError) return TITLE_FALLBACK;
+        throw error;
+    }
     if (!title) return TITLE_FALLBACK;
     return title.slice(0, 80);
 }

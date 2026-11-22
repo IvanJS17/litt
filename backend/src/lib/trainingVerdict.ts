@@ -20,6 +20,7 @@
 // model writes is untrusted, so each line is checked here, by the server.
 
 import { legalReferences } from "./legalReferences";
+import { BoundedTextError, readLabelledLine, trimChars } from "./modelJsonFence";
 
 export const TRAINING_VERDICTS = ["coincide", "parcial", "no_coincide"] as const;
 export type TrainingVerdict = (typeof TRAINING_VERDICTS)[number];
@@ -59,7 +60,17 @@ const plain = (text: string) =>
  * bulleted line is NOT a trailer line: a bullet of «Faltó» may well begin with
  * the word «Fundamento».
  */
-const TRAILER_LINE = /^\s*[*_`]*\s*(veredicto|fundamento|temas?|pregunta(?:\s+de\s+fundamento)?)\s*[*_`]*\s*:\s*[*_`]*\s*(.*?)\s*[*_`]*\s*$/i;
+const TRAILER_LABELS = ["veredicto", "fundamento", "tema", "temas", "pregunta", "pregunta de fundamento"];
+
+/** `Label: value` of a trailer line; null for any other line, or one over the bound. */
+function readTrailerLine(line: string): { label: string; value: string } | null {
+    try {
+        return readLabelledLine(line, TRAILER_LABELS);
+    } catch (error) {
+        if (error instanceof BoundedTextError) return null;
+        throw error;
+    }
+}
 
 function readVerdict(value: string): TrainingVerdict | null {
     const word = plain(value).replace(/[^a-z_ ]/g, " ").replace(/[_\s]+/g, " ").trim();
@@ -77,11 +88,20 @@ function readFoundation(value: string): TrainingFoundation | null {
     return null;
 }
 
+/**
+ * A topic with its blanks collapsed, and without the bullets and blanks at its
+ * start or the dots and blanks at its end. After the collapse the only blank
+ * left is a space.
+ */
+export function trimTopic(raw: string): string {
+    return trimChars(raw.replace(/\s+/g, " "), "-*• ", ". ").trim();
+}
+
 function readTopics(value: string): string[] {
     const seen = new Set<string>();
     const topics: string[] = [];
     for (const raw of value.split(";")) {
-        const topic = raw.replace(/\s+/g, " ").replace(/^[-*•\s]+|[.\s]+$/g, "").trim();
+        const topic = trimTopic(raw);
         if (!topic || /^nada$/i.test(topic) || [...topic].length > TRAINING_TOPIC_MAX_CHARS) continue;
         const key = plain(topic);
         if (seen.has(key)) continue;
@@ -110,14 +130,14 @@ export function parseContrastTrailer(text: string): ContrastTrailer {
             if (found.size > 0) cut = i;
             continue;
         }
-        const match = TRAILER_LINE.exec(line);
+        const match = readTrailerLine(line);
         if (!match) break;
-        const label = plain(match[1]).startsWith("pregunta")
+        const label = plain(match.label).startsWith("pregunta")
             ? "pregunta"
-            : plain(match[1]).startsWith("tema")
+            : plain(match.label).startsWith("tema")
               ? "temas"
-              : plain(match[1]);
-        if (!found.has(label)) found.set(label, match[2]);
+              : plain(match.label);
+        if (!found.has(label)) found.set(label, match.value);
         cut = i;
     }
     const body = lines.slice(0, cut).join("\n").trim();

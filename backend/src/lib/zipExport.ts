@@ -1,3 +1,5 @@
+import { trimChars } from "./modelJsonFence";
+
 export const MAX_ZIP_EXPORT_DOCUMENTS = 200;
 export const MAX_ZIP_EXPORT_BYTES = 2 * 1024 * 1024 * 1024;
 
@@ -32,7 +34,7 @@ function archiveEntryName(filename: string): string {
  * would replace the first there.
  */
 function archiveNameKey(name: string): string {
-  return name.normalize("NFC").toLowerCase().replace(/[. ]+$/, "");
+  return trimChars(name.normalize("NFC").toLowerCase(), "", ". ", Infinity);
 }
 
 /**

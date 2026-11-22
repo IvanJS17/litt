@@ -3,8 +3,27 @@ import { ID_FILTER_BATCH_SIZE } from "../batchedQuery";
 import { createHash } from "node:crypto";
 import { AppError } from "../appError";
 import type { Db } from "../dbq/types";
+import { scanHtml, type LinkTarget } from "../modelJsonFence";
 
 export const MEMORY_MAX_BYTES = 16 * 1024;
+// Bound on the text as written, checked before anything scans it. Joining
+// CRLF and dropping trailing blanks only shrink a text, so four times the
+// stored size leaves ample room for text that does fit once normalized.
+export const MEMORY_MAX_RAW_CHARS = 4 * MEMORY_MAX_BYTES;
+
+const EXECUTABLE_TAGS: ReadonlySet<string> = new Set([
+  "script", "iframe", "object", "embed", "form", "input", "button", "svg", "math", "style", "link", "meta", "base",
+]);
+
+/** Whether a link target runs script or opens an HTML document. */
+const isScriptLink = ({ scheme, detail }: LinkTarget) =>
+  scheme === "javascript" || (scheme === "data" && detail === "text/html");
+
+function splitTrailingBlanks(line: string): [string, string] {
+  let end = line.length;
+  while (end > 0 && (line[end - 1] === " " || line[end - 1] === "\t")) end--;
+  return [line.slice(0, end), line.slice(end)];
+}
 
 export type MemoryScope = "user" | "project";
 export type MemoryStatus = "idle" | "scheduled" | "processing" | "failed";
@@ -91,35 +110,38 @@ export function normalizeMemoryMarkdown(value: unknown): string {
   if (typeof value !== "string") {
     throw new MemoryValidationError("content must be a string");
   }
+  if (value.length > MEMORY_MAX_RAW_CHARS) {
+    throw new MemoryValidationError(
+      `content must be ${MEMORY_MAX_BYTES} bytes or fewer`,
+    );
+  }
   const normalized = value
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .map((line) => {
-      if (/^[ \t]*$/.test(line)) return "";
-      const trailing = line.match(/[ \t]+$/)?.[0];
+      const [body, trailing] = splitTrailingBlanks(line);
+      if (!body) return "";
       if (!trailing) return line;
       const hardBreak = trailing.replace(/\t/g, "").length >= 2;
-      return `${line.slice(0, -trailing.length)}${hardBreak ? "  " : ""}`;
+      return `${body}${hardBreak ? "  " : ""}`;
     })
     .join("\n");
-  if (/\0|[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(normalized)) {
-    throw new MemoryValidationError("content contains unsupported characters");
-  }
-  if (
-    /<\s*\/?\s*(?:script|iframe|object|embed|form|input|button|svg|math|style|link|meta|base)\b/i.test(
-      normalized,
-    ) ||
-    /<[^>]+\bon[a-z]+\s*=/i.test(normalized) ||
-    /<[^>]+\b(?:href|src|xlink:href)\s*=\s*["']?\s*(?:javascript\s*:|data\s*:\s*text\/html)/i.test(
-      normalized,
-    )
-  ) {
-    throw new MemoryValidationError("content contains executable HTML");
-  }
   if (Buffer.byteLength(normalized, "utf8") > MEMORY_MAX_BYTES) {
     throw new MemoryValidationError(
       `content must be ${MEMORY_MAX_BYTES} bytes or fewer`,
     );
+  }
+  if (/\0|[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(normalized)) {
+    throw new MemoryValidationError("content contains unsupported characters");
+  }
+  // A character is at least a byte, so the text is within the scan's bound.
+  const markup = scanHtml(normalized, MEMORY_MAX_BYTES);
+  if (
+    [...markup.tagNames].some((name) => EXECUTABLE_TAGS.has(name)) ||
+    markup.hasEventHandler ||
+    markup.links.some(isScriptLink)
+  ) {
+    throw new MemoryValidationError("content contains executable HTML");
   }
   return normalized;
 }
