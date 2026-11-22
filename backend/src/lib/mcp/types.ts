@@ -5,6 +5,8 @@ export type McpAuthType = "none" | "bearer" | "oauth";
 export type McpConnectorAuthConfig = {
     bearerToken?: string;
     headers?: Record<string, string>;
+    /** Origin of the server URL these credentials were entered for. */
+    origin?: string;
 };
 
 export type McpConnectorSummary = {

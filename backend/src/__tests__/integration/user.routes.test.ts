@@ -2512,8 +2512,8 @@ describe("user.routes", () => {
         });
     });
 
-    // ── GET /user/mcp-connectors/oauth/callback (popup hand-off page) ─────
-    describe("GET /user/mcp-connectors/oauth/callback", () => {
+    // ── GET /user/mcp-connectors/oauth/finish (popup hand-off page) ─────
+    describe("GET /user/mcp-connectors/oauth/finish", () => {
         // The 400 path (missing state/code) renders the same popup HTML via
         // the same header helper as the success path, without needing any
         // real OAuth machinery — so it is the regression probe for both.
@@ -2522,9 +2522,9 @@ describe("user.routes", () => {
                 .spyOn(console, "error")
                 .mockImplementation(() => undefined);
 
-            const res = await request(app).get(
-                "/user/mcp-connectors/oauth/callback",
-            );
+            const res = await request(app)
+                .get("/user/mcp-connectors/oauth/finish")
+                .set(...AUTH);
 
             expect(res.status).toBe(400);
             // Load-bearing: helmet's default COOP of same-origin would sever
@@ -2569,10 +2569,12 @@ describe("user.routes", () => {
             // JSON literal additionally escapes "<" as \u003c — so a
             // </script><script>… payload can neither be reflected nor close
             // the legitimate script element.
-            const res = await request(app).get(
-                "/user/mcp-connectors/oauth/callback?error=" +
-                    encodeURIComponent("</script><script>evil()</script>"),
-            );
+            const res = await request(app)
+                .get(
+                    "/user/mcp-connectors/oauth/finish?error=" +
+                        encodeURIComponent("</script><script>evil()</script>"),
+                )
+                .set(...AUTH);
 
             expect(res.status).toBe(400);
             expect(res.text).not.toContain("evil()");

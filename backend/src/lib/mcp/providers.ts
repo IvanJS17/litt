@@ -28,6 +28,18 @@ export type McpOAuthProviderQuirks = {
      * (`<prefix>_CLIENT_ID`, `<prefix>_CLIENT_SECRET`, `<prefix>_SCOPE`).
      */
     envPrefix: string;
+    /**
+     * The authorization servers (origins, no path) this provider's
+     * pre-configured client was issued for. The client is used only when the
+     * resource names exactly one of these.
+     */
+    authorizationServers?: string[];
+    /**
+     * Hostnames the pre-configured client's secret may be sent to: the token
+     * endpoint (also used for refresh) that server's metadata names must be
+     * https on one of these hosts. The secret is sent to no other endpoint.
+     */
+    tokenEndpointHosts?: string[];
     /** Whether a pre-configured client is incomplete without its secret. */
     requiresClientSecret?: boolean;
     /**
@@ -61,6 +73,8 @@ const PROVIDERS: McpOAuthProviderQuirks[] = [
             hostname === "googleapis.com" ||
             hostname.endsWith(".googleapis.com"),
         envPrefix: "GOOGLE_MCP_OAUTH",
+        authorizationServers: ["https://accounts.google.com"],
+        tokenEndpointHosts: ["oauth2.googleapis.com"],
         requiresClientSecret: true,
         // Google only returns a refresh token when the request opts into
         // offline access (`access_type=offline`), and only re-issues one when
@@ -97,6 +111,8 @@ const PROVIDERS: McpOAuthProviderQuirks[] = [
         matches: (hostname) =>
             hostname === "slack.com" || hostname.endsWith(".slack.com"),
         envPrefix: "SLACK_MCP_OAUTH",
+        authorizationServers: ["https://mcp.slack.com"],
+        tokenEndpointHosts: ["slack.com"],
         requiresClientSecret: true,
         // No extra authorization parameters: unlike classic Slack OAuth
         // (which splits bot `scope` from user `user_scope`), the MCP
@@ -144,4 +160,60 @@ export function mcpOAuthProviderFor(
     const hostname = normalizedHostname(serverUrl);
     if (!hostname) return null;
     return PROVIDERS.find((provider) => provider.matches(hostname)) ?? null;
+}
+
+/**
+ * Whether the provider's pre-configured client (and its secret) may be used
+ * with this authorization server and the token endpoint its metadata names:
+ * the server must be exactly one of the provider's (origin, no path beyond
+ * `/`) and the token endpoint must be https on one of the provider's hosts.
+ */
+export function operatorClientMayReach(
+    provider: McpOAuthProviderQuirks,
+    authorizationServerUrl: string,
+    tokenEndpoint: string | undefined,
+): boolean {
+    if (!provider.authorizationServers || !provider.tokenEndpointHosts) {
+        return false;
+    }
+    try {
+        const server = new URL(authorizationServerUrl);
+        if (
+            server.pathname !== "/" ||
+            server.search ||
+            server.hash ||
+            server.username ||
+            server.password ||
+            !provider.authorizationServers.includes(server.origin)
+        ) {
+            return false;
+        }
+        return operatorTokenEndpointAllowed(provider, tokenEndpoint);
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Whether the provider's pre-configured client secret may be sent to this
+ * token endpoint: https, default port, no userinfo, hostname exactly one of
+ * the provider's.
+ */
+export function operatorTokenEndpointAllowed(
+    provider: McpOAuthProviderQuirks,
+    tokenEndpoint: string | null | undefined,
+): boolean {
+    if (!tokenEndpoint || !provider.tokenEndpointHosts) return false;
+    try {
+        const token = new URL(tokenEndpoint);
+        return (
+            token.protocol === "https:" &&
+            token.port === "" &&
+            !token.username &&
+            !token.password &&
+            provider.tokenEndpointHosts.includes(token.hostname.toLowerCase())
+        );
+    } catch {
+        return false;
+    }
 }

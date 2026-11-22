@@ -87,6 +87,47 @@ must not appear in a provider configuration.
 The provider redirect URI must match byte-for-byte. Some providers impose
 additional requirements; Slack requires HTTPS.
 
+The callback only forwards the browser to the signed-in `/api/user/mcp-connectors/oauth/finish`
+page, which redeems the authorization code. It completes only for the signed-in
+person who started that connection. Someone else gets the failure page; a
+signed-out browser gets the API's sign-in error (401) instead of a page, so the
+window does not report back and the connection screen notices only by its
+periodic check. In both cases the pending connection stays unused.
+
+## Credentials and servers
+
+- A connector's stored credentials (bearer token, header values, OAuth sign-in)
+  belong to the server origin they were entered or issued for. They are used
+  only while that origin is the origin of the connector's current server
+  address; otherwise the connector behaves as if it had none and asks to be set
+  up again. Changing the server address to another origin also removes them;
+  enter or authorize them again for the new server. Renaming, or changing only
+  the path, keeps them. Connectors saved before the origin was recorded keep
+  working; the next time any of their settings is saved the origin is recorded.
+- An OAuth sign-in is bound to the authorization server that issued it. If a
+  server later names a different authorization server, the connector asks to
+  be reconnected instead of reusing the old sign-in. Connectors authorized
+  before this was recorded ask to be reconnected once, when their access token
+  expires. A sign-in is also used only for the origin of the server address it
+  was issued for.
+- The protected-resource metadata of a server must describe that server (same
+  origin, a path equal to or a prefix of the connector URL).
+- The pre-configured Google and Slack clients are kept in `backend/.env` only.
+  A client is used only when the server's metadata names exactly the provider's
+  authorization server as its authorization server (Google:
+  `https://accounts.google.com`; Slack: `https://mcp.slack.com`; a trailing `/`
+  is accepted, any other path is not), and its secret is sent only to a token
+  endpoint that is `https` on the provider's own token host (Google:
+  `oauth2.googleapis.com`; Slack: `slack.com`). The same check runs on every
+  authorization, refresh and re-discovery, including the background refresh
+  of a stored sign-in (a sign-in that records no server address is not
+  refreshed); a server that names anything else fails to connect and
+  the secret is not sent. A provider whose token endpoint moves stops
+  connecting until the list of token hosts in
+  `backend/src/lib/mcp/providers.ts` is updated. After upgrading, rotate the
+  client secret if it was ever configured on a deployment that stored it per
+  person.
+
 ## Slack
 
 Slack's hosted endpoint is `https://mcp.slack.com/mcp`. Slack does not support
