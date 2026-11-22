@@ -30,6 +30,7 @@ import {
   StorageOperationError,
 } from "../../lib/storage";
 import type { Db } from "../../lib/supabase";
+import { sessionDestinationWritable } from "./uploads.access";
 import {
   uploadSessionExpiresAt,
   UPLOAD_URL_TTL_SECONDS,
@@ -481,6 +482,10 @@ export async function refreshUploadUrls(
   }
 
   const files = await loadSessionFiles(db, session.id);
+  // New upload URLs are authority to put bytes in storage for this session:
+  // the owner must still be able to write to its destination.
+  const writable = await sessionDestinationWritable(db, session, files);
+  if (!writable.ok) return writable;
   const pendingFiles = files.filter((file) =>
     ["pending_upload", "verifying"].includes(file.status),
   );
@@ -552,6 +557,13 @@ export async function completeUploadSessionFile(
   const files = await loadSessionFiles(db, session.id);
   const file = files.find((candidate) => candidate.id === fileId);
   if (!file) return failure(404, { detail: "Upload file not found" });
+  // Sealing a file and queueing it for processing act on the owner's authority
+  // over the destination, which must still hold. A report that a transfer
+  // failed only cleans up and needs none.
+  if (!failed) {
+    const writable = await sessionDestinationWritable(db, session, files);
+    if (!writable.ok) return writable;
+  }
 
   try {
     const result = await completeSessionFile(db, session, file, userId, failed);

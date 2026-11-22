@@ -556,6 +556,30 @@ completion endpoint. The client retries that control request and then polls the
 session, whose status is derived from its file rows; there is no separate
 session-wide completion request.
 
+A session's owner may write to its destination (project, workflow, document
+or own space) only while their access holds, not only when the session was
+opened: completing a file, signing new upload URLs and the worker, right
+before it writes the document, the new version or the replacement, each ask
+again and answer as the opening would. A file whose owner lost access fails
+for good with `destination_unavailable` (not retried), writes nothing, and its
+uploaded bytes are removed with the other failed files by a cleanup job that
+runs no sooner than the period after which a running upload job is reclaimed,
+and that, when it runs, skips every object a stored document version points at
+(a retried job that refuses after an earlier attempt stored its version leaves
+that version and its objects alone; if the lookup fails the job deletes nothing
+and is retried). An attempt that no longer holds its job checks this before
+each storage write and before creating the version, and ends without writing
+and without queueing a cleanup. What remains possible: an attempt that
+stalls between its last check and the end of the version-creating call for
+longer than that period can still store a version whose objects a cleanup
+already removed; the database function that creates the version does not check
+the job. Objects an attempt copied before it lost its job stay in storage,
+unreferenced, when no later attempt stores the version; no job removes them. A
+session nobody completes is swept when it expires. A check whose own database read
+failed is not a refusal: the worker retries the job and the HTTP steps answer a
+server error. A retried job never rewrites the owner or placement of a
+document row an earlier attempt created.
+
 Upload sessions accept at most 50 supported files, 100 MB per file, and 2 GB
 in total. Users may run multiple independent upload sessions concurrently and,
 by default, may create at most 50 sessions per hour. Upload-session mutation,

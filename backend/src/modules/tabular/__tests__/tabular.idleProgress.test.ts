@@ -98,6 +98,9 @@ it.each([
       generationId: "g",
       abortSignal: run.signal,
       onActivity: run.touch,
+      orgId: null,
+      authorization: null,
+      stop: () => run.stop(),
     });
     await vi.advanceTimersByTimeAsync(311000);
     const complete = await pending;

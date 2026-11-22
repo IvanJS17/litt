@@ -17,6 +17,7 @@
 // belongs to the queue workers, not to a run in this process.
 
 import { randomUUID } from "node:crypto";
+import { readAuthorizationStamp, type AuthorizationStamp } from "../../lib/authorizationEpoch";
 import { type UserApiKeys } from "../../lib/llm";
 import { recordAudit } from "../../lib/audit";
 import { failure, internalFailure } from "../../lib/serviceResult";
@@ -65,6 +66,9 @@ export type StartedTabularGeneration = {
     cellMap: Map<string, Record<string, unknown>>;
     model: string;
     apiKeys: UserApiKeys;
+    /** The review's organization (null: personal) and the epoch the run was authorized under. */
+    orgId: string | null;
+    authorization: AuthorizationStamp | null;
     /** The run was stopped before it began: nothing to extract, only to release. */
     aborted: boolean;
     /** Stop the lease heartbeat, give the lease back and end the run. Safe to call twice. */
@@ -138,6 +142,25 @@ export async function startTabularGeneration(
         onLost: () => run.stop(),
     });
 
+    // The run outlives this request, so it carries the authorization epoch it
+    // starts under (as a queued row job does). Read BEFORE the readability
+    // filter below: a change after the filter has then moved past this stamp.
+    let orgId: string | null = null;
+    let authorization: AuthorizationStamp | null = null;
+    try {
+        const { data: reviewOrg, error: reviewOrgError } = await db
+            .from("tabular_reviews")
+            .select("org_id")
+            .eq("id", reviewId)
+            .single();
+        if (reviewOrgError) throw reviewOrgError;
+        orgId = (reviewOrg as { org_id?: string | null } | null)?.org_id ?? null;
+        authorization = await readAuthorizationStamp(db, orgId);
+    } catch (stampError) {
+        await release();
+        return internalFailure(stampError);
+    }
+
     // Everything used to decide which cells need work is loaded only after the
     // atomic lease claim; otherwise a request can snapshot pending cells while
     // another run is finishing and regenerate results completed after its
@@ -160,6 +183,8 @@ export async function startTabularGeneration(
         cellMap,
         model: args.model,
         apiKeys: args.apiKeys,
+        orgId,
+        authorization,
         aborted: run.signal.aborted,
         release,
     };
@@ -200,6 +225,9 @@ export async function runTabularGeneration(started: StartedTabularGeneration): P
             generationId,
             userId,
             abortSignal: run.signal,
+            orgId: started.orgId,
+            authorization: started.authorization,
+            stop: () => run.stop(),
         });
         if (completed) {
             void recordAudit(db, {

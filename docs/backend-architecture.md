@@ -166,6 +166,11 @@ away costs nothing.
   also true for an async or another replica's run.
 - A second `POST /generate` while a run is still streaming answers
   `409 review_running`, handing back the lease it had just claimed.
+- A synchronous run acts on its starter's authority for as long as it lasts,
+  so it carries the organization's authorization epoch like a queued row job:
+  read before the rows are filtered, checked before each row, before its cells
+  are marked and before each result is written or streamed. When the epoch has
+  moved the run stops (cells back to `pending`, readers get `cancelled`).
 
 #### Word chat
 

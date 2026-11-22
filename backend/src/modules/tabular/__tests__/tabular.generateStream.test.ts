@@ -347,6 +347,7 @@ describe("streamTabularGenerateSync failure reports", () => {
             db: tableDb({ tabular_cells: [] }).db,
             reviewId: "rev-1", userId: "user-1", columns: COLUMNS, rows: rows as never, cellMap: new Map(),
             model: "m", apiKeys: {}, generationId: "gen-1", abortSignal: new AbortController().signal,
+            orgId: null, authorization: null, stop: () => undefined,
         });
 
         const reports = reportError.mock.calls.filter(([failure]) => (failure as AppError).kind === "tabular.generation_failed");

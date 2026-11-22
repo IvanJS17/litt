@@ -137,6 +137,35 @@ describe("enqueueStorageCleanup", () => {
         expect(db.inserts).toHaveLength(0);
     });
 
+    it("queues an unmarked cleanup exactly as before: no marker, no delay", async () => {
+        const db = makeDb({ insertResult: { data: { id: "j" }, error: null } });
+        await enqueueStorageCleanup(db as never, ["a.pdf"], ["p/"]);
+        expect(db.inserts).toEqual([
+            expect.objectContaining({ kind: "storage.cleanup", payload: { keys: ["a.pdf"], prefixes: ["p/"] } }),
+        ]);
+        expect(db.inserts[0]).not.toHaveProperty("run_at");
+    });
+
+    it("carries the marker and the not-before time into the queued job", async () => {
+        const db = makeDb({ insertResult: { data: { id: "j" }, error: null } });
+        await enqueueStorageCleanup(db as never, ["a.pdf"], [], {
+            unlessUsedByVersion: true,
+            notBefore: "2026-11-21T12:00:00.000Z",
+        });
+        expect(db.inserts[0]).toMatchObject({
+            payload: { keys: ["a.pdf"], prefixes: [], unlessUsedByVersion: true },
+            run_at: "2026-11-21T12:00:00.000Z",
+        });
+    });
+
+    it("does not delete inline, without looking at versions, when a marked enqueue fails", async () => {
+        const db = makeDb({ insertResult: { data: null, error: { code: "XX000", message: "db down" } } });
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        await enqueueStorageCleanup(db as never, ["a.pdf"], [], { unlessUsedByVersion: true });
+        expect(deleteFile).not.toHaveBeenCalled();
+        log.mockRestore();
+    });
+
     it("falls back to inline best-effort deletes when the enqueue fails", async () => {
         const db = makeDb({
             insertResult: {

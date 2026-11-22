@@ -225,13 +225,23 @@ export async function enqueueStorageCleanup(
     db: Db,
     keys: string[],
     prefixes: string[] = [],
+    {
+        unlessUsedByVersion = false,
+        notBefore,
+    }: {
+        /** At run time, keep every key a document version points at. */
+        unlessUsedByVersion?: boolean;
+        /** Do not run before this time (ISO timestamp). */
+        notBefore?: string;
+    } = {},
 ): Promise<void> {
     if (keys.length === 0 && prefixes.length === 0) return;
     try {
         await enqueueDbJob(db, {
             kind: "storage.cleanup",
-            payload: { keys, prefixes },
+            payload: { keys, prefixes, ...(unlessUsedByVersion ? { unlessUsedByVersion } : {}) },
             maxAttempts: 8,
+            ...(notBefore ? { runAt: notBefore } : {}),
         });
     } catch (err) {
         // The durable record could not be written, so the inline deletes
@@ -255,7 +265,10 @@ export async function enqueueStorageCleanup(
             "[dbq] storage.cleanup enqueue failed; falling back to inline deletes",
             failure,
         );
-        for (const key of keys) {
+        // A cleanup that must yield to stored versions cannot be decided
+        // here: leaving the bytes costs space, removing them could cost a
+        // document.
+        for (const key of unlessUsedByVersion ? [] : keys) {
             try {
                 await deleteFile(key);
             } catch {
