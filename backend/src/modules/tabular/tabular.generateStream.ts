@@ -31,7 +31,12 @@ import { createTextExtractionCache } from "../../lib/textExtractionCache";
 // (`finishGenerationIfIdle`). The two cases where no worker will ever run —
 // nothing outstanding, or every enqueue failing — release the lease here.
 
-import { readAuthorizationStamp } from "../../lib/authorizationEpoch";
+import {
+    assertAuthorizationStamp,
+    readAuthorizationStamp,
+    StaleAuthorizationError,
+    type AuthorizationStamp,
+} from "../../lib/authorizationEpoch";
 import IORedis from "ioredis";
 import type { Response } from "express";
 import { REDIS_URL } from "../../lib/queue/connection";
@@ -652,6 +657,15 @@ export async function streamTabularGenerateSync(args: {
     onActivity?: () => void;
     /** The person who started the run: whose opt-out and acceptance the citation check reads. */
     userId: string;
+    /**
+     * The review's organization (null: personal) and the epoch the run was
+     * authorized under, read before its rows were filtered. Required, so a
+     * caller cannot leave the run without the check.
+     */
+    orgId: string | null;
+    authorization: AuthorizationStamp | null;
+    /** Stops the whole run; rows in flight hand their cells back to pending. */
+    stop: () => void;
 }): Promise<boolean> {
     const {
         write,
@@ -689,6 +703,21 @@ export async function streamTabularGenerateSync(args: {
         if (reportedFailures.has(failure)) return false;
         reportedFailures.add(failure);
         return true;
+    };
+    // The run acts on the starter's authority for as long as it lasts, like a
+    // queued row job (tabular.extraction.ts): once the organization's epoch
+    // has moved, no further source text is loaded and no cell is written or
+    // streamed. Failing to read the epoch is treated the same way.
+    const stillAuthorized = async (): Promise<boolean> => {
+        if (abortSignal.aborted) return false;
+        try {
+            await assertAuthorizationStamp(db, args.orgId, args.authorization);
+            return true;
+        } catch (error) {
+            if (!(error instanceof StaleAuthorizationError)) onError?.(error);
+            args.stop();
+            return false;
+        }
     };
     let sentErrorFrame = false;
     let nextRowIndex = 0;
@@ -728,6 +757,7 @@ export async function streamTabularGenerateSync(args: {
             abortSignal,
             citationCheck,
             reportFailure,
+            stillAuthorized,
             sink: {
                 activity: args.onActivity,
                 generating: (rowId, columnIndex) =>
@@ -763,6 +793,7 @@ export async function streamTabularGenerateSync(args: {
         while (!abortSignal.aborted) {
             const rowIndex = nextRowIndex++;
             if (rowIndex >= rows.length) return;
+            if (!(await stillAuthorized())) return;
             await processRow(rows[rowIndex]);
         }
     };
