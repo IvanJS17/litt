@@ -93,6 +93,11 @@ services:
       GOTRUE_SMTP_PASS: ${GOTRUE_SMTP_PASS:?required}
       GOTRUE_SMTP_ADMIN_EMAIL: ${GOTRUE_SMTP_ADMIN_EMAIL:?required}
       GOTRUE_SMTP_SENDER_NAME: ${GOTRUE_SMTP_SENDER_NAME:-LiTT}
+      # Los enlaces de los correos llevan un valor derivado de un código numérico:
+      # 10 dígitos es el máximo de GoTrue v2.189.0 (el default son 6). La vigencia
+      # (GOTRUE_MAILER_OTP_EXP, 24 h por default) no cambia: las invitaciones se
+      # abren horas después.
+      GOTRUE_MAILER_OTP_LENGTH: '10'
       # Los enlaces de los correos son ${PUBLIC_URL}/auth/v1/verify; el Caddy
       # los manda a auth-edge, que solo expone esa ruta (README §5).
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify

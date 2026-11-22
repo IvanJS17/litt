@@ -74,6 +74,8 @@ services:
       # credentials over a plaintext (non-TLS) connection ("unencrypted connection").
       GOTRUE_SMTP_ADMIN_EMAIL: admin@mike.local
       GOTRUE_SMTP_SENDER_NAME: Mike
+      # Longest e-mail code GoTrue v2.189.0 accepts (default 6); validity unchanged.
+      GOTRUE_MAILER_OTP_LENGTH: "10"
       # Confirmation/recovery links resolve to the gateway, which strips /auth/v1.
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
       GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify

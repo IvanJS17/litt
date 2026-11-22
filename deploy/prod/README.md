@@ -452,6 +452,12 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   las páginas de Drive (solo accesibles por URL manual) y el backend responde
   `drivePublicationUnavailable` de forma fail-closed. El workstream del conector
   real (self-serve) reescribirá esas páginas cuando se apruebe.
+- **Código de los enlaces de correo**: `compose.yaml` fija
+  `GOTRUE_MAILER_OTP_LENGTH=10`, el máximo de GoTrue v2.189.0 (el default es 6).
+  La vigencia (`GOTRUE_MAILER_OTP_EXP`, 24 h por default) no cambia: las
+  invitaciones se abren horas después. Los enlaces enviados antes del cambio
+  siguen sirviendo hasta que venzan; basta recrear `auth`
+  (`docker compose up -d auth`).
 - **Correo del sistema (SMTP)**: lo envía GoTrue desde `LiTT
   <no-reply@asteroitt.com>`, por el puerto 587 de
   `svgs440.serverneubox.com.mx`, el nombre del servidor Neubox, que es para el
