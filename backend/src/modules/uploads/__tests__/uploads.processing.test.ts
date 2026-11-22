@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   reportError: vi.fn((_error: unknown, _context?: unknown) => null),
   setOperation: vi.fn(),
   markStage: vi.fn(),
+  sessionDestinationWritable: vi.fn(),
 }));
 
 vi.mock("../../../lib/observability/report", async (importOriginal) => ({
@@ -75,6 +76,11 @@ vi.mock("../uploads.manifest", async (original) => ({
 }));
 
 vi.mock("../../../lib/audit", () => ({ recordAudit: mocks.recordAudit }));
+// The destination gate has its own tests (uploads.destinationGate.test.ts);
+// here the owner still may write, unless a test says otherwise.
+vi.mock("../uploads.access", () => ({
+  sessionDestinationWritable: mocks.sessionDestinationWritable,
+}));
 vi.mock("../../../lib/dbq/enqueue", () => ({
   enqueueStorageCleanup: mocks.enqueueStorageCleanup,
   requestDocumentCleanupDelivery: mocks.requestDocumentCleanupDelivery,
@@ -372,6 +378,7 @@ describe("upload processing", () => {
     mocks.recordAudit.mockResolvedValue(undefined);
     mocks.enqueueStorageCleanup.mockResolvedValue(undefined);
     mocks.requestDocumentCleanupDelivery.mockResolvedValue(0);
+    mocks.sessionDestinationWritable.mockResolvedValue({ ok: true });
   });
 
   afterEach(async () => {
@@ -1746,6 +1753,8 @@ describe("upload processing", () => {
       { data: createdFile, error: null },
       { data: { id: "job-1" }, error: null },
       { error: null },
+      // Still holds the job, checked before the destination is touched.
+      { data: { id: "job-1" }, error: null },
       // The destination document lookup: gone.
       { data: null, error: null },
       { data: { id: "job-1" }, error: null },
@@ -1776,11 +1785,115 @@ describe("upload processing", () => {
           (call.payload as { status?: string } | undefined)?.status === "queued",
       ),
     ).toBe(false);
-    // The bytes this upload wrote have no row pointing at them now.
+    // The bytes this upload wrote have no row pointing at them now, unless a
+    // version stored by an earlier attempt turns out to use them: that is
+    // decided when the cleanup runs, and only after a stale attempt has ended.
     expect(mocks.enqueueStorageCleanup).toHaveBeenCalledWith(
       db,
       expect.arrayContaining([expect.stringContaining(baseFile.resource_id)]),
+      [],
+      { unlessUsedByVersion: true, notBefore: expect.any(String) },
     );
+  });
+
+  describe("an owner who can no longer write to the destination", () => {
+    const refusal = { ok: false, kind: "http", status: 404, body: { detail: "Project not found" } };
+    const ok = { data: { id: "job-1" }, error: null };
+    const done = { error: null };
+    const claim = (attempts: number) => [
+      { data: { id: "job-1", session_id: baseSession.id, file_id: baseFile.id, attempts, locked_by: "worker-1" }, error: null },
+      { data: baseSession, error: null },
+      { data: baseFile, error: null },
+    ];
+    const queuedAgain = (db: ReturnType<typeof scriptedDb>) =>
+      db.calls.some(
+        (call) =>
+          call.table === "upload_processing_jobs" &&
+          (call.payload as { status?: string } | undefined)?.status === "queued",
+      );
+
+    // Heartbeat, file -> processing; then the refusal; heartbeat, file -> error,
+    // created-document close-out, heartbeat; failed-file sweep; job finished.
+    const refusedAtTheStart = (attempts: number) =>
+      scriptedDb([
+        ...claim(attempts), ok, done, ok,
+        ok, done, done, ok,
+        { data: null, error: null }, { data: [], error: null }, ok,
+      ]);
+
+    it("fails the job for good on its first attempt: nothing written, no retry, the file says why", async () => {
+      mocks.sessionDestinationWritable.mockResolvedValue(refusal);
+      const db = refusedAtTheStart(1);
+
+      await processUploadJob(db as never, "job-1", "worker-1");
+
+      expect(db.calls).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            table: "upload_session_files",
+            operation: "update",
+            payload: expect.objectContaining({ status: "error", error_code: "destination_unavailable" }),
+          }),
+          expect.objectContaining({
+            table: "upload_processing_jobs",
+            operation: "update",
+            payload: expect.objectContaining({ status: "completed", error_code: "partial_failure" }),
+          }),
+        ]),
+      );
+      expect(queuedAgain(db)).toBe(false);
+      expect(db.calls.some((call) => call.operation === "upsert")).toBe(false);
+      expect(db.rpc).not.toHaveBeenCalledWith("create_document_version", expect.anything());
+      expect(mocks.copyFile).not.toHaveBeenCalled();
+    });
+
+    it("is not retried on a later attempt either", async () => {
+      mocks.sessionDestinationWritable.mockResolvedValue(refusal);
+      const db = refusedAtTheStart(2);
+
+      await processUploadJob(db as never, "job-1", "worker-1");
+
+      expect(queuedAgain(db)).toBe(false);
+    });
+
+    it("closes the document row and hands the bytes to cleanup when the destination is lost after the copy", async () => {
+      mocks.sessionDestinationWritable.mockResolvedValueOnce({ ok: true }).mockResolvedValue(refusal);
+      const db = scriptedDb([
+        ...claim(1), ok, done, ok,
+        done, done, // documents row, marker
+        ok, // still holds the job, before the copy
+        ok, ok, done, done, ok,
+        { data: { id: baseFile.resource_id }, error: null }, { data: [], error: null }, ok,
+      ]);
+
+      await processUploadJob(db as never, "job-1", "worker-1");
+
+      expect(db.rpc).not.toHaveBeenCalledWith("create_document_version", expect.anything());
+      expect(queuedAgain(db)).toBe(false);
+      expect(db.calls).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            table: "documents",
+            operation: "update",
+            payload: expect.objectContaining({ status: "error" }),
+          }),
+          expect.objectContaining({ table: "documents", operation: "delete" }),
+        ]),
+      );
+      expect(mocks.deleteFile).toHaveBeenCalledWith(expect.stringContaining(baseFile.resource_id));
+    });
+
+    it("retries when the lookup itself fails: that is not a refusal", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      mocks.sessionDestinationWritable.mockResolvedValue({
+        ok: false, kind: "internal", error: new Error("lookup failed"),
+      });
+      const db = scriptedDb([...claim(1), ok, done, ok, ok, done, done, ok, ok, done]);
+
+      await processUploadJob(db as never, "job-1", "worker-1");
+
+      expect(queuedAgain(db)).toBe(true);
+    });
   });
 
   it("names a job, session or file row that is no longer there (MIKE-BACKEND-M)", async () => {
@@ -1857,6 +1970,7 @@ describe("upload processing", () => {
       { data: baseFile },
       { data: { id: "job-1" } },
       { error: null },
+      { data: { id: "job-1" } },
       { data: { id: "v", storage_path: "old/key", content_sha256: "b".repeat(64) } },
       { data: { id: "job-1" } },
       { error: null },

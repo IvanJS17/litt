@@ -8,6 +8,11 @@
 //
 // Every rejection is a 404 unless the caller demonstrably knows the resource:
 // a wrong-scope destination must not double as an existence oracle.
+//
+// The same question is asked again every time a session is used — completing a
+// file, signing its upload URLs and, in the worker, right before each write
+// (`sessionDestinationWritable`): a session's owner writes only where they may
+// write NOW, whatever they could do when it was opened.
 
 import {
   can,
@@ -19,7 +24,10 @@ import {
 } from "../../lib/access";
 import type { Db } from "../../lib/supabase";
 import { VERSION_CONFLICT_CODE } from "../documents/documents.service";
-import type { ParsedUploadSessionRequest } from "./uploads.manifest";
+import type {
+  ParsedUploadSessionRequest,
+  UploadSessionFile,
+} from "./uploads.manifest";
 import {
   failure,
   internalFailure,
@@ -38,6 +46,10 @@ export async function validateDestinationAccess(
   userId: string,
   userEmail: string | undefined,
   db: Db,
+  // Later steps ask only about authority. What the manifest says about the
+  // destination's state (folders, the version it was based on, the file type)
+  // was settled at the opening, and a retry after a commit must not trip on it.
+  { authorityOnly = false }: { authorityOnly?: boolean } = {},
 ): Promise<UploadOutcome> {
   const destination = manifest.destination as Record<string, unknown>;
 
@@ -99,7 +111,7 @@ export async function validateDestinationAccess(
           ].filter((value): value is string => !!value),
         ),
       );
-      if (folderIds.length) {
+      if (!authorityOnly && folderIds.length) {
         const { data, error } = await db
           .from("project_subfolders")
           .select("id")
@@ -121,7 +133,7 @@ export async function validateDestinationAccess(
         ].filter((value): value is string => !!value),
       ),
     );
-    if (!folderIds.length) return { ok: true };
+    if (authorityOnly || !folderIds.length) return { ok: true };
     // A folder is in one workspace: a document filed under an organization
     // cannot land in a Personal folder, nor the other way round.
     const folders = db
@@ -180,7 +192,7 @@ export async function validateDestinationAccess(
       });
     if (manifest.purpose === "document_version_create") {
       const baseVersionId = destination.base_version_id as string | undefined;
-      if (!baseVersionId) return { ok: true };
+      if (authorityOnly || !baseVersionId) return { ok: true };
       // An editor save: only a DOCX, and only on top of the current version.
       if (manifest.files[0].file_type !== "docx")
         return failure(400, {
@@ -195,6 +207,7 @@ export async function validateDestinationAccess(
       return { ok: true };
     }
 
+    if (authorityOnly) return { ok: true };
     const { data: version, error: versionError } = await db
       .from("document_versions")
       .select("id, file_type, deleted_at")
@@ -247,7 +260,7 @@ export async function validateDestinationAccess(
 
   // Compatibility validation for in-flight sessions created by the previous
   // release. New clients use document_version_create.
-  if (manifest.purpose === "workflow_reference_replace") {
+  if (!authorityOnly && manifest.purpose === "workflow_reference_replace") {
     const { data: asset, error: assetError } = await db
       .from("documents")
       .select("id")
@@ -258,4 +271,69 @@ export async function validateDestinationAccess(
     if (!asset) return failure(404, { detail: "Asset not found" });
   }
   return { ok: true };
+}
+
+/**
+ * May this session's owner write to its destination right now? One answer for
+ * every step that turns a session into bytes or rows, with the refusal the
+ * opening would give today. Asks about authority only: membership, the matter
+ * wall, the role, and for a replacement the creator scope.
+ */
+/**
+ * The shared verdicts (`lib/access`) answer "no access" when a read of theirs
+ * fails. A step that ends or refuses an upload on that answer would turn a
+ * database hiccup into a refusal, so the reads made for a verdict are
+ * watched: a refusal during which one of them failed is not a refusal.
+ */
+function watchReads(db: Db): { db: Db; failure: () => unknown } {
+  let failure: unknown;
+  const watch = <T extends object>(target: T): T =>
+    new Proxy(target, {
+      get(object, property) {
+        const value = Reflect.get(object, property, object);
+        if (typeof value !== "function") return value;
+        if (property === "then")
+          return (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
+            value
+              .call(object, (result: { error?: unknown } | null) => {
+                if (result?.error) failure ??= result.error;
+                return result;
+              })
+              .then(resolve, reject);
+        return (...args: unknown[]) => {
+          const result = value.apply(object, args);
+          return result && typeof result === "object" ? watch(result) : result;
+        };
+      },
+    });
+  return { db: watch(db), failure: () => failure };
+}
+
+export async function sessionDestinationWritable(
+  db: Db,
+  session: {
+    purpose: string;
+    destination: Record<string, unknown>;
+    user_id: string;
+    user_email: string | null;
+  },
+  files: Array<Pick<UploadSessionFile, "target_folder_id" | "file_type">>,
+): Promise<UploadOutcome> {
+  const watched = watchReads(db);
+  const verdict = await validateDestinationAccess(
+    {
+      purpose: session.purpose,
+      destination: session.destination,
+      expected_total_bytes: 0,
+      files,
+    } as unknown as ParsedUploadSessionRequest,
+    session.user_id,
+    session.user_email ?? undefined,
+    watched.db,
+    { authorityOnly: true },
+  );
+  const failedRead = watched.failure();
+  if (!verdict.ok && verdict.kind !== "internal" && failedRead)
+    return internalFailure(failedRead);
+  return verdict;
 }

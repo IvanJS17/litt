@@ -339,6 +339,41 @@ describe("upload session completion", () => {
     );
   });
 
+  it("refuses to complete a file once the owner can no longer write to the destination, and queues no job", async () => {
+    // The project is no longer one the owner can open (the stand-in database
+    // finds no row for it).
+    mocks.session!.destination = {
+      scope: "project",
+      project_id: "55555555-5555-4555-8555-555555555555",
+    };
+
+    const response = await request(app).post(
+      "/upload-sessions/22222222-2222-4222-8222-222222222222/files/33333333-3333-4333-8333-333333333333/complete",
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ detail: "Project not found" });
+    expect(mocks.headFile).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalledWith(
+      "queue_upload_session_file_processing",
+      expect.anything(),
+    );
+  });
+
+  it("does not sign new upload URLs once the owner can no longer write to the destination", async () => {
+    mocks.session!.destination = {
+      scope: "project",
+      project_id: "55555555-5555-4555-8555-555555555555",
+    };
+
+    const response = await request(app).post(
+      "/upload-sessions/22222222-2222-4222-8222-222222222222/urls",
+    );
+
+    expect(response.status).toBe(404);
+    expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
+  });
+
   it("does not reclaim a verifying file whose lease is still fresh", async () => {
     mocks.files[0]!.status = "verifying";
     mocks.files[0]!.updated_at = new Date().toISOString();
