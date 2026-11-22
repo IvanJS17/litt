@@ -26,6 +26,24 @@ describe("maxOutputTokensFor", () => {
       expect(maxOutputTokensFor()).toBeUndefined();
     }
   });
+
+  it("sends the limit a caller asks for when nothing sets a lower one", () => {
+    expect(maxOutputTokensFor(undefined, 24_096)).toBe(24_096);
+    expect(maxOutputTokensFor(64_000, 24_096)).toBe(24_096);
+  });
+
+  it("never raises a caller's limit above the ceiling in force: the operator's, else the adapter's", () => {
+    expect(maxOutputTokensFor(8_192, 24_096)).toBe(8_192);
+    process.env.LLM_MAX_OUTPUT_TOKENS = "4000";
+    expect(maxOutputTokensFor(8_192, 24_096)).toBe(4_000);
+    process.env.LLM_MAX_OUTPUT_TOKENS = "32000";
+    expect(maxOutputTokensFor(8_192, 24_096)).toBe(24_096);
+  });
+
+  it("keeps the adapter's ceiling when the caller asks for nothing", () => {
+    expect(maxOutputTokensFor(8_192)).toBe(8_192);
+    expect(maxOutputTokensFor(8_192, undefined)).toBe(8_192);
+  });
 });
 
 describe("stopNotice", () => {

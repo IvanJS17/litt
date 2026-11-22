@@ -2620,6 +2620,10 @@ async function completeReviewWithSources(args: {
     messages: [{ role: "user", content: args.prompt }],
     tools: [READ_SOURCE_TOOL],
     maxIterations: 8,
+    // The limit of the review without documents. The one-shot call adds the
+    // reasoning allowance itself; this one does not, so it is asked for here.
+    maxOutputTokens:
+      REVIEW_MAX_OUTPUT_TOKENS + COMPLETION_REASONING_HEADROOM_TOKENS,
     apiKeys: args.apiKeys,
     abortSignal: args.signal,
     runTools: (calls) =>

@@ -60,13 +60,19 @@ function quotaRefusalRetries(): LanguageModelMiddleware {
  * `adapterDefault` is an adapter's own model-aware ceiling for SDKs that do
  * not fill one in (Bedrock sends no maxTokens unless given one, so Bedrock's
  * small server default would apply); see AiSdkAdapterConfig.
+ *
+ * `requested` is a limit the caller asks for (StreamChatParams.maxOutputTokens):
+ * sent as asked unless the ceiling above is lower.
  */
 export function maxOutputTokensFor(
   adapterDefault?: number,
+  requested?: number,
 ): number | undefined {
   const value = Number(process.env.LLM_MAX_OUTPUT_TOKENS);
-  if (Number.isSafeInteger(value) && value > 0) return value;
-  return adapterDefault;
+  const ceiling =
+    Number.isSafeInteger(value) && value > 0 ? value : adapterDefault;
+  if (requested === undefined) return ceiling;
+  return ceiling === undefined ? requested : Math.min(requested, ceiling);
 }
 
 /**
@@ -579,6 +585,7 @@ export async function streamAiSdk(
       tools,
       maxOutputTokens: maxOutputTokensFor(
         config.defaultMaxOutputTokens?.(params.reasoning),
+        params.maxOutputTokens,
       ),
       stopWhen: sdk.stepCountIs(maxIterations),
       abortSignal: internalAbort.signal,
