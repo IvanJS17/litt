@@ -308,8 +308,8 @@ the assistant's own; the live document of the Word pane is never stored in them.
 A conversation's title is written from what the person typed (or renamed it
 to) and the names of the files attached to their messages; it never carries an
 answer or a document's text. `list_chats` and `get_chat` therefore return it
-only when every file attached to any message of the person in that conversation
-may leave: inside the connection's workspaces, not an unapproved trainee draft,
+only when every file attached to a person's message in that conversation (in a
+shared conversation, any participant's) may leave: inside the connection's workspaces, not an unapproved trainee draft,
 and naming a document (an attachment with no document is withheld too).
 Otherwise it is `null`. Only those attachments are read, in batches of
 conversations and without any message text, so the cost of a page of
@@ -339,10 +339,10 @@ answer written over it, and an answer whose sources are unknown is withheld.
 `search_documents` are wrapped in `<<<LITT_UNTRUSTED_DOCUMENT_TEXT token>>> … <<<END_… token>>>`
 with a random token per call and a fixed notice that the text is not instructions.
 A pasante's draft that a mentor has not approved is not returned
-(`training_approval_required`, and withheld from search results). Nothing built
-from it is returned either: the findings of a playbook run, the cells of a
-tabular review and the answers of a conversation come back as
-`withheld_until_approved: true` (a turn also carries
+(`training_approval_required`, and withheld from search results). What is built
+from it is withheld too, within the limits stated below: the findings of a
+playbook run, the cells of a tabular review and the answers of a conversation
+come back as `withheld_until_approved: true` (a turn also carries
 `code: training_approval_required`) until the mentor approves it. For a
 conversation that covers every document its answer drew on, including those it
 only searched in, edited, created or copied, and those of earlier messages of the
@@ -362,8 +362,10 @@ connection covers). A cell with no date, a document with no versions or no row,
 an unreadable date and a failed read are withheld.
 
 What this costs a firm: while a trainee's unapproved draft remains in a
-document's history, cells made while that draft still existed, and the answers of
-review conversations about that document, do not leave through a connection.
+document's history, the cells of that document (those made before the draft
+existed included, unless the draft was deleted before the cell was made) and the
+answers of review conversations about that document do not leave through a
+connection.
 They come back when a mentor approves that draft. A draft that is not the
 current version can still be approved: the approval accepts any version of the
 document that is not deleted, and the version list offers it to a lawyer of the
@@ -373,6 +375,14 @@ makes its cells anew, dated after the deletion, and they leave. A review
 conversation's answers about the document stay withheld after the draft is
 deleted (deleted versions count), the new ones too; approve the draft before
 deleting it.
+
+Limits of the hold on cells and review answers. A cell and a review answer do
+not record the documents, versions or bytes they were made from, so two cases
+are judged by what exists now rather than by what the text was made from: a
+cell of a row that groups several documents is judged by the documents the row
+holds now, and a version whose content was changed in place is judged by its
+current content and approval. Recording what each cell and answer was made from
+is the planned change that makes the hold exact and removes the cost above.
 
 `get_playbook_run` and `list_playbook_runs` label a run over text the person
 pasted (no document and no name) `document_source: "pasted_text"`; a run that
