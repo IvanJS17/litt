@@ -118,8 +118,8 @@ host (`HOST-RULES.md` §3–§5):
    a que todo servicio de larga vida esté corriendo, healthy si tiene healthcheck (`rest`
    no tiene), a que `/health` reporte el SHA y a que `litt-word` sirva un `manifest.xml`
    cuyo panel apunta a `WORD_ADDIN_URL` del `.env` (una imagen construida con otra URL
-   pública aborta el deploy). Sin `WORD_ADDIN_URL` en el `.env`, el script aborta antes
-   de cargar nada.
+   pública aborta el deploy). Sin `WORD_ADDIN_URL` ni `LITT_EDGE_SECRET` en el `.env`, el script aborta
+   antes de cargar nada.
 6. Solo entonces aplica la retención: imagen viva + 1 anterior, retirando el resto por tag
    explícito. Nunca usa `docker system/image/volume/builder prune`.
 
@@ -272,6 +272,86 @@ su nombre como alias en todas sus redes, así que esos servicios deben tener nom
 únicos en el host (`frontend`, `backend` y `web` ya son de otras apps) y sus llamadas
 internas usan alias propios (`litt-backend`, `litt-gotrue`). Antes de agregar un
 servicio a esa red, revisar `docker network inspect edge`.
+
+## Dirección del cliente (límites por IP)
+
+El backend limita por IP (inicio de sesión, registro, correos, MCP y el límite
+general) y toma la dirección del último valor de `X-Forwarded-For` que le manda
+el salto de la app (`litt-web` o `litt-word`); por eso `compose.yaml` fija
+`TRUST_PROXY_HOPS: '1'`. El Caddy y una CDN no cuentan como saltos: el salto de
+la app reenvía exactamente una dirección.
+
+**Secreto del borde.** `LITT_EDGE_SECRET` es un valor aleatorio que el Caddy
+compartido manda en `X-Litt-Edge` (con `X-Forwarded-For {client_ip}`, ver
+`Caddyfile.litt`). `litt-web` y `litt-word` solo aceptan la dirección que
+reciben si ese encabezado coincide con su propia variable; en cualquier otro caso
+usan la dirección del contenedor que les habló, ignoran su `X-Forwarded-For` y
+nunca reenvían `X-Litt-Edge`. Debe tener **el mismo valor en dos lugares**:
+`/srv/litt/.env` (compose no arranca sin él) y el entorno del contenedor
+`edge-caddy-1` (el compose de `/srv/edge`, fuera de este repositorio). Se genera
+con `openssl rand -hex 32` y no se imprime ni se copia a Git.
+
+**Orden seguro del despliegue.**
+
+1. Poner `LITT_EDGE_SECRET` en `/srv/litt/.env` y en el entorno del Caddy
+   compartido, y recrear `edge-caddy-1` para que lo lea (`caddy reload` no
+   actualiza el entorno del proceso).
+2. Aplicar el bloque nuevo de `Caddyfile.litt` con el procedimiento de §5. Las
+   imágenes anteriores siguen funcionando igual: reciben la dirección única y
+   copian `X-Litt-Edge` al backend por la red interna, que no lo registra. Por
+   eso conviene no dejar pasar tiempo entre este paso y el siguiente.
+3. Desplegar las imágenes nuevas (§1), que ya leen el secreto.
+
+**Falla por secreto ausente o distinto** (en `.env` o en el Caddy): los saltos
+tratan al Caddy como no confiable y el backend ve la dirección del salto, no la
+del visitante. Todos los visitantes comparten un solo cupo de límite por IP:
+falla del lado seguro, pero molesta (llegan 429 a todos). Se corrige igualando el
+valor.
+
+**Comprobación posterior (solo lectura).** Sin imprimir el secreto:
+`docker exec edge-caddy-1 sh -c 'test -n "$LITT_EDGE_SECRET" && echo definido'`;
+`docker exec litt-litt-web-1 sh -c 'test -n "$LITT_EDGE_SECRET" && echo definido'`
+(y `litt-litt-word-1`); comparar `sha256sum` de los tres valores (cada contenedor
+con `printf %s "$LITT_EDGE_SECRET" | sha256sum`), que deben ser iguales;
+`caddy validate`; y desde dos redes distintas, `curl -s -o /dev/null -w '%{http_code}\n'
+https://litt.asteroitt.com/api/health` debe responder 200 sin 429 para ninguna.
+La comparación de `sha256sum` es la que detecta un valor distinto antes de que
+alguien reciba un 429.
+
+El Caddy en nivel de log `debug` escribe los encabezados que manda, incluido
+`X-Litt-Edge`: no activarlo en producción, o rotar el secreto después.
+
+**Rotación.** Generar un valor nuevo; ponerlo en `/srv/litt/.env` y en el entorno
+del Caddy; recrear `litt-web` y `litt-word` (`$C up -d litt-web litt-word`) y
+`edge-caddy-1` en la misma ventana. Entre ambos pasos hay una ventana corta en la
+que se aplica la falla descrita arriba. No hay periodo de convivencia de dos
+valores.
+
+**El día que se encienda Cloudflare** hacen falta dos cambios más, ambos en el
+servidor y fuera de este repositorio:
+
+1. En las opciones globales del Caddy compartido, **antes** de activar el
+   proxy de Cloudflare:
+
+   ```
+   {
+       servers {
+           trusted_proxies static <rangos de Cloudflare>
+           client_ip_headers CF-Connecting-IP
+       }
+   }
+   ```
+
+   Con eso `{client_ip}` es el visitante real; sin ello sería la dirección de
+   Cloudflare. El bloque es global: aplica a todos los sitios de ese Caddy, no
+   solo a los de LiTT.
+2. **Después** de activar el proxy, cerrar 80/443 a todo lo que no sea
+   Cloudflare (firewall del host), para que el tráfico público entre solo por
+   Cloudflare.
+
+El orden acordado es desplegar primero esta cadena y después encender
+Cloudflare. Queda aparte, sin hacer aquí, mover `litt-web`, `litt-word` y
+`auth-edge` a una red de ingreso solo de LiTT (hoy comparten `edge` con otras apps).
 
 ## 6. DNS
 

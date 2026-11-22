@@ -11,7 +11,7 @@ fails=0
 
 setup() {
   T=$(mktemp -d); mkdir -p "$T/bin" "$T/app/backups" "$T/app/deploy/prod"
-  printf 'LITT_SOURCE_COMMIT=%s\nOTRA=1\nWORD_ADDIN_URL=https://word.example.test\n' "$LIVE" > "$T/app/.env"; echo "$LIVE" > "$T/app/RELEASE_SHA"
+  printf 'LITT_SOURCE_COMMIT=%s\nOTRA=1\nWORD_ADDIN_URL=https://word.example.test\nLITT_EDGE_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n' "$LIVE" > "$T/app/.env"; echo "$LIVE" > "$T/app/RELEASE_SHA"
   echo dump > "$T/app/backups/db.dump"; echo viejo > "$T/app/viejo.txt"
   mkdir -p "$T/tree/deploy/prod"; echo nuevo > "$T/tree/nuevo.txt"
   tar -czf "$T/tree.tgz" -C "$T/tree" .
@@ -83,6 +83,13 @@ setup $((20 * GIB))
 sed -i '/^WORD_ADDIN_URL=/d' "$T/app/.env"
 if run $((2 * GIB)); then st=0; else st=$?; fi
 check "exige WORD_ADDIN_URL" '[ $st -ne 0 ] && grep -q WORD_ADDIN_URL "$T/out" && ! grep -q "^load" "$T/calls" && [ -f "$T/app/viejo.txt" ]'
+rm -rf "$T"
+
+# 4. Sin LITT_EDGE_SECRET en .env: aborta antes de marcar, cargar o tocar el árbol.
+setup $((20 * GIB))
+sed -i '/^LITT_EDGE_SECRET=/d' "$T/app/.env"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "exige LITT_EDGE_SECRET" '[ $st -ne 0 ] && grep -q LITT_EDGE_SECRET "$T/out" && ! grep -q "^load" "$T/calls" && [ -f "$T/app/viejo.txt" ]'
 rm -rf "$T"
 
 [ "$fails" -eq 0 ] && echo "todas las pruebas pasaron" || { echo "$fails fallas"; exit 1; }

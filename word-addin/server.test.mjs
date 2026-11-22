@@ -12,6 +12,10 @@ let backendOrigin;
 let addinOrigin;
 let staticRoot;
 let observedRequest;
+let observedHeaders;
+let trustingAddin;
+let trustingAddinOrigin;
+const EDGE_SECRET = "edge-secret-for-tests";
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -38,6 +42,7 @@ before(async () => {
   await writeFile(path.join(staticRoot, "taskpane.0123abcd.js"), "");
 
   backend = http.createServer((req, res) => {
+    observedHeaders = req.headers;
     observedRequest = {
       url: req.url,
       cookie: req.headers.cookie,
@@ -58,12 +63,19 @@ before(async () => {
   addin = createWordAddinServer({
     distRoot: staticRoot,
     backendOrigin,
+    edgeSecret: "",
   });
   addinOrigin = await listen(addin);
+  trustingAddin = createWordAddinServer({
+    distRoot: staticRoot,
+    backendOrigin,
+    edgeSecret: EDGE_SECRET,
+  });
+  trustingAddinOrigin = await listen(trustingAddin);
 });
 
 after(async () => {
-  await Promise.all([close(addin), close(backend)]);
+  await Promise.all([close(addin), close(trustingAddin), close(backend)]);
   await rm(staticRoot, { recursive: true, force: true });
 });
 
@@ -130,4 +142,49 @@ test("rejects backend configuration that is not an origin", () => {
       /must be an http\(s\) origin/,
     );
   }
+});
+
+async function forwardedFor(origin, headers) {
+  const response = await fetch(`${origin}/api/health`, { headers });
+  await response.text();
+  return observedHeaders;
+}
+
+test("replaces a caller-supplied client address with the socket peer", async () => {
+  // Every case below is untrusted: no edge secret is configured, or the
+  // request does not prove it came from the edge proxy.
+  const cases = [
+    [addinOrigin, {}],
+    [addinOrigin, { "x-litt-edge": "" }],
+    [addinOrigin, { "x-litt-edge": EDGE_SECRET }],
+    [trustingAddinOrigin, {}],
+    [trustingAddinOrigin, { "x-litt-edge": "wrong" }],
+    [trustingAddinOrigin, { "x-litt-edge": "x".repeat(EDGE_SECRET.length) }],
+    [trustingAddinOrigin, { "x-litt-edge": "" }],
+  ];
+  for (const [origin, extra] of cases) {
+    const seen = await forwardedFor(origin, {
+      "x-forwarded-for": "203.0.113.77",
+      ...extra,
+    });
+    assert.equal(seen["x-forwarded-for"], "127.0.0.1");
+    assert.equal(seen["x-litt-edge"], undefined);
+  }
+});
+
+test("keeps the edge-provided client address when the edge secret matches", async () => {
+  const seen = await forwardedFor(trustingAddinOrigin, {
+    "x-forwarded-for": "203.0.113.77",
+    "x-litt-edge": EDGE_SECRET,
+  });
+  assert.equal(seen["x-forwarded-for"], "203.0.113.77");
+  assert.equal(seen["x-litt-edge"], undefined);
+});
+
+test("falls back to the socket peer when the trusted edge sends no address", async () => {
+  const seen = await forwardedFor(trustingAddinOrigin, {
+    "x-litt-edge": EDGE_SECRET,
+  });
+  assert.equal(seen["x-forwarded-for"], "127.0.0.1");
+  assert.equal(seen["x-litt-edge"], undefined);
 });

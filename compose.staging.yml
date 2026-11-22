@@ -176,13 +176,17 @@ services:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: '1'
       API_BASE_URL: http://backend:3001
+      LITT_EDGE_SECRET: ${STAGING_LITT_EDGE_SECRET:?required}
   proxy:
     labels: *id001
     image: nginx:1.27.5-alpine
     ports:
     - 127.0.0.1:${STAGING_PROXY_PORT:?required}:8000
+    environment:
+      LITT_EDGE_SECRET: ${STAGING_LITT_EDGE_SECRET:?required}
     volumes:
-    - ./docker/staging/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    # Plantilla: la imagen de nginx sustituye ${LITT_EDGE_SECRET} al arrancar.
+    - ./docker/staging/proxy.conf:/etc/nginx/templates/default.conf.template:ro
     networks:
     - default
     - edge

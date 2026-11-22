@@ -41,6 +41,7 @@ done
 [ -f "$APP_DIR/.env" ] || die "falta $APP_DIR/.env (primer arranque: README §3)"
 WORD_URL=$(sed -n 's/^WORD_ADDIN_URL=//p' "$APP_DIR/.env" | tail -1)
 [[ "$WORD_URL" =~ ^https://[a-z0-9.-]+$ ]] || die "WORD_ADDIN_URL en .env debe ser un origen https (README §Complemento de Word)"
+grep -Eq '^LITT_EDGE_SECRET=[A-Za-z0-9]{32,}$' "$APP_DIR/.env" || die "LITT_EDGE_SECRET en .env debe tener 32 o más caracteres alfanuméricos (README §Dirección del cliente)"
 
 STAGE="$APP_DIR/.release-$SHA"
 touch "$MARK"

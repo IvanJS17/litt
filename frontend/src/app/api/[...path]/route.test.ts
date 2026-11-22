@@ -77,6 +77,68 @@ describe("same-origin API gateway", () => {
         );
     });
 
+    describe("client address", () => {
+        const secret = "edge-secret-for-tests";
+        async function upstreamHeadersFor(headers: Record<string, string>) {
+            fetchMock.mockResolvedValue(new Response("ok"));
+            await GET(
+                new NextRequest("https://app.example.test/api/health", { headers }),
+                context(["health"]),
+            );
+            const init = fetchMock.mock.calls[0][1] as RequestInit;
+            return new Headers(init.headers);
+        }
+
+        it("drops a caller-supplied address unless the request proves it came from the edge", async () => {
+            const claim = { "x-forwarded-for": "203.0.113.77" };
+            const untrusted: Record<string, string>[] = [
+                claim,
+                { ...claim, "x-litt-edge": secret },
+                { ...claim, "x-litt-edge": "" },
+            ];
+            for (const headers of untrusted) {
+                fetchMock.mockClear();
+                const forwarded = await upstreamHeadersFor(headers);
+                expect(forwarded.has("x-forwarded-for")).toBe(false);
+                expect(forwarded.has("x-litt-edge")).toBe(false);
+            }
+            vi.stubEnv("LITT_EDGE_SECRET", secret);
+            for (const wrong of ["wrong", "x".repeat(secret.length), ""]) {
+                fetchMock.mockClear();
+                const forwarded = await upstreamHeadersFor({ ...claim, "x-litt-edge": wrong });
+                expect(forwarded.has("x-forwarded-for")).toBe(false);
+                expect(forwarded.has("x-litt-edge")).toBe(false);
+            }
+            fetchMock.mockClear();
+            const missing = await upstreamHeadersFor(claim);
+            expect(missing.has("x-forwarded-for")).toBe(false);
+        });
+
+        it("keeps the edge-provided address and never forwards the secret", async () => {
+            vi.stubEnv("LITT_EDGE_SECRET", secret);
+            const forwarded = await upstreamHeadersFor({
+                "x-forwarded-for": "203.0.113.77",
+                "x-litt-edge": secret,
+            });
+            expect(forwarded.get("x-forwarded-for")).toBe("203.0.113.77");
+            expect(forwarded.has("x-litt-edge")).toBe(false);
+        });
+
+        it("never sends the edge header back to the browser", async () => {
+            vi.stubEnv("LITT_EDGE_SECRET", secret);
+            fetchMock.mockResolvedValue(
+                new Response("ok", { headers: { "x-litt-edge": secret } }),
+            );
+            const response = await GET(
+                new NextRequest("https://app.example.test/api/health", {
+                    headers: { "x-litt-edge": secret },
+                }),
+                context(["health"]),
+            );
+            expect(response.headers.has("x-litt-edge")).toBe(false);
+        });
+    });
+
     it("removes response hop-by-hop headers, including connection-nominated fields", async () => {
         fetchMock.mockResolvedValue(new Response("body", { headers: {
             connection: "keep-alive, x-internal-socket", "keep-alive": "timeout=5",

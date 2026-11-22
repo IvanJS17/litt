@@ -275,6 +275,10 @@ services:
       DOWNLOAD_SIGNING_SECRET: ${DOWNLOAD_SIGNING_SECRET:?required}
       USER_API_KEYS_ENCRYPTION_SECRET: ${USER_API_KEYS_ENCRYPTION_SECRET:?required}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      # Cadena de la dirección del cliente: un solo salto de app (litt-web o
+      # litt-word) delante del backend. El Caddy y una CDN no cuentan: el salto
+      # reenvía exactamente una dirección (README §Dirección del cliente).
+      TRUST_PROXY_HOPS: '1'
       # Beta por invitación (README §Decisiones): vacío = registro abierto.
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-}
       # Silencio máximo entre salidas de un modelo (README §3, "Tiempos del
@@ -365,6 +369,9 @@ services:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: '1'
       API_BASE_URL: http://litt-backend:3001
+      # Secreto compartido con el Caddy: solo con él se acepta la dirección del
+      # cliente que reenvía (README §Dirección del cliente).
+      LITT_EDGE_SECRET: ${LITT_EDGE_SECRET:?required}
     healthcheck:
       test:
       - CMD
@@ -398,6 +405,8 @@ services:
     environment:
       NODE_ENV: production
       WORD_ADDIN_BACKEND_ORIGIN: http://litt-backend:3001
+      # Mismo secreto que litt-web y el Caddy (README §Dirección del cliente).
+      LITT_EDGE_SECRET: ${LITT_EDGE_SECRET:?required}
     healthcheck:
       test:
       - CMD
