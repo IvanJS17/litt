@@ -137,8 +137,8 @@ services:
         - litt-gotrue
       egress: {}
 
-  # Borde público de GoTrue, solo para GET /auth/v1/verify (los enlaces de
-  # confirmación, recuperación, invitación y cambio de correo). Va aparte del
+  # Borde público de GoTrue, solo para GET /auth/v1/verify con el tipo invite
+  # (los enlaces de invitación; los demás correos usan /auth/confirm). Va aparte del
   # gateway para no exponer signup, token ni /rest/v1 a la red del Caddy
   # compartido.
   auth-edge:
@@ -147,8 +147,13 @@ services:
     restart: unless-stopped
     mem_limit: 32m
     memswap_limit: 64m
+    environment:
+      # Mismo secreto que el Caddy compartido: con él se acepta la dirección del
+      # cliente para el límite por visitante (README §Dirección del cliente).
+      LITT_EDGE_SECRET: ${LITT_EDGE_SECRET:?required}
     volumes:
-    - ./auth-edge.conf:/etc/nginx/conf.d/default.conf:ro
+    # Plantilla: la imagen de nginx sustituye ${LITT_EDGE_SECRET} al arrancar.
+    - ./auth-edge.conf:/etc/nginx/templates/default.conf.template:ro
     depends_on:
       auth:
         condition: service_healthy

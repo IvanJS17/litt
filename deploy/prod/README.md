@@ -21,7 +21,8 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 |---|---|
 | `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, litt-web, litt-word) |
 | `gateway.conf` | Fachada interna de Supabase (gotrue+postgrest) para el backend |
-| `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` (enlaces de los correos) |
+| `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` del tipo `invite` (enlace del correo de invitación), con límite por visitante |
+| `auth-edge.test.sh` | Prueba de `auth-edge.conf` con un nginx real y un upstream de mentira (`bash deploy/prod/auth-edge.test.sh`; se omite sin Docker; CI no la corre) |
 | `Caddyfile.litt` | Bloques de `litt.asteroitt.com`, `word.litt.asteroitt.com` y `mcp.litt.asteroitt.com` para el Caddy compartido (marcadores `# BEGIN/END litt`) |
 | `.env.example` | Contrato de variables (copiar a `/srv/litt/.env`, 600) |
 | `supabase-jwt.py` | Generador de las llaves JWT `anon` / `service_role` |
@@ -241,11 +242,13 @@ $C ps                                # todo healthy
 ## 5. Caddy compartido (quirúrgico)
 
 El bloque manda todo a `litt:3000` (servicio `litt-web`), salvo `/auth/v1/verify`, que va
-a `litt-auth:8000` (`auth-edge`). Esa es la ruta de los enlaces que llegan por
-correo para confirmar la cuenta, recuperar la contraseña, aceptar una
-invitación o cambiar el correo. `auth-edge` responde 404 a cualquier otra ruta,
-así que la red del Caddy compartido no alcanza el signup, el token, la API
-admin ni PostgREST.
+a `litt-auth:8000` (`auth-edge`). Esa es la ruta del enlace del correo de
+invitación. Los correos de confirmación, recuperación y cambio de correo apuntan
+a `/auth/confirm` (§Decisiones y pendientes) y no usan esa ruta. `auth-edge`
+responde 404 a cualquier otra ruta y a cualquier consulta que no sea
+exactamente `token=…&type=invite[&redirect_to=…]`, así que la red del Caddy
+compartido no alcanza el signup, el token, la API admin ni PostgREST, y GoTrue
+no recibe otro tipo de enlace por aquí.
 
 Un deploy normal no toca el Caddyfile. Para cambiar el bloque `litt` hay que seguir
 `HOST-RULES.md` §1: respaldar `/srv/edge/conf/Caddyfile` y probar **todos** sus dominios
@@ -300,7 +303,39 @@ con `openssl rand -hex 32` y no se imprime ni se copia a Git.
    imágenes anteriores siguen funcionando igual: reciben la dirección única y
    copian `X-Litt-Edge` al backend por la red interna, que no lo registra. Por
    eso conviene no dejar pasar tiempo entre este paso y el siguiente.
-3. Desplegar las imágenes nuevas (§1), que ya leen el secreto.
+3. Desplegar las imágenes nuevas (§1), que ya leen el secreto. Ese `up -d`
+   recrea `auth-edge` (cambia su entorno y su plantilla); cualquier cambio
+   posterior solo a `auth-edge.conf` exige recrearlo a mano para que lo lea:
+   `$C up -d --force-recreate auth-edge`.
+
+El bloque del Caddy y `auth-edge` dependen de la misma cadena: el orden de los
+pasos 1 a 3 sirve también para `/auth/v1/verify`, y aquí no es opcional. Si el
+Caddy no manda el secreto cuando `auth-edge` ya lo exige, todos los visitantes
+comparten un solo cupo (el de la dirección del Caddy): unas pocas solicitudes
+de cualquiera bastan para que las invitaciones de los demás respondan 429
+mientras dure ese estado. Se nota en el log de `auth-edge`
+(`$C logs auth-edge | grep 'limiting requests'` muestra la dirección del Caddy
+en vez de la de un visitante); se corrige completando los pasos 1 y 2.
+
+**Límite en `/auth/v1/verify` (`auth-edge`).** `auth-edge` también recibe
+`LITT_EDGE_SECRET` (compose no arranca sin él) y usa la misma regla: con
+`X-Litt-Edge` igual al secreto toma la dirección de `X-Forwarded-For` que manda
+el Caddy; en cualquier otro caso usa la dirección TCP de quien llama y ignora su
+`X-Forwarded-For` (un contenedor vecino de la red `edge` que le hable directo
+queda limitado por su propia dirección). A GoTrue nunca le llega `X-Litt-Edge`;
+su `X-Forwarded-For` es esa dirección. Si la variable queda vacía nadie es de
+confianza; si no está definida, nginx no arranca (compose ya lo impide). El
+límite es de 10 solicitudes por minuto por dirección, con una ráfaga de 10 más;
+el resto recibe 429. Una persona que abre su invitación hace una solicitud (un
+escáner de correo o un reintento suman pocas); una oficina entera detrás de una
+sola dirección tendría que abrir más de 20 invitaciones en el mismo minuto para
+notarlo. El límite acota el volumen por visitante; no es la única protección de
+los enlaces. Los valores están en `auth-edge.conf` (`rate=10r/m`, `burst=10`).
+Un 429 no gasta la invitación: el mismo enlace funciona al reintentar. Si GoTrue
+no pudiera descargar las plantillas de LiTT usaría las suyas, cuyos enlaces de
+confirmación, recuperación y cambio de correo apuntan a esta ruta y aquí reciben
+404; hay que restablecer las plantillas (`$C restart auth`) y pedir el correo de
+nuevo.
 
 **Falla por secreto ausente o distinto** (en `.env` o en el Caddy): los saltos
 tratan al Caddy como no confiable y el backend ve la dirección del salto, no la
@@ -413,13 +448,14 @@ como una página que el navegador arma al cargar, así que el HTML que devuelve
 3. Repetir en Ajustes → Acerca de y en el add-in de Word (Ajustes).
 Luego: abrir en el navegador y crear la cuenta del owner. Debe llegar el
 correo de confirmación de `LiTT <no-reply@asteroitt.com>`, con un enlace a
-`https://litt.asteroitt.com/auth/v1/verify…` que, al abrirlo, regresa a la app
+`https://litt.asteroitt.com/auth/confirm…` que, al abrirlo, regresa a la app
 con la cuenta confirmada. Si no llega, revisar `$C logs auth` (sin imprimir el
 `.env`). Después, dar de alta la llave de IA (Ajustes) y subir un documento de
 prueba. Comprobar también «Olvidé mi contraseña» con la misma cuenta.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com/auth/v1/signup   # 404 (auth-edge solo expone /verify)
+curl -s -o /dev/null -w '%{http_code}\n' 'https://litt.asteroitt.com/auth/v1/verify?token=x&type=recovery'   # 404 (solo type=invite)
 ```
 
 ### Publicar el release de producción
@@ -553,8 +589,8 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   fija `SSL: port == 465` en `NewDialer`; con `SSL` en falso, `Dial` abre la
   conexión sin cifrar y, si el servidor anuncia la extensión `STARTTLS`, llama a
   `StartTLS`. Es decir, en el 587 hay STARTTLS cuando el servidor lo ofrece; si
-  no lo ofreciera, gomail seguiría sin cifrar. Los enlaces apuntan a
-  `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app.
+  no lo ofreciera, gomail seguiría sin cifrar. El enlace de invitación apunta a
+  `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresa a la app.
   **Recuperación de contraseña, confirmación de registro y cambio de correo**:
   los enlaces de estos tres correos no pasan por `/auth/v1/verify` (PKCE exige
   el mismo navegador que inició el flujo); apuntan a
