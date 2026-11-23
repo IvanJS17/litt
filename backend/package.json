@@ -84,6 +84,7 @@
     "semver": "^7.8.5"
   },
   "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.5",
     "proxy-addr": "2.0.8",
     "source-map-js": "1.2.2"
   },
