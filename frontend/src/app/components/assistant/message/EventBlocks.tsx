@@ -1,7 +1,7 @@
 import { useMarkdownCheckpoint } from "./markdownCheckpoint";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { useReasoningDisclosure, DocEditBlockUI, DocFindBlockUI, DocReadBlockUI } from "@mike/ui";
-import ReactMarkdown from "react-markdown";
+import { useReasoningDisclosure, DocEditBlockUI, DocFindBlockUI, DocReadBlockUI, withSafeMarkdownImages } from "@mike/ui";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Download, Loader2 } from "lucide-react";
 import {
@@ -161,14 +161,14 @@ export function ReasoningContent({
 const ReasoningMarkdown = memo(function ReasoningMarkdown({text}: {text: string}) {
     return (<ReactMarkdown
                         remarkPlugins={[remarkGfm]}
-                        components={{
+                        components={withSafeMarkdownImages<Components>({
                             code: (props) => (
                                 <code
                                     className="font-serif text-gray-600"
                                     {...withoutMarkdownNode(props)}
                                 />
                             ),
-                        }}
+                        })}
                     >
                         {text}
                     </ReactMarkdown>);

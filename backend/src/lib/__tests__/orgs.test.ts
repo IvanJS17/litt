@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+
+// Withdrawing an invitation first asks the identity service about the account
+// it created; here that service is a spy.
+const { retireIdentity } = vi.hoisted(() => ({ retireIdentity: vi.fn(async () => {}) }));
+vi.mock("../inviteEmail", () => ({ retireUnusedInvitationIdentity: retireIdentity }));
 import { ownerlessRpcResult } from "../../__tests__/helpers/ownerlessRpc";
 import { handoverRpcResult } from "../../__tests__/helpers/handoverRpc";
 import { tableDb } from "../../__tests__/helpers/tableDb";
@@ -1471,6 +1476,10 @@ describe("org invitations", () => {
             }),
         ).resolves.toMatchObject({ ok: true });
         expect((db._tables.org_invitations as Row[])[0].status).toBe("cancelled");
+        expect(retireIdentity).toHaveBeenCalledWith(db, "newbie@acme.example", {
+            table: "org_invitations",
+            id: inviteId,
+        });
         await expect(
             acceptInvitation(db, {
                 userId: "newbie",
@@ -1481,6 +1490,26 @@ describe("org invitations", () => {
             // recipient something untrue — an admin withdrew it; they never
             // answered. The client maps 404 to "It may have been cancelled."
         ).resolves.toMatchObject({ ok: false, kind: "not_found" });
+    });
+
+    it("withdraws nothing when the account the invitation created cannot be dealt with", async () => {
+        const db = seedOrg();
+        const created = await createInvitation(db, {
+            actorId: "owner1",
+            orgId: "o1",
+            email: "newbie@acme.example",
+            role: "member",
+        });
+        if (!created.ok) throw new Error("setup failed");
+        retireIdentity.mockRejectedValueOnce(new Error("identity service down"));
+        await expect(
+            cancelInvitation(db, {
+                actorId: "owner1",
+                orgId: "o1",
+                invitationId: created.invitation.id as string,
+            }),
+        ).resolves.toMatchObject({ ok: false, kind: "db_error" });
+        expect((db._tables.org_invitations as Row[])[0].status).toBe("pending");
     });
 
     it("resending pushes the expiry out without re-opening an answered one", async () => {
@@ -1527,6 +1556,7 @@ describe("org invitations", () => {
                 invitationId: "whatever",
             }),
         ).resolves.toMatchObject({ ok: false, kind: "forbidden" });
+        expect(retireIdentity).not.toHaveBeenCalled();
     });
 
     it("surfaces an invitation created before the recipient had an account", async () => {

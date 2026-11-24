@@ -86,6 +86,7 @@ const ASKS: Call[] = [
 function params(extra: Record<string, unknown> = {}) {
   return {
     model: "gemini-3.8-flash",
+    credentialRef: "user:u1:gemini:v1",
     apiMessages: [
       { role: "system", content: "Base prompt." },
       { role: "user", content: "Do it." },

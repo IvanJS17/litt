@@ -17,6 +17,7 @@
 // same. There is no streaming to the client: the call starts the turn, waits a
 // little and otherwise answers `generating`.
 
+import { defaultKeyFor, workspaceOrgId } from "./mcp.defaultKey";
 import { z } from "zod";
 import {
     activeChatTurn,
@@ -42,7 +43,7 @@ import {
     turnCapabilities,
 } from "./mcp.tools.chat";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
-import { idSchema, loadDocument, matterWorkspace } from "./mcp.toolkit";
+import { documentInCallWorkspace, idSchema, matterWorkspace } from "./mcp.toolkit";
 
 const MAX_CHAT_DOCUMENTS = 10;
 
@@ -50,13 +51,13 @@ const documentIdsSchema = z
     .array(idSchema("document_ids"))
     .max(MAX_CHAT_DOCUMENTS)
     .optional()
-    .describe(`Documents of this matter to put in front of the assistant for this message (up to ${MAX_CHAT_DOCUMENTS}). It can read the rest of the matter's documents by itself.`);
+    .describe(`Documents of this matter's workspace to put in front of the assistant for this message (up to ${MAX_CHAT_DOCUMENTS}). It can read the rest of the matter's documents by itself.`);
 
-/** The documents the call names, once the person can open each one and this connection covers it. */
+/** The documents the call names: each one openable, covered by this connection and in the call's workspace. */
 async function attachedDocuments(call: McpCall, documentIds: string[] | undefined) {
     const files: { filename: string; document_id: string }[] = [];
     for (const id of [...new Set(documentIds ?? [])]) {
-        const { doc } = await loadDocument(call, id);
+        const { doc } = await documentInCallWorkspace(call, id);
         files.push({ filename: String(doc.filename ?? ""), document_id: id });
     }
     return files;
@@ -79,6 +80,9 @@ async function runProjectTurn(
 ) {
     const files = await attachedDocuments(call, args.documentIds);
     const history = args.chatId ? await loadChatHistory(call.db, args.chatId, await chatReader(call)) : [];
+    // A new conversation is pinned to a key now; a named one wins, an existing one keeps its own.
+    const credentialRef =
+        args.credentialRef ?? (args.chatId ? undefined : await defaultKeyFor(call, { model: args.model, orgId: workspaceOrgId(args.workspace) }));
     const parsed = parseProjectChatRequest({
         messages: [
             ...history,
@@ -86,7 +90,7 @@ async function runProjectTurn(
         ],
         ...(args.chatId ? { chat_id: args.chatId } : {}),
         ...(args.model ? { model: args.model } : {}),
-        ...(args.credentialRef ? { credential_ref: args.credentialRef } : {}),
+        ...(credentialRef ? { credential_ref: credentialRef } : {}),
         ...(files.length ? { attached_documents: files } : {}),
         // "Tu turno primero": an apprentice brings their own approach first.
         ...(args.attempt ? { attempt: args.attempt } : {}),
@@ -130,13 +134,13 @@ export const startProjectChat = defineMcpTool({
     name: "start_project_chat",
     title: "Start a conversation in a matter with LiTT's assistant",
     description:
-        "Starts a new conversation with the assistant of a matter, the one LiTT's web app opens inside a matter, and sends its first message. It sees the matter's documents, can list and read them and answers with citations. It uses LiTT's model for that workspace with the person's own key; the model is fixed for the conversation and LiTT never switches to another one. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn (use send_project_chat_message for the next message).",
+        "Starts a new conversation with the assistant of a matter, the one LiTT's web app opens inside a matter, and sends its first message. It sees the matter's documents, can list and read them and answers with citations. It uses LiTT's model for that workspace with the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists); the model is fixed for the conversation and LiTT never switches to another one. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn (use send_project_chat_message for the next message).",
     inputSchema: z.object({
         matter_id: idSchema("matter_id").describe("A matter from find_matters."),
         message: messageSchema,
         document_ids: documentIdsSchema,
-        model: z.string().trim().min(1).max(200).optional().describe("A model id the person has a key for. Default: the person's usual model."),
-        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
+        model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
+        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use: the person's own or the firm's. Leave it out and LiTT uses the workspace's default key."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
     }),

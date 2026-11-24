@@ -86,6 +86,19 @@ describe("ConnectAuthorizePage", () => {
         expect(assign).toHaveBeenCalledWith("https://claude.ai/api/mcp/auth_callback?code=c&iss=i");
     });
 
+    it("says which key the assistant's and the run permissions spend", async () => {
+        h.getMcpConsentRequest.mockResolvedValue({ ...consent, scopes: ["litt.read", "litt.run", "litt.chat"] });
+        render(<ConnectAuthorizePage />);
+        const chat = await screen.findByLabelText("Use the LiTT assistant for you.");
+        const run = screen.getByLabelText("Run reviews and other tasks that use AI keys or credits.");
+        const note = "runs on a key of the workspace you choose: in a firm's workspace the firm's key first, then your own key where the firm allows it";
+        expect(chat.getAttribute("aria-describedby")).toBe("scope-note-chat");
+        expect(document.getElementById("scope-note-chat")?.textContent).toContain(note);
+        expect(run.getAttribute("aria-describedby")).toBe("scope-note-run");
+        expect(document.getElementById("scope-note-run")?.textContent).toContain(note);
+        expect(screen.getByLabelText("Read your matters, documents and results.").getAttribute("aria-describedby")).toBeNull();
+    });
+
     it("cannot allow with nothing selected", async () => {
         render(<ConnectAuthorizePage />);
         await userEvent.click(await screen.findByLabelText("Personal"));

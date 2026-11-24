@@ -7,7 +7,7 @@ import {
     ChatSkeuoIcon,
     TabularReviewSkeuoIcon,
 } from "@/app/components/shared/AppSidebarSkeuoIcons";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ColumnConfig, Workflow } from "../shared/types";
 import {
@@ -21,7 +21,7 @@ import {
     LIQUID_GLASS_MODAL_ROW_HOVER_CLASS,
     LIQUID_GLASS_MODAL_ROW_SELECTED_CLASS,
 } from "@/app/components/ui/liquid-surface";
-import { LIQUID_GLASS_SUBTLE_CLASS } from "@mike/ui";
+import { LIQUID_GLASS_SUBTLE_CLASS, withSafeMarkdownImages } from "@mike/ui";
 import { useTranslations } from "next-intl";
 
 type WorkflowPreviewMode = "auto" | "prompt" | "columns";
@@ -323,7 +323,7 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            components={{
+            components={withSafeMarkdownImages<Components>({
                 h1: ({ children }) => (
                     <h1 className="mb-1 mt-4 text-sm font-semibold text-gray-900 first:mt-0">
                         {children}
@@ -387,7 +387,7 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
                     </strong>
                 ),
                 em: ({ children }) => <em className="italic">{children}</em>,
-            }}
+            })}
         >
             {content}
         </ReactMarkdown>

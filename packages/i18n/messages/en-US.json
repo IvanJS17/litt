@@ -28,11 +28,18 @@
     "noOrgInvite": "Ask your firm for an invitation",
     "setPassword": {
       "confirm": "Confirm your password",
+      "confirmBody": "This invitation is for {email}. Continue to choose your password.",
+      "confirmTitle": "Accept your invitation",
+      "conflictBody": "You are signed in as {current}, but this invitation is for {invited}. Continue as {invited} to sign out of {current} first, or stay signed in.",
+      "conflictTitle": "You are signed in as another account",
+      "continue": "Continue",
+      "continueAs": "Continue as {invited}",
       "invalid": "This invitation link is invalid or has expired. Ask to be invited again.",
       "invalidTitle": "Invitation unavailable",
       "mismatch": "The passwords don't match.",
       "password": "Password",
       "saving": "Saving...",
+      "stay": "Stay signed in",
       "submit": "Save password",
       "subtitle": "Use at least {min} characters. You'll then continue setting up your account.",
       "title": "Create your password",
@@ -528,10 +535,15 @@
     "checkEmail": {
       "checkYourEmail": "Check your email",
       "confirmationSent": "We sent a link to your email address. Open it to confirm your address and finish setting up your account.",
+      "invitationSent": "If this address has an invitation, we sent a link to it. Open it to choose your password.",
       "returnToLogin": "Return to login"
     },
     "confirm": {
       "action": "verify your link",
+      "conflictBody": "You are signed in as {current}. This link is for another account and has now been used up, so it cannot be opened again. Sign out and ask for a new link, or stay signed in.",
+      "conflictBodyConfirmed": "You are signed in as {current}. This link was for another account and has been used: it has taken effect for that account. Sign out and sign in with that account, or stay signed in.",
+      "conflictSignOut": "Sign out",
+      "conflictUnknownAccount": "another account",
       "emailChange": {
         "title": "Confirm your email change",
         "description": "Confirm that you want to change the email of your LiTT account. The link can only be used once.",
@@ -991,8 +1003,10 @@
     "returnTo": "After you decide, you go back to {host}. Allow it only if you recognize that address.",
     "scopes": {
       "chat": "Use the LiTT assistant for you.",
+      "chatKeyNote": "The assistant's work runs on a key of the workspace you choose: in a firm's workspace the firm's key first, then your own key where the firm allows it.",
       "read": "Read your matters, documents and results.",
-      "run": "Run reviews and other tasks that use your AI keys or credits.",
+      "run": "Run reviews and other tasks that use AI keys or credits.",
+      "runKeyNote": "The work LiTT's own assistant does runs on a key of the workspace you choose: in a firm's workspace the firm's key first, then your own key where the firm allows it.",
       "title": "What it can do",
       "write": "Save results and create or upload documents."
     },

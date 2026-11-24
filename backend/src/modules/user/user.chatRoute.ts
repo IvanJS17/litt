@@ -41,6 +41,7 @@ import {
     EMPTY_SUBAGENT_ROUTES,
     SUBAGENT_ROUTES_UNREADABLE_FOR_MODEL,
 } from "../../lib/subagentRoutes";
+import { CHAT_ROUTE_CREDENTIAL_REQUIRED } from "../../lib/chatRouteCredentialRequired";
 import { checkProjectAccess, resolveStandaloneOrgId } from "../../lib/access";
 import {
     OWNER_TABLE,
@@ -397,7 +398,7 @@ export async function pinChatRoute(
         ok: false,
         status: 422,
         code: "chat_route_credential_required",
-        detail: "Choose which key this conversation should use for the selected model.",
+        detail: CHAT_ROUTE_CREDENTIAL_REQUIRED,
     };
 }
 
@@ -725,7 +726,7 @@ export function subagentRouteGovernor(
 ): (
     route: SubagentRoute,
 ) => Promise<
-    | { ok: true; model: string; provider: Provider; apiKeys: UserApiKeys }
+    | { ok: true; model: string; provider: Provider; apiKeys: UserApiKeys; credentialRef: string }
     | { ok: false; detail: string }
 > {
     return async (subagentRoute) => {
@@ -770,6 +771,8 @@ export function subagentRouteGovernor(
                 model: checked.model,
                 provider: resolved.route.provider,
                 apiKeys: resolved.apiKeys,
+                // The key the route runs on, so work it starts uses that key.
+                credentialRef: resolved.route.credentialRef,
             };
         } catch (error) {
             reportError(

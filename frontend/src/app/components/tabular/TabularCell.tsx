@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AlertCircle, Expand } from "lucide-react";
 import type { ColumnConfig, TabularCell as TCell } from "../shared/types";
@@ -9,7 +9,7 @@ import { preprocessCitations, type ParsedCitation } from "./citation-utils";
 import { getPillClass } from "./pillUtils";
 import { SkeletonLine } from "../shared/TablePrimitive";
 import { TRExpandedCellSurface } from "./TRExpandedCellSurface";
-import { CitationPillUI } from "@mike/ui";
+import { CitationPillUI, withSafeMarkdownImages } from "@mike/ui";
 import { CitationReviewHint, needsCitationReview } from "@/app/components/assistant/message/CitationReviewHint";
 import { useTranslations } from "next-intl";
 
@@ -92,7 +92,7 @@ function CellMarkdown({
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            components={{
+            components={withSafeMarkdownImages<Components>({
                 p: ({ node, ...props }) =>
                     inline ? (
                         <span {...props} />
@@ -180,7 +180,7 @@ function CellMarkdown({
                         </code>
                     );
                 },
-            }}
+            })}
         >
             {text}
         </ReactMarkdown>

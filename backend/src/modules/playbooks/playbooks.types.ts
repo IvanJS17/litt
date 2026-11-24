@@ -119,6 +119,8 @@ export type PlaybookImportWork = {
   route?: ChatRoute | null;
   /** LiTT C4: the organization epoch the import was requested under. */
   authorization?: AuthorizationStamp | null;
+  /** The saved document the file is read from, when it is not an upload. */
+  documentId?: string;
 };
 export type PlaybookReviewRequest = {
   userId: string;

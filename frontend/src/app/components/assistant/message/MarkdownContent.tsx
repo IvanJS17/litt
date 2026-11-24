@@ -1,11 +1,11 @@
 import { Fragment, memo, type RefObject, type ComponentProps } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import type { Citation } from "../../shared/types";
-import { CitationPillUI, EXCERPT_SOURCE_PROPS } from "@mike/ui";
+import { CitationPillUI, EXCERPT_SOURCE_PROPS, withSafeMarkdownImages } from "@mike/ui";
 import { withoutMarkdownNode } from "./messageStyles";
 import { useTranslations } from "next-intl";
 import { citationTooltip } from "./CitationSources";
@@ -15,17 +15,6 @@ import {
     citationVerificationAriaLabel,
     citationVerificationPillClassName,
 } from "./citationVerification";
-
-function isSameOrigin(url: string): boolean {
-    if (typeof window === "undefined") return false;
-    try {
-        return (
-            new URL(url, window.location.href).origin === window.location.origin
-        );
-    } catch {
-        return false;
-    }
-}
 
 interface BlockProps {
     text: string;
@@ -53,7 +42,7 @@ function MarkdownBlockImpl({
                     remarkGfm,
                 ]}
                 rehypePlugins={[rehypeKatex]}
-                components={{
+                components={withSafeMarkdownImages<Components>({
                     pre: (props) => (
                         <pre
                             className="max-w-full overflow-x-auto"
@@ -257,36 +246,13 @@ function MarkdownBlockImpl({
                             </a>
                         );
                     },
-                    img: (props) => {
-                        const { src, alt, ...imageProps } =
-                            withoutMarkdownNode(props);
-                        if (typeof src !== "string" || !src) return null;
-                        // Another site's image would load with no click, so
-                        // injected text could leak data in its URL.
-                        if (!isSameOrigin(src)) {
-                            return (
-                                <a
-                                    href={src}
-                                    className="text-interactive hover:text-interactive-hover underline [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    {alt?.trim() || src}
-                                </a>
-                            );
-                        }
-                        return (
-                            // eslint-disable-next-line @next/next/no-img-element -- markdown content, not an optimizable page asset
-                            <img src={src} alt={alt ?? ""} {...imageProps} />
-                        );
-                    },
                     hr: (props) => (
                         <hr
                             className="my-6 border-gray-200"
                             {...withoutMarkdownNode(props)}
                         />
                     ),
-                }}
+                })}
             >
                 {text}
             </ReactMarkdown>

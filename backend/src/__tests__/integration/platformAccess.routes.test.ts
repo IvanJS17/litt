@@ -37,7 +37,10 @@ vi.mock("../../modules/auth/auth.service", async (importOriginal) => ({
 
 import { app } from "../../app";
 import { memoryDb } from "../helpers/memoryDb";
+import { createRequestSupabase } from "../../lib/authSession";
+import { signUpWithPassword } from "../../modules/auth/auth.service";
 import { fakeIdentityService } from "../helpers/fakeIdentityService";
+import { forgetRecentInvitations } from "../../lib/inviteEmail";
 
 const idp = fakeIdentityService();
 
@@ -48,8 +51,16 @@ const FUTURE = "2999-01-01T00:00:00.000Z";
 const PAST = "2000-01-01T00:00:00.000Z";
 // Each call comes from its own address so the per-address sign-up limiter stays out of the way.
 let caller = 0;
-const signup = (email: string, password = "a-long-enough-password") =>
-    request(app).post("/auth/signup").set("Origin", "http://localhost:3000").set("X-Forwarded-For", `198.51.100.${++caller}`).send({ email, password });
+// In beta mode the route answers first and works afterwards, so the helper
+// lets that work finish (everything behind it is in memory) before returning.
+const settle = async () => {
+    for (let i = 0; i < 25; i++) await new Promise((resolve) => setImmediate(resolve));
+};
+const signup = async (email: string, password = "a-long-enough-password") => {
+    const res = await request(app).post("/auth/signup").set("Origin", "http://localhost:3000").set("X-Forwarded-For", `198.51.100.${++caller}`).send({ email, password });
+    await settle();
+    return res;
+};
 const as = (id: string, email: string) => {
     h.caller = { id, email };
 };
@@ -64,9 +75,14 @@ beforeEach(() => {
     };
     h.state = memoryDb(tables);
     idp.reset();
+    forgetRecentInvitations();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    idp.attachTables(() => tables);
     invite.mockReset().mockImplementation(idp.invite);
     update.mockReset().mockImplementation(idp.updateUserById);
-    (h.state.db as { auth?: unknown }).auth = { admin: { inviteUserByEmail: invite, updateUserById: update } };
+    (h.state.db as { auth?: unknown }).auth = {
+        admin: { inviteUserByEmail: invite, updateUserById: update, deleteUser: vi.fn(idp.deleteUser) },
+    };
     vi.stubEnv("SUPABASE_URL", "http://identity.test");
     vi.stubEnv("SUPABASE_SECRET_KEY", "service-key");
     vi.stubGlobal("fetch", vi.fn(idp.fetch));
@@ -74,15 +90,17 @@ beforeEach(() => {
     vi.stubEnv("PLATFORM_ADMIN_EMAILS", " Boss@Firm.example , other@firm.example");
 });
 afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
 });
 
 describe("POST /auth/signup in beta mode", () => {
-    it("refuses an email with no invitation", async () => {
+    it("sends nothing to an email with no invitation", async () => {
         const res = await signup("stranger@firm.example");
-        expect(res.status).toBe(403);
-        expect(res.body.code).toBe("signup_invite_only");
+        expect(res.status).toBe(201);
+        expect(invite).not.toHaveBeenCalled();
+        expect(idp.identities.size).toBe(0);
     });
 
     it("accepts a pending organization invitation, matched by normalized email", async () => {
@@ -99,10 +117,11 @@ describe("POST /auth/signup in beta mode", () => {
         expect((await signup("BOSS@firm.example")).status).toBe(201);
     });
 
-    it("refuses an expired invitation", async () => {
+    it("sends nothing for an expired invitation", async () => {
         h.state!.tables.platform_invitations.push({ email: "late@firm.example", status: "pending", expires_at: PAST });
         h.state!.tables.org_invitations.push({ email: "late@firm.example", status: "pending", expires_at: PAST });
-        expect((await signup("late@firm.example")).status).toBe(403);
+        expect((await signup("late@firm.example")).status).toBe(201);
+        expect(invite).not.toHaveBeenCalled();
     });
 
     it("is open without the variable", async () => {
@@ -128,7 +147,7 @@ describe("POST /auth/signup in beta mode: the password of an invited address", (
     it.each(addresses)("is not chosen by whoever signs up first, for %s", async (_name, email, arrange) => {
         arrange();
         expect((await signup(email, ATTACKER)).status).toBe(201);
-        idp.minutesAgo(email, 11);
+        vi.setSystemTime(Date.now() + 11 * 60_000);
         expect((await signup(email, OWNER)).status).toBe(201);
         // The owner opens the newest mail sent to the address.
         expect(idp.openLink(email)).toBe(true);
@@ -169,12 +188,13 @@ describe("POST /auth/signup in beta mode: the password of an invited address", (
         expect(idp.canSignIn(GUEST, ATTACKER)).toBe(false);
     });
 
-    it("says so when the invitation mail cannot be sent", async () => {
+    it("answers the same when the invitation mail cannot be sent", async () => {
         vi.spyOn(console, "warn").mockImplementation(() => {});
         invite.mockResolvedValue({ data: {}, error: { code: "over_email_send_rate_limit", status: 429, message: "rate limit" } });
         h.state!.tables.platform_invitations.push({ id: "pi-0", email: GUEST, status: "pending", expires_at: FUTURE });
         const res = await signup(GUEST, ATTACKER);
-        expect(res.status).toBeGreaterThanOrEqual(400);
+        expect(res.status).toBe(201);
+        expect(res.body).toEqual({ user: null, requiresEmailConfirmation: true });
         expect(idp.identities.size).toBe(0);
     });
 
@@ -183,7 +203,7 @@ describe("POST /auth/signup in beta mode: the password of an invited address", (
         idp.seed(GUEST, { password: ATTACKER });
         update.mockResolvedValue({ data: null, error: { message: "boom" } });
         admitGuest();
-        expect((await signup(GUEST, OWNER)).status).toBeGreaterThanOrEqual(400);
+        expect((await signup(GUEST, OWNER)).status).toBe(201);
         expect(idp.mails).toHaveLength(0);
     });
 
@@ -200,14 +220,73 @@ describe("POST /auth/signup in beta mode: the password of an invited address", (
             expect(idp.openLink(GUEST, firstLink)).toBe(true);
         });
 
+        it("sends one mail for twenty requests, one after the other or together, from different client addresses", async () => {
+            admitGuest();
+            idp.seed(GUEST, { invitedAt: new Date(Date.now() - 11 * 60_000).toISOString() });
+            for (let i = 0; i < 10; i++) {
+                // The identity service's own date would hold a repeat; the process's memory is what is proven.
+                idp.minutesAgo(GUEST, 11);
+                await signup(GUEST, ATTACKER);
+            }
+            expect(idp.mails).toHaveLength(1);
+            vi.setSystemTime(Date.now() + 11 * 60_000);
+            await Promise.all(Array.from({ length: 10 }, () => signup(GUEST, ATTACKER)));
+            expect(idp.mails).toHaveLength(2);
+        });
+
         it("sends a new mail once the window has passed", async () => {
             admitGuest();
             await signup(GUEST, ATTACKER);
-            idp.minutesAgo(GUEST, 11);
+            vi.setSystemTime(Date.now() + 11 * 60_000);
             const again = await signup(GUEST, ATTACKER);
             expect(again.status).toBe(201);
             expect(idp.mails).toHaveLength(2);
         });
+    });
+});
+
+describe("POST /auth/signup in beta mode: one answer for every address", () => {
+    const FIRM = "firm-guest@firm.example";
+    const PLATFORM = "platform-guest@firm.example";
+    const cases: Array<[string, string, () => void, boolean]> = [
+        ["an address with no invitation", "stranger@firm.example", () => {}, false],
+        ["an address whose invitation expired", "late@firm.example", () =>
+            h.state!.tables.org_invitations.push({ org_id: "o1", email: "late@firm.example", status: "pending", expires_at: PAST }), false],
+        ["an address already registered and confirmed", "taken@firm.example", () =>
+            idp.seed("taken@firm.example", { password: "their-own-password", confirmed: true }), false],
+        ["an address with a firm invitation", FIRM, () =>
+            h.state!.tables.org_invitations.push({ org_id: "o1", email: FIRM, status: "pending", expires_at: FUTURE }), true],
+        ["an address with a platform invitation", PLATFORM, () =>
+            h.state!.tables.platform_invitations.push({ id: "pi-0", email: PLATFORM, status: "pending", expires_at: FUTURE }), true],
+        ["a platform administrator", "boss@firm.example", () => {}, true],
+    ];
+
+    it("answers with one status, one body and no cookie, and keeps the sign-up call out of it", async () => {
+        const answers = [];
+        for (const [, email, arrange] of cases) {
+            arrange();
+            const res = await signup(email);
+            answers.push({ status: res.status, body: res.body, cookies: res.headers["set-cookie"] ?? null });
+        }
+        expect(new Set(answers.map((a) => JSON.stringify(a))).size).toBe(1);
+        expect(answers[0]).toEqual({ status: 201, body: { user: null, requiresEmailConfirmation: true }, cookies: null });
+        expect(createRequestSupabase).not.toHaveBeenCalled();
+        expect(signUpWithPassword).not.toHaveBeenCalled();
+    });
+
+    it.each(cases)("mails the invitation only to an eligible address: %s", async (_name, email, arrange, eligible) => {
+        arrange();
+        await signup(email);
+        expect(invite).toHaveBeenCalledTimes(eligible ? 1 : 0);
+    });
+
+    it("answers the same when the lookup of invitations fails", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        const open = await signup("stranger@firm.example");
+        h.state!.tables.org_invitations = new Proxy([], { get() { throw new Error("db down"); } }) as never;
+        const broken = await signup("guest@firm.example");
+        expect({ status: broken.status, body: broken.body }).toEqual({ status: open.status, body: open.body });
+        expect(invite).not.toHaveBeenCalled();
     });
 });
 
@@ -271,6 +350,86 @@ describe("/platform", () => {
         expect(list.status).toBe(200);
         const del = await request(app).delete(`/platform/invitations/${created.body.id}`).set(...AUTH);
         expect(del.status).toBe(204);
+    });
+
+    describe("withdrawing an invitation", () => {
+        const GUEST = "guest@firm.example";
+        const admin = () => as("u3", "boss@firm.example");
+        const invitePlatform = async () => {
+            const created = await request(app).post("/platform/invitations").set(...AUTH).send({ email: GUEST });
+            expect(created.body.email_sent).toBe(true);
+            return created.body.id as string;
+        };
+        const withdraw = (id: string) => request(app).delete(`/platform/invitations/${id}`).set(...AUTH);
+        beforeEach(admin);
+
+        it("removes the identity the invitation created, so its link leads nowhere", async () => {
+            const id = await invitePlatform();
+            expect(idp.identities.has(GUEST)).toBe(true);
+            expect((await withdraw(id)).status).toBe(204);
+            expect(idp.identities.has(GUEST)).toBe(false);
+            expect(h.state!.tables.platform_invitations).toHaveLength(0);
+        });
+
+        it("keeps an identity whose link was opened", async () => {
+            const id = await invitePlatform();
+            idp.openLink(GUEST);
+            expect((await withdraw(id)).status).toBe(204);
+            expect(idp.identities.has(GUEST)).toBe(true);
+        });
+
+        it("keeps an identity that has signed in", async () => {
+            const id = await invitePlatform();
+            idp.identities.get(GUEST)!.lastSignInAt = new Date().toISOString();
+            expect((await withdraw(id)).status).toBe(204);
+            expect(idp.identities.has(GUEST)).toBe(true);
+        });
+
+        it("keeps an identity that belongs to a firm", async () => {
+            const id = await invitePlatform();
+            h.state!.tables.org_members.push({ id: "m1", org_id: "o1", user_id: idp.identities.get(GUEST)!.id, role: "member" });
+            expect((await withdraw(id)).status).toBe(204);
+            expect(idp.identities.has(GUEST)).toBe(true);
+        });
+
+        it("keeps an identity that holds another live invitation", async () => {
+            const id = await invitePlatform();
+            h.state!.tables.org_invitations.push({ id: "oi1", org_id: "o1", email: GUEST, status: "pending", expires_at: FUTURE });
+            expect((await withdraw(id)).status).toBe(204);
+            expect(idp.identities.has(GUEST)).toBe(true);
+        });
+
+        it("removes it when the only other invitation has expired or was withdrawn", async () => {
+            const id = await invitePlatform();
+            h.state!.tables.org_invitations.push(
+                { id: "oi1", org_id: "o1", email: GUEST, status: "pending", expires_at: PAST },
+                { id: "oi2", org_id: "o1", email: GUEST, status: "cancelled", expires_at: FUTURE },
+            );
+            expect((await withdraw(id)).status).toBe(204);
+            expect(idp.identities.has(GUEST)).toBe(false);
+        });
+
+        it("fails, withdrawing nothing, when the identity service cannot be asked", async () => {
+            vi.spyOn(console, "warn").mockImplementation(() => {});
+            const id = await invitePlatform();
+            vi.stubGlobal("fetch", vi.fn(async () => new Response("down", { status: 503 })));
+            expect((await withdraw(id)).status).toBeGreaterThanOrEqual(500);
+            expect(h.state!.tables.platform_invitations).toHaveLength(1);
+            expect(idp.identities.has(GUEST)).toBe(true);
+        });
+
+        it("fails, withdrawing nothing, when the identity cannot be removed", async () => {
+            vi.spyOn(console, "warn").mockImplementation(() => {});
+            const id = await invitePlatform();
+            (h.state!.db as { auth: { admin: { deleteUser: ReturnType<typeof vi.fn> } } }).auth.admin.deleteUser
+                .mockResolvedValue({ data: null, error: { message: "boom" } });
+            expect((await withdraw(id)).status).toBeGreaterThanOrEqual(500);
+            expect(h.state!.tables.platform_invitations).toHaveLength(1);
+        });
+
+        it("still reports an unknown invitation as missing", async () => {
+            expect((await withdraw("nope")).status).toBe(404);
+        });
     });
 
     it("answers /platform/me by mode", async () => {

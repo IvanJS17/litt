@@ -2,7 +2,7 @@
 // check that the caller is a platform administrator.
 
 import { z } from "zod";
-import { sendSignupInvite } from "../../lib/inviteEmail";
+import { retireUnusedInvitationIdentity, sendSignupInvite } from "../../lib/inviteEmail";
 import { recordAudit } from "../../lib/audit";
 import { normalizeEmail } from "../../lib/access";
 import { betaMode, isPlatformAdmin, pendingPlatformInvitationId } from "../../lib/platformAccess";
@@ -93,6 +93,20 @@ export async function deleteInvitation(
   actor: { userId: string },
   id: string,
 ): Promise<ServiceResult<null>> {
+  const { data: found, error: findError } = await db
+    .from("platform_invitations")
+    .select("id,email")
+    .eq("id", id);
+  if (findError) return internalFailure(findError);
+  const invitation = found?.[0] as { id: string; email: string } | undefined;
+  if (!invitation) return failure("not_found", "Invitation not found");
+  try {
+    // The account the invitation created goes first: withdrawing the row
+    // must not leave a way in behind it.
+    await retireUnusedInvitationIdentity(db, invitation.email, { table: "platform_invitations", id });
+  } catch (error) {
+    return internalFailure(error);
+  }
   const { data, error } = await db
     .from("platform_invitations")
     .delete()

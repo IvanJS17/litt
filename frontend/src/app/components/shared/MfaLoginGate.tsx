@@ -6,6 +6,7 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { needsMfaVerification } from "../popups/MfaVerificationPopup";
+import { safeSameOriginPath } from "@/app/lib/authRedirects";
 
 type GateState = "idle" | "checking" | "required" | "verified";
 const MFA_VERIFIED_AT_KEY = "mike:mfa-verified-at";
@@ -78,7 +79,7 @@ export function MfaLoginGate({ children }: { children: ReactNode }) {
             const next = `${pathname}${search ? `?${search}` : ""}`;
             router.replace(`/verify-mfa?next=${encodeURIComponent(next)}`);
         } else if (gateState === "verified" && isVerifyPage) {
-            const next = safeNextPath(searchParams.get("next"));
+            const next = safeSameOriginPath(searchParams.get("next"));
             router.replace(next);
         }
     }, [
@@ -117,14 +118,6 @@ export function MfaLoginGate({ children }: { children: ReactNode }) {
     }
 
     return <>{children}</>;
-}
-
-function safeNextPath(value: string | null) {
-    if (!value || !value.startsWith("/") || value.startsWith("//")) {
-        return "/assistant";
-    }
-    if (value.startsWith("/verify-mfa")) return "/assistant";
-    return value;
 }
 
 export function markMfaVerifiedForGate() {

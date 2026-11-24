@@ -275,6 +275,7 @@ export async function runTabularChatTurn(
     const {
         apiMessages,
         apiKeys: api_keys,
+        credentialRef,
         chatId,
         chatTitle,
         inputMessageId,
@@ -331,6 +332,7 @@ export async function runTabularChatTurn(
             buildCitations: (text) =>
                 extractTabularAnnotations(text, tabularStore),
             model: selectedChatModel,
+            credentialRef,
             reasoning: selectedReasoningLevel,
             apiKeys: api_keys,
             orgId,

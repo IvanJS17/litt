@@ -1,17 +1,18 @@
 "use client";
 
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { authGlassCardUIClassName, pillButtonUIClassName } from "@mike/ui";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useTranslations } from "next-intl";
 
-export default function SignupCheckEmailPage() {
+function SignupCheckEmailContent() {
     const t = useTranslations();
     const router = useRouter();
+    const invitationOnly = useSearchParams().get("mode") === "invitation";
     const { isAuthenticated, authLoading } = useAuth();
 
     useEffect(() => {
@@ -32,7 +33,11 @@ export default function SignupCheckEmailPage() {
                                 {t("auth.checkEmail.checkYourEmail")}
                             </h1>
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                {t("auth.checkEmail.confirmationSent")}
+                                {t(
+                                    invitationOnly
+                                        ? "auth.checkEmail.invitationSent"
+                                        : "auth.checkEmail.confirmationSent",
+                                )}
                             </p>
                             <Link
                                 href="/login"
@@ -49,5 +54,13 @@ export default function SignupCheckEmailPage() {
                 </div>
             </div>
         </AuthPageShell>
+    );
+}
+
+export default function SignupCheckEmailPage() {
+    return (
+        <Suspense fallback={null}>
+            <SignupCheckEmailContent />
+        </Suspense>
     );
 }

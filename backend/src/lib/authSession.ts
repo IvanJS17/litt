@@ -88,6 +88,25 @@ export function clearRequestAuthCookies(req: Request, res: Response): void {
 }
 
 /**
+ * A client that holds no session and writes no cookies: it reads none from
+ * the request and drops whatever the identity service hands back. It spends an
+ * emailed one-time token so the caller can see whose session it carries before
+ * deciding whether this browser may take it.
+ */
+export function createCookielessSupabase(): SupabaseClient {
+  const { url, key } = authConfiguration();
+  return createServerClient(url, key, {
+    cookies: { getAll: () => [], setAll() {} },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      flowType: "pkce",
+    },
+  });
+}
+
+/**
  * Creates an isolated Supabase client for one HTTP request. Session and PKCE
  * state are stored only in server-set HttpOnly cookies; no browser Supabase
  * client is involved.

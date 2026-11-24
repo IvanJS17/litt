@@ -103,6 +103,7 @@ beforeEach(() => {
             webSearch: null,
             webSearchAccount: null,
             apiKeys: {},
+            route: {},
             orgId: null,
             titleModel: null,
             subagentRoutes: null,
@@ -129,6 +130,20 @@ describe("startProjectChatTurn", () => {
 });
 
 describe("runProjectChatTurn", () => {
+    it("hands the key the conversation is pinned to to the engine", async () => {
+        const base = (await mocks.prepareProjectChatStream()) as { prepared: Record<string, unknown> };
+        mocks.prepareProjectChatStream.mockResolvedValue({
+            ok: true,
+            prepared: {
+                ...base.prepared,
+                route: { provider: "claude", model: "test-model", credentialRef: "org:o1:claude:v3" },
+            },
+        });
+        const started = await start();
+        await runProjectChatTurn(db, started, sinkOf(started));
+        expect(mocks.runLLMStream.mock.calls[0][0]).toMatchObject({ credentialRef: "org:o1:claude:v3" });
+    });
+
     it("hands a connected app's tool capabilities to the engine, and none for a turn the web starts", async () => {
         const narrowed = await start(["read"]);
         await runProjectChatTurn(db, narrowed, sinkOf(narrowed));

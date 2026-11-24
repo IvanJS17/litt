@@ -717,6 +717,18 @@ export async function deleteUserOrganizations(
             .eq("email", normalizedEmail)
             .eq("status", "pending");
         await throwIfError(inviteError, "Failed to cancel org invitations");
+
+        // A platform invitation is admission to the beta and its address is
+        // personal data: remove every row for the erased address, whatever
+        // its status, as the administrator's withdrawal does.
+        const { error: platformInviteError } = await db
+            .from("platform_invitations")
+            .delete()
+            .eq("email", normalizedEmail);
+        await throwIfError(
+            platformInviteError,
+            "Failed to delete platform invitations",
+        );
     }
 }
 

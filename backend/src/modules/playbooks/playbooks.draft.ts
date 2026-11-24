@@ -840,6 +840,14 @@ export async function compilePlaybookDraft(
   try {
     const request = storedRequest(requestJson);
     await assertAuthorizationStamp(db, work.orgId, work.authorization);
+    // The key's content rule again, before any attachment is read: a saved
+    // document can have moved to another organization while the job waited.
+    await assertFirmKeyForDocuments(
+      db,
+      work.route?.credentialRef,
+      work.orgId,
+      attachedDocumentIds(request.attachments),
+    );
     // The pinned route or nothing: a key removed while the job waited fails
     // the draft; no other model or key is tried.
     const resolved = await loadPlaybookRoute(db, userId, work.orgId, work.route);

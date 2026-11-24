@@ -19,6 +19,7 @@ import { reportFault,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
 import { authMessages } from "@/app/lib/authMessages";
+import { safeSameOriginPath } from "@/app/lib/authRedirects";
 import { clientTranslator } from "@mike/client";
 import { useTranslations } from "next-intl";
 
@@ -65,7 +66,7 @@ export default function VerifyMfaPage() {
         : selectedFactorId;
     const displayedLoading = isMfaPreview ? false : loading;
 
-    const nextPath = safeNextPath(searchParams.get("next"));
+    const nextPath = safeSameOriginPath(searchParams.get("next"));
     const canVerify =
         !displayedLoading &&
         !verifying &&
@@ -271,12 +272,4 @@ export default function VerifyMfaPage() {
             </div>
         </AuthPageShell>
     );
-}
-
-function safeNextPath(value: string | null) {
-    if (!value || !value.startsWith("/") || value.startsWith("//")) {
-        return "/assistant";
-    }
-    if (value.startsWith("/verify-mfa")) return "/assistant";
-    return value;
 }

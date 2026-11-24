@@ -563,6 +563,7 @@ export async function runChatTurn(
                 subagentRuns,
                 subagentRoutes,
                 model: selectedModel,
+                credentialRef: started.prepared.route.credentialRef,
                 reasoning: selectedReasoningLevel,
                 apiKeys,
                 orgId,

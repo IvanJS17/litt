@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeIdentityService } from "../__tests__/helpers/fakeIdentityService";
 import { memoryDb, type Row } from "../__tests__/helpers/memoryDb";
-import { inviteAdmittedSignup, recordCreatingOrgOfSignup, sendSignupInvite } from "./inviteEmail";
+import {
+    forgetRecentInvitations,
+    inviteAdmittedSignup,
+    recordCreatingOrgOfSignup,
+    retireUnusedInvitationIdentity,
+    sendSignupInvite,
+} from "./inviteEmail";
 
 const now = () => new Date().toISOString();
 const LONG_AGO = "2020-01-01T00:00:00.000Z";
@@ -24,11 +30,14 @@ const profile = (t: Record<string, Row[]>, id: string) => t.user_profiles.find((
 const idp = fakeIdentityService();
 beforeEach(() => {
     idp.reset();
+    forgetRecentInvitations();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.stubEnv("SUPABASE_URL", "http://identity.test/");
     vi.stubEnv("SUPABASE_SECRET_KEY", "service-key");
     vi.stubGlobal("fetch", vi.fn(idp.fetch));
 });
 afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
@@ -199,10 +208,77 @@ describe("closed-beta sign-up by an admitted address", () => {
         expect(update).not.toHaveBeenCalled();
         expect(await sendSignupInvite(db, "new@firm.example")).toBe(true);
         expect(invite).toHaveBeenCalledTimes(2);
-        idp.minutesAgo("new@firm.example", 9);
+        vi.setSystemTime(Date.now() + 9 * 60_000);
         expect((await inviteAdmittedSignup(db, "new@firm.example")).kind).toBe("held");
-        idp.minutesAgo("new@firm.example", 11);
+        vi.setSystemTime(Date.now() + 2 * 60_000);
         expect((await inviteAdmittedSignup(db, "new@firm.example")).kind).toBe("sent");
+    });
+
+    describe("the mail cool-down per address", () => {
+        const ADDRESS = "new@firm.example";
+        const setup = (address = ADDRESS) => {
+            // Invited long enough ago that the identity service's own date no longer holds a repeat.
+            idp.seed(address, { invitedAt: new Date(Date.now() - 11 * 60_000).toISOString() });
+            const { db } = world(vi.fn(idp.invite));
+            withAdmin(db, { updateUserById: vi.fn(idp.updateUserById) });
+            return db;
+        };
+        const mailsTo = (address: string) => idp.mails.filter((m) => m.email === address).length;
+
+        it("mails an address once for twenty requests one after the other", async () => {
+            const db = setup();
+            // The identity service dates every invitation to now, so its own date would hold
+            // a repeat; it is put back each time to prove the process's own memory does.
+            for (let i = 0; i < 20; i++) {
+                idp.minutesAgo(ADDRESS, 11);
+                await inviteAdmittedSignup(db, ADDRESS);
+            }
+            expect(mailsTo(ADDRESS)).toBe(1);
+        });
+
+        it("mails an address once for twenty requests at the same time", async () => {
+            const db = setup();
+            await Promise.all(Array.from({ length: 20 }, () => inviteAdmittedSignup(db, ADDRESS)));
+            expect(mailsTo(ADDRESS)).toBe(1);
+        });
+
+        it("counts the address in its normalized form", async () => {
+            const db = setup();
+            await Promise.all([" New@Firm.example ", "NEW@firm.example", ADDRESS].map((a) => inviteAdmittedSignup(db, a)));
+            await inviteAdmittedSignup(db, "New@FIRM.example");
+            expect(mailsTo(ADDRESS)).toBe(1);
+        });
+
+        it("mails each of two addresses once", async () => {
+            const db = setup();
+            idp.seed("second@firm.example", { invitedAt: new Date(Date.now() - 11 * 60_000).toISOString() });
+            await Promise.all(
+                Array.from({ length: 10 }, () => [ADDRESS, "second@firm.example"]).flat().map((a) => inviteAdmittedSignup(db, a)),
+            );
+            expect(mailsTo(ADDRESS)).toBe(1);
+            expect(mailsTo("second@firm.example")).toBe(1);
+        });
+
+        it("mails once more after the cool-down", async () => {
+            const db = setup();
+            await inviteAdmittedSignup(db, ADDRESS);
+            vi.setSystemTime(Date.now() + 9 * 60_000);
+            idp.minutesAgo(ADDRESS, 11);
+            await inviteAdmittedSignup(db, ADDRESS);
+            expect(mailsTo(ADDRESS)).toBe(1);
+            vi.setSystemTime(Date.now() + 2 * 60_000);
+            await inviteAdmittedSignup(db, ADDRESS);
+            expect(mailsTo(ADDRESS)).toBe(2);
+        });
+
+        it("lets a failed attempt be retried at once", async () => {
+            vi.spyOn(console, "warn").mockImplementation(() => {});
+            const db = setup();
+            const send = vi.fn().mockResolvedValueOnce({ data: {}, error: { message: "smtp down" } }).mockImplementation(idp.invite);
+            withAdmin(db, { inviteUserByEmail: send });
+            expect((await inviteAdmittedSignup(db, ADDRESS)).kind).toBe("failed");
+            expect((await inviteAdmittedSignup(db, ADDRESS)).kind).toBe("sent");
+        });
     });
 
     it("does not hold an account made by an earlier sign-up, which has no invitation date", async () => {
@@ -231,5 +307,103 @@ describe("closed-beta sign-up by an admitted address", () => {
         expect((await inviteAdmittedSignup(db, "old@firm.example")).kind).toBe("has_account");
         const down = world(vi.fn().mockRejectedValue(new Error("smtp down")));
         expect((await inviteAdmittedSignup(down.db, "old@firm.example")).kind).toBe("failed");
+    });
+});
+
+describe("retiring the account a withdrawn invitation created", () => {
+    const FUTURE = "2999-01-01T00:00:00.000Z";
+    const except = { table: "platform_invitations", id: "pi-1" } as const;
+    const setup = () => {
+        const tables: Record<string, Row[]> = { org_members: [], org_invitations: [], platform_invitations: [] };
+        const mem = memoryDb(tables);
+        const deleteUser = vi.fn(idp.deleteUser);
+        (mem.db as { auth?: unknown }).auth = { admin: { deleteUser } };
+        idp.attachTables(() => tables);
+        return { tables, db: mem.db, deleteUser };
+    };
+    const invitedOnly = (email = "guest@firm.example") =>
+        idp.seed(email, { invitedAt: LONG_AGO });
+
+    it("removes an invited account that never confirmed or signed in", async () => {
+        const { db, deleteUser } = setup();
+        invitedOnly();
+        await retireUnusedInvitationIdentity(db, " Guest@Firm.example ", except);
+        expect(deleteUser).toHaveBeenCalledTimes(1);
+        expect(idp.identities.has("guest@firm.example")).toBe(false);
+    });
+
+    it("does nothing when there is no account", async () => {
+        const { db, deleteUser } = setup();
+        await retireUnusedInvitationIdentity(db, "guest@firm.example", except);
+        expect(deleteUser).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["confirmed", { confirmed: true }],
+        ["signed in", { lastSignInAt: LONG_AGO }],
+        ["made by an earlier sign-up, never invited", { invitedAt: null }],
+    ])("keeps an account that is %s", async (_name, partial) => {
+        const { db, deleteUser } = setup();
+        idp.seed("guest@firm.example", { invitedAt: LONG_AGO, ...partial });
+        await retireUnusedInvitationIdentity(db, "guest@firm.example", except);
+        expect(deleteUser).not.toHaveBeenCalled();
+    });
+
+    it("keeps an account that belongs to a firm, though every account also owns a personal organization", async () => {
+        const { db, tables, deleteUser } = setup();
+        invitedOnly();
+        const id = idp.identities.get("guest@firm.example")!.id;
+        expect(tables.org_members.filter((m) => m.user_id === id && m.role === "owner")).toHaveLength(1);
+        tables.org_members.push({ id: "m-firm", org_id: "firm-org", user_id: id, role: "member" });
+        await retireUnusedInvitationIdentity(db, "guest@firm.example", except);
+        expect(deleteUser).not.toHaveBeenCalled();
+    });
+
+    it("keeps the account of a platform administrator", async () => {
+        vi.stubEnv("PLATFORM_ADMIN_EMAILS", "guest@firm.example");
+        const { db, deleteUser } = setup();
+        invitedOnly();
+        await retireUnusedInvitationIdentity(db, "guest@firm.example", except);
+        expect(deleteUser).not.toHaveBeenCalled();
+    });
+
+    it("keeps an account with another live platform invitation but not the withdrawn one", async () => {
+        const { db, tables, deleteUser } = setup();
+        invitedOnly();
+        tables.platform_invitations.push({ id: "pi-1", email: "guest@firm.example", status: "pending", expires_at: FUTURE });
+        await retireUnusedInvitationIdentity(db, "guest@firm.example", except);
+        expect(deleteUser).toHaveBeenCalledTimes(1);
+        tables.platform_invitations.push({ id: "pi-2", email: "guest@firm.example", status: "pending", expires_at: FUTURE });
+        invitedOnly();
+        await retireUnusedInvitationIdentity(db, "guest@firm.example", except);
+        expect(deleteUser).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws, removing nothing, when it cannot tell", async () => {
+        const { db, deleteUser } = setup();
+        invitedOnly();
+        vi.stubGlobal("fetch", vi.fn(async () => new Response("down", { status: 503 })));
+        await expect(retireUnusedInvitationIdentity(db, "guest@firm.example", except)).rejects.toThrow();
+        expect(deleteUser).not.toHaveBeenCalled();
+    });
+
+    it("throws when a lookup of memberships or invitations fails", async () => {
+        const { db, deleteUser } = setup();
+        invitedOnly();
+        const failing = {
+            ...db,
+            from: () => {
+                throw new Error("db down");
+            },
+        };
+        await expect(retireUnusedInvitationIdentity(failing as never, "guest@firm.example", except)).rejects.toThrow();
+        expect(deleteUser).not.toHaveBeenCalled();
+    });
+
+    it("throws when the account cannot be removed", async () => {
+        const { db, deleteUser } = setup();
+        invitedOnly();
+        deleteUser.mockResolvedValue({ data: null, error: { message: "boom" } } as never);
+        await expect(retireUnusedInvitationIdentity(db, "guest@firm.example", except)).rejects.toBeTruthy();
     });
 });

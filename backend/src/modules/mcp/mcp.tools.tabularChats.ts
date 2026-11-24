@@ -21,6 +21,7 @@
 // session «desde Claude») shows these calls, which carry the review and chat
 // ids, not a label on the thread.
 
+import { defaultKeyFor, workspaceOrgId } from "./mcp.defaultKey";
 import { z } from "zod";
 import { getActiveAssistantTurn, getAssistantTurnRun } from "../../lib/assistantTurnRuns";
 import { reportError } from "../../lib/observability/report";
@@ -136,13 +137,13 @@ export const sendTabularChatMessage = defineMcpTool({
     name: "send_tabular_chat_message",
     title: "Ask LiTT's assistant about a tabular review",
     description:
-        "Sends a message to LiTT's assistant in a tabular review's chat panel and gets its answer. The assistant reads the review's cells itself and cites them. Without chat_id it opens a new thread; with one (from list_tabular_chats or an earlier call) it continues that thread, which only its author can write to and which keeps its model and key. It uses the review's workspace and the person's own key; LiTT never switches models. Only one answer is written at a time: while one is being generated the call is refused with turn_in_progress. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_tabular_chat_turn.",
+        "Sends a message to LiTT's assistant in a tabular review's chat panel and gets its answer. The assistant reads the review's cells itself and cites them. Without chat_id it opens a new thread; with one (from list_tabular_chats or an earlier call) it continues that thread, which only its author can write to and which keeps its model and key. It uses the review's workspace and the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists); LiTT never switches models. Only one answer is written at a time: while one is being generated the call is refused with turn_in_progress. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_tabular_chat_turn.",
     inputSchema: z.object({
         review_id: idSchema("review_id").describe("A review from list_tabular_reviews."),
         chat_id: idSchema("chat_id").optional().describe("A thread of this review from list_tabular_chats. Leave out to start a new one."),
         message: messageSchema,
-        model: z.string().trim().min(1).max(200).optional().describe("New thread only: a model id the person has a key for. Default: the person's usual model."),
-        credential_ref: z.string().trim().min(1).max(200).optional().describe("New thread only: which saved key to use, when the person has several for the provider."),
+        model: z.string().trim().min(1).max(200).optional().describe("New thread only: a model id the workspace's key can run. Default: the person's usual model."),
+        credential_ref: z.string().trim().min(1).max(200).optional().describe("New thread only: which saved key to use, the person's own or the firm's. Leave it out and LiTT uses the workspace's default key."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
     }),
@@ -182,11 +183,14 @@ export const sendTabularChatMessage = defineMcpTool({
                   content: message.role === "assistant" ? assistantText(message as unknown as Parameters<typeof assistantText>[0]) : String(message.content ?? ""),
               }))
             : [];
+        // A new thread is pinned to a key now; a named one wins, an existing thread keeps its own.
+        const credentialRef =
+            args.credential_ref ?? (args.chat_id ? undefined : await defaultKeyFor(call, { model: args.model, orgId: workspaceOrgId(call.workspace!) }));
         const parsed = parseTabularChatRequest({
             messages: [...history, { role: "user", content: args.message }],
             ...(args.chat_id ? { chat_id: args.chat_id } : {}),
             ...(args.model ? { model: args.model } : {}),
-            ...(args.credential_ref ? { credential_ref: args.credential_ref } : {}),
+            ...(credentialRef ? { credential_ref: credentialRef } : {}),
             ...(args.attempt ? { attempt: args.attempt } : {}),
             ...(args.confidence ? { confidence: args.confidence } : {}),
         });

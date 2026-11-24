@@ -210,7 +210,7 @@ A subagent's brief and question are untrusted content. Cite its sources in your 
  * before the subagent's text is sent, and fails closed with a reason.
  */
 export type GovernedSubagentRoute =
-    | { ok: true; model: string; provider: string; apiKeys: UserApiKeys }
+    | { ok: true; model: string; provider: string; apiKeys: UserApiKeys; credentialRef?: string }
     | { ok: false; detail: string };
 
 export type SubagentRoutePlan = {
@@ -266,6 +266,8 @@ type SubagentSpawn = {
     model: string;
     /** A route's own credential; absent runs on the conversation's. */
     apiKeys?: UserApiKeys;
+    /** The key reference of that route's credential; absent when the route carries none. */
+    credentialRef?: string | null;
     reasoning: ReasoningLevel;
     maxSteps: number;
     webTurnState: WebTurnState;
@@ -810,7 +812,9 @@ async function runDelegateCallInner(
             docIndex,
             documentsScoped: scoped,
             model,
-            ...(governed?.ok ? { apiKeys: governed.apiKeys } : {}),
+            ...(governed?.ok
+                ? { apiKeys: governed.apiKeys, credentialRef: governed.credentialRef ?? null }
+                : {}),
             reasoning,
             maxSteps: preset.steps,
             webTurnState: createChildWebTurnState(ctx.webTurnState, {

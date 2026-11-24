@@ -82,7 +82,7 @@ function SignupContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<UserFacingError | null>(null);
     const [success, setSuccess] = useState(false);
-    const { showGoogle } = useAuthProviders();
+    const { showGoogle, inviteOnly } = useAuthProviders();
     const isAccountCreatedPreview =
         process.env.NODE_ENV !== "production" &&
         searchParams.get("preview") === "account-created";
@@ -152,7 +152,14 @@ function SignupContent() {
                 await refreshSession();
                 setSuccess(true);
             } else {
-                router.push("/signup/check-email");
+                // The next page words what happens by the mode this one already
+                // knows. Until the mode is known (or when it could not be read)
+                // the neutral invitation wording is used: it is true in both.
+                router.push(
+                    inviteOnly === false
+                        ? "/signup/check-email"
+                        : "/signup/check-email?mode=invitation",
+                );
             }
         } catch (caught: unknown) {
             setError(describeSignupError(caught));

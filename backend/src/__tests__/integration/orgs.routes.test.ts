@@ -324,7 +324,11 @@ vi.mock("../../lib/supabase", () => ({
                     data: { user: { id: currentUser.id } },
                     error: null,
                 }),
-            admin: { inviteUserByEmail: inviteMail, updateUserById: updateIdentity },
+            admin: {
+                inviteUserByEmail: inviteMail,
+                updateUserById: updateIdentity,
+                deleteUser: (id: string) => idp.deleteUser(id),
+            },
         },
     })),
 }));
@@ -361,6 +365,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     resetState();
     idp.reset();
+    idp.attachTables(() => tables);
     inviteMail.mockReset().mockImplementation(idp.invite);
     updateIdentity.mockReset().mockImplementation(idp.updateUserById);
     vi.stubEnv("SUPABASE_URL", "http://identity.test");
@@ -775,7 +780,7 @@ describe("organization invitations", () => {
             role: "admin",
             status: "pending",
         });
-        expect(tables.org_members).toHaveLength(2);
+        expect(tables.org_members.filter((m) => m.org_id === "org-1")).toHaveLength(2);
     });
 
     it("403s a plain member trying to invite", async () => {
@@ -888,7 +893,7 @@ describe("organization invitations", () => {
             .post(`/user/invitations/${created.body.id}/decline`)
             .set(...AUTH);
         expect(res.status).toBe(204);
-        expect(tables.org_members).toHaveLength(2);
+        expect(tables.org_members.filter((m) => m.org_id === "org-1")).toHaveLength(2);
         expect(tables.org_invitations[0].status).toBe("declined");
     });
 
@@ -899,7 +904,7 @@ describe("organization invitations", () => {
             .post(`/user/invitations/${created.body.id}/accept`)
             .set(...AUTH);
         expect(res.status).toBe(404);
-        expect(tables.org_members).toHaveLength(2);
+        expect(tables.org_members.filter((m) => m.org_id === "org-1")).toHaveLength(2);
     });
 
     it("410s an expired invitation, which is not the same as a missing one", async () => {
@@ -936,6 +941,24 @@ describe("organization invitations", () => {
             .post(`/user/invitations/${created.body.id}/accept`)
             .set(...AUTH);
         expect(res.status).toBe(404);
+    });
+
+    it("cancelling removes the account the invitation created, unless it was used", async () => {
+        const created = await invite("new@hire.example");
+        expect(idp.identities.has("new@hire.example")).toBe(true);
+        const cancelled = await request(app)
+            .delete(`/orgs/org-1/invitations/${created.body.id}`)
+            .set(...AUTH);
+        expect(cancelled.status).toBe(204);
+        expect(idp.identities.has("new@hire.example")).toBe(false);
+
+        const second = await invite("kept@hire.example");
+        idp.openLink("kept@hire.example");
+        const kept = await request(app)
+            .delete(`/orgs/org-1/invitations/${second.body.id}`)
+            .set(...AUTH);
+        expect(kept.status).toBe(204);
+        expect(idp.identities.has("kept@hire.example")).toBe(true);
     });
 
     it("resend pushes the expiry back out", async () => {

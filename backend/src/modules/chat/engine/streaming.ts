@@ -375,6 +375,13 @@ export async function runLLMStream(params: {
   maxIterations?: number;
   buildCitations?: (fullText: string) => unknown[];
   model?: string;
+  /**
+   * The key the conversation is pinned to (`credential_ref`). Handed to the
+   * tools that start work of their own (run_playbook) so that work runs on
+   * this key. A subagent is handed the key reference of the route it runs
+   * on instead (below).
+   */
+  credentialRef?: string | null;
   /** AI SDK reasoning effort for this interactive request. */
   reasoning?: import("../../../lib/llm").ReasoningLevel;
   apiKeys?: import("../../../lib/llm").UserApiKeys;
@@ -455,6 +462,7 @@ export async function runLLMStream(params: {
     clientTools,
     buildCitations,
     model,
+    credentialRef,
     apiKeys,
     orgId,
     signal,
@@ -802,6 +810,10 @@ export async function runLLMStream(params: {
         projectId,
         orgId,
         apiKeys: spawn.apiKeys ?? apiKeys,
+        // The route it runs on: a named route's own key reference (none when
+        // the route carries none), or the conversation's when it runs on the
+        // conversation's model.
+        credentialRef: spawn.apiKeys ? (spawn.credentialRef ?? null) : credentialRef,
         nonce,
         webSearch,
         webSearchAccount: requestedWebSearchAccount,
@@ -1172,6 +1184,7 @@ export async function runLLMStream(params: {
               userEmail,
               orgId,
               model: selectedModel,
+              credentialRef,
               documentLocks,
               documentsScoped: subagentRun?.documentsScoped,
               methodology: offerMethodology,

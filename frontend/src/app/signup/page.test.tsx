@@ -8,7 +8,7 @@ const { signup, startGoogleOAuth, getAuthProviders, refreshSession, replace, pus
     startGoogleOAuth: vi.fn(),
     // Unanswered by default: the page as it looks while the read is in flight.
     getAuthProviders: vi.fn(
-        (): Promise<{ sso: boolean; google: boolean | null }> =>
+        (): Promise<{ sso: boolean; google: boolean | null; inviteOnly?: boolean }> =>
             new Promise(() => {}),
     ),
     refreshSession: vi.fn(),
@@ -181,7 +181,27 @@ describe("SignupPage", () => {
             "secret1234",
             "/onboarding/profile",
         );
-        expect(push).toHaveBeenCalledWith("/signup/check-email");
+        expect(push).toHaveBeenCalledWith("/signup/check-email?mode=invitation");
+    });
+
+    it.each([
+        ["invitation only", () => getAuthProviders.mockResolvedValueOnce({ sso: true, google: true, inviteOnly: true }), "/signup/check-email?mode=invitation"],
+        ["not yet known", () => {}, "/signup/check-email?mode=invitation"],
+        ["unknown because the lookup failed", () => getAuthProviders.mockRejectedValueOnce(new Error("down")), "/signup/check-email?mode=invitation"],
+        ["open", () => getAuthProviders.mockResolvedValueOnce({ sso: true, google: true, inviteOnly: false }), "/signup/check-email"],
+    ])("when the mode is %s, goes on to the matching confirmation page", async (_name, arrange, expected) => {
+        arrange();
+        signup.mockResolvedValue({ user: null, requiresEmailConfirmation: true });
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        await act(async () => {});
+
+        await user.type(screen.getByRole("textbox", { name: "Email" }), "alex@example.com");
+        await user.type(screen.getByLabelText("Password"), "secret1234");
+        await user.type(screen.getByLabelText("Confirm password"), "secret1234");
+        await user.click(screen.getByRole("button", { name: "Sign up" }));
+
+        expect(push).toHaveBeenCalledWith(expected);
     });
 
     async function fillAndSubmit(password = "secret1234") {

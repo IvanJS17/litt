@@ -15,7 +15,7 @@
 //     workflow's columns and starts it through the tabular tools' own path
 //     (`createReviewFor` / `runReviewFor`).
 //
-// Mode A only: LiTT's model runs the work with the person's own key. There is
+// Mode A only: LiTT's model runs the work with the workspace's key. There is
 // no mode B here, so an apprentice may use these tools (their conversation goes
 // through "Tu turno primero" and the sealed-draft rules like any other).
 //
@@ -45,10 +45,10 @@ import {
     cursorSchema,
     decodeCursor,
     DEFAULT_PAGE,
+    documentInCallWorkspace,
     encodeCursor,
     idSchema,
     limitSchema,
-    loadDocument,
     notFound,
     serviceFailure,
     untrusted,
@@ -350,15 +350,9 @@ function needScope(call: McpCall, scope: "litt.chat" | "litt.write", what: strin
         );
 }
 
-/** A document the call names: openable by the person, covered by this connection, in the call's workspace. */
+/** A document the call names, as a file for the run (see `documentInCallWorkspace`). */
 async function documentForRun(call: McpCall, documentId: string): Promise<{ filename: string; document_id: string }> {
-    const { workspace } = await loadDocument(call, documentId);
-    if (workspace !== call.workspace)
-        throw new McpToolError(
-            "document_workspace_mismatch",
-            "That document is in another workspace than the one this runs in.",
-            "Pick documents of the same workspace (or matter) as the run.",
-        );
+    await documentInCallWorkspace(call, documentId);
     const version = await loadActiveVersion(documentId, call.db);
     return { document_id: documentId, filename: version?.filename || "document" };
 }
@@ -428,7 +422,7 @@ export const runWorkflow = defineMcpTool({
     name: "run_workflow",
     title: "Run a workflow (LiTT)",
     description:
-        "Runs a workflow with LiTT's own engine and the person's own AI key (LiTT does not switch models). An assistant workflow opens a conversation with LiTT's assistant with the workflow applied (and the documents attached) and returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. A tabular workflow creates a tabular review from the workflow's columns over the given documents and starts it; get_tabular_run_status follows it. Needs litt.run, plus litt.chat for an assistant workflow or litt.write for a tabular one.",
+        "Runs a workflow with LiTT's own engine and the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists) (LiTT does not switch models). An assistant workflow opens a conversation with LiTT's assistant with the workflow applied (and the documents attached) and returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. A tabular workflow creates a tabular review from the workflow's columns over the given documents and starts it; get_tabular_run_status follows it. Needs litt.run, plus litt.chat for an assistant workflow or litt.write for a tabular one.",
     inputSchema: z.object({
         workflow_id: idSchema("workflow_id").describe("A workflow from list_workflows."),
         matter_id: idSchema("matter_id").optional().describe("Run it inside this matter (the conversation or review belongs to it)."),
@@ -440,8 +434,8 @@ export const runWorkflow = defineMcpTool({
             .describe(`Documents to work on: up to ${MAX_CHAT_DOCUMENTS} for an assistant workflow; required (up to ${MAX_REVIEW_DOCUMENTS}) for a tabular one.`),
         inputs: z.string().trim().min(1).max(50_000).optional().describe("Assistant workflow: what to ask along with the workflow (default: the workflow's title)."),
         title: z.string().trim().min(1).max(200).optional().describe("Tabular workflow: the review's title (default: the workflow's title)."),
-        model: z.string().trim().min(1).max(200).optional().describe("A model id the person has a key for. Default: the person's usual model."),
-        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
+        model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
+        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use: the person's own or the firm's. Leave it out and LiTT uses the workspace's default key."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
     }),
@@ -530,15 +524,15 @@ export const runQuickAction = defineMcpTool({
     name: "run_quick_action",
     title: "Run a quick action (LiTT)",
     description:
-        "Runs one of the person's quick actions: opens a conversation with LiTT's assistant with the action's workflow applied and its ready-made request, with the document attached if one is given, using the person's own AI key (LiTT does not switch models). Returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. Needs litt.run and litt.chat.",
+        "Runs one of the person's quick actions: opens a conversation with LiTT's assistant with the action's workflow applied and its ready-made request, with the document attached if one is given, using the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists) (LiTT does not switch models). Returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. Needs litt.run and litt.chat.",
     inputSchema: z.object({
         quick_action_id: idSchema("quick_action_id").describe("A quick action from list_quick_actions."),
         document_id: idSchema("document_id").optional().describe("A document to attach, when the action expects one."),
         matter_id: idSchema("matter_id").optional().describe("Run it inside this matter."),
         workspace: z.string().optional().describe("Without a matter: a workspace id from list_workspaces. Defaults to the connection's default workspace."),
         inputs: z.string().trim().min(1).max(50_000).optional().describe("Something to add after the action's own request."),
-        model: z.string().trim().min(1).max(200).optional().describe("A model id the person has a key for. Default: the person's usual model."),
-        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
+        model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
+        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use: the person's own or the firm's. Leave it out and LiTT uses the workspace's default key."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
     }),

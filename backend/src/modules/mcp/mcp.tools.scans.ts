@@ -37,7 +37,7 @@ const costArgs = {
         .boolean()
         .optional()
         .describe(
-            "Must be true. Say true ONLY after showing the person the estimated cost the matching state tool returned and having their go-ahead: the pages or text are sent to LandingAI with their key and it costs credits. Without it nothing is sent.",
+            "Must be true. Say true ONLY after showing the person the estimated cost the matching state tool returned and having their go-ahead: the pages or text are sent to LandingAI with the saved key (the firm's first, then the person's own) and it costs credits. Without it nothing is sent.",
         ),
     estimated_cost_usd: z
         .number()
@@ -54,7 +54,7 @@ function requireCostConfirmation(args: CostArgs, stateTool: string): void {
     if (args.acknowledge_cost !== true)
         throw new McpToolError(
             "cost_not_acknowledged",
-            "This sends the document to LandingAI with the person's own key and has a cost. Nothing was sent.",
+            "This sends the document to LandingAI with the saved key (the firm's first, then the person's own) and has a cost. Nothing was sent.",
             `Call ${stateTool}, show the person the estimated cost, and call this tool again with acknowledge_cost: true once they agree.`,
         );
 }
@@ -126,7 +126,7 @@ export const readScannedDocumentTool = defineMcpTool({
     name: "read_scanned_document",
     title: "Read a document's scanned pages",
     description:
-        "Starts reading a PDF's scanned pages (the ones without text) in the background by sending them to LandingAI with the person's own key (the firm's first). It COSTS CREDITS and the pages leave LiTT: call get_scan_reading_state first, show the person the estimated cost, and only with their go-ahead call this with acknowledge_cost: true (and the estimated_cost_usd they saw). Without that nothing is sent. Answers at once with the reading started; follow it with get_scan_reading_state. Needs the permission to edit the document. No AI model of LiTT is used.",
+        "Starts reading a PDF's scanned pages (the ones without text) in the background by sending them to LandingAI with the saved LandingAI key (the firm's first, then the person's own where the firm allows it). It COSTS CREDITS and the pages leave LiTT: call get_scan_reading_state first, show the person the estimated cost, and only with their go-ahead call this with acknowledge_cost: true (and the estimated_cost_usd they saw). Without that nothing is sent. Answers at once with the reading started; follow it with get_scan_reading_state. Needs the permission to edit the document. No AI model of LiTT is used.",
     inputSchema: z.object({ document_id: idSchema("document_id"), ...costArgs }),
     scope: "litt.write",
     lane: "write",
@@ -237,7 +237,7 @@ export const proposeCaseFileSplitTool = defineMcpTool({
     name: "propose_case_file_split",
     title: "Propose how to split a case file",
     description:
-        "Asks LandingAI how a PDF that holds several documents should be split, and returns the proposal: groups of pages with a document type each. It SENDS THE DOCUMENT'S TEXT to LandingAI with the person's own key (the firm's first) and COSTS CREDITS: call get_case_file_split_state first, show the person the estimated cost, and only with their go-ahead call this with acknowledge_cost: true (and the estimated_cost_usd they saw). Without that nothing is sent. Nothing is stored or created: after the person reviews the groups, create_split_documents makes the new PDFs. Needs the permission to edit the document; scanned pages must have been read first (split_needs_scan_reading). No AI model of LiTT is used.",
+        "Asks LandingAI how a PDF that holds several documents should be split, and returns the proposal: groups of pages with a document type each. It SENDS THE DOCUMENT'S TEXT to LandingAI with the saved LandingAI key (the firm's first, then the person's own where the firm allows it) and COSTS CREDITS: call get_case_file_split_state first, show the person the estimated cost, and only with their go-ahead call this with acknowledge_cost: true (and the estimated_cost_usd they saw). Without that nothing is sent. Nothing is stored or created: after the person reviews the groups, create_split_documents makes the new PDFs. Needs the permission to edit the document; scanned pages must have been read first (split_needs_scan_reading). No AI model of LiTT is used.",
     inputSchema: z.object({ document_id: idSchema("document_id"), ...costArgs }),
     scope: "litt.write",
     lane: "write",

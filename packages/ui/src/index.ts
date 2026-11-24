@@ -82,3 +82,6 @@ export * from "./AuthDividerUI";
 
 // AGPL-3.0 §13: the "Código fuente" link to the running build's source
 export * from "./SourceCodeLinkUI";
+
+// Markdown written by a model or another person: images from other sites become links
+export * from "./MarkdownImageUI";

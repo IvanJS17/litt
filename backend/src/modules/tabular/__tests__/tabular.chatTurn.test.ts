@@ -101,6 +101,16 @@ describe("startTabularChatTurn", () => {
 });
 
 describe("runTabularChatTurn", () => {
+    it("hands the key the conversation is pinned to to the engine", async () => {
+        const base = (await mocks.prepareTabularChat()) as { ok: true; data: Record<string, unknown> };
+        mocks.prepareTabularChat.mockResolvedValue({
+            ok: true,
+            data: { ...base.data, credentialRef: "org:o1:claude:v3" },
+        });
+        await runTabularChatTurn(db, await start(), sink());
+        expect(mocks.runLLMStream.mock.calls[0][0]).toMatchObject({ credentialRef: "org:o1:claude:v3" });
+    });
+
     it("hands a connected app's tool capabilities to the engine, and none for a turn the web starts", async () => {
         await runTabularChatTurn(db, await start(["read"]), sink());
         expect(mocks.runLLMStream.mock.calls[0][0]).toMatchObject({ allowedCapabilities: ["read"] });

@@ -9,6 +9,9 @@ const {
   clearRequestAuthCookies,
   issueAuthHandoff,
   consumeAuthHandoff,
+  linkClient,
+  tokenClient,
+  createCookielessSupabase,
 } = vi.hoisted(() => ({
   authClient: {
     auth: {
@@ -33,6 +36,11 @@ const {
   clearRequestAuthCookies: vi.fn(),
   issueAuthHandoff: vi.fn(),
   consumeAuthHandoff: vi.fn(),
+  // The service-role client that checks the token an invitation link carries.
+  linkClient: { auth: { getUser: vi.fn() } },
+  // The client that spends an emailed token: it keeps no session and writes no cookies.
+  tokenClient: { auth: { verifyOtp: vi.fn() } },
+  createCookielessSupabase: vi.fn(),
 }));
 
 // What each failure path reports: asserted by kind and cause, never by text.
@@ -43,6 +51,7 @@ vi.mock("../../../lib/observability/report", async (importOriginal) => ({
 }));
 vi.mock("../../../lib/authSession", () => ({
   createRequestSupabase,
+  createCookielessSupabase,
   clearRequestAuthCookies,
   publicAuthUser: (user: {
     id: string;
@@ -55,6 +64,10 @@ vi.mock("../../../lib/authSession", () => ({
     pendingEmail: user.new_email ?? null,
     createdWithGoogle: user.app_metadata?.provider === "google",
   }),
+}));
+vi.mock("../../../lib/supabase", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  createServerSupabase: () => linkClient,
 }));
 vi.mock("../../../lib/authHandoff", () => ({
   issueAuthHandoff,
@@ -81,7 +94,7 @@ app.use("/auth", authRouter);
 
 const origin = "https://app.example.test";
 const user = { id: "user-1", email: "lawyer@example.test" };
-const session = { access_token: "server-only-token" };
+const session = { access_token: "server-only-token", refresh_token: "server-only-refresh" };
 const wordOrigin = "https://word.example.test";
 
 describe("auth routes", () => {
@@ -96,6 +109,9 @@ describe("auth routes", () => {
     issueAuthHandoff.mockReset();
     consumeAuthHandoff.mockReset();
     reportError.mockClear();
+    linkClient.auth.getUser.mockReset();
+    createCookielessSupabase.mockReset().mockReturnValue(tokenClient);
+    tokenClient.auth.verifyOtp.mockReset();
     for (const method of Object.values(authClient.auth)) {
       if (typeof method === "function") method.mockReset();
     }
@@ -774,9 +790,14 @@ describe("auth routes", () => {
 
   describe("POST /auth/verify-otp", () => {
     it.each(["recovery", "signup", "email_change"])(
-      "verifies a %s token hash on the cookie client",
+      "verifies a %s token hash on a client that writes no cookies",
       async (type) => {
-        authClient.auth.verifyOtp.mockResolvedValue({
+        authClient.auth.getUser.mockResolvedValue({
+          data: { user: null },
+          error: { __isAuthError: true, name: "AuthSessionMissingError", status: 400, message: "no session" },
+        });
+        authClient.auth.setSession.mockResolvedValue({ data: { user, session }, error: null });
+        tokenClient.auth.verifyOtp.mockResolvedValue({
           data: { user, session },
           error: null,
         });
@@ -789,18 +810,100 @@ describe("auth routes", () => {
         expect(response.status).toBe(200);
         expect(response.body.user.id).toBe(user.id);
         expect(JSON.stringify(response.body)).not.toContain("server-only-token");
-        expect(authClient.auth.verifyOtp).toHaveBeenCalledWith({
+        expect(tokenClient.auth.verifyOtp).toHaveBeenCalledWith({
           token_hash: "hash-1",
           type,
         });
-        // The client that sets the session cookies is the request-bound one.
+        // The token is spent on a client that writes nothing; the session
+        // cookies are set by the request-bound one.
         expect(createRequestSupabase).toHaveBeenCalledTimes(1);
         expect(createRequestSupabase.mock.calls[0]).toHaveLength(2);
+        expect(authClient.auth.setSession).toHaveBeenCalledWith({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        });
       },
     );
 
+    describe("with a session already held by this browser", () => {
+      const other = { id: "someone-else", email: "other@example.test" };
+      const verified = () =>
+        tokenClient.auth.verifyOtp.mockResolvedValue({ data: { user, session }, error: null });
+      const confirm = (type = "recovery") =>
+        request(app)
+          .post("/auth/verify-otp")
+          .set("Origin", origin)
+          .send({ token_hash: "hash-1", type });
+      beforeEach(() => {
+        authClient.auth.setSession.mockResolvedValue({ data: { user, session }, error: null });
+      });
+
+      it.each(["recovery", "signup", "email_change"])(
+        "never replaces the session of another account when a %s link is confirmed",
+        async (type) => {
+          verified();
+          authClient.auth.getUser.mockResolvedValue({ data: { user: other }, error: null });
+          const response = await confirm(type);
+
+          expect(response.status).toBe(409);
+          expect(response.body.code).toBe("session_conflict");
+          expect(response.headers["set-cookie"]).toBeUndefined();
+          expect(authClient.auth.setSession).not.toHaveBeenCalled();
+          expect(clearRequestAuthCookies).not.toHaveBeenCalled();
+          expect(JSON.stringify(response.body)).not.toContain(session.access_token);
+        },
+      );
+
+      it("continues when the browser holds the same account's session", async () => {
+        verified();
+        authClient.auth.getUser.mockResolvedValue({ data: { user }, error: null });
+        const response = await confirm();
+
+        expect(response.status).toBe(200);
+        expect(response.body.user.id).toBe(user.id);
+        expect(authClient.auth.setSession).toHaveBeenCalledTimes(1);
+      });
+
+      it("continues when the browser holds no session", async () => {
+        verified();
+        authClient.auth.getUser.mockResolvedValue({
+          data: { user: null },
+          error: { __isAuthError: true, name: "AuthSessionMissingError", status: 400, message: "no session" },
+        });
+        const response = await confirm();
+
+        expect(response.status).toBe(200);
+        expect(authClient.auth.setSession).toHaveBeenCalledTimes(1);
+      });
+
+      it("fails closed, setting nothing, when it cannot tell who is signed in", async () => {
+        verified();
+        authClient.auth.getUser.mockResolvedValue({
+          data: { user: null },
+          error: { __isAuthError: true, name: "AuthRetryableFetchError", status: 0, message: "down" },
+        });
+        const response = await confirm();
+
+        expect(response.status).toBeGreaterThanOrEqual(500);
+        expect(authClient.auth.setSession).not.toHaveBeenCalled();
+      });
+
+      it("clears the cookies when the verified session cannot be set", async () => {
+        verified();
+        authClient.auth.getUser.mockResolvedValue({ data: { user }, error: null });
+        authClient.auth.setSession.mockResolvedValue({
+          data: { user: null, session: null },
+          error: { __isAuthError: true, name: "AuthApiError", status: 401, code: "bad_jwt", message: "bad" },
+        });
+        const response = await confirm();
+
+        expect(response.status).toBe(401);
+        expect(clearRequestAuthCookies).toHaveBeenCalled();
+      });
+    });
+
     it("answers pending when only the first of two email-change links is confirmed", async () => {
-      authClient.auth.verifyOtp.mockResolvedValue({
+      tokenClient.auth.verifyOtp.mockResolvedValue({
         data: { user: null, session: null },
         error: null,
       });
@@ -821,7 +924,7 @@ describe("auth routes", () => {
     it.each(["recovery", "signup"])(
       "treats a %s link that yields no session as spent",
       async (type) => {
-        authClient.auth.verifyOtp.mockResolvedValue({
+        tokenClient.auth.verifyOtp.mockResolvedValue({
           data: { user: null, session: null },
           error: null,
         });
@@ -845,7 +948,7 @@ describe("auth routes", () => {
           .send({ token_hash: "hash-1", type });
 
         expect(response.status).toBe(400);
-        expect(authClient.auth.verifyOtp).not.toHaveBeenCalled();
+        expect(tokenClient.auth.verifyOtp).not.toHaveBeenCalled();
       },
     );
 
@@ -856,13 +959,13 @@ describe("auth routes", () => {
         .send({ type: "recovery" });
 
       expect(response.status).toBe(400);
-      expect(authClient.auth.verifyOtp).not.toHaveBeenCalled();
+      expect(tokenClient.auth.verifyOtp).not.toHaveBeenCalled();
     });
 
     it.each(["recovery", "signup", "email_change"])(
       "maps an expired or used %s link to a 4xx with its code",
       async (type) => {
-        authClient.auth.verifyOtp.mockResolvedValue({
+        tokenClient.auth.verifyOtp.mockResolvedValue({
           data: { user: null, session: null },
           error: Object.assign(new Error("Email link is invalid or has expired"), {
             status: 403,
@@ -894,28 +997,114 @@ describe("auth routes", () => {
         .send({ token_hash: "hash-1", type: "recovery" });
 
       expect(response.status).toBe(403);
-      expect(authClient.auth.verifyOtp).not.toHaveBeenCalled();
+      expect(tokenClient.auth.verifyOtp).not.toHaveBeenCalled();
     });
   });
 
-  it("turns the tokens of an invitation link into a cookie session", async () => {
-    authClient.auth.setSession.mockResolvedValue({
-      data: { user, session },
-      error: null,
+  describe("invitation link session", () => {
+    const nowS = () => Math.floor(Date.now() / 1000);
+    const jwt = (claims: Record<string, unknown>) =>
+      `h.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.s`;
+    const inviteToken = (amr: unknown = [{ method: "otp", timestamp: nowS() - 30 }]) =>
+      jwt({ sub: user.id, amr });
+    const invited = { ...user, invited_at: "2026-11-20T10:00:00.000Z" };
+    const post = (accessToken = inviteToken()) =>
+      request(app)
+        .post("/auth/invite-session")
+        .set("Origin", origin)
+        .send({ accessToken, refreshToken: "invite-refresh" });
+
+    beforeEach(() => {
+      linkClient.auth.getUser.mockResolvedValue({ data: { user: invited }, error: null });
+      authClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: { __isAuthError: true, name: "AuthSessionMissingError", status: 400, message: "no session" },
+      });
+      authClient.auth.setSession.mockResolvedValue({ data: { user, session }, error: null });
     });
 
-    const response = await request(app)
-      .post("/auth/invite-session")
-      .set("Origin", origin)
-      .send({ accessToken: "invite-access", refreshToken: "invite-refresh" });
+    it("turns a fresh invitation session into a cookie session", async () => {
+      const token = inviteToken();
+      const response = await post(token);
 
-    expect(response.status).toBe(200);
-    expect(response.body.user.id).toBe(user.id);
-    expect(authClient.auth.setSession).toHaveBeenCalledWith({
-      access_token: "invite-access",
-      refresh_token: "invite-refresh",
+      expect(response.status).toBe(200);
+      expect(response.body.user.id).toBe(user.id);
+      expect(linkClient.auth.getUser).toHaveBeenCalledWith(token);
+      expect(authClient.auth.setSession).toHaveBeenCalledWith({
+        access_token: token,
+        refresh_token: "invite-refresh",
+      });
+      expect(JSON.stringify(response.body)).not.toContain(token);
     });
-    expect(JSON.stringify(response.body)).not.toContain("invite-access");
+
+    it("continues when the browser already holds the invited person's own session", async () => {
+      authClient.auth.getUser.mockResolvedValue({ data: { user }, error: null });
+      expect((await post()).status).toBe(200);
+      expect(authClient.auth.setSession).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["a password sign-in", () => inviteToken([{ method: "password", timestamp: nowS() }]), invited],
+      ["a session with no sign-in record", () => inviteToken([]), invited],
+      ["an old invitation session", () => inviteToken([{ method: "otp", timestamp: nowS() - 7200 }]), invited],
+      ["an account that was never invited", () => inviteToken(), user],
+    ])("does not adopt %s", async (_name, token, linkedUser) => {
+      linkClient.auth.getUser.mockResolvedValue({ data: { user: linkedUser }, error: null });
+      const response = await post(token());
+
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe("invite_session_invalid");
+      expect(authClient.auth.setSession).not.toHaveBeenCalled();
+      expect(clearRequestAuthCookies).not.toHaveBeenCalled();
+    });
+
+    it("does not adopt a token the identity service refuses", async () => {
+      linkClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: { __isAuthError: true, name: "AuthApiError", status: 401, code: "bad_jwt", message: "bad" },
+      });
+      const response = await post();
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(authClient.auth.setSession).not.toHaveBeenCalled();
+      expect(clearRequestAuthCookies).not.toHaveBeenCalled();
+    });
+
+    it("never replaces the session of another account", async () => {
+      authClient.auth.getUser.mockResolvedValue({
+        data: { user: { id: "someone-else", email: "other@example.test" } },
+        error: null,
+      });
+      const response = await post();
+
+      expect(response.status).toBe(409);
+      expect(response.body.code).toBe("session_conflict");
+      expect(authClient.auth.setSession).not.toHaveBeenCalled();
+      expect(clearRequestAuthCookies).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when it cannot tell who is signed in", async () => {
+      authClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: { __isAuthError: true, name: "AuthRetryableFetchError", status: 0, message: "down" },
+      });
+      const response = await post();
+
+      expect(response.status).toBeGreaterThanOrEqual(500);
+      expect(authClient.auth.setSession).not.toHaveBeenCalled();
+    });
+
+    it("clears the cookies when the session cannot be established", async () => {
+      authClient.auth.setSession.mockResolvedValue({
+        data: { user: null, session: null },
+        error: { __isAuthError: true, name: "AuthApiError", status: 401, code: "bad_jwt", message: "bad" },
+      });
+      const response = await post();
+
+      expect(response.status).toBe(401);
+      expect(clearRequestAuthCookies).toHaveBeenCalled();
+    });
   });
 
   it("redeems a Word handoff into an HttpOnly session without returning tokens", async () => {

@@ -732,6 +732,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     apiMessages,
     workflowStore,
     apiKeys,
+    credentialRef,
     selectedModel,
     selectedReasoningLevel,
     nonce,
@@ -894,6 +895,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
           }
         : {}),
       model: selectedModel,
+      credentialRef,
       reasoning: selectedReasoningLevel,
       apiKeys,
       signal: stream.signal,

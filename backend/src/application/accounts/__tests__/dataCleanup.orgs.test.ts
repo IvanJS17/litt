@@ -17,6 +17,8 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
 }));
 import { deleteFile, listFiles } from "../../../lib/storage";
 import { NonRetryableJobError } from "../../../lib/dbq/runner";
+import { canSignUp } from "../../../lib/platformAccess";
+import { listInvitations } from "../../../modules/platform/platform.service";
 import {
     deleteUserAccountData,
     deleteUserOrganizations,
@@ -90,6 +92,7 @@ function makeDb(
     options: {
         lastOwnerTrigger?: boolean;
         selectErrors?: Record<string, string>;
+        deleteErrors?: Record<string, string>;
     } = {},
 ) {
     const tables: Record<string, Row[]> = {};
@@ -162,6 +165,12 @@ function makeDb(
                         },
                     });
                 }
+            }
+            if (op === "delete" && options.deleteErrors?.[table]) {
+                return Promise.resolve({
+                    data: null,
+                    error: { message: options.deleteErrors[table] },
+                });
             }
             if (op === "update") {
                 for (const r of matched) Object.assign(r, payload as Row);
@@ -532,6 +541,45 @@ describe("deleteUserOrganizations", () => {
         const invites = db._tables.org_invitations as Row[];
         expect(invites.find((i) => i.id === "i1")?.status).toBe("cancelled");
         expect(invites.find((i) => i.id === "i2")?.status).toBe("pending");
+    });
+
+    describe("platform invitations of the departing account", () => {
+        const invitations = () => [
+            { id: "p1", email: "gone@example.com", status: "pending", expires_at: "2999-01-01T00:00:00Z", created_at: "2026-01-03" },
+            { id: "p2", email: "gone@example.com", status: "used", expires_at: "2999-01-01T00:00:00Z", created_at: "2026-01-02" },
+            { id: "p3", email: "gone@example.com", status: "cancelled", expires_at: "2999-01-01T00:00:00Z", created_at: "2026-01-01" },
+            { id: "p4", email: "other@example.com", status: "pending", expires_at: "2999-01-01T00:00:00Z", created_at: "2026-01-04" },
+        ];
+
+        it("withdraws every one addressed to the erased address and nothing else", async () => {
+            vi.stubEnv("PLATFORM_ADMIN_EMAILS", "admin@example.com");
+            try {
+                const db = makeDb({ org_members: [], platform_invitations: invitations() });
+                expect(await canSignUp(db as never, "gone@example.com")).toBe(true);
+
+                await deleteUserOrganizations(db, "u1", " Gone@Example.com ");
+
+                expect(await canSignUp(db as never, "gone@example.com")).toBe(false);
+                expect(await canSignUp(db as never, "other@example.com")).toBe(true);
+                const listed = await listInvitations(db as never);
+                expect(listed).toMatchObject({ ok: true });
+                expect(
+                    ((listed as { data: Row[] }).data).map((r) => r.email),
+                ).toEqual(["other@example.com"]);
+            } finally {
+                vi.unstubAllEnvs();
+            }
+        });
+
+        it("fails the erasure step when the withdrawal fails", async () => {
+            const db = makeDb(
+                { org_members: [], platform_invitations: invitations() },
+                { deleteErrors: { platform_invitations: "connection reset" } },
+            );
+            const error = await rejection(deleteUserOrganizations(db, "u1", "gone@example.com"));
+            expect((error as Error).message).toMatch(/Failed to delete platform invitations/);
+            expect(db._tables.platform_invitations).toHaveLength(4);
+        });
     });
 });
 

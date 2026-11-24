@@ -18,6 +18,9 @@ import {
 import { reportFault, type UserFacingError } from "@/app/lib/userFacingError";
 
 const KNOWN_SCOPES = ["litt.read", "litt.run", "litt.write", "litt.chat"] as const;
+/** Permissions whose work runs on a key: their text is followed by a note saying which. */
+const KEY_NOTE_SCOPES: readonly string[] = ["litt.chat", "litt.run"];
+
 /** The catalog key of a scope text: next-intl reads a dot as nesting. */
 const scopeKey = (scope: (typeof KNOWN_SCOPES)[number]) => scope.slice("litt.".length) as "read" | "run" | "write" | "chat";
 
@@ -196,19 +199,29 @@ function ConnectAuthorizeContent() {
                                     (KNOWN_SCOPES as readonly string[]).includes(scope),
                                 )
                                 .map((scope) => (
-                                    <label
-                                        key={scope}
-                                        className="flex items-start gap-2 text-sm text-gray-700"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            className={TABLE_CHECKBOX_CLASS}
-                                            checked={scopes.includes(scope)}
-                                            disabled={deciding}
-                                            onChange={() => toggle(scopes, setScopes, scope)}
-                                        />
-                                        <span className="break-words">{t(`connect.scopes.${scopeKey(scope)}`)}</span>
-                                    </label>
+                                    <div key={scope}>
+                                        <label className="flex items-start gap-2 text-sm text-gray-700">
+                                            <input
+                                                type="checkbox"
+                                                className={TABLE_CHECKBOX_CLASS}
+                                                checked={scopes.includes(scope)}
+                                                disabled={deciding}
+                                                onChange={() => toggle(scopes, setScopes, scope)}
+                                                aria-describedby={KEY_NOTE_SCOPES.includes(scope) ? `scope-note-${scopeKey(scope)}` : undefined}
+                                            />
+                                            <span className="break-words">{t(`connect.scopes.${scopeKey(scope)}`)}</span>
+                                        </label>
+                                        {scope === "litt.chat" && (
+                                            <p id="scope-note-chat" className="pl-6 text-xs text-gray-500">
+                                                {t("connect.scopes.chatKeyNote")}
+                                            </p>
+                                        )}
+                                        {scope === "litt.run" && (
+                                            <p id="scope-note-run" className="pl-6 text-xs text-gray-500">
+                                                {t("connect.scopes.runKeyNote")}
+                                            </p>
+                                        )}
+                                    </div>
                                 ))}
                         </fieldset>
 

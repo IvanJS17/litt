@@ -105,6 +105,7 @@ function runOne(
     signal: AbortSignal;
     documentLocks?: ReturnType<typeof createKeyedLock>;
     model?: string;
+    credentialRef?: string;
   },
   write = vi.fn(),
 ) {
@@ -417,7 +418,7 @@ describe("a write that waited past the turn's stop", () => {
     const pending = runOne(
       "run_playbook",
       { doc_id: "doc-0", playbook_id: "playbook-1" },
-      { signal: stopDuringWait(), documentLocks, model: "gemini-3.8-flash" },
+      { signal: stopDuringWait(), documentLocks, model: "gemini-3.8-flash", credentialRef: "user:u1:gemini:v1" },
     );
     await vi.advanceTimersByTimeAsync(WAIT);
     await pending;
@@ -440,7 +441,7 @@ describe("a write that waited past the turn's stop", () => {
     const pending = runOne(
       "run_playbook",
       { doc_id: "doc-0", playbook_id: "playbook-1" },
-      { signal, model: "gemini-3.8-flash" },
+      { signal, model: "gemini-3.8-flash", credentialRef: "user:u1:gemini:v1" },
     );
     await vi.advanceTimersByTimeAsync(WAIT);
     const result = await pending;
