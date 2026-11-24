@@ -36,12 +36,15 @@ on:
         default: "2m"
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   loadtest:
     name: k6 SSE stream load test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Official k6 image — no toolchain to install, runner's docker only.
       # Thresholds live in loadtest/sse-stream.js and are deliberately
@@ -75,7 +78,7 @@ jobs:
 
       - name: Upload k6 summary
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: k6-summary
           path: summary.json
