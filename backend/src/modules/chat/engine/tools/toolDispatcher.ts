@@ -82,6 +82,7 @@ import {
   spotlightWorkflow,
 } from "../contextBuilders";
 import type { Db } from "../../../../lib/supabase";
+import { CHAT_ROUTE_CREDENTIAL_REQUIRED } from "../../../../lib/chatRouteCredentialRequired";
 import { renderTableCells } from "./tableCells";
 import { isToolAllowed, type ToolCapability } from "./toolCapabilities";
 
@@ -283,8 +284,9 @@ export async function runToolCalls(
     model?: string;
     /**
      * The key the conversation is pinned to (`credential_ref`), used by
-     * run_playbook for its review. Absent: the review is started without a
-     * chosen key, as before.
+     * run_playbook for its review (a subagent's is the key of the route it
+     * runs on). Absent: run_playbook starts nothing and answers that a key
+     * must be chosen.
      */
     credentialRef?: string | null;
     /**
@@ -976,6 +978,10 @@ export async function runToolCalls(
         fail(`Document '${rawDocId}' not found in this chat's attachments.`);
       } else if (!options.model) {
         fail("No model is selected for the review.");
+      } else if (!options.credentialRef) {
+        // Only the caller's own route chooses the key of a review: with none
+        // handed over, nothing is started.
+        fail(CHAT_ROUTE_CREDENTIAL_REQUIRED);
       } else {
         // The live Word document has no stored id; its request-local label
         // still serializes reviews of the same document within this turn.
@@ -1007,9 +1013,9 @@ export async function runToolCalls(
             instructions:
               typeof args.instructions === "string" ? args.instructions : undefined,
             model: options.model,
-            // The conversation's own key, nothing else: the review's key and
+            // The key the caller runs on, nothing else: the review's key and
             // content rules decide whether it may run on it.
-            ...(options.credentialRef ? { credentialRef: options.credentialRef } : {}),
+            credentialRef: options.credentialRef,
             reviewMode: args.review_mode === "permissive" ? "permissive" : "strict",
             db,
             // A stop during the review also stops it: the model call ends,

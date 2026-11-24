@@ -66,7 +66,7 @@ function dispatch(
     undefined,
     undefined,
     undefined,
-    { userEmail: "u1@example.com", model: model ?? undefined },
+    { userEmail: "u1@example.com", model: model ?? undefined, credentialRef: "user:u1:claude:v1" },
   );
 }
 
@@ -219,7 +219,7 @@ it("reviews the open Word document from its request text, without saving a versi
     undefined,
     undefined,
     undefined,
-    { userEmail: "u1@example.com", model: "claude-opus-5" },
+    { userEmail: "u1@example.com", model: "claude-opus-5", credentialRef: "user:u1:claude:v1" },
   );
 
   expect(playbooks.reviewWithPlaybook).toHaveBeenCalledWith(
