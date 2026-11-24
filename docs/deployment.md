@@ -481,10 +481,13 @@ the policy report instead of enforce; `deploy/prod/README.md` has the details.
 Independently of that policy, the Markdown renderers (web app and Word add-in) draw an
 image from another site as a link that opens in a new tab, never as an image the
 browser loads on its own; one shared rule, `MarkdownImageUI` in `packages/ui`,
-applies it. An architecture test fails when a `react-markdown` element in production code does not
-pass its `components` through that rule (or carries a spread attribute, a plugin or a URL transform
-that is not on the test's list), or when production code imports another library that renders
-Markdown or HTML text, unless the test lists that use; it does not cover other ways of rendering text.
+applies it. An architecture test (rule 6 in `frontend/src/__tests__/architecture.test.ts`)
+fails when a `react-markdown` element is added without that rule, when a plugin or option is set
+that the test does not list, or when production code imports another library that renders
+Markdown or HTML and the test does not list it. It does not stop code written to get around
+it (a computed module name, `dangerouslySetInnerHTML`, a caller's own renderer for another
+element that draws an image) or files outside the folders it scans; the review of a change
+covers those.
 
 ### Object-storage CORS for direct uploads
 

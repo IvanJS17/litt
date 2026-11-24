@@ -10,11 +10,6 @@ import {
 
 import { cn } from "../lib/utils";
 
-// Hoisted so react-markdown receives referentially stable props — an inline
-// plugins array/components object defeats its internal memoization and forces
-// a full re-parse of every message on every transcript render.
-const REMARK_PLUGINS = [remarkGfm];
-
 /**
  * The citation numbers the automatic check put in the low band, for the
  * message being drawn. The components table below is shared by every message,
@@ -173,7 +168,7 @@ export const Markdown = memo(function Markdown({
       )}
     >
       <ReactMarkdown
-        remarkPlugins={REMARK_PLUGINS}
+        remarkPlugins={[remarkGfm]}
         components={withSafeMarkdownImages(MARKDOWN_COMPONENTS)}
       >
         {children}

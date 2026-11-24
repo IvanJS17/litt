@@ -67,4 +67,35 @@ describe("MarkdownImageUI", () => {
     expect(withSafeMarkdownImages().img).toBe(MarkdownImageUI);
     expect(withSafeMarkdownImages(own).img).toBe(MarkdownImageUI);
   });
+
+  it("draws a same-origin image with only the props an image needs", () => {
+    const extra = {
+      srcSet: "https://other.example/a.png 2x",
+      sizes: "100vw",
+      style: { backgroundImage: "url(https://other.example/b.png)" },
+      onError: () => {},
+      onLoad: () => {},
+      onClick: () => {},
+      "data-x": "1",
+      id: "i",
+      referrerPolicy: "unsafe-url",
+      crossOrigin: "anonymous",
+    };
+    const { container } = render(
+      <MarkdownImageUI
+        src="/x.png"
+        alt="A"
+        title="T"
+        width={10}
+        height={20}
+        className="c"
+        loading="lazy"
+        decoding="async"
+        {...(extra as object)}
+      />,
+    );
+    const img = container.querySelector("img")!;
+    expect(img.getAttributeNames().sort()).toEqual(["alt", "class", "decoding", "height", "loading", "src", "title", "width"]);
+    expect(img).toHaveAttribute("src", "/x.png");
+  });
 });

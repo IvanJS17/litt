@@ -51,13 +51,17 @@ that the alias and the copy agree.
 
 `withSafeMarkdownImages(components?)` returns a frozen `react-markdown`
 `components` table whose `img` is `MarkdownImageUI`: an image from the page's
-own origin is drawn, any other becomes a link to it (new tab,
+own origin is drawn (with `src`, `alt`, `title`, `width`, `height`, `className`,
+`loading` and `decoding` only), any other becomes a link to it (new tab,
 `rel="noopener noreferrer"`), and an empty or unparsable address draws nothing.
-`frontend/src/__tests__/architecture.test.ts` fails when a `react-markdown`
-element in production code does not pass its table through it, has a spread
-attribute, or sets a plugin or URL transform missing from the test's list, and
-when production code imports another Markdown or HTML renderer that the test
-does not list. The package does not import `react-markdown` itself.
+Rule 6 in `frontend/src/__tests__/architecture.test.ts` fails when a
+`react-markdown` element is added without it, when a plugin or option is set
+that the test does not list, or when production code imports another Markdown
+or HTML rendering library that the test does not list. It does not stop code
+written to get around it (a computed module name, `dangerouslySetInnerHTML`, a
+caller's own renderer for another element that draws an image) or files
+outside the folders it scans; the review of a change covers those. The package
+does not import `react-markdown` itself.
 
 ## Tests and stories
 

@@ -15,13 +15,14 @@ function isSameOrigin(url: string): boolean | null {
  * image from another site would load with no click, and its URL can carry
  * data, so it is drawn as a link to the image (opened in a new tab) with the
  * alt text; an image from the page's own origin is drawn as an image; an empty
- * or unparsable address draws nothing.
+ * or unparsable address draws nothing. Only `src`, `alt`, `title`, `width`,
+ * `height`, `className`, `loading` and `decoding` reach the image: never
+ * `srcSet`, `sizes`, a style or an event handler.
  */
 export function MarkdownImageUI(
   props: ComponentPropsWithoutRef<"img"> & { node?: unknown },
 ): ReactElement | null {
-  const { node, src, alt, ...imageProps } = props;
-  void node;
+  const { src, alt, title, width, height, className, loading, decoding } = props;
   if (typeof src !== "string" || !src) return null;
   const sameOrigin = isSameOrigin(src);
   if (sameOrigin === null) return null;
@@ -39,7 +40,16 @@ export function MarkdownImageUI(
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element -- markdown content, not an optimizable page asset
-    <img src={src} alt={alt ?? ""} {...imageProps} />
+    <img
+      src={src}
+      alt={alt ?? ""}
+      title={title}
+      width={width}
+      height={height}
+      className={className}
+      loading={loading}
+      decoding={decoding}
+    />
   );
 }
 
