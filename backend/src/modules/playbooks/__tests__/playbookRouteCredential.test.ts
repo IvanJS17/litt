@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../../lib/supabase";
 import { saveApiKeyFor } from "../../../lib/providerCredentials/store";
 import { resetModelRegistryCache } from "../../../lib/llm/registry";
+import { pinChatRoute } from "../../user/user.chatRoute";
+import { resolveUserChatSelection } from "../../user/user.chatSelection";
 import { PlaybookRequestError, pinPlaybookRoute } from "../playbooks.operations";
 
 type Row = Record<string, unknown>;
@@ -31,6 +33,10 @@ function fakeDb(tables: Record<string, Row[]>) {
         },
         is: () => builder,
         order: () => builder,
+        in: () => builder,
+        limit: () => builder,
+        update: () => builder,
+        single: async () => ({ data: rows()[0] ?? null, error: null }),
         insert: async (payload: Row) => {
           (tables[table] ??= []).push({ ...payload });
           return { error: null };
@@ -336,4 +342,115 @@ describe("local and deployment-configured models are not router models", () => {
       expect(pinned.route.model).toBe(model);
     },
   );
+});
+
+describe("playbook work refuses what chat refuses, including ids the catalog does not recognise", () => {
+  async function routerWorld(): Promise<Db> {
+    return fakeDb({
+      org_members: [{ org_id: "o1", user_id: "u1" }],
+      organizations: [{ id: "o1", allow_personal_ai_keys: true }],
+      org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "openrouter", "sk-or-firm")],
+      user_api_keys: [
+        await keyRow({ kind: "user", id: "u1" }, "claude", "sk-own"),
+        await keyRow({ kind: "user", id: "u1" }, "openrouter", "sk-or-own"),
+        await keyRow({ kind: "user", id: "u1" }, "vercel", "sk-vc-own"),
+      ],
+      org_router_models: [
+        { org_id: "o1", router: "openrouter", model_id: "anthropic/claude-sonnet-4" },
+      ],
+      user_router_models: [
+        { user_id: "u1", router: "openrouter", model_id: "meta/llama-4" },
+        { user_id: "u1", router: "vercel", model_id: "vendor/model-1" },
+        { user_id: "u1", router: "opencode-go", model_id: "model-1" },
+      ],
+      user_profiles: [],
+    });
+  }
+  const FIRM = "org:o1:openrouter:v1";
+  const OWN = "user:u1:openrouter:v1";
+
+  it.each([
+    ["firm key + openrouter/auto", "openrouter/auto", "o1", FIRM],
+    ["firm key + an unknown single-segment id", "openrouter/gpt-5-pro", "o1", FIRM],
+    ["own key, no ref + openrouter/auto", "openrouter/auto", null, undefined],
+  ])("%s: 400 model_unavailable", async (_name, model, org, ref) => {
+    const error = await refusal(pinPlaybookRoute(await routerWorld(), "u1", model, org, ref));
+    expect(error.status).toBe(400);
+    expect(error.code).toBe("model_unavailable");
+    expect(error.message).toBe(`Model "${model}" is not available. Select another model.`);
+  });
+
+  // Parity with chat: every row runs through chat's own resolution and pin
+  // and through the playbook pin; the verdict AND the error code must agree.
+  const ROUTER_FAMILIES = [
+    "openrouter", "vercel", "opencode-go", "bedrock", "azure",
+    "azure-foundry", "vertex", "xai", "custom",
+  ];
+  const TABLE: Array<[string, string, string | null, string | undefined]> = [
+    ["A firm key + unapproved", "openrouter/openai/gpt-5-pro", "o1", FIRM],
+    ["B firm key + approved", "openrouter/anthropic/claude-sonnet-4", "o1", FIRM],
+    ["C own router key + outside own list", "openrouter/openai/gpt-5-pro", null, OWN],
+    ["C0 same, no ref", "openrouter/openai/gpt-5-pro", null, undefined],
+    ["D own router key + inside own list", "openrouter/meta/llama-4", null, OWN],
+    ["O firm key + id only in the person's own list", "openrouter/meta/llama-4", "o1", FIRM],
+    ["P own key in a firm that holds the router key", "openrouter/meta/llama-4", "o1", OWN],
+    ["firm key + openrouter/auto", "openrouter/auto", "o1", FIRM],
+    ["own key, no ref + openrouter/auto", "openrouter/auto", null, undefined],
+    ["firm key + approved, trailing space", "openrouter/anthropic/claude-sonnet-4 ", "o1", FIRM],
+    ["firm key + approved, leading space", " openrouter/anthropic/claude-sonnet-4", "o1", FIRM],
+    ["firm key + approved, other case", "OpenRouter/Anthropic/Claude-Sonnet-4", "o1", FIRM],
+    ["empty model", "", null, undefined],
+    ["blank model", "   ", null, undefined],
+    ["built-in on a direct key", "claude-sonnet-5-5", null, "user:u1:claude:v1"],
+    ["built-in, no ref", "claude-sonnet-5-5", null, undefined],
+    ["built-in, other case", "Claude-Sonnet-5-5", null, undefined],
+    ["built-in, trailing space", "claude-sonnet-5-5 ", null, undefined],
+    ["built-in without a key", "gemini-3.5-flash-lite", null, undefined],
+    ["legacy id", "claude-opus-4-7", null, undefined],
+    ["unknown id", "no-such-model", null, undefined],
+    ["unknown id with a router-like prefix", "openrouter", null, undefined],
+    ["local Ollama", "ollama/llama3", null, undefined],
+    ["deployment-configured local", "acme-local", null, undefined],
+    ["deployment-configured, other case", "ACME-LOCAL", null, undefined],
+    ...ROUTER_FAMILIES.flatMap((family): typeof TABLE => [
+      [`${family}: vendor/model id`, `${family}/vendor/model-1`, null, undefined],
+      [`${family}: single segment id`, `${family}/model-1`, null, undefined],
+      [`${family}: vendor/model id in a firm`, `${family}/vendor/model-1`, "o1", undefined],
+      [`${family}: unsafe id`, `${family}/ven dor/../model`, null, undefined],
+      [`${family}: no model part`, `${family}/`, null, undefined],
+    ]),
+  ];
+
+  beforeEach(() => {
+    process.env.MIKE_MODEL_CONFIG_JSON = JSON.stringify({
+      models: [
+        { id: "acme-local", provider: "openai-compatible", location: "local", baseUrl: "http://localhost:8000/v1" },
+      ],
+    });
+    resetModelRegistryCache();
+  });
+  afterEach(() => {
+    delete process.env.MIKE_MODEL_CONFIG_JSON;
+    resetModelRegistryCache();
+  });
+
+  it.each(TABLE)("%s: same verdict and code as chat", async (_name, model, org, ref) => {
+    const chat = await (async () => {
+      const db = await routerWorld();
+      const selected = await resolveUserChatSelection(db, {
+        userId: "u1", requestedModel: model, orgId: org,
+      });
+      if (!selected.ok) return { ok: false, code: selected.code };
+      const pinned = await pinChatRoute(db, {
+        userId: "u1", orgId: org, model: selected.selectedModel,
+        requestedCredentialRef: ref ?? null,
+      });
+      return pinned.ok ? { ok: true, code: null } : { ok: false, code: pinned.code };
+    })();
+    const playbook = await pinPlaybookRoute(await routerWorld(), "u1", model, org, ref).then(
+      () => ({ ok: true, code: null as string | null }),
+      (error: PlaybookRequestError) => ({ ok: false, code: error.code ?? null }),
+    );
+    expect(playbook).toEqual(chat);
+  });
 });

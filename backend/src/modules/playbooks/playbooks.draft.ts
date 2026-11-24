@@ -35,6 +35,7 @@ import {
   MAX_PLAYBOOK_IMPORT_BYTES,
   normalizeCompiledPlaybookOutput,
   parseModelJson,
+  assertFirmKeyForDocuments,
   pinPlaybookRoute,
   playbookCompilationTimeoutMs,
   playbookContentSchema,
@@ -153,6 +154,13 @@ export function stagedDraftKeys(userId: string, raw: unknown): string[] {
     );
 }
 
+/** The saved documents among the attachments (staged uploads are the caller's own). */
+export function attachedDocumentIds(attachments: DraftAttachment[]): string[] {
+  return attachments.flatMap((attachment) =>
+    "documentId" in attachment ? [attachment.documentId] : [],
+  );
+}
+
 /** Checked in the request: the staged object exists, or the document opens. */
 export async function checkAttachments(
   db: Db,
@@ -210,6 +218,7 @@ export async function beginPlaybookDraft(
     parsedAttachments,
   );
   const pinned = await pinPlaybookRoute(db, args.userId, model, orgId, args.credentialRef);
+  await assertFirmKeyForDocuments(db, args.credentialRef, orgId, attachedDocumentIds(attachments));
   const authorization = await readAuthorizationStamp(db, orgId);
 
   const attemptId = crypto.randomUUID();

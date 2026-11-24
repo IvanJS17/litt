@@ -26,6 +26,7 @@ import {
   type ProposedChange,
 } from "./playbooks.changes";
 import {
+  attachedDocumentIds,
   checkAttachments,
   draftFailureMessage,
   fenced,
@@ -47,6 +48,7 @@ import {
   isPlaybookRefusal,
   keepPlaybookWorkAttended,
   loadPlaybookRoute,
+  assertFirmKeyForDocuments,
   pinPlaybookRoute,
   playbookCompilationTimeoutMs,
   playbookImportJobKey,
@@ -202,6 +204,7 @@ export async function beginPlaybookProposals(
     );
   const attachments = await checkAttachments(db, args.userId, args.userEmail, parsedAttachments);
   const pinned = await pinPlaybookRoute(db, args.userId, model, copy.orgId, args.credentialRef);
+  await assertFirmKeyForDocuments(db, args.credentialRef, copy.orgId, attachedDocumentIds(attachments));
   const authorization = await readAuthorizationStamp(db, copy.orgId);
 
   const attemptId = crypto.randomUUID();

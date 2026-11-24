@@ -3,7 +3,6 @@
 // belong to that firm; a person's own key keeps working as before.
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../../lib/supabase";
-import { saveApiKeyFor } from "../../../lib/providerCredentials/store";
 
 const docs = vi.hoisted(() => ({
   loadActiveVersion: vi.fn(),
@@ -24,36 +23,8 @@ vi.mock("../../../lib/docxTrackedChanges", async (original) => ({
 }));
 
 import { blankPlaybookContent, beginPlaybookReview } from "../playbooks.operations";
-import { database, ORG as FIRM_A, OTHER as FIRM_B, type Row } from "./playbookTestDb";
-
-/** An encrypted key row as the database stores it. */
-async function keyRow(
-  owner: { kind: "user" | "org"; id: string },
-  secret: string,
-): Promise<Row> {
-  const saved: Row[] = [];
-  const recorder = {
-    from: () => {
-      const builder: Record<string, unknown> = {
-        select: () => builder,
-        eq: () => builder,
-        insert: async (payload: Row) => (saved.push(payload), { error: null }),
-        upsert: (payload: Row) => (saved.push(payload), builder),
-        maybeSingle: async () => ({ data: null, error: null }),
-        then: (resolve: (value: unknown) => unknown) =>
-          Promise.resolve({ data: [], error: null }).then(resolve),
-      };
-      return builder;
-    },
-  } as unknown as Db;
-  await saveApiKeyFor(owner, "claude" as never, secret, recorder);
-  return {
-    ...saved[0]!,
-    ...(owner.kind === "org" ? { org_id: owner.id } : { user_id: owner.id }),
-    version: 1,
-    credential_ref: "claude:v1",
-  };
-}
+import { keyRow } from "./playbookTestKeys";
+import { database, ORG as FIRM_A, OTHER as FIRM_B } from "./playbookTestDb";
 
 async function world(documentOrg: string | null, playbookOrg: string | null = FIRM_A) {
   const { db, tables } = database(
@@ -82,6 +53,10 @@ async function world(documentOrg: string | null, playbookOrg: string | null = FI
   tables.org_api_keys = [
     await keyRow({ kind: "org", id: FIRM_A }, "sk-firm-a"),
     await keyRow({ kind: "org", id: FIRM_B }, "sk-firm-b"),
+    await keyRow({ kind: "org", id: FIRM_A }, "sk-or-firm-a", "openrouter"),
+  ];
+  tables.org_router_models = [
+    { org_id: FIRM_A, router: "openrouter", model_id: "openai/gpt-4.1" },
   ];
   tables.user_api_keys = [await keyRow({ kind: "user", id: "u1" }, "sk-own")];
   tables.documents = [
@@ -90,12 +65,12 @@ async function world(documentOrg: string | null, playbookOrg: string | null = FI
   return db;
 }
 
-const review = (db: Db, credentialRef?: string) =>
+const review = (db: Db, credentialRef?: string, model = "claude-opus-5") =>
   beginPlaybookReview({
     userId: "u1",
     playbookId: "book",
     documentId: "doc",
-    model: "claude-opus-5",
+    model,
     reviewMode: "strict",
     credentialRef,
     db,
@@ -138,8 +113,36 @@ describe("reviewing a document of another organization with a playbook of this o
     });
   });
 
+  it("answers with that code, not a model or key-missing one, whatever the model", async () => {
+    await expect(
+      review(await world(FIRM_B), `org:${FIRM_A}:openrouter:v1`, "openrouter/openai/gpt-4.1"),
+    ).rejects.toMatchObject({ status: 409, code: "chat_route_credential_unavailable" });
+  });
+
   it("keeps the person's own key working for it, as before (open question for the owner)", async () => {
     const started = await review(await world(FIRM_B), "user:u1:claude:v1");
     expect(started.resolved.route.credentialRef).toBe("user:u1:claude:v1");
+  });
+});
+
+describe("the model of a review is trimmed and governed as in the other flows", () => {
+  const firmOpenRouter = `org:${FIRM_A}:openrouter:v1`;
+
+  it("runs a model sent with surrounding whitespace on the trimmed id", async () => {
+    const started = await review(
+      await world(FIRM_A), firmOpenRouter, " openrouter/openai/gpt-4.1 ",
+    );
+    expect(started.resolved.route.model).toBe("openrouter/openai/gpt-4.1");
+  });
+
+  it.each([
+    ["an unapproved model with trailing whitespace", "openrouter/openai/gpt-5-pro "],
+    ["an id the catalog does not recognise", "openrouter/auto"],
+  ])("refuses %s on the firm's key, recording nothing", async (_name, model) => {
+    const db = await world(FIRM_A);
+    await expect(review(db, firmOpenRouter, model)).rejects.toMatchObject({
+      status: 400,
+      code: "model_unavailable",
+    });
   });
 });

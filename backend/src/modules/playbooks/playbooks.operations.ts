@@ -76,8 +76,7 @@ import {
   providerForModel,
 } from "../../lib/llm/models";
 import type { Provider } from "../../lib/llm/types";
-import { hasApiKeyForModel } from "../../lib/modelSelection";
-import { resolveRequestedModel } from "../../lib/routerModels";
+import { hasApiKeyForModel, resolveEffectiveChatModel } from "../../lib/modelSelection";
 import { getUserApiKeys, getEffectiveApiKeys } from "../../lib/providerCredentials/index";
 import {
   chatRouteColumns,
@@ -522,6 +521,14 @@ export function playbookModelAvailability(
   };
 }
 
+/**
+ * Admission of the model, by the function chat uses for it
+ * (`resolveEffectiveChatModel`): an id the catalog does not recognise, a
+ * router model outside the list that governs its key, a turned-off provider
+ * and a missing key are all refused with chat's code and text. Playbooks
+ * answer 400 for each (chat answers 422 for a missing key or a turned-off
+ * provider); the code is what clients act on.
+ */
 async function assertPlaybookModelAvailable(
   userId: string,
   model: string,
@@ -531,13 +538,15 @@ async function assertPlaybookModelAvailable(
   const apiKeys = orgId
     ? await getEffectiveApiKeys(userId, orgId, db)
     : await getUserApiKeys(userId, db);
-  const availability = playbookModelAvailability(model, apiKeys);
-  // No silent fallback: without a key for the chosen model the request is
-  // refused with a code the client acts on, never sent to another model.
-  if (!availability.available)
-    throw new PlaybookRequestError(availability.reason, 400, {
-      code: "missing_api_key",
-    });
+  const checked = await resolveEffectiveChatModel({
+    requested: model,
+    apiKeys,
+    userId,
+    db,
+    orgId,
+  });
+  if (!checked.ok)
+    throw new PlaybookRequestError(checked.detail, 400, { code: checked.code });
   return apiKeys;
 }
 
@@ -554,7 +563,7 @@ async function assertPlaybookModelAvailable(
  * organization's key is never taken implicitly, so work whose only key is the
  * firm's needs this choice.
  *
- * The model is governed as chat governs it (`resolveRequestedModel`, strict):
+ * The model is admitted by chat's own function (`resolveEffectiveChatModel`):
  * a router model runs only if it is in the list that governs the key it would
  * run on, the organization's saved list where the playbook's organization
  * holds that router's key, the person's own otherwise. That list depends on
@@ -571,24 +580,70 @@ export async function pinPlaybookRoute(
   const requested = parseCredentialRef(credentialRef);
   if (!requested.ok) throw new PlaybookRequestError(requested.detail);
   await assertPlaybookModelAvailable(userId, model, db, orgId);
-  try {
-    await resolveRequestedModel(model, "", userId, db, "throw", orgId);
-  } catch (error) {
-    if (error instanceof UserFacingError)
-      throw new PlaybookRequestError(error.message, 400, {
-        code: "model_unavailable",
-      });
-    throw error;
-  }
   const pinned = await pinChatRoute(db, {
     userId,
     orgId,
-    model,
+    model: model.trim(),
     requestedCredentialRef: requested.value,
   });
   if (!pinned.ok)
     throw new PlaybookRequestError(pinned.detail, 409, { code: pinned.code });
   return pinned;
+}
+
+// The sentence every refused or vanished key gets (the chat route's own).
+const KEY_UNAVAILABLE =
+  "The key this conversation was started with is no longer available. Start a new conversation with a key you can use.";
+
+/**
+ * A firm's key runs only that firm's content. When the chosen key is an
+ * organization's (`org:<id>:...`), every organization the content belongs to
+ * (null: a personal document) must be the playbook's. A key that cannot be
+ * used here is refused with the code the client already knows. A person's own
+ * key and the deployment's are not affected.
+ */
+export function assertFirmKeyForContent(
+  credentialRef: unknown,
+  playbookOrg: string | null,
+  contentOrgs: readonly (string | null)[],
+): void {
+  if (typeof credentialRef !== "string" || !credentialRef.startsWith("org:"))
+    return;
+  if (contentOrgs.every((org) => org !== null && org === playbookOrg)) return;
+  throw new PlaybookRequestError(KEY_UNAVAILABLE, 409, {
+    code: "chat_route_credential_unavailable",
+  });
+}
+
+/** The same rule for saved documents, read by id (a missing one counts as not the firm's). */
+export async function assertFirmKeyForDocuments(
+  db: Db,
+  credentialRef: unknown,
+  playbookOrg: string | null,
+  documentIds: readonly string[],
+): Promise<void> {
+  if (
+    documentIds.length === 0 ||
+    typeof credentialRef !== "string" ||
+    !credentialRef.startsWith("org:")
+  )
+    return;
+  const { data, error } = await db
+    .from("documents")
+    .select("id, org_id")
+    .in("id", [...documentIds]);
+  if (error) throw error;
+  const orgs = new Map(
+    ((data ?? []) as { id: string; org_id: string | null }[]).map((row) => [
+      row.id,
+      row.org_id ?? null,
+    ]),
+  );
+  assertFirmKeyForContent(
+    credentialRef,
+    playbookOrg,
+    documentIds.map((id) => orgs.get(id) ?? null),
+  );
 }
 
 export async function loadPlaybookRoute(
@@ -1562,6 +1617,12 @@ export async function beginPlaybookImport(
       row.org_id,
       args.credentialRef,
     );
+    await assertFirmKeyForDocuments(
+      db,
+      args.credentialRef,
+      row.org_id,
+      args.documentId ? [args.documentId] : [],
+    );
     await updateImportAttempt(db, attemptId, chatRouteColumns(pinned.route));
     const authorization = await readAuthorizationStamp(db, row.org_id);
     return {
@@ -2321,7 +2382,8 @@ export function playbookReviewWork(
  */
 export async function beginPlaybookReview(args: PlaybookReviewRequest) {
   const db = args.db ?? createServerSupabase();
-  validateModel(args.model);
+  const model = args.model.trim();
+  validateModel(model);
   const stored = args.documentId
     ? await loadReviewDocument(db, args.userId, args.userEmail, args.documentId)
     : null;
@@ -2351,28 +2413,14 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
   const pinned = await pinPlaybookRoute(
     db,
     args.userId,
-    args.model,
+    model,
     playbook.orgId,
     args.credentialRef,
   );
-  // A firm's key runs only work whose playbook AND document belong to that
-  // firm. For a document of another organization (or a personal one) the
-  // chosen firm key is judged against the document's organization too, where
-  // it does not belong, so it is refused like any key the person may not use
-  // here. A person's own key is not affected.
-  if (
-    stored &&
-    stored.orgId !== playbook.orgId &&
-    typeof args.credentialRef === "string" &&
-    args.credentialRef.startsWith("org:")
-  )
-    await pinPlaybookRoute(
-      db,
-      args.userId,
-      args.model,
+  if (stored)
+    assertFirmKeyForContent(args.credentialRef, playbook.orgId, [
       stored.orgId,
-      args.credentialRef,
-    );
+    ]);
   const authorization = await readAuthorizationStamp(
     db,
     stored ? stored.orgId : playbook.orgId,

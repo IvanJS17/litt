@@ -488,7 +488,7 @@ model looks the key up again. A malformed `credential_ref` is a `400`; a key the
 person may not use fails closed with `chat_route_credential_unavailable`, and
 no other key is tried.
 
-The server applies chat's model rule as well: a router model runs only if it is in the list that governs its key (the organization's saved list where the playbook's organization holds that router's key, the person's own otherwise); any other is refused with `400 model_unavailable`, never replaced by another model. A firm's key runs a review only when both the playbook and the reviewed document belong to that firm.
+The server applies chat's model rule as well: a router model runs only if it is in the list that governs its key (the organization's saved list where the playbook's organization holds that router's key, the person's own otherwise); any other is refused with `400 model_unavailable`, never replaced by another model. An id the catalog does not recognise is refused the same way. A firm's key runs only that firm's content: a review, an import from a saved document, and draft or proposal attachments are refused with `409 chat_route_credential_unavailable` when a document belongs to another organization or is personal; a person's own key is not affected.
 
 ## In the assistant
 

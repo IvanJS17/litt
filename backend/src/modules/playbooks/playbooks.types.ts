@@ -86,6 +86,8 @@ export type PlaybookImportRequest = {
    * deployment's, never an organization's.
    */
   credentialRef?: unknown;
+  /** The saved document the file is read from, when it is not an upload. */
+  documentId?: string;
   db?: Db;
 };
 /**
