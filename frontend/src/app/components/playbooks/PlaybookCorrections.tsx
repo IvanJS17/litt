@@ -243,7 +243,7 @@ export function PlaybookCorrections({
     try {
       const started = await startPlaybookCorrections(playbookId, {
         model,
-        credentialRef: credential.value,
+        credentialRef: await credential.resolve(),
         traineeUserId: pupilId,
         corrections: rows.map((row) => ({
           before: row.before.trim(),
