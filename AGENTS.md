@@ -310,28 +310,39 @@ LiTT is public and holds client documents. Where a test is named, a failure
 means fix the code, not the test.
 
 1. A route that changes a firm's members, roles, invitations or settings
-   requires `requireMfaIfEnrolled` (`backend/src/__tests__/membershipStepUp.test.ts`).
-2. Derived copies (stored answers, transcripts, review lists, exports, project
-   memory, upload sessions, anything computed from a document) are served only
-   after checking, when read, that the reader can open the sources now, with
-   `keepReadableDerived` in `backend/src/lib/access.ts`. No screen writes its own check.
+   requires `requireMfaIfEnrolled`. The test goes by the route's own path as
+   registered in its router and covers paths naming members, roles,
+   invitations, owners or settings; other changes to who can reach something
+   (access to a matter or a conversation, sharing, visibility) are outside it
+   (`backend/src/__tests__/membershipStepUp.test.ts`).
+2. Content computed from documents (assistant conversations, tabular-review
+   chat messages, playbook runs, the account export) is served only after checking,
+   when it is read, that the reader can open the sources now, with
+   `keepReadableDerived` in `backend/src/lib/access.ts`. A new reader of content
+   computed from documents does the same and writes no check of its own.
 3. Every connected-apps (MCP) tool declares its `scope` and `lane`; the toolkit
    checks the scope, never the tool. A tool that writes or spends a key is on
-   the write lane. A person's global sign-out and password recovery end their
-   connections (`backend/src/modules/mcp/__tests__/mcp.scopeDeclared.test.ts`).
-4. Text LiTT did not write (a model's reply, a provider's error, an uploaded
-   file's content, a header) goes through a size-bounded entry point
-   (`backend/src/lib/modelJsonFence.ts`) before it is parsed, and only meets
-   expressions and loops whose cost grows in proportion to the text
-   (`backend/src/__tests__/regexShapes.test.ts`).
-5. Heavy file processing (conversion, extraction, rendering) runs outside the
-   API process with limits of size, time and memory; its child processes end
-   with it (`backend/src/lib/extraction/isolated.ts`).
+   the write lane (`backend/src/modules/mcp/__tests__/mcp.scopeDeclared.test.ts`).
+   A person's global sign-out, and a password recovery that signs out
+   everywhere, end their connections.
+4. Text from a model or a provider (a model's reply, a provider's error) is
+   size-bounded through `backend/src/lib/modelJsonFence.ts` before it is
+   scanned or parsed, and code only meets expressions and loops whose cost grows
+   in proportion to the text (`backend/src/__tests__/regexShapes.test.ts`).
+5. Heavy file processing (conversion, extraction, rendering), including the
+   parsing of an uploaded file's content, runs outside the API process with
+   limits of size, time and memory; its child processes end with it
+   (`backend/src/lib/extraction/isolated.ts`, `limits.ts`).
 6. The visitor's address comes only from the configured chain of trusted proxies
-   (`TRUST_PROXY_HOPS`), never from a header a client can set; a limit that
-   protects an account cannot be used up by a third party.
-7. Work runs on the key of the workspace it belongs to, chosen by that
-   workspace's administrators, with no silent fallback to another key or model.
+   (`TRUST_PROXY_HOPS`), never from a header a client can set. Sign-in attempts
+   are limited per account and client address, with a higher limit per account
+   across addresses.
+7. In a firm's workspace or matter, work must run only on a key the firm's
+   administrators allow: the firm's key, or the person's own key where the firm
+   allows personal keys. Work started without naming a key follows the order in
+   `docs/mcp-server.md`. A conversation keeps the model and key it started
+   with; if they cannot run, the work is refused and is not moved to another
+   model.
 8. A restriction on an account does not depend on the terms version accepted.
 9. Rendered Markdown does not load images from other sites: wrap `components`
    in `withSafeMarkdownImages` from `@mike/ui` (`frontend/src/__tests__/architecture.test.ts`).

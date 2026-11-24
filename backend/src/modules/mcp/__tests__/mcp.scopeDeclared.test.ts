@@ -51,17 +51,23 @@ describe("the toolkit alone checks the permission and registers tools", () => {
         expect(offenders, "declare the tool with defineMcpTool and list it in mcp.catalog.ts; do not register it by hand").toEqual([]);
     });
 
+    // Allowed: only to ask for one more permission than the tool declares for a delegated run
+    // (mcp.tools.workflows.ts needScope), or to set what the assistant may do in the turn a tool
+    // starts from the permissions the connection holds (mcp.tools.chat.ts turnCapabilities).
+    const ALLOWED = new Map([
+        ["mcp.tools.chat.ts", "turnCapabilities sets what the assistant may do in a delegated turn from the permissions the connection holds"],
+        ["mcp.tools.workflows.ts", "a workflow that runs a chat or review also needs that permission, on top of the declared one"],
+    ]);
+    const CHECKS_SCOPE = /\bscopes\b\s*\.\s*(includes|some|has|every)\s*\(/;
+    const checksScope = (f: string) => CHECKS_SCOPE.test(strip(readFileSync(join(dir, f), "utf8")));
+
     it("does not decide a tool's permission inside a tool file", () => {
-        // Allowed: only to REPORT the connection's permissions, or to ask for one more permission
-        // than the tool declares for a delegated run (mcp.tools.workflows.ts needScope).
-        const ALLOWED = new Map([
-            ["mcp.catalog.ts", "whoami lists the permissions the connection holds"],
-            ["mcp.tools.chat.ts", "reports the capabilities of the connection in a result"],
-            ["mcp.tools.workflows.ts", "a workflow that runs a chat or review also needs that permission, on top of the declared one"],
-        ]);
-        const offenders = toolFiles
-            .filter((f) => !ALLOWED.has(f))
-            .filter((f) => /\bscopes\b\s*\.\s*(includes|some|has|every)\s*\(/.test(strip(readFileSync(join(dir, f), "utf8"))));
+        const offenders = toolFiles.filter((f) => !ALLOWED.has(f)).filter(checksScope);
         expect(offenders, "declare the permission with `scope` on the tool; the toolkit checks it").toEqual([]);
+    });
+
+    it("lists only files that still need their exception", () => {
+        const stale = [...ALLOWED.keys()].filter((f) => !toolFiles.includes(f) || !checksScope(f));
+        expect(stale, "remove each file listed from ALLOWED: it no longer checks a permission itself").toEqual([]);
     });
 });
