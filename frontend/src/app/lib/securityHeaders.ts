@@ -15,6 +15,8 @@
  * Origins that come from configuration are read from the same variables the
  * backend reads (`R2_PUBLIC_ENDPOINT_URL`, falling back to `R2_ENDPOINT_URL`);
  * the only hosts written here are the third-party ones in `EXTERNAL_SOURCES`.
+ * The viewers load everything else, the PDF standard fonts included, from the
+ * app's own origin (`'self'`).
  * `src/__tests__/protectionHeadersCoverage.test.ts` fails when a route is left
  * out of the rule.
  */
@@ -27,10 +29,6 @@ export const HSTS_MAX_AGE_SECONDS = 31_536_000;
 /** Every path, including `/`. */
 export const PROTECTION_HEADER_SOURCE = "/:path*";
 
-// pdf.js fetches the standard font files of a PDF from this CDN
-// (components/shared/views/highlightQuote.ts, STANDARD_FONT_DATA_URL).
-const PDF_FONT_ORIGIN = "https://unpkg.com";
-
 // Google Drive's file chooser (lib/googlePicker.ts) loads a script from
 // apis.google.com, which then frames docs.google.com and reads from Google's
 // APIs. A named exception for a feature that is off until a Drive connector is
@@ -41,7 +39,6 @@ const GOOGLE_PICKER_IMAGE_SOURCES = ["https://*.googleusercontent.com", "https:/
 
 /** Every third-party host the policy names. */
 export const EXTERNAL_SOURCES: readonly string[] = [
-    PDF_FONT_ORIGIN,
     ...GOOGLE_PICKER_FRAME_SOURCES,
     ...GOOGLE_PICKER_CONNECT_SOURCES,
     ...GOOGLE_PICKER_IMAGE_SOURCES,
@@ -112,7 +109,7 @@ export function buildContentSecurityPolicy({
         ["font-src", ["'self'", "data:"]],
         [
             "connect-src",
-            ["'self'", "blob:", ...(storage ? [storage] : []), PDF_FONT_ORIGIN, ...GOOGLE_PICKER_CONNECT_SOURCES],
+            ["'self'", "blob:", ...(storage ? [storage] : []), ...GOOGLE_PICKER_CONNECT_SOURCES],
         ],
         ["frame-src", [...GOOGLE_PICKER_FRAME_SOURCES]],
         ["worker-src", ["'self'", "blob:"]],

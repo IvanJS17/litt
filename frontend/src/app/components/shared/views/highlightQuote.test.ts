@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { highlightQuote } from "./highlightQuote";
+import { STANDARD_FONT_DATA_URL, highlightQuote } from "./highlightQuote";
 
 const HIGHLIGHT = ".pdf-text-highlight";
 
@@ -85,5 +85,15 @@ describe("highlightQuote", () => {
         await highlightQuote(textDivs, "Bob $200", readingOrder);
 
         expect(highlighted(container)).toEqual(["Bob", "200"]);
+    });
+});
+
+describe("the standard font location", () => {
+    it("is a same-origin path that ends with a slash and names no version", () => {
+        expect(STANDARD_FONT_DATA_URL).toMatch(/^\/[^/]/);
+        expect(STANDARD_FONT_DATA_URL.endsWith("/")).toBe(true);
+        expect(STANDARD_FONT_DATA_URL).not.toMatch(/^[a-z][a-z0-9+.-]*:|^\/\//i);
+        expect(STANDARD_FONT_DATA_URL).not.toMatch(/\d+\.\d+/);
+        expect(STANDARD_FONT_DATA_URL).not.toMatch(/@/);
     });
 });
