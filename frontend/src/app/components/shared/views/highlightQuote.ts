@@ -11,8 +11,9 @@ export async function getPdfJs() {
     return pdfjsLib;
 }
 
-export const STANDARD_FONT_DATA_URL =
-    "https://unpkg.com/pdfjs-dist@4.10.38/standard_fonts/";
+// Served by the app itself: scripts/copyPdfStandardFonts.mjs publishes the
+// installed pdfjs-dist's fonts under public/ before `next dev` and `next build`.
+export const STANDARD_FONT_DATA_URL = "/standard_fonts/";
 
 const HIGHLIGHT_CLASS = "pdf-text-highlight";
 const ORIGINAL_TEXT_ATTR = "data-original-text";

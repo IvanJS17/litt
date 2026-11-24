@@ -26,6 +26,9 @@ test-results/
 playwright-report/
 e2e/.auth/
 
+# pdf.js standard fonts, copied from node_modules by frontend/scripts/copyPdfStandardFonts.mjs
+/frontend/public/standard_fonts/
+
 # Local Supabase scaffold. Keep the shared project configuration reproducible,
 # while excluding CLI state and other generated local files.
 /supabase/

@@ -100,6 +100,14 @@ describe("content security policy", () => {
         expect(hosts.length).toBeGreaterThan(0);
         for (const host of hosts) expect(EXTERNAL_SOURCES).toContain(host);
         expect(text).not.toMatch(/asteroitt|litt\./i);
+        // The viewers' fonts come from the app's own origin: no font host, and
+        // no script/CDN host either.
+        expect(EXTERNAL_SOURCES.join(" ")).not.toMatch(/unpkg|jsdelivr|cdnjs/i);
+        expect(text).not.toMatch(/unpkg|jsdelivr|cdnjs/i);
+        const directive = (name: string) =>
+            text.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name} `));
+        expect(directive("font-src")).toBe("font-src 'self' data:");
+        expect(directive("connect-src")).not.toMatch(/unpkg/);
     });
 });
 
