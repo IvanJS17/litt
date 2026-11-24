@@ -149,6 +149,24 @@ describe("Playbooks API requests", () => {
       },
     },
     {
+      name: "corrections on a chosen key",
+      call: () =>
+        startPlaybookCorrections(id, {
+          model: "test-model",
+          traineeUserId: "pupil-1",
+          corrections: [],
+          credentialRef: "org:org-1:claude:v2",
+        }),
+      url: `${path}/corrections`,
+      method: "POST",
+      body: {
+        model: "test-model",
+        traineeUserId: "pupil-1",
+        corrections: [],
+        credential_ref: "org:org-1:claude:v2",
+      },
+    },
+    {
       name: "copy",
       call: () => copyPlaybook(id),
       url: `${path}/copy`,
@@ -281,6 +299,13 @@ describe("Playbooks API requests", () => {
       url: `${path}/review`,
       method: "POST",
       body: review,
+    },
+    {
+      name: "review on a chosen key",
+      call: () => reviewDocumentWithPlaybook(id, { ...review, credentialRef: "org:org-1:claude:v2" }),
+      url: `${path}/review`,
+      method: "POST",
+      body: { ...review, credential_ref: "org:org-1:claude:v2" },
     },
     {
       name: "runs",
@@ -552,6 +577,22 @@ describe("A draft from the questionnaire", () => {
       model: "m",
       answers: {},
       attachments: [],
+    });
+  });
+
+  it("sends the chosen key with the draft", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: "draft-3" }, 202));
+    await startPlaybookDraft({
+      model: "m",
+      answers: {},
+      attachments: [],
+      credentialRef: "org:org-1:claude:v2",
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      model: "m",
+      answers: {},
+      attachments: [],
+      credential_ref: "org:org-1:claude:v2",
     });
   });
 

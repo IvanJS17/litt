@@ -26,6 +26,7 @@ import {
   type ProposedChange,
 } from "./playbooks.changes";
 import {
+  attachedDocumentIds,
   checkAttachments,
   draftFailureMessage,
   fenced,
@@ -47,6 +48,7 @@ import {
   isPlaybookRefusal,
   keepPlaybookWorkAttended,
   loadPlaybookRoute,
+  assertFirmKeyForDocuments,
   pinPlaybookRoute,
   playbookCompilationTimeoutMs,
   playbookImportJobKey,
@@ -92,6 +94,12 @@ export type PlaybookProposalRequest = {
   model: string;
   answers?: unknown;
   attachments?: unknown;
+  /**
+   * The key chosen for this work (`credential_ref`, as the chat's key
+   * selector sends it); see pinPlaybookRoute. Absent: the person's own or the
+   * deployment's, never an organization's.
+   */
+  credentialRef?: unknown;
   db?: Db;
 };
 
@@ -195,7 +203,8 @@ export async function beginPlaybookProposals(
       `Un playbook guarda hasta ${MAX_PLAYBOOK_SOURCES} documentos de referencia. Quita alguno o adjunta menos.`,
     );
   const attachments = await checkAttachments(db, args.userId, args.userEmail, parsedAttachments);
-  const pinned = await pinPlaybookRoute(db, args.userId, model, copy.orgId);
+  const pinned = await pinPlaybookRoute(db, args.userId, model, copy.orgId, args.credentialRef);
+  await assertFirmKeyForDocuments(db, args.credentialRef, copy.orgId, attachedDocumentIds(attachments));
   const authorization = await readAuthorizationStamp(db, copy.orgId);
 
   const attemptId = crypto.randomUUID();

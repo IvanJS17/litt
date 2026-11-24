@@ -6,6 +6,7 @@
 // an import. The questions are product text (the catalog); what the lawyer
 // writes is sent as written.
 
+import { PlaybookKeyField, type PlaybookKey } from "@/app/components/playbooks/usePlaybookKey";
 import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2, WandSparkles } from "lucide-react";
@@ -63,6 +64,7 @@ export function PlaybookIntakeModal({
   models,
   model,
   onModelChange,
+  credential,
   onClose,
   onSubmit,
 }: {
@@ -72,6 +74,8 @@ export function PlaybookIntakeModal({
   models: { value: string; label: string }[];
   model: string;
   onModelChange: (model: string) => void;
+  /** The key the draft runs on, as the chat chooses it. */
+  credential: PlaybookKey;
   /** Closes the dialog; its answers are kept until the caller remounts it. */
   onClose: () => void;
   /** Resolves true once the draft is on its way; on false the caller has said why. */
@@ -79,7 +83,7 @@ export function PlaybookIntakeModal({
 }) {
   const t = useTranslations("playbooks.intake");
   const tCommon = useTranslations("common");
-  const ids = { name: useId(), model: useId(), attachments: useId(), intro: useId() };
+  const ids = { name: useId(), model: useId(), key: useId(), attachments: useId(), intro: useId() };
   const [questionnaire, setQuestionnaire] = useState<PlaybookQuestionnaire | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -313,6 +317,11 @@ export function PlaybookIntakeModal({
               </p>
             )}
           </div>
+          <PlaybookKeyField
+            id={ids.key}
+            credential={credential}
+            disabled={submitting}
+          />
           {(problem || tooLong) && (
             <p role="alert" className="flex items-start gap-2 text-sm text-red-600">
               <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />

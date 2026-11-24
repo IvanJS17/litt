@@ -75,10 +75,15 @@ import { Modal } from "@/app/components/modals/Modal";
 import { ModalFieldLabel } from "@/app/components/modals/ModalFieldLabel";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
 import { ModalTextInput } from "@/app/components/modals/ModalTextInput";
-import { modelDisplayName, SETTINGS_MODELS, clientTranslator} from "@mike/client";
+import { modelDisplayName, clientTranslator} from "@mike/client";
 import { useOllamaModels } from "@/app/hooks/useOllamaModels";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
-import { buildPlaybookModelOptions } from "@/app/components/playbooks/playbookModelOptions";
+import {
+  buildPlaybookModelOptions,
+  playbookModelCatalog,
+} from "@/app/components/playbooks/playbookModelOptions";
+import { useConfiguredModels } from "@/app/hooks/useConfiguredModels";
+import { useModelRouterSelections } from "@/app/hooks/useModelRouterSelections";
 import {
   getDocumentFile,
   createPlaybook,
@@ -111,6 +116,10 @@ import {
 } from "@/app/lib/mikeApi";
 
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
+import {
+  PlaybookKeyField,
+  usePlaybookKey,
+} from "@/app/components/playbooks/usePlaybookKey";
 import { showToast } from "@/app/components/ui/toast";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { assistantPathWithPlaybook } from "@/app/lib/assistantPlaybookLink";
@@ -230,16 +239,27 @@ function PlaybooksWorkspace() {
   const [savedFilesOpen, setSavedFilesOpen] = useState(false);
   const apiKeys = useModelApiKeys();
   const ollamaModels = useOllamaModels();
+  // The chat's sources (docs/playbooks.md, "Model selection"): router Model
+  // Selections and the deployment's configured models too, not only the
+  // built-in catalog.
+  const routerSelections = useModelRouterSelections();
+  const deploymentModels = useConfiguredModels();
+  const configuredModelIds = useMemo(
+    () => deploymentModels.map((model) => model.id),
+    [deploymentModels],
+  );
   const configuredModelOptions = useMemo(
-    () => [
-      ...SETTINGS_MODELS,
-      ...ollamaModels.map((model) => ({
-        ...model,
-        label: modelDisplayName(model.id),
-        source: t("playbooks.local"),
-      })),
-    ],
-    [ollamaModels],
+    () =>
+      playbookModelCatalog({
+        routerSelections: routerSelections ?? {},
+        ollama: ollamaModels.map((model) => ({
+          ...model,
+          label: modelDisplayName(model.id),
+          source: t("playbooks.local"),
+        })),
+        configured: deploymentModels,
+      }),
+    [ollamaModels, routerSelections, deploymentModels],
   );
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   // The URL decides which playbook is open; selection follows it at once so
@@ -587,9 +607,21 @@ function PlaybooksWorkspace() {
 
   const models = useMemo(
     () =>
-      buildPlaybookModelOptions(configuredModelOptions, configuration, apiKeys),
-    [configuration, configuredModelOptions, apiKeys],
+      buildPlaybookModelOptions(
+        configuredModelOptions,
+        configuration,
+        apiKeys,
+        configuredModelIds,
+      ),
+    [configuration, configuredModelOptions, apiKeys, configuredModelIds],
   );
+  // LiTT governed BYOK: the key every dialog that starts model work (import,
+  // new run, questionnaire draft, mentor corrections) sends, chosen as the
+  // chat chooses it. The server never takes a firm's key on its own.
+  const playbookKey = usePlaybookKey({
+    model,
+    enabled: importOpen || intakeOpen || newRunOpen || playbookView === "corrections",
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -731,7 +763,10 @@ function PlaybooksWorkspace() {
 
   async function startDraft(request: PlaybookIntakeRequest): Promise<boolean> {
     try {
-      const started = await startPlaybookDraft({ ...request, model }, workspaceId);
+      const started = await startPlaybookDraft(
+        { ...request, model, credentialRef: playbookKey.value },
+        workspaceId,
+      );
       setImports((current) => [started, ...current]);
       setIntakeOpen(false);
       showToast({
@@ -824,6 +859,7 @@ function PlaybooksWorkspace() {
         importName,
         importTargetId ?? undefined,
         workspaceId,
+        playbookKey.value,
       );
       setImports((current) => [started, ...current]);
       setFollowedImportId(started.id);
@@ -1165,6 +1201,7 @@ function PlaybooksWorkspace() {
             model,
             reviewMode,
             reviewScope,
+            credentialRef: playbookKey.value,
           });
           setRun(result);
           // History shows it running while it runs on the server.
@@ -1418,6 +1455,7 @@ function PlaybooksWorkspace() {
               models={models}
               model={model}
               onModelChange={setModel}
+              credential={playbookKey}
               disabled={!!busy}
               onPlaybookChanged={showImported}
             />
@@ -1452,6 +1490,8 @@ function PlaybooksWorkspace() {
                   onModeChange={setReviewMode}
                   scope={reviewScope}
                   onScopeChange={setReviewScope}
+                  credential={playbookKey}
+                  onKeyChange={() => setReviewError(null)}
                   error={reviewError}
                   reviewing={busy === "review"}
                   disabled={!!busy}
@@ -1598,6 +1638,7 @@ function PlaybooksWorkspace() {
         models={models}
         model={model}
         onModelChange={setModel}
+        credential={playbookKey}
         onClose={() => setIntakeOpen(false)}
         onSubmit={startDraft}
       />
@@ -1857,6 +1898,11 @@ function PlaybooksWorkspace() {
                 </p>
               )}
             </div>
+            <PlaybookKeyField
+              id="playbook-import-key"
+              credential={playbookKey}
+              onChange={() => setImportError(null)}
+            />
             <p className="text-xs text-gray-500">
               {importTargetId
                 ? t("playbooks.theCompiledRulesReplaceThe")

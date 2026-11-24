@@ -80,6 +80,14 @@ export type PlaybookImportRequest = {
   model: string;
   /** Replace this playbook's content instead of creating a new playbook. */
   playbookId?: string;
+  /**
+   * The key chosen for this work (`credential_ref`, as the chat's key
+   * selector sends it); see pinPlaybookRoute. Absent: the person's own or the
+   * deployment's, never an organization's.
+   */
+  credentialRef?: unknown;
+  /** The saved document the file is read from, when it is not an upload. */
+  documentId?: string;
   db?: Db;
 };
 /**
@@ -131,6 +139,12 @@ export type PlaybookReviewRequest = {
    * tracked changes). Absent or true is the web's behaviour.
    */
   applyEdits?: boolean;
+  /**
+   * The key chosen for this work (`credential_ref`, as the chat's key
+   * selector sends it); see pinPlaybookRoute. Absent: the person's own or the
+   * deployment's, never an organization's.
+   */
+  credentialRef?: unknown;
   db?: Db;
   /**
    * The assistant turn that asked for the review, when one did. Its Stop or
@@ -186,6 +200,12 @@ export type PlaybookDraftRequest = {
   answers?: unknown;
   /** Up to five staged uploads ({ storageKey, filename }) or saved documents ({ documentId }). */
   attachments?: unknown;
+  /**
+   * The key chosen for this work (`credential_ref`, as the chat's key
+   * selector sends it); see pinPlaybookRoute. Absent: the person's own or the
+   * deployment's, never an organization's.
+   */
+  credentialRef?: unknown;
   db?: Db;
 };
 /**

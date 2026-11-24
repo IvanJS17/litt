@@ -585,6 +585,7 @@ export async function queuePlaybookImport(
       : source;
   const { attempt, work } = await beginPlaybookImport({
     ...request,
+    ...("documentId" in source ? { documentId: source.documentId } : {}),
     db,
     filename: file.filename,
     size: file.size,

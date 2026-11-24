@@ -109,6 +109,12 @@ export type PlaybookCorrectionRequest = {
   model: string;
   traineeUserId?: unknown;
   corrections?: unknown;
+  /**
+   * The key chosen for this work (`credential_ref`, as the chat's key
+   * selector sends it); see pinPlaybookRoute. Absent: the person's own or the
+   * deployment's, never an organization's.
+   */
+  credentialRef?: unknown;
   db?: Db;
 };
 
@@ -320,7 +326,7 @@ export async function beginPlaybookCorrections(
     throw new PlaybookRequestError(
       "El playbook es demasiado largo para proponer cambios. Divídelo en playbooks más pequeños.",
     );
-  const pinned = await pinPlaybookRoute(db, args.userId, model, orgId);
+  const pinned = await pinPlaybookRoute(db, args.userId, model, orgId, args.credentialRef);
   const authorization = await readAuthorizationStamp(db, orgId);
   const attributedTo = await attributionName(db, args.userId, args.userEmail);
 
