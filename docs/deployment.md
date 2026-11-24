@@ -482,12 +482,19 @@ Independently of that policy, the Markdown renderers (web app and Word add-in) d
 image from another site as a link that opens in a new tab, never as an image the
 browser loads on its own; one shared rule, `MarkdownImageUI` in `packages/ui`,
 applies it. An architecture test (rule 6 in `frontend/src/__tests__/architecture.test.ts`)
-fails when a `react-markdown` element is added without that rule, when a plugin or option is set
-that the test does not list, or when production code imports another library that renders
-Markdown or HTML and the test does not list it. It does not stop code written to get around
-it (a computed module name, `dangerouslySetInnerHTML`, a caller's own renderer for another
-element that draws an image) or files outside the folders it scans; the review of a change
-covers those.
+checks each production file whose text names a Markdown package. It fails when a
+`react-markdown` element is added without that rule (a type-only import of the
+shared function does not count), when a plugin or option is set that the test does
+not list, or when production code imports (also with a query or hash suffix on the
+module name) another library that turns Markdown, MDX or HTML text into elements,
+including the MDX compilers and the rich-text editor packages, and the test does not
+list it. It does not stop code written to get around it (a computed module name, a
+renamed `require`, a module name written with escapes, changing an imported plugin
+or the shared image component at run time by assigning to its properties or
+prototype), `dangerouslySetInnerHTML`, a caller's own renderer for an element other
+than `img` that draws an image, a rendering library whose name is in none of the
+tested families, the body of a listed plugin, or files outside the folders it scans;
+the review of a change covers those.
 
 ### Object-storage CORS for direct uploads
 

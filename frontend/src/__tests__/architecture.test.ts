@@ -48,7 +48,7 @@
 // gate. This test is the fast check that runs on every change and names the
 // offending import.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -271,59 +271,66 @@ describe("frontend build boundaries", () => {
 // Rule 6: Markdown from a model or another person never loads an image from
 // another site on its own.
 //
-// What it guarantees. `unsafeMarkdownUses` reads the syntax tree of each
+// What it catches. `unsafeMarkdownUses` parses, with the TypeScript parser, each
 // production file (frontend/src, word-addin/src and packages/, any script
-// extension) and fails when:
+// extension) whose text names a Markdown package as written (the package names
+// of the list below and `react-markdown`), and fails when:
 //   - a `react-markdown` element does not pass `components` through
-//     `withSafeMarkdownImages` imported from `@mike/ui`, has more than one
-//     `components` attribute, has a spread attribute, or the function name is
-//     declared again in the file;
+//     `withSafeMarkdownImages` imported from `@mike/ui` (a type-only import of
+//     that name does not count), has more than one `components` attribute, has
+//     a spread attribute, or the function name is declared again in the file;
 //   - a plugin, option or URL transform is set that is not listed below: a
 //     plugin must be an inline array of names that the file imports from the
 //     expected package (or file), and the whole list must match this file's
 //     entry exactly;
-//   - a file imports another library that turns Markdown or HTML text into
+//   - a file imports another library that turns Markdown, MDX or HTML text into
 //     elements and the test has not listed that file, that library and a
 //     reason. The set of such libraries is every installed package whose name
-//     is in a Markdown/HTML family (see MARKDOWN_FAMILY) plus a fixed seed.
-// A change that adds a renderer without the shared rule, a plugin or option
-// nobody listed, or a rendering library nobody listed, fails here.
+//     is in a Markdown/HTML/MDX/rich-text-editor family (see MARKDOWN_FAMILY)
+//     plus a fixed seed. A module specifier with a query or hash suffix
+//     ("react-markdown?x", "marked#y") or written as a path into node_modules
+//     counts as the package.
 //
-// What it does NOT stop: code written to get around it (a computed module name,
-// a renamed `require`), `dangerouslySetInnerHTML`, a caller's own renderer for
-// an element other than `img` that draws an image, and files outside the
-// scanned folders. The body of a listed plugin is not read. The review of a
-// change is what covers those.
+// What it does NOT stop, and what the review of a change covers instead: code
+// written to get around it (a computed module name, a renamed `require`, a
+// module specifier written with escapes so that the file's text does not hold
+// the package name, changing an imported plugin or the shared image component at
+// run time by assigning to its properties or prototype);
+// `dangerouslySetInnerHTML`; a caller's own renderer for an element other than
+// `img` that draws an image; a rendering library whose name is in none of the
+// families; the body of a listed plugin; and files outside the scanned folders.
 const MARKDOWN_TYPE_ONLY = new Set(["Components", "Options", "ExtraProps", "UrlTransform", "AllowElement"]);
 
 // Package-name families that turn Markdown or HTML text into elements, HTML or
 // trees. Every installed package of the three applications matching one is
 // forbidden in production code unless listed in ALLOWED_MARKDOWN_LIBRARIES.
 const MARKDOWN_FAMILY =
-    /^(react-markdown|remark(-.+)?|rehype(-.+)?|mdast(-.+)?|hast(-.+)?|hastscript|micromark(-.+)?|unified|marked|markdown-.+|prosemirror-markdown|parse5(-.+)?|htmlparser2|html-.+|jsdom|linkedom|cheerio|dompurify|isomorphic-dompurify|sanitize-html|katex|tiptap-markdown|showdown|snarkdown|turndown(-.+)?|mammoth|@tiptap\/html|@xmldom\/xmldom)$/;
+    /^(react-markdown|remark(-.+)?|rehype(-.+)?|mdast(-.+)?|hast(-.+)?|hastscript|micromark(-.+)?|unified|marked|markdown-.+|prosemirror-markdown|parse5(-.+)?|htmlparser2|html-.+|jsdom|linkedom|cheerio|dompurify|isomorphic-dompurify|sanitize-html|katex|tiptap-markdown|showdown|snarkdown|turndown(-.+)?|mammoth|@tiptap\/(html|core|react|pm)|prosemirror-model|@mdx-js\/.+|mdx-.+|.+-mdx|@xmldom\/xmldom)$/;
 // Named so the set can never be smaller than this, even where a package is not installed.
 const MARKDOWN_SEED = [
     "marked", "markdown-it", "micromark", "unified", "remark-parse", "remark-rehype", "rehype-raw",
     "rehype-react", "hast-util-to-jsx-runtime", "markdown-to-jsx", "html-react-parser",
     "tiptap-markdown", "dompurify", "isomorphic-dompurify", "sanitize-html", "showdown", "snarkdown",
     "mdast-util-from-markdown", "mdast-util-to-hast", "hast-util-raw", "hast-util-from-html", "parse5", "katex",
+    "@mdx-js/mdx", "@mdx-js/react", "@tiptap/core", "@tiptap/react", "@tiptap/pm", "prosemirror-model",
 ];
-function installedMarkdownLibraries(): Set<string> {
-    const names = new Set(MARKDOWN_SEED);
-    for (const app of ["frontend", "word-addin", "backend"]) {
+const APPLICATIONS = ["frontend", "word-addin", "backend"];
+/** Every top-level package installed in an application, as [application, name]; an application without a node_modules folder (CI installs only the frontend's) is skipped. */
+function installedPackages(): [string, string][] {
+    const out: [string, string][] = [];
+    for (const app of APPLICATIONS) {
         const dir = join(REPO, app, "node_modules");
-        let entries: string[] = [];
-        try {
-            entries = readdirSync(dir);
-        } catch {
-            continue; // not installed here (the add-in's is absent on CI)
-        }
-        for (const entry of entries) {
-            if (entry.startsWith("@")) {
-                for (const inner of readdirSync(join(dir, entry))) if (MARKDOWN_FAMILY.test(`${entry}/${inner}`)) names.add(`${entry}/${inner}`);
-            } else if (MARKDOWN_FAMILY.test(entry)) names.add(entry);
+        if (!existsSync(dir)) continue;
+        for (const entry of readdirSync(dir)) {
+            if (entry.startsWith("@")) for (const inner of readdirSync(join(dir, entry))) out.push([app, `${entry}/${inner}`]);
+            else out.push([app, entry]);
         }
     }
+    return out;
+}
+function installedMarkdownLibraries(): Set<string> {
+    const names = new Set(MARKDOWN_SEED);
+    for (const [, name] of installedPackages()) if (MARKDOWN_FAMILY.test(name)) names.add(name);
     names.delete("react-markdown"); // judged by the element rules, not by this list
     return names;
 }
@@ -366,6 +373,9 @@ const ALLOWED_MARKDOWN_LIBRARIES: [string, string, string][] = [
     ["frontend/src/app/components/ui/markdown-editor.tsx", "tiptap-markdown", "editor configured with html:false, and the editor has no image node"],
     ["word-addin/src/taskpane/components/workflows/WorkflowPromptEditor.tsx", "tiptap-markdown", "editor configured with html:false, and the editor has no image node"],
     ["frontend/src/app/components/assistant/CaseView.tsx", "dompurify", "case-law HTML (not model text) sanitized with an allowlist that has no img, style or srcset"],
+    ["frontend/src/app/components/ui/markdown-editor.tsx", "@tiptap/core", "creates the editor that shows and edits Markdown text; its extensions are the starter kit without an image node, the table kit and tiptap-markdown with html:false, so an image written in the content has no node to become"],
+    ["frontend/src/app/components/ui/markdown-editor.tsx", "@tiptap/react", "hosts that same editor; the content is parsed as Markdown with raw HTML off into a document whose schema has no image node"],
+    ["word-addin/src/taskpane/components/workflows/WorkflowPromptEditor.tsx", "@tiptap/react", "hosts an editor built from the starter kit without an image node, the table kit and tiptap-markdown with html:false, so an image written in the content has no node to become"],
     [`${APP}/assistant/message/MarkdownContent.tsx`, "katex", "imports KaTeX's stylesheet only"],
     ...MARKDOWN_PLUGIN_FILES.map((file): [string, string, string] => [file, "remark-gfm", "listed plugin; its import is checked against ALLOWED_MARKDOWN_PROPS"]),
     [`${APP}/assistant/message/MarkdownContent.tsx`, "remark-gfm", "listed plugin; its import is checked against ALLOWED_MARKDOWN_PROPS"],
@@ -390,8 +400,9 @@ function productionSources(rels: string[]): string[] {
 }
 
 /** The package a module specifier names, also when it is written as a path into node_modules. */
-function packageOf(spec: string | undefined): string | undefined {
-    if (spec === undefined) return undefined;
+function packageOf(specifier: string | undefined): string | undefined {
+    if (specifier === undefined) return undefined;
+    const spec = specifier.split(/[?#]/)[0]; // a bundler query or hash is not part of the package
     const marker = spec.lastIndexOf("node_modules/");
     const rest = marker >= 0 ? spec.slice(marker + "node_modules/".length) : spec;
     if (marker < 0 && (rest.startsWith(".") || rest.startsWith("/") || rest.startsWith("@/") || rest.startsWith("node:"))) return undefined;
@@ -424,6 +435,11 @@ function declaredNames(sf: ts.SourceFile): Map<string, ts.Node[]> {
     };
     visit(sf);
     return out;
+}
+
+/** The text prefilter: a file is parsed only when its text holds the name of a Markdown package, as written. */
+function namesMarkdownPackage(text: string): boolean {
+    return [...MARKDOWN_LIBRARIES, "react-markdown"].some((name) => text.includes(name));
 }
 
 function unsafeMarkdownUses(fileName: string, source: string): string[] {
@@ -461,7 +477,7 @@ function unsafeMarkdownUses(fileName: string, source: string): string[] {
                     for (const el of named.elements)
                         if (!el.isTypeOnly) imported.set(el.name.text, { spec, exportName: (el.propertyName ?? el.name).text });
             }
-            if (spec === "@mike/ui" && named && ts.isNamedImports(named))
+            if (spec === "@mike/ui" && clause && !clause.isTypeOnly && named && ts.isNamedImports(named))
                 for (const el of named.elements)
                     if (!el.isTypeOnly && (el.propertyName ?? el.name).text === "withSafeMarkdownImages") safeNames.add(el.name.text);
             if (isMarkdownModule(spec) && clause && !clause.isTypeOnly) {
@@ -594,11 +610,8 @@ describe("Markdown from a model or another person", () => {
 
     it("rule 6: every react-markdown element in production code passes its components through withSafeMarkdownImages", () => {
         // Parsing every file is slow on a loaded machine: only a file whose text names a Markdown package can import one.
-        const names = [...MARKDOWN_LIBRARIES, "react-markdown"];
-        const users = production.filter((file) => {
-            const text = readFileSync(file, "utf8");
-            return names.some((name) => text.includes(name));
-        });        expect(users.filter((file) => /react-markdown/.test(readFileSync(file, "utf8"))).length, "the scan must see the Markdown call sites").toBeGreaterThanOrEqual(10);
+        const users = production.filter((file) => namesMarkdownPackage(readFileSync(file, "utf8")));
+        expect(users.filter((file) => /react-markdown/.test(readFileSync(file, "utf8"))).length, "the scan must see the Markdown call sites").toBeGreaterThanOrEqual(10);
         const problems = users.flatMap((file) => unsafeMarkdownUses(toPosix(relative(REPO, file)), readFileSync(file, "utf8")));
         expect(
             problems,
@@ -714,11 +727,12 @@ describe("Markdown from a model or another person", () => {
             "remark-gfm", "rehype-katex", "unified", "markdown-it", "micromark", "marked", "html-url-attributes", "prosemirror-markdown",
         ])
             expect(MARKDOWN_LIBRARIES.has(lib), lib).toBe(true);
-        // Whatever is installed in the three applications and matches a family is on the list.
-        for (const app of ["frontend", "backend"])
-            for (const entry of readdirSync(join(REPO, app, "node_modules")))
-                if (!entry.startsWith("@") && MARKDOWN_FAMILY.test(entry) && entry !== "react-markdown")
-                    expect(MARKDOWN_LIBRARIES.has(entry), `${app}/node_modules/${entry}`).toBe(true);
+        // Whatever is installed in the applications (only the frontend's folder is required: CI installs nothing else) and matches a family is on the list.
+        expect(existsSync(join(FRONTEND, "node_modules")), "frontend/node_modules must be installed").toBe(true);
+        for (const [app, name] of installedPackages())
+            if (MARKDOWN_FAMILY.test(name) && name !== "react-markdown") expect(MARKDOWN_LIBRARIES.has(name), `${app}/node_modules/${name}`).toBe(true);
+        for (const lib of ["@mdx-js/mdx", "@tiptap/core", "@tiptap/react", "@tiptap/pm", "prosemirror-model"]) expect(MARKDOWN_LIBRARIES.has(lib), lib).toBe(true);
+        for (const name of ["@mdx-js/mdx", "@mdx-js/react", "mdx-bundler", "astro-mdx", "@tiptap/pm", "prosemirror-model"]) expect(MARKDOWN_FAMILY.test(name), name).toBe(true);
         expect(MARKDOWN_LIBRARIES.has("react-markdown")).toBe(false);
         for (const source of [
             'import x from "../../../node_modules/mdast-util-to-hast/index.js";',
@@ -802,5 +816,46 @@ describe("Markdown from a model or another person", () => {
             el("remarkPlugins={[remarkGfm]}"),
         ];
         for (const source of bad) expect(unsafeMarkdownUses("x.tsx", source), source).not.toEqual([]);
+    });
+
+    it("rule 6 does not count a type-only import of the shared function, and reads a specifier with a query or hash as the package", () => {
+        const use = "<ReactMarkdown components={withSafeMarkdownImages()}>{t}</ReactMarkdown>";
+        const src = (safe: string) => `import ReactMarkdown from "react-markdown";\n${safe}\nexport const A = () => ${use};`;
+        expect(unsafeMarkdownUses("x.tsx", src('import { withSafeMarkdownImages } from "@mike/ui";'))).toEqual([]);
+        expect(unsafeMarkdownUses("x.tsx", src('import type { withSafeMarkdownImages } from "@mike/ui";'))).not.toEqual([]);
+        expect(unsafeMarkdownUses("x.tsx", src('import { type withSafeMarkdownImages } from "@mike/ui";'))).not.toEqual([]);
+        expect(packageOf("react-markdown?x")).toBe("react-markdown");
+        expect(packageOf("marked#y")).toBe("marked");
+        expect(packageOf("@scope/name/sub?x#y")).toBe("@scope/name");
+        expect(packageOf("../../node_modules/hast-util-raw/index.js?raw")).toBe("hast-util-raw");
+        for (const source of [
+            'import RM from "react-markdown?x";\nexport const A = () => <RM>{t}</RM>;',
+            'import RM from "react-markdown#y";\nexport const A = () => <RM>{t}</RM>;',
+            'import { marked } from "marked#y";',
+            'const m = require("marked?x");',
+        ]) {
+            expect(namesMarkdownPackage(source), source).toBe(true);
+            expect(unsafeMarkdownUses("x.tsx", source), source).not.toEqual([]);
+        }
+    });
+
+    it("rule 6 parses a file only when its text names a Markdown package as written", () => {
+        expect(namesMarkdownPackage('import RM from "react-markdown";')).toBe(true);
+        expect(namesMarkdownPackage('import { evaluateSync } from "@mdx-js/mdx";')).toBe(true);
+        expect(namesMarkdownPackage('import { Editor } from "@tiptap/core";')).toBe(true);
+        expect(namesMarkdownPackage("export const x = 1;")).toBe(false);
+        // a stated limit: a name written with escapes is not in the text, so the file is not parsed
+        expect(namesMarkdownPackage('import RM from "react\\u002Dmarkdown";')).toBe(false);
+    });
+
+    it("rule 6 fails an MDX compiler or a rich-text editor package unless the file is listed", () => {
+        for (const lib of ["@mdx-js/mdx", "@mdx-js/react", "@tiptap/core", "@tiptap/react", "@tiptap/pm", "prosemirror-model"]) {
+            expect(unsafeMarkdownUses("x.tsx", `import x from "${lib}";`), lib).not.toEqual([]);
+            expect(unsafeMarkdownUses("x.tsx", `import type { T } from "${lib}";`), lib).toEqual([]);
+        }
+        const editor = "frontend/src/app/components/ui/markdown-editor.tsx";
+        expect(unsafeMarkdownUses(editor, 'import { Editor } from "@tiptap/core";\nimport { useEditor } from "@tiptap/react";')).toEqual([]);
+        expect(unsafeMarkdownUses(editor, 'import { evaluateSync } from "@mdx-js/mdx";')).not.toEqual([]);
+        expect(unsafeMarkdownUses(editor, 'import { Node } from "@tiptap/pm/model";')).not.toEqual([]);
     });
 });

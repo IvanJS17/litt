@@ -54,13 +54,20 @@ that the alias and the copy agree.
 own origin is drawn (with `src`, `alt`, `title`, `width`, `height`, `className`,
 `loading` and `decoding` only), any other becomes a link to it (new tab,
 `rel="noopener noreferrer"`), and an empty or unparsable address draws nothing.
-Rule 6 in `frontend/src/__tests__/architecture.test.ts` fails when a
-`react-markdown` element is added without it, when a plugin or option is set
-that the test does not list, or when production code imports another Markdown
-or HTML rendering library that the test does not list. It does not stop code
-written to get around it (a computed module name, `dangerouslySetInnerHTML`, a
-caller's own renderer for another element that draws an image) or files
-outside the folders it scans; the review of a change covers those. The package
+Rule 6 in `frontend/src/__tests__/architecture.test.ts` checks each production
+file whose text names a Markdown package. It fails when a `react-markdown`
+element is added without it (a type-only import of the function does not count),
+when a plugin or option is set that the test does not list, or when production
+code imports (also with a query or hash suffix on the module name) another
+library that turns Markdown, MDX or HTML text into elements, including the MDX
+compilers and the rich-text editor packages, and the test does not list it. It
+does not stop code written to get around it (a computed module name, a renamed
+`require`, a module name written with escapes, changing an imported plugin or the
+shared image component at run time by assigning to its properties or prototype),
+`dangerouslySetInnerHTML`, a caller's own renderer for an element other than `img`
+that draws an image, a rendering library whose name is in none of the tested
+families, the body of a listed plugin, or files outside the folders it scans; the
+review of a change covers those. The package
 does not import `react-markdown` itself.
 
 ## Tests and stories
