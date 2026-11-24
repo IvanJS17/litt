@@ -22,6 +22,18 @@ describe("the reader of tool calls written as text grows with the text", () => {
         }, 120_000);
     });
 
+    // Text that holds many well-formed pieces of one kind keeps state that grows with the text; a reader that
+    // looks through that state again for each piece is quadratic only once there are thousands of pieces, which
+    // the small sizes of the table above do not reach.
+    it.each([
+        ["fields of one name, each closed", (n: number) => `<tool_call><function=f>${"<a>1</a>".repeat(Math.ceil(n / 8))}</tool_call>`],
+        ["parameters of one name, each closed", (n: number) => `<|DSML|invoke name=a>${"<|DSML|parameter name=p>1</|DSML|parameter>".repeat(Math.ceil(n / 40))}</|DSML|invoke>`],
+        ["invocations, each closed", (n: number) => "<|DSML|invoke name=a></|DSML|invoke>".repeat(Math.ceil(n / 36))],
+        ["tool calls, each closed", (n: number) => '<tool_call>{"name":"n"}</tool_call>'.repeat(Math.ceil(n / 35))],
+    ])("reads many pieces of one kind in time proportional to their number: %s", (_name, text) => {
+        expect(growth(TEXT_READERS.slice(0, 2), text, 32_768)).toBe("");
+    }, 300_000);
+
     it("reads a reply with a megabyte of prose in front of the markup in the time of its size", () => {
         const prose = "A plain sentence of the answer, without any markup. ".repeat(Math.ceil(1_048_576 / 52));
         for (const family of families.filter((f) => /^probe:/.test(f.name))) {

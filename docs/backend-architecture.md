@@ -101,11 +101,16 @@ request is bounded where it is held:
   under these limits.
 - A model that writes its tool calls as text (an operator-declared local model)
   has its whole reply read for them by `lib/llm/toolCallParsing.ts`, which scans
-  a reply of at most `MODEL_TEXT_MAX_CHARS` (a longer one is plain text) in time
-  proportional to its size, and every name or attribute it reads has a length
-  bound. Searches that no regular-expression check can see (loops of `indexOf`)
-  are guarded by `lib/__tests__/toolCallParsing.growth.test.ts`: every marker the
-  reader recognises must be added to its table.
+  a reply of at most `MODEL_TEXT_MAX_CHARS` in time proportional to its size, and
+  every name or attribute it reads has a length bound. A longer reply is not
+  scanned: it is plain text, except that one which opens a tool call ends the
+  step with an error, as a call that cannot be read does. All the repairs of
+  damaged arguments in one reply share a single work budget; an argument it
+  cannot pay for is handed on as written. Searches that no regular-expression
+  check can see (loops of `indexOf`) are guarded by
+  `lib/__tests__/toolCallParsing.growth.test.ts`: every marker the reader
+  recognises must be added to its table. A shape that grows faster than its
+  text is confirmed on a larger text before it fails.
 - The queued documents ZIP export reads each stored object as a stream with
   the store's per-step time limit, writes the archive to a temporary file and
   uploads it from there. It keeps the limits of the direct download: 200

@@ -23,7 +23,36 @@ export const TOOL_ARGUMENT_REPAIR_MAX_CHARS = 200_000;
  */
 const TOOL_ARGUMENT_REPAIR_MAX_WORK = 250_000_000;
 
-function repairToolJson(text: string): string {
+/**
+ * The most repair work one reading of a reply may ask for, in the same unit,
+ * shared by every text the reading repairs. Each repair also costs
+ * `TOOL_ARGUMENT_REPAIR_CALL_COST`, so a reply of many small texts is bounded
+ * in the number of repairs as well.
+ */
+export const TOOL_ARGUMENT_REPAIR_REPLY_BUDGET = 100_000_000;
+export const TOOL_ARGUMENT_REPAIR_CALL_COST = 20_000;
+
+/** Seam for tests: told the size and the work of every repair that is run. */
+let repairObserver: ((chars: number, work: number) => void) | null = null;
+export function setRepairObserverForTests(
+  observer: ((chars: number, work: number) => void) | null,
+): void {
+  repairObserver = observer;
+}
+
+/**
+ * What is left of the repair work of one reading of a reply (one call of a
+ * public entry point). Every repair the reading does is paid from it; a text
+ * it cannot pay for is handed on unrepaired, as one over the limit of a single
+ * text is.
+ */
+class RepairBudget {
+  remaining = TOOL_ARGUMENT_REPAIR_REPLY_BUDGET;
+  /** One refusal, thrown again for every text the spent budget turns away (an error costs its stack). */
+  refusal: BoundedTextError | null = null;
+}
+
+function repairToolJson(text: string, budget: RepairBudget): string {
   assertBoundedText(text, TOOL_ARGUMENT_REPAIR_MAX_CHARS);
   let quotes = 0;
   for (let i = 0; i < text.length; i++) {
@@ -31,7 +60,16 @@ function repairToolJson(text: string): string {
     if (code === 34 || code === 39) quotes++;
   }
   const limit = Math.floor(TOOL_ARGUMENT_REPAIR_MAX_WORK / (quotes + 1));
-  return jsonrepair(assertBoundedText(text, limit));
+  assertBoundedText(text, limit);
+  const work = text.length * (quotes + 1);
+  const cost = work + TOOL_ARGUMENT_REPAIR_CALL_COST;
+  if (cost > budget.remaining) {
+    budget.refusal ??= new BoundedTextError(limit, text.length);
+    throw budget.refusal;
+  }
+  budget.remaining -= cost;
+  repairObserver?.(text.length, work);
+  return jsonrepair(text);
 }
 
 /**
@@ -39,11 +77,11 @@ function repairToolJson(text: string): string {
  * is, whatever its size up to the shared bound (linear); only text that is not
  * is repaired, and only up to `TOOL_ARGUMENT_REPAIR_MAX_CHARS`.
  */
-function parseToolJson(text: string): unknown {
+function parseToolJson(text: string, budget: RepairBudget): unknown {
   try {
     return JSON.parse(assertBoundedText(text));
   } catch {
-    return JSON.parse(repairToolJson(text));
+    return JSON.parse(repairToolJson(text, budget));
   }
 }
 
@@ -139,6 +177,11 @@ const LONGEST_TEXT_TOOL_MARKER = Math.max(...TEXT_TOOL_MARKERS.map((marker) => m
 export class TextToolMarkupFilter {
   private buffer = "";
   private suppressing = false;
+
+  /** Whether a tool marker has been seen: what follows it is not shown. */
+  get suppressed(): boolean {
+    return this.suppressing;
+  }
 
   feed(text: string): string {
     if (this.suppressing || !text) return "";
@@ -260,6 +303,14 @@ function* blocksBetween(
   }
 }
 
+/** Whether a reply is longer than the reader scans and holds the opening of a tool call. */
+export function isUnreadableToolCallReply(text: string): boolean {
+  if (text.length <= MODEL_TEXT_MAX_CHARS) return false;
+  const filter = new TextToolMarkupFilter();
+  filter.feed(text);
+  return filter.suppressed;
+}
+
 /**
  * The calls a model wrote as text. A reply longer than `MODEL_TEXT_MAX_CHARS`
  * (the bound that applies to model text everywhere else; a streamed reply may
@@ -270,7 +321,8 @@ export function parseTextToolCalls(
   iteration: number,
 ): NormalizedToolCall[] {
   if (text.length > MODEL_TEXT_MAX_CHARS) return [];
-  const dsmlCalls = parseDsmlToolCalls(text, iteration);
+  const budget = new RepairBudget();
+  const dsmlCalls = readDsmlToolCalls(text, iteration, budget);
   if (dsmlCalls.length) return deduplicateToolCalls(dsmlCalls);
   if (!hasToolMarkup(text)) return [];
   const bodies: string[] = [];
@@ -288,11 +340,11 @@ export function parseTextToolCalls(
   }
 
   const calls = bodies.flatMap((body, bodyIndex): NormalizedToolCall[] => {
-    const xmlStyleCall = parseXmlStyleToolCall(body, iteration, bodyIndex);
+    const xmlStyleCall = parseXmlStyleToolCall(body, iteration, bodyIndex, budget);
     if (xmlStyleCall) return [xmlStyleCall];
     try {
       const candidate = normalizeQwenToolMapSyntax(extractJsonCandidate(body));
-      const parsed = parseToolJson(candidate);
+      const parsed = parseToolJson(candidate, budget);
       const rows = Array.isArray(parsed) ? parsed : [parsed];
       const parsedCalls = rows.flatMap(
         (row, rowIndex): NormalizedToolCall[] => {
@@ -336,10 +388,10 @@ export function parseTextToolCalls(
           ];
         },
       );
-      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex);
+      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex, budget);
       return parsedCalls.length ? parsedCalls : looseCall ? [looseCall] : [];
     } catch (error) {
-      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex);
+      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex, budget);
       if (looseCall) return [looseCall];
       if (process.env.DEBUG_LLM_TOOL_CALLS === "1") {
         console.error("[openai-compatible] unrecoverable textual tool call", {
@@ -364,6 +416,14 @@ export function parseDsmlToolCalls(
   value: string,
   iteration: number,
 ): NormalizedToolCall[] {
+  return readDsmlToolCalls(value, iteration, new RepairBudget());
+}
+
+function readDsmlToolCalls(
+  value: string,
+  iteration: number,
+  budget: RepairBudget,
+): NormalizedToolCall[] {
   if (value.length > MODEL_TEXT_MAX_CHARS) return [];
   if (!/<[｜|]DSML[｜|]invoke\b/i.test(value)) return [];
   const calls: NormalizedToolCall[] = [];
@@ -381,7 +441,7 @@ export function parseDsmlToolCalls(
       /<\/[｜|]DSML[｜|]parameter\s*>/gi,
     );
     for (const parameter of parameters) {
-      input[parameter.open[1]] = parseToolScalar(parameter.inner);
+      input[parameter.open[1]] = readToolScalar(parameter.inner, budget);
     }
     calls.push({
       id: `call_text_${iteration}_dsml_${index}`,
@@ -447,6 +507,7 @@ function parseLooseTextToolCall(
   value: string,
   iteration: number,
   bodyIndex: number,
+  budget: RepairBudget,
 ): NormalizedToolCall | null {
   const nameMatch = value.match(
     /(?:["']?name["']?|["']?(?:tool|function)["']?)\s*[:=]\s*["']?([^"'\s,}]+)["']?/i,
@@ -466,7 +527,7 @@ function parseLooseTextToolCall(
       extractJsonCandidate(candidate),
     );
     try {
-      const parsed = parseToolJson(repaired);
+      const parsed = parseToolJson(repaired, budget);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         Object.assign(input, parsed);
       }
@@ -487,6 +548,7 @@ function parseXmlStyleToolCall(
   value: string,
   iteration: number,
   bodyIndex: number,
+  budget: RepairBudget,
 ): NormalizedToolCall | null {
   const functionMatch = value.match(
     /<function(?:=|\s+name=["'])([^>"'\s]{1,200})["']?\s*>/i,
@@ -517,7 +579,7 @@ function parseXmlStyleToolCall(
     cursors.set(name, cursor);
     if (cursor === positions.length) continue;
     const closeAt = positions[cursor];
-    input[name] = parseToolScalar(value.slice(innerStart, closeAt).trim());
+    input[name] = readToolScalar(value.slice(innerStart, closeAt).trim(), budget);
     fieldOpen.lastIndex = closeAt + name.length + 3;
   }
   return {
@@ -528,6 +590,10 @@ function parseXmlStyleToolCall(
 }
 
 export function parseToolScalar(value: string): unknown {
+  return readToolScalar(value, new RepairBudget());
+}
+
+function readToolScalar(value: string, budget: RepairBudget): unknown {
   const trimmed = value.trim();
   if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(trimmed)) {
     const number = Number(trimmed);
@@ -538,7 +604,7 @@ export function parseToolScalar(value: string): unknown {
   if (/^(?:null|none)$/i.test(trimmed)) return null;
   if (/^[\[{]/.test(trimmed)) {
     try {
-      return parseToolJson(trimmed);
+      return parseToolJson(trimmed, budget);
     } catch {
       // Preserve the original string when a nested value is not JSON-like.
     }

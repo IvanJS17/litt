@@ -141,4 +141,20 @@ describe("reading tool calls out of a model's text", () => {
         expect(visible("<<function", "=f>")).toBe("<");
         expect(visible("x<".repeat(50_000))).toBe("x<".repeat(50_000));
     });
+
+    it("keeps a function opening written with a single quote, and a DSML parameter on its own, out of view or unread", () => {
+        const visible = (text: string) => {
+            const filter = new TextToolMarkupFilter();
+            return filter.feed(text) + filter.flush();
+        };
+        const quoted = "<tool_call><function name='f'><a>1</a></function></tool_call>";
+        expect(parseTextToolCalls(quoted, 0).map((call) => call.input)).toEqual([{ a: 1 }]);
+        expect(visible("Sure. <function name='f'><a>1</a>")).toBe("Sure. ");
+        // No reader takes a parameter that is not inside an invocation, so there is no call to hide.
+        for (const bar of ["|", "｜"]) {
+            const alone = `<${bar}DSML${bar}parameter name=p>1</${bar}DSML${bar}parameter>`;
+            expect(parseDsmlToolCalls(alone, 0)).toEqual([]);
+            expect(parseTextToolCalls(alone, 0)).toEqual([]);
+        }
+    });
 });

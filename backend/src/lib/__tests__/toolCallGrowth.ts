@@ -205,9 +205,9 @@ const FLOOR_MS = 5;
 const GIVE_UP_MS = 2_500;
 const MAX_RATIO = 20;
 
-const timeOf = (run: () => void): number => {
+const timeOf = (run: () => void, rounds: number): number => {
     let best = Infinity;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < rounds; attempt++) {
         const started = performance.now();
         try {
             run();
@@ -220,36 +220,48 @@ const timeOf = (run: () => void): number => {
     return best;
 };
 
-/** The slowest growth of any entry point on one family; "" when none grows faster than the text. */
-export function growth(entries: [string, (text: string) => void][], text: (size: number) => string, n: number): string {
-    const failures: string[] = [];
+/** One entry point on one family at sizes n..8n: the failure it shows, or "" when it grows with the text. */
+function verdict(entry: string, run: (text: string) => void, text: (size: number) => string, n: number, rounds: number): string {
     const texts = SIZES.map((k) => text(n * k));
     const small = text(Math.floor(n / 8));
-    for (const [entry, run] of entries) {
-        // A reader that already takes this long on the smallest text is far from linear: stop there.
-        const early = timeOf(() => run(small));
-        if (early > 400) {
-            failures.push(`${entry}: ${small.length} chars ${early.toFixed(1)} ms`);
-            continue;
+    // A reader that already takes this long on the smallest text is far from linear: stop there.
+    const early = timeOf(() => run(small), rounds);
+    if (early > 400) return `${entry}: ${small.length} chars ${early.toFixed(1)} ms`;
+    const measure = (previous?: number[]): number[] => {
+        const times: number[] = [];
+        for (const [at, sample] of texts.entries()) {
+            const ms = Math.min(timeOf(() => run(sample), rounds), previous?.[at] ?? Infinity);
+            times.push(ms);
+            if (ms > GIVE_UP_MS) break;
         }
-        const measure = (previous?: number[]): number[] => {
-            const times: number[] = [];
-            for (const [at, sample] of texts.entries()) {
-                const ms = Math.min(timeOf(() => run(sample)), previous?.[at] ?? Infinity);
-                times.push(ms);
-                if (ms > GIVE_UP_MS) break;
-            }
-            return times;
-        };
-        const grows = (times: number[]): boolean => {
-            const last = times.length - 1;
-            const factor = SIZES[last] / SIZES[0];
-            return times[last] > GIVE_UP_MS || times[last] / Math.max(times[0], FLOOR_MS) > MAX_RATIO * (factor / 8);
-        };
-        // A host that is busy can slow one size by itself: the verdict is given on the best of two rounds.
-        let times = measure();
-        if (grows(times)) times = measure(times);
-        if (grows(times)) failures.push(`${entry}: ${times.map((t, i) => `${texts[i].length} chars ${t.toFixed(1)} ms`).join(", ")}`);
+        return times;
+    };
+    const grows = (times: number[]): boolean => {
+        const last = times.length - 1;
+        const factor = SIZES[last] / SIZES[0];
+        return times[last] > GIVE_UP_MS || times[last] / Math.max(times[0], FLOOR_MS) > MAX_RATIO * (factor / 8);
+    };
+    // A host that is busy can slow one size by itself: the verdict is given on the best of two rounds.
+    let times = measure();
+    if (grows(times)) times = measure(times);
+    if (!grows(times)) return "";
+    return `${entry}: ${times.map((t, i) => `${texts[i].length} chars ${t.toFixed(1)} ms`).join(", ")}`;
+}
+
+/**
+ * The slowest growth of any entry point on one family; "" when none grows faster than the text. A
+ * first verdict that fails is not final: a busy host can slow the largest sample of a small text, so
+ * it is checked again on a text four times larger, whose smallest sample is far above the floor, and
+ * on the best of five runs of each size. A reader that is not linear fails both; the check is on the
+ * measurement, not on the reader.
+ */
+export function growth(entries: [string, (text: string) => void][], text: (size: number) => string, n: number): string {
+    const failures: string[] = [];
+    for (const [entry, run] of entries) {
+        const first = verdict(entry, run, text, n, 3);
+        if (!first) continue;
+        const confirmed = verdict(entry, run, text, n * 4, 5);
+        if (confirmed) failures.push(`${confirmed} (first look: ${first})`);
     }
     return failures.join("\n");
 }
