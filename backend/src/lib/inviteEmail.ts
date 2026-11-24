@@ -4,8 +4,10 @@
 
 import { randomBytes } from "node:crypto";
 import { normalizeEmail } from "./access";
+import { isPlatformAdmin } from "./platformAccess";
 import { trimChars } from "./modelJsonFence";
 import type { Db } from "./supabase";
+import { listPersonalOrgIds } from "./personalOrgs";
 import { safeError } from "./safeError";
 
 /** Where the invited person sets a password (the app's own origin). */
@@ -23,6 +25,21 @@ const NEW_ACCOUNT_WINDOW_MS = 2 * 60 * 1000;
 /** An anonymous sign-up does not mail the same unconfirmed address again within this long. */
 const INVITE_COOLDOWN_MS = 10 * 60 * 1000;
 
+/**
+ * Addresses mailed an anonymous invitation within the cool-down (address ->
+ * when) and addresses being worked on right now. The backend is one process, so
+ * these decide for every caller whatever its client address; entries leave
+ * with the cool-down.
+ */
+const recentInvitations = new Map<string, number>();
+const invitationsInFlight = new Set<string>();
+
+/** For tests: forget what was mailed and what is in flight. */
+export function forgetRecentInvitations(): void {
+  recentInvitations.clear();
+  invitationsInFlight.clear();
+}
+
 type InviteUser = { id?: string; created_at?: string } | null | undefined;
 type InviteResult =
   | { kind: "sent"; user: InviteUser }
@@ -30,7 +47,13 @@ type InviteResult =
   | { kind: "has_account" }
   | { kind: "failed"; error: unknown };
 
-type Identity = { id: string; email?: string; invited_at?: string | null; email_confirmed_at?: string | null };
+type Identity = {
+  id: string;
+  email?: string;
+  invited_at?: string | null;
+  email_confirmed_at?: string | null;
+  last_sign_in_at?: string | null;
+};
 
 const LOOKUP_PAGE_SIZE = 50;
 const LOOKUP_MAX_PAGES = 10;
@@ -131,14 +154,77 @@ export async function sendSignupInvite(
  * account is made with the caller's password: GoTrue mails its invitation
  * link and the person sets the password from it. Asking again for an address
  * invited moments ago sends nothing, so a caller cannot keep voiding the
- * link the person holds. The caller is told the same in every case. Never
- * throws.
+ * link the person holds. That holds for any number of callers at once: the
+ * process remembers the addresses it is mailing and those it mailed within the
+ * cool-down. The caller is told the same in every case. Never throws.
  */
 export async function inviteAdmittedSignup(db: Db, address: string): Promise<InviteResult> {
   const email = normalizeEmail(address) ?? address;
-  const result = await inviteByEmail(db, email, { coolDown: true });
-  if (result.kind === "sent") await recordCreatingOrgOfSignup(db, result.user, email);
-  return result;
+  const started = Date.now();
+  // Oldest first: the entries still inside the cool-down are the tail.
+  for (const [known, mailedAt] of recentInvitations) {
+    if (started - mailedAt < INVITE_COOLDOWN_MS) break;
+    recentInvitations.delete(known);
+  }
+  if (invitationsInFlight.has(email) || recentInvitations.has(email)) return { kind: "held" };
+  invitationsInFlight.add(email);
+  try {
+    const result = await inviteByEmail(db, email, { coolDown: true });
+    if (result.kind === "sent") {
+      recentInvitations.set(email, Date.now());
+      await recordCreatingOrgOfSignup(db, result.user, email);
+    }
+    return result;
+  } finally {
+    invitationsInFlight.delete(email);
+  }
+}
+
+/**
+ * Called when a platform or firm invitation is about to be withdrawn: the
+ * identity that invitation created must not outlive it as a way in. It is
+ * removed only when it is plainly unused: invited, never confirmed, never
+ * signed in, in no firm, no administrator address, and with no other live
+ * invitation (`except` is the one being withdrawn). Anything else is left
+ * alone. Throws when it cannot tell or cannot remove, so the caller withdraws
+ * nothing and the person can retry. The identity service does not reveal
+ * whether a confirmed identity chose a password, so a confirmed one is kept.
+ */
+export async function retireUnusedInvitationIdentity(
+  db: Db,
+  address: string,
+  except: { table: "org_invitations" | "platform_invitations"; id: string },
+): Promise<void> {
+  const email = normalizeEmail(address);
+  if (!email || isPlatformAdmin(email)) return;
+  const identity = await findIdentity(email);
+  if (!identity || !identity.invited_at || identity.email_confirmed_at || identity.last_sign_in_at) return;
+
+  // Every identity owns a personal organization from the moment it is made;
+  // that membership is not a firm.
+  const personalOrgIds = await listPersonalOrgIds(db, identity.id);
+  const { data: memberships, error: membershipError } = await db
+    .from("org_members")
+    .select("org_id")
+    .eq("user_id", identity.id);
+  if (membershipError) throw membershipError;
+  if ((memberships ?? []).some((m) => !personalOrgIds.has((m as { org_id: string }).org_id))) return;
+
+  for (const table of ["org_invitations", "platform_invitations"] as const) {
+    let query = db
+      .from(table)
+      .select("id")
+      .eq("email", email)
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString());
+    if (table === except.table) query = query.neq("id", except.id);
+    const { data, error } = await query.limit(1);
+    if (error) throw error;
+    if (data && data.length > 0) return;
+  }
+
+  const { error } = await db.auth.admin.deleteUser(identity.id);
+  if (error) throw error;
 }
 
 async function recordCreatingOrg(

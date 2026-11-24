@@ -84,8 +84,16 @@ beforeEach(() => {
     h.invited = [];
     h.assurance = { currentLevel: "aal1", nextLevel: "aal1" };
     vi.stubEnv("PLATFORM_ADMIN_EMAILS", "owner@firm.example");
+    // Withdrawing an invitation asks the identity service about the address;
+    // here it knows nobody.
+    vi.stubEnv("SUPABASE_URL", "http://identity.test");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "service-key");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ users: [] })));
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+});
 
 const ORIGIN = "http://localhost:3000";
 const send = (method: "post" | "patch" | "delete" | "put", path: string, body?: object) =>

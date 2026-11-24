@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AuthConfirmPage from "./page";
 
-const { verifyEmailLinkToken, refreshSession, router, state } = vi.hoisted(
+const { verifyEmailLinkToken, getAuthSession, logout, refreshSession, router, state } = vi.hoisted(
     () => ({
         verifyEmailLinkToken: vi.fn(),
+        getAuthSession: vi.fn(),
+        logout: vi.fn(),
         refreshSession: vi.fn(),
         router: { replace: vi.fn() },
         state: { params: new URLSearchParams() },
@@ -16,7 +18,7 @@ vi.mock("next/navigation", () => ({
     useRouter: () => router,
     useSearchParams: () => state.params,
 }));
-vi.mock("@/app/lib/authApi", () => ({ verifyEmailLinkToken }));
+vi.mock("@/app/lib/authApi", () => ({ verifyEmailLinkToken, getAuthSession, logout }));
 vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({ refreshSession }),
 }));
@@ -208,5 +210,96 @@ describe("AuthConfirmPage", () => {
             "This confirmation link is invalid or has expired. Request a new one.",
         );
         expect(verifyEmailLinkToken).not.toHaveBeenCalled();
+    });
+
+    describe("when this browser is signed in as another account", () => {
+        const conflict = () =>
+            Object.assign(new Error("This browser is signed in as another account."), {
+                status: 409,
+                code: "session_conflict",
+            });
+        beforeEach(() => {
+            getAuthSession.mockReset().mockResolvedValue({ id: "u9", email: "current@example.test" });
+            logout.mockReset().mockResolvedValue(undefined);
+            verifyEmailLinkToken.mockRejectedValue(conflict());
+        });
+        const press = async () => {
+            render(<AuthConfirmPage />);
+            await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+        };
+
+        it("names the account it is signed in as and says the link was used up", async () => {
+            await press();
+
+            expect(
+                await screen.findByRole("heading", { name: "You are signed in as another account" }),
+            ).toBeInTheDocument();
+            expect(screen.getByText(/current@example\.test/)).toHaveTextContent(/link .* used/i);
+            expect(refreshSession).not.toHaveBeenCalled();
+            expect(router.replace).not.toHaveBeenCalled();
+            expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
+        });
+
+        it("signs out on request and goes to the login page", async () => {
+            await press();
+            await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+
+            await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/login"));
+            expect(logout).toHaveBeenCalledExactlyOnceWith("local");
+            expect(refreshSession).toHaveBeenCalled();
+        });
+
+        it("keeps the session when asked to stay signed in", async () => {
+            await press();
+            await userEvent.click(await screen.findByRole("button", { name: "Stay signed in" }));
+
+            expect(router.replace).toHaveBeenCalledWith("/assistant");
+            expect(logout).not.toHaveBeenCalled();
+        });
+
+        it("still shows the card, without a name, when the current account cannot be read", async () => {
+            getAuthSession.mockRejectedValue(new Error("down"));
+            await press();
+
+            expect(
+                await screen.findByRole("heading", { name: "You are signed in as another account" }),
+            ).toBeInTheDocument();
+            expect(screen.getByText(/signed in as another account\. This link/)).toHaveTextContent(
+                /used up.*ask for a new link/,
+            );
+            expect(router.replace).not.toHaveBeenCalled();
+        });
+
+        it.each(["signup", "email_change"])(
+            "says a %s link has taken effect for the other account, and does not advise a new link",
+            async (type) => {
+                state.params = new URLSearchParams({ token_hash: "abc123", type });
+                render(<AuthConfirmPage />);
+                await userEvent.click(screen.getByRole("button"));
+
+                const body = await screen.findByText(/current@example\.test/);
+                expect(body).toHaveTextContent(/taken effect for that account/);
+                expect(body).toHaveTextContent(/sign in with that account/);
+                expect(body).not.toHaveTextContent(/new link/);
+                expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+            },
+        );
+
+        it("tells a recovery link to be asked for again", async () => {
+            await press();
+
+            expect(await screen.findByText(/current@example\.test/)).toHaveTextContent(
+                /used up.*ask for a new link/,
+            );
+        });
+
+        it("shows the failure when signing out does not work", async () => {
+            logout.mockRejectedValue(new Error("down"));
+            await press();
+            await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+
+            expect(await screen.findByRole("alert")).toBeInTheDocument();
+            expect(router.replace).not.toHaveBeenCalled();
+        });
     });
 });
