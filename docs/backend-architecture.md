@@ -106,11 +106,11 @@ request is bounded where it is held:
   scanned: it is plain text, except that one which opens a tool call ends the
   step with an error, as a call that cannot be read does. A damaged argument
   is repaired by `lib/boundedJsonRepair.ts`, the only place that calls the
-  repair library: it counts, before the library runs, every character the
-  library treats as a quote, and refuses a text whose size times its quotes is
-  over the limit of one text. All the repairs in one reply share a single work
-  budget. An argument the bounds refuse ends the step with an error, and no
-  call from that reply runs; text that is simply not JSON stays a plain
+  repair library: a text over its size limit is refused, every repair runs
+  under a deadline that stops the library when it takes too long, and all the
+  repairs in one reply share a single time budget (one second), from which
+  the time of each is taken. A repair that is refused for its size or its time
+  ends the step with an error, and no call from that reply runs; text that is simply not JSON stays a plain
   string value. Searches that no regular-expression
   check can see (loops of `indexOf`) are guarded by
   `lib/__tests__/toolCallParsing.growth.test.ts`: every marker the reader

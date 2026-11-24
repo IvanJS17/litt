@@ -12,25 +12,20 @@ export { setRepairObserverForTests };
 export const TOOL_ARGUMENT_REPAIR_MAX_CHARS = 200_000;
 
 /**
- * The most repair work one reading of a reply may ask for, in characters times
- * quote characters (the unit of `lib/boundedJsonRepair.ts`, which also limits
- * one text), shared by every text the reading repairs. Each repair also costs
- * `TOOL_ARGUMENT_REPAIR_CALL_COST`, so a reply of many small texts is bounded
- * in the number of repairs as well. A reply of honest arguments (a few
- * documents of 150,000 characters with their quotes escaped, or dozens of
- * 5,000-character ones) fits in it.
+ * The most time the repairs of one reading of a reply may take, in milliseconds, shared by every
+ * text the reading repairs: the library is slow on some damaged shapes, and an honest reply (a few
+ * documents of 150,000 characters, or dozens of 5,000-character ones) repairs in a small part of it.
  */
-export const TOOL_ARGUMENT_REPAIR_REPLY_BUDGET = 1_000_000_000;
-export const TOOL_ARGUMENT_REPAIR_CALL_COST = 20_000;
+export const TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS = 1_000;
 
 /** The repairs of one reading of a reply (one call of a public entry point) are paid from one budget. */
-const newRepairBudget = (): RepairBudget => new RepairBudget(TOOL_ARGUMENT_REPAIR_REPLY_BUDGET, TOOL_ARGUMENT_REPAIR_CALL_COST);
+const newRepairBudget = (): RepairBudget => new RepairBudget(TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS);
 
 const UNRECOVERABLE_CALL_MESSAGE =
   "The local model returned a tool call that LiTT could not recover. Retry the request or use the deterministic Trademark Monitor mode.";
 
 /**
- * Runs a reading of a reply. An argument a bound refuses (the limit of its text or the budget of the
+ * Runs a reading of a reply. An argument a bound refuses (the limit of its text or the time of the
  * reading) is not text that is not JSON: the reading ends with the error of a call that cannot be
  * read, and no call of the reply is handed on, rather than one with arguments missing or retyped.
  */
@@ -52,7 +47,7 @@ function parseToolJson(text: string, budget: RepairBudget): unknown {
   try {
     return JSON.parse(assertBoundedText(text));
   } catch {
-    return JSON.parse(repairJson(text, { maxChars: TOOL_ARGUMENT_REPAIR_MAX_CHARS }, budget));
+    return JSON.parse(repairJson(text, { maxChars: TOOL_ARGUMENT_REPAIR_MAX_CHARS, maxMs: TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS }, budget));
   }
 }
 

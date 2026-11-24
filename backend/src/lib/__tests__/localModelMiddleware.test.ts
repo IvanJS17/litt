@@ -326,6 +326,16 @@ describe("localModelToleranceMiddleware — an argument the repair bounds refuse
     const reply = [GOOD("one"), REFUSED, GOOD("three")].join("\n");
     const UNREADABLE = /could not recover/;
 
+    // The same refusal by time: a closed text of 8,002 characters, which the library takes many seconds on.
+    const SLOW = `<tool_call>{"name":"${TOOL}","arguments":{"query":${"{" + "'a".repeat(4_000) + "}"}}}</tool_call>`;
+    it("ends a streamed step with an error, in time, when an argument is too slow to repair", async () => {
+        const started = performance.now();
+        const { parts } = await runStream(["Calling.\n", [GOOD("one"), SLOW, GOOD("three")].join("\n")]);
+        expect(performance.now() - started).toBeLessThan(3_000);
+        expect(String(parts.find((part) => part.type === "error")?.error)).toMatch(UNREADABLE);
+        expect(parts.filter((part) => part.type === "tool-call")).toEqual([]);
+    }, 30_000);
+
     it("ends a streamed step with an error and hands on no call", async () => {
         const { parts } = await runStream(["Calling.\n", reply]);
         expect(String(parts.find((part) => part.type === "error")?.error)).toMatch(UNREADABLE);

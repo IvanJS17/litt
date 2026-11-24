@@ -4,101 +4,92 @@ const { jsonrepair } = require("jsonrepair") as {
     jsonrepair: (text: string) => string;
 };
 
+import { performance } from "node:perf_hooks";
+import vm from "node:vm";
+
 import { assertBoundedText, BoundedTextError } from "./modelJsonFence";
 
 /**
  * The one place where text a model wrote is repaired as JSON. The library's time is not linear in
- * the size of a damaged text: it re-reads the rest of a text for each quote that does not pair. So
- * a repair is only run on a text whose cost, counted before the library is called, is within what
- * its caller may spend, and a text it refuses is never handed to the library.
+ * the size of a damaged text, and no property of the text tells how long it will take. So its time
+ * is bounded directly: every call runs under a synchronous deadline, and the repairs of one reading
+ * share one time budget. A repair that does not finish in time is refused.
  */
 
-/**
- * Every character the library treats as a quote, as of jsonrepair 3.15.0 (`isQuote` of its
- * `utils/stringUtils.js`: `"` `'` and the curly, grave and acute variants below). The test of this
- * file reads that classifier from the installed library and fails if it knows a quote this list
- * does not.
- */
-const isRepairQuote = (code: number): boolean =>
-    code === 0x22 || // "
-    code === 0x27 || // '
-    code === 0x2018 || // left single curly quote
-    code === 0x2019 || // right single curly quote
-    code === 0x201c || // left double curly quote
-    code === 0x201d || // right double curly quote
-    code === 0x60 || // grave accent
-    code === 0xb4; // acute accent
-
-/** How many quote characters the library would see in `text`. */
-export function countRepairQuotes(text: string): number {
-    let quotes = 0;
-    for (let i = 0; i < text.length; i++) if (isRepairQuote(text.charCodeAt(i))) quotes++;
-    return quotes;
-}
-
-/**
- * The most work the repair of one text may be asked to do unless its caller says otherwise, in
- * characters times quote characters (plus one). A cut-off string of any length has few quotes and
- * stays well inside it.
- */
-const REPAIR_MAX_WORK = 250_000_000;
-
-/** The work a repair of `text` is counted as: its length times its quote characters (plus one). */
-const repairWork = (length: number, quotes: number): number => length * (quotes + 1);
-
-/** A reading's repairs could not all be paid for: the budget shared by them was spent. */
-export class RepairBudgetSpentError extends Error {
-    readonly code = "repair_budget_spent";
+/** A repair did not finish within the time it was given. */
+export class RepairDeadlineError extends Error {
+    readonly code = "repair_deadline";
     constructor(
-        readonly cost: number,
-        readonly remaining: number,
         readonly length: number,
+        readonly allowedMs: number,
+        options?: { cause?: unknown },
     ) {
-        super(`The repair of a text of ${length} characters costs ${cost}, and the budget shared by the repairs of one reading has ${remaining} left`);
-        this.name = "RepairBudgetSpentError";
+        super(`The repair of a text of ${length} characters did not finish within ${allowedMs} ms`, options);
+        this.name = "RepairDeadlineError";
     }
 }
 
-/**
- * What is left to spend on repairs, shared by every text of one reading. Every repair costs its work
- * plus `callCost`, so that a reading of many small texts is bounded in their number as well.
- */
+/** The time left for the repairs of one reading, shared by every text it repairs. */
 export class RepairBudget {
     remaining: number;
-    constructor(
-        total: number,
-        readonly callCost: number,
-    ) {
-        this.remaining = total;
+    constructor(totalMs: number) {
+        this.remaining = totalMs;
     }
 }
 
-/** A repair was refused by a bound: the limit of its own text or the budget of its reading. */
+/** A repair was refused by a bound: the size of its text or its time. */
 export function isRepairRefusal(error: unknown): boolean {
-    return error instanceof BoundedTextError || error instanceof RepairBudgetSpentError;
+    return error instanceof BoundedTextError || error instanceof RepairDeadlineError;
 }
 
-/** Seam for tests: told the size and the work of every repair that is run. */
-let repairObserver: ((chars: number, work: number) => void) | null = null;
-export function setRepairObserverForTests(observer: ((chars: number, work: number) => void) | null): void {
+// The library runs inside a context so that the engine can stop it at a deadline while the caller
+// stays synchronous. The context is made once, and holds the text only while a repair runs.
+type RepairContext = { repair: (text: string) => string; input: string };
+let repairContext: RepairContext | null = null;
+let repairScript: vm.Script | null = null;
+
+function context(): { ctx: RepairContext; script: vm.Script } {
+    if (!repairContext || !repairScript) {
+        repairContext = vm.createContext({ repair: jsonrepair, input: "" }) as RepairContext;
+        repairScript = new vm.Script("repair(input)");
+    }
+    return { ctx: repairContext, script: repairScript };
+}
+
+/** Seam for tests: told the size and the deadline of every repair that is run. */
+let repairObserver: ((chars: number, allowedMs: number) => void) | null = null;
+export function setRepairObserverForTests(observer: ((chars: number, allowedMs: number) => void) | null): void {
     repairObserver = observer;
 }
 
+/** Seam for tests: the text the context holds now (empty unless a repair is running). */
+export function repairContextInputForTests(): string {
+    return context().ctx.input;
+}
+
 /**
- * The repaired JSON text of `text`. Throws `BoundedTextError` for a text over `maxChars`, or over
- * what `limits.maxWork` (`REPAIR_MAX_WORK` unless given) allows for its quotes; `RepairBudgetSpentError` when `budget` cannot pay
- * for it; any other error is the library's own, for a text it cannot repair.
+ * The repaired JSON text of `text`. Throws `BoundedTextError` for a text over `maxChars`;
+ * `RepairDeadlineError` when the repair did not finish within the time left in `budget` (or
+ * `limits.maxMs` without one); any other error is the library's own, for a text it cannot repair.
+ * The wall time of the repair, whatever its end, is taken from `budget`.
  */
-export function repairJson(text: string, limits: { maxChars: number; maxWork?: number }, budget?: RepairBudget): string {
+export function repairJson(text: string, limits: { maxChars: number; maxMs: number }, budget?: RepairBudget): string {
     assertBoundedText(text, limits.maxChars);
-    const quotes = countRepairQuotes(text);
-    assertBoundedText(text, Math.floor((limits.maxWork ?? REPAIR_MAX_WORK) / (quotes + 1)));
-    const work = repairWork(text.length, quotes);
-    if (budget) {
-        const cost = work + budget.callCost;
-        if (cost > budget.remaining) throw new RepairBudgetSpentError(cost, budget.remaining, text.length);
-        budget.remaining -= cost;
+    const allowedMs = budget ? Math.floor(budget.remaining) : limits.maxMs;
+    if (!(allowedMs >= 1)) throw new RepairDeadlineError(text.length, Math.max(0, allowedMs || 0));
+    repairObserver?.(text.length, allowedMs);
+    const { ctx, script } = context();
+    const started = performance.now();
+    try {
+        ctx.input = text;
+        return script.runInContext(ctx, { timeout: allowedMs }) as string;
+    } catch (error) {
+        if ((error as { code?: unknown } | null)?.code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+            throw new RepairDeadlineError(text.length, allowedMs, { cause: error });
+        }
+        throw error;
+    } finally {
+        ctx.input = "";
+        if (budget) budget.remaining -= performance.now() - started;
     }
-    repairObserver?.(text.length, work);
-    return jsonrepair(text);
 }

@@ -4,31 +4,28 @@ import { MODEL_TEXT_MAX_CHARS } from "../modelJsonFence";
 import {
     parseDsmlToolCalls,
     parseTextToolCalls,
+    parseToolInput,
     parseToolScalar,
     setRepairObserverForTests,
-    TOOL_ARGUMENT_REPAIR_CALL_COST,
-    TOOL_ARGUMENT_REPAIR_REPLY_BUDGET,
+    TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS,
 } from "../llm/toolCallParsing";
 
-// A reply's repairs share one budget: the work the reader may spend repairing damaged arguments is
-// counted per reading of a reply (one call of an entry point), not per text. The tests count the
-// repairs and the work handed to them through the seam of the module; they do not time anything.
-// An argument the bounds refuse (the limit of its own text or the budget of the reply) ends the reading
-// with the error of a call that cannot be read: no call of that reply is handed on.
+// The repairs of one reading of a reply (one call of an entry point) share one time budget, and each
+// runs under a deadline. An argument a bound refuses (its size, or the time) ends the reading with the
+// error of a call that cannot be read: no call of that reply is handed on. Time assertions keep 3x the
+// budget as slack, because the host that runs them is shared.
 
-type Repairs = { calls: number; chars: number; work: number };
-type Outcome<T> = { result: T | undefined; failure: unknown; repairs: Repairs };
+type Outcome<T> = { result: T | undefined; failure: unknown; repairs: number; ms: number };
 function counting<T>(read: () => T): Outcome<T> {
-    const repairs: Repairs = { calls: 0, chars: 0, work: 0 };
-    setRepairObserverForTests((chars, work) => {
-        repairs.calls += 1;
-        repairs.chars += chars;
-        repairs.work += work;
+    let repairs = 0;
+    setRepairObserverForTests(() => {
+        repairs += 1;
     });
+    const started = performance.now();
     try {
-        return { result: read(), failure: undefined, repairs };
+        return { result: read(), failure: undefined, repairs, ms: performance.now() - started };
     } catch (failure) {
-        return { result: undefined, failure, repairs };
+        return { result: undefined, failure, repairs, ms: performance.now() - started };
     } finally {
         setRepairObserverForTests(null);
     }
@@ -43,20 +40,92 @@ function expectUnreadable(outcome: Outcome<unknown>) {
     expect((outcome.failure as Error).message).toMatch(UNREADABLE);
 }
 
-/** About `length` characters, `length / 2` of them quotes: the costliest text a repair is asked to take. */
-const quoted = (length: number) => "{" + "'a".repeat(length / 2);
-/** The most such a text may hold and still be repaired alone: under the limit of one text. */
-const JUST_UNDER = 22_000;
-/** Over the limit of one text: 30,000 characters, 15,000 of them quotes. */
-const OVER_LIMIT = 30_000;
-/** A text that costs a tenth of the budget to repair, so that a reply of them spends it. */
-const AFFORDABLE = 4_400;
-const fill = (piece: string, total: number) => piece.repeat(Math.floor(total / piece.length));
+const BUDGET_MS = 1_000;
+const SLACK_MS = 3 * BUDGET_MS;
+const OVER_LIMIT = 250_000;
 const CAP = MODEL_TEXT_MAX_CHARS - 1_000;
-const SPENT = TOOL_ARGUMENT_REPAIR_REPLY_BUDGET;
 
 const dsmlParameter = (i: number, value: string) => `<|DSML|parameter name=p${i}>${value}</|DSML|parameter>`;
 const dsml = (parameters: string[]) => `<|DSML|invoke name=a>${parameters.join("")}</|DSML|invoke>`;
+
+describe("the time budget of one reading is fixed by its value", () => {
+    it("is 1,000 ms", () => {
+        expect(TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS).toBe(1_000);
+    });
+});
+
+// Closed quote-heavy text: the library takes seconds to minutes on it, so it is refused by time.
+const CLOSED: [string, string, string][] = [
+    ["ASCII apostrophe", "'", "'"],
+    ["curly quote", "\u2018", "\u2018"],
+    ["backtick", "`", "`"],
+];
+const closed = (quote: string, length: number, open: string, close: string) => open + (quote + "a").repeat((length - 2) / 2) + close;
+
+describe.each(CLOSED)("text full of a %s that ends in a closing bracket", (_name, quote) => {
+    describe.each([8_002, 20_002])("of %i characters", (length) => {
+        const object = closed(quote, length, "{", "}");
+        const array = closed(quote, length, "[", "]");
+        it.each([
+            ["a tool_call body, object", () => parseTextToolCalls(`<tool_call>{"name":"n","arguments":${object}}</tool_call>`, 0)],
+            ["a tool_call body, array", () => parseTextToolCalls(`<tool_call>{"name":"n","arguments":${array}}</tool_call>`, 0)],
+            ["a DSML parameter", () => parseDsmlToolCalls(dsml([dsmlParameter(0, object)]), 0)],
+            ["a function field", () => parseTextToolCalls(`<tool_call><function=f><a>${object}</a></function></tool_call>`, 0)],
+            ["a scalar", () => parseToolScalar(object)],
+            ["a scalar array", () => parseToolScalar(array)],
+            ["tool input", () => parseToolInput(object)],
+        ])("is refused within the slack, in %s", (_where, read) => {
+            const outcome = counting(read as () => unknown);
+            if (_where === "tool input") {
+                // The reader of a call's input keeps its own contract for text that cannot be read; only time matters.
+                expect(outcome.ms).toBeLessThan(SLACK_MS);
+                return;
+            }
+            expectUnreadable(outcome);
+            expect(outcome.ms).toBeLessThan(SLACK_MS);
+        }, 30_000);
+    });
+});
+
+describe("the budget is shared by the texts of one reading", () => {
+    const text = closed("'", 2_002, "{", "}");
+    it("ends a reading of 40 costly arguments within the slack", () => {
+        const outcome = counting(() => parseDsmlToolCalls(dsml(Array.from({ length: 40 }, (_, i) => dsmlParameter(i, text))), 0));
+        expectUnreadable(outcome);
+        expect(outcome.ms).toBeLessThan(SLACK_MS);
+    }, 30_000);
+
+    it("ends a reading of 40 costly bodies within the slack", () => {
+        const body = `<tool_call>{"name":"n","arguments":${text}}</tool_call>`;
+        const outcome = counting(() => parseTextToolCalls(Array.from({ length: 40 }, () => body).join("\n"), 0));
+        expectUnreadable(outcome);
+        expect(outcome.ms).toBeLessThan(SLACK_MS);
+    }, 30_000);
+
+    it("takes the wall time of every repair from the budget, so that two costly texts cannot each have the whole of it", () => {
+        // Each text alone is stopped at the time left; together they are stopped at the budget, not at twice it.
+        const slow = closed("'", 8_002, "{", "}");
+        const outcome = counting(() => parseDsmlToolCalls(dsml([0, 1].map((i) => dsmlParameter(i, slow))), 0));
+        expectUnreadable(outcome);
+        expect(outcome.ms).toBeLessThan(BUDGET_MS * 1.9);
+        expect(outcome.repairs).toBe(1);
+    }, 30_000);
+
+    it("reads 20,000 tiny repairs, or refuses them, within the slack", () => {
+        const outcome = counting(() => parseDsmlToolCalls(dsmlOfValues("{'a':'x"), 0));
+        expect(outcome.ms).toBeLessThan(SLACK_MS);
+        if (outcome.failure !== undefined) expectUnreadable(outcome);
+        else expect(outcome.result).toHaveLength(1);
+    }, 30_000);
+
+    it("gives every reading its own budget, and a text that is repaired alone is still repaired", () => {
+        counting(() => parseDsmlToolCalls(dsml([0, 1].map((i) => dsmlParameter(i, text))), 0));
+        const again = counting(() => parseToolScalar("{'a':'b"));
+        expect(again.result).toEqual({ a: "b" });
+        expect(again.repairs).toBe(1);
+    }, 30_000);
+});
+
 /** A DSML call holding as many parameters of `value` as the reply cap allows. */
 function dsmlOfValues(value: string): string {
     const parameters: string[] = [];
@@ -69,128 +138,56 @@ function dsmlOfValues(value: string): string {
     }
 }
 
-describe("the budget and the cost of a repair are fixed by their values, not by each other", () => {
-    it("keeps the constants that bound one reply", () => {
-        expect(TOOL_ARGUMENT_REPAIR_REPLY_BUDGET).toBe(1_000_000_000);
-        expect(TOOL_ARGUMENT_REPAIR_CALL_COST).toBeGreaterThanOrEqual(20_000);
+describe("a text over the limit of one text is refused without a repair", () => {
+    const quoted = (length: number) => "{" + "'a".repeat(length / 2);
+    it("in a DSML parameter", () => {
+        const outcome = counting(() => parseDsmlToolCalls(dsml([dsmlParameter(0, quoted(OVER_LIMIT))]), 0));
+        expectUnreadable(outcome);
+        expect(outcome.repairs).toBe(0);
     });
-
-    it("bounds the number of repairs of a reply of many small texts", () => {
-        const outcome = counting(() => parseDsmlToolCalls(dsmlOfValues("{'a':'xxxxxxxxxx"), 0));
-        // 1,000,000,000 units at 20,000 a repair: at most 50,000 (the reply cap allows about 20,000 texts this small).
-        expect(outcome.repairs.calls).toBeLessThanOrEqual(50_000);
-        expect(outcome.repairs.calls).toBeGreaterThan(5_000);
-        expect(outcome.failure).toBeUndefined();
-        expect(outcome.repairs.work + outcome.repairs.calls * TOOL_ARGUMENT_REPAIR_CALL_COST).toBeLessThanOrEqual(SPENT);
+    it("in a field of a function call", () => {
+        const outcome = counting(() => parseTextToolCalls(`<tool_call><function=f><a>${quoted(OVER_LIMIT)}</a></function></tool_call>`, 0));
+        expectUnreadable(outcome);
+        expect(outcome.repairs).toBe(0);
+    });
+    it("in the JSON of a body, which is not then read loosely", () => {
+        const outcome = counting(() => parseTextToolCalls(`<tool_call>{"name":"n","arguments":${quoted(OVER_LIMIT)}</tool_call>`, 0));
+        expectUnreadable(outcome);
+        expect(outcome.repairs).toBe(0);
+    });
+    it("in the arguments of a loose body", () => {
+        const outcome = counting(() => parseTextToolCalls(`<tool_call>name: n arguments: ${quoted(OVER_LIMIT)}</tool_call>`, 0));
+        expectUnreadable(outcome);
+        expect(outcome.repairs).toBe(0);
+    });
+    it("in the loose reading of a body whose JSON names no tool", () => {
+        const outcome = counting(() => parseTextToolCalls(`<tool_call>{"x":1} name: n arguments: ${quoted(OVER_LIMIT)}</tool_call>`, 0));
+        expectUnreadable(outcome);
+        expect(outcome.repairs).toBe(0);
+    });
+    it("in the JSON of a body though its arguments alone would be read", () => {
+        const body = `<tool_call>{"name":"n","note":"x","pad":${quoted(OVER_LIMIT)},"arguments":{"q":1}}</tool_call>`;
+        const outcome = counting(() => parseTextToolCalls(body, 0));
+        expectUnreadable(outcome);
+        expect(outcome.repairs).toBe(0);
+    });
+    it("in a scalar read on its own", () => {
+        expect(() => parseToolScalar(quoted(OVER_LIMIT))).toThrow(UNREADABLE);
     });
 });
 
-describe("a reply's repairs share one budget", () => {
-    it("ends the reading, with no call handed on, when DSML parameters spend the budget", () => {
-        const outcome = counting(() => parseDsmlToolCalls(dsmlOfValues(quoted(AFFORDABLE)), 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.work).toBeLessThanOrEqual(SPENT);
-        expect(outcome.repairs.calls).toBeGreaterThan(0);
-    });
-
-    it("ends the reading when one text costs more than the budget has left", () => {
-        // Each is under the limit of one text (2.4e8 units); the fifth is more than what the budget has left.
-        const outcome = counting(() => parseDsmlToolCalls(dsml([0, 1, 2, 3, 4].map((i) => dsmlParameter(i, quoted(JUST_UNDER)))), 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.calls).toBe(4);
-        expect(outcome.repairs.work).toBeLessThanOrEqual(SPENT);
-    });
-
-    it("ends the reading when a text is over the limit of one text, without a repair", () => {
-        const outcome = counting(() => parseDsmlToolCalls(dsml([dsmlParameter(0, quoted(OVER_LIMIT))]), 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.calls).toBe(0);
-    });
-
-    it("ends the reading when the fields of a function call spend the budget", () => {
-        const reply = `<tool_call><function=f>${fill(`<a>${quoted(AFFORDABLE)}</a>`, CAP)}</tool_call>`;
-        const outcome = counting(() => parseTextToolCalls(reply, 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.work).toBeLessThanOrEqual(SPENT);
-        expect(outcome.repairs.calls).toBeGreaterThan(0);
-    });
-
-    it("ends the reading when a field of a function call is over the limit of one text", () => {
-        const outcome = counting(() => parseTextToolCalls(`<tool_call><function=f><a>${quoted(OVER_LIMIT)}</a></function></tool_call>`, 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.calls).toBe(0);
-    });
-
-    it("ends the reading when bodies spend the budget, however they would be read afterwards", () => {
-        const body = `<tool_call>name: n arguments: ${quoted(AFFORDABLE)}</tool_call>`;
-        expect(counting(() => parseTextToolCalls(body, 0)).repairs.calls).toBe(2);
-        const outcome = counting(() => parseTextToolCalls(fill(body, CAP), 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.work).toBeLessThanOrEqual(SPENT);
-    });
-
-    it("ends the reading when a body's JSON is over the limit of one text, and does not read it loosely", () => {
-        const outcome = counting(() => parseTextToolCalls(`<tool_call>{"name":"n","arguments":${quoted(OVER_LIMIT)}</tool_call>`, 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.calls).toBe(0);
-    });
-
-    it("ends the reading when a loose body's arguments are over the limit of one text", () => {
-        const outcome = counting(() => parseTextToolCalls(`<tool_call>name: n arguments: ${quoted(OVER_LIMIT)}</tool_call>`, 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.calls).toBe(0);
-    });
-
-    it("ends the reading when the loose reading of a body whose JSON names no tool is over the limit of one text", () => {
-        // The JSON path reads `{"x":1}` and finds no call; the arguments written after it are what the loose path repairs.
-        const body = `<tool_call>{"x":1} name: n arguments: ${quoted(OVER_LIMIT)}</tool_call>`;
-        const outcome = counting(() => parseTextToolCalls(body, 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.calls).toBe(0);
-    });
-
-    it("ends the reading when the JSON of a body is over the limit of one text, though its arguments alone would be read", () => {
-        const body = `<tool_call>{"name":"n","note":${JSON.stringify("x")},"pad":${quoted(OVER_LIMIT)},"arguments":{"q":1}}</tool_call>`;
-        const outcome = counting(() => parseTextToolCalls(body, 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.calls).toBe(0);
-    });
-
-    it("ends the reading when bodies whose JSON names no tool spend the budget", () => {
-        const body = `<tool_call>{"name":"n","arguments":${quoted(JUST_UNDER)}</tool_call>`;
-        const outcome = counting(() => parseTextToolCalls(fill(body, CAP), 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.work).toBeLessThanOrEqual(SPENT);
-    });
-
-    it("ends the reading when texts with unescaped quotes in a string spend the budget", () => {
-        const body = `<tool_call>{"name":"n","arguments":{"text":"he said ${'and "x" '.repeat(Math.floor(JUST_UNDER / 8))}"}}</tool_call>`;
-        const outcome = counting(() => parseTextToolCalls(fill(body, CAP), 0));
-        expectUnreadable(outcome);
-        expect(outcome.repairs.work).toBeLessThanOrEqual(SPENT);
-    });
-
-    it("ends a scalar read on its own the same way", () => {
-        expect(() => parseToolScalar(quoted(OVER_LIMIT))).toThrow(UNREADABLE);
-    });
-
-    it("gives every reading its own budget, and a text that is repaired alone is still repaired", () => {
-        const reply = dsml([0, 1, 2, 3].map((i) => dsmlParameter(i, quoted(JUST_UNDER))));
-        const first = counting(() => parseDsmlToolCalls(reply, 0));
-        const second = counting(() => parseDsmlToolCalls(reply, 0));
-        expect(first.failure).toBeUndefined();
-        expect(second.repairs).toEqual(first.repairs);
-        expect(counting(() => parseToolScalar("{'a':'b")).repairs.calls).toBe(1);
-        expect(parseToolScalar("{'a':'b")).toEqual({ a: "b" });
-    });
-
-    it("repairs a single large argument that is cut off, as before", () => {
-        const call = `<tool_call>{"name":"n","arguments":{"text":"${"x".repeat(199_000)}`;
-        const { result, repairs } = counting(() => parseTextToolCalls(call, 0));
-        expect((result![0].input as { text: string }).text).toHaveLength(199_000);
-        expect(repairs.calls).toBeGreaterThan(0);
-        expect(repairs.work).toBeLessThanOrEqual(SPENT);
-    });
+describe("a refusal by time in the loose reading and the body's catch ends the reading", () => {
+    const text = closed("'", 8_002, "{", "}");
+    it("when the arguments of a loose body are too slow", () => {
+        expectUnreadable(counting(() => parseTextToolCalls(`<tool_call>name: n arguments: ${text}</tool_call>`, 0)));
+    }, 30_000);
+    it("when the loose reading of a body whose JSON names no tool is too slow", () => {
+        expectUnreadable(counting(() => parseTextToolCalls(`<tool_call>{"x":1} name: n arguments: ${text}</tool_call>`, 0)));
+    }, 30_000);
+    it("when the JSON of a body is too slow though its arguments alone would be read", () => {
+        const body = `<tool_call>{"name":"n","pad":${text},"arguments":{"q":1}}</tool_call>`;
+        expectUnreadable(counting(() => parseTextToolCalls(body, 0)));
+    }, 30_000);
 });
 
 describe("text that is not JSON is not a refusal", () => {
@@ -211,7 +208,7 @@ describe("text that is not JSON is not a refusal", () => {
         const outcome = counting(() => parseDsmlToolCalls(dsml([dsmlParameter(0, long)]), 0));
         expect(outcome.failure).toBeUndefined();
         expect(outcome.result![0].input.p0).toBe(long.trim());
-        expect(outcome.repairs.calls).toBe(0);
+        expect(outcome.repairs).toBe(0);
     });
 });
 
@@ -243,8 +240,8 @@ describe("an honest reply is read in full", () => {
             expect((call.input.text as string).length).toBe(READ_CHARS);
         }
         // A body whose JSON holds the call is not read a second time.
-        expect(outcome.repairs.calls).toBe(3);
-        expect(outcome.repairs.work + outcome.repairs.calls * TOOL_ARGUMENT_REPAIR_CALL_COST).toBeLessThanOrEqual(SPENT);
+        expect(outcome.repairs).toBe(3);
+        expect(outcome.ms).toBeLessThan(BUDGET_MS);
     });
 
     it("reads the same three documents as DSML parameters", () => {
@@ -257,7 +254,7 @@ describe("an honest reply is read in full", () => {
             expect(value.title).toBe(`t${i}`);
             expect(value.text.length).toBe(READ_CHARS);
         }
-        expect(outcome.repairs.calls).toBe(3);
+        expect(outcome.repairs).toBe(3);
     });
 
     it("reads 30 calls, each with a 5,000-character damaged argument of 400 quotes", () => {
@@ -271,50 +268,21 @@ describe("an honest reply is read in full", () => {
             expect(typeof call.input.text).toBe("string");
             expect((call.input.text as string).startsWith(`n${i} `)).toBe(true);
         }
-        expect(outcome.repairs.calls).toBe(30);
-        expect(outcome.repairs.work + outcome.repairs.calls * TOOL_ARGUMENT_REPAIR_CALL_COST).toBeLessThanOrEqual(SPENT);
+        expect(outcome.repairs).toBe(30);
+        expect(outcome.ms).toBeLessThan(BUDGET_MS);
     });
 });
 
-// Every character the repair library treats as a quote costs it what a plain quote does, so a text full of
-// any of them is refused by size, as a text full of plain quotes is. The list of characters is checked
-// against the installed library in boundedJsonRepair.test.ts.
-const QUOTE_CHARACTERS: [string, string][] = [
-    ["double quote", '"'],
-    ["single quote", "'"],
-    ["left single curly quote", "\u2018"],
-    ["right single curly quote", "\u2019"],
-    ["left double curly quote", "\u201c"],
-    ["right double curly quote", "\u201d"],
-    ["grave accent", "`"],
-    ["acute accent", "\u00b4"],
-];
-const halfQuotes = (character: string, length: number) => "{" + (character + "a").repeat(length / 2);
 
-describe("a text full of any quote the repair library knows is refused by size", () => {
-    // 40,000 characters, 20,000 quotes: 8e8 units, over the limit of one text.
-    const LENGTH = 40_000;
-    describe.each(QUOTE_CHARACTERS)("%s", (_name, character) => {
-        it("in a DSML parameter", () => {
-            const outcome = counting(() => parseDsmlToolCalls(dsml([dsmlParameter(0, halfQuotes(character, LENGTH))]), 0));
-            expectUnreadable(outcome);
-            expect(outcome.repairs.calls).toBe(0);
-        });
-        it("in the arguments of a tool_call body", () => {
-            const outcome = counting(() => parseTextToolCalls(`<tool_call>{"name":"n","arguments":${halfQuotes(character, LENGTH)}</tool_call>`, 0));
-            expectUnreadable(outcome);
-            expect(outcome.repairs.calls).toBe(0);
-        });
-        it("in a field of a function call", () => {
-            const outcome = counting(() => parseTextToolCalls(`<tool_call><function=f><a>${halfQuotes(character, LENGTH)}</a></function></tool_call>`, 0));
-            expectUnreadable(outcome);
-            expect(outcome.repairs.calls).toBe(0);
-        });
-        it("counts them in the work of a repair that is run", () => {
-            const outcome = counting(() => parseToolScalar(halfQuotes(character, 2_000)));
-            expect(outcome.repairs.calls).toBe(1);
-            // 2,001 characters, 1,000 quotes of the character.
-            expect(outcome.repairs.work).toBeGreaterThanOrEqual(2_001 * 1_000);
-        });
+describe("a body whose JSON holds the call is read once", () => {
+    it("repairs it once", () => {
+        const outcome = counting(() => parseTextToolCalls(`<tool_call>{"name":"n","arguments":{"a":1,}}</tool_call>`, 0));
+        expect(outcome.repairs).toBe(1);
+    });
+    it("repairs a single large argument that is cut off, as before", () => {
+        const call = `<tool_call>{"name":"n","arguments":{"text":"${"x".repeat(199_000)}`;
+        const { result, repairs } = counting(() => parseTextToolCalls(call, 0));
+        expect((result![0].input as { text: string }).text).toHaveLength(199_000);
+        expect(repairs).toBeGreaterThan(0);
     });
 });

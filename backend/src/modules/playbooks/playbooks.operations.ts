@@ -241,12 +241,10 @@ const REVIEW_MAX_OUTPUT_TOKENS = 20_000;
 export const PLAYBOOK_REPAIR_MAX_CHARS = charsForTokens(REVIEW_MAX_OUTPUT_TOKENS + COMPLETION_REASONING_HEADROOM_TOKENS);
 
 /**
- * The most work the repair of one malformed answer may be asked to do, in characters times quote
- * characters (`lib/boundedJsonRepair.ts`). An answer cut at the output limit holds ten thousand
- * quotes that pair (1.3e9 units, about 0.1 s to repair); a text that is mostly quotes that do not
- * pair costs about a second per 1.8e9.
+ * The most time the repair of one malformed answer may take, in milliseconds: the library is slow
+ * on some damaged shapes, and an answer cut at the output limit repairs in a small part of it.
  */
-const PLAYBOOK_REPAIR_MAX_WORK = 2_000_000_000;
+const PLAYBOOK_REPAIR_MAX_MS = 1_000;
 
 export function parseModelJson(raw: string): unknown {
   let cleaned: string;
@@ -272,7 +270,7 @@ export function parseModelJson(raw: string): unknown {
           return JSON.parse(
             repairJson(slice, {
               maxChars: PLAYBOOK_REPAIR_MAX_CHARS,
-              maxWork: PLAYBOOK_REPAIR_MAX_WORK,
+              maxMs: PLAYBOOK_REPAIR_MAX_MS,
             }),
           );
         } catch (repairError) {

@@ -251,4 +251,16 @@ describe("backend architecture", () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  it("rule 10: the JSON repair library is reached only through lib/boundedJsonRepair.ts", () => {
+    // The library has no bound on its time; the one helper runs it under a deadline.
+    const requires = /\brequire\(\s*["']jsonrepair(?:\/[^"']*)?["']\s*\)/;
+    const offenders = PRODUCTION_FILES.filter(
+      (file) =>
+        file !== "lib/boundedJsonRepair.ts" &&
+        (importsOf(file).some((spec) => spec === "jsonrepair" || spec.startsWith("jsonrepair/")) || requires.test(read(file))),
+    );
+    expect(offenders).toEqual([]);
+    expect(requires.test(read("lib/boundedJsonRepair.ts"))).toBe(true);
+  });
 });

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { families, growth, pairs, TEXT_READERS, ENTRY_POINTS, WRAPPERS, MARKER_NAMES } from "./toolCallGrowth";
+import { families, growth, isRepairFamily, pairs, REPAIR_TIME_BOUND_MS, slowestOf, TEXT_READERS, ENTRY_POINTS, WRAPPERS, MARKER_NAMES } from "./toolCallGrowth";
 
 // The reader of tool calls written as text takes the whole reply of a model that does not report
 // them itself. This is the guard for the whole module: a table of generators of adversarial text
 // (toolCallGrowth.ts), every entry point that receives model text, and a growth check. Each text is
 // built at N, 2N, 4N and 8N characters and the best of three runs of each size must not grow faster
 // than the text does (8 times the text may take at most 20 times as long; a quadratic reader takes 64).
+// The families that make the repair library slow (names starting "repair:") are held to a bound on time
+// instead: the repairs of one reading share one time budget, so no entry point takes longer than three
+// times it, whatever the size of the text.
 
 describe("the reader of tool calls written as text grows with the text", () => {
     it("lists the markers it is built for", () => {
@@ -18,6 +21,13 @@ describe("the reader of tool calls written as text grows with the text", () => {
         const own = _wrapper === "plain" ? ENTRY_POINTS : TEXT_READERS;
         it.each(families.map((f) => [f.name, f] as const))("%s", (_name, family) => {
             const n = 8192;
+            if (isRepairFamily(family)) {
+                for (const size of [n, n * 8]) {
+                    const [entry, ms] = slowestOf(own, wrap(family.text(size), size));
+                    expect(ms, `${entry} at ${size} chars`).toBeLessThan(REPAIR_TIME_BOUND_MS);
+                }
+                return;
+            }
             expect(growth(own, (size) => wrap(family.text(size), size), n)).toBe("");
         }, 120_000);
     });

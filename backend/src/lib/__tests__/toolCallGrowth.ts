@@ -266,3 +266,25 @@ export function growth(entries: [string, (text: string) => void][], text: (size:
     }
     return failures.join("\n");
 }
+
+/** The families whose text makes the repair library slow: held to a bound on time, not on growth. */
+export const isRepairFamily = (family: Family): boolean => family.name.startsWith("repair:");
+
+/** Three times the time budget of one reading of a reply (1,000 ms), the slack the tests keep on a busy host. */
+export const REPAIR_TIME_BOUND_MS = 3_000;
+
+/** The entry point that took longest on `text`, with its time in milliseconds. */
+export function slowestOf(entries: [string, (text: string) => void][], text: string): [string, number] {
+    let slowest: [string, number] = ["", 0];
+    for (const [entry, run] of entries) {
+        const started = performance.now();
+        try {
+            run(text);
+        } catch {
+            // A refused text ends the reading with an error; only its time matters here.
+        }
+        const ms = performance.now() - started;
+        if (ms > slowest[1]) slowest = [entry, ms];
+    }
+    return slowest;
+}
