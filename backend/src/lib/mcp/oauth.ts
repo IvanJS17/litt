@@ -19,6 +19,7 @@ import {
     encryptString,
     guardedFetch,
     loadConnector,
+    MAX_MCP_RESPONSE_BYTES,
     originOf,
     stateHash,
     usableAuthConfig,
@@ -32,6 +33,7 @@ import {
 } from "./providers";
 import {
     CLIENT_INFO,
+    MCP_REQUEST_TIMEOUT_MS,
     OAUTH_STATE_TTL_MS,
     type ConnectorRow,
     type Db,
@@ -66,6 +68,17 @@ export class McpOAuthRequiredError extends AppError {
     }
 }
 
+// Every request to a user-chosen authorization or resource server: bounded in
+// decoded response size and in time, whatever the caller does with the body.
+const boundedFetch: typeof guardedFetch = (input, init) =>
+    guardedFetch(
+        input,
+        init?.signal
+            ? init
+            : { ...init, signal: AbortSignal.timeout(MCP_REQUEST_TIMEOUT_MS) },
+        { maxResponseBytes: MAX_MCP_RESPONSE_BYTES },
+    );
+
 function parseWwwAuthenticate(value: string | null): string | null {
     if (!value) return null;
     const match = value.match(/resource_metadata=(?:"([^"]+)"|([^,\s]+))/i);
@@ -76,7 +89,7 @@ async function fetchJson(url: string, init?: RequestInit) {
     // Route through the shared guarded egress helper so this call gets the same
     // HTTPS-only / private-IP / connect-time-pinned / no-redirect protections as
     // the connector transport (closes the raw-fetch SSRF gap in OAuth discovery).
-    const response = await guardedFetch(url, init);
+    const response = await boundedFetch(url, init);
     if (!response.ok) {
         throw new Error(`Failed to fetch OAuth metadata (${response.status}).`);
     }
@@ -92,9 +105,9 @@ async function discoverProtectedResourceMetadataUrl(serverUrl: string) {
     // through the shared guarded egress helper rather than raw fetch (previously
     // an unvalidated SSRF sink).
     const attempts: Array<() => Promise<Response>> = [
-        () => guardedFetch(serverUrl, { method: "GET" }),
+        () => boundedFetch(serverUrl, { method: "GET" }),
         () =>
-            guardedFetch(serverUrl, {
+            boundedFetch(serverUrl, {
                 method: "POST",
                 headers: {
                     Accept: "application/json, text/event-stream",
@@ -426,7 +439,7 @@ export async function refreshOAuthAccessToken(row: OAuthTokenRow, db: Db) {
     });
     if (clientSecret) body.set("client_secret", clientSecret);
     if (row.resource) body.set("resource", row.resource);
-    const response = await guardedFetch(row.token_endpoint, {
+    const response = await boundedFetch(row.token_endpoint, {
         method: "POST",
         headers: {
             Accept: "application/json",
@@ -859,7 +872,7 @@ export async function startUserMcpConnectorOAuth(
         serverUrl: connector.server_url,
         ...(env.scope ? { scope: env.scope } : {}),
         ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
-        fetchFn: guardedFetch,
+        fetchFn: boundedFetch,
     });
     if (result === "AUTHORIZED") {
         return { authorizationUrl: null, alreadyAuthorized: true };
@@ -937,7 +950,7 @@ export async function completeMcpConnectorOAuthAuthorization(
         serverUrl: connector.server_url,
         authorizationCode: code,
         ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
-        fetchFn: guardedFetch,
+        fetchFn: boundedFetch,
     });
     if (result !== "AUTHORIZED") {
         throw new Error("OAuth authorization did not complete.");

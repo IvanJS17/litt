@@ -950,7 +950,7 @@ async function persistGeneratedFile(params: {
   // sync path's silent failure mode where a LibreOffice hiccup left the doc
   // permanently rendition-less.
   let pdfStoragePath: string | null = null;
-  const deferRenditionToQueue =
+  let deferRenditionToQueue =
     shouldConvertToPdf(extension) &&
     process.env.ASYNC_DOCUMENT_CONVERSION === "true";
   if (shouldConvertToPdf(extension) && !deferRenditionToQueue) {
@@ -967,6 +967,8 @@ async function persistGeneratedFile(params: {
       );
       pdfStoragePath = pdfKey;
     } catch (err) {
+      // A busy converter is retry-later: the conversion queue fills it in.
+      if (err instanceof ExtractionBusyError) deferRenditionToQueue = true;
       devLog(`[generate_${extension}] Office→PDF conversion failed:`, err);
     }
   }

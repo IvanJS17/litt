@@ -162,6 +162,18 @@ describe("runConversionJob", () => {
         vi.restoreAllMocks();
     });
 
+    it("lets the queue retry later when the converter is busy: nothing is finalized and nothing is reported", async () => {
+        const { ExtractionBusyError } = await import("../../lib/extraction/limits.js");
+        downloadFile.mockResolvedValue(new ArrayBuffer(8));
+        docxToPdf.mockRejectedValue(new ExtractionBusyError());
+        const db = makeDb();
+
+        await expect(runConversionJob(JOB, db as never)).rejects.toBeTruthy();
+
+        expect(reports.reportError).not.toHaveBeenCalled();
+        expect(db.calls).toEqual([]);
+    });
+
     it("queues late output for cleanup when its version was deleted or replaced", async () => {
         downloadFile.mockResolvedValue(new ArrayBuffer(8));
         docxToPdf.mockResolvedValue(Buffer.from("pdf"));

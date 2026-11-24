@@ -15,6 +15,7 @@ import {
   vertexCredentials,
 } from "./cloudProviders";
 import { guardedFetch } from "../mcp/client";
+import { deadlineMessage, runByteLimit } from "../streamRuns";
 import { isBlockedDestinationError } from "../blockedDestination";
 import { localModelToleranceMiddleware } from "./localModelMiddleware";
 import { ProviderConfigurationError, providerFailureResponse, type ProviderKeySource } from "./providerErrors";
@@ -518,16 +519,72 @@ async function createVertexAdapter(
 }
 
 /**
+ * Most decoded bytes read from a user-supplied endpoint's non-streaming and
+ * error answers, and the longest single event line of a streamed one.
+ * Chat completions are kilobytes; this is far above the largest and far below
+ * the process's memory.
+ */
+const MAX_CUSTOM_ENDPOINT_RESPONSE_BYTES = 8 * 1024 * 1024;
+
+/**
+ * A streamed answer's total wire bytes may be this many times the run's
+ * output ceiling. The ceiling counts what the model library reports for one
+ * call, text only; the wire carries more than that, since each chunk has its
+ * own JSON framing and escaping can double the text (non-ASCII written as
+ * \uXXXX), and streamed tool arguments reach the wire inside such chunks too.
+ * The factor is a margin over that overhead, not a derived bound: what keeps
+ * a legitimate single request below it is the model's own output-token limit,
+ * which ends an answer long before this many bytes of chunks. It exists to
+ * stop a body that never delivers an answer, not to size one.
+ */
+const CUSTOM_ENDPOINT_STREAM_CEILING_FACTOR = 3;
+
+/** Longest a non-streaming call to a user-supplied endpoint may take, answer included. */
+const CUSTOM_ENDPOINT_REQUEST_TIMEOUT_MS = 120_000;
+
+/** Whether the request itself asked for a streamed answer (never what the server answers with). */
+function asksForStream(init?: RequestInit): boolean {
+  if (typeof init?.body !== "string") return false;
+  try {
+    return (JSON.parse(init.body) as { stream?: unknown } | null)?.stream === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Egress for a user-supplied base URL: https only, never a private or
- * metadata address, pinned to the address that was validated.
+ * metadata address, pinned to the address that was validated. Every byte
+ * read is counted, whatever the server says about its answer.
  */
 async function customEndpointFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
+  const streaming = asksForStream(init);
   try {
-    return await aiSdkFetch(input, init, (url, options) =>
-      guardedFetch(url, options, { label: CUSTOM_ENDPOINT_URL_LABEL }),
+    return await aiSdkFetch(
+      input,
+      streaming
+        ? init
+        : {
+            ...init,
+            signal: init?.signal
+              ? AbortSignal.any([init.signal, AbortSignal.timeout(CUSTOM_ENDPOINT_REQUEST_TIMEOUT_MS)])
+              : AbortSignal.timeout(CUSTOM_ENDPOINT_REQUEST_TIMEOUT_MS),
+          },
+      (url, options) =>
+        guardedFetch(url, options, {
+          label: CUSTOM_ENDPOINT_URL_LABEL,
+          // The streamed ceiling is for a stream that is being delivered; an
+          // error answer is an ordinary body whatever the request asked for.
+          maxResponseBytes: (response) =>
+            streaming && response.ok
+              ? CUSTOM_ENDPOINT_STREAM_CEILING_FACTOR * runByteLimit()
+              : MAX_CUSTOM_ENDPOINT_RESPONSE_BYTES,
+          ...(streaming ? { maxLineBytes: MAX_CUSTOM_ENDPOINT_RESPONSE_BYTES } : {}),
+          tooLargeError: () => new UserFacingError(deadlineMessage("output_limit")),
+        }),
     );
   } catch (error) {
     // The base URL passed the save-time checks but now resolves to a

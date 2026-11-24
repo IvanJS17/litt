@@ -7,7 +7,8 @@ import { Router, type Response } from "express";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
-import { sendDocumentDisplay } from "../../lib/documentDisplay";
+import { sendDisplayBusy, sendDocumentDisplay } from "../../lib/documentDisplay";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { sendInternalError } from "../../lib/httpError";
 import { reportError, setOperation } from "../../lib/observability/report";
 import { sendServiceFailure } from "../../lib/serviceResult";
@@ -71,7 +72,10 @@ workflowAddonsRouter.get(
       addonId: req.params.addonId,
       assetId: req.params.assetId,
     });
-    if (!result.ok) return void sendServiceFailure(res, result);
+    if (!result.ok) {
+      if (result.kind === "error" && result.error instanceof ExtractionBusyError) return void sendDisplayBusy(res);
+      return void sendServiceFailure(res, result);
+    }
     // The pre-move handler had the streaming call inside the same try/catch
     // as the load, so a throw here answered with the internal-error body
     // rather than falling through to the router's error middleware.

@@ -1,19 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 import type { ExportBuildRequest } from "../exportContracts";
+import { createExportStorageFake } from "./exportStorageFake";
 
-const { filenames, deniedIds, download, upload } = vi.hoisted(() => ({
+const { filenames, deniedIds } = vi.hoisted(() => ({
     filenames: new Map<string, { filename: string | null; version_number?: number; source?: string }>(),
     deniedIds: new Set<string>(),
-    download: vi.fn<(key: string) => Promise<ArrayBuffer>>(),
-    upload: vi.fn<(key: string, bytes: ArrayBuffer, contentType: string) => Promise<void>>(),
 }));
+let fake = createExportStorageFake(() => null);
 
 // Keep the queued ZIP builder real; replace its I/O and unrelated export paths.
 vi.mock("../../../lib/storage", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../../lib/storage")>()),
-    downloadFile: download,
-    uploadFile: upload,
+    headFile: (key: string) => fake.headFile(key),
+    openFileStream: async (key: string) => fake.createFileReadStream(key),
+    uploadFileFromPath: (key: string, path: string, type: string) => fake.uploadFileFromPath(key, path, type),
+    uploadFile: (...args: unknown[]) => (fake.uploadFile as (...a: unknown[]) => unknown)(...args),
 }));
 vi.mock("../../../lib/access", () => ({
     createDocumentAccessChecker: () => async (doc: { id: string }) => ({ ok: !deniedIds.has(doc.id) }),
@@ -65,12 +67,11 @@ const db = {
 beforeEach(() => {
     filenames.clear();
     deniedIds.clear();
-    download.mockReset().mockImplementation(async key => Uint8Array.from(Buffer.from(`original bytes for ${key}`)).buffer);
-    upload.mockReset().mockResolvedValue(undefined);
+    fake = createExportStorageFake(key => Buffer.from(`original bytes for ${key}`));
 });
 
 async function expectArchive(names: string[], ids: string[], attempt = 0) {
-    const zip = await JSZip.loadAsync(upload.mock.calls[attempt]![1]);
+    const zip = await JSZip.loadAsync(fake.uploads[attempt]!.bytes);
     expect(Object.keys(zip.files)).toEqual(names);
     for (const [index, name] of names.entries()) {
         expect(await zip.file(name)!.async("string")).toBe(`original bytes for ${ids[index]}.docx`);
@@ -112,7 +113,7 @@ describe("queued document ZIP filenames", () => {
                 "Untitled document", "Untitled document (2)",
             ], ids, attempt);
         }
-        expect(upload.mock.calls[0]![0]).toBe(upload.mock.calls[1]![0]);
+        expect(fake.uploads[0]!.key).toBe(fake.uploads[1]!.key);
     });
 
     it("keeps unique source filenames and their bytes unchanged", async () => {
@@ -127,14 +128,17 @@ describe("queued document ZIP filenames", () => {
 
         await buildExport(db as never, job);
 
-        expect(download).toHaveBeenCalledExactlyOnceWith("d2.docx");
+        expect(fake.opened).toEqual(["d2.docx"]);
         await expectArchive(["Agreement.pdf"], ["d2"]);
     });
 
     it("does not publish a partial archive when an accessible source read fails", async () => {
-        download.mockRejectedValueOnce(new Error("synthetic storage failure"));
+        fake = createExportStorageFake(key => {
+            if (key === "d2.docx") throw new Error("synthetic storage failure");
+            return Buffer.from(key);
+        });
 
         await expect(buildExport(db as never, job)).rejects.toThrow("synthetic storage failure");
-        expect(upload).not.toHaveBeenCalled();
+        expect(fake.uploads).toEqual([]);
     });
 });

@@ -867,3 +867,69 @@ describe("runDelegateCall", () => {
     );
   });
 });
+
+async function unhandledDuring(run: () => Promise<unknown>) {
+  const unhandled: unknown[] = [];
+  const listeners = process.listeners("unhandledRejection");
+  process.removeAllListeners("unhandledRejection");
+  const record = (reason: unknown) => unhandled.push(reason);
+  process.on("unhandledRejection", record);
+  let turnError: unknown;
+  try {
+    await run().catch((error) => {
+      turnError = error;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  } finally {
+    process.off("unhandledRejection", record);
+    for (const listener of listeners) process.on("unhandledRejection", listener);
+  }
+  return { unhandled, turnError };
+}
+
+const failingRunStore = (error: Error) => ({
+  save: vi.fn(),
+  load: vi.fn(async () => Promise.reject(error)),
+});
+
+describe("runLLMStream delegation that fails", () => {
+  it("keeps a delegation that fails while the model is still writing its step inside its own turn", async () => {
+    const failing = delegate("d1", { continue: "earlier-delegation" });
+    streamChatWithTools.mockImplementation(async (params) => {
+      params.callbacks?.onToolCallStart?.(failing);
+      // The delegation fails here, before any tool batch has awaited it.
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      await params.runTools?.([failing]);
+      return { fullText: "Answer" };
+    });
+
+    const { unhandled, turnError } = await unhandledDuring(() =>
+      runLLMStream({ ...baseParams(), subagentRuns: failingRunStore(new Error("run store unavailable")) }),
+    );
+
+    expect(unhandled).toEqual([]);
+    expect(turnError).toBeInstanceOf(Error);
+  });
+
+  it("keeps a rejected delegation inside its own turn while a sibling tool call is still running", async () => {
+    // The delegation's run store fails while the other tool call of the same
+    // step is still waiting on I/O.
+    const unavailable = new Error("run store unavailable");
+    const failing = delegate("d1", { continue: "earlier-delegation" });
+    runToolCalls.mockImplementation(async (calls: DispatchedCall[]) => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return toolBatch(calls);
+    });
+    streamChatWithTools.mockImplementation(async (params) => {
+      await params.runTools?.([failing, { id: "t1", name: "list_playbooks", input: {} }]);
+      return { fullText: "Answer" };
+    });
+
+    const { unhandled, turnError } = await unhandledDuring(() =>
+      runLLMStream({ ...baseParams(), subagentRuns: failingRunStore(unavailable) }),
+    );
+
+    expect(unhandled).toEqual([]);
+    expect(turnError).toBeInstanceOf(Error);
+  });
+});

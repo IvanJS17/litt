@@ -39,6 +39,7 @@ vi.mock("../../../lib/trainingTurn", async (importOriginal) => ({
 }));
 
 import { resetAssistantTurnRunsForTests } from "../../../lib/assistantTurnRuns";
+import { MAX_LIVE_RUNS_PER_USER, startStreamRun } from "../../../lib/streamRuns";
 import type { Db } from "../../../lib/supabase";
 import {
     parseProjectChatRequest,
@@ -112,6 +113,18 @@ beforeEach(() => {
             trainingPlan: null,
             trainingEgress: async () => {},
         },
+    });
+});
+
+describe("startProjectChatTurn", () => {
+    it("answers 429 and releases the lease when the person already has the most live runs", async () => {
+        for (let n = 0; n < MAX_LIVE_RUNS_PER_USER; n += 1) {
+            startStreamRun({ id: `held-${n}`, key: `held:${n}`, userId: "u1", forcedStopFrames: [] });
+        }
+        const refused = await startProjectChatTurn(db, {
+            userId: "u1", userEmail: undefined, requestId: undefined, projectId: "p1", parsed,
+        });
+        expect(refused).toMatchObject({ ok: false, status: 429, code: "rate_limited" });
     });
 });
 

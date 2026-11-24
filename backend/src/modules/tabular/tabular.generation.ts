@@ -26,6 +26,7 @@ import { BACKEND_REPORTING_OWNER } from "../../lib/reportedUpstreamCodes";
 import {
     getActiveStreamRun,
     startStreamRun,
+    StreamRunLimitError,
     stopOutcomeFrame,
     type StreamRun,
 } from "../../lib/streamRuns";
@@ -43,6 +44,7 @@ import {
     finishGeneration,
     startGenerationHeartbeat,
     type Column,
+    statusFailure,
     type Db,
     type TabularResult,
 } from "./tabular.shared";
@@ -101,15 +103,23 @@ export async function startTabularGeneration(
     });
     if (!claim.ok) return claim;
 
-    const run = startStreamRun({
-        id: generationId,
-        key: reviewRunKey(reviewId),
-        userId,
-        forcedStopFrames: [
-            `data: ${JSON.stringify({ type: "cancelled" })}\n\n`,
-            "data: [DONE]\n\n",
-        ],
-    });
+    let run: ReturnType<typeof startStreamRun> = null;
+    try {
+        run = startStreamRun({
+            id: generationId,
+            key: reviewRunKey(reviewId),
+            userId,
+            forcedStopFrames: [
+                `data: ${JSON.stringify({ type: "cancelled" })}\n\n`,
+                "data: [DONE]\n\n",
+            ],
+        });
+    } catch (error) {
+        if (!(error instanceof StreamRunLimitError)) throw error;
+        // Nothing started: hand the lease back and say why.
+        await finishGeneration(db, reviewId, generationId, console, "[tabular/generate]");
+        return statusFailure(error.status, { code: error.code, detail: error.message });
+    }
     if (!run) {
         // The lease was free but the previous run for this review has not let
         // go of its frame buffer yet (it releases the lease just before it

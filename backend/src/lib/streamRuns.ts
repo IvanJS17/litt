@@ -46,12 +46,58 @@ export const FINISHED_RUN_RETENTION_MS = 60_000;
  */
 export const MAX_RUN_LIFETIME_MS = 4 * 60 * 60_000;
 export const IDLE_RUN_TIMEOUT_MS = 5 * 60_000;
+/**
+ * Most bytes one run may hold for replay, and the most one model call may
+ * produce (see `streamAiSdk`). A run is held in the memory of the process
+ * every user shares; past this it is stopped with an error.
+ *
+ * Sized against the largest legitimate shapes: an answer streamed as many
+ * one-token frames counts `FRAME_OVERHEAD_BYTES` for each of them, and an
+ * answer with many citations holds one snapshot, because each snapshot
+ * replaces the one before it. 32 MiB leaves a margin over both.
+ */
+export const MAX_RUN_BUFFERED_BYTES = 32 * 1024 * 1024;
+/**
+ * What one buffered frame costs beyond its text: the frame object, the string
+ * header and the array slot, rounded up so that the byte count follows the
+ * memory held and not only the text.
+ */
+export const FRAME_OVERHEAD_BYTES = 128;
+/** Unfinished runs one person may hold at once, across every surface. */
+export const MAX_LIVE_RUNS_PER_USER = 8;
+
+/**
+ * Refusal to start a run: the person already has the most unfinished ones.
+ * The code is the throttling code the clients already turn into a "try again
+ * shortly" notice.
+ */
+export class StreamRunLimitError extends Error {
+    readonly status = 429;
+    readonly code = "rate_limited";
+    constructor() {
+        super("Too many responses are being generated for your account at once. Wait for one to finish and try again.");
+        this.name = "StreamRunLimitError";
+    }
+}
+const liveRunsByUser = new Map<string, number>();
+let runByteLimitForTests: number | null = null;
+/** The ceiling in force: the constant, or the small one a test injected. */
+export function runByteLimit(): number {
+    return runByteLimitForTests ?? MAX_RUN_BUFFERED_BYTES;
+}
+/** Test hook: use a small ceiling (null restores the real one). */
+export function setRunByteLimitForTests(limit: number | null) {
+    runByteLimitForTests = limit;
+}
 
 /** Why a run was stopped. Only "user" is an explicit cancel. */
-export type StreamStopReason = "user" | "idle" | "max_lifetime";
+export type StreamStopReason = "user" | "idle" | "max_lifetime" | "output_limit";
 
 /** The terminal SSE records for a run that hit one of its deadlines. */
 export function deadlineMessage(reason: Exclude<StreamStopReason, "user">): string {
+    if (reason === "output_limit") {
+        return "The response grew larger than the maximum allowed size and was stopped.";
+    }
     return reason === "idle"
         ? "The request timed out because it stopped responding. Please try again."
         : "The request ran longer than the maximum allowed time and was stopped.";
@@ -112,6 +158,13 @@ export type StreamRunWriteOptions = {
      * worth announcing as it happens and misleading to replay afterwards.
      */
     replay?: ReplayPredicate;
+    /**
+     * Frames written under one slot supersede each other: the new frame
+     * replaces the previous one in the buffer (and its bytes are released), so
+     * a reader that attaches late gets only the latest. Live readers still
+     * receive every one as it is written.
+     */
+    slot?: string;
 };
 
 export type StreamRun<Meta = Record<string, unknown>> = {
@@ -207,11 +260,19 @@ export function startStreamRun<Meta = Record<string, unknown>>(args: {
 }): StreamRun<Meta> | null {
     const current = runsByKey.get(args.key);
     if (current && !current.finished) return null;
+    if ((liveRunsByUser.get(args.userId) ?? 0) >= MAX_LIVE_RUNS_PER_USER) {
+        throw new StreamRunLimitError();
+    }
+    liveRunsByUser.set(args.userId, (liveRunsByUser.get(args.userId) ?? 0) + 1);
     const controller = new AbortController();
     let seq = 0;
     let finished = false;
     let stopped = false;
     let stopReason: StreamStopReason | null = null;
+    let bufferedBytes = 0;
+    let capped = false;
+    let terminating = false;
+    const slotFrames = new Map<string, Frame>();
     const deadlines = streamRunDeadlines();
     const armIdle = () => {
         if (run.idle) clearTimeout(run.idle);
@@ -248,7 +309,7 @@ export function startStreamRun<Meta = Record<string, unknown>>(args: {
             if (!finished && !stopped) armIdle();
         },
         write(line: string, opts?: StreamRunWriteOptions) {
-            if (finished) return false;
+            if (finished || capped) return false;
             // Transport keep-alives do not prove useful work is progressing.
             if (!line.startsWith(":")) run.touch();
             // SSE COMMENT lines (`: tool-wait`) are not records: they carry
@@ -268,9 +329,29 @@ export function startStreamRun<Meta = Record<string, unknown>>(args: {
                 }
                 return true;
             }
+            const size = Buffer.byteLength(line) + FRAME_OVERHEAD_BYTES;
+            const superseded = opts?.slot ? slotFrames.get(opts.slot) : undefined;
+            if (superseded) {
+                run.frames.splice(run.frames.lastIndexOf(superseded), 1);
+                bufferedBytes -= Buffer.byteLength(superseded.line) + FRAME_OVERHEAD_BYTES;
+            }
+            bufferedBytes += size;
+            if (!terminating && bufferedBytes > runByteLimit()) {
+                // Release what was buffered, tell readers why, and abort the
+                // work; whatever the route still writes while it unwinds is dropped.
+                run.frames.length = 0;
+                slotFrames.clear();
+                bufferedBytes = 0;
+                terminating = true;
+                for (const record of deadlineFrames("output_limit")) run.write(record);
+                capped = true;
+                run.stop("output_limit");
+                return false;
+            }
             seq += 1;
             const frame = { seq, line, replay: opts?.replay ?? alwaysReplay };
             run.frames.push(frame);
+            if (opts?.slot) slotFrames.set(opts.slot, frame);
             const chunk = frameChunk(frame);
             for (const subscriber of [...run.subscribers]) {
                 try {
@@ -284,6 +365,9 @@ export function startStreamRun<Meta = Record<string, unknown>>(args: {
         finish() {
             if (finished) return;
             finished = true;
+            const live = (liveRunsByUser.get(args.userId) ?? 1) - 1;
+            if (live > 0) liveRunsByUser.set(args.userId, live);
+            else liveRunsByUser.delete(args.userId);
             for (const subscriber of [...run.subscribers]) {
                 try {
                     subscriber.end();
@@ -415,6 +499,8 @@ export function attachStreamRunSse(
 
 /** Test hook: forget every run. */
 export function resetStreamRunsForTests() {
+    runByteLimitForTests = null;
+    liveRunsByUser.clear();
     for (const run of [...runs.values()]) remove(run);
     runsByKey.clear();
 }

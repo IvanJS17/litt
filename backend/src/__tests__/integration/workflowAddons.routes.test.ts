@@ -337,4 +337,28 @@ describe("workflow add-on catalog routes", () => {
     expect(response.headers["content-disposition"]).toContain("Deck.pdf");
     expect(Buffer.from(response.body).toString()).toBe("converted-pdf");
   });
+
+  it("answers 503 with Retry-After, and reports nothing, when the converter is busy", async () => {
+    const { ExtractionBusyError } = await import("../../lib/extraction/limits.js");
+    from.mockImplementation((table: string) =>
+      table === "mike_workflows"
+        ? singleQueryReturning({ id: "c0a7a1e1-0000-4000-8000-000000000001", type: "assistant" })
+        : singleQueryReturning({
+            id: "reference-1",
+            filename: "Deck.pptx",
+            file_type: "pptx",
+            storage_path: "mike-workflows/c0a7a1e1-0000-4000-8000-000000000001/deck.pptx",
+          }),
+    );
+    docxToPdf.mockRejectedValueOnce(new ExtractionBusyError());
+    reportError.mockClear();
+
+    const response = await request(app).get(
+      "/workflow-addons/c0a7a1e1-0000-4000-8000-000000000001/assets/reference-1/display",
+    );
+
+    expect(response.status).toBe(503);
+    expect(Number(response.headers["retry-after"])).toBeGreaterThan(0);
+    expect(reportError).not.toHaveBeenCalled();
+  });
 });

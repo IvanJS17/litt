@@ -124,11 +124,6 @@ const RATCHET: { file: string; source: string; count: number; reason: string }[]
     { file: "lib/inviteEmail.ts", source: "already.*registered", count: 1, reason: "pending: file owned by another open change (the invited-address sign-up branch)" },
     { file: "lib/llm/cloudProviders.ts", source: "\\/+$", count: 3, reason: "input bounded: a base URL or endpoint is refused over 300 characters (the literal in normalizeCustomBaseUrl and normalizeAzureEndpoint); azureClientTarget reads an endpoint already normalized" },
     { file: "lib/memory/archive.ts", source: "[. ]+$", count: 1, reason: "second part of this delivery: a trim of project names" },
-    { file: "lib/llm/toolCallParsing.ts", source: "<(?:tool_call|toolcall)\\b[^>]*>|<\\|tool_call(?:_start)?\\|>", count: 1, reason: "second part of this delivery: the tolerant tool-call parsers" },
-    { file: "lib/llm/toolCallParsing.ts", source: "<[｜|]DSML[｜|]invoke\\s+name=[\"']?([^>\"'\\s]+)[\"']?\\s*>([\\s\\S]*?)<\\/[｜|]DSML[｜|]invoke\\s*>", count: 1, reason: "second part of this delivery: the tolerant tool-call parsers" },
-    { file: "lib/llm/toolCallParsing.ts", source: "<[｜|]DSML[｜|]parameter\\s+name=[\"']?([^>\"'\\s]+)[\"']?(?:\\s+[^>]*)?>([\\s\\S]*?)<\\/[｜|]DSML[｜|]parameter\\s*>", count: 1, reason: "second part of this delivery: the tolerant tool-call parsers" },
-    { file: "lib/llm/toolCallParsing.ts", source: "<function(?:=|\\s+name=[\"'])([^>\"'\\s]+)[\"']?\\s*>", count: 1, reason: "second part of this delivery: the tolerant tool-call parsers" },
-    { file: "lib/llm/toolCallParsing.ts", source: "<([a-zA-Z_][\\w.-]*)>\\s*([\\s\\S]*?)\\s*<\\/\\1>", count: 1, reason: "second part of this delivery: the tolerant tool-call parsers" },
     { file: "lib/docxInventory.ts", source: "<w:t(?:\\s[^>]*)?>[^<]*\\S[^<]*<\\/w:t>", count: 1, reason: "second part of this delivery: the Word XML scans" },
     { file: "modules/playbooks/playbooks.word.ts", source: "<w:t\\b[^>]*?\\/>|<w:t\\b[^>]*>([\\s\\S]*?)<\\/w:t>|<w:(tab|br|cr)\\b[^>]*>", count: 1, reason: "second part of this delivery: Word XML" },
     { file: "modules/playbooks/playbooks.word.ts", source: "<w:style\\b([^>]*)>([\\s\\S]*?)<\\/w:style>", count: 1, reason: "second part of this delivery: Word XML" },
@@ -146,7 +141,7 @@ const RATCHET: { file: string; source: string; count: number; reason: string }[]
     { file: "lib/workflowCatalogSource.ts", source: "^---\\n([\\s\\S]*?)\\n---(?:\\n|$)([\\s\\S]*)$", count: 1, reason: "input bounded by MAX_FILE_BYTES (5 MiB), a file of a pinned catalog archive" },
     { file: "modules/radar/radar.rules.ts", source: "^https:\\/\\/[^\\s/]+\\.[^\\s/]+", count: 1, reason: "input bounded: a citation url of the bundled rule catalog, not user text" },
 ];
-const RATCHET_MAX_ENTRIES = 29;
+const RATCHET_MAX_ENTRIES = 24;
 // Patterns built at run time (`new RegExp(variable)`) are not read; their number is fixed here so a new one is a decision.
 const DYNAMIC_PATTERNS = 18;
 

@@ -16,6 +16,7 @@ import {
   withKeySource,
 } from "./providerErrors";
 import type { Provider } from "./types";
+import { patternsApplied, UNBOUNDED_WILDCARD } from "./__tests__/regexUse";
 
 const gemini = { label: "Gemini", modelId: "gemini-2.5-pro" };
 
@@ -408,5 +409,40 @@ describe("source-owned provider refusals", () => {
     const setup = new ProviderConfigurationError("Add your key in Settings");
     expect(providerFailureLevel(new AppError("chat.stream_failed", "failed", { cause: setup }))).toBe("warning");
     expect(providerFailureLevel(new UserFacingError("some other failure"))).toBe("error");
+  });
+});
+
+describe("classifying a provider's answer takes time in proportion to its size", () => {
+  it("looks for the rest of a quota verdict only after the first mention, with no wildcard between the parts", () => {
+    const body = "quota ".repeat(20_000);
+    const sources = patternsApplied(() => {
+      expect(isDeterministicProviderQuota(apiCallError(429, body))).toBe(false);
+      expect(providerFailureKind(apiCallError(429, body))).toBe("chat.provider_rate_limited");
+    });
+    expect(sources.length).toBeGreaterThan(0);
+    expect(sources.filter((source) => UNBOUNDED_WILDCARD.test(source))).toEqual([]);
+  });
+
+  it("keeps the meaning: the verdict is a zero limit that comes after a quota word", () => {
+    const quota = (body: string) => isDeterministicProviderQuota(apiCallError(429, body));
+    expect(quota("Quota exceeded, limit: 0, model: example")).toBe(true);
+    expect(quota("quota quota quota ... \n limit:  0")).toBe(true);
+    expect(quota("QUOTA exceeded LIMIT: 0")).toBe(true);
+    expect(quota("limit: 0 then quota")).toBe(false);
+    expect(quota("quotas limit: 0")).toBe(false);
+    expect(quota("quota limit: 0.5")).toBe(false);
+    expect(quota("quota limit: 05")).toBe(false);
+    expect(quota("quota sublimit: 0")).toBe(false);
+    expect(quota("quota, then limit: 0 and later limit: 3")).toBe(true);
+    // The zero limit may be anywhere after the first mention, however far.
+    expect(quota("quota " + "x ".repeat(50_000) + "limit: 0")).toBe(true);
+    expect(quota("quota quota " + "x ".repeat(50_000) + "limit: 0.5")).toBe(false);
+  });
+
+  it("classifies a large answer of repeated first words without the ending within a generous bound", () => {
+    const body = "quota ".repeat(60_000);
+    const started = Date.now();
+    expect(isDeterministicProviderQuota(apiCallError(429, body))).toBe(false);
+    expect(Date.now() - started).toBeLessThan(2_000);
   });
 });

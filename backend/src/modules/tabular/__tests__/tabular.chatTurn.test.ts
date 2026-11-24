@@ -24,6 +24,7 @@ vi.mock("../../../lib/memory/schedule", () => ({
 }));
 
 import type { Db } from "../../../lib/supabase";
+import { resetStreamRunsForTests, MAX_LIVE_RUNS_PER_USER, startStreamRun } from "../../../lib/streamRuns";
 import { parseTabularChatRequest, runTabularChatTurn, startTabularChatTurn } from "../tabular.chatTurn";
 
 const db = {} as Db;
@@ -56,6 +57,7 @@ const sink = () => ({
 });
 
 beforeEach(() => {
+    resetStreamRunsForTests();
     mocks.runLLMStream.mockReset();
     mocks.runLLMStream.mockResolvedValue({ fullText: "ok", events: [{ type: "content", text: "ok" }] });
     mocks.prepareTabularChat.mockReset();
@@ -83,6 +85,18 @@ beforeEach(() => {
             trainingPlan: null,
             trainingEgress: async () => {},
         },
+    });
+});
+
+describe("startTabularChatTurn", () => {
+    it("refuses with 429 when the person already has the most live runs", async () => {
+        const prepared = await mocks.prepareTabularChat.getMockImplementation()!();
+        mocks.prepareTabularChat.mockResolvedValue({ ...prepared, data: { ...prepared.data, chatId: "chat-1" } });
+        for (let n = 0; n < MAX_LIVE_RUNS_PER_USER; n += 1) {
+            startStreamRun({ id: `held-${n}`, key: `held:${n}`, userId: "u1", forcedStopFrames: [] });
+        }
+        const refused = await startTabularChatTurn(db, { userId: "u1", userEmail: "u1@test.local", reviewId: "r1", parsed });
+        expect(refused).toMatchObject({ ok: false, kind: "status", status: 429, body: { code: "rate_limited" } });
     });
 });
 

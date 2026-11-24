@@ -3,6 +3,8 @@ import { enqueueDbJob } from "../../lib/dbq/enqueue";
 import { type ConversionJobData } from "../../lib/queue/conversionQueue";
 import { downloadFile, uploadFile } from "../../lib/storage";
 import { docxToPdf, convertedPdfKey } from "../../lib/convert";
+import { DbJobDeferredError } from "../../lib/dbq/types";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { markStage, reportError, setOperation } from "../../lib/observability/report";
 import { createServerSupabase, type Db } from "../../lib/supabase";
 
@@ -45,6 +47,9 @@ export async function runConversionJob(
         markStage("docx-to-pdf");
         pdfBuf = await docxToPdf(Buffer.from(original));
     } catch (err) {
+        // A busy converter is not a failed conversion: try again later.
+        if (err instanceof ExtractionBusyError)
+            throw new DbJobDeferredError(new Date(Date.now() + 30_000).toISOString(), "document_conversion_busy");
         // Conversion failure is non-fatal (mirrors the sync path): the version
         // stays usable without a PDF rendition. Retrying LibreOffice on the
         // same bytes just fails the same way.

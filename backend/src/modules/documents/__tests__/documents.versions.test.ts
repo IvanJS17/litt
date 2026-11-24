@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   uploadFile: vi.fn(),
   deleteSource: vi.fn(),
   enqueueConversion: vi.fn(),
+  docxToPdf: vi.fn(),
 }));
 // Only the verdict is stubbed; canManageDocument stays real so the policy
 // under test is the production one.
@@ -29,10 +30,15 @@ vi.mock("../../../lib/storage", async (importOriginal) => ({
   uploadFile: mocks.uploadFile,
   versionStorageKey: () => "destination/key",
 }));
+vi.mock("../../../lib/convert", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/convert")>()),
+  docxToPdf: mocks.docxToPdf,
+}));
 vi.mock("../../../lib/queue/conversionQueue", () => ({
   enqueueConversion: mocks.enqueueConversion,
 }));
 import { AppError } from "../../../lib/appError";
+import { ExtractionBusyError } from "../../../lib/extraction/limits";
 import { diagnosticErrorTags } from "../../../lib/observability/diagnostics";
 import { StorageOperationError } from "../../../lib/storage";
 import {
@@ -264,6 +270,21 @@ describe("version copy caller policy", () => {
     });
     expect(fake.rpc.mock.calls[0][1].p_version.pdf_storage_path).toBeNull();
     expect(mocks.uploadFile).toHaveBeenCalledOnce();
+  });
+  it("queues the conversion, and reports nothing, when the converter is busy", async () => {
+    vi.stubEnv("ASYNC_DOCUMENT_CONVERSION", "false");
+    mocks.docxToPdf.mockRejectedValue(new ExtractionBusyError());
+    mocks.active.mockResolvedValue({
+      storage_path: "source/key",
+      filename: "Clause.docx",
+      file_type: "docx",
+    });
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: true });
+    expect(fake.rpc.mock.calls[0][1].p_version.pdf_storage_path).toBeNull();
+    expect(mocks.enqueueConversion).toHaveBeenCalledWith(
+      expect.objectContaining({ documentId: "target", versionId: row.id }),
+    );
   });
   it("queues conversion when the source has no rendition", async () => {
     mocks.active.mockResolvedValue({

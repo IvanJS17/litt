@@ -4,6 +4,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { AppError } from "./appError";
+import { admission } from "./extraction/admission";
+import { ExtractionBusyError } from "./extraction/limits";
 import { uploadConversionTimeoutMs } from "./runtimeConfig";
 
 let _convert:
@@ -266,11 +268,22 @@ export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
   return patched;
 }
 
+// Each conversion is a LibreOffice process inside the container every user
+// shares: a few run at once, a few more wait their turn for a fixed time, and
+// the rest are refused with ExtractionBusyError (retry later, not a failed
+// conversion). Like the extraction slots, the counters belong to one thread:
+// the API, the jobs and the conversion worker each hold their own.
+const MAX_CONCURRENT_CONVERSIONS = 2;
+const MAX_QUEUED_CONVERSIONS = 8;
+const CONVERSION_WAIT_MS = 30_000;
+const conversionAdmission = admission(MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CONVERSIONS);
+
 /**
  * Convert a DOCX/DOC buffer to PDF using LibreOffice.
- * Throws if LibreOffice is not installed or conversion fails.
+ * Throws if LibreOffice is not installed or conversion fails. Throws
+ * ExtractionBusyError when no place frees up in time, or `signal` aborts first.
  */
-export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
+export async function docxToPdf(buffer: Buffer, options: { signal?: AbortSignal } = {}): Promise<Buffer> {
   if (resolveSofficeBinaryPaths().length === 0) {
     throw converterUnavailable();
   }
@@ -278,9 +291,11 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
   const normalized = await normalizeDocxZipPaths(buffer);
   const startedAt = Date.now();
   try {
-    return await convert(normalized, ".pdf", undefined);
+    return await conversionAdmission({ waitMs: CONVERSION_WAIT_MS, signal: options.signal }, () =>
+      convert(normalized, ".pdf", undefined),
+    );
   } catch (error) {
-    if (error instanceof AppError) throw error;
+    if (error instanceof AppError || error instanceof ExtractionBusyError) throw error;
     // The library spawns soffice itself: a spawn failure is the converter
     // missing or unexecutable, the same condition officeFileToPdf names.
     const code = (error as { code?: unknown } | null)?.code;
@@ -333,7 +348,7 @@ export async function officeFileToPdf(
   const timeoutMs = uploadConversionTimeoutMs();
   let stderr = "";
   try {
-    await new Promise<void>((resolve, reject) => {
+    await conversionAdmission({ waitMs: CONVERSION_WAIT_MS }, () => new Promise<void>((resolve, reject) => {
       const child = spawn(
         binary,
         [
@@ -392,7 +407,7 @@ export async function officeFileToPdf(
           );
         }
       });
-    });
+    }));
   } finally {
     // A killed child leaves lock files behind in its user profile.
     await fs.promises

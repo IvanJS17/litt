@@ -19,6 +19,7 @@ import {
     versionStorageKey,
 } from "../../lib/storage";
 import { convertedPdfKey, docxToPdf } from "../../lib/convert";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { enqueueConversion } from "../../lib/queue/conversionQueue";
 import { contentSha256, loadActiveVersion } from "../../lib/documentVersions";
 import { creatorScopedAllowed } from "../../lib/access";
@@ -304,19 +305,25 @@ export async function createVersionFromDocument(
                 );
                 pdfStoragePath = pdfKey;
             } catch (err) {
-                // Non-fatal: the version keeps its source without a rendition.
-                // docxToPdf throws a conversion.* AppError, so the report
-                // names the kind; the same object is logged so the console
-                // bridge files no second event.
-                reportError(err, {
-                    level: "warning",
-                    tags: { stage: "docx-to-pdf" },
-                    extra: { document_id: documentId },
-                });
-                console.error(
-                    "[versions/copy] Office→PDF conversion failed",
-                    { error: err },
-                );
+                if (err instanceof ExtractionBusyError) {
+                    // Retry later, not "no rendition": the conversion queue
+                    // fills it in.
+                    deferConversion = true;
+                } else {
+                    // Non-fatal: the version keeps its source without a rendition.
+                    // docxToPdf throws a conversion.* AppError, so the report
+                    // names the kind; the same object is logged so the console
+                    // bridge files no second event.
+                    reportError(err, {
+                        level: "warning",
+                        tags: { stage: "docx-to-pdf" },
+                        extra: { document_id: documentId },
+                    });
+                    console.error(
+                        "[versions/copy] Office→PDF conversion failed",
+                        { error: err },
+                    );
+                }
             }
         }
     }

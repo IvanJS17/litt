@@ -29,7 +29,7 @@ import {
     startAssistantTurnRun,
     type AssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
-import { stopOutcomeFrame } from "../../lib/streamRuns";
+import { StreamRunLimitError, stopOutcomeFrame } from "../../lib/streamRuns";
 import { createCitationSupportTurn } from "../../lib/citationSupport";
 import { enqueueChatTurnAudit, stoppedTurnAuditStatus } from "../../lib/audit";
 import { isReported, reportError } from "../../lib/observability/report";
@@ -260,13 +260,23 @@ export async function startProjectChatTurn(
         // The generation is a server-owned run: it survives the caller's
         // socket and only the Stop endpoint (POST /chat/:chatId/turn/:turnId/
         // stop) aborts it.
-        const run = startAssistantTurnRun({
-            id: assistantMessageId ?? randomUUID(),
-            chatId,
-            userId,
-            assistantMessageId: turnMessageId,
-        });
+        let run: ReturnType<typeof startAssistantTurnRun> = null;
+        let refusal: StreamRunLimitError | null = null;
+        try {
+            run = startAssistantTurnRun({
+                id: assistantMessageId ?? randomUUID(),
+                chatId,
+                userId,
+                assistantMessageId: turnMessageId,
+            });
+        } catch (error) {
+            if (!(error instanceof StreamRunLimitError)) throw error;
+            refusal = error;
+        }
         if (!run) {
+            if (refusal) {
+                return { ok: false, status: refusal.status, code: refusal.code, detail: refusal.message };
+            }
             return {
                 ok: false,
                 status: 409,

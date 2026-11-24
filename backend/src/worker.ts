@@ -19,6 +19,7 @@ import "dotenv/config";
 
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { extractionLauncherWarnings } from "./lib/runtimeConfig";
+import { removeStaleExportDirectories } from "./application/exports/exportTempFiles";
 import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
 
 // A worker against an unmigrated database cannot run the cleanup kind at all,
@@ -31,6 +32,10 @@ async function main(): Promise<void> {
     console.warn(`[extraction] ${warning}`);
   }
   await enforceDocumentLifecycleMigration();
+  // Archives a process that died mid-export left in the temporary folder.
+  await removeStaleExportDirectories().catch((error) =>
+    console.warn("[exports] could not clean up abandoned archive folders", error),
+  );
   startAllWorkers();
   console.log("Mike worker process running");
 }

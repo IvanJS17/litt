@@ -62,6 +62,73 @@ number.
 
 Every streaming surface uses it.
 
+The backend is one process shared by every user, so memory held for one
+request is bounded where it is held:
+
+- What the model library reports of one call (answer text, reasoning and
+  streamed tool arguments, whether or not it becomes frames) counts against
+  32 MiB (`MAX_RUN_BUFFERED_BYTES`, counted in `streamAiSdk`); past it the
+  provider request is aborted and the turn ends with an error. The count is
+  per call, so a turn with sub-agents may hold several calls' worth. Bytes the
+  library buffers without reporting are counted only for an endpoint the
+  person configured (see below). A run also keeps at most 32 MiB of buffered
+  frames, each counted with 128 bytes of overhead (`FRAME_OVERHEAD_BYTES`). A
+  frame written with a `slot` replaces the previous frame of that slot, so
+  only the newest citation snapshot is held and replayed. Past the limit the
+  run is aborted, its buffer is released and readers get one error and
+  `[DONE]`. A person holds at most 8 unfinished runs (`MAX_LIVE_RUNS_PER_USER`);
+  the ninth is refused with HTTP 429 and the `rate_limited` code.
+- Responses from user-chosen servers are read under a decoded-size limit,
+  however small they were on the wire: 8 MiB for MCP and OAuth servers
+  (`MAX_MCP_RESPONSE_BYTES`, passed to `guardedFetch` as `maxResponseBytes`)
+  and 1 MiB for an OpenAI-compatible endpoint's model list. A connector answer
+  over the limit fails the call with a message that says so. OAuth requests
+  also carry a deadline. For the OpenAI-compatible endpoint a person
+  configures, the limit is chosen from what the request asked for, never from
+  what the server says its answer is. An answer to a non-streaming call, and
+  an error answer to any call (streamed or not), is read up to 8 MiB, and a
+  non-streaming call must finish within two minutes. Only a successful answer
+  to a streamed call is read up to three times the 32 MiB run ceiling in
+  total, a margin over the framing and escaping around the text, with no
+  single event line over 8 MiB. Past a limit on a successful answer the
+  provider request is aborted and the turn ends with the same output-limit
+  error as above. An error answer over 8 MiB is a failed provider call. For a
+  rate limit (429) or a server failure (5xx) the model library retries it, and
+  each try is cut at the same 8 MiB; any other error status is tried once. The
+  turn ends as a provider failure, not with the output-limit error. The
+  other providers talk to the vendors' own hosts (or, for Azure, a host on
+  Azure's own domains) or to a deployment-configured one, and are not read
+  under these limits.
+- A model that writes its tool calls as text (an operator-declared local model)
+  has its whole reply read for them by `lib/llm/toolCallParsing.ts`, which scans
+  a reply of at most `MODEL_TEXT_MAX_CHARS` (a longer one is plain text) in time
+  proportional to its size, and every name or attribute it reads has a length
+  bound. Searches that no regular-expression check can see (loops of `indexOf`)
+  are guarded by `lib/__tests__/toolCallParsing.growth.test.ts`: every marker the
+  reader recognises must be added to its table.
+- The queued documents ZIP export reads each stored object as a stream with
+  the store's per-step time limit, writes the archive to a temporary file and
+  uploads it from there. It keeps the limits of the direct download: 200
+  documents and 2 GB. An error or stall while reading any object, or an object
+  larger than its limit, ends the job through its normal failure path, and the
+  file is removed when the job ends, whether it succeeded or failed. A
+  directory left by a process that died mid-export (its name starts with
+  `mike-export-`) is removed the next time a process that runs background work
+  starts, once nothing has been written to it for ten minutes.
+- `GET /single-documents/:id/display` streams stored objects with a
+  `Content-Length` and the store's `ETag` (a matching `If-None-Match` is
+  answered 304 without reading the object, `HEAD` reads nothing, and an object
+  whose size changed while it was sent breaks the download). A Word or
+  presentation file with no stored PDF is converted by LibreOffice. Every
+  conversion (`docxToPdf` and the upload worker's `officeFileToPdf`) goes
+  through one admission point: two run at once, eight wait up to 30 seconds,
+  and the rest are refused with `ExtractionBusyError`, which callers treat as
+  "retry later": the display routes answer 503 with `Retry-After`, a rendition
+  that cannot be stored now is queued as a conversion job, and the upload
+  worker requeues the file. The counters belong to one thread, as the
+  extraction slots do: the API, the jobs and the uploads threads each have
+  their own.
+
 #### Chat turns
 
 The chat and project-chat streams (`POST /chat`, `POST /projects/:id/chat`)

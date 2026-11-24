@@ -19,7 +19,7 @@
 
 import { randomUUID } from "node:crypto";
 import { finishTrainingTurn, readTrainingBody, trainingEnginePlan } from "../../lib/trainingTurn";
-import { stopOutcomeFrame } from "../../lib/streamRuns";
+import { StreamRunLimitError, stopOutcomeFrame } from "../../lib/streamRuns";
 import { startAssistantTurnRun, type AssistantTurnRun } from "../../lib/assistantTurnRuns";
 import { parseCredentialRef } from "../user/user.service";
 import { isReported, reportError } from "../../lib/observability/report";
@@ -52,7 +52,7 @@ import {
     type PreparedTabularChat,
 } from "./tabular.chats";
 import { checkTabularChatCitations } from "./tabular.citationSupport";
-import type { TabularFailure } from "./tabular.shared";
+import { statusFailure, type TabularFailure } from "./tabular.shared";
 
 /** A validated POST /tabular-review/:reviewId/chat body. */
 export type ParsedTabularChatRequest = {
@@ -209,15 +209,22 @@ export async function startTabularChatTurn(
     // The answer is a server-owned run from here on: it survives the caller's
     // socket (a refresh, a closed panel, a second tab taking over) and only
     // POST .../turn/:turnId/stop aborts it. A chat may have one at a time.
-    const run = chatId
-        ? startAssistantTurnRun({
-              id: assistantMessageId,
-              chatId,
-              userId,
-              assistantMessageId,
-              surface: "tabular",
-          })
-        : null;
+    let run: ReturnType<typeof startAssistantTurnRun> = null;
+    try {
+        run = chatId
+            ? startAssistantTurnRun({
+                  id: assistantMessageId,
+                  chatId,
+                  userId,
+                  assistantMessageId,
+                  surface: "tabular",
+              })
+            : null;
+    } catch (error) {
+        if (!(error instanceof StreamRunLimitError)) throw error;
+        if (chatId) await releaseTabularChatMemory(db, chatId, memoryTurn);
+        return statusFailure(error.status, { code: error.code, detail: error.message });
+    }
     if (chatId && !run) {
         // Refused before the first SSE byte, so the caller gets a status code
         // rather than an error frame — but the user turn is already stored,

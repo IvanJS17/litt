@@ -73,7 +73,11 @@ function quotaRefusal(error: ApiCallErrorLike): "credits" | "plan" | null {
     const parsed = JSON.parse(body) as { error?: { code?: unknown; type?: unknown } };
     if (parsed?.error?.code === "insufficient_quota" || parsed?.error?.type === "insufficient_quota") return "credits";
   } catch { /* Plain-text provider responses can still carry the known quota verdict below. */ }
-  return /\bquota\b[\s\S]*\blimit:\s*0(?![\d.])/i.test(body) ? "plan" : null;
+  // "quota", then a zero limit somewhere after it. The first mention leaves the
+  // longest text after it, so look for the limit only there: one pass for each
+  // part, never the limit tried again from every mention.
+  const quota = /\bquota\b/i.exec(body);
+  return quota && /\blimit:\s*0(?![\d.])/i.test(body.slice(quota.index)) ? "plan" : null;
 }
 
 /** Used before the SDK retries and by the job's provider classification. */

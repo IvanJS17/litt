@@ -4,7 +4,7 @@ const { jsonrepair } = require("jsonrepair") as {
   jsonrepair: (text: string) => string;
 };
 
-import { assertBoundedText, BoundedTextError, stripCodeFence } from "../modelJsonFence";
+import { assertBoundedText, BoundedTextError, MODEL_TEXT_MAX_CHARS, stripCodeFence } from "../modelJsonFence";
 import type { NormalizedToolCall } from "./types";
 
 /**
@@ -14,8 +14,24 @@ import type { NormalizedToolCall } from "./types";
  */
 export const TOOL_ARGUMENT_REPAIR_MAX_CHARS = 200_000;
 
+/**
+ * The most work the repair of one text may be asked to do, in characters times
+ * quote characters. The library re-reads the rest of a text for each quote
+ * that does not pair (a string with unescaped quotes inside it), so its time
+ * grows with that product; a cut-off string of any length has few quotes and
+ * stays well inside it.
+ */
+const TOOL_ARGUMENT_REPAIR_MAX_WORK = 250_000_000;
+
 function repairToolJson(text: string): string {
-  return jsonrepair(assertBoundedText(text, TOOL_ARGUMENT_REPAIR_MAX_CHARS));
+  assertBoundedText(text, TOOL_ARGUMENT_REPAIR_MAX_CHARS);
+  let quotes = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 34 || code === 39) quotes++;
+  }
+  const limit = Math.floor(TOOL_ARGUMENT_REPAIR_MAX_WORK / (quotes + 1));
+  return jsonrepair(assertBoundedText(text, limit));
 }
 
 /**
@@ -117,6 +133,8 @@ const TEXT_TOOL_MARKERS = [
   "<|dsml|invoke",
 ];
 
+const LONGEST_TEXT_TOOL_MARKER = Math.max(...TEXT_TOOL_MARKERS.map((marker) => marker.length));
+
 /** Suppress textual tool markup even when its opening marker spans chunks. */
 export class TextToolMarkupFilter {
   private buffer = "";
@@ -140,10 +158,13 @@ export class TextToolMarkupFilter {
       return visible;
     }
 
+    // The held-back tail is a marker's beginning: it starts at one of the last
+    // "<" no more than a marker's length from the end, so earlier ones (their
+    // tails only get longer) are not looked at.
     for (
       let index = lower.lastIndexOf("<");
-      index >= 0;
-      index = lower.lastIndexOf("<", index - 1)
+      index >= 0 && lower.length - index <= LONGEST_TEXT_TOOL_MARKER;
+      index = index === 0 ? -1 : lower.lastIndexOf("<", index - 1)
     ) {
       const suffix = lower.slice(index);
       if (TEXT_TOOL_MARKERS.some((marker) => marker.startsWith(suffix))) {
@@ -192,21 +213,69 @@ export function deduplicateToolCalls(
   });
 }
 
+/**
+ * Whether the text holds anything that reads as a tool call. A key on a line of
+ * its own (`name:`) counts only when nothing but whitespace comes before it on
+ * that line; the whitespace before a key is looked at once per key, never as a
+ * run that starts again at every line break.
+ */
+function hasToolMarkup(text: string): boolean {
+  if (/<(?:tool_call|toolcall)\b|<\|tool_call(?:_start)?\|>|<function(?:=|\s+name=)/i.test(text)) return true;
+  const key = /(?:tool|function|name)\s*[:=]/gi;
+  for (let match = key.exec(text); match; match = key.exec(text)) {
+    let before = match.index - 1;
+    while (before >= 0 && /\s/.test(text[before])) {
+      if (text[before] === "\n") return true;
+      before--;
+    }
+    if (before < 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Each block that opens with `open` and ends at the first `close` after it
+ * (both global patterns, used from where the last block ended);
+ * an opening with no closing after it, and so every later one, is not a block.
+ * The closing is searched once from the end of each block, so the work
+ * follows the text, not the number of openings.
+ */
+function* blocksBetween(
+  text: string,
+  open: RegExp,
+  close: RegExp,
+): Generator<{ open: RegExpExecArray; inner: string }> {
+  const opening = open;
+  const closing = close;
+  for (let from = 0; from <= text.length; ) {
+    opening.lastIndex = from;
+    const start = opening.exec(text);
+    if (!start) return;
+    const innerStart = start.index + start[0].length;
+    closing.lastIndex = innerStart;
+    const end = closing.exec(text);
+    if (!end) return;
+    yield { open: start, inner: text.slice(innerStart, end.index) };
+    from = end.index + end[0].length;
+  }
+}
+
+/**
+ * The calls a model wrote as text. A reply longer than `MODEL_TEXT_MAX_CHARS`
+ * (the bound that applies to model text everywhere else; a streamed reply may
+ * be larger than it) is not scanned and is plain text.
+ */
 export function parseTextToolCalls(
   text: string,
   iteration: number,
 ): NormalizedToolCall[] {
+  if (text.length > MODEL_TEXT_MAX_CHARS) return [];
   const dsmlCalls = parseDsmlToolCalls(text, iteration);
   if (dsmlCalls.length) return deduplicateToolCalls(dsmlCalls);
-  if (
-    !/<(?:tool_call|toolcall)\b|<\|tool_call(?:_start)?\|>|<function(?:=|\s+name=)|(?:^|\n)\s*(?:tool|function|name)\s*[:=]/i.test(
-      text,
-    )
-  )
-    return [];
+  if (!hasToolMarkup(text)) return [];
   const bodies: string[] = [];
   const tagPattern =
-    /<(?:tool_call|toolcall)\b[^>]*>|<\|tool_call(?:_start)?\|>/gi;
+    /<(?:tool_call|toolcall)\b[^>]{0,200}>|<\|tool_call(?:_start)?\|>/gi;
   const openTags = [...text.matchAll(tagPattern)];
   for (const [index, openTag] of openTags.entries()) {
     const start = (openTag.index ?? 0) + openTag[0].length;
@@ -295,20 +364,28 @@ export function parseDsmlToolCalls(
   value: string,
   iteration: number,
 ): NormalizedToolCall[] {
+  if (value.length > MODEL_TEXT_MAX_CHARS) return [];
   if (!/<[｜|]DSML[｜|]invoke\b/i.test(value)) return [];
   const calls: NormalizedToolCall[] = [];
-  const invokePattern =
-    /<[｜|]DSML[｜|]invoke\s+name=["']?([^>"'\s]+)["']?\s*>([\s\S]*?)<\/[｜|]DSML[｜|]invoke\s*>/gi;
-  for (const [index, invoke] of [...value.matchAll(invokePattern)].entries()) {
+  // A tool or parameter name is at most 200 characters, and so are the attributes of an opening tag.
+  const invokes = blocksBetween(
+    value,
+    /<[｜|]DSML[｜|]invoke\s+name=["']?([^>"'\s]{1,200})["']?\s*>/gi,
+    /<\/[｜|]DSML[｜|]invoke\s*>/gi,
+  );
+  for (const [index, invoke] of [...invokes].entries()) {
     const input: Record<string, unknown> = {};
-    const parameterPattern =
-      /<[｜|]DSML[｜|]parameter\s+name=["']?([^>"'\s]+)["']?(?:\s+[^>]*)?>([\s\S]*?)<\/[｜|]DSML[｜|]parameter\s*>/gi;
-    for (const parameter of invoke[2].matchAll(parameterPattern)) {
-      input[parameter[1]] = parseToolScalar(parameter[2]);
+    const parameters = blocksBetween(
+      invoke.inner,
+      /<[｜|]DSML[｜|]parameter\s+name=["']?([^>"'\s]{1,200})["']?(?:\s[^>]{0,200})?>/gi,
+      /<\/[｜|]DSML[｜|]parameter\s*>/gi,
+    );
+    for (const parameter of parameters) {
+      input[parameter.open[1]] = parseToolScalar(parameter.inner);
     }
     calls.push({
       id: `call_text_${iteration}_dsml_${index}`,
-      name: invoke[1].trim(),
+      name: invoke.open[1].trim(),
       input,
     });
   }
@@ -412,13 +489,36 @@ function parseXmlStyleToolCall(
   bodyIndex: number,
 ): NormalizedToolCall | null {
   const functionMatch = value.match(
-    /<function(?:=|\s+name=["'])([^>"'\s]+)["']?\s*>/i,
+    /<function(?:=|\s+name=["'])([^>"'\s]{1,200})["']?\s*>/i,
   );
   if (!functionMatch) return null;
   const input: Record<string, unknown> = {};
-  const fieldPattern = /<([a-zA-Z_][\w.-]*)>\s*([\s\S]*?)\s*<\/\1>/g;
-  for (const match of value.matchAll(fieldPattern)) {
-    input[match[1]] = parseToolScalar(match[2]);
+  // `<name>value</name>`: the closing tag must repeat the name, and the value
+  // ends at the first such closing after the opening. Every closing tag is
+  // found once, with its position kept under its name; the openings are
+  // visited from left to right, so each name's cursor only moves forward and
+  // an opening costs no search of its own.
+  const closings = new Map<string, number[]>();
+  const closingTag = /<\/([a-zA-Z_][\w.-]*)>/g;
+  for (let match = closingTag.exec(value); match; match = closingTag.exec(value)) {
+    const positions = closings.get(match[1]);
+    if (positions) positions.push(match.index);
+    else closings.set(match[1], [match.index]);
+  }
+  const cursors = new Map<string, number>();
+  const fieldOpen = /<([a-zA-Z_][\w.-]*)>/g;
+  for (let match = fieldOpen.exec(value); match; match = fieldOpen.exec(value)) {
+    const name = match[1];
+    const positions = closings.get(name);
+    if (!positions) continue;
+    const innerStart = match.index + match[0].length;
+    let cursor = cursors.get(name) ?? 0;
+    while (cursor < positions.length && positions[cursor] < innerStart) cursor++;
+    cursors.set(name, cursor);
+    if (cursor === positions.length) continue;
+    const closeAt = positions[cursor];
+    input[name] = parseToolScalar(value.slice(innerStart, closeAt).trim());
+    fieldOpen.lastIndex = closeAt + name.length + 3;
   }
   return {
     id: `call_text_${iteration}_${bodyIndex}_xml`,
