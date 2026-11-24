@@ -118,6 +118,15 @@ discovers every `training_*` table of the schema and fails when one is neither
 exported under `training.*` nor excluded with a reason, nor deleted with the
 membership.
 
+Withdrawing an invitation (an organization's or the platform's) also removes
+the sign-in account that invitation created, when that account is plainly
+unused: invited by email, never confirmed, never signed in, a member of no firm (the personal
+organization every account owns does not count as one), not an
+administrator address and without another live invitation. Any other account
+is left as it is. If the identity service cannot be asked, nothing is withdrawn
+and the administrator can try again. An invitation that merely expires is not
+swept: only a withdrawal retires the account.
+
 ## Joining during signup
 
 After signing up and verifying their email, a user can view and accept pending
@@ -182,7 +191,10 @@ creation events.
 Audit access does not grant content access. Titles, details and links for
 inaccessible private work are redacted before search, sorting and CSV export.
 Account erasure removes personal history and anonymizes the actor on retained
-organization events.
+organization events. It also withdraws every invitation addressed to the
+erased address: pending organization invitations are cancelled and platform
+invitations are deleted, so the address no longer appears in the platform
+administrator's list and admits nobody.
 
 ## Deleting and restoring an organization
 

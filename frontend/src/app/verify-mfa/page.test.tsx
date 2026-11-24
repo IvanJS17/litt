@@ -83,6 +83,7 @@ describe("VerifyMfaPage", () => {
         needsMfaVerification.mockReset();
         replace.mockReset();
         signOut.mockReset();
+        searchParams.delete("next");
         needsMfaVerification.mockResolvedValue(true);
         listMfaFactors.mockResolvedValue({
             all: [],
@@ -129,5 +130,31 @@ describe("VerifyMfaPage", () => {
         expect(
             screen.getByRole("link", { name: "Contact support" }),
         ).toHaveAttribute("href", expect.stringContaining("soporte@asteroitt.com"));
+    });
+
+    it.each([
+        ["/%5Cevil.test", "/assistant"],
+        ["/%09/evil.test", "/assistant"],
+        ["/%0A/evil.test", "/assistant"],
+        ["/%0D/evil.test", "/assistant"],
+        ["//evil.test", "/assistant"],
+        ["/.//other.example", "/assistant"],
+        ["/..//other.example", "/assistant"],
+        ["/a/..//other.example", "/assistant"],
+        ["/%2e//other.example", "/assistant"],
+        ["/%2E%2E//other.example", "/assistant"],
+        ["/settings/..//other.example/x?y#z", "/assistant"],
+        ["/.///other.example", "/assistant"],
+        ["javascript:alert(1)", "/assistant"],
+        ["https://evil.test/", "/assistant"],
+        ["/verify-mfa?next=/settings", "/assistant"],
+        ["/settings?tab=1", "/settings?tab=1"],
+    ])("continues to %s as %s once no code is owed", async (next, expected) => {
+        searchParams.set("next", decodeURIComponent(next));
+        needsMfaVerification.mockResolvedValue(false);
+        render(<VerifyMfaPage />);
+
+        await vi.waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+        expect(replace).toHaveBeenCalledWith(expected);
     });
 });

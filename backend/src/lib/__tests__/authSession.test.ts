@@ -20,6 +20,7 @@ import {
   authCookieName,
   authCookiesAreSecure,
   clearRequestAuthCookies,
+  createCookielessSupabase,
   createRequestSupabase,
   publicAuthUser,
 } from "../authSession";
@@ -210,5 +211,17 @@ describe("backend-managed auth cookies", () => {
       pendingEmail: "new@example.com",
       createdWithGoogle: true,
     });
+  });
+
+  it("builds a client that reads no cookies and writes none", () => {
+    createCookielessSupabase();
+
+    const options = createServerClient.mock.calls[0][2] as {
+      cookies: { getAll: () => unknown[]; setAll: (cookies: unknown[]) => void };
+    };
+    expect(options.cookies.getAll()).toEqual([]);
+    expect(() =>
+      options.cookies.setAll([{ name: "mike-session", value: "x", options: {} }]),
+    ).not.toThrow();
   });
 });

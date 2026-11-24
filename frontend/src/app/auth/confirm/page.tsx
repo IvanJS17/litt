@@ -11,7 +11,12 @@ import {
     authGlassCardUIClassName,
 } from "@mike/ui";
 import { safeAuthNext } from "@/app/lib/authRedirects";
-import { verifyEmailLinkToken, type EmailLinkType } from "@/app/lib/authApi";
+import {
+    getAuthSession,
+    logout,
+    verifyEmailLinkToken,
+    type EmailLinkType,
+} from "@/app/lib/authApi";
 import { useAuth } from "@/app/contexts/AuthContext";
 import {
     UserVisibleError,
@@ -62,6 +67,9 @@ function AuthConfirmContent() {
     const copy = LINK_COPY[type ?? "recovery"];
     const linkIsUsable = !!tokenHash && type !== null;
     const [pending, setPending] = useState(false);
+    // Set when this browser holds another account's session: the link was
+    // spent to find out, so it cannot be opened again.
+    const [conflict, setConflict] = useState<string | null>(null);
 
     async function handleContinue() {
         if (busy) return;
@@ -87,6 +95,18 @@ function AuthConfirmContent() {
                 return;
             }
         } catch (caught) {
+            const isConflict = (caught as { code?: unknown })?.code === "session_conflict";
+            if (isConflict) {
+                // The link is spent either way; the card says so, naming the
+                // signed-in account when it can be read.
+                const current = await getAuthSession().then(
+                    (session) => session?.email ?? null,
+                    () => null,
+                );
+                setConflict(current ?? t("auth.confirm.conflictUnknownAccount"));
+                setBusy(false);
+                return;
+            }
             const described = reportFault(caught, {
                 action,
                 codeMessages: CONFIRM_ERROR_MESSAGES,
@@ -125,6 +145,21 @@ function AuthConfirmContent() {
         router.replace(safeAuthNext(searchParams.get("next")));
     }
 
+    async function signOutOfCurrent() {
+        if (busy) return;
+        setBusy(true);
+        try {
+            await logout("local");
+            await refreshSession();
+        } catch (caught) {
+            setConflict(null);
+            setError(reportFault(caught, { action: t("auth.confirm.action"), operation: "auth.session" }));
+            setBusy(false);
+            return;
+        }
+        router.replace("/login");
+    }
+
     return (
         <AuthPageShell>
             <div className="w-full max-w-md">
@@ -147,6 +182,42 @@ function AuthConfirmContent() {
                             >
                                 {t("auth.confirm.pending.done")}
                             </Link>
+                        </>
+                    ) : conflict ? (
+                        <>
+                            <h1 className="text-2xl font-medium font-serif text-gray-950">
+                                {t("access.setPassword.conflictTitle")}
+                            </h1>
+                            <p className="mt-3 break-words text-sm leading-relaxed text-gray-600">
+                                {t(
+                                    type === "recovery"
+                                        ? "auth.confirm.conflictBody"
+                                        : "auth.confirm.conflictBodyConfirmed",
+                                    { current: conflict },
+                                )}
+                            </p>
+                            <div className="mt-6 flex flex-col gap-3">
+                                <PillButtonUI
+                                    type="button"
+                                    tone="black"
+                                    size="normal"
+                                    disabled={busy}
+                                    onClick={() => void signOutOfCurrent()}
+                                    className="w-full"
+                                >
+                                    {t("auth.confirm.conflictSignOut")}
+                                </PillButtonUI>
+                                <PillButtonUI
+                                    type="button"
+                                    tone="white"
+                                    size="normal"
+                                    disabled={busy}
+                                    onClick={() => router.replace("/assistant")}
+                                    className="w-full"
+                                >
+                                    {t("access.setPassword.stay")}
+                                </PillButtonUI>
+                            </div>
                         </>
                     ) : error ? (
                         <>

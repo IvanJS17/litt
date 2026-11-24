@@ -28,11 +28,18 @@
     "noOrgInvite": "Pide una invitación a tu despacho",
     "setPassword": {
       "confirm": "Confirma tu contraseña",
+      "confirmBody": "Esta invitación es para {email}. Continúa para elegir tu contraseña.",
+      "confirmTitle": "Acepta tu invitación",
+      "conflictBody": "Iniciaste sesión como {current}, pero esta invitación es para {invited}. Continúa como {invited} para cerrar primero la sesión de {current}, o conserva tu sesión.",
+      "conflictTitle": "Iniciaste sesión con otra cuenta",
+      "continue": "Continuar",
+      "continueAs": "Continuar como {invited}",
       "invalid": "Este enlace de invitación no es válido o expiró. Pide que te inviten de nuevo.",
       "invalidTitle": "Invitación no disponible",
       "mismatch": "Las contraseñas no coinciden.",
       "password": "Contraseña",
       "saving": "Guardando…",
+      "stay": "Conservar mi sesión",
       "submit": "Guardar contraseña",
       "subtitle": "Usa al menos {min} caracteres. Después seguirás con la configuración de tu cuenta.",
       "title": "Crea tu contraseña",
@@ -528,10 +535,15 @@
     "checkEmail": {
       "checkYourEmail": "Revisa tu correo",
       "confirmationSent": "Enviamos un enlace a tu correo electrónico. Ábrelo para confirmar tu dirección y terminar de configurar tu cuenta.",
+      "invitationSent": "Si esta dirección tiene una invitación, le enviamos un enlace. Ábrelo para elegir tu contraseña.",
       "returnToLogin": "Volver al inicio de sesión"
     },
     "confirm": {
       "action": "verificar tu enlace",
+      "conflictBody": "Iniciaste sesión como {current}. Este enlace es de otra cuenta y ya se usó, así que no se puede abrir de nuevo. Cierra sesión y pide un enlace nuevo, o conserva tu sesión.",
+      "conflictBodyConfirmed": "Iniciaste sesión como {current}. Este enlace era de otra cuenta y ya se usó: surtió efecto para esa cuenta. Cierra sesión e inicia sesión con esa cuenta, o conserva tu sesión.",
+      "conflictSignOut": "Cerrar sesión",
+      "conflictUnknownAccount": "otra cuenta",
       "emailChange": {
         "title": "Confirma el cambio de correo",
         "description": "Confirma que quieres cambiar el correo de tu cuenta de LiTT. El enlace solo se puede usar una vez.",

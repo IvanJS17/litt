@@ -33,6 +33,7 @@ import type { Db } from "./supabase";
 import { selectAllByKey, selectInBatches } from "./batchedQuery";
 import { INTERNAL_ERROR_MESSAGE } from "./httpError";
 import { safeError } from "./safeError";
+import { retireUnusedInvitationIdentity } from "./inviteEmail";
 import { recordAudit } from "./audit";
 import {
     canManageOrgRole,
@@ -1138,6 +1139,17 @@ export async function cancelInvitation(
             kind: "conflict",
             detail: "That invitation has already been answered",
         };
+
+    try {
+        // The account this invitation created goes first, so that withdrawing
+        // it leaves no way in behind it; a failure here withdraws nothing.
+        await retireUnusedInvitationIdentity(db, row.email, {
+            table: "org_invitations",
+            id: row.id,
+        });
+    } catch {
+        return { ok: false, kind: "db_error", detail: INTERNAL_ERROR_MESSAGE };
+    }
 
     const { error } = await db
         .from("org_invitations")

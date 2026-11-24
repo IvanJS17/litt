@@ -682,9 +682,16 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   En ese modo el registro no crea la cuenta con la contraseña que escribe quien
   llama: GoTrue manda el enlace de invitación al correo y la contraseña se
   define desde ese enlace (igual que con las invitaciones), y «reenviar
-  invitación» vuelve a mandar ese correo. Una segunda petición de registro para
-  la misma dirección en menos de 10 minutos no manda otro correo (el enlace ya
-  enviado sigue valiendo).
+  invitación» vuelve a mandar ese correo. El backend (un solo proceso)
+  recuerda en memoria las direcciones a las que ya mandó ese correo y las que
+  está atendiendo: otra petición de registro para la misma dirección, simultánea
+  o posterior, venga de la dirección de red que venga, no manda otro correo
+  hasta pasados 10 minutos (el enlace ya enviado sigue valiendo). Reiniciar el
+  backend borra esa memoria. La respuesta al registro anónimo es siempre la
+  misma (201, mismo cuerpo, sin cookies), esté o no invitada, sea
+  administradora o ya tenga cuenta la dirección: el servidor responde primero
+  y solo después revisa la dirección y, si procede, pide a GoTrue el correo de
+  invitación; quien recibe el correo es la única que lo sabe.
   **Una sola vez tras desplegar este cambio, solo en despliegues por invitación**
   (no en uno con registro abierto, donde una cuenta sin confirmar con contraseña
   es lo normal para quien aún no abre su correo; por eso no es una migración y

@@ -10,6 +10,7 @@ import { Router, type Request, type Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   clearRequestAuthCookies,
+  createCookielessSupabase,
   createRequestSupabase,
   publicAuthUser,
 } from "../../lib/authSession";
@@ -170,25 +171,41 @@ function inviteOnly(res: Response) {
   });
 }
 
+/**
+ * Closed beta: the caller proved nothing about the mailbox, so the answer to
+ * an anonymous sign-up is one fixed reply sent before anything is looked up,
+ * with no request-scoped client (no cookies) and nothing that depends on the
+ * address. Only afterwards is the address checked and, if it is admitted by
+ * an invitation or the administrator list, GoTrue mails its invitation link:
+ * the person sets the password from it, the caller does not choose one. Asking
+ * again for an address invited moments ago sends nothing. Never throws.
+ */
+async function admitBetaSignupAfterAnswer(email: string): Promise<void> {
+  try {
+    const db = createServerSupabase();
+    if (!(await canSignUp(db, email))) return;
+    const invited = await inviteAdmittedSignup(db, email);
+    if (invited.kind === "failed") throw invited.error;
+  } catch (error) {
+    reportError(
+      new AppError("auth.beta_signup_failed", "closed-beta sign-up invitation failed", { cause: error }),
+      { level: "warning", tags: { component: "http" } },
+    );
+  }
+}
+
 authRouter.post("/signup", asyncRoute(async (req, res) => {
   setOperation("auth.signup");
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res, parsed.error.issues);
-  if (betaMode() && !(await canSignUp(createServerSupabase(), parsed.data.email)))
-    return inviteOnly(res);
+
+  if (betaMode()) {
+    res.status(201).json({ user: null, requiresEmailConfirmation: true });
+    await admitBetaSignupAfterAnswer(parsed.data.email);
+    return;
+  }
 
   try {
-    // Closed beta: the address is admitted by an invitation or the
-    // administrator list, not by anything the caller proved, so the caller
-    // does not choose its password here. The invitation link goes to the
-    // mailbox and the person sets the password from it. The answer is the
-    // same whether or not the address already has an account or was just
-    // mailed.
-    if (betaMode()) {
-      const invited = await inviteAdmittedSignup(createServerSupabase(), parsed.data.email);
-      if (invited.kind === "failed") return authError(res, invited.error);
-      return res.status(201).json({ user: null, requiresEmailConfirmation: true });
-    }
     const client = createRequestSupabase(req, res);
     const { data, error } = await signUpWithPassword(
       client,
@@ -340,14 +357,62 @@ authRouter.post("/exchange", asyncRoute(async (req, res) => {
 }));
 
 // An invitation link (admin-issued, so no PKCE code) lands with the session
-// in the URL hash; the page posts it here to become an HttpOnly cookie session.
-// GoTrue validates the tokens, so a forged pair gets nothing.
+// in the URL hash; the page, once the person confirms, posts it here to become
+// an HttpOnly cookie session. The pair is not tied to this browser, so it is
+// adopted only when GoTrue vouches for the access token, the token comes from
+// a just-redeemed invitation of an invited account, and this browser does not
+// already hold another account's session.
+const INVITE_SESSION_MAX_AGE_S = 60 * 60;
+
+/**
+ * The access token's own sign-in record: GoTrue records a redeemed email link
+ * (invitation included) as an `otp` method with its time. Read only after
+ * GoTrue has verified this exact token, so the claims are trusted.
+ */
+function isFreshInviteSession(accessToken: string, user: { invited_at?: string | null }): boolean {
+  if (!user.invited_at) return false;
+  try {
+    const claims = JSON.parse(Buffer.from(accessToken.split(".")[1] ?? "", "base64url").toString("utf8"));
+    const now = Date.now() / 1000;
+    return (
+      Array.isArray(claims?.amr) &&
+      claims.amr.some(
+        (entry: { method?: unknown; timestamp?: unknown }) =>
+          (entry?.method === "otp" || entry?.method === "invite") &&
+          typeof entry.timestamp === "number" &&
+          now - entry.timestamp >= -60 &&
+          now - entry.timestamp < INVITE_SESSION_MAX_AGE_S,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
 authRouter.post("/invite-session", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
   const parsed = inviteSessionSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res);
   try {
+    // Checked with the service client: the browser's own cookies stay untouched.
+    const { data: linked, error: linkedError } = await createServerSupabase().auth.getUser(
+      parsed.data.accessToken,
+    );
+    if (linkedError || !linked.user) return authError(res, linkedError);
+    if (!isFreshInviteSession(parsed.data.accessToken, linked.user)) {
+      return res.status(400).json({
+        code: "invite_session_invalid",
+        detail: "This invitation link is invalid or has expired.",
+      });
+    }
     const client = createRequestSupabase(req, res);
+    const holder = await whoHoldsThisBrowser(client);
+    if (holder && holder !== linked.user.id) {
+      return res.status(409).json({
+        code: "session_conflict",
+        detail: "This browser is signed in as another account.",
+      });
+    }
     const { data, error } = await applyHandoffSession(client, {
       accessToken: parsed.data.accessToken,
       refreshToken: parsed.data.refreshToken,
@@ -371,8 +436,9 @@ authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
   const parsed = verifyOtpSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res);
   try {
-    const client = createRequestSupabase(req, res);
-    const { data, error } = await verifyEmailToken(client, parsed.data);
+    // The token is spent on a client that writes no cookies, so this browser
+    // keeps its own session until we know whose session the token carries.
+    const { data, error } = await verifyEmailToken(createCookielessSupabase(), parsed.data);
     // Secure email change: the first of the two links GoTrue sends only
     // records its half (200, no user, no session). The change applies, and a
     // session is issued, when the second one is confirmed.
@@ -389,7 +455,25 @@ authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
       if (parsed.data.type !== "email_change") clearRequestAuthCookies(req, res);
       return authError(res, error);
     }
-    res.json({ user: publicAuthUser(data.user) });
+    // The token is spent either way. A browser that holds another account's
+    // session never becomes this one by confirming a link: nothing is written.
+    const client = createRequestSupabase(req, res);
+    const holder = await whoHoldsThisBrowser(client);
+    if (holder && holder !== data.user.id) {
+      return res.status(409).json({
+        code: "session_conflict",
+        detail: "This browser is signed in as another account.",
+      });
+    }
+    const { data: applied, error: applyError } = await applyHandoffSession(client, {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    });
+    if (applyError || !applied.user || !applied.session) {
+      clearRequestAuthCookies(req, res);
+      return authError(res, applyError);
+    }
+    res.json({ user: publicAuthUser(applied.user) });
   } catch (error) {
     authError(res, error);
   }
@@ -483,12 +567,11 @@ authRouter.get("/session", requireAuth, asyncRoute(async (_req, res) => {
 }));
 
 /**
- * Who is signing out, for the sign-out that ends connected applications.
- * A person -> their id. A recognised "no session" answer -> null (nothing to
- * end). Anything else, including an answer with neither an identified person
- * nor an error, means we could not tell.
+ * Who holds this browser's session: a person -> their id. A recognised "no
+ * session" answer -> null. Anything else, including an answer with neither an
+ * identified person nor an error, means we could not tell and throws.
  */
-async function whoIsSigningOut(client: ReturnType<typeof createRequestSupabase>): Promise<string | null> {
+async function whoHoldsThisBrowser(client: ReturnType<typeof createRequestSupabase>): Promise<string | null> {
   const { data, error } = await client.auth.getUser();
   if (data.user?.id) return data.user.id;
   if (error) {
@@ -500,7 +583,7 @@ async function whoIsSigningOut(client: ReturnType<typeof createRequestSupabase>)
         (failure?.name === "AuthApiError" && status >= 400 && status < 500 && status !== 429));
     if (noSession) return null;
   }
-  throw new AppError("auth.supabase_unavailable", "could not tell who is signing out", { cause: error });
+  throw new AppError("auth.supabase_unavailable", "could not tell who holds the session", { cause: error });
 }
 
 authRouter.post("/logout", asyncRoute(async (req, res) => {
@@ -515,7 +598,7 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
     // and a failure to record it is answered after the sessions are over.
     if (scope === "global") {
       try {
-        signingOut = await whoIsSigningOut(client);
+        signingOut = await whoHoldsThisBrowser(client);
       } catch (error) {
         connectionsFailure = error;
       }
