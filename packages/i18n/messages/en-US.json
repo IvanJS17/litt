@@ -1003,8 +1003,10 @@
     "returnTo": "After you decide, you go back to {host}. Allow it only if you recognize that address.",
     "scopes": {
       "chat": "Use the LiTT assistant for you.",
+      "chatKeyNote": "The assistant's work runs on a key of the workspace you choose: in a firm's workspace the firm's key first, then your own key where the firm allows it.",
       "read": "Read your matters, documents and results.",
-      "run": "Run reviews and other tasks that use your AI keys or credits.",
+      "run": "Run reviews and other tasks that use AI keys or credits.",
+      "runKeyNote": "The work LiTT's own assistant does runs on a key of the workspace you choose: in a firm's workspace the firm's key first, then your own key where the firm allows it.",
       "title": "What it can do",
       "write": "Save results and create or upload documents."
     },

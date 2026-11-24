@@ -4,7 +4,7 @@
 // Everything goes through the services behind the /tabular-review routes. A
 // run is the same server-owned synchronous generation the web starts
 // (`startTabularGeneration`, shared with POST /:reviewId/generate): it claims
-// the review's lease, runs on the review's own model with the person's keys
+// the review's lease, runs on the review's own model with the workspace's keys
 // (no fallback: a review whose model has no usable key does not start), and its
 // cells carry the citation checks the extraction already makes. The tool starts
 // it, waits a little and otherwise answers `running` for the status tool.
@@ -107,7 +107,7 @@ function suggestion(code: string): string | undefined {
         case "model_required":
         case "model_unavailable":
         case "missing_api_key":
-            return "Name a model the person has a key for, or add the key in LiTT's settings. LiTT does not switch models by itself.";
+            return "Name a model the workspace has a key for, or add the key in LiTT's settings. LiTT does not switch models by itself.";
         default:
             return undefined;
     }
@@ -370,7 +370,7 @@ export const createTabularReviewTool = defineMcpTool({
         columns: z.array(columnInput).min(1).max(MAX_COLUMNS),
         matter_id: idSchema("matter_id").optional().describe("Create it inside this matter."),
         workspace: z.string().optional().describe("Without a matter: the workspace. Defaults to the connection's default workspace."),
-        model: z.string().trim().max(200).optional().describe("A model id the person has a key for. Defaults to the person's saved tabular model."),
+        model: z.string().trim().max(200).optional().describe("A model id the workspace's key can run. Defaults to the person's saved tabular model."),
     }),
     scope: "litt.write",
     lane: "write",
@@ -538,7 +538,7 @@ export async function runReviewFor(call: McpCall, reviewId: string) {
     const userId = call.principal.userId;
     const userEmail = (await call.userEmail()) || undefined;
     // The checks POST /generate makes before it claims anything: edit standing,
-    // columns, and a usable model with the person's key (no fallback).
+    // columns, and a usable model with the workspace's key (no fallback).
     const prepared = await prepareTabularGenerate(call.db, { reviewId, userId, userEmail });
     if (!prepared.ok) refuse(preparedGenerateFailure(prepared));
     const started = await startTabularGeneration(call.db, {
@@ -582,7 +582,7 @@ export const runTabularReview = defineMcpTool({
     name: "run_tabular_review",
     title: "Run a tabular review (LiTT)",
     description:
-        "Starts LiTT's extraction of a tabular review's cells that are not filled yet, with the review's own model and the person's AI key. Returns the progress; if it finishes within about 45 seconds status is completed, otherwise running and get_tabular_run_status follows it. A review already running answers review_running.",
+        "Starts LiTT's extraction of a tabular review's cells that are not filled yet, with the review's own model and the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists). Returns the progress; if it finishes within about 45 seconds status is completed, otherwise running and get_tabular_run_status follows it. A review already running answers review_running.",
     inputSchema: z.object({ review_id: idSchema("review_id") }),
     scope: "litt.run",
     lane: "write",
