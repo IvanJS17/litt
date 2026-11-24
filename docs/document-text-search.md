@@ -84,15 +84,81 @@ The assistant emits `doc_search_start` and `doc_search` with a per-call search I
 The completed event is retained in conversation history, with the ids of the
 documents whose text or names the search returned (`document_ids`): what an
 answer is built from is checked against the reader's access whenever the chat
-is exported or learned from. A search stored before that was recorded has no
-ids. One that returned nothing or failed names no document. In an account
-export, an old search of the project or of one document does not withhold the
-answer: this is a stated limit, because neither is judged anywhere else (a
-document moved or deleted since is not) and withholding them would remove from
-every export the answers of anyone who used search in a matter before the
-change. An old library, templates or other search with results cannot be traced
-to a document, so the answer is left out of the export (and the later answers
-and title of that chat with it). Project memory learns from none of them.
+is read, exported or learned from.
+
+A search stored before that was recorded has no ids. One that returned nothing
+or failed names no document. Where the rule applies, and what an old search
+does there:
+
+- **Reading a chat now** (the web transcript, the connected-app transcript, a
+  turn read back, and the history a new turn continues from): a search stored
+  with no document list at all does not withhold the answer by itself,
+  whatever its scope. This is a stated limit for chats that predate the record,
+  so that whoever may open every document sees the transcript they saw before;
+  searches stored from now on name their documents and are judged by them. A
+  document list that is present but is not a list is an unknown source. A read
+  that names no document, and a citation whose document cannot be resolved, are
+  also unknown sources and withhold the answer.
+- **Account export**: an old search of the project or of one document does not
+  withhold the answer, for the same reason (neither is judged anywhere else: a
+  document moved or deleted since is not, and withholding them would remove from
+  every export the answers of anyone who used search in a matter before the
+  change). An old library, templates or other search with results cannot be
+  traced to a document, so the answer is left out of the export (and the later
+  answers and title of that chat with it).
+- **Project memory** learns from none of them.
+
+On a live read an answer the reader cannot open stays in its place, emptied and
+marked as not shown, with the reason; the web and the connected app say so in
+one line. There are two reasons, and each has its own line:
+
+- **No access**: the answer, or a document attached to a person's message
+  before it, names a document that still exists and the reader cannot open;
+  this holds for every reader, the owner included. The text says the reader does
+  not have access to the documents the answer was built from. A later answer is
+  written over the whole earlier transcript, so it can repeat what an earlier one
+  drew on: every later answer of that chat is withheld too while that holds, and
+  is shown again when it no longer does. An attachment of a document that no
+  longer exists is treated like a deleted document named by an answer (see
+  below).
+- **The sources cannot be identified, or no longer exist**: a citation that
+  does not resolve, a document read stored without a document id, or a
+  document that was deleted. For the owner of the chat, whose own history it
+  is, this withholds that one answer only; answers after it are judged on what
+  they name. The limit this leaves: a later answer of the owner's own chat that
+  repeated what such an answer drew on is not withheld for that reason. Another
+  reader of a shared chat keeps the full rule: any such answer withholds the
+  later ones for them too, and they are always given the first reason, never
+  this one. The same holds for an attachment whose document reference cannot
+  be identified: it changes nothing for the owner, and for another reader it
+  withholds the later answers.
+
+What a person typed is never withheld; only the attachments they cannot open are
+taken off their message. A chat's title is made from the person's words and the
+names of the files they attached, so it is shown only while the reader can open
+those files; otherwise the neutral title is shown. A lookup that fails is an
+error, never a transcript. A turn that is still registered as running is judged
+as soon as its answer has been saved, not only when the run finishes; while the
+answer is being written there is nothing to judge.
+
+What a new turn replays of the previous answer is judged differently, because
+the earlier answers reach the model only through the transcript, which is
+judged as above. The summary of that answer's tool activity, and its stored
+reasoning, are replayed only when the reader can open the documents that
+answer itself names, judged as a live read does and on that answer alone. A live
+read of the document the person has open in Word names no stored document, and
+that exemption applies only to the messages of the Word chat. When the reader
+cannot open the previous answer, only what the reader themselves answered or
+decided in it is replayed (a response stored with another author, or with none,
+is not), and only as they gave it: a typed answer as typed, a free answer they
+typed that is not among the options as typed, a choice among the options as
+"user chose an option" without the option text, a skipped input as "user skipped
+an input" without its question, and an approval or a decline as the decision
+alone, without the action, its arguments or its outcome; no filenames, brief or
+handles. When the reader can open it, all of this is replayed as before. A
+lookup that fails leaves out the summary and the reasoning, and the turn goes on
+with the same limited set.
+
 Answers stored from now on always record what a search returned. The pre-response timeline
 shows a collapsed search dropdown labelled with the query and scope. Expanding it
 shows only the match count for that page. Failed searches show a safe error instead

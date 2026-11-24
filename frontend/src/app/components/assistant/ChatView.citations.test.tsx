@@ -139,13 +139,13 @@ const messages: Message[] = [
     { id: "m1", role: "assistant", content: "answer", citations: [citation] },
 ];
 
-function renderView(overrides: Partial<Chat> = {}) {
+function renderView(overrides: Partial<Chat> = {}, shown: Message[] = messages) {
     render(
         <PageChromeContext.Provider value={{ mobileActionsContainer: null }}>
             <ChatView
                 chatId="chat-1"
                 chat={{ ...chat, ...overrides }}
-                messages={messages}
+                messages={shown}
                 isResponseLoading={false}
                 handleChat={vi.fn().mockResolvedValue("chat-1")}
                 cancel={vi.fn()}
@@ -319,4 +319,32 @@ it("reports a missing legacy edit version without opening the current version", 
     fireEvent.click(screen.getByRole("button", { name: "legacy edit" }));
     expect(await screen.findByText("This document could not be opened. Please try again.")).toBeVisible();
     expect(screen.queryByTestId("panel-tabs")).toBeNull();
+});
+
+it("shows one line in place of an answer the reader can no longer open, and the answers around it as they are", () => {
+    renderView({}, [
+        { id: "m1", role: "assistant", content: "first answer", citations: [citation] },
+        { id: "m2", role: "assistant", content: "", unreadable: true },
+        { id: "m3", role: "assistant", content: "later answer", citations: [citation] },
+    ]);
+    const notice = screen.getByText(
+        "This answer is not shown because you do not have access to the documents it was built from.",
+    );
+    expect(notice).toBeVisible();
+    // The answers on either side keep their own rendering; the withheld one has none.
+    expect(screen.getAllByRole("button", { name: "citation pill" })).toHaveLength(2);
+    expect(screen.getAllByText(/not shown because/)).toHaveLength(1);
+});
+
+it("says a different, true thing for an answer whose documents cannot be identified or no longer exist", () => {
+    renderView({}, [
+        { id: "m1", role: "assistant", content: "", unreadable: true, unreadableReason: "source_unknown" },
+        { id: "m2", role: "assistant", content: "", unreadable: true, unreadableReason: "no_access" },
+    ]);
+    expect(
+        screen.getByText("This answer is not shown because the documents it was built from can no longer be identified or no longer exist."),
+    ).toBeVisible();
+    expect(
+        screen.getByText("This answer is not shown because you do not have access to the documents it was built from."),
+    ).toBeVisible();
 });

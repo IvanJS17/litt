@@ -142,10 +142,35 @@ async function presentAll(db: Db, rows: readonly CheckRow[]): Promise<ServiceRes
     );
 }
 
+/**
+ * A work stays the person's to read while they can open the matter it was done
+ * in: its passages are text of the matter's documents. A work whose matter
+ * cannot be found or checked is not shown; the same 404 as for somebody else's.
+ */
+async function assertOwnWorkMatter(
+    db: Db,
+    person: { userId: string; userEmail?: string | null },
+    work: { surface: BackingSurface; chatId: string },
+): Promise<ServiceResult<null>> {
+    try {
+        const place = await workPlace(db, work.surface, work.chatId);
+        if (!place.ok) return internalFailure(place.error);
+        if (!place.place) return notFound();
+        const open = await mayOpenWorkMatter(db, {
+            projectId: place.place.projectId,
+            actorId: person.userId,
+            actorEmail: person.userEmail ?? null,
+        });
+        return open ? ok(null) : notFound();
+    } catch (error) {
+        return internalFailure(error);
+    }
+}
+
 /** The person's own checks of one chat (any surface); a chat with none of theirs is a 404, as it is for anybody else. */
 export async function getMyChatBacking(
     db: Db,
-    args: { userId: string; chatId: string; messageId?: string | null },
+    args: { userId: string; userEmail?: string | null; chatId: string; messageId?: string | null },
 ): Promise<ServiceResult<TrainingChatBacking>> {
     if (!isUuid(args.chatId) || (args.messageId != null && !isUuid(args.messageId))) return notFound();
     const rows: CheckRow[] = [];
@@ -165,6 +190,10 @@ export async function getMyChatBacking(
     for (const orgId of new Set(rows.map((row) => row.org_id))) {
         const access = await assertLearningAccess(db, { actorId: args.userId, orgId, traineeId: args.userId });
         if (!access.ok) return access;
+    }
+    for (const work of new Map(rows.flatMap((row) => { const at = surfaceOf(row); return at ? [[`${at.surface}:${at.chatId}`, at] as const] : []; })).values()) {
+        const matter = await assertOwnWorkMatter(db, args, work);
+        if (!matter.ok) return matter;
     }
     rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
     const checks = await presentAll(db, rows);
@@ -215,6 +244,8 @@ export async function markMyConclusion(
     if (!row || !at || at.chatId !== args.chatId) return notFound();
     const access = await assertLearningAccess(db, { actorId: args.userId, orgId: row.org_id, traineeId: args.userId });
     if (!access.ok) return access;
+    const matter = await assertOwnWorkMatter(db, { userId: args.userId, userEmail: args.userEmail }, at);
+    if (!matter.ok) return matter;
     if (effectiveBackingStatus(row.status, row.created_at) !== "ready") return failure("conflict", "Backing check is not ready");
 
     const stored = storedConclusions(row.conclusions);

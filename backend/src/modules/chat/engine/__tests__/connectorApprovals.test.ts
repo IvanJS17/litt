@@ -1,3 +1,4 @@
+import { memoryDb } from "../../../../__tests__/helpers/memoryDb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConnectorApprovalItem } from "@mike/contracts";
 
@@ -25,6 +26,18 @@ import {
   MAX_APPROVAL_RESULT_CHARS,
   runApprovedConnectorActions,
 } from "../tools/connectorApprovals";
+
+// These tests render the summary; who may read it is tested in priorTurnAccess.test.ts,
+// and the last test here runs the real access check.
+const prior = vi.hoisted(() => ({ real: false }));
+vi.mock("../priorTurnAccess", async (original) => {
+  const actual = await original<typeof import("../priorTurnAccess")>();
+  return {
+    ...actual,
+    readablePriorRows: (...args: Parameters<typeof actual.readablePriorRows>) =>
+      prior.real ? actual.readablePriorRows(...args) : Promise.resolve(new Set(args[2])),
+  };
+});
 
 const gmailItem: ConnectorApprovalItem = {
   id: "approve-gmail",
@@ -398,6 +411,9 @@ describe("approval context replay", () => {
       db,
       {},
       "nonce1234",
+      "chat_messages",
+      undefined,
+      { userId: "u1", userEmail: null },
     );
     const text = assistant.content ?? "";
     expect(text).not.toContain("asked user for");
@@ -410,5 +426,36 @@ describe("approval context replay", () => {
     expect(text).toContain("do not retry a rejected action");
     // Connector-supplied text stays fenced as data.
     expect(text).toContain('<untrusted-content nonce="nonce1234">');
+  });
+});
+
+describe("the summary of a previous answer the reader cannot open (the real access check)", () => {
+  it("keeps only the person's decision on an approval and leaves out what it was and what ran, when the reader cannot open it", async () => {
+    prior.real = true;
+    try {
+      const closed = "d0000000-0000-4000-8000-000000000002";
+      const { db } = memoryDb({
+        documents: [{ id: closed, user_id: "someone-else", project_id: null, org_id: null }],
+        chat_messages: [
+          {
+            id: "m1", chat_id: "chat-1", role: "assistant", files: null, citations: null, created_at: "2026-11-10T10:00:01Z",
+            content: [{ type: "doc_read", filename: "closed-file.pdf", document_id: closed }, { type: "ask_inputs", items: [{ id: "ap1", kind: "approval", connector_name: "Gmail", tool_name: "gmail_send" }] }, { type: "ask_inputs_response", author_user_id: "u1", responses: [{ id: "ap1", kind: "approval", decision: "approve" }] }, { type: "mcp_tool_call", approval_id: "ap1", tool_name: "gmail_send", status: "ok", result: "SENT-RESULT" }],
+          },
+        ],
+        chats: [],
+      });
+      const [assistant] = await enrichWithPriorEvents(
+        [{ role: "assistant", content: "Which?" }, { role: "user", content: "next" }],
+        "chat-1", db, {}, "nonce1234", "chat_messages", undefined,
+        { userId: "u1", userEmail: null },
+      );
+      const text = String(assistant.content);
+      expect(text).toContain("- user approved an action");
+      expect(text).not.toContain("gmail_send");
+      expect(text).not.toContain("SENT-RESULT");
+      expect(text).not.toContain("closed-file.pdf");
+    } finally {
+      prior.real = false;
+    }
   });
 });

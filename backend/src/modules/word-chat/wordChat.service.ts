@@ -1018,6 +1018,7 @@ export async function prepareWordChatStream(
           db,
           "word_chat_messages",
           history,
+          { userId, userEmail },
         )
       : messages;
     const timeZone = resolveRequestTimeZone(args.requestedTimeZone);
@@ -1029,6 +1030,7 @@ export async function prepareWordChatStream(
       nonce,
       "word_chat_messages",
       timeZone,
+      { userId, userEmail },
     );
     const { personalisation } = modelSettings;
     // Only the pinned credential leaves this function.

@@ -9,7 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlaybookRun } from "@/app/lib/mikeApi";
-import { PlaybookRuns } from "./PlaybookRuns";
+import { PlaybookRuns, runOutcome } from "./PlaybookRuns";
 import {
   subscribePlaybookRunChanges,
   useViewedPlaybookRun,
@@ -182,6 +182,44 @@ describe("playbook runs", () => {
 
     await userEvent.click(within(show).getByRole("button", { name: "All findings" }));
     expect(within(results).getByRole("region", { name: /Acceptable/ })).toBeVisible();
+  });
+
+  it("says a run's findings are not shown, instead of showing a review with no findings, when its document can no longer be opened", async () => {
+    api.listPlaybookRuns.mockResolvedValue([
+      run({ detailsWithheld: true, documentName: null, summary: null, findings: [] }),
+    ]);
+    render(<PlaybookRuns playbookId="pb" latestRun={null} {...resultsProps()} />);
+    const results = await screen.findByRole("region", { name: "Run results" });
+    expect(
+      await within(results).findByText(
+        "The findings are not shown because you do not have access to the document that was reviewed.",
+      ),
+    ).toBeVisible();
+    expect(within(results).queryByText("No findings.")).toBeNull();
+    expect(within(results).queryByRole("region", { name: /Findings/ })).toBeNull();
+    const list = screen.getByRole("region", { name: "Your runs" });
+    expect(within(list).getByText("Document not shown")).toBeVisible();
+    expect(within(list).queryByText("Untitled document")).toBeNull();
+  });
+
+  it("says what is true when a run's document is not recorded or was deleted: not that access was lost", async () => {
+    api.listPlaybookRuns.mockResolvedValue([
+      run({ detailsWithheld: true, detailsWithheldReason: "source_unknown", documentName: null, summary: null, findings: [] }),
+    ]);
+    render(<PlaybookRuns playbookId="pb" latestRun={null} {...resultsProps()} />);
+    const results = await screen.findByRole("region", { name: "Run results" });
+    expect(
+      await within(results).findByText(
+        "The findings are not shown because the document that was reviewed can no longer be identified or no longer exists.",
+      ),
+    ).toBeVisible();
+    expect(within(results).queryByText(/do not have access/)).toBeNull();
+  });
+
+  it("states a withheld run's outcome as not shown, never as no issues", () => {
+    const t = ((key: string) => ({ "playbooks.resultsNotShown": "Results not shown", "playbooks.noIssues": "No issues" })[key] ?? key) as never;
+    expect(runOutcome(run({ detailsWithheld: true, findings: [] }), t)).toBe("Results not shown");
+    expect(runOutcome(run({ findings: [] }), t)).toBe("No issues");
   });
 
   it("names an issues-only run's scope and offers no filter for it", async () => {

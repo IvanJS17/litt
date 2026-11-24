@@ -510,6 +510,24 @@ at once, so leaving the page does not stop it. The run shows a spinner in
 assistant starts from chat wait for their findings, so they run inside the
 chat turn instead of as jobs.
 
+A run's findings and summary quote the document it reviewed, so they are shown
+only while the reader can open that document (`playbooks.runAccess.ts`, in the
+run lists, a single run, the connected-app tools and the account export). A run
+whose document the reader can no longer open, or whose document was deleted,
+keeps its place, status and dates but not the document name, summary or
+findings: the run list says the details are not shown, not that nothing was
+found. The run says why: lost access to a document that still exists, or a
+document that is not recorded or was deleted (`detailsWithheldReason`), and the
+web shows a different line for each. A review of pasted text has no document and is always shown. Every run
+records whether it was over a stored document (`playbook_runs.stored_document`,
+set when the run is created, by the web, the assistant and a connected app's
+own review). Migration `20261122_20_litt_playbook_run_stored_document.sql` fills
+it for runs that already exist: true when the run has a document, false when it
+has neither a document nor a file name, and left unknown when it has a file name
+and no document (a deleted document or pasted text with a name). An unknown run
+is not shown to anyone, its owner included; this cannot be undone for such a run
+except by reviewing the document again.
+
 ### Background jobs
 
 Reviews and imports run on the durable job queue (`backend/src/lib/dbq/`), not

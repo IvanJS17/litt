@@ -110,12 +110,26 @@ export async function listUrgencyPasses(
 ): Promise<ServiceResult<TrainingUrgencyPasses>> {
     const access = await assertCurrentMentor(db, args);
     if (!access.ok) return access;
-    const passes = await readUrgencyPasses(db, args.orgId as string, args.traineeId as string);
-    if (!passes.ok) return passes;
-    if (!args.projectIds) return ok({ passes: passes.data });
+    const read = await readUrgencyPasses(db, args.orgId as string, args.traineeId as string);
+    if (!read.ok) return read;
+    // The note was written about a matter: the mentor reads it only while they can open that matter.
+    let openable: Set<string>;
+    try {
+        const ids = [...new Set(read.data.flatMap((pass) => (pass.project_id ? [pass.project_id] : [])))];
+        openable = ids.length ? new Set((await loadOpenableProjects(db, args.actorId, args.actorEmail, ids)).keys()) : new Set();
+    } catch (error) {
+        return internalFailure(error);
+    }
+    // A pass on a matter they cannot open is a pass and its dates, nothing about the matter.
+    const passes = read.data.map((pass) =>
+        pass.project_id && openable.has(pass.project_id)
+            ? pass
+            : { ...pass, project_id: null, reason_code: null, reason_note: null, details_withheld: true },
+    );
+    if (!args.projectIds) return ok({ passes });
     const grantable = await grantableProjects(db, args, args.projectIds);
     if (!grantable.ok) return grantable;
-    return ok({ passes: passes.data, grantable_project_ids: grantable.data });
+    return ok({ passes, grantable_project_ids: grantable.data });
 }
 
 type GrantInput = {

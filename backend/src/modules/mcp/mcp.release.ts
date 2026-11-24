@@ -18,7 +18,13 @@ import { documentsOutsideGrant } from "./mcp.toolkit";
 /** What a connected application is told when content lies outside the workspaces it covers. */
 export const OUTSIDE_CONNECTION_CODE = "content_outside_connection";
 
-export type Release = { ok: true } | { ok: false; reason: "outside_connection" | "held" };
+/** What a connected application is told when the person no longer has access to the documents an answer was built from. */
+export const NO_ACCESS_CODE = "content_no_access";
+
+/** What a connected application is told when the documents an answer was built from can no longer be identified or no longer exist. */
+export const SOURCE_UNKNOWN_CODE = "content_source_unknown";
+
+export type Release = { ok: true } | { ok: false; reason: "outside_connection" | "held" | "no_access" | "source_unknown" };
 
 /**
  * For each subject, whether what was built from its `sources` may leave: null
@@ -43,18 +49,31 @@ export async function decideReleases(call: McpCall, subjects: readonly (readonly
 }
 
 /** The fields a withheld turn or message carries instead of its content. */
-export const withheldFields = (release: Extract<Release, { ok: false }>) =>
-    release.reason === "held"
-        ? {
-              code: TRAINING_APPROVAL_REQUIRED_CODE,
-              withheld_until_approved: true,
-              next_step: "This answer draws on a trainee's draft that a mentor has not approved yet. Open it in LiTT.",
-          }
-        : {
-              code: OUTSIDE_CONNECTION_CODE,
-              withheld_outside_connection: true,
-              next_step: "This answer draws on documents outside the workspaces this connection covers. Open it in LiTT.",
-          };
+export const withheldFields = (release: Extract<Release, { ok: false }>) => {
+    if (release.reason === "held")
+        return {
+            code: TRAINING_APPROVAL_REQUIRED_CODE,
+            withheld_until_approved: true,
+            next_step: "This answer draws on a trainee's draft that a mentor has not approved yet. Open it in LiTT.",
+        };
+    if (release.reason === "no_access")
+        return {
+            code: NO_ACCESS_CODE,
+            withheld_no_access: true,
+            next_step: "This answer is not shown because you do not have access to the documents it was built from.",
+        };
+    if (release.reason === "source_unknown")
+        return {
+            code: SOURCE_UNKNOWN_CODE,
+            withheld_source_unknown: true,
+            next_step: "This answer is not shown because the documents it was built from can no longer be identified or no longer exist.",
+        };
+    return {
+        code: OUTSIDE_CONNECTION_CODE,
+        withheld_outside_connection: true,
+        next_step: "This answer draws on documents outside the workspaces this connection covers. Open it in LiTT.",
+    };
+};
 
 /** The refusal of a tool that would start work over documents outside the connection's workspaces. */
 export const outsideConnectionError = (what: string) =>

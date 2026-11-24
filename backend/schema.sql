@@ -4438,6 +4438,9 @@ create table if not exists public.playbook_runs (
   content_json jsonb not null,
   -- The stored document reviewed, and the version holding its tracked changes.
   document_id uuid references public.documents(id) on delete set null,
+  -- true: a stored document (document_id goes to null when it is deleted);
+  -- false: text pasted in; null: not known.
+  stored_document boolean,
   edited_version_id uuid references public.document_versions(id) on delete set null,
   user_id uuid not null references auth.users(id) on delete cascade,
   model text not null,
@@ -18193,6 +18196,9 @@ create table if not exists public.training_defenses (
   -- The work it was about. The defense outlives that review: it is
   -- promotion evidence, deleted with the pupil.
   work_review_id uuid,
+  -- The matters the questions were drawn from when they were written; empty:
+  -- work outside any matter; null: not recorded.
+  source_project_ids uuid[],
   -- [{ kind: 'base' | 'cambio_de_hechos', text, listen_for }]
   questions jsonb,
   questions_status text not null default 'none',
@@ -23415,5 +23421,7 @@ insert into public.schema_migrations (filename) values
   ('20261119_50_litt_request_type_playbooks.sql'),
   ('20261119_60_litt_ai_call_usage.sql'),
   ('20261119_80_litt_donna_triage.sql'),
-  ('20261121_10_litt_sessions_ended_at.sql')
+  ('20261121_10_litt_sessions_ended_at.sql'),
+  ('20261122_20_litt_playbook_run_stored_document.sql'),
+  ('20261122_21_litt_training_defense_sources.sql')
 on conflict (filename) do nothing;

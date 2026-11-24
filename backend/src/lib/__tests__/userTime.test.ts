@@ -1,3 +1,4 @@
+import { memoryDb } from "../../__tests__/helpers/memoryDb";
 import { describe, expect, it, vi } from "vitest";
 import {
     MESSAGE_TIME_PROMPT,
@@ -14,6 +15,18 @@ import {
 } from "../../modules/chat/engine/contextBuilders";
 import { buildTabularMessages } from "../../modules/tabular/tabular.chats";
 import type { Db } from "../supabase";
+
+// These tests render the summary; who may read it is tested in priorTurnAccess.test.ts,
+// and the last test here runs the real access check.
+const prior = vi.hoisted(() => ({ real: false }));
+vi.mock("../../modules/chat/engine/priorTurnAccess", async (original) => {
+  const actual = await original<typeof import("../../modules/chat/engine/priorTurnAccess")>();
+  return {
+    ...actual,
+    readablePriorRows: (...args: Parameters<typeof actual.readablePriorRows>) =>
+      prior.real ? actual.readablePriorRows(...args) : Promise.resolve(new Set(args[2])),
+  };
+});
 
 // 13:05 UTC is 14:05 in London (BST) and 09:05 in New York (EDT).
 const NOW = new Date("2026-10-01T13:05:00Z");
@@ -166,6 +179,7 @@ describe("message time stamps", () => {
             undefined,
             "chat_messages",
             "Europe/London",
+            { userId: "u1", userEmail: null },
         );
         expect(assistant.content).toContain(
             "- user responded [Answered: Fri 2 Oct 2026, 10:30 (Europe/London)]",
@@ -176,6 +190,10 @@ describe("message time stamps", () => {
             "chat-1",
             db,
             {},
+            undefined,
+            "chat_messages",
+            undefined,
+            { userId: "u1", userEmail: null },
         );
         expect(unstamped.content).not.toContain("[Answered:");
     });
@@ -259,4 +277,34 @@ it("loads the newest context timestamps across capped pages in a long chat", asy
         .toEqual(rows.slice(-1002).map(row => row.created_at));
     expect(query.range.mock.calls).toEqual([[0, 499], [500, 999], [1000, 1001]]);
     expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
+});
+
+describe("the summary of a previous answer the reader cannot open (the real access check)", () => {
+  it("keeps when the person answered, and leaves out what the answer read, when the reader cannot open it", async () => {
+    prior.real = true;
+    try {
+      const closed = "d0000000-0000-4000-8000-000000000002";
+      const { db } = memoryDb({
+        documents: [{ id: closed, user_id: "someone-else", project_id: null, org_id: null }],
+        chat_messages: [
+          {
+            id: "m1", chat_id: "chat-1", role: "assistant", files: null, citations: null, created_at: "2026-11-10T10:00:01Z",
+            content: [{ type: "doc_read", filename: "closed-file.pdf", document_id: closed }, { type: "ask_inputs_response", author_user_id: "u1", recorded_at: "2026-10-02T09:30:00Z", responses: [{ id: "q1", kind: "text", answer: "Net 30" }] }],
+          },
+        ],
+        chats: [],
+      });
+      const [assistant] = await enrichWithPriorEvents(
+        [{ role: "assistant", content: "Which?" }, { role: "user", content: "next" }],
+        "chat-1", db, {}, "nonce1234", "chat_messages", "Europe/London",
+        { userId: "u1", userEmail: null },
+      );
+      const text = String(assistant.content);
+      expect(text).toContain("- user responded [Answered: Fri 2 Oct 2026, 10:30 (Europe/London)]");
+      expect(text).toContain("Net 30");
+      expect(text).not.toContain("closed-file.pdf");
+    } finally {
+      prior.real = false;
+    }
+  });
 });

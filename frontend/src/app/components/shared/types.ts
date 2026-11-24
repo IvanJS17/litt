@@ -387,6 +387,10 @@ export interface Message {
   events?: AssistantEvent[];
   /** Set when streaming failed; rendered as a red error block. */
   error?: string;
+  /** The reader can no longer open the documents this answer was built from: it carries no text. */
+  unreadable?: boolean;
+  /** Why: access was lost, or the documents it was built from cannot be identified or no longer exist. */
+  unreadableReason?: "no_access" | "source_unknown";
 }
 
 export type MessageFile = {

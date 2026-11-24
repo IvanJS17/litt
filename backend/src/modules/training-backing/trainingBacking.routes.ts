@@ -26,6 +26,7 @@ export const myBackingRouter = Router();
 myBackingRouter.get("/:chatId/backing", requireAuth, asyncRoute(async (req, res) => {
     send(res, await getMyChatBacking(createServerSupabase(), {
         userId: res.locals.userId as string,
+        userEmail: (res.locals.userEmail as string | undefined) ?? null,
         chatId: String(req.params.chatId),
         messageId: typeof req.query.message_id === "string" ? req.query.message_id : null,
     }));

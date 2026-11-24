@@ -629,7 +629,7 @@ export async function prepareProjectChatStream(
         };
 
         const historyMessages = replaysReasoning(selectedModel)
-            ? await attachPriorReasoning(messages, chatId, db)
+            ? await attachPriorReasoning(messages, chatId, db, "chat_messages", undefined, { userId, userEmail })
             : messages;
         const timeZone = resolveRequestTimeZone(args.requestedTimeZone);
         const enrichedMessages = await enrichWithPriorEvents(
@@ -640,6 +640,7 @@ export async function prepareProjectChatStream(
             nonce,
             "chat_messages",
             timeZone,
+            { userId, userEmail },
         );
         const messagesForLLM: ChatMessage[] = displayed_doc
             ? enrichedMessages.map((m, i) => {

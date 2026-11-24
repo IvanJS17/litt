@@ -12,6 +12,7 @@ import type {
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { SUPERVISION_STALE_MS } from "../../lib/trainingSupervisionAi";
+import { openableWorkMatters } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import { LEARNING_NOT_FOUND } from "../training-supervision/trainingSupervision.service";
 
@@ -63,6 +64,54 @@ export function serializeReading(row: ReadingRow, now: number = Date.now()): Tra
         model: row.model ?? null,
         created_at: row.created_at,
     };
+}
+
+/**
+ * A reading as one who may read it takes it: what the machine found and its
+ * comparison quote the document, so they stay behind once the matter cannot be
+ * opened (`matterOpen` false) or the document is gone. The same rule serves the
+ * person, the mentor and the account export.
+ */
+export function serializeReadReading(row: ReadingRow, matterOpen: boolean, now: number = Date.now()): TrainingReading {
+    const reading = serializeReading(row, now);
+    return matterOpen && row.document_id ? reading : { ...reading, machine_findings: null, comparison: null };
+}
+
+/**
+ * The person's own readings as they read them now. What the machine found and
+ * its comparison quote the document, so they stay behind once the person can no
+ * longer open the matter the document is in; what the person wrote is theirs.
+ * A matter that cannot be checked is a failure, never an open one.
+ */
+export async function serializeOwnReadings(
+    db: Db,
+    person: { userId: string; userEmail: string | null },
+    rows: readonly ReadingRow[],
+    now: number = Date.now(),
+): Promise<ServiceResult<TrainingReading[]>> {
+    const projectIds = [...new Set(rows.map((row) => row.project_id).filter((id): id is string => !!id))];
+    let openable = new Set<string>();
+    try {
+        if (projectIds.length > 0)
+            openable = await openableWorkMatters(db, { projectIds, actorId: person.userId, actorEmail: person.userEmail });
+    } catch (error) {
+        return internalFailure(error);
+    }
+    return ok(
+        rows.map((row) => {
+            return serializeReadReading(row, !row.project_id || openable.has(row.project_id), now);
+        }),
+    );
+}
+
+export async function serializeOwnReading(
+    db: Db,
+    person: { userId: string; userEmail: string | null },
+    row: ReadingRow,
+    now: number = Date.now(),
+): Promise<ServiceResult<TrainingReading>> {
+    const read = await serializeOwnReadings(db, person, [row], now);
+    return read.ok ? ok(read.data[0]) : read;
 }
 
 /** A person's readings in an organization, newest first. No access check. */

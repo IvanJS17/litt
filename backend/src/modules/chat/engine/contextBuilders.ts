@@ -8,7 +8,8 @@ import type { Db } from "../../../lib/supabase";
 import { listWorkspaceWorkflows } from "../../../lib/workflowWorkspace";
 import { teamOrgIdOf } from "../../../lib/personalOrgs";
 import { firmProfileFacts, type FirmProfile } from "../../../lib/firmProfile";
-import { ensureDocAccess } from "../../../lib/access";
+import { ensureDocAccess, type DerivedReader } from "../../../lib/access";
+import { readablePriorRows } from "./priorTurnAccess";
 import { attachActiveVersionPaths } from "../../../lib/documentVersions";
 import { selectAllByKey, selectInBatches } from "../../../lib/batchedQuery";
 import {
@@ -301,11 +302,14 @@ export const MAX_REPLAYED_REASONING_TOTAL_CHARS = 36_000;
 
 const MAX_REPLAYED_BRIEF_CHARS = 4_000;
 
+/** What a stored answer is judged on, with its events: the files, citations and events it names. */
+const PRIOR_ANSWER_COLUMNS = "id, chat_id, role, content, files, citations, created_at";
+
 /** One lazy history read shared by the context builders for a single turn. */
 export function createAssistantHistoryLoader(db: Db, chatId: string | null | undefined, messageTable = "chat_messages") {
   let pending: Promise<{ data: { content?: unknown }[] | null; error: unknown }> | undefined;
   return () => pending ??= chatId ? Promise.resolve(db.from(messageTable)
-    .select("content").eq("chat_id", chatId).eq("role", "assistant")
+    .select(PRIOR_ANSWER_COLUMNS).eq("chat_id", chatId).eq("role", "assistant")
     .not("content", "is", null).order("created_at", { ascending: true }))
     : Promise.resolve({ data: [], error: null });
 }
@@ -326,14 +330,16 @@ export async function attachPriorReasoning(
   chatId: string | null | undefined,
   db: Db,
   messageTable = "chat_messages",
-  history?: AssistantHistoryLoader,
+  history: AssistantHistoryLoader | undefined,
+  /** Who the turn is for: the reasoning of an answer they cannot open is not attached. */
+  reader: DerivedReader,
 ): Promise<ChatMessage[]> {
   if (!chatId || !messages.some((m) => m.role === "assistant")) {
     return messages;
   }
   const { data: rows, error } = await (history ? history() : db
     .from(messageTable)
-    .select("content")
+    .select(PRIOR_ANSWER_COLUMNS)
     .eq("chat_id", chatId)
     .eq("role", "assistant")
     .not("content", "is", null)
@@ -341,6 +347,14 @@ export async function attachPriorReasoning(
   // Replay is an optimisation: a failed read degrades to text-only history.
   if (error || !rows?.length) return messages;
 
+  // Reasoning is replayed only for the answers the reader can open now, each
+  // judged on its own sources; a lookup that fails attaches none.
+  let readable = new Set<unknown>();
+  try {
+    readable = await readablePriorRows(db, reader, rows as Record<string, unknown>[], messageTable);
+  } catch (failure) {
+    reportError(failure, { tags: { component: "chat-stream", operation: "chat.prior_reasoning_access" } });
+  }
   const turns = (rows as { content?: unknown }[]).map((row) => {
     const events = Array.isArray(row.content)
       ? (row.content as { type?: unknown; text?: unknown }[])
@@ -349,7 +363,7 @@ export async function attachPriorReasoning(
       events
         .filter((ev) => ev?.type === type && typeof ev.text === "string")
         .map((ev) => ev.text as string);
-    const reasoning = textOf("reasoning").join("\n\n").trim();
+    const reasoning = readable.has(row) ? textOf("reasoning").join("\n\n").trim() : "";
     return {
       text: textOf("content").join("").trim(),
       reasoning:
@@ -420,10 +434,12 @@ export async function enrichWithPriorEvents(
   chatId: string | null | undefined,
   db: Db,
   docIndex: DocIndex,
-  nonce?: string,
+  nonce: string | undefined,
   messageTable = "chat_messages",
   /** When set, the user's answers are stamped with when they responded. */
-  timeZone?: string,
+  timeZone: string | undefined,
+  /** Who the turn is for: the previous answer is replayed only if they can open it now. */
+  reader: DerivedReader,
 ): Promise<ChatMessage[]> {
   if (!chatId) return messages;
   // Skip streaming reservations: routeStreaming inserts the assistant row
@@ -432,7 +448,7 @@ export async function enrichWithPriorEvents(
   // otherwise shadow the previous turn's real events here.
   const { data: rows } = await db
     .from(messageTable)
-    .select("content, created_at")
+    .select("id, chat_id, role, content, files, citations, created_at")
     .eq("chat_id", chatId)
     .eq("role", "assistant")
     .not("content", "is", null)
@@ -442,6 +458,17 @@ export async function enrichWithPriorEvents(
   const lastRow = rows?.[0] as { content?: unknown } | undefined;
   const content = lastRow?.content;
   if (!Array.isArray(content)) return messages;
+  // What the answer drew on is replayed only if the reader can open it now,
+  // judged on that answer's own sources. When they cannot, only what the
+  // reader themselves answered or decided is replayed, as they gave it (see
+  // below). A lookup that fails is reported and treated the same way; the
+  // turn goes on.
+  let readable = false;
+  try {
+    readable = (await readablePriorRows(db, reader, [lastRow as Record<string, unknown>], messageTable)).size > 0;
+  } catch (failure) {
+    reportError(failure, { tags: { component: "chat-stream", operation: "chat.prior_turn_access" } });
+  }
 
   const slugByDocumentId = new Map<string, string>();
   for (const [slug, info] of Object.entries(docIndex)) {
@@ -467,6 +494,20 @@ export async function enrichWithPriorEvents(
   const approvedIds: string[] = [];
   const approvalOutcomes = new Set<string>();
   let rejectedApprovalSeen = false;
+  // The questions of the previous answer, by event, to tell a listed option from a typed one.
+  const askedItems = new Map<string, Record<string, unknown>[]>();
+  // Whether an answer is one of the options its question listed (when the question is unknown, it is taken as listed).
+  const isListedOption = (
+    ev: Record<string, unknown>,
+    row: Record<string, unknown>,
+    value: unknown,
+  ): boolean => {
+    const item = askedItems
+      .get(String(ev.ask_event_id))
+      ?.find((candidate) => candidate?.id === row.id);
+    if (!item || !Array.isArray(item.options)) return true;
+    return (item.options as { value?: unknown }[]).some((option) => option?.value === value);
+  };
   const documentLines = (ev: Record<string, unknown>): string[] | null => {
     if (ev?.type === "doc_created") {
       return [`- generated_document → ${refFor(ev.document_id, ev.filename)}`];
@@ -504,6 +545,14 @@ export async function enrichWithPriorEvents(
     ];
   };
   for (const ev of content as Record<string, unknown>[]) {
+    // From an answer the reader cannot open, only what the reader themselves
+    // answered or decided is replayed, and of that only what they gave: the
+    // questions, options, labels and filenames of the answer are not.
+    if (!readable) {
+      if (ev?.type === "ask_inputs" && typeof ev.event_id === "string" && Array.isArray(ev.items))
+        askedItems.set(ev.event_id, ev.items as Record<string, unknown>[]);
+      if (ev?.type !== "ask_inputs_response" || ev.author_user_id !== reader.userId) continue;
+    }
     const docLines = documentLines(ev);
     if (docLines) {
       lines.push(...docLines);
@@ -611,17 +660,29 @@ export async function enrichWithPriorEvents(
               : typeof row.id === "string" && row.id.trim()
                 ? row.id.trim()
                 : "an input";
-          lines.push(`- user skipped: ${untrustedRef(skippedLabel)}`);
+          lines.push(
+            readable
+              ? `- user skipped: ${untrustedRef(skippedLabel)}`
+              : "- user skipped an input",
+          );
         } else if (
           (row.kind === "choice" || row.kind === "text") &&
           typeof row.answer === "string"
         ) {
-          lines.push(`- user answered: ${untrustedRef(row.answer)}`);
+          if (readable || row.kind === "text" || !isListedOption(ev, row, row.answer))
+            lines.push(`- user answered: ${untrustedRef(row.answer)}`);
+          else lines.push("- user chose an option");
         } else if (row.kind === "multi_choice" && Array.isArray(row.answers)) {
-          lines.push(
-            `- user selected: ${row.answers.map(untrustedRef).join(", ")}`,
-          );
-        } else if (row.kind === "documents" && Array.isArray(row.filenames)) {
+          if (readable)
+            lines.push(
+              `- user selected: ${row.answers.map(untrustedRef).join(", ")}`,
+            );
+          else {
+            const typed = row.answers.filter((a) => !isListedOption(ev, row, a));
+            if (typed.length < row.answers.length) lines.push("- user chose an option");
+            if (typed.length) lines.push(`- user answered: ${typed.map(untrustedRef).join(", ")}`);
+          }
+        } else if (readable && row.kind === "documents" && Array.isArray(row.filenames)) {
           lines.push(
             `- user attached documents: ${
               row.filenames.length
@@ -634,7 +695,7 @@ export async function enrichWithPriorEvents(
     }
   }
   for (const id of approvedIds) {
-    if (approvalOutcomes.has(id)) continue;
+    if (!readable || approvalOutcomes.has(id)) continue;
     lines.push(
       `- approved ${approvalLabels.get(id) ?? "action"} has no recorded outcome. Tell the user to check the connected service before trying again; do not retry it yourself.`,
     );

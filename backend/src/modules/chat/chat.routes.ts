@@ -23,6 +23,7 @@ import {
 } from "./engine/index";
 import { setOperation } from "../../lib/observability/report";
 import { normalizeEmail } from "../../lib/access";
+import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { can } from "../../lib/permissions";
 import { sendInternalError } from "../../lib/httpError";
@@ -158,13 +159,14 @@ chatRouter.get("/:chatId", requireAuth, asyncRoute(async (req, res) => {
         userEmail,
     );
     if (!leaveAccess.ok) return void sendServiceFailure(res, leaveAccess);
-    const messages = await getChatMessages(db, chatId);
+    const messages = await getChatMessages(db, chatId, { userId, userEmail });
     // access_role/is_owner mirror the project and review detail responses so
     // the client can render per-role affordances instead of re-deriving them.
     // origin_grant_id links the chat to an MCP grant: not for chat readers.
     const { origin_grant_id: _originGrantId, ...chatForReader } = access.chat as typeof access.chat & { origin_grant_id?: unknown };
+    const [titledChat] = await withReadableChatTitles(db, { userId, userEmail }, [chatForReader]);
     res.json({
-        chat: { ...chatForReader, can_leave: leaveAccess.data[0].can_leave },
+        chat: { ...titledChat, can_leave: leaveAccess.data[0].can_leave },
         is_owner: access.isCreator,
         access_role: access.projectRole,
         messages,

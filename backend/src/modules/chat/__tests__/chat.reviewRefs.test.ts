@@ -49,7 +49,7 @@ describe("getChatMessages review refs", () => {
                 { id: "k1", message_id: "a1", citation_ref: 2 },
             ],
         });
-        const messages = await getChatMessages(db, "chat-1");
+        const messages = await getChatMessages(db, "chat-1", { userId: "u", userEmail: null });
         expect(messages.map((m) => m.review_refs)).toEqual([undefined, [2], undefined]);
         const read = asked.find((call) => call.table === "citation_support_checks");
         expect(read?.filters).toMatchObject({ band: "not_supported", message_id: ["a1", "a2"] });
@@ -61,7 +61,7 @@ describe("getChatMessages review refs", () => {
             chat_messages: MESSAGES,
             citation_support_checks: [{ id: "k1", message_id: "a1", citation_ref: 2 }],
         });
-        const messages = await getChatMessages(db, "chat-1");
+        const messages = await getChatMessages(db, "chat-1", { userId: "u", userEmail: null });
         expect(messages.some((m) => "review_refs" in m)).toBe(false);
         expect(asked.map((call) => call.table)).not.toContain("citation_support_checks");
     });

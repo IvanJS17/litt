@@ -117,6 +117,8 @@
       "uploadDocuments": "Upload Documents",
       "workflows": "Workflows"
     },
+    "answerNotShown": "This answer is not shown because you do not have access to the documents it was built from.",
+    "answerSourceUnknown": "This answer is not shown because the documents it was built from can no longer be identified or no longer exist.",
     "askInputPopup": {
       "add": "+ Add",
       "addDocuments": "Add Documents",
@@ -3639,6 +3641,7 @@
     "deselectRows": "Deselect rows",
     "details": "Details",
     "document": "Document",
+    "documentNotShown": "Document not shown",
     "documentTypes": "Document types",
     "draft": {
       "banner": "Draft: it can't be used in reviews until an editor marks it as ready.",
@@ -3675,6 +3678,8 @@
     "filterByRepresentedParty": "Filter by represented party",
     "filterByScope": "Filter by scope",
     "findings": "Findings",
+    "findingsNotShown": "The findings are not shown because you do not have access to the document that was reviewed.",
+    "findingsSourceUnknown": "The findings are not shown because the document that was reviewed can no longer be identified or no longer exists.",
     "findingsToShow": "Findings to show",
     "forAFormattingPreservingWordRedline": ". For a formatting-preserving Word redline, provide the original DOCX in Assistant; if it is unavailable, LiTT can create a text-reconstructed DOCX and will warn that formatting may differ.",
     "fullReview": "Full review",
@@ -3865,6 +3870,7 @@
     "resizeReferencesPanel": "Resize references panel",
     "resizeRulesPanel": "Resize rules panel",
     "resizeRunsPanel": "Resize runs panel",
+    "resultsNotShown": "Results not shown",
     "retryFailedDocuments": "Retry failed documents",
     "reviewModel": "Review model",
     "reviewTheDocument": "review the document",
@@ -7931,6 +7937,7 @@
       },
       "confirmMessage": "From the next turn, the pupil writes their own approach again in {project}.",
       "confirmTitle": "Revoke this pass?",
+      "detailsNotShown": "The reason and the note are not shown because you cannot open that matter.",
       "duration": "Duration",
       "empty": "No passes yet.",
       "ended": "Ended on {end, date, medium} {end, time, short}",

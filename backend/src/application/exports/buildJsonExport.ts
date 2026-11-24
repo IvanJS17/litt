@@ -17,6 +17,7 @@ import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, lo
 import { loadUserMatterRequests } from "./matterRequestsExport";
 import {
     resolvePlaybookRoles,
+    withholdUnreadableRunRows,
     type PlaybookAccessRow,
 } from "../../modules/playbooks/playbooks.service";
 import {
@@ -394,10 +395,16 @@ async function loadUserPlaybooks(
         playbooks,
         playbook_sources: sources,
         playbook_changes: changes,
-        playbook_runs: runCandidates.filter(
-            (row) =>
-                typeof row.playbook_id === "string" &&
-                inScope.has(row.playbook_id),
+        // A run quotes the document it reviewed: it leaves with the holder
+        // only while the holder can open that document.
+        playbook_runs: await withholdUnreadableRunRows(
+            db,
+            { userId, userEmail },
+            runCandidates.filter(
+                (row) =>
+                    typeof row.playbook_id === "string" &&
+                    inScope.has(row.playbook_id),
+            ),
         ),
         // Import records are metadata (file name, stage, error); one made in
         // an organization the user has left stays with that organization.

@@ -130,9 +130,12 @@ import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { resetMcpChatOutcomesForTests } from "../../modules/mcp/mcp.chatSink";
 import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
+import { loadChatHistory } from "../../modules/chat/chat.history";
+import { enrichWithPriorEvents } from "../../modules/chat/engine/contextBuilders";
 import {
     buildWorld,
     DOC_HELD,
+    DOC_PRIVATE,
     DOC_PUBLIC,
     ORG,
     ORG2,
@@ -1339,6 +1342,191 @@ describe("answers and the connection's workspaces", () => {
             const many = await countQueries(token, () => callTool(token, "get_chat", { chat_id: WEB_CHAT, limit: 30 }));
             expect(many).toBe(few);
             expect(many).toBeLessThan(80);
+        });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// A stored conversation is read with the access the reader has now
+// ---------------------------------------------------------------------------
+
+describe("a conversation read after the reader lost access to the documents it was built on", () => {
+    const M = (n: number) => `f0000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`;
+    const SECRET = ["demanda.pdf", "SECRET-QUOTE", "SECRET-ANSWER", "BRIEF-SECRET"];
+    const leaks = (text: string) => SECRET.filter((word) => text.includes(word));
+
+    // In a firm-wide matter's chat, the owner attached a document of the private matter and was answered.
+    function seed(over: { turn?: Record<string, unknown>[]; title?: string } = {}) {
+        const t = tables();
+        t.chats.find((c) => c.id === WEB_CHAT)!.title = over.title ?? "Revisión de renta";
+        t.chat_messages.push(
+            { id: M(1), chat_id: WEB_CHAT, role: "user", content: "look at this", files: [{ filename: "demanda.pdf", document_id: DOC_PRIVATE }], author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:00Z" },
+            {
+                id: M(2), chat_id: WEB_CHAT, role: "assistant", author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:01Z",
+                content: over.turn ?? [
+                    { type: "doc_read", filename: "demanda.pdf", document_id: DOC_PRIVATE, version_number: 1 },
+                    { type: "delegation", delegation_id: "d1", title: "t", status: "done", brief: "BRIEF-SECRET summary of the claim", events: [] },
+                    { type: "content", text: "SECRET-ANSWER: the defendant breached." },
+                ],
+                citations: [{ type: "citation_data", ref: 1, document_id: DOC_PRIVATE, filename: "demanda.pdf", page: 1, quote: "SECRET-QUOTE" }],
+            },
+            { id: M(3), chat_id: WEB_CHAT, role: "user", content: "and then?", author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:02Z" },
+            { id: M(4), chat_id: WEB_CHAT, role: "assistant", author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:03Z", content: [{ type: "content", text: "Later answer." }], citations: null },
+        );
+    }
+
+    const variants: Record<string, { reader: PersonName; apply: () => void }> = {
+        never_on_matter: { reader: "admin", apply: () => {} },
+        removed_from_matter_team: { reader: "viewer", apply: () => { tables().private_matter_team = tables().private_matter_team.filter((r) => r.user_id !== PEOPLE.viewer.id); } },
+        left_matter: { reader: "editor", apply: () => { tables().project_org_access_overrides = tables().project_org_access_overrides.filter((r) => !(r.user_id === PEOPLE.editor.id && r.project_id === PROJECT_PRIVATE)); } },
+        document_deleted: { reader: "editor", apply: () => { tables().documents = tables().documents.filter((d) => d.id !== DOC_PRIVATE); } },
+        matter_archived: { reader: "editor", apply: () => { tables().projects.find((p) => p.id === PROJECT_PRIVATE)!.archived_at = "2026-11-20T00:00:00Z"; } },
+    };
+
+    describe.each(Object.entries(variants))("%s", (_name, variant) => {
+        it("keeps the answers in place emptied and marked on the web, says why through the connected app, and replays nothing to the model", async () => {
+            seed();
+            as(variant.reader);
+            const token = await connect();
+            variant.apply();
+            as(variant.reader);
+            const web = await request(app).get(`/chat/${WEB_CHAT}`);
+            expect(web.status).toBe(200);
+            const shown = (web.body.messages as { id: string; unreadable?: boolean; content: unknown }[]).filter((m) => m.id.startsWith("f0000000-0000-4000-8000-0000000001"));
+            expect(shown.map((m) => [m.id.slice(-3), m.unreadable === true])).toEqual([["101", false], ["102", true], ["103", false], ["104", true]]);
+            expect(leaks(JSON.stringify(web.body))).toEqual([]);
+
+            const getChat = await callTool(token, "get_chat", { chat_id: WEB_CHAT });
+            expect(leaks(getChat.raw)).toEqual([]);
+            // A document that no longer exists cannot be placed in the connection's workspaces: that is what is said then.
+            const code = _name === "document_deleted" ? "content_outside_connection" : "content_no_access";
+            const withheld = (getChat.data.messages as { id: string; code?: string }[]).filter((m) => m.code);
+            expect(withheld.map((m) => [m.id.slice(-3), m.code])).toEqual([["102", code], ["104", code]]);
+
+            const turn = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: M(2) });
+            expect(leaks(turn.raw)).toEqual([]);
+            expect(turn.data).toMatchObject({ code });
+
+            const db = h.state!.db as Db;
+            const reader = { userId: PEOPLE[variant.reader].id, userEmail: PEOPLE[variant.reader].email };
+            const history = await loadChatHistory(db, WEB_CHAT, reader);
+            expect(leaks(JSON.stringify(history))).toEqual([]);
+            const replay = await enrichWithPriorEvents(history, WEB_CHAT, db, {}, "nonce", "chat_messages", undefined, reader);
+            expect(leaks(JSON.stringify(replay))).toEqual([]);
+            await callTool(token, "send_chat_message", { chat_id: WEB_CHAT, message: "next" });
+            expect(leaks(JSON.stringify(h.started.at(-1)?.parsed?.messages ?? null))).toEqual([]);
+        });
+    });
+
+    it("shows the same transcript, unmarked, to a reader who still has full access", async () => {
+        seed();
+        as("editor");
+        const token = await connect();
+        as("editor");
+        const web = await request(app).get(`/chat/${WEB_CHAT}`);
+        expect(JSON.stringify(web.body.messages)).toContain("SECRET-ANSWER");
+        expect((web.body.messages as { unreadable?: boolean }[]).some((m) => m.unreadable)).toBe(false);
+        const getChat = await callTool(token, "get_chat", { chat_id: WEB_CHAT });
+        expect(getChat.raw).toContain("SECRET-ANSWER");
+        expect(getChat.raw).not.toContain("content_no_access");
+    });
+
+    it("withholds only the one answer whose source cannot be established, with its own reason, from the owner of the chat", async () => {
+        seed({ turn: [{ type: "content", text: "SECRET-ANSWER" }] });
+        tables().chat_messages.find((m) => m.id === M(2))!.citations = [{ type: "citation_data", kind: "document", ref: 1, document: { document_id: "doc-9", title: "doc-9", quotes: [] }, doc_id: "doc-9", filename: "doc-9", page: 1, quote: "SECRET-QUOTE" }];
+        as("owner");
+        const web = await request(app).get(`/chat/${WEB_CHAT}`);
+        const shown = (web.body.messages as { id: string; unreadable?: boolean; unreadable_reason?: string }[]).filter((m) => m.id.startsWith("f0000000-0000-4000-8000-0000000001"));
+        expect(shown.map((m) => [m.id.slice(-3), m.unreadable === true ? m.unreadable_reason : null])).toEqual([["101", null], ["102", "source_unknown"], ["103", null], ["104", null]]);
+        expect(JSON.stringify(web.body)).not.toContain("SECRET-QUOTE");
+        // Another reader of the same chat keeps the full rule, and is told they lost access only where that is the reason.
+        as("admin");
+        const other = await request(app).get(`/chat/${WEB_CHAT}`);
+        const otherShown = (other.body.messages as { id: string; unreadable?: boolean }[]).filter((m) => m.id.startsWith("f0000000-0000-4000-8000-0000000001"));
+        expect(otherShown.map((m) => [m.id.slice(-3), m.unreadable === true])).toEqual([["101", false], ["102", true], ["103", false], ["104", true]]);
+    });
+
+    it("keeps the true state of a turn the reader cannot open: failed, stopped", async () => {
+        seed({ turn: [{ type: "doc_read", filename: "demanda.pdf", document_id: DOC_PRIVATE, version_number: 1 }, { type: "content", text: "SECRET-ANSWER partial" }, { type: "error", message: "SECRET-ANSWER in an error" }] });
+        as("admin");
+        const token = await connect();
+        as("admin");
+        const failed = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: M(2) });
+        expect(failed.data).toMatchObject({ status: "failed", code: "content_no_access" });
+        expect(leaks(failed.raw)).toEqual([]);
+        tables().chat_messages.find((m) => m.id === M(2))!.content = [{ type: "doc_read", filename: "demanda.pdf", document_id: DOC_PRIVATE }, { type: "content", text: "SECRET-ANSWER" }, { type: "stopped" }];
+        const stopped = await callTool(token, "get_chat_turn", { chat_id: WEB_CHAT, turn_id: M(2) });
+        expect(stopped.data).toMatchObject({ status: "stopped", code: "content_no_access" });
+        expect(leaks(stopped.raw)).toEqual([]);
+    });
+
+    it("shows a title made from a file the reader cannot open as the neutral title, everywhere a chat is listed or opened", async () => {
+        seed({ title: "Review of demanda.pdf" });
+        as("admin");
+        const token = await connect();
+        as("admin");
+        const web = await request(app).get(`/chat/${WEB_CHAT}`);
+        const list = await request(app).get("/chat");
+        const inProject = await request(app).get(`/projects/${PROJECT_PUBLIC}/chats`);
+        const getChat = await callTool(token, "get_chat", { chat_id: WEB_CHAT });
+        const listChats = await callTool(token, "list_chats", {});
+        expect(web.body.chat.title).toBeNull();
+        for (const [name, text] of [["list", JSON.stringify(list.body)], ["project", JSON.stringify(inProject.body)], ["get_chat", getChat.raw], ["list_chats", listChats.raw]] as const)
+            expect(leaks(text), name).toEqual([]);
+        const titled = (rows: { id: string; title: string | null }[]) => rows.find((row) => row.id === WEB_CHAT)?.title;
+        expect(titled(list.body)).toBeNull();
+        expect(titled(inProject.body)).toBeNull();
+    });
+
+    it("fails closed when the access lookup fails", async () => {
+        seed();
+        as("editor");
+        const token = await connect();
+        as("editor");
+        h.state!.failNext("documents", "select", { message: "down" });
+        const web = await request(app).get(`/chat/${WEB_CHAT}`);
+        expect(web.status).toBe(500);
+        expect(leaks(JSON.stringify(web.body))).toEqual([]);
+        h.state!.failNext("documents", "select", { message: "down" });
+        const getChat = await callTool(token, "get_chat", { chat_id: WEB_CHAT });
+        expect(getChat.ok).toBe(false);
+        expect(leaks(getChat.raw)).toEqual([]);
+    });
+
+    it("fails closed when the matter verdict of the cited document errors", async () => {
+        seed();
+        as("editor");
+        const token = await connect();
+        const db = h.state!.db as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown> };
+        const real = db.rpc.bind(db);
+        db.rpc = async (fn, args) =>
+            fn === "private_matter_denied_project_ids" && Array.isArray(args.p_project_ids) && (args.p_project_ids as string[]).includes(PROJECT_PRIVATE)
+                ? { data: null, error: { message: "verdict down" } }
+                : real(fn, args);
+        as("editor");
+        const web = await request(app).get(`/chat/${WEB_CHAT}`);
+        expect(leaks(JSON.stringify(web.body))).toEqual([]);
+        const getChat = await callTool(token, "get_chat", { chat_id: WEB_CHAT });
+        expect(leaks(getChat.raw)).toEqual([]);
+    });
+
+    describe("a chat stored before searches recorded their documents", () => {
+        const OLD = [
+            { type: "doc_search", search_id: "s1", scope: "library", query: "change of control", offset: 0, match_count: 3, next_offset: null },
+            { type: "doc_search", search_id: "s2", scope: "templates", query: "nda", offset: 0, match_count: 2, next_offset: null },
+        ];
+        it("shows its owner, who can open every document, the whole transcript with no marker", async () => {
+            const t = tables();
+            t.chat_messages.push(
+                { id: M(21), chat_id: WEB_CHAT, role: "user", content: "q1", author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:00Z" },
+                { id: M(22), chat_id: WEB_CHAT, role: "assistant", content: [...OLD, { type: "content", text: "a1" }], citations: null, author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:01Z" },
+                { id: M(23), chat_id: WEB_CHAT, role: "user", content: "q2", author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:02Z" },
+                { id: M(24), chat_id: WEB_CHAT, role: "assistant", content: [{ type: "content", text: "a2" }], citations: null, author_user_id: PEOPLE.owner.id, created_at: "2026-11-10T12:00:03Z" },
+            );
+            as("owner");
+            const web = await request(app).get(`/chat/${WEB_CHAT}`);
+            const rows = (web.body.messages as { id: string; unreadable?: boolean }[]).filter((m) => m.id >= M(21));
+            expect(rows.map((m) => [m.id.slice(-2), m.unreadable === true])).toEqual([["21", false], ["22", false], ["23", false], ["24", false]]);
         });
     });
 });

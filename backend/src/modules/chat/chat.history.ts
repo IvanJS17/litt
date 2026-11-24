@@ -6,8 +6,10 @@
 // shaped the way the web would have sent it.
 
 import { getActiveAssistantTurn, getAssistantTurnRun } from "../../lib/assistantTurnRuns";
+import { type DerivedReader } from "../../lib/access";
+import { readableChatMessages } from "../../lib/chatReadAccess";
 import { type Db } from "../../lib/supabase";
-import { getChatMessages } from "./chat.messages";
+import { getChatMessages, getMessagesOfChats } from "./chat.messages";
 import type { ChatMessage } from "./engine/index";
 
 type StoredEvent = { type?: unknown; text?: unknown; message?: unknown; code?: unknown };
@@ -27,9 +29,13 @@ export function assistantText(message: StoredMessage): string {
         .join("");
 }
 
-/** The messages of a chat as the web would send them with a new one. */
-export async function loadChatHistory(db: Db, chatId: string): Promise<ChatMessage[]> {
-    const stored = await getChatMessages(db, chatId);
+/**
+ * The messages of a chat as the web would send them with a new one: those the
+ * reader can open now, as a transcript they read is.
+ */
+export async function loadChatHistory(db: Db, chatId: string, reader: DerivedReader): Promise<ChatMessage[]> {
+    // An answer the reader cannot open now comes back emptied, so it has no text to replay.
+    const stored = await getChatMessages(db, chatId, reader);
     const history: ChatMessage[] = [];
     for (const message of stored) {
         if (message.role === "user") {
@@ -67,15 +73,22 @@ export type ChatTurnState = {
     /** The authored error text of a failed turn, when the turn recorded one. */
     errorMessage: string | null;
     createdAt: string | null;
+    /** The reader cannot open what the answer was built from: it carries no text, events or citations. */
+    unreadable?: boolean;
+    /** Why: access to a document that still exists was lost, or the answer's sources cannot be established or no longer exist. */
+    unreadableReason?: "no_access" | "source_unknown";
 };
 
 /**
  * The state of the turn that answers `turnId` (the assistant message's id) in
  * a chat the caller already may open. Null when the chat has no such message.
+ * An answer built on documents the reader cannot open is stated without its
+ * text, events and citations.
  */
 export async function readChatTurn(
     db: Db,
     args: { chatId: string; turnId: string },
+    reader: DerivedReader,
 ): Promise<ChatTurnState | null> {
     const run = getAssistantTurnRun(args.turnId);
     const live = !!run && run.chatId === args.chatId && !run.finished;
@@ -102,7 +115,20 @@ export async function readChatTurn(
               }
             : null;
     }
-    const message = data as StoredMessage;
+    // An answer is judged with everything before it in the chat as soon as it
+    // has content to judge, also while its run is still registered (the row is
+    // empty while the answer is being written, and is not judged then). One the
+    // reader cannot open is stated without its words, events and citations,
+    // but its state is read from what was stored.
+    const stored = data as StoredMessage;
+    const judgement =
+        stored.content !== null && stored.content !== undefined
+            ? await readableChatMessages(db, reader, await getMessagesOfChats(db, [args.chatId]), "live")
+            : null;
+    const unreadableReason = judgement?.reasons.get(args.turnId);
+    const unreadable = !!judgement && !judgement.messages.some((row) => row.id === args.turnId);
+    const storedEvents = eventsOf(stored);
+    const message = (unreadable ? { ...stored, content: [], citations: null } : stored) as StoredMessage;
     const events = eventsOf(message);
     const counts = new Map<string, number>();
     for (const event of events) {
@@ -117,17 +143,18 @@ export async function readChatTurn(
         events: [...counts].map(([type, count]) => ({ type, count })),
         errorMessage: typeof error_?.message === "string" ? error_.message : null,
         createdAt: typeof message.created_at === "string" ? message.created_at : null,
+        ...(unreadable ? { unreadable, unreadableReason: unreadableReason ?? ("no_access" as const) } : {}),
     };
     if (live) return { ...base, status: "generating" };
-    if (message.content === null || message.content === undefined) {
+    if (stored.content === null || stored.content === undefined) {
         // Reserved but never filled: the run ended without saving (an empty
         // answer, a provider error) or the process restarted under it.
         const ended = !!run && run.chatId === args.chatId && run.finished;
         return { ...base, status: ended ? (run.stopReason === "user" ? "stopped" : "failed") : "interrupted" };
     }
-    if (error_) return { ...base, status: "failed" };
-    if (events.some((event) => event.type === "stopped")) return { ...base, status: "stopped" };
-    if (events.some((event) => event.type === "ask_inputs")) return { ...base, status: "needs_input" };
+    if (storedEvents.some((event) => event.type === "error")) return { ...base, status: "failed" };
+    if (storedEvents.some((event) => event.type === "stopped")) return { ...base, status: "stopped" };
+    if (storedEvents.some((event) => event.type === "ask_inputs")) return { ...base, status: "needs_input" };
     return { ...base, status: "completed" };
 }
 

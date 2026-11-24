@@ -1226,6 +1226,14 @@ export function AssistantChatColumn({
                                                             });
                                                         }}
                                                     />
+                                                ) : msg.unreadable ? (
+                                                    <p className="text-sm text-gray-500">
+                                                        {t(
+                                                            msg.unreadableReason === "source_unknown"
+                                                                ? "assistant.answerSourceUnknown"
+                                                                : "assistant.answerNotShown",
+                                                        )}
+                                                    </p>
                                                 ) : (
                                                     <>
                                                     <AssistantMessage

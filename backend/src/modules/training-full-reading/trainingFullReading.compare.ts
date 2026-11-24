@@ -40,7 +40,7 @@ import { REVIEW_IN_PROGRESS_CODE } from "../training-supervision/trainingSupervi
 import { chatRouteColumns, parseCredentialRef, recordChatEgress } from "../user/user.service";
 import { READING_DOCUMENT_UNAVAILABLE_CODE, ownReading } from "./trainingFullReading.readings";
 import { readingRoute } from "./trainingFullReading.route";
-import { effectiveReadingStatus, serializeReading, type ReadingRow } from "./trainingFullReading.rows";
+import { effectiveReadingStatus, serializeOwnReading, serializeReading, type ReadingRow } from "./trainingFullReading.rows";
 
 const IN_PROGRESS = "Your reading is already being compared.";
 const SEND_FIRST = "Send what you found before comparing.";
@@ -54,7 +54,7 @@ export async function compareReading(
     const found = await ownReading(db, args);
     if (!found.ok) return found;
     const row = found.data;
-    if (row.status === "compared") return ok(serializeReading(row));
+    if (row.status === "compared") return serializeOwnReading(db, args, row);
     if (row.status === "assigned" || !row.findings) return failure("validation", SEND_FIRST);
     if (effectiveReadingStatus(row) === "comparing") return failure("conflict", IN_PROGRESS, REVIEW_IN_PROGRESS_CODE);
     const credential = parseCredentialRef(args.credentialRef);

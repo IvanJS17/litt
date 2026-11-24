@@ -39,6 +39,7 @@ const { jsonrepair } = require("jsonrepair") as {
   jsonrepair: (text: string) => string;
 };
 import { z } from "zod";
+import { readableRunRows, readableRuns, runWithheldReason } from "./playbooks.runAccess";
 import {
   ensureDocAccess,
   getOrgRole,
@@ -2334,6 +2335,7 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     ...chatRouteColumns(pinned.route),
     document_name: documentName || null,
     document_id: args.documentId ?? null,
+    stored_document: !!args.documentId,
     edited_version_id: null,
     review_mode: args.reviewMode,
     review_scope: args.reviewScope ?? "full",
@@ -2687,7 +2689,7 @@ export async function listPlaybookRuns(
   const interrupted = await interruptedRuns(db, rows);
   return withCurrentEditStatus(
     db,
-    rows.map((row) => publicRun(row, interrupted)),
+    await readableRuns(db, { userId, userEmail: email }, rows, (row) => publicRun(row, interrupted)),
   );
 }
 
@@ -2719,7 +2721,8 @@ export async function getPlaybookRun(
     },
   );
   const interrupted = await interruptedRuns(db, [row]);
-  const [run] = await withCurrentEditStatus(db, [publicRun(row, interrupted)]);
+  const [shown] = await readableRuns(db, { userId, userEmail: email }, [row], (r) => publicRun(r, interrupted));
+  const [run] = await withCurrentEditStatus(db, [shown]);
   return { run, playbookName: playbook.name, orgId: playbook.orgId };
 }
 
@@ -2824,9 +2827,10 @@ export async function listAllPlaybookRuns(
     limit: 100,
   });
   const interrupted = await interruptedRuns(db, rows);
-  return rows.map((row) => ({
-    ...publicRun(row, interrupted),
-    playbookName: names.get(String(row.playbook_id)) ?? "",
+  const runs = await readableRuns(db, { userId, userEmail: options.email }, rows, (row) => publicRun(row, interrupted));
+  return runs.map((run, index) => ({
+    ...run,
+    playbookName: names.get(String(rows[index].playbook_id)) ?? "",
   }));
 }
 
@@ -2903,15 +2907,17 @@ export async function listPlaybookRunHistory(
 ) {
   const { rows, names } = await readVisibleRuns(userId, db, options, {
     columns:
-      "id, playbook_id, document_name, status, error, started_at, updated_at, completed_at",
+      "id, playbook_id, document_id, stored_document, document_name, status, error, started_at, updated_at, completed_at",
     limit: Math.min(Math.max(options.limit ?? 25, 1), 100),
   });
   const interrupted = await interruptedRuns(db, rows);
+  const kept = await readableRunRows(db, { userId, userEmail: options.email }, rows);
   return rows.map((row) => ({
     id: String(row.id),
     playbookId: String(row.playbook_id),
     playbookName: names.get(String(row.playbook_id)) ?? "",
-    documentName: row.document_name ? String(row.document_name) : null,
+    documentName: row.document_name && kept.has(row) ? String(row.document_name) : null,
+    ...(kept.has(row) ? {} : { detailsWithheld: true, detailsWithheldReason: runWithheldReason(row) }),
     ...runState(row, interrupted),
     startedAt: String(row.started_at),
     completedAt: row.completed_at ? String(row.completed_at) : null,

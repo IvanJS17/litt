@@ -674,6 +674,19 @@ describe("Urgency pass tab", () => {
         expect(screen.getAllByRole("button", { name: /^Revoke/ })).toHaveLength(1);
     });
 
+    it("lists a pass on a matter the mentor cannot open as a pass with its dates, without its matter, reason or note", async () => {
+        vi.mocked(api.getPupilPasses).mockResolvedValue({
+            passes: [pass({ id: "pass-9", project_id: null, reason_code: null, reason_note: null, details_withheld: true })],
+        });
+        vi.mocked(api.listProjects).mockResolvedValue([]);
+        render(<PassesTab orgId="org-1" pupilId="pupil-1" />);
+        expect(await screen.findByText(/^In force until/)).toBeInTheDocument();
+        expect(screen.getByText("A matter you cannot see")).toBeInTheDocument();
+        expect(screen.getByText("The reason and the note are not shown because you cannot open that matter.")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Revoke the pass in A matter you cannot see" }));
+        expect(await screen.findByRole("dialog", { name: "Revoke this pass?" })).toBeInTheDocument();
+    });
+
     it("explains a refused pass", async () => {
         const refused = new Error("409");
         vi.mocked(api.getPupilPasses).mockResolvedValue({ passes: [] });
@@ -850,6 +863,16 @@ describe("What my mentor sees of me", () => {
         expect(screen.getAllByText(/^Question \d/)).toHaveLength(5);
         expect(screen.getByText("Arrendamiento Ruiz")).toBeInTheDocument();
         expect(screen.getByText("Hearing")).toBeInTheDocument();
+    });
+
+    it("says a pass whose matter is not given is a matter the pupil cannot see", async () => {
+        vi.mocked(api.getMySupervision).mockResolvedValue({
+            ...supervision,
+            urgency_passes: [pass({ project_id: null, reason_code: null, reason_note: null })],
+        });
+        render(<MentorSeesMe orgId="org-1" />);
+        expect(await screen.findByText("A matter you cannot see")).toBeInTheDocument();
+        expect(screen.getByText("The reason and the note are not shown because you cannot open that matter.")).toBeInTheDocument();
     });
 
     it("shows the pupil a held draft's line, with nothing to approve", async () => {

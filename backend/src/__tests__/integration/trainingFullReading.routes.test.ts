@@ -70,6 +70,7 @@ vi.mock("../../modules/user/user.service", async (importOriginal) => ({
 }));
 
 import { app } from "../../app";
+import { loadOpenableProjects } from "../../lib/access";
 import { recordAudit } from "../../lib/audit";
 import { completeText } from "../../lib/llm";
 import {
@@ -304,6 +305,71 @@ describe("the mentor reads a pupil's readings only for matters they can open", (
         rows()[0].project_id = null;
         h.openable.clear();
         expect((await as(MENTOR).get(mentorPath)).body.readings).toHaveLength(1);
+    });
+
+    it("keeps what the person wrote but not the machine's passages or the comparison once the document is gone", async () => {
+        const reading = await startAndSend();
+        Object.assign(rows()[0], { machine_findings: [{ finding: "Sin fecha de entrega", quote: "No se menciona la fecha de entrega" }], comparison: { both: [1], only_person: [], only_machine: [] } });
+        const before = await as(MENTOR).get(mentorPath);
+        expect(before.body.readings[0].machine_findings).not.toBeNull();
+        rows()[0].document_id = null;
+        const res = await as(MENTOR).get(mentorPath);
+        expect(res.body.readings[0]).toMatchObject({ id: reading.id, findings: FINDINGS, machine_findings: null, comparison: null });
+        expect(JSON.stringify(res.body)).not.toContain("fecha de entrega\"");
+    });
+});
+
+describe("the person reads their own readings only for matters they can open", () => {
+    const stored = { machine_findings: [{ finding: "Sin fecha de entrega", quote: "No se menciona la fecha de entrega" }], comparison: { both: [1], only_person: [], only_machine: [] } };
+
+    it("withholds the machine's passages and the comparison once the person cannot open the matter, and keeps what they wrote", async () => {
+        const reading = await startAndSend();
+        Object.assign(rows()[0], stored);
+        h.openable.delete(`${PROJECT}:${PUPIL}`);
+        const one = await as(PUPIL).get(`${mine}/${reading.id}`);
+        expect(one.status).toBe(200);
+        expect(one.body).toMatchObject({ id: reading.id, findings: FINDINGS, machine_findings: null, comparison: null });
+        const list = await as(PUPIL).get(`${mine}?org_id=${ORG}`);
+        expect(list.body.readings[0]).toMatchObject({ id: reading.id, findings: FINDINGS, machine_findings: null, comparison: null });
+        expect(JSON.stringify(list.body)).not.toContain("fecha de entrega\"");
+        h.openable.add(`${PROJECT}:${PUPIL}`);
+        expect((await as(PUPIL).get(`${mine}/${reading.id}`)).body).toMatchObject(stored);
+    });
+
+    it("withholds them once the document is gone, though the person can still open the matter", async () => {
+        const reading = await startAndSend();
+        Object.assign(rows()[0], stored, { document_id: null });
+        const one = await as(PUPIL).get(`${mine}/${reading.id}`);
+        expect(one.body).toMatchObject({ id: reading.id, findings: FINDINGS, machine_findings: null, comparison: null });
+        const list = await as(PUPIL).get(`${mine}?org_id=${ORG}`);
+        expect(list.body.readings[0]).toMatchObject({ machine_findings: null, comparison: null });
+    });
+
+    it("withholds them when the open reading is returned by starting again", async () => {
+        const reading = await startAndSend();
+        Object.assign(rows()[0], stored);
+        h.openable.delete(`${PROJECT}:${PUPIL}`);
+        const res = await as(PUPIL).post(mine).send({ org_id: ORG });
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({ id: reading.id, machine_findings: null, comparison: null });
+        expect(JSON.stringify(res.body)).not.toContain("fecha de entrega\"");
+    });
+
+    it("withholds them from a finished comparison asked again", async () => {
+        const reading = await startAndSend();
+        Object.assign(rows()[0], stored, { status: "compared" });
+        h.openable.delete(`${PROJECT}:${PUPIL}`);
+        const again = await as(PUPIL).post(`${mine}/${reading.id}/compare`).send({});
+        expect(again.body).toMatchObject({ status: "compared", machine_findings: null, comparison: null });
+    });
+
+    it("answers an error, not the passages, when the matter cannot be checked", async () => {
+        const reading = await startAndSend();
+        Object.assign(rows()[0], stored);
+        vi.mocked(loadOpenableProjects).mockRejectedValueOnce(new Error("access lookup down"));
+        const res = await as(PUPIL).get(`${mine}/${reading.id}`);
+        expect(res.status).toBe(500);
+        expect(JSON.stringify(res.body)).not.toContain("fecha de entrega");
     });
 });
 

@@ -7,10 +7,18 @@ import { chatOriginColumns, listChatsCreatedByGrant, withChatOrigin } from "../c
 
 const CHAT = "c0000000-0000-4000-8000-000000000001";
 const USER = "u0000000-0000-4000-8000-000000000001";
+const DOC = "d0000000-0000-4000-8000-000000000001";
 const msg = (id: string, over: Row): Row => ({ id, chat_id: CHAT, role: "assistant", content: null, citations: null, created_at: `2026-11-10T10:00:0${id.slice(-1)}Z`, ...over });
 
 function world(rows: Row[]) {
-    return memoryDb({ chat_messages: rows, chats: [], citation_support_checks: [], document_edits: [], document_versions: [] });
+    return memoryDb({
+        chat_messages: rows,
+        chats: [],
+        citation_support_checks: [],
+        document_edits: [],
+        document_versions: [],
+        documents: [{ id: DOC, user_id: USER, project_id: null, org_id: null }],
+    });
 }
 
 beforeEach(() => resetAssistantTurnRunsForTests());
@@ -34,7 +42,7 @@ describe("loadChatHistory", () => {
             msg("m5", { content: null }),
             msg("m6", { role: "system", content: "x" }),
         ]);
-        expect(await loadChatHistory(db, CHAT)).toEqual([
+        expect(await loadChatHistory(db, CHAT, { userId: USER, userEmail: null })).toEqual([
             { role: "user", content: "Pregunta", files: [{ filename: "a.docx" }], workflow: { id: "w", title: "W" }, playbook: { id: "p", title: "P" } },
             { role: "assistant", content: "Respuesta" },
             { role: "user", content: null },
@@ -43,7 +51,7 @@ describe("loadChatHistory", () => {
 });
 
 describe("readChatTurn", () => {
-    const read = (db: Db, id: string) => readChatTurn(db, { chatId: CHAT, turnId: id });
+    const read = (db: Db, id: string) => readChatTurn(db, { chatId: CHAT, turnId: id }, { userId: USER, userEmail: null });
 
     it("is null for a message that is not an answer of this chat", async () => {
         const { db } = world([msg("m1", { role: "user", content: "x" })]);
@@ -53,13 +61,13 @@ describe("readChatTurn", () => {
 
     it("tells a running turn, a completed one, one that needs input, a stopped one and a failed one apart", async () => {
         const { db } = world([
-            msg("m1", { content: [{ type: "content", text: "ok" }], citations: [{ ref: 1 }] }),
+            msg("m1", { content: [{ type: "content", text: "ok" }], citations: [{ ref: 1, document_id: DOC }] }),
             msg("m2", { content: [{ type: "ask_inputs" }] }),
             msg("m3", { content: [{ type: "content", text: "a medias" }, { type: "stopped" }] }),
             msg("m4", { content: [{ type: "error", message: "No se pudo" }] }),
             msg("m5", { content: null }),
         ]);
-        expect(await read(db, "m1")).toMatchObject({ status: "completed", text: "ok", citations: [{ ref: 1 }], errorMessage: null, events: [{ type: "content", count: 1 }] });
+        expect(await read(db, "m1")).toMatchObject({ status: "completed", text: "ok", citations: [{ ref: 1, document_id: DOC }], errorMessage: null, events: [{ type: "content", count: 1 }] });
         expect((await read(db, "m2"))!.status).toBe("needs_input");
         expect(await read(db, "m3")).toMatchObject({ status: "stopped", text: "a medias" });
         expect(await read(db, "m4")).toMatchObject({ status: "failed", errorMessage: "No se pudo" });

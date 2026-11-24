@@ -444,6 +444,13 @@ vi.mock("../../middleware/auth", () => ({
         next(),
 }));
 
+
+// Models that replay their stored reasoning are opt-in per configured model; a test turns it on for one request.
+vi.mock("../../lib/llm/registry", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/llm/registry")>()),
+    replaysReasoning: vi.fn(() => false),
+}));
+
 // Keep the real error helpers (the failure-path test relies on genuine
 // isAbortError + AssistantStreamError behavior) but stub the functions that
 // would otherwise hit the DB or the LLM.
@@ -456,6 +463,7 @@ vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
             docStore: new Map(),
         })),
         enrichWithPriorEvents: vi.fn(async (messages: unknown) => messages),
+        attachPriorReasoning: vi.fn(async (messages: unknown) => messages),
         buildWorkflowStore: vi.fn(async () => new Map()),
         buildMessages: vi.fn(() => []),
         runLLMStream: (...args: unknown[]) => runLLMStream(...args),
@@ -554,6 +562,15 @@ describe("POST /chat — streaming endpoint", () => {
         expect(systemPromptExtra).toContain("USER PERSONALISATION");
     });
 
+    it("judges the stored reasoning it replays for the person whose turn it is", async () => {
+        const chatLib = await import("../../modules/chat/engine/index.js");
+        const registry = await import("../../lib/llm/registry.js");
+        vi.mocked(registry.replaysReasoning).mockReturnValueOnce(true);
+        const res = await request(app).post("/chat").set("Authorization", "Bearer test").send(VALID_BODY);
+        expect(res.status).toBe(200);
+        expect(vi.mocked(chatLib.attachPriorReasoning).mock.calls.at(-1)?.at(-1)).toEqual({ userId: "u1", userEmail: "u1@test.local" });
+    });
+
     it("streams SSE with a chat_id event on the happy path", async () => {
         const chatLib = await import("../../modules/chat/engine/index.js");
         let reservationExistedBeforeStreaming = false;
@@ -576,6 +593,8 @@ describe("POST /chat — streaming endpoint", () => {
         expect(res.text).toContain('"type":"chat_id"');
         expect(res.text).toContain('"type":"chat_title"');
         expect(runLLMStream).toHaveBeenCalledTimes(1);
+        // What the previous answer replays is judged for the person whose turn it is.
+        expect(vi.mocked(chatLib.enrichWithPriorEvents).mock.calls.at(-1)?.at(-1)).toEqual({ userId: "u1", userEmail: "u1@test.local" });
         expect(runLLMStream).toHaveBeenCalledWith(
             expect.objectContaining({
                 emitDone: false,
@@ -1152,6 +1171,9 @@ describe("POST /chat — streaming endpoint", () => {
                 });
 
             expect(second.text).not.toContain('"type":"error"');
+            // The previous answer's summary goes through the real prepare and the real access check:
+            // what the person answered to the question reaches the model.
+            expect(JSON.stringify(resumed.doStreamCalls[0]?.prompt)).toContain("user answered:");
             expect(dbRpcCalls).toContainEqual({
                 name: "append_chat_ask_inputs_response",
                 args: expect.objectContaining({

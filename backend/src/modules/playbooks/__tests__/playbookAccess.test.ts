@@ -358,7 +358,7 @@ describe("playbook access and autosave", () => {
     });
     // The caller can leave now; the run is stored as running.
     expect(run).toMatchObject({ status: "running", documentName: "msa.txt" });
-    expect(tables.playbook_runs[0]).toMatchObject({ status: "running" });
+    expect(tables.playbook_runs[0]).toMatchObject({ status: "running", stored_document: false });
 
     answer(JSON.stringify({ summary: "Reviewed", findings: [] }));
     await expect(done).resolves.toMatchObject({ status: "completed" });
@@ -569,6 +569,7 @@ describe("playbook access and autosave", () => {
         playbook_id: "book",
         user_id: userId,
         document_name: `${id}.pdf`,
+        stored_document: false,
         status: "completed",
         error: null,
         findings_json: [{ heavy: true }],
@@ -703,7 +704,7 @@ describe("playbook access and autosave", () => {
       expect(
         writes.find((write) => write.table === "playbook_runs" && write.op === "insert")
           ?.payload,
-      ).toMatchObject({ document_id: "doc-1" });
+      ).toMatchObject({ document_id: "doc-1", stored_document: true });
       expect(
         writes.find(
           (write) =>

@@ -1813,17 +1813,22 @@ export interface DocumentAuthorship {
 }
 // --- Training layer 3, card 15 (end) ---
 
-/** A mentor's time-limited pass, for one matter's project, that lifts «Tu turno primero». */
+/**
+ * A mentor's time-limited pass, for one matter's project, that lifts «Tu turno primero».
+ * The mentor who cannot open that matter still sees that the pass exists and its dates, but
+ * not the matter, the reason or the note: those are `null` and `details_withheld` is true.
+ */
 export interface TrainingUrgencyPass {
     id: string;
     org_id: string;
     trainee_user_id: string;
-    project_id: string;
+    project_id: string | null;
     starts_at: string;
     expires_at: string;
-    reason_code: TrainingUrgencyReason;
+    reason_code: TrainingUrgencyReason | null;
     reason_note: string | null;
     revoked_at: string | null;
+    details_withheld?: boolean;
 }
 /**
  * POST /orgs/:orgId/training/pupils/:userId/passes (the pupil's current

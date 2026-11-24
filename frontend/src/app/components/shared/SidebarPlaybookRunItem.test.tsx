@@ -41,6 +41,11 @@ describe("SidebarPlaybookRunItem", () => {
         expect(title.style.transform).toBe("translateX(0px)");
     });
 
+    it("names a run whose document can no longer be opened by a neutral label, not by its file", () => {
+        render(<SidebarPlaybookRunItem run={{ ...run, documentName: null, detailsWithheld: true }} isActive={false} onOpen={vi.fn()} />);
+        expect(screen.getByRole("link")).toHaveAccessibleName("Playbook run: Vendor MSA playbook: Document not shown");
+    });
+
     it("shows a spinner while running and a tick once finished", () => {
         const { rerender } = render(
             <SidebarPlaybookRunItem run={run} isActive={false} status="loading" onOpen={vi.fn()} />,

@@ -260,14 +260,17 @@ type RunView = {
     findings: RunFinding[];
     startedAt: string;
     completedAt: string | null;
+    /** The person can no longer open the document the run was over: it has no document, summary or findings. */
+    detailsWithheld?: boolean;
 };
 
 /**
  * A run over text the person pasted has no document and was never given a name;
  * one that keeps a name but lost its document may have been a file of another
- * workspace, so only the first can be labelled as pasted text.
+ * workspace, and one withheld because its document can no longer be opened says
+ * so, so only the first can be labelled as pasted text.
  */
-const pastedText = (run: RunView) => !run.documentId && !run.documentName;
+const pastedText = (run: RunView) => !run.detailsWithheld && !run.documentId && !run.documentName;
 
 /** Whether the run's document is one this connection covers: a run with no document id (pasted text, or a deleted file) is not. */
 async function runDocumentCovered(call: McpCall, run: RunView): Promise<boolean> {

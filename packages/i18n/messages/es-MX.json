@@ -117,6 +117,8 @@
       "uploadDocuments": "Subir documentos",
       "workflows": "Flujos de trabajo"
     },
+    "answerNotShown": "Esta respuesta no se muestra porque no tienes acceso a los documentos con los que se elaboró.",
+    "answerSourceUnknown": "Esta respuesta no se muestra porque los documentos con los que se elaboró ya no se pueden identificar o ya no existen.",
     "askInputPopup": {
       "add": "+ Agregar",
       "addDocuments": "Agregar documentos",
@@ -3639,6 +3641,7 @@
     "deselectRows": "Deseleccionar filas",
     "details": "Detalles",
     "document": "Documento",
+    "documentNotShown": "Documento no mostrado",
     "documentTypes": "Tipos de documento",
     "draft": {
       "banner": "Borrador: no se puede usar en revisiones hasta que un editor lo marque como listo.",
@@ -3675,6 +3678,8 @@
     "filterByRepresentedParty": "Filtrar por parte representada",
     "filterByScope": "Filtrar por alcance",
     "findings": "Hallazgos",
+    "findingsNotShown": "Los hallazgos no se muestran porque no tienes acceso al documento que se revisó.",
+    "findingsSourceUnknown": "Los hallazgos no se muestran porque el documento que se revisó ya no se puede identificar o ya no existe.",
     "findingsToShow": "Hallazgos a mostrar",
     "forAFormattingPreservingWordRedline": ". Para un control de cambios en Word que conserve el formato, agrega el DOCX original en el Asistente; si no está disponible, LiTT puede crear un DOCX reconstruido a partir del texto, y te avisará de que el formato podría cambiar.",
     "fullReview": "Revisión completa",
@@ -3865,6 +3870,7 @@
     "resizeReferencesPanel": "Cambiar tamaño del panel de referencias",
     "resizeRulesPanel": "Cambiar tamaño del panel de reglas",
     "resizeRunsPanel": "Cambiar tamaño del panel de ejecuciones",
+    "resultsNotShown": "Resultados no mostrados",
     "retryFailedDocuments": "Reintentar documentos fallidos",
     "reviewModel": "Modelo de revisión",
     "reviewTheDocument": "revisar el documento",
@@ -7931,6 +7937,7 @@
       },
       "confirmMessage": "Desde el siguiente turno, el aprendiz vuelve a escribir su planteamiento en {project}.",
       "confirmTitle": "¿Revocar este pase?",
+      "detailsNotShown": "El motivo y la nota no se muestran porque no puedes abrir ese asunto.",
       "duration": "Duración",
       "empty": "Todavía no hay pases.",
       "ended": "Terminó el {end, date, medium} {end, time, short}",

@@ -124,6 +124,10 @@ interface ServerMessage {
     citations?: Citation[] | null;
     /** Low-band citation numbers of the automatic support check. */
     review_refs?: number[] | null;
+    /** The reader can no longer open the documents the answer was built from: it came back empty. */
+    unreadable?: boolean;
+    /** Why: access to a document was lost, or the documents it was built from cannot be identified or no longer exist. */
+    unreadable_reason?: "no_access" | "source_unknown";
     created_at: string;
 }
 interface ServerChatDetailOut {
@@ -4504,6 +4508,12 @@ export async function getChat(chatId: string): Promise<ChatDetailOut> {
             citations: m.citations ?? undefined,
             reviewRefs: m.review_refs?.length ? m.review_refs : undefined,
             events,
+            ...(m.unreadable
+                ? {
+                      unreadable: true,
+                      unreadableReason: m.unreadable_reason === "source_unknown" ? ("source_unknown" as const) : ("no_access" as const),
+                  }
+                : {}),
         };
     });
     return {
@@ -5860,6 +5870,10 @@ export interface PlaybookRun {
     error: string | null;
     startedAt: string;
     completedAt: string | null;
+    /** The reader can no longer open the document the run was over: no document name, summary or findings come with it. */
+    detailsWithheld?: boolean;
+    /** Why: access was lost, or the run's document is not recorded or was deleted. */
+    detailsWithheldReason?: "no_access" | "source_unknown";
 }
 export interface PlaybookConfiguration {
     availableModelIds: string[];
@@ -6338,6 +6352,9 @@ export interface PlaybookRunHistoryItem {
     playbookId: string;
     playbookName: string;
     documentName: string | null;
+    /** The reader can no longer open the document the run was over. */
+    detailsWithheld?: boolean;
+    detailsWithheldReason?: "no_access" | "source_unknown";
     status: string;
     error: string | null;
     startedAt: string;

@@ -1,7 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { memoryDb } from "../../__tests__/helpers/memoryDb";
 import type { Db } from "../../lib/supabase";
 import { getMyChatBacking, getPupilBacking, markMyConclusion } from "./trainingBacking.service";
+
+// Which matters the person can open: the matter rule itself is checkProjectAccess's.
+const matters = vi.hoisted(() => ({ closed: new Set<string>(), failing: false }));
+vi.mock("../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/access")>()),
+    checkProjectAccess: vi.fn(async (projectId: string) => {
+        if (matters.failing) throw new Error("access lookup down");
+        return { ok: !matters.closed.has(projectId) };
+    }),
+}));
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const ORG = id(10);
@@ -124,5 +134,63 @@ describe("a stored «backed» conclusion is read again with its passage (B1)", (
         expect(await present("Aplica el artículo 6 de la Ley A", "Ley B.pdf")).toMatchObject({
             status: "unbacked", citation_ref: null, passage: null, unverified_references: ["art. 6"],
         });
+    });
+});
+
+describe("the person reads their own backing only for a matter they can open", () => {
+    const MATTER = id(30);
+    const matterWorld = () => {
+        const made = world();
+        made.tables.chats[0].project_id = MATTER;
+        made.tables.chat_messages[0].citations = [
+            { ref: 1, filename: "Contrato.pdf", page: 1, verified: true, quotes: [{ page: 1, quote: "x", verification: { verified: true, source_excerpt: "Artículo 5. Texto." } }] },
+        ];
+        made.tables.training_backing_checks[0].conclusions = [
+            { id: "c1", text: "Aplica el artículo 5", citation_ref: 1, status: "backed", unverified_references: [], person_verified: false, person_note: null },
+        ];
+        matters.closed.clear();
+        matters.failing = false;
+        return made;
+    };
+
+    it("shows the passage while the person can open the matter", async () => {
+        const { db } = matterWorld();
+        const result = await getMyChatBacking(db, { userId: PUPIL, userEmail: null, chatId: CHAT });
+        if (!result.ok) throw new Error("expected ok");
+        expect(result.data.checks[0].conclusions![0].passage).toMatchObject({ excerpt: "Artículo 5. Texto." });
+    });
+
+    it("answers the uniform 404 once the person cannot open the matter, and reads no message", async () => {
+        const { db } = matterWorld();
+        matters.closed.add(MATTER);
+        const result = await getMyChatBacking(db, { userId: PUPIL, userEmail: null, chatId: CHAT });
+        expect(result).toMatchObject({ ok: false, kind: "not_found" });
+        expect(JSON.stringify(result)).not.toContain("Artículo 5");
+    });
+
+    it("refuses a mark on a conclusion of a matter the person cannot open, and writes nothing", async () => {
+        const { db, tables } = matterWorld();
+        matters.closed.add(MATTER);
+        const result = await markMyConclusion(db, {
+            userId: PUPIL, userEmail: null, chatId: CHAT, checkId: CHECK, conclusionId: "c1", body: { person_verified: true },
+        });
+        expect(result).toMatchObject({ ok: false, kind: "not_found" });
+        expect((tables.training_backing_checks[0].conclusions as { person_verified: boolean }[])[0].person_verified).toBe(false);
+    });
+
+    it("answers the uniform 404 when the work cannot be placed at all (its chat is gone)", async () => {
+        const { db, tables } = matterWorld();
+        tables.chats.length = 0;
+        const result = await getMyChatBacking(db, { userId: PUPIL, userEmail: null, chatId: CHAT });
+        expect(result).toMatchObject({ ok: false, kind: "not_found" });
+        expect(JSON.stringify(result)).not.toContain("Artículo 5");
+    });
+
+    it("fails, rather than shows the passage, when the matter cannot be checked", async () => {
+        const { db } = matterWorld();
+        matters.failing = true;
+        const result = await getMyChatBacking(db, { userId: PUPIL, userEmail: null, chatId: CHAT });
+        expect(result).toMatchObject({ ok: false, kind: "error" });
+        matters.failing = false;
     });
 });

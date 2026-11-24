@@ -33,7 +33,9 @@ export function SidebarPlaybookRunItem({
 }) {
     const t = useTranslations();
     const { titleRef, titleStyle, slideHandlers } = useSidebarTitleSlide();
-    const documentName = run.documentName?.trim() || t("shared.sidebarPlaybookRunItem.untitledDocument");
+    const documentName = run.detailsWithheld
+        ? t("playbooks.documentNotShown")
+        : run.documentName?.trim() || t("shared.sidebarPlaybookRunItem.untitledDocument");
     const playbookName = run.playbookName.trim() || t("shared.sidebarPlaybookRunItem.untitledPlaybook");
     const fullTitle = `${playbookName}: ${documentName}`;
     return (

@@ -21,9 +21,17 @@
 // sources of every message up to it, and unknown provenance taints the rest of
 // the chat. What a person typed themselves is not derived from a document and
 // is never withheld; only the attachments it names are, one by one.
+//
+// A transcript read now (the "live" gate) is stated with the reason of each
+// answer it withholds. An answer is withheld for lost access when it names a
+// document that still exists and the reader cannot open; that holds for every
+// later answer too. For the owner of the chat, whose own history it is, an
+// answer whose source cannot be established, or whose document no longer
+// exists, is withheld on its own and does not hold the later ones back.
 
-import { documentIdsInProject, keepReadableDerived, type DerivedReader } from "./access";
+import { documentIdsInProject, filterAccessibleDocumentIds, keepReadableDerived, type DerivedReader } from "./access";
 import { selectAllByKey, selectInBatches, sortRows } from "./batchedQuery";
+import { withReadableTitles } from "./tabularReadAccess";
 import type { Db } from "./supabase";
 import { isUuid } from "./uuid";
 
@@ -45,17 +53,23 @@ const refKey = (ref: ChatSourceRef) => `${ref.documentId}|${ref.versionId ?? ""}
 
 /**
  * How a reader of derived copies judges what a message names: "export" for
- * the holder's own data, "memory" for project memory. Without one, a message
- * is read strictly, as it names documents and nothing else: a search stored
- * without its documents that returned results is unknown provenance.
+ * the holder's own data, "live" for a transcript read on screen or through a
+ * connected app, "memory" for project memory. Without one, a message is read
+ * strictly, as it names documents and nothing else: a search stored without
+ * its documents that returned results is unknown provenance.
  */
-type Gate = "export" | "memory";
+type Gate = "export" | "memory" | "live";
 
 const WORKFLOW_ASSET_ID = /^workflow-asset-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-\d+$/i;
 const WORKFLOW = "workflow:";
 
 /** A search stored without its documents: does it name something, and where from? */
 function searchWithoutIds(event: Row, gate: Gate | undefined): boolean {
+    // Stated limit of the live read: a search stored before searches recorded
+    // their documents (it has no document list at all) does not withhold by
+    // itself. Searches stored since name their documents and are judged by
+    // them; a list that is present but is not one is an unknown source.
+    if (gate === "live" && !("document_ids" in event)) return false;
     // Nothing came back, or the search failed: nothing was copied.
     if (event.match_count === 0 || typeof event.error_code === "string" || typeof event.error === "string") return false;
     // Stated limit of the account export: an old search of the project or of one
@@ -197,7 +211,81 @@ export const cumulativeChatSourceRefs = (messages: readonly Row[]): (ChatSourceR
 const cumulativeSources = (messages: readonly Row[], gate: Gate): (string[] | null)[] =>
     cumulative(messages, (message) => gateSources(message, gate), (id) => id);
 
+/**
+ * Of `rows` (stored answers, in any chats), those whose OWN sources the reader
+ * can open now, judged as a transcript they read is ("live") and with no regard
+ * for any other message. A failed lookup throws.
+ */
+export async function readableByOwnSources<M extends Row>(db: Db, reader: DerivedReader, rows: M[]): Promise<Set<M>> {
+    const resolved = await withWorkflowFiles(db, rows.map((row) => gateSources(row, "live")));
+    const resolvedOf = new Map(rows.map((row, index) => [row, resolved[index]]));
+    return new Set(await keepReadableDerived(db, reader, rows, (row) => resolvedOf.get(row) ?? null));
+}
+
 type Unit = { sources: readonly string[] | null };
+
+/** Why a transcript withholds an answer: access lost to a document that exists, or a source that cannot be established or no longer exists. */
+export type WithheldReason = "no_access" | "source_unknown";
+
+/**
+ * Of `messages` (the live read), the reason of each answer to withhold, by the
+ * rule in the header: `owned` holds the chats the reader owns. Only called
+ * when the plain cumulative judgement withheld something. It counts the
+ * attachments of the person's messages as that judgement does: a document that
+ * exists and that the reader cannot open is a loss of access from that
+ * message on, for every reader.
+ */
+async function liveReasons(db: Db, reader: DerivedReader, messages: readonly Row[]): Promise<Map<string, WithheldReason | null>> {
+    const chatIds = [...new Set(messages.map((message) => message.chat_id).filter((id): id is string => typeof id === "string"))];
+    const owners = await selectInBatches<{ id: string; user_id: string }>("chat owner lookup", chatIds, (batch) =>
+        db.from("chats").select("id, user_id").in("id", batch),
+    );
+    const owned = new Set(owners.filter((chat) => chat.user_id === reader.userId).map((chat) => chat.id));
+
+    // Everything a message names, whether or not it also names something unknown.
+    // A person's own message names its attachments only; one that cannot be
+    // identified holds the later answers back from a reader who is not the owner.
+    const named = messages.map((message) => {
+        const { refs, workflows, unknown } = scan(message, "live");
+        return { keys: [...new Set([...[...refs.values()].map((ref) => ref.documentId), ...[...workflows].map((id) => WORKFLOW + id)])], unknown };
+    });
+    const keys = [...new Set(named.flatMap((entry) => entry.keys))];
+    const files = await withWorkflowFiles(db, keys.map((key) => [key]));
+    const fileOf = new Map(keys.map((key, index) => [key, files[index]?.[0] ?? null]));
+    const fileIds = [...new Set([...fileOf.values()].filter((id): id is string => id !== null))];
+    const open = new Set(await filterAccessibleDocumentIds(fileIds, reader.userId, reader.userEmail, db));
+    const closedIds = fileIds.filter((id) => !open.has(id));
+    const existing = new Set(
+        (await selectInBatches<{ id: string }>("document existence lookup", closedIds, (batch) => db.from("documents").select("id").in("id", batch))).map((row) => row.id),
+    );
+    // closed: still there, not openable; gone: no file left to judge.
+    const stateOf = (key: string) => {
+        const file = fileOf.get(key);
+        if (!file) return "gone";
+        return open.has(file) ? "open" : existing.has(file) ? "closed" : "gone";
+    };
+
+    const result = new Map<string, WithheldReason | null>();
+    const chats = new Map<unknown, { seen: Set<string>; unknown: boolean }>();
+    messages.forEach((message, index) => {
+        const entry = named[index];
+        const chat = chats.get(message.chat_id) ?? { seen: new Set<string>(), unknown: false };
+        chats.set(message.chat_id, chat);
+        const mine = owned.has(message.chat_id as string);
+        for (const key of entry.keys) chat.seen.add(key);
+        if (entry.unknown && !mine) chat.unknown = true;
+        // For the owner, what no longer exists holds nothing back; for any other reader it is not openable.
+        const states = [...chat.seen].map((key) => stateOf(key));
+        const lost = states.includes("closed");
+        const unopenable = mine ? false : states.includes("gone");
+        const ownGone = entry.keys.some((key) => stateOf(key) === "gone");
+        const withheld = lost || unopenable || chat.unknown || entry.unknown || ownGone;
+        // What a person typed is never withheld: their message has no verdict.
+        if (message.role === "user") return;
+        result.set(String(message.id), withheld ? (lost || !mine ? "no_access" : "source_unknown") : null);
+    });
+    return result;
+}
 
 /**
  * The messages the reader may read now. `messages` are every message of the
@@ -210,8 +298,10 @@ export async function readableChatMessages<M extends Row>(
     db: Db,
     reader: DerivedReader,
     messages: M[],
-): Promise<{ messages: M[]; withheld: Set<string> }> {
-    const cumulative = cumulativeSources(messages, "export");
+    /** "live" for a transcript read now; "export" (the default) for the holder's own data. */
+    gate: "export" | "live" = "export",
+): Promise<{ messages: M[]; withheld: Set<string>; reasons: Map<string, WithheldReason> }> {
+    const cumulative = cumulativeSources(messages, gate);
     // Per message: the unit of an answer, or the unit of each attachment.
     const unitsOf: Unit[][] = messages.map((message, index) =>
         message.role === "user"
@@ -226,12 +316,24 @@ export async function readableChatMessages<M extends Row>(
     const resolved = await withWorkflowFiles(db, units.map((unit) => unit.sources));
     const resolvedOf = new Map(units.map((unit, index) => [unit, resolved[index]]));
     const kept = new Set(await keepReadableDerived(db, reader, units, (unit) => resolvedOf.get(unit) ?? null));
+    // A transcript read now says why it withholds each answer, and lets the
+    // owner of a chat keep the answers that only a source they cannot
+    // establish, or a document that no longer exists, held back.
+    const reasons = new Map<string, WithheldReason>();
+    const answerKept = (message: M, index: number) => kept.has(unitsOf[index][0]);
+    let verdicts: Map<string, WithheldReason | null> | null = null;
+    if (gate === "live" && messages.some((message, index) => message.role !== "user" && !answerKept(message, index)))
+        verdicts = await liveReasons(db, reader, messages);
     const withheld = new Set<string>();
     const out: M[] = [];
     messages.forEach((message, index) => {
         if (message.role !== "user") {
-            if (kept.has(unitsOf[index][0])) out.push(message);
-            else withheld.add(message.chat_id as string);
+            const reason = verdicts?.get(String(message.id)) ?? null;
+            if (verdicts ? reason === null : answerKept(message, index)) out.push(message);
+            else {
+                withheld.add(message.chat_id as string);
+                reasons.set(String(message.id), reason ?? "no_access");
+            }
             return;
         }
         const files = rows(message.files);
@@ -242,7 +344,7 @@ export async function readableChatMessages<M extends Row>(
             withheld.add(message.chat_id as string);
         }
     });
-    return { messages: out, withheld };
+    return { messages: out, withheld, reasons };
 }
 
 /**
@@ -289,4 +391,40 @@ export async function filterChatMemoryEvidence<T extends { id: string }>(
     const resolved = await withWorkflowFiles(db, eligible);
     const resolvedOf = new Map(messages.map((message, index) => [message, resolved[index]]));
     return keepReadableDerived(db, reader, messages, (message) => resolvedOf.get(message) ?? null);
+}
+
+/**
+ * `chats` with the title of each one the reader may not read in full replaced
+ * by none (the neutral title). A title is written from what the person typed
+ * and the names of the files attached to their messages, never from an answer,
+ * so it is shown while the reader can open every file attached to the chat.
+ * Only the attachments of the chats that have a title are read, in batches,
+ * without any message text; if a lookup fails this throws.
+ */
+export async function withReadableChatTitles<C extends { id?: unknown; title?: unknown }>(
+    db: Db,
+    reader: DerivedReader,
+    chats: C[],
+): Promise<C[]> {
+    const titled = chats.flatMap((chat) => (chat.title && typeof chat.id === "string" ? [chat.id] : []));
+    if (!titled.length) return chats;
+    const attachments = await selectInBatches<Row>("chat title attachments", titled, (batch) =>
+        selectAllByKey<Row>("chat title attachments", () =>
+            db
+                .from("chat_messages")
+                .select("id, chat_id, role, files, created_at")
+                .eq("role", "user")
+                .not("files", "is", null)
+                .in("chat_id", batch),
+        ),
+    );
+    // One unit per attached file: the document it names, none for a file that names none.
+    const units = attachments.flatMap((message) =>
+        rows(message.files).map((file) => ({
+            chat_id: message.chat_id,
+            sources: documentIdOf(file.document_id) ? [file.document_id as string] : file.document_id ? null : [],
+        })),
+    );
+    const kept = await keepReadableDerived(db, reader, units, (unit) => unit.sources);
+    return withReadableTitles(chats, units, kept);
 }

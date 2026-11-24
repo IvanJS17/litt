@@ -623,7 +623,7 @@ export async function prepareChatStream(
         // and workflow titles replayed from earlier turns are fenced as well.
         const nonce = generateSpotlightNonce(chatId);
         const historyMessages = replaysReasoning(selectedModel)
-            ? await attachPriorReasoning(messages, chatId, db, "chat_messages", history)
+            ? await attachPriorReasoning(messages, chatId, db, "chat_messages", history, { userId, userEmail })
             : messages;
         const timeZone = resolveRequestTimeZone(args.requestedTimeZone);
         const enrichedMessages = await enrichWithPriorEvents(
@@ -634,6 +634,7 @@ export async function prepareChatStream(
             nonce,
             "chat_messages",
             timeZone,
+            { userId, userEmail },
         );
         // Only the pinned credential leaves this function: titles, tools and
         // helpers of this turn cannot reach another key or provider.
