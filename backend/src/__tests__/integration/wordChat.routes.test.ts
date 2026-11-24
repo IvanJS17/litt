@@ -617,6 +617,23 @@ describe("POST /word-chat — local storage", () => {
     expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
   });
 
+  it("hands the key the conversation is pinned to to the engine", async () => {
+    const res = await request(app)
+      .post("/word-chat")
+      .set(...AUTH)
+      .send({
+        messages: [{ role: "user", content: "Revise this clause" }],
+        document_id: DOCUMENT_ID,
+        document_name: "Contract.docx",
+        storage: "local",
+        model: "gemini-3-flash-preview",
+      });
+    expect(res.status).toBe(200);
+    expect(runLLMStream.mock.calls[0]![0]).toMatchObject({
+      credentialRef: expect.stringMatching(/^env:/),
+    });
+  });
+
   it("judges the stored reasoning it replays for the person whose turn it is", async () => {
     const chatLib = await import("../../modules/chat/engine/index.js");
     const registry = await import("../../lib/llm/registry.js");

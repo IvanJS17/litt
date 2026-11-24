@@ -632,6 +632,8 @@ export type PreparedWordChatStream = {
   apiMessages: ReturnType<typeof buildMessages>;
   workflowStore: Awaited<ReturnType<typeof buildWorkflowStore>>;
   apiKeys: Awaited<ReturnType<typeof getUserModelSettings>>["api_keys"];
+  /** The key the conversation is pinned to (`credential_ref`). */
+  credentialRef: string;
   selectedModel: string;
   selectedReasoningLevel: ReturnType<typeof resolveEffectiveReasoningLevel>;
   nonce: ReturnType<typeof generateSpotlightNonce>;
@@ -1077,6 +1079,7 @@ export async function prepareWordChatStream(
         apiMessages,
         workflowStore,
         apiKeys,
+        credentialRef: route.credentialRef,
         selectedModel,
         selectedReasoningLevel,
         nonce,

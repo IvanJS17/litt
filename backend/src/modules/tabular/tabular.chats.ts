@@ -644,6 +644,8 @@ export type PreparedTabularChat = {
     /** The model that names a new chat, already resolved for this chat model. */
     titleModel: string;
     apiKeys: UserApiKeys;
+    /** The key the conversation is pinned to (`credential_ref`). */
+    credentialRef: string;
     /** The review's organization, whose keys and model lists apply. */
     orgId: string | null;
     apiMessages: unknown[];
@@ -1048,6 +1050,7 @@ export async function prepareTabularChat(
             ),
             // Only the pinned credential leaves this function.
             apiKeys: governed.apiKeys,
+            credentialRef: route.credentialRef,
             orgId: review.org_id ?? null,
             apiMessages,
             inputMessageId,

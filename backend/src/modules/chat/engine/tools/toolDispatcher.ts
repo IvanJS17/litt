@@ -282,6 +282,12 @@ export async function runToolCalls(
     /** The conversation's model, used by run_playbook for its review. */
     model?: string;
     /**
+     * The key the conversation is pinned to (`credential_ref`), used by
+     * run_playbook for its review. Absent: the review is started without a
+     * chosen key, as before.
+     */
+    credentialRef?: string | null;
+    /**
      * Shared by every runToolCalls of one answer, its subagents' included, so
      * two writes to one document never start from the same version.
      */
@@ -1001,6 +1007,9 @@ export async function runToolCalls(
             instructions:
               typeof args.instructions === "string" ? args.instructions : undefined,
             model: options.model,
+            // The conversation's own key, nothing else: the review's key and
+            // content rules decide whether it may run on it.
+            ...(options.credentialRef ? { credentialRef: options.credentialRef } : {}),
             reviewMode: args.review_mode === "permissive" ? "permissive" : "strict",
             db,
             // A stop during the review also stops it: the model call ends,

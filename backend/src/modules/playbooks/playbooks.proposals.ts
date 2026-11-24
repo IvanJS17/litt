@@ -506,6 +506,14 @@ export async function compilePlaybookProposals(
     // Checked again: Editor can be lost while the job waits.
     const copy = await editablePlaybook(userId, work.playbookId, db, work.userEmail);
     assertCopyUnchanged(copy, work);
+    // The key's content rule again, before any attachment is read: a saved
+    // document can have moved to another organization while the job waited.
+    await assertFirmKeyForDocuments(
+      db,
+      work.route?.credentialRef,
+      work.orgId,
+      attachedDocumentIds(request.attachments),
+    );
     // The pinned route or nothing: no other model or key is tried.
     const resolved = await loadPlaybookRoute(db, userId, work.orgId, work.route);
     await recordChatEgress(db, {
