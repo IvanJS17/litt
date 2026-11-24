@@ -1,11 +1,8 @@
-// jsonrepair declares "type": "module" but ships a CommonJS build; importing
-// it normally trips TS1479 under this package's Node16 CJS resolution.
-const { jsonrepair } = require("jsonrepair") as {
-  jsonrepair: (text: string) => string;
-};
-
+import { isRepairRefusal, RepairBudget, repairJson, setRepairObserverForTests } from "../boundedJsonRepair";
 import { assertBoundedText, BoundedTextError, MODEL_TEXT_MAX_CHARS, stripCodeFence } from "../modelJsonFence";
 import type { NormalizedToolCall } from "./types";
+
+export { setRepairObserverForTests };
 
 /**
  * The most a tool call's arguments may hold to be repaired rather than refused:
@@ -15,61 +12,35 @@ import type { NormalizedToolCall } from "./types";
 export const TOOL_ARGUMENT_REPAIR_MAX_CHARS = 200_000;
 
 /**
- * The most work the repair of one text may be asked to do, in characters times
- * quote characters. The library re-reads the rest of a text for each quote
- * that does not pair (a string with unescaped quotes inside it), so its time
- * grows with that product; a cut-off string of any length has few quotes and
- * stays well inside it.
- */
-const TOOL_ARGUMENT_REPAIR_MAX_WORK = 250_000_000;
-
-/**
- * The most repair work one reading of a reply may ask for, in the same unit,
- * shared by every text the reading repairs. Each repair also costs
+ * The most repair work one reading of a reply may ask for, in characters times
+ * quote characters (the unit of `lib/boundedJsonRepair.ts`, which also limits
+ * one text), shared by every text the reading repairs. Each repair also costs
  * `TOOL_ARGUMENT_REPAIR_CALL_COST`, so a reply of many small texts is bounded
- * in the number of repairs as well.
+ * in the number of repairs as well. A reply of honest arguments (a few
+ * documents of 150,000 characters with their quotes escaped, or dozens of
+ * 5,000-character ones) fits in it.
  */
-export const TOOL_ARGUMENT_REPAIR_REPLY_BUDGET = 100_000_000;
+export const TOOL_ARGUMENT_REPAIR_REPLY_BUDGET = 1_000_000_000;
 export const TOOL_ARGUMENT_REPAIR_CALL_COST = 20_000;
 
-/** Seam for tests: told the size and the work of every repair that is run. */
-let repairObserver: ((chars: number, work: number) => void) | null = null;
-export function setRepairObserverForTests(
-  observer: ((chars: number, work: number) => void) | null,
-): void {
-  repairObserver = observer;
-}
+/** The repairs of one reading of a reply (one call of a public entry point) are paid from one budget. */
+const newRepairBudget = (): RepairBudget => new RepairBudget(TOOL_ARGUMENT_REPAIR_REPLY_BUDGET, TOOL_ARGUMENT_REPAIR_CALL_COST);
+
+const UNRECOVERABLE_CALL_MESSAGE =
+  "The local model returned a tool call that LiTT could not recover. Retry the request or use the deterministic Trademark Monitor mode.";
 
 /**
- * What is left of the repair work of one reading of a reply (one call of a
- * public entry point). Every repair the reading does is paid from it; a text
- * it cannot pay for is handed on unrepaired, as one over the limit of a single
- * text is.
+ * Runs a reading of a reply. An argument a bound refuses (the limit of its text or the budget of the
+ * reading) is not text that is not JSON: the reading ends with the error of a call that cannot be
+ * read, and no call of the reply is handed on, rather than one with arguments missing or retyped.
  */
-class RepairBudget {
-  remaining = TOOL_ARGUMENT_REPAIR_REPLY_BUDGET;
-  /** One refusal, thrown again for every text the spent budget turns away (an error costs its stack). */
-  refusal: BoundedTextError | null = null;
-}
-
-function repairToolJson(text: string, budget: RepairBudget): string {
-  assertBoundedText(text, TOOL_ARGUMENT_REPAIR_MAX_CHARS);
-  let quotes = 0;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code === 34 || code === 39) quotes++;
+function endOnRefusal<T>(read: () => T): T {
+  try {
+    return read();
+  } catch (error) {
+    if (isRepairRefusal(error)) throw new Error(UNRECOVERABLE_CALL_MESSAGE, { cause: error });
+    throw error;
   }
-  const limit = Math.floor(TOOL_ARGUMENT_REPAIR_MAX_WORK / (quotes + 1));
-  assertBoundedText(text, limit);
-  const work = text.length * (quotes + 1);
-  const cost = work + TOOL_ARGUMENT_REPAIR_CALL_COST;
-  if (cost > budget.remaining) {
-    budget.refusal ??= new BoundedTextError(limit, text.length);
-    throw budget.refusal;
-  }
-  budget.remaining -= cost;
-  repairObserver?.(text.length, work);
-  return jsonrepair(text);
 }
 
 /**
@@ -81,7 +52,7 @@ function parseToolJson(text: string, budget: RepairBudget): unknown {
   try {
     return JSON.parse(assertBoundedText(text));
   } catch {
-    return JSON.parse(repairToolJson(text, budget));
+    return JSON.parse(repairJson(text, { maxChars: TOOL_ARGUMENT_REPAIR_MAX_CHARS }, budget));
   }
 }
 
@@ -321,7 +292,14 @@ export function parseTextToolCalls(
   iteration: number,
 ): NormalizedToolCall[] {
   if (text.length > MODEL_TEXT_MAX_CHARS) return [];
-  const budget = new RepairBudget();
+  return endOnRefusal(() => readTextToolCalls(text, iteration));
+}
+
+function readTextToolCalls(
+  text: string,
+  iteration: number,
+): NormalizedToolCall[] {
+  const budget = newRepairBudget();
   const dsmlCalls = readDsmlToolCalls(text, iteration, budget);
   if (dsmlCalls.length) return deduplicateToolCalls(dsmlCalls);
   if (!hasToolMarkup(text)) return [];
@@ -388,9 +366,13 @@ export function parseTextToolCalls(
           ];
         },
       );
+      if (parsedCalls.length) return parsedCalls;
+      // Read loosely only when the JSON holds no call: the reading is paid for from the budget.
       const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex, budget);
-      return parsedCalls.length ? parsedCalls : looseCall ? [looseCall] : [];
+      return looseCall ? [looseCall] : [];
     } catch (error) {
+      // A refused repair is not a body that holds no call: it ends the reading.
+      if (isRepairRefusal(error)) throw error;
       const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex, budget);
       if (looseCall) return [looseCall];
       if (process.env.DEBUG_LLM_TOOL_CALLS === "1") {
@@ -399,9 +381,7 @@ export function parseTextToolCalls(
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      throw new Error(
-        "The local model returned a tool call that LiTT could not recover. Retry the request or use the deterministic Trademark Monitor mode.",
-      );
+      throw new Error(UNRECOVERABLE_CALL_MESSAGE);
     }
   });
   if (!calls.length) {
@@ -416,7 +396,7 @@ export function parseDsmlToolCalls(
   value: string,
   iteration: number,
 ): NormalizedToolCall[] {
-  return readDsmlToolCalls(value, iteration, new RepairBudget());
+  return endOnRefusal(() => readDsmlToolCalls(value, iteration, newRepairBudget()));
 }
 
 function readDsmlToolCalls(
@@ -531,7 +511,9 @@ function parseLooseTextToolCall(
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         Object.assign(input, parsed);
       }
-    } catch {
+    } catch (error) {
+      // A refusal by a bound is not an argument payload that is not JSON.
+      if (isRepairRefusal(error)) throw error;
       // A call with an unrecoverable argument payload is still returned so the
       // connector can provide its normal validation error instead of hiding the
       // model's tool name behind a generic parser failure.
@@ -590,7 +572,7 @@ function parseXmlStyleToolCall(
 }
 
 export function parseToolScalar(value: string): unknown {
-  return readToolScalar(value, new RepairBudget());
+  return endOnRefusal(() => readToolScalar(value, newRepairBudget()));
 }
 
 function readToolScalar(value: string, budget: RepairBudget): unknown {
@@ -605,7 +587,9 @@ function readToolScalar(value: string, budget: RepairBudget): unknown {
   if (/^[\[{]/.test(trimmed)) {
     try {
       return parseToolJson(trimmed, budget);
-    } catch {
+    } catch (error) {
+      // A refusal by a bound is not a value that is not JSON.
+      if (isRepairRefusal(error)) throw error;
       // Preserve the original string when a nested value is not JSON-like.
     }
   }

@@ -317,3 +317,54 @@ describe("localModelToleranceMiddleware — a reply longer than the bound that a
         expect(result.content.filter((part: AnyPart) => part.type === "tool-call")).toHaveLength(1);
     });
 });
+
+describe("localModelToleranceMiddleware — an argument the repair bounds refuse", () => {
+    // Three calls; the second holds an argument whose repair is over the limit of one text (30,000
+    // characters, half of them quotes). No call of the reply may run, not even the others.
+    const GOOD = (query: string) => `<tool_call>{"name":"${TOOL}","arguments":{"query":"${query}"}}</tool_call>`;
+    const REFUSED = `<tool_call>{"name":"${TOOL}","arguments":{'query':${"{" + "'a".repeat(15_000)}}}</tool_call>`;
+    const reply = [GOOD("one"), REFUSED, GOOD("three")].join("\n");
+    const UNREADABLE = /could not recover/;
+
+    it("ends a streamed step with an error and hands on no call", async () => {
+        const { parts } = await runStream(["Calling.\n", reply]);
+        expect(String(parts.find((part) => part.type === "error")?.error)).toMatch(UNREADABLE);
+        expect(parts.filter((part) => part.type === "tool-call")).toEqual([]);
+    });
+
+    it("ends a replayed step with an error and hands on no call", async () => {
+        const middleware = localModelToleranceMiddleware();
+        const doGenerate = vi.fn().mockResolvedValue({
+            content: [{ type: "text", text: reply }],
+            finishReason: STOP,
+            usage: USAGE,
+            warnings: [],
+        });
+        const result = await middleware.wrapStream!({
+            doStream: vi.fn(),
+            doGenerate,
+            params: { tools: [{ type: "function", name: TOOL }] },
+            model: {} as AnyPart,
+        } as AnyPart);
+        const parts = await collect(result.stream);
+        expect(String(parts.find((part) => part.type === "error")?.error)).toMatch(UNREADABLE);
+        expect(parts.filter((part) => part.type === "tool-call")).toEqual([]);
+    });
+
+    it("fails a generated step and hands on no call", async () => {
+        const middleware = localModelToleranceMiddleware();
+        const doGenerate = vi.fn().mockResolvedValue({
+            content: [{ type: "text", text: reply }],
+            finishReason: STOP,
+            usage: USAGE,
+            warnings: [],
+        });
+        const outcome = await middleware
+            .wrapGenerate!({ doGenerate, doStream: vi.fn(), params: {}, model: {} as AnyPart } as AnyPart)
+            .then(
+                (result: AnyPart) => `the step completed with ${result.content.filter((part: AnyPart) => part.type === "tool-call").length} calls`,
+                (error: unknown) => String(error),
+            );
+        expect(outcome).toMatch(UNREADABLE);
+    });
+});

@@ -93,4 +93,15 @@ describe("the size check of the playbook answer repair", () => {
         expect(() => parse(longReview(LARGEST_ANSWER_CHARS * 1.5, "unescaped quote").text)).toThrow("The model did not return structured JSON.");
         expect(repair).not.toHaveBeenCalled();
     });
+    it("does not start the repair of a damaged answer whose quotes would cost too much, whichever quote it is written with", async () => {
+        const { repair, parseModelJson: parse } = await load();
+        // 100,000 characters, a third of them quotes that do not pair: far more work than an answer of that size may ask.
+        for (const quote of ['"', "'"]) {
+            const answer = `{${quote}text${quote}:${quote}${"a ".concat(quote, "x", quote, " ").repeat(16_000)}${quote}}`;
+            expect(answer.length).toBeGreaterThan(90_000);
+            expect(answer.length).toBeLessThan(LARGEST_ANSWER_CHARS);
+            expect(() => parse(answer)).toThrow("The model did not return structured JSON.");
+        }
+        expect(repair).not.toHaveBeenCalled();
+    });
 });

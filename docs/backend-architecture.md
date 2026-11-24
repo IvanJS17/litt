@@ -104,9 +104,14 @@ request is bounded where it is held:
   a reply of at most `MODEL_TEXT_MAX_CHARS` in time proportional to its size, and
   every name or attribute it reads has a length bound. A longer reply is not
   scanned: it is plain text, except that one which opens a tool call ends the
-  step with an error, as a call that cannot be read does. All the repairs of
-  damaged arguments in one reply share a single work budget; an argument it
-  cannot pay for is handed on as written. Searches that no regular-expression
+  step with an error, as a call that cannot be read does. A damaged argument
+  is repaired by `lib/boundedJsonRepair.ts`, the only place that calls the
+  repair library: it counts, before the library runs, every character the
+  library treats as a quote, and refuses a text whose size times its quotes is
+  over the limit of one text. All the repairs in one reply share a single work
+  budget. An argument the bounds refuse ends the step with an error, and no
+  call from that reply runs; text that is simply not JSON stays a plain
+  string value. Searches that no regular-expression
   check can see (loops of `indexOf`) are guarded by
   `lib/__tests__/toolCallParsing.growth.test.ts`: every marker the reader
   recognises must be added to its table. A shape that grows faster than its

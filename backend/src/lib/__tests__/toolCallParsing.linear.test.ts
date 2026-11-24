@@ -97,13 +97,12 @@ describe("reading tool calls out of a model's text", () => {
         expect(parseDsmlToolCalls(parameter(201), 0)[0].input).toEqual({});
     });
 
-    it("repairs a cut argument of any size up to its bound, and leaves a quote-dense one that would cost too much", () => {
+    it("repairs a cut argument of any size up to its bound, and refuses a quote-dense one that would cost too much", () => {
         const cut = (text: string) => `<tool_call>{"name":"n","arguments":{"text":"${text}`;
         const call = parseTextToolCalls(cut("x".repeat(199_000)), 0);
         expect((call[0].input as { text: string }).text).toHaveLength(199_000);
-        const quoted = parseTextToolCalls(cut('he said "hi" and '.repeat(10_000)), 0);
-        expect(quoted).toHaveLength(1);
-        expect(quoted[0].input).toEqual({});
+        // A quote-dense argument that would cost too much to repair ends the reading: no call is handed on.
+        expect(() => parseTextToolCalls(cut('he said "hi" and '.repeat(10_000)), 0)).toThrow(/could not recover/);
         const small = parseTextToolCalls(cut('he said "hi" and "bye" '), 0);
         expect((small[0].input as { text: string }).text).toContain("hi");
     });

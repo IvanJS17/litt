@@ -121,6 +121,7 @@ const inCall = (body: (n: number) => string) => (n: number) => `<tool_call>${bod
 add("repair: unescaped quotes inside a string", inCall((n) => `{"name":"n","arguments":{"text":"he said "hi" and "bye" ${repeat('and "x" ')(n)}"}}`));
 add("repair: double quote and letter repeated", inCall((n) => `"${repeat('"a')(n)}`));
 add("repair: single quote and letter repeated", inCall((n) => repeat("'a")(n)));
+add("repair: curly quote and letter repeated", inCall((n) => `{${repeat("\u2018a")(n)}`));
 add("repair: quoted words never paired", inCall((n) => `{"name":"n","arguments":{"a":"b${repeat('"c"')(n)}`));
 add("repair: an array cut after many strings", inCall((n) => `{"name":"n","arguments":{"a":[${repeat('"item text",')(n)}`));
 add("repair: an object cut after many keys", inCall((n) => `{"name":"n","arguments":{${make(n, (i) => `"k${i}":"v${i}",`)}`));

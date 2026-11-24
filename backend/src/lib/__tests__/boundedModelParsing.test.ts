@@ -113,15 +113,12 @@ describe("the repair of a tool call's arguments", () => {
         expect(calls[0].name).toBe("write_note");
         expect(textOf(calls)).toHaveLength(ARGUMENT_CHARS - 100);
     });
-    it("hands on a call with no arguments when they are over that size, for the connector to refuse as it does a call with missing ones", () => {
-        const calls = parseTextToolCalls(cutCall(ARGUMENT_CHARS + 1_000), 0);
-        expect(calls).toHaveLength(1);
-        expect(calls[0].name).toBe("write_note");
-        expect(calls[0].input).toEqual({});
+    it("ends the reading with the error of a call that cannot be read when the arguments are over that size, and hands on no call", () => {
+        expect(() => parseTextToolCalls(cutCall(ARGUMENT_CHARS + 1_000), 0)).toThrow(/could not recover/);
     });
-    it("keeps a large value of a tag-style call as the text it is when it is over that size", () => {
+    it("ends the reading of a large value of a tag-style call when it is over that size", () => {
         const value = `[${"1,".repeat(ARGUMENT_CHARS)}`;
-        expect(parseToolScalar(value)).toBe(value);
+        expect(() => parseToolScalar(value)).toThrow(/could not recover/);
         expect(parseToolScalar(`[1,2,`)).toEqual([1, 2]);
     });
 });
@@ -168,14 +165,14 @@ describe("the size check of the tool-argument repair", () => {
     });
     it("does not start the repair of a cut call over the size limit", async () => {
         const { repair, parseTextToolCalls: parse } = await load();
-        expect(parse(cutCall(ARGUMENT_CHARS + 1_000), 0)[0].input).toEqual({});
+        expect(() => parse(cutCall(ARGUMENT_CHARS + 1_000), 0)).toThrow(/could not recover/);
         expect(repair).not.toHaveBeenCalled();
     });
     it("does not start the repair of a loosely written call or a nested value over the size limit", async () => {
         const { repair, parseTextToolCalls: parse, parseToolScalar: scalar } = await load();
-        expect(parse(`<tool_call>name=write_note arguments={"text":"${"x".repeat(ARGUMENT_CHARS + 1_000)}`, 0)[0].input).toEqual({});
+        expect(() => parse(`<tool_call>name=write_note arguments={"text":"${"x".repeat(ARGUMENT_CHARS + 1_000)}`, 0)).toThrow(/could not recover/);
         const value = `[${"1,".repeat(ARGUMENT_CHARS)}`;
-        expect(scalar(value)).toBe(value);
+        expect(() => scalar(value)).toThrow(/could not recover/);
         expect(repair).not.toHaveBeenCalled();
     });
 });
