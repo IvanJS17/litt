@@ -91,7 +91,7 @@ describe("ConnectAuthorizePage", () => {
         render(<ConnectAuthorizePage />);
         const chat = await screen.findByLabelText("Use the LiTT assistant for you.");
         const run = screen.getByLabelText("Run reviews and other tasks that use AI keys or credits.");
-        const note = "runs on the key of the workspace you choose (the firm's key in a firm's workspace)";
+        const note = "runs on a key of the workspace you choose: in a firm's workspace the firm's key first, then your own key where the firm allows it";
         expect(chat.getAttribute("aria-describedby")).toBe("scope-note-chat");
         expect(document.getElementById("scope-note-chat")?.textContent).toContain(note);
         expect(run.getAttribute("aria-describedby")).toBe("scope-note-run");

@@ -353,7 +353,7 @@ export const startChat = defineMcpTool({
     name: "start_chat",
     title: "Start a conversation with LiTT's assistant",
     description:
-        "Starts a new conversation with LiTT's own assistant and sends its first message. The assistant answers with LiTT's model for that workspace, using the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace); the model is fixed for the conversation and LiTT never switches to another one. Give matter_id to talk about a matter and its documents, otherwise the conversation belongs to the workspace. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn.",
+        "Starts a new conversation with LiTT's own assistant and sends its first message. The assistant answers with LiTT's model for that workspace, using the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists); the model is fixed for the conversation and LiTT never switches to another one. Give matter_id to talk about a matter and its documents, otherwise the conversation belongs to the workspace. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn.",
     inputSchema: z.object({
         message: messageSchema,
         matter_id: idSchema("matter_id").optional().describe("A matter from find_matters, to talk about it and its documents."),

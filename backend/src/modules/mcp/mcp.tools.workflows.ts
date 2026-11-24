@@ -422,7 +422,7 @@ export const runWorkflow = defineMcpTool({
     name: "run_workflow",
     title: "Run a workflow (LiTT)",
     description:
-        "Runs a workflow with LiTT's own engine and the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace) (LiTT does not switch models). An assistant workflow opens a conversation with LiTT's assistant with the workflow applied (and the documents attached) and returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. A tabular workflow creates a tabular review from the workflow's columns over the given documents and starts it; get_tabular_run_status follows it. Needs litt.run, plus litt.chat for an assistant workflow or litt.write for a tabular one.",
+        "Runs a workflow with LiTT's own engine and the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists) (LiTT does not switch models). An assistant workflow opens a conversation with LiTT's assistant with the workflow applied (and the documents attached) and returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. A tabular workflow creates a tabular review from the workflow's columns over the given documents and starts it; get_tabular_run_status follows it. Needs litt.run, plus litt.chat for an assistant workflow or litt.write for a tabular one.",
     inputSchema: z.object({
         workflow_id: idSchema("workflow_id").describe("A workflow from list_workflows."),
         matter_id: idSchema("matter_id").optional().describe("Run it inside this matter (the conversation or review belongs to it)."),
@@ -524,7 +524,7 @@ export const runQuickAction = defineMcpTool({
     name: "run_quick_action",
     title: "Run a quick action (LiTT)",
     description:
-        "Runs one of the person's quick actions: opens a conversation with LiTT's assistant with the action's workflow applied and its ready-made request, with the document attached if one is given, using the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace) (LiTT does not switch models). Returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. Needs litt.run and litt.chat.",
+        "Runs one of the person's quick actions: opens a conversation with LiTT's assistant with the action's workflow applied and its ready-made request, with the document attached if one is given, using the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists) (LiTT does not switch models). Returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. Needs litt.run and litt.chat.",
     inputSchema: z.object({
         quick_action_id: idSchema("quick_action_id").describe("A quick action from list_quick_actions."),
         document_id: idSchema("document_id").optional().describe("A document to attach, when the action expects one."),

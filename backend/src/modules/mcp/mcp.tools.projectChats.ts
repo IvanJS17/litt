@@ -51,7 +51,7 @@ const documentIdsSchema = z
     .array(idSchema("document_ids"))
     .max(MAX_CHAT_DOCUMENTS)
     .optional()
-    .describe(`Documents of this matter to put in front of the assistant for this message (up to ${MAX_CHAT_DOCUMENTS}). It can read the rest of the matter's documents by itself.`);
+    .describe(`Documents of this matter's workspace to put in front of the assistant for this message (up to ${MAX_CHAT_DOCUMENTS}). It can read the rest of the matter's documents by itself.`);
 
 /** The documents the call names: each one openable, covered by this connection and in the call's workspace. */
 async function attachedDocuments(call: McpCall, documentIds: string[] | undefined) {
@@ -134,7 +134,7 @@ export const startProjectChat = defineMcpTool({
     name: "start_project_chat",
     title: "Start a conversation in a matter with LiTT's assistant",
     description:
-        "Starts a new conversation with the assistant of a matter, the one LiTT's web app opens inside a matter, and sends its first message. It sees the matter's documents, can list and read them and answers with citations. It uses LiTT's model for that workspace with the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace); the model is fixed for the conversation and LiTT never switches to another one. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn (use send_project_chat_message for the next message).",
+        "Starts a new conversation with the assistant of a matter, the one LiTT's web app opens inside a matter, and sends its first message. It sees the matter's documents, can list and read them and answers with citations. It uses LiTT's model for that workspace with the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists); the model is fixed for the conversation and LiTT never switches to another one. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn (use send_project_chat_message for the next message).",
     inputSchema: z.object({
         matter_id: idSchema("matter_id").describe("A matter from find_matters."),
         message: messageSchema,

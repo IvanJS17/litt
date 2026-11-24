@@ -386,7 +386,7 @@ export const runPlaybookReview = defineMcpTool({
     name: "run_playbook_review",
     title: "Run a playbook review (LiTT)",
     description:
-        "Starts a review of one document against one ready playbook, run by LiTT on the firm's key when the playbook and the document belong to the same firm, otherwise on the person's own key (or the deployment's in the personal workspace). Returns a run_id; if the review finishes within about 45 seconds the summary and findings come back too, otherwise status is running and get_playbook_run follows it. Tracked changes in the Word file are off unless apply_tracked_changes is true. Needs ids, not names.",
+        "Starts a review of one document against one ready playbook, run by LiTT. When the playbook and the document belong to the same firm it runs on that firm's key first, then on the person's own where the firm allows personal keys; any other pairing runs on the person's own key, or on the deployment's where LiTT offers one. Returns a run_id; if the review finishes within about 45 seconds the summary and findings come back too, otherwise status is running and get_playbook_run follows it. Tracked changes in the Word file are off unless apply_tracked_changes is true. Needs ids, not names.",
     inputSchema: z.object({
         playbook_id: idSchema("playbook_id"),
         document_id: idSchema("document_id"),

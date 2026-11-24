@@ -582,7 +582,7 @@ export const runTabularReview = defineMcpTool({
     name: "run_tabular_review",
     title: "Run a tabular review (LiTT)",
     description:
-        "Starts LiTT's extraction of a tabular review's cells that are not filled yet, with the review's own model and the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace). Returns the progress; if it finishes within about 45 seconds status is completed, otherwise running and get_tabular_run_status follows it. A review already running answers review_running.",
+        "Starts LiTT's extraction of a tabular review's cells that are not filled yet, with the review's own model and the workspace's key (in a firm's workspace the firm's key first, then the person's own where the firm allows personal keys; in the personal workspace the person's own; the deployment's key where LiTT offers one and neither exists). Returns the progress; if it finishes within about 45 seconds status is completed, otherwise running and get_tabular_run_status follows it. A review already running answers review_running.",
     inputSchema: z.object({ review_id: idSchema("review_id") }),
     scope: "litt.run",
     lane: "write",
