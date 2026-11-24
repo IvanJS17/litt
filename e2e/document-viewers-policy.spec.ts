@@ -96,6 +96,11 @@ test("a PDF opens under the enforced page policy", async ({ page }) => {
     });
     await expect(page.getByText(message("shared.pdfView.failedToLoadDocument"))).toHaveCount(0);
 
+    // The viewer's standard fonts are served by the app itself; a missing font
+    // is not a policy violation, the PDF is just drawn with a substitute.
+    const font = await page.request.get("/standard_fonts/LiberationSans-Regular.ttf");
+    expect(font.status(), "the app serves the PDF viewer's standard fonts").toBe(200);
+
     // REGRESSION: fails on any directive the production policy refuses.
     csp.expectNone("the PDF viewer");
 });

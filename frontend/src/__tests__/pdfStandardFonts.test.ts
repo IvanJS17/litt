@@ -11,6 +11,7 @@ import {
     PUBLIC_FONT_DIRECTORY,
     copyStandardFonts,
     installedStandardFontsDirectory,
+    publishedStandardFontsDirectory,
 } from "../../scripts/copyPdfStandardFonts.mjs";
 
 const FRONTEND = resolve(__dirname, "../..");
@@ -27,6 +28,11 @@ afterEach(() => {
 describe("serving the pdf.js standard fonts from the app", () => {
     it("publishes them at the path the viewer requests", () => {
         expect(STANDARD_FONT_DATA_URL).toBe(`/${PUBLIC_FONT_DIRECTORY}/`);
+    });
+
+    it("replaces only its own directory under public/", () => {
+        // The copy deletes its target first, so the target is never public/ itself.
+        expect(publishedStandardFontsDirectory()).toBe(join(FRONTEND, "public", "standard_fonts"));
     });
 
     it("finds the fonts of the installed pdfjs-dist, including their licences", () => {

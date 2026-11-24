@@ -28,8 +28,13 @@ export function copyStandardFonts(source, target) {
     return names;
 }
 
+/** Where the fonts are published: a directory of its own under public/, replaced on every run. */
+export function publishedStandardFontsDirectory() {
+    return join(frontend, "public", PUBLIC_FONT_DIRECTORY);
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    const target = join(frontend, "public", PUBLIC_FONT_DIRECTORY);
+    const target = publishedStandardFontsDirectory();
     const names = copyStandardFonts(installedStandardFontsDirectory(), target);
     if (!existsSync(join(target, "LiberationSans-Regular.ttf"))) throw new Error("standard fonts were not published");
     console.log(`pdf.js standard fonts: ${names.length} files in public/${PUBLIC_FONT_DIRECTORY}`);
