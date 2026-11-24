@@ -33,6 +33,11 @@
 - [ ] i18n: user-facing text is in the es-MX catalog (and en-US).
 - [ ] Migrations: `backend/migrations/` file named per AGENTS.md, with `backend/schema.sql` and the `schema_migrations` list updated in the same change.
 - [ ] Legal texts in `frontend/src/content/legal/` are unchanged, or the owner approved the change.
+- [ ] Second factor: a route that changes a firm's members, roles, invitations or settings requires `requireMfaIfEnrolled`.
+- [ ] Derived copies: anything computed from a document is checked at read time through `keepReadableDerived`, not by a check of its own.
+- [ ] Untrusted text: text LiTT did not write is size-bounded before it is parsed (`backend/src/lib/modelJsonFence.ts`), with no super-linear expression.
+- [ ] Connected apps: a new MCP tool declares its `scope` and `lane` (write lane if it writes or spends a key).
+- [ ] Public text: commit messages, PR text, comments and tests say what behaviour is wanted, not how a weakness is used.
 - [ ] Tests: a regression test at the lowest useful layer, and the commands are listed under "How verified".
 
 ## Checklist

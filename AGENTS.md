@@ -304,6 +304,41 @@ or local test artifacts.
 - Verify meaningful regressions through the written report line as well as source-level tests. Test diagnostic usefulness, ownership/deduplication, and privacy.
 - Prefer focused simplification and root-cause fixes over suppressing symptoms or building new reporting frameworks.
 
+## Security rules
+
+LiTT is public and holds client documents. Where a test is named, a failure
+means fix the code, not the test.
+
+1. A route that changes a firm's members, roles, invitations or settings
+   requires `requireMfaIfEnrolled` (`backend/src/__tests__/membershipStepUp.test.ts`).
+2. Derived copies (stored answers, transcripts, review lists, exports, project
+   memory, upload sessions, anything computed from a document) are served only
+   after checking, when read, that the reader can open the sources now, with
+   `keepReadableDerived` in `backend/src/lib/access.ts`. No screen writes its own check.
+3. Every connected-apps (MCP) tool declares its `scope` and `lane`; the toolkit
+   checks the scope, never the tool. A tool that writes or spends a key is on
+   the write lane. A person's global sign-out and password recovery end their
+   connections (`backend/src/modules/mcp/__tests__/mcp.scopeDeclared.test.ts`).
+4. Text LiTT did not write (a model's reply, a provider's error, an uploaded
+   file's content, a header) goes through a size-bounded entry point
+   (`backend/src/lib/modelJsonFence.ts`) before it is parsed, and only meets
+   expressions and loops whose cost grows in proportion to the text
+   (`backend/src/__tests__/regexShapes.test.ts`).
+5. Heavy file processing (conversion, extraction, rendering) runs outside the
+   API process with limits of size, time and memory; its child processes end
+   with it (`backend/src/lib/extraction/isolated.ts`).
+6. The visitor's address comes only from the configured chain of trusted proxies
+   (`TRUST_PROXY_HOPS`), never from a header a client can set; a limit that
+   protects an account cannot be used up by a third party.
+7. Work runs on the key of the workspace it belongs to, chosen by that
+   workspace's administrators, with no silent fallback to another key or model.
+8. A restriction on an account does not depend on the terms version accepted.
+9. Rendered Markdown does not load images from other sites: wrap `components`
+   in `withSafeMarkdownImages` from `@mike/ui` (`frontend/src/__tests__/architecture.test.ts`).
+10. An OAuth return is accepted only from the session that started it.
+11. Commit messages, PR texts, comments and tests describe the behaviour wanted,
+    never how a weakness is used, and name no private paths or identifiers from private material.
+
 ## LiTT fork
 
 This repository is LiTT (`IvanJS17/litt`), derived from MikeOSS
