@@ -29,7 +29,16 @@ const policy = (env: Record<string, string | undefined> = {}, secure = true) =>
 describe("content security policy", () => {
     it("lets only nonced scripts run, and no inline or eval script in production", () => {
         const scripts = policy({ NODE_ENV: "production" }).get("script-src")!;
-        expect(scripts).toEqual(["'self'", "'nonce-bm9uY2U='", "'strict-dynamic'"]);
+        expect(scripts).toEqual(["'self'", "'nonce-bm9uY2U='", "'strict-dynamic'", "'wasm-unsafe-eval'"]);
+    });
+
+    it("lets the document viewers compile their WebAssembly, which is not script eval", () => {
+        // The Word document viewer shapes text with a WebAssembly module; a
+        // browser refuses to compile one unless the policy says so.
+        for (const env of [{ NODE_ENV: "production" }, { NODE_ENV: "development" }, {}]) {
+            expect(policy(env).get("script-src")).toContain("'wasm-unsafe-eval'");
+        }
+        expect(policy({ NODE_ENV: "production" }).get("script-src")).not.toContain("'unsafe-eval'");
     });
 
     it("allows eval only in development", () => {
