@@ -82,6 +82,7 @@ import {
   chatRouteColumns,
   chatRouteOf,
   loadPinnedChatRoute,
+  parseCredentialRef,
   pinChatRoute,
   recordChatEgress,
   type ChatRoute,
@@ -545,15 +546,29 @@ async function assertPlaybookModelAvailable(
  * one provider + model + credential, stored with it; the work that runs later
  * (a queued job, a retry) uses exactly that route and fails closed if the
  * credential is gone. Only the pinned credential reaches the model layer.
+ *
+ * `credentialRef` is the key the person chose, as the chat's key selector
+ * sends it (`credential_ref`, from GET /user/chat-credentials). Without one,
+ * pinChatRoute takes only the person's own key or the deployment's: an
+ * organization's key is never taken implicitly, so work whose only key is the
+ * firm's needs this choice.
  */
 export async function pinPlaybookRoute(
   db: Db,
   userId: string,
   model: string,
   orgId: string | null,
+  credentialRef?: unknown,
 ): Promise<ResolvedChatRoute> {
+  const requested = parseCredentialRef(credentialRef);
+  if (!requested.ok) throw new PlaybookRequestError(requested.detail);
   await assertPlaybookModelAvailable(userId, model, db, orgId);
-  const pinned = await pinChatRoute(db, { userId, orgId, model });
+  const pinned = await pinChatRoute(db, {
+    userId,
+    orgId,
+    model,
+    requestedCredentialRef: requested.value,
+  });
   if (!pinned.ok)
     throw new PlaybookRequestError(pinned.detail, 409, { code: pinned.code });
   return pinned;
@@ -1523,7 +1538,13 @@ export async function beginPlaybookImport(
       target_updated_at: targetUpdatedAt,
     });
     validateModel(model);
-    const pinned = await pinPlaybookRoute(db, args.userId, model, row.org_id);
+    const pinned = await pinPlaybookRoute(
+      db,
+      args.userId,
+      model,
+      row.org_id,
+      args.credentialRef,
+    );
     await updateImportAttempt(db, attemptId, chatRouteColumns(pinned.route));
     const authorization = await readAuthorizationStamp(db, row.org_id);
     return {
@@ -2315,6 +2336,7 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     args.userId,
     args.model,
     playbook.orgId,
+    args.credentialRef,
   );
   const authorization = await readAuthorizationStamp(
     db,

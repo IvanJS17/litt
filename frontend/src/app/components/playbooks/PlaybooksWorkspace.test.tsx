@@ -18,6 +18,7 @@ import {
   getPlaybookImport,
   listRunningPlaybookImports,
   startPlaybookImport,
+  getChatCredentialOptions,
   listPlaybooks,
   listAllPlaybookRuns,
   deletePlaybookRun,
@@ -112,6 +113,7 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   listPlaybooks: vi.fn(),
   getPlaybookConfiguration: vi.fn(),
   startPlaybookImport: vi.fn(),
+  getChatCredentialOptions: vi.fn(),
   getPlaybookImport: vi.fn(),
   listRunningPlaybookImports: vi.fn(),
   getPlaybook: vi.fn(),
@@ -380,6 +382,11 @@ describe("playbooks page", () => {
     vi.mocked(getPlaybookImport).mockResolvedValue(
       importAttempt({ status: "completed", playbookId: "pb-a" }),
     );
+    vi.mocked(getChatCredentialOptions).mockResolvedValue({
+      provider: "claude",
+      options: [],
+      default: null,
+    });
     vi.mocked(getPlaybook).mockResolvedValue(playbook("pb-a", "Replaced"));
     vi.mocked(updatePlaybook).mockImplementation(async (id, content) => ({
       ...playbook(id, content.name),
@@ -829,6 +836,123 @@ describe("playbooks page", () => {
         expect.any(Object),
       ),
     );
+  });
+
+  describe("the key playbook work runs on (governed BYOK)", () => {
+    const FIRM = { credential_ref: "org:org-1:claude:v2", source: "organization" as const };
+    const OWN = { credential_ref: "user:u1:claude:v1", source: "personal" as const };
+
+    function offerKeys(
+      options: Array<typeof FIRM | typeof OWN>,
+      fallback: string | null = options[0]?.credential_ref ?? null,
+    ) {
+      workspace.workspaceId = "org-1";
+      workspace.activeOrganization = { name: "Test firm" };
+      vi.mocked(getChatCredentialOptions).mockResolvedValue({
+        provider: "claude",
+        options,
+        default: fallback,
+      });
+    }
+
+    async function startReview() {
+      render(<PlaybooksPage />);
+      await userEvent.click(
+        await screen.findByRole("button", { name: "Actions for Playbook B" }),
+      );
+      await userEvent.click(screen.getByRole("menuitem", { name: "Run" }));
+      await screen.findByRole("region", { name: "New run" });
+      dropReviewFiles(new File(["Synthetic contract"], "contract.txt", { type: "text/plain" }));
+    }
+
+    it("sends the firm's key with a new run when it is the only one, without asking", async () => {
+      offerKeys([FIRM]);
+      await startReview();
+      await waitFor(() => expect(getChatCredentialOptions).toHaveBeenCalled());
+      expect(screen.queryByLabelText("Key")).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "Start review" }));
+      await waitFor(() =>
+        expect(reviewDocumentWithPlaybook).toHaveBeenCalledWith(
+          "pb-b",
+          expect.objectContaining({ credentialRef: FIRM.credential_ref }),
+        ),
+      );
+    });
+
+    it("lets the person pick between two keys for a new run", async () => {
+      offerKeys([OWN, FIRM], OWN.credential_ref);
+      await startReview();
+      const key = await screen.findByLabelText("Key");
+      expect(key).toHaveTextContent("Your key");
+      await userEvent.click(key);
+      await userEvent.click(await screen.findByRole("menuitem", { name: "Firm key" }));
+      await userEvent.click(screen.getByRole("button", { name: "Start review" }));
+      await waitFor(() =>
+        expect(reviewDocumentWithPlaybook).toHaveBeenCalledWith(
+          "pb-b",
+          expect.objectContaining({ credentialRef: FIRM.credential_ref }),
+        ),
+      );
+    });
+
+    async function openQuestions() {
+      vi.mocked(getPlaybookQuestionnaire).mockResolvedValue({
+        questions: Array.from({ length: 10 }, (_, index) => ({
+          id: `q${index + 1}`,
+          text: `q${index + 1}`,
+        })),
+        maxAnswerChars: 4000,
+        maxAnswersChars: 30000,
+        maxAttachments: 5,
+      });
+      vi.mocked(startPlaybookDraft).mockResolvedValue(
+        importAttempt({ id: "draft-1", kind: "draft", filename: "", name: "Rentas" }),
+      );
+      render(<PlaybooksPage />);
+      await userEvent.click(await screen.findByRole("button", { name: /New playbook/i }));
+      await userEvent.click(await screen.findByRole("menuitem", { name: "With questions" }));
+      await userEvent.type(await screen.findByLabelText(/Red lines/), "Nunca");
+    }
+
+    it("sends the firm's key with a questionnaire draft when it is the only one", async () => {
+      offerKeys([FIRM]);
+      await openQuestions();
+      await waitFor(() => expect(getChatCredentialOptions).toHaveBeenCalled());
+      expect(screen.queryByLabelText("Key")).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "Write draft" }));
+      await waitFor(() =>
+        expect(startPlaybookDraft).toHaveBeenCalledWith(
+          expect.objectContaining({ credentialRef: FIRM.credential_ref }),
+          "org-1",
+        ),
+      );
+    });
+
+    it("shows the key to choose for a questionnaire draft when two keys can serve the model", async () => {
+      offerKeys([OWN, FIRM], OWN.credential_ref);
+      await openQuestions();
+      expect(await screen.findByLabelText("Key")).toHaveTextContent("Your key");
+      await userEvent.click(screen.getByRole("button", { name: "Write draft" }));
+      await waitFor(() =>
+        expect(startPlaybookDraft).toHaveBeenCalledWith(
+          expect.objectContaining({ credentialRef: OWN.credential_ref }),
+          "org-1",
+        ),
+      );
+    });
+
+    it("sends no key when none is offered, so the server's own message answers", async () => {
+      offerKeys([], null);
+      await openQuestions();
+      await waitFor(() => expect(getChatCredentialOptions).toHaveBeenCalled());
+      await userEvent.click(screen.getByRole("button", { name: "Write draft" }));
+      await waitFor(() =>
+        expect(startPlaybookDraft).toHaveBeenCalledWith(
+          expect.objectContaining({ credentialRef: null }),
+          "org-1",
+        ),
+      );
+    });
   });
 
   it("starts a new run from the Runs toolbar and cancels it back to the results", async () => {
@@ -1582,6 +1706,8 @@ describe("playbooks page", () => {
         "",
         "pb-a",
         "personal",
+        // No key offered: the server takes the person's own or the deployment's.
+        null,
       ),
     );
     await pollImports();
@@ -1607,6 +1733,54 @@ describe("playbooks page", () => {
     const rows = await screen.findAllByRole("link", { name: /Replaced/i });
     expect(rows).toHaveLength(1);
     expect(screen.queryByRole("link", { name: /Playbook A/i })).toBeNull();
+  });
+
+  it("imports on the key the person chose, the firm's by default in a firm (governed BYOK)", async () => {
+    // A firm whose Anthropic key is its own: the server never takes it
+    // implicitly, so the dialog must send the choice (chat_route_credential_required).
+    workspace.workspaceId = "org-1";
+    workspace.activeOrganization = { name: "Test firm" };
+    vi.mocked(getChatCredentialOptions).mockResolvedValue({
+      provider: "claude",
+      options: [
+        { credential_ref: "org:org-1:claude:v2", source: "organization" },
+        { credential_ref: "env:claude", source: "deployment" },
+      ],
+      default: "org:org-1:claude:v2",
+    });
+    render(<PlaybooksPage />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /New playbook/i }),
+    );
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: /Import from file/i }),
+    );
+    await waitFor(() =>
+      expect(getChatCredentialOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ model: TEST_MODEL, orgId: "org-1" }),
+      ),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Drag and drop a Word or PDF playbook/ }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Choose saved playbook" }),
+    );
+    // Two keys can serve the model: the dialog names the one it will use.
+    expect(await screen.findByLabelText("Key")).toHaveTextContent("Firm key");
+    await userEvent.click(screen.getByRole("button", { name: "Compile" }));
+
+    await waitFor(() =>
+      expect(startPlaybookImport).toHaveBeenCalledWith(
+        { documentId: "saved-playbook" },
+        TEST_MODEL,
+        "",
+        undefined,
+        "org-1",
+        "org:org-1:claude:v2",
+      ),
+    );
   });
 
   it("imports a new playbook from a saved PDF", async () => {
@@ -1650,6 +1824,7 @@ describe("playbooks page", () => {
         "",
         undefined,
         "personal",
+        null,
       ),
     );
     // While compiling, the dialog shows only its progress screen.
@@ -2624,6 +2799,7 @@ describe("playbooks page", () => {
             answers: { q6: "Nunca" },
             attachments: [],
             model: TEST_MODEL,
+            credentialRef: null,
           },
           "personal",
         ),

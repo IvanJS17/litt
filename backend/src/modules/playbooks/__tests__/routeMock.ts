@@ -5,7 +5,11 @@
 // suites check what playbooks do with a route.
 
 import { vi } from "vitest";
-import { chatRouteColumns, chatRouteOf } from "../../user/user.chatRoute";
+import {
+  chatRouteColumns,
+  chatRouteOf,
+  parseCredentialRef,
+} from "../../user/user.chatRoute";
 import { providerForModel } from "../../../lib/llm/models";
 import type { ChatRoute } from "../../user/user.chatRoute";
 
@@ -18,6 +22,7 @@ export function userServiceMock(getUserApiKeys: KeysFn) {
     getEffectiveApiKeys: (userId: string) => getUserApiKeys(userId),
     chatRouteColumns,
     chatRouteOf,
+    parseCredentialRef,
     pinChatRoute: vi.fn(async (_db: unknown, args: { userId: string; model: string }) => {
       const provider = providerForModel(args.model);
       return {

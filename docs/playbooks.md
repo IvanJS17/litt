@@ -464,10 +464,29 @@ model call, as before.
 ## Model selection
 
 The compilation and review model menus draw on the same catalog as chat:
-built-in cloud models, discovered Ollama models, and OpenRouter models when an
-OpenRouter key is configured. A model is offered only when the account has a
-usable key for its provider; organization playbooks use that workspace’s
-effective provider keys. Local Ollama models need none.
+built-in cloud models, each router's saved Model Selections (OpenRouter,
+Vercel, OpenCode Go, Bedrock, Azure, Vertex, xAI, a custom endpoint),
+discovered Ollama models and the deployment's configured models. A model is
+offered only when the account has a usable key for its provider; organization
+playbooks use that workspace’s effective provider keys. Local Ollama models
+need none.
+
+Which key the work runs on is chosen as in chat (governed BYOK). The playbook
+endpoints that call a model (`POST /playbooks/import`, `/drafts`,
+`/:id/review`, `/:id/proposals`, `/:id/corrections`) accept an optional
+`credential_ref` from `GET /user/chat-credentials`. Without one the server
+uses only the person's own key or the deployment's: an organization's key is
+never taken implicitly, so work whose only key is the firm's is refused with
+`chat_route_credential_required`. Every playbook dialog that starts model work
+(import, new run, questionnaire draft, mentor corrections) sends the choice
+through one shared piece (`usePlaybookKey` / `PlaybookKeyField`): it
+preselects the same default as the chat for that model and workspace (the
+person's own key, then the firm's, then the deployment's), shows a **Key**
+menu only when more than one key can serve the model, sends the only key
+without asking, and offers no firm key in the personal workspace. Changing the
+model looks the key up again. A malformed `credential_ref` is a `400`; a key the
+person may not use fails closed with `chat_route_credential_unavailable`, and
+no other key is tried.
 
 ## In the assistant
 

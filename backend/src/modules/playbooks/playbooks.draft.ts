@@ -209,7 +209,7 @@ export async function beginPlaybookDraft(
     args.userEmail,
     parsedAttachments,
   );
-  const pinned = await pinPlaybookRoute(db, args.userId, model, orgId);
+  const pinned = await pinPlaybookRoute(db, args.userId, model, orgId, args.credentialRef);
   const authorization = await readAuthorizationStamp(db, orgId);
 
   const attemptId = crypto.randomUUID();

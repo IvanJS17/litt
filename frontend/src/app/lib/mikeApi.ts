@@ -6044,12 +6044,20 @@ export async function startPlaybookImport(
     /** Replace this playbook's content rather than create a new playbook. */
     playbookId?: string,
     workspace?: string | null,
+    /**
+     * LiTT governed BYOK: the key the import runs on, as the chat's key
+     * selector chooses it (GET /user/chat-credentials). Without one the
+     * server takes only the person's own key or the deployment's, never the
+     * firm's.
+     */
+    credentialRef?: string | null,
 ): Promise<PlaybookImport> {
     const options = {
         model,
         ...(name?.trim() ? { name: name.trim() } : {}),
         ...(playbookId ? { playbookId } : {}),
         ...(workspace ? { workspace } : {}),
+        ...(credentialRef ? { credential_ref: credentialRef } : {}),
     };
     if (!(source instanceof File)) {
         return apiRequest<PlaybookImport>("playbooks.import", "/playbooks/import", {
@@ -6112,6 +6120,8 @@ export async function startPlaybookDraft(
         visibility?: Playbook["visibility"];
         answers: Record<string, string>;
         attachments: Array<File | { documentId: string }>;
+        /** The key the draft runs on, as the chat chooses it (GET /user/chat-credentials). */
+        credentialRef?: string | null;
     },
     workspace?: string | null,
 ): Promise<PlaybookImport> {
@@ -6130,6 +6140,7 @@ export async function startPlaybookDraft(
             ...(request.name?.trim() ? { name: request.name.trim() } : {}),
             ...(request.visibility ? { visibility: request.visibility } : {}),
             ...(workspace ? { workspace } : {}),
+            ...(request.credentialRef ? { credential_ref: request.credentialRef } : {}),
             answers: request.answers,
             attachments,
         }),
@@ -6190,12 +6201,19 @@ export interface PlaybookCorrectionInput {
  */
 export async function startPlaybookCorrections(
     playbookId: string,
-    request: { model: string; traineeUserId: string; corrections: PlaybookCorrectionInput[] },
+    request: {
+        model: string;
+        traineeUserId: string;
+        corrections: PlaybookCorrectionInput[];
+        /** The key the batch runs on, as the chat chooses it (GET /user/chat-credentials). */
+        credentialRef?: string | null;
+    },
 ): Promise<PlaybookImport> {
+    const { credentialRef, ...body } = request;
     return apiRequest("playbooks.import", `/playbooks/${encodeURIComponent(playbookId)}/corrections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
+        body: JSON.stringify({ ...body, ...(credentialRef ? { credential_ref: credentialRef } : {}) }),
     });
 }
 
@@ -6311,12 +6329,15 @@ export async function reviewDocumentWithPlaybook(
         model: string;
         reviewMode: "strict" | "permissive";
         reviewScope?: PlaybookReviewScope;
+        /** The key the review runs on, as the chat chooses it (GET /user/chat-credentials). */
+        credentialRef?: string | null;
     },
 ): Promise<PlaybookRun> {
+    const { credentialRef, ...body } = payload;
     return apiRequest("playbooks.save", `/playbooks/${encodeURIComponent(playbookId)}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...body, ...(credentialRef ? { credential_ref: credentialRef } : {}) }),
     });
 }
 

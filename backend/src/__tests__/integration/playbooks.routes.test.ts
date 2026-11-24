@@ -329,6 +329,34 @@ describe("replacing a playbook from a Word file", () => {
     );
   });
 
+  it("passes the key the person chose to the import (governed BYOK)", async () => {
+    const response = await request(app).post("/playbooks/import").send({
+      storageKey: STAGED_IMPORT_KEY,
+      filename: "new.docx",
+      model: "claude-opus-5",
+      workspace: "o1",
+      credential_ref: "org:o1:claude:v2",
+    });
+
+    expect(response.status).toBe(202);
+    expect(queuePlaybookImport).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialRef: "org:o1:claude:v2" }),
+    );
+  });
+
+  it("passes the chosen key for a saved document too", async () => {
+    const response = await request(app).post("/playbooks/import").send({
+      documentId: PLAYBOOK_ID,
+      model: "claude-opus-5",
+      credential_ref: "org:o1:claude:v2",
+    });
+
+    expect(response.status).toBe(202);
+    expect(queuePlaybookImport).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialRef: "org:o1:claude:v2" }),
+    );
+  });
+
   it("creates a playbook when no target is given", async () => {
     const response = await request(app).post("/playbooks/import").send({
       storageKey: STAGED_IMPORT_KEY,
@@ -448,6 +476,17 @@ describe("corrections over HTTP (LiTT training)", () => {
     );
   });
 
+  it("passes the key the person chose to the corrections", async () => {
+    queuePlaybookCorrections.mockResolvedValue(started({ kind: "correction", filename: "" }));
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/corrections`)
+      .send({ ...body, credential_ref: "org:o1:claude:v2" });
+    expect(response.status).toBe(202);
+    expect(queuePlaybookCorrections).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialRef: "org:o1:claude:v2" }),
+    );
+  });
+
   it("answers an invalid batch with 400 and training_correction_invalid", async () => {
     queuePlaybookCorrections.mockRejectedValue(
       new PlaybookRequestError("Agrega al menos una corrección.", 400, {
@@ -500,6 +539,17 @@ describe("drafts from the questionnaire over HTTP (LiTT)", () => {
     expect(response.body).toMatchObject({ kind: "draft", status: "running" });
     expect(queuePlaybookDraft).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "u1", userEmail: "u1@example.com", ...body }),
+    );
+  });
+
+  it("passes the key the person chose to the draft", async () => {
+    queuePlaybookDraft.mockResolvedValue(started({ kind: "draft", filename: "" }));
+    const response = await request(app)
+      .post("/playbooks/drafts")
+      .send({ model: "claude-opus-5", credential_ref: "org:o1:claude:v2" });
+    expect(response.status).toBe(202);
+    expect(queuePlaybookDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialRef: "org:o1:claude:v2" }),
     );
   });
 

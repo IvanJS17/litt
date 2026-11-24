@@ -394,6 +394,7 @@ playbooksRouter.post("/import", requireMfaIfEnrolled, async (req, res) => {
         model,
         playbookId,
         workspace: req.body?.workspace,
+        credentialRef: req.body?.credential_ref,
       });
       // Compiling runs as a job; its row records how it ended.
       return void res.status(202).json(attempt);
@@ -440,6 +441,7 @@ playbooksRouter.post("/import", requireMfaIfEnrolled, async (req, res) => {
       model,
       playbookId,
       workspace: req.body?.workspace,
+      credentialRef: req.body?.credential_ref,
     });
     // The job reads the staged object, and removes it once it has an outcome.
     staged = false;
@@ -475,6 +477,7 @@ playbooksRouter.post("/drafts", requireMfaIfEnrolled, async (req, res) => {
       visibility: body.visibility,
       answers: body.answers,
       attachments: body.attachments,
+      credentialRef: body.credential_ref,
     });
     res.status(202).json(attempt);
   } catch (error) {
@@ -855,6 +858,7 @@ playbooksRouter.post(
           model: typeof body.model === "string" ? body.model : "",
           answers: body.answers,
           attachments: body.attachments,
+          credentialRef: body.credential_ref,
         }),
       );
     } catch (error) {
@@ -881,6 +885,7 @@ playbooksRouter.post(
           model: typeof body.model === "string" ? body.model : "",
           traineeUserId: body.traineeUserId,
           corrections: body.corrections,
+          credentialRef: body.credential_ref,
         }),
       );
     } catch (error) {
@@ -993,6 +998,7 @@ playbooksRouter.post("/:playbookId/review", async (req, res) => {
       model,
       reviewMode,
       reviewScope,
+      credentialRef: req.body?.credential_ref,
     });
     // The review runs as a job and records its own outcome on the run.
     res.status(202).json(run);

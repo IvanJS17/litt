@@ -334,6 +334,7 @@ describe("the questionnaire", () => {
       models: MODELS,
       model: "model-a",
       onModelChange: vi.fn(),
+      credential: { options: null, value: null, setValue: vi.fn() },
       onClose: vi.fn(),
       onSubmit: vi.fn().mockResolvedValue(true),
       ...overrides,
@@ -464,6 +465,7 @@ describe("the questionnaire", () => {
         models={MODELS}
         model="model-a"
         onModelChange={vi.fn()}
+        credential={{ options: null, value: null, setValue: vi.fn() }}
         onClose={vi.fn()}
         onSubmit={vi.fn()}
       />,

@@ -6,6 +6,7 @@ import { ModalSegmentedToggle } from "@/app/components/modals/ModalSegmentedTogg
 import { ModelToggle } from "@/app/components/assistant/ModelToggle";
 import { NoModelsWarningPopup } from "@/app/components/popups/NoModelsWarningPopup";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
+import { PlaybookKeyField, type PlaybookKey } from "@/app/components/playbooks/usePlaybookKey";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { useModelRouterSelections } from "@/app/hooks/useModelRouterSelections";
 import type { NoModelsReason } from "@mike/client";
@@ -49,6 +50,8 @@ export function PlaybookNewRun({
   onModeChange,
   scope,
   onScopeChange,
+  credential,
+  onKeyChange,
   error,
   reviewing,
   disabled,
@@ -68,6 +71,10 @@ export function PlaybookNewRun({
   onModeChange: (mode: ReviewMode) => void;
   scope: PlaybookReviewScope;
   onScopeChange: (scope: PlaybookReviewScope) => void;
+  /** The key the review runs on, as the chat chooses it. */
+  credential: PlaybookKey;
+  /** After a pick of another key: the caller clears a stale error. */
+  onKeyChange: () => void;
   error: string | null;
   reviewing: boolean;
   /** Something else is in progress, or a review is running. */
@@ -81,6 +88,7 @@ export function PlaybookNewRun({
   const instructionsId = useId();
   const instructionsHelpId = useId();
   const modelId = useId();
+  const keyId = useId();
   const { profile, loading: profileLoading } = useUserProfile();
   const apiKeys = useModelApiKeys();
   const routerSelections = useModelRouterSelections();
@@ -182,6 +190,12 @@ export function PlaybookNewRun({
             />
           </div>
         </div>
+        <PlaybookKeyField
+          id={keyId}
+          credential={credential}
+          disabled={disabled}
+          onChange={onKeyChange}
+        />
         <div>
           <label
             htmlFor={instructionsId}

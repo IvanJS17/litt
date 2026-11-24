@@ -7,6 +7,7 @@
 // writes is sent as written; the rest is catalog text. The pupil is chosen
 // here and never shown on a rule: the attribution is the mentor's.
 
+import { PlaybookKeyField, type PlaybookKey } from "@/app/components/playbooks/usePlaybookKey";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PillButtonUI } from "@mike/ui";
@@ -161,6 +162,7 @@ export function PlaybookCorrections({
   models,
   model,
   onModelChange,
+  credential,
   disabled = false,
   onPlaybookChanged,
 }: {
@@ -170,12 +172,14 @@ export function PlaybookCorrections({
   models: { value: string; label: string }[];
   model: string;
   onModelChange: (model: string) => void;
+  /** The key the batch runs on, as the chat chooses it. */
+  credential: PlaybookKey;
   disabled?: boolean;
   /** An accepted change rewrote the rules: the page shows the saved playbook. */
   onPlaybookChanged: (playbook: Playbook) => void;
 }) {
   const t = useTranslations("training.criterion.corrections");
-  const ids = { pupil: useId(), model: useId(), intro: useId() };
+  const ids = { pupil: useId(), model: useId(), key: useId(), intro: useId() };
   const [pupilId, setPupilId] = useState("");
   const [rows, setRows] = useState<PlaybookCorrectionInput[]>([{ ...EMPTY }]);
   const [sending, setSending] = useState(false);
@@ -239,6 +243,7 @@ export function PlaybookCorrections({
     try {
       const started = await startPlaybookCorrections(playbookId, {
         model,
+        credentialRef: credential.value,
         traineeUserId: pupilId,
         corrections: rows.map((row) => ({
           before: row.before.trim(),
@@ -310,6 +315,11 @@ export function PlaybookCorrections({
               disabled={disabled || sending || running}
             />
           </div>
+          <PlaybookKeyField
+            id={ids.key}
+            credential={credential}
+            disabled={disabled || sending || running}
+          />
         </div>
         <ol className="space-y-4">
           {rows.map((row, index) => (

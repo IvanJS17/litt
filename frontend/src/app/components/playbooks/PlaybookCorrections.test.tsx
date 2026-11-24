@@ -8,6 +8,7 @@ import { showToast } from "@/app/components/ui/toast";
 import { PlaybookCorrections, MAX_CORRECTIONS } from "./PlaybookCorrections";
 import { PlaybookRuleOrigin } from "./PlaybookRuleOrigin";
 import { PlaybookToolbar } from "./PlaybookToolbar";
+import type { PlaybookKey } from "./usePlaybookKey";
 import { usePlaybookCorrectionPupils } from "./usePlaybookCorrectionPupils";
 
 vi.mock("@/app/lib/mikeApi", () => ({
@@ -111,6 +112,18 @@ const running: api.PlaybookImport = {
   completedAt: null,
 };
 
+const FIRM = { credential_ref: "org:org-1:claude:v2", source: "organization" as const };
+const OWN = { credential_ref: "user:u1:claude:v1", source: "personal" as const };
+const setKey = vi.fn();
+let credential: PlaybookKey;
+function keyFor(options: Array<typeof FIRM | typeof OWN>, value: string | null): PlaybookKey {
+  return {
+    options: { provider: "claude", options, default: value },
+    value,
+    setValue: setKey,
+  };
+}
+
 const onPlaybookChanged = vi.fn();
 const onModelChange = vi.fn();
 
@@ -126,6 +139,7 @@ function screenUnderTest(props: Partial<React.ComponentProps<typeof PlaybookCorr
         models={[{ value: "claude-opus-5", label: "Claude Opus 5" }]}
         model="claude-opus-5"
         onModelChange={onModelChange}
+        credential={credential}
         onPlaybookChanged={onPlaybookChanged}
         {...props}
       />
@@ -139,6 +153,7 @@ async function fill(index = 0, after = "El arrendatario paga por adelantado.") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  credential = keyFor([FIRM], FIRM.credential_ref);
   vi.mocked(api.listPlaybookChanges).mockResolvedValue([]);
 });
 afterEach(() => vi.useRealTimers());
@@ -180,6 +195,8 @@ describe("the Corrections screen (es-MX)", () => {
     await waitFor(() =>
       expect(api.startPlaybookCorrections).toHaveBeenCalledWith(PLAYBOOK, {
         model: "claude-opus-5",
+        // The only usable key is the firm's: sent without asking.
+        credentialRef: FIRM.credential_ref,
         traineeUserId: "pupil-1",
         corrections: [
           { before: "Paga al vencimiento.", after: "El arrendatario paga por adelantado.", comment: "Siempre adelantado." },
@@ -385,6 +402,30 @@ describe("the Corrections screen (es-MX)", () => {
       action: "cargar los cambios propuestos",
       operation: "playbooks.save",
     });
+  });
+
+  it("sends the firm's key with the corrections when it is the only one, without asking", async () => {
+    vi.mocked(api.startPlaybookCorrections).mockResolvedValue(running);
+    screenUnderTest();
+    await screen.findByText("No hay cambios esperando una decisión.");
+    expect(screen.queryByLabelText("Llave")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Pasante"), { target: { value: "pupil-1" } });
+    await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Proponer reglas" }));
+    await waitFor(() =>
+      expect(api.startPlaybookCorrections).toHaveBeenCalledWith(
+        PLAYBOOK,
+        expect.objectContaining({ credentialRef: FIRM.credential_ref }),
+      ),
+    );
+  });
+
+  it("shows the key to choose when two keys can serve the model", async () => {
+    credential = keyFor([OWN, FIRM], OWN.credential_ref);
+    screenUnderTest();
+    await screen.findByText("No hay cambios esperando una decisión.");
+    fireEvent.change(screen.getByLabelText("Llave"), { target: { value: FIRM.credential_ref } });
+    expect(setKey).toHaveBeenCalledWith(FIRM.credential_ref);
   });
 
   it("is read-only while the page is busy", async () => {
