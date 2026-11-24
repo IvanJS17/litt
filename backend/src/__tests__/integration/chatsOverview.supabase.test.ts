@@ -349,7 +349,7 @@ maybeDescribe("get_chats_overview — role-aware grants", () => {
 
         const access = await getAccessibleChat(admin, { chatId: chats.mine, userId: callerId, userEmail: callerEmail });
         expect(access.ok).toBe(true);
-        const messages = await getChatMessages(admin, chats.mine);
+        const messages = await getChatMessages(admin, chats.mine, { userId: callerId, userEmail: callerEmail });
         expect(messages.find((message) => message.id === messageId)?.content).toEqual([
             search,
             { type: "content", text: "Found three matching documents." },

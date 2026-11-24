@@ -45,7 +45,7 @@ const person = (res: Response) => ({
 export const trainingReadingsRouter = Router();
 
 trainingReadingsRouter.get("/me/readings", requireAuth, asyncRoute(async (req, res) => {
-    send(res, await getMyReadings(createServerSupabase(), { userId: res.locals.userId as string, orgId: req.query.org_id }));
+    send(res, await getMyReadings(createServerSupabase(), { ...person(res), orgId: req.query.org_id }));
 }));
 
 trainingReadingsRouter.post("/me/readings", requireAuth, asyncRoute(async (req, res) => {
@@ -58,7 +58,7 @@ trainingReadingsRouter.post("/me/readings", requireAuth, asyncRoute(async (req, 
 }));
 
 trainingReadingsRouter.get("/me/readings/:readingId", requireAuth, asyncRoute(async (req, res) => {
-    send(res, await getMyReading(createServerSupabase(), { userId: res.locals.userId as string, readingId: req.params.readingId }));
+    send(res, await getMyReading(createServerSupabase(), { ...person(res), readingId: req.params.readingId }));
 }));
 
 trainingReadingsRouter.get("/me/readings/:readingId/document", requireAuth, asyncRoute(async (req, res) => {

@@ -29,8 +29,9 @@ import type {
     TrainingDefenses,
 } from "@mike/contracts";
 import { recordAudit } from "../../lib/audit";
+import { reportError } from "../../lib/observability/report";
 import { promptNonce } from "../../lib/promptFence";
-import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
+import { failure, internalFailure, ok, reportableServiceError, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { projectPractice } from "../../lib/training";
 import {
@@ -44,7 +45,7 @@ import {
     REVIEW_MAX_NOTES,
 } from "../../lib/trainingSupervisionAi";
 import type { TurnNoteSurface } from "../../lib/trainingNotes";
-import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
+import { mayOpenWorkMatter, openableWorkMatters, workPlace } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import { readPractice } from "../training/training.service";
 import { chatRouteColumns, parseCredentialRef, recordChatEgress } from "../user/user.service";
@@ -72,6 +73,8 @@ export type DefenseRow = {
     trainee_user_id: string;
     practice: string | null;
     work_review_id: string | null;
+    /** The matters the questions were drawn from; null when none was recorded. */
+    source_project_ids?: string[] | null;
     questions: TrainingDefenseQuestion[] | null;
     questions_status: string;
     model_provider: string | null;
@@ -138,6 +141,59 @@ export async function listOwnDefenses(
     return ok(rows.data.map((row) => serializeDefense(row, true, now)));
 }
 
+/**
+ * The matters a defense's questions and note rest on, or null when they cannot
+ * be established: a defense on one work rests on that work's matter as it is
+ * now; one over a practice area, on the matters recorded when its questions
+ * were written (none recorded: unknown). `[]` is work outside any matter.
+ */
+async function defenseMatters(db: Db, row: DefenseRow): Promise<ServiceResult<string[] | null>> {
+    if (!row.work_review_id) return ok(row.source_project_ids ?? null);
+    const { data, error } = await db
+        .from("training_work_reviews")
+        .select("id, chat_id, word_chat_id, tabular_chat_id")
+        .eq("id", row.work_review_id)
+        .eq("org_id", row.org_id)
+        .eq("trainee_user_id", row.trainee_user_id)
+        .maybeSingle();
+    if (error) return internalFailure(error);
+    const at = data ? surfaceOf(data as { chat_id?: string | null }) : null;
+    if (!at) return ok(null);
+    const place = await workPlace(db, at.surface, at.chatId);
+    if (!place.ok) return internalFailure(place.error);
+    if (!place.place) return ok(null);
+    return ok(place.place.projectId ? [place.place.projectId] : []);
+}
+
+/**
+ * The defenses as the pupil's current mentor reads them: the questions and the
+ * note come from the pupil's work, so they stay behind when the mentor cannot
+ * open every matter that work was in, or when it cannot be established.
+ */
+async function readableDefenses(db: Db, actor: Actor, rows: DefenseRow[]): Promise<ServiceResult<DefenseRow[]>> {
+    const matters = new Map<string, string[] | null>();
+    for (const row of rows) {
+        if (!(row.questions || row.outcome_note)) continue;
+        const found = await defenseMatters(db, row);
+        if (!found.ok) return found;
+        matters.set(row.id, found.data);
+    }
+    let openable = new Set<string>();
+    try {
+        const ids = [...new Set([...matters.values()].flatMap((list) => list ?? []))];
+        if (ids.length > 0) openable = await openableWorkMatters(db, { projectIds: ids, actorId: actor.actorId, actorEmail: actor.actorEmail });
+    } catch (error) {
+        return internalFailure(error);
+    }
+    return ok(
+        rows.map((row) => {
+            if (!matters.has(row.id)) return row;
+            const list = matters.get(row.id);
+            return list && list.every((id) => openable.has(id)) ? row : { ...row, questions: null, outcome_note: null };
+        }),
+    );
+}
+
 /** GET …/pupils/:userId/defenses */
 export async function listDefenses(db: Db, actor: Actor): Promise<ServiceResult<TrainingDefenses>> {
     const gate = await assertCurrentMentor(db, actor);
@@ -145,9 +201,11 @@ export async function listDefenses(db: Db, actor: Actor): Promise<ServiceResult<
     const { orgId, traineeId } = gate.data;
     const rows = await readDefenses(db, orgId, traineeId);
     if (!rows.ok) return rows;
+    const readable = await readableDefenses(db, actor, rows.data);
+    if (!readable.ok) return readable;
     const now = Date.now();
     return ok({
-        defenses: rows.data.map((row) => serializeDefense(row, false, now)),
+        defenses: readable.data.map((row) => serializeDefense(row, false, now)),
         generation: await mentorGeneration(db, actor.actorId, orgId),
     });
 }
@@ -266,7 +324,7 @@ async function loadDefense(
 async function defenseNotes(
     db: Db,
     args: { orgId: string; traineeId: string; defense: DefenseRow; actorId: string; actorEmail: string | null },
-): Promise<ServiceResult<{ notes: NoteRow[]; chatId: string | null; projectId: string | null } | null>> {
+): Promise<ServiceResult<{ notes: NoteRow[]; chatId: string | null; projectId: string | null; projectIds: string[] } | null>> {
     const { orgId, traineeId, defense } = args;
     if (defense.work_review_id) {
         const review = await visibleReview(db, { ...args, reviewId: defense.work_review_id });
@@ -279,11 +337,13 @@ async function defenseNotes(
             notes: work?.notes ?? [],
             chatId: review.data.surface.chatId,
             projectId: review.data.projectId,
+            projectIds: review.data.projectId ? [review.data.projectId] : [],
         });
     }
     const all = await loadTraineeNotes(db, { orgId, traineeId });
     if (!all.ok) return all;
     const picked: NoteRow[] = [];
+    const pickedMatters = new Set<string>();
     for (const work of groupWorks(all.data)) {
         const place = await workPlace(db, work.surface, work.chatId);
         if (!place.ok) return internalFailure(place.error);
@@ -306,10 +366,11 @@ async function defenseNotes(
             if (practice !== defense.practice) continue;
         }
         picked.push(...work.notes);
+        if (place.place.projectId) pickedMatters.add(place.place.projectId);
         if (picked.length >= REVIEW_MAX_NOTES) break;
     }
     picked.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
-    return ok({ notes: picked, chatId: null, projectId: null });
+    return ok({ notes: picked, chatId: null, projectId: null, projectIds: [...pickedMatters] });
 }
 
 /** POST …/defenses/:id/questions: generates (or regenerates) the five questions. */
@@ -397,7 +458,7 @@ export async function generateDefenseQuestions(
         .from("training_defenses")
         .update(
             questions
-                ? { questions_status: "ready", questions, updated_at: new Date().toISOString() }
+                ? { questions_status: "ready", questions, source_project_ids: source.data.projectIds, updated_at: new Date().toISOString() }
                 : { questions_status: "failed", updated_at: new Date().toISOString() },
         )
         .eq("id", row.id)
@@ -474,5 +535,29 @@ export async function recordDefenseOutcome(
         surface: "organization",
         detail: { org_id: orgId, target_user_id: traineeId, defense_id: recorded.id },
     });
-    return ok(serializeDefense(recorded, false));
+    // Questions never written rest on no work: the mentor's note is theirs, not drawn from a matter.
+    // A separate write that holds only while no questions have been written since: questions
+    // generated in between keep the matters they recorded.
+    let stored: DefenseRow = recorded;
+    if (loaded.data.questions == null && loaded.data.source_project_ids == null) {
+        const { data: marked, error: markError } = await db
+            .from("training_defenses")
+            .update({ source_project_ids: [] })
+            .eq("id", recorded.id)
+            .is("questions", null)
+            .is("source_project_ids", null)
+            .select("id");
+        // A write that fails leaves the matters unrecorded: the note stays withheld, which is safe.
+        if (markError) reportError(markError, { tags: { component: "training", operation: "training.defense_sources" } });
+        else if ((marked ?? []).length > 0) stored = { ...recorded, source_project_ids: [] };
+    }
+    // The answer carries the defense as a list of them does: its questions and note stay behind for work in a matter the mentor cannot open.
+    // The outcome is already written, so a lookup that fails is not answered as an error for it: the
+    // defense comes back with its questions and note withheld, and the failure is reported.
+    const readable = await readableDefenses(db, actor, [stored]);
+    if (!readable.ok) {
+        reportError(reportableServiceError(readable), { tags: { component: "training", operation: "training.defense_outcome" } });
+        return ok(serializeDefense({ ...stored, questions: null, outcome_note: null }, false));
+    }
+    return ok(serializeDefense(readable.data[0], false));
 }

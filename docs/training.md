@@ -87,6 +87,14 @@ Everybody else gets the same `404` as for an id that does not exist: an owner
 or admin by role, a previous mentor, another mentor, another member, an
 outsider, and the pupil on a mentor's route. The mentor reads work done inside a
 matter only while they can open that matter; the rest is counted, never shown.
+The person reads their own work the same way: the passages of their backing
+checks and the machine's findings and comparison of their readings come from a
+matter's documents, so they are withheld (`404` for the backing, empty
+`machine_findings` and `comparison` for a reading) once the person can no longer
+open that matter. The machine's findings and comparison of a reading are also
+withheld, from the person and the mentor alike, once the reading's document is
+gone. What the person wrote stays. A matter that cannot be checked
+is an error, never an open matter.
 The stage grants nothing: it never adds access to a document, a chat or a
 matter.
 
@@ -1030,6 +1038,23 @@ The current mentor prepares and records an oral defense (specification §6.2):
 
 - Anybody else, the pupil included, gets the uniform `404`; the pupil reads
   their defenses through `GET /training/me/supervision`.
+- The list shows the questions and the note only while the mentor can open
+  every matter they were drawn from: the linked work's matter as it is now, or
+  for a practice-area defense the matters recorded in `source_project_ids` when
+A defense whose matters are not recorded (written
+  before that) loses them for every mentor. The outcome stays. Recording an
+  outcome answers with the defense as the list shows it, so the questions and
+  the note of work in a matter the mentor cannot open are not returned there
+  either. An urgency pass in a matter the mentor cannot open is listed as a
+  pass with its dates and whether it was revoked, but without its matter, reason
+  or note (`details_withheld`).
+- Migration `20261122_21_litt_training_defense_sources.sql` adds
+  `source_project_ids` and fills nothing: a defense that already exists over a
+  practice area, with questions or a note, has no recorded matters and is
+  withheld from every mentor, the one who wrote it included. Questions cannot be
+  generated again once an outcome is recorded, so this does not come back for
+  such a defense. A defense on one linked work is judged by that work's matter
+  and is not affected.
 - `practice` omitted: the practice area of the linked work's matter, or every
   practice area (`null`) without one. A linked work in a matter the mentor
   cannot open is a `404`.

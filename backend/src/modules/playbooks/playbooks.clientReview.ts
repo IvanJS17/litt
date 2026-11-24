@@ -172,6 +172,7 @@ export async function savePlaybookClientReview(
     model: CLIENT_AI_MODEL,
     document_name: args.documentName,
     document_id: args.documentId,
+    stored_document: true,
     edited_version_id: null,
     review_mode: args.reviewMode,
     review_scope: args.reviewScope,

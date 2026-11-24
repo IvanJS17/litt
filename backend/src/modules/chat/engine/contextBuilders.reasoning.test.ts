@@ -52,13 +52,21 @@ const thought = (text: string, model: string | null = MODEL): Event =>
   model === null ? { type: "reasoning", text } : { type: "reasoning", text, model };
 const said = (text: string): Event => ({ type: "content", text });
 
+const reader = { userId: "u1", userEmail: "u1@example.test" };
+const attach = (
+  messages: ChatMessage[],
+  chatId: string | null,
+  db: Db,
+  table?: string,
+) => attachPriorReasoning(messages, chatId, db, table, undefined, reader);
+
 describe("attachPriorReasoning", () => {
   it("attaches each stored turn's reasoning to the matching assistant message", async () => {
     const { db, calls } = makeDb([
       turn(thought("Plan the answer."), said("First "), said("answer.")),
       turn(
         thought("Read the clause."),
-        { type: "doc_read", text: "ignored" },
+        { type: "web_search", text: "ignored" },
         thought("Summarise it."),
         said("Second answer."),
       ),
@@ -71,7 +79,7 @@ describe("attachPriorReasoning", () => {
       { role: "user", content: "q3" },
     ];
 
-    const result = await attachPriorReasoning(messages, "chat-1", db);
+    const result = await attach(messages, "chat-1", db);
 
     expect(calls.table).toBe("chat_messages");
     expect(calls.filters).toMatchObject({ chat_id: "chat-1", role: "assistant" });
@@ -98,7 +106,7 @@ describe("attachPriorReasoning", () => {
           said("Three."),
         ),
       ]);
-      const result = await attachPriorReasoning(
+      const result = await attach(
         [
           { role: "assistant", content: "One." },
           { role: "assistant", content: "Two." },
@@ -121,7 +129,7 @@ describe("attachPriorReasoning", () => {
       turn(thought("r1"), said("Done.")),
       turn(thought("r2"), said("Done.")),
     ]);
-    const result = await attachPriorReasoning(
+    const result = await attach(
       [
         { role: "assistant", content: "Done." },
         { role: "assistant", content: "Done." },
@@ -138,7 +146,7 @@ describe("attachPriorReasoning", () => {
       turn(thought("r2"), said("Unique.")),
       turn(thought("r3"), said("Done.")),
     ]);
-    const result = await attachPriorReasoning(
+    const result = await attach(
       [
         { role: "assistant", content: "Unique." },
         { role: "assistant", content: "Done." },
@@ -155,7 +163,7 @@ describe("attachPriorReasoning", () => {
       turn(thought("r1"), said("First.")),
       turn(thought("r2"), said("Second.")),
     ]);
-    const [message] = await attachPriorReasoning(
+    const [message] = await attach(
       [{ role: "assistant", content: "First." }],
       "chat-1",
       db,
@@ -168,14 +176,14 @@ describe("attachPriorReasoning", () => {
     const messages: ChatMessage[] = [
       { role: "assistant", content: "Edited by the client." },
     ];
-    const result = await attachPriorReasoning(messages, "chat-1", db);
+    const result = await attach(messages, "chat-1", db);
     expect(result[0].reasoning).toBeUndefined();
   });
 
   it("keeps only the tail of very long reasoning", async () => {
     const long = `${"a".repeat(MAX_REPLAYED_REASONING_CHARS)}END`;
     const { db } = makeDb([turn(thought(long, "other-model"), said("Answer."))]);
-    const [message] = await attachPriorReasoning(
+    const [message] = await attach(
       [{ role: "assistant", content: "Answer." }],
       "chat-1",
       db,
@@ -196,7 +204,7 @@ describe("attachPriorReasoning", () => {
         ),
       ),
     );
-    const result = await attachPriorReasoning(
+    const result = await attach(
       Array.from({ length: count }, (_, i) => ({
         role: "assistant" as const,
         content: `Answer ${i}.`,
@@ -222,7 +230,7 @@ describe("attachPriorReasoning", () => {
     const { db } = makeDb(
       reasonings.map((r, i) => turn(thought(r), said(`Answer ${i}.`))),
     );
-    const result = await attachPriorReasoning(
+    const result = await attach(
       reasonings.map((_, i) => ({
         role: "assistant" as const,
         content: `Answer ${i}.`,
@@ -243,7 +251,7 @@ describe("attachPriorReasoning", () => {
 
   it("reads the table it is given", async () => {
     const { db, calls } = makeDb([]);
-    await attachPriorReasoning(
+    await attach(
       [{ role: "assistant", content: "x" }],
       "chat-1",
       db,
@@ -257,7 +265,7 @@ describe("attachPriorReasoning", () => {
     const stored = [turn(thought("r"), said("Answer."))];
 
     const noChat = makeDb(stored);
-    expect(await attachPriorReasoning(messages, null, noChat.db)).toBe(
+    expect(await attach(messages, null, noChat.db)).toBe(
       messages,
     );
     expect(noChat.calls.table).toBeUndefined();
@@ -265,12 +273,12 @@ describe("attachPriorReasoning", () => {
     const userOnly: ChatMessage[] = [{ role: "user", content: "hi" }];
     const noAssistant = makeDb(stored);
     expect(
-      await attachPriorReasoning(userOnly, "chat-1", noAssistant.db),
+      await attach(userOnly, "chat-1", noAssistant.db),
     ).toBe(userOnly);
     expect(noAssistant.calls.table).toBeUndefined();
 
     const failing = makeDb(stored, { message: "boom" });
-    expect(await attachPriorReasoning(messages, "chat-1", failing.db)).toBe(
+    expect(await attach(messages, "chat-1", failing.db)).toBe(
       messages,
     );
   });

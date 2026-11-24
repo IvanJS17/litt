@@ -750,8 +750,14 @@ describe("playbooks: mode B (the client's AI reviews)", () => {
         expect(verification[RULE_TERM]).toBe(false);
         expect(verification["regla-inventada"]).toBeUndefined();
         const run = tables().playbook_runs[0];
-        expect(run).toMatchObject({ model: "client_ai", status: "completed", document_id: DOC_PUBLIC, user_id: PEOPLE.owner.id, edited_version_id: null });
+        expect(run).toMatchObject({ model: "client_ai", status: "completed", document_id: DOC_PUBLIC, user_id: PEOPLE.owner.id, edited_version_id: null, stored_document: true });
         expect(run.model_provider ?? null).toBeNull();
+        // Once its document is gone the run is withheld, even when it kept no file name.
+        run.document_name = null;
+        run.document_id = null;
+        const gone = await callTool(token, "get_playbook_run", { run_id: out.data.run_id });
+        expect(gone.data).toMatchObject({ document_withheld: true, details_withheld: true });
+        run.document_id = DOC_PUBLIC;
         const stored = run.findings_json as { ruleId: string; quote: string }[];
         expect(stored.find((f) => f.ruleId === RULE_TERM)!.quote).toBe("");
         expect(tables().document_versions).toHaveLength(versionsBefore);
@@ -1169,6 +1175,24 @@ describe("results respect the connection's workspaces", () => {
             const other = await callTool(token, "get_playbook_run", { run_id: gone });
             expect(other.data).toMatchObject({ document_name: null, document_withheld: true });
             expect(other.data.document_source).toBeUndefined();
+        });
+
+        it("says a run is withheld, not pasted text, when its document was stored and the person can no longer open it", async () => {
+            as("narrow");
+            const token = await connect({ workspaces: [ORG] });
+            const gone = runRow("completed", null, null);
+            const goneRow = tables().playbook_runs.find((r) => r.id === gone)!;
+            goneRow.stored_document = true;
+            const pasted = runRow("completed", null, null);
+            tables().playbook_runs.find((r) => r.id === pasted)!.stored_document = false;
+            const out = await callTool(token, "get_playbook_run", { run_id: gone });
+            expect(out.data).toMatchObject({ document_id: null, document_name: null, document_withheld: true, details_withheld: true });
+            expect(out.data.document_source).toBeUndefined();
+            const listed = await callTool(token, "list_playbook_runs", {});
+            const byId = new Map<string, Record<string, unknown>>(listed.data.runs.map((r: { run_id: string }) => [r.run_id, r]));
+            expect(byId.get(gone)).toMatchObject({ document_withheld: true, finding_count: null });
+            expect(byId.get(gone)!.document_source).toBeUndefined();
+            expect(byId.get(pasted)).toMatchObject({ document_source: "pasted_text" });
         });
 
         it("cannot be started over pasted text or a file with no stored document: both review tools need a document id", async () => {

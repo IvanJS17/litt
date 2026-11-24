@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { memoryDb } from "../../../../__tests__/helpers/memoryDb";
+import { describe, it, expect, vi } from "vitest";
 import {
     MAX_DOCUMENT_CONTEXT_CHARS,
     parseOptionalDocumentContext,
@@ -15,6 +16,18 @@ import {
 import { readDocumentContent } from "../tools/documentOps";
 import { runToolCalls } from "../tools/toolDispatcher";
 import type { DocStore } from "../types";
+
+// These tests render the summary; who may read it is tested in priorTurnAccess.test.ts,
+// and the last test here runs the real access check.
+const prior = vi.hoisted(() => ({ real: false }));
+vi.mock("../priorTurnAccess", async (original) => {
+  const actual = await original<typeof import("../priorTurnAccess")>();
+  return {
+    ...actual,
+    readablePriorRows: (...args: Parameters<typeof actual.readablePriorRows>) =>
+      prior.real ? actual.readablePriorRows(...args) : Promise.resolve(new Set(args[2])),
+  };
+});
 
 const TEST_ACTIVE_WORD_DOCUMENT_NAME = "Contract.docx";
 
@@ -255,6 +268,10 @@ describe("null-content assistant reservations", () => {
             "chat-1",
             db,
             { "doc-0": { document_id: "doc-uuid-1", filename: "Brief.docx" } },
+            undefined,
+            "chat_messages",
+            undefined,
+            { userId: "u1", userEmail: null },
         );
 
         expect(enriched[1].content).toContain(
@@ -272,7 +289,7 @@ describe("null-content assistant reservations", () => {
       { role: "assistant", content: "Done." },
     ];
 
-    const enriched = await enrichWithPriorEvents(messages, "chat-1", db, {});
+    const enriched = await enrichWithPriorEvents(messages, "chat-1", db, {}, undefined, "chat_messages", undefined, { userId: "u1", userEmail: null });
 
     expect(enriched).toEqual(messages);
   });
@@ -309,6 +326,10 @@ describe("null-content assistant reservations", () => {
             "chat-1",
             db,
             {},
+            undefined,
+            "chat_messages",
+            undefined,
+            { userId: "u1", userEmail: null },
         );
 
     expect(enriched[0].content).toContain(
@@ -618,4 +639,35 @@ describe("active Word document context", () => {
         expect(result.docsFound).toEqual([]);
         expect(writes).toEqual([]);
     });
+});
+
+describe("the summary of a previous answer the reader cannot open (the real access check)", () => {
+  it("keeps that an input was skipped, without its question, and the instruction, and leaves out what the answer read, when the reader cannot open it", async () => {
+    prior.real = true;
+    try {
+      const closed = "d0000000-0000-4000-8000-000000000002";
+      const { db } = memoryDb({
+        documents: [{ id: closed, user_id: "someone-else", project_id: null, org_id: null }],
+        chat_messages: [
+          {
+            id: "m1", chat_id: "chat-1", role: "assistant", files: null, citations: null, created_at: "2026-11-10T10:00:01Z",
+            content: [{ type: "doc_read", filename: "closed-file.pdf", document_id: closed }, { type: "ask_inputs", items: [] }, { type: "ask_inputs_response", author_user_id: "u1", responses: [{ id: "law", kind: "text", question: "Governing law?", skipped: true }] }],
+          },
+        ],
+        chats: [],
+      });
+      const [assistant] = await enrichWithPriorEvents(
+        [{ role: "assistant", content: "Which?" }, { role: "user", content: "next" }],
+        "chat-1", db, {}, "nonce1234", "chat_messages", undefined,
+        { userId: "u1", userEmail: null },
+      );
+      const text = String(assistant.content);
+      expect(text).toContain("- user skipped an input");
+      expect(text).not.toContain("Governing law");
+      expect(text).toContain("do not ask for any skipped input again");
+      expect(text).not.toContain("closed-file.pdf");
+    } finally {
+      prior.real = false;
+    }
+  });
 });

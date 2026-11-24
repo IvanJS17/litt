@@ -10,7 +10,7 @@ import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult
 import type { Db } from "../../lib/supabase";
 import { openableWorkMatters } from "../../lib/trainingWork";
 import { assertCurrentMentor } from "../training-supervision/trainingSupervision.service";
-import { readReadings, serializeReading } from "./trainingFullReading.rows";
+import { readReadings, serializeReadReading } from "./trainingFullReading.rows";
 
 /** GET /orgs/:orgId/training/pupils/:userId/readings */
 export async function listPupilReadings(
@@ -35,7 +35,7 @@ export async function listPupilReadings(
     return ok({
         org_id: orgId,
         trainee_user_id: traineeId,
-        readings: visible.map((row) => serializeReading(row, now)),
+        readings: visible.map((row) => serializeReadReading(row, true, now)),
         readings_without_access: rows.data.length - visible.length,
     });
 }

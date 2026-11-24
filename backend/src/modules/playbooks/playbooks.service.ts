@@ -40,6 +40,7 @@ export {
     getPlaybookRun,
     findReviewedVersionId,
 } from "./playbooks.operations";
+export { withholdUnreadableRunRows } from "./playbooks.runAccess";
 export {
     preparePlaybookClientReview,
     savePlaybookClientReview,

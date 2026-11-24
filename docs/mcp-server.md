@@ -320,7 +320,12 @@ stored before its documents were recorded (unless it found nothing or failed):
 the answer that holds one, and every later answer of that conversation, is
 withheld. A workflow's own file is a document of its workflow, judged where the
 workflow lives; a read of one stored before its document was recorded names no
-document and is withheld the same way. The conversations a connection reads are
+document and is withheld the same way. When the connection itself lets an answer
+out but the person can no longer read it, the reason is its own:
+`code: content_no_access` (`withheld_no_access: true`) when they lost access to
+a document that still exists, and `code: content_source_unknown`
+(`withheld_source_unknown: true`) when the documents it was built from can no
+longer be identified or no longer exist. The conversations a connection reads are
 the assistant's own; the live document of the Word pane is never stored in them.
 
 A conversation's title is written from what the person typed (or renamed it

@@ -12,7 +12,9 @@
 // its ordering is delicate. Only the NON-streaming logic and the pre-stream
 // DB preparation live here. `prepareChatStream` returns the prepared data the
 // route needs to run the stream; it does not stream.
+import { type DerivedReader } from "../../lib/access";
 import { selectAllByKey, selectInBatches, sortRows } from "../../lib/batchedQuery";
+import { readableChatMessages } from "../../lib/chatReadAccess";
 import { readReviewRefs, reviewRefsOf } from "../../lib/citationSupport";
 import { type Db } from "../../lib/supabase";
 import { withDelegationEvents, withoutEmptyAssistantReservations } from "./engine/index";
@@ -139,6 +141,7 @@ async function hydrateEditStatuses(
 export async function getChatMessages(
     db: Db,
     chatId: string,
+    reader: DerivedReader,
 ): Promise<Record<string, unknown>[]> {
     const { data: messages } = await db
         .from("chat_messages")
@@ -146,9 +149,25 @@ export async function getChatMessages(
         .eq("chat_id", chatId)
         .order("created_at", { ascending: true });
 
-    const visible = withoutEmptyAssistantReservations(messages ?? []);
-    // The caller has already authorised the chat, so these messages are
-    // readable; the low-band citation refs of their answers ride along.
+    // The caller has authorised the chat, not the documents its messages
+    // were built from: an answer the reader cannot open now keeps its place,
+    // emptied and marked `unreadable` with its reason, so nothing disappears silently. A
+    // lookup that fails throws.
+    const stored = withoutEmptyAssistantReservations(messages ?? []);
+    const { messages: readable, reasons } = await readableChatMessages(db, reader, stored, "live");
+    const readableById = new Map(readable.map((m) => [m.id, m]));
+    const visible = stored.map(
+        (m) =>
+            readableById.get(m.id) ?? {
+                ...m,
+                content: [],
+                files: null,
+                citations: null,
+                unreadable: true,
+                unreadable_reason: reasons.get(String(m.id)) ?? "no_access",
+            },
+    );
+    // The low-band citation refs of the answers ride along.
     const reviewRefs = await readReviewRefs(
         db,
         "chat",

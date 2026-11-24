@@ -78,12 +78,14 @@ export function MentorSeesMe({ orgId }: { orgId: string }) {
                             data.supervision.urgency_passes.map((pass) => (
                                 <li key={pass.id} className="min-w-0 space-y-0.5 border-t border-gray-100 pt-3 first:border-t-0 first:pt-0">
                                     <p className="break-words text-sm text-gray-900">
-                                        {data.projects.get(pass.project_id) ?? t("passes.unknownProject")}
+                                        {(pass.project_id && data.projects.get(pass.project_id)) || t("passes.unknownProject")}
                                     </p>
                                     <p className="text-sm text-gray-700">
                                         <PassState pass={pass} />
                                     </p>
-                                    <p className="text-sm text-gray-500">{t(`passes.reason.${pass.reason_code}`)}</p>
+                                    <p className="text-sm text-gray-500">
+                                        {pass.reason_code ? t(`passes.reason.${pass.reason_code}`) : t("passes.detailsNotShown")}
+                                    </p>
                                     {pass.reason_note && (
                                         <p className="whitespace-pre-wrap break-words text-sm text-gray-500">
                                             {pass.reason_note}

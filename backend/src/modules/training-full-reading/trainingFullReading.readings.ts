@@ -32,6 +32,8 @@ import {
     loadOwnReading,
     readingNotFound,
     readReadings,
+    serializeOwnReading,
+    serializeOwnReadings,
     serializeReading,
     type ReadingRow,
 } from "./trainingFullReading.rows";
@@ -70,7 +72,7 @@ function eligibilityOf(rows: readonly ReadingRow[], junior: boolean, now: number
 /** GET /training/me/readings?org_id= */
 export async function getMyReadings(
     db: Db,
-    args: { userId: string; orgId: unknown },
+    args: Person & { orgId: unknown },
 ): Promise<ServiceResult<TrainingReadings>> {
     const access = await self(db, args.userId, args.orgId);
     if (!access.ok) return access;
@@ -80,11 +82,13 @@ export async function getMyReadings(
     const junior = await isJuniorIn(db, orgId, args.userId);
     if (!junior.ok) return junior;
     const now = Date.now();
+    const readings = await serializeOwnReadings(db, args, rows.data, now);
+    if (!readings.ok) return readings;
     return ok({
         org_id: orgId,
         eligibility: eligibilityOf(rows.data, junior.data, now),
         generation: await readingGeneration(db, args.userId, orgId),
-        readings: rows.data.map((row) => serializeReading(row, now)),
+        readings: readings.data,
     });
 }
 
@@ -100,7 +104,7 @@ export async function startReading(
     const rows = await readReadings(db, orgId, args.userId);
     if (!rows.ok) return rows;
     const open = rows.data.find((row) => row.status !== "compared");
-    if (open) return ok({ reading: serializeReading(open, now), created: false });
+    if (open) return existingReading(db, args, open, now);
     const junior = await isJuniorIn(db, orgId, args.userId);
     if (!junior.ok) return junior;
     if (!eligibilityOf(rows.data, junior.data, now).due) return failure("conflict", NOT_DUE, READING_NOT_DUE_CODE);
@@ -125,7 +129,7 @@ export async function startReading(
         if ((error as { code?: string }).code === "23505") {
             const again = await readReadings(db, orgId, args.userId);
             const existing = again.ok ? again.data.find((row) => row.status !== "compared") : null;
-            if (existing) return ok({ reading: serializeReading(existing, now), created: false });
+            if (existing) return existingReading(db, args, existing, now);
         }
         return internalFailure(error);
     }
@@ -141,6 +145,17 @@ export async function startReading(
     return ok({ reading: serializeReading(row, now), created: true });
 }
 
+/** A reading that already existed, as `startReading` answers it. */
+async function existingReading(
+    db: Db,
+    person: Person,
+    row: ReadingRow,
+    now: number,
+): Promise<ServiceResult<{ reading: TrainingReading; created: boolean }>> {
+    const read = await serializeOwnReading(db, person, row, now);
+    return read.ok ? ok({ reading: read.data, created: false }) : read;
+}
+
 /** The caller's reading `readingId` after the learning-data rule, or the 404. */
 export async function ownReading(db: Db, args: { userId: string; readingId: unknown }): Promise<ServiceResult<ReadingRow>> {
     const loaded = await loadOwnReading(db, args);
@@ -154,11 +169,11 @@ export async function ownReading(db: Db, args: { userId: string; readingId: unkn
 /** GET /training/me/readings/:id: one of the caller's readings, for its page. */
 export async function getMyReading(
     db: Db,
-    args: { userId: string; readingId: unknown },
+    args: Person & { readingId: unknown },
 ): Promise<ServiceResult<TrainingReading>> {
     const found = await ownReading(db, args);
     if (!found.ok) return found;
-    return ok(serializeReading(found.data));
+    return serializeOwnReading(db, args, found.data);
 }
 
 /** POST /training/me/readings/:id/swap: another document, once, before sending the findings. */

@@ -73,7 +73,20 @@ id in `meta`). `attachAssistantTurnSse(res, run)` hands back the same
 - `GET /chat/:chatId/turn/:turnId/stream?from=<seq>` attaches to a run (a
   reload, a second tab, a dropped connection): frames with `seq >= from` are
   replayed, then the live ones follow until the run ends. Visibility on the
-  chat is enough, as it is for reading the transcript.
+  chat is enough, as it is for watching the live turn. Reading the stored
+  transcript (the web route, the history a connected app continues from and its
+  `get_chat`/`get_chat_turn`) also asks which documents the reader can open
+  now (`lib/chatReadAccess.ts` over `keepReadableDerived`): an attachment they
+  cannot open is taken off the message, an answer built on a document they
+  cannot open stays in its place emptied and marked `unreadable`, and what they
+  typed is not touched. The marker says why: no access (for any reader), or sources that cannot
+  be identified or no longer exist (the latter withholds that one answer only
+  for the owner of the chat). The history a new turn continues from carries only
+  what the reader can open; the summary of the previous answer's tool activity
+  and its reasoning are judged on that answer's own sources, and, when the
+  reader cannot open that answer, only the reader's own answers and decisions
+  are replayed, as they gave them. See
+  `docs/document-text-search.md` for the rule and its limits.
 - `POST /chat/:chatId/turn/:turnId/stop` is the one way to cut a generation
   short; it needs the standing that sending does. The route's abort path
   then persists the partial answer marked with a `stopped` event (each client words it) and writes

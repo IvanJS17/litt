@@ -13,6 +13,7 @@
 // history, marked as coming from this app.
 
 import { z } from "zod";
+import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { can } from "../../lib/permissions";
 import { reportError } from "../../lib/observability/report";
 import {
@@ -105,6 +106,12 @@ export async function chatAccess(call: McpCall, chatId: string) {
     return access;
 }
 
+/** Who reads a stored conversation: what they cannot open now is left out of it. */
+export const chatReader = async (call: McpCall) => ({
+    userId: call.principal.userId,
+    userEmail: (await call.userEmail()) || null,
+});
+
 export const chatWorkspace = async (call: McpCall, chatId: string): Promise<string> =>
     workspaceOf((await chatAccess(call, chatId)).chat.org_id);
 
@@ -170,14 +177,16 @@ export async function presentTurn(
     given?: Release,
 ) {
     // The one place that decides whether a stored answer leaves through this connection.
-    const release = given ?? (state.text || state.citations.length ? await chatTurnRelease(call, chatId, state.messageId) : { ok: true as const });
-    if (!release.ok)
+    const release = given ?? (state.text || state.citations.length || state.unreadable ? await chatTurnRelease(call, chatId, state.messageId) : { ok: true as const });
+    // An answer the connection lets out but the person can no longer open is withheld for that reason.
+    const barred: Release = release.ok && state.unreadable ? { ok: false, reason: state.unreadableReason ?? "no_access" } : release;
+    if (!barred.ok)
         return {
             chat_id: chatId,
             turn_id: state.messageId,
             assistant_message_id: state.messageId,
             status: state.status,
-            ...withheldFields(release),
+            ...withheldFields(barred),
             notice: UNTRUSTED_NOTICE,
         };
     const errorMessage = state.errorMessage ?? (state.status === "failed" ? turnErrorMessage(state.messageId) : null);
@@ -258,7 +267,7 @@ export async function runTurn(
         confidence?: number;
     },
 ) {
-    const history = args.chatId ? await loadChatHistory(call.db, args.chatId) : [];
+    const history = args.chatId ? await loadChatHistory(call.db, args.chatId, await chatReader(call)) : [];
     const parsed = parseChatTurnRequest({
         messages: [
             ...history,
@@ -317,8 +326,8 @@ export async function followTurn(
     workspace: string,
 ) {
     const { chatId, turnId } = turn;
-    const settled = await waitFor(async () => (turn.run.finished ? await readChatTurn(call.db, { chatId, turnId }) : null));
-    const state = settled ?? (await readChatTurn(call.db, { chatId, turnId }));
+    const settled = await waitFor(async () => (turn.run.finished ? await readChatTurn(call.db, { chatId, turnId }, await chatReader(call)) : null));
+    const state = settled ?? (await readChatTurn(call.db, { chatId, turnId }, await chatReader(call)));
     if (!state) throw serviceFailure("read chat turn");
     return presentTurn(call, chatId, workspace, state, { offset: 0, limitChars: ANSWER_PAGE_CHARS });
 }
@@ -422,7 +431,7 @@ export const getChatTurn = defineMcpTool({
     audit: "call",
     resolveWorkspace: (args, call) => chatWorkspace(call, args.chat_id),
     handler: async (args, call) => {
-        const read = () => readChatTurn(call.db, { chatId: args.chat_id, turnId: args.turn_id });
+        const read = async () => readChatTurn(call.db, { chatId: args.chat_id, turnId: args.turn_id }, await chatReader(call));
         let state = await read();
         if (state?.status === "generating" && args.wait)
             state = (await waitFor(async () => {
@@ -563,7 +572,7 @@ export const getChatTool = defineMcpTool({
     resolveWorkspace: (args, call) => chatWorkspace(call, args.chat_id),
     handler: async (args, call) => {
         const access = await chatAccess(call, args.chat_id);
-        const messages = (await getChatMessages(call.db, args.chat_id)) as Record<string, unknown>[];
+        const messages = (await getChatMessages(call.db, args.chat_id, await chatReader(call))) as Record<string, unknown>[];
         // The cursor is how many messages lie before the page.
         const end = args.cursor ? Math.min(decodeCursor(args.cursor), messages.length) : messages.length;
         const start = Math.max(0, end - (args.limit ?? TRANSCRIPT_DEFAULT_MESSAGES));
@@ -575,7 +584,7 @@ export const getChatTool = defineMcpTool({
         const page = slice.map((message) => {
             // An answer built on documents that may not leave stays in LiTT, in a transcript too.
             const release = releases.get(String(message.id));
-            const withheld = release && !release.ok ? release : null;
+            const withheld = release && !release.ok ? release : message.unreadable === true ? ({ ok: false, reason: message.unreadable_reason === "source_unknown" ? "source_unknown" : "no_access" } as const) : null;
             const text = withheld ? "" : message.role === "assistant" ? assistantText(message) : typeof message.content === "string" ? message.content : "";
             return {
                 id: String(message.id),
@@ -594,7 +603,7 @@ export const getChatTool = defineMcpTool({
                 messageId: page[page.length - 1].id,
                 characters: returned,
             });
-        const chat = access.chat;
+        const [chat] = await withReadableChatTitles(call.db, await chatReader(call), [access.chat]);
         const active = activeChatTurn(args.chat_id);
         return mcpText({
             chat: {

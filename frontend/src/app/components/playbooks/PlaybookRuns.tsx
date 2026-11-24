@@ -103,6 +103,7 @@ export function formatDateTime(format: DateFormatter, iso: string) {
 }
 
 export function runTitle(run: PlaybookRun, t: NsTranslate<"playbooks">) {
+  if (run.detailsWithheld) return t("playbooks.documentNotShown");
   return run.documentName || t("playbooks.untitledDocument");
 }
 
@@ -110,6 +111,7 @@ export function runTitle(run: PlaybookRun, t: NsTranslate<"playbooks">) {
 export function runOutcome(run: PlaybookRun, t: NsTranslate<"playbooks">) {
   if (run.error || run.status === "failed") return t("playbooks.failed");
   if (run.status !== "completed") return t("playbooks.inProgress");
+  if (run.detailsWithheld) return t("playbooks.resultsNotShown");
   const issues = run.findings.filter(
     (finding) =>
       finding.status === "unacceptable" ||
@@ -642,6 +644,20 @@ function RunResults({
         {settings}
         <p role="alert" className="text-sm text-red-600">
           {run.error}
+        </p>
+      </div>
+    );
+  // The reader can no longer open the reviewed document: say so where the findings would be.
+  if (run.detailsWithheld)
+    return (
+      <div className="space-y-4">
+        {settings}
+        <p className="text-sm text-gray-500">
+          {t(
+            run.detailsWithheldReason === "source_unknown"
+              ? "playbooks.findingsSourceUnknown"
+              : "playbooks.findingsNotShown",
+          )}
         </p>
       </div>
     );

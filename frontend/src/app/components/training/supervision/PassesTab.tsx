@@ -110,13 +110,15 @@ export function PassesTab({ orgId, pupilId }: { orgId: string; pupilId: string }
                             <li key={pass.id} className="flex min-w-0 flex-wrap items-start justify-between gap-3 p-4">
                                 <div className="min-w-0 space-y-0.5">
                                     <p className="break-words text-sm font-medium text-gray-900">
-                                        {projectName(pass.project_id)}
+                                        {pass.project_id ? projectName(pass.project_id) : t("passes.unknownProject")}
                                     </p>
                                     <p className="text-sm text-gray-700">
                                         <PassState pass={pass} />
                                     </p>
                                     <p className="text-sm text-gray-500">
-                                        {t(`passes.reason.${pass.reason_code}`)}
+                                        {pass.reason_code
+                                            ? t(`passes.reason.${pass.reason_code}`)
+                                            : t("passes.detailsNotShown")}
                                     </p>
                                     {pass.reason_note && (
                                         <p className="whitespace-pre-wrap break-words text-sm text-gray-500">
@@ -130,7 +132,7 @@ export function PassesTab({ orgId, pupilId }: { orgId: string; pupilId: string }
                                         tone="white"
                                         size="sm"
                                         disabled={busy}
-                                        aria-label={t("passes.revokeName", { project: projectName(pass.project_id) })}
+                                        aria-label={t("passes.revokeName", { project: pass.project_id ? projectName(pass.project_id) : t("passes.unknownProject") })}
                                         onClick={() => setRevoking(pass)}
                                     >
                                         {t("passes.revoke")}
@@ -144,7 +146,7 @@ export function PassesTab({ orgId, pupilId }: { orgId: string; pupilId: string }
             <ConfirmPopup
                 open={revoking !== null}
                 title={t("passes.confirmTitle")}
-                message={revoking ? t("passes.confirmMessage", { project: projectName(revoking.project_id) }) : null}
+                message={revoking ? t("passes.confirmMessage", { project: revoking.project_id ? projectName(revoking.project_id) : t("passes.unknownProject") }) : null}
                 confirmLabel={t("passes.revoke")}
                 cancelLabel={tc("cancel")}
                 confirmVariant="danger"

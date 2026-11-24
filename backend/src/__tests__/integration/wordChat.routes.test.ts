@@ -194,6 +194,12 @@ vi.mock("../../lib/memory/schedule", () => ({
     scheduleMemoryConsolidation(...args),
 }));
 
+// Models that replay their stored reasoning are opt-in per configured model; a test turns it on for one request.
+vi.mock("../../lib/llm/registry", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/llm/registry")>()),
+    replaysReasoning: vi.fn(() => false),
+}));
+
 vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../modules/chat/engine/index")>();
   return {
@@ -203,6 +209,7 @@ vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
       docStore: new Map(),
     })),
     enrichWithPriorEvents: vi.fn(async (messages: unknown) => messages),
+    attachPriorReasoning: vi.fn(async (messages: unknown) => messages),
     buildWorkflowStore: vi.fn(async () => new Map()),
     buildMessages: vi.fn(() => []),
     runLLMStream: (...args: unknown[]) => runLLMStream(...args),
@@ -610,6 +617,31 @@ describe("POST /word-chat — local storage", () => {
     expect(scheduleMemoryConsolidation).not.toHaveBeenCalled();
   });
 
+  it("judges the stored reasoning it replays for the person whose turn it is", async () => {
+    const chatLib = await import("../../modules/chat/engine/index.js");
+    const registry = await import("../../lib/llm/registry.js");
+    dbState.chatDetail = {
+      data: { id: CHAT_ID, title: null, user_id: "u1" },
+      error: null,
+    };
+    vi.mocked(registry.replaysReasoning).mockReturnValueOnce(true);
+    const res = await request(app)
+      .post("/word-chat")
+      .set(...AUTH)
+      .send({
+        messages: [{ role: "user", content: "Revise this clause" }],
+        document_id: DOCUMENT_ID,
+        document_name: "Contract.docx",
+        storage: "cloud",
+        model: "gemini-3-flash-preview",
+      });
+    expect(res.status).toBe(200);
+    expect(vi.mocked(chatLib.attachPriorReasoning).mock.calls.at(-1)?.at(-1)).toEqual({
+      userId: "u1",
+      userEmail: "u1@test.local",
+    });
+  });
+
   it("schedules memory after a durable cloud turn", async () => {
     const chatLib = await import("../../modules/chat/engine/index.js");
     dbState.chatDetail = {
@@ -629,6 +661,11 @@ describe("POST /word-chat — local storage", () => {
       });
 
     expect(res.status).toBe(200);
+    // What the previous answer replays is judged for the person whose turn it is.
+    expect(vi.mocked(chatLib.enrichWithPriorEvents).mock.calls.at(-1)?.at(-1)).toEqual({
+      userId: "u1",
+      userEmail: "u1@test.local",
+    });
     expect(beginMemoryConversationTurn).toHaveBeenCalledWith({
       db: expect.anything(),
       surface: "word",

@@ -1019,6 +1019,34 @@ describe("getChat message mapping", () => {
         expect(messages[0].citations).toEqual([{ ref: 1 }]);
     });
 
+    it("keeps the mark on an answer the server withheld, and puts it on no other", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({
+                chat,
+                messages: [
+                    { id: "m1", chat_id: "c1", role: "assistant", content: [], citations: null, unreadable: true, created_at: "2026-01-01" },
+                    { id: "m2", chat_id: "c1", role: "assistant", content: [{ type: "content", text: "ok" }], created_at: "2026-01-02" },
+                ],
+            }),
+        );
+
+        const { messages } = await getChat("c1");
+
+        expect(messages[0]).toMatchObject({ id: "m1", role: "assistant", content: "", unreadable: true, unreadableReason: "no_access" });
+        expect(messages[1]).not.toHaveProperty("unreadable");
+    });
+
+    it("keeps the reason the server gave for a withheld answer", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({
+                chat,
+                messages: [{ id: "m1", chat_id: "c1", role: "assistant", content: [], unreadable: true, unreadable_reason: "source_unknown", created_at: "2026-01-01" }],
+            }),
+        );
+        const { messages } = await getChat("c1");
+        expect(messages[0]).toMatchObject({ unreadable: true, unreadableReason: "source_unknown" });
+    });
+
     it("maps a legacy string assistant body to empty content without events", async () => {
         fetchMock.mockResolvedValue(
             jsonResponse({

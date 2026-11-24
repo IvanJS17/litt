@@ -14,6 +14,7 @@
 // route needs to run the stream; it does not stream.
 import { type Db } from "../../lib/supabase";
 import { resolveContentOrgId, resolveStandaloneOrgId } from "../../lib/access";
+import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { workspaceRpcArg, type WorkspaceFilter } from "../../lib/workspace";
 import { validateAccessibleProjectId } from "./chat.access";
 import { withChatLeaveAccess } from "./chat.sharing";
@@ -56,7 +57,12 @@ export async function listChats(
         return { ok: false, error: result.kind === "error" ? result.error : result.detail };
     const withOrigin = await withChatOrigin(db, result.data);
     if (!withOrigin.ok) return { ok: false, error: withOrigin.error };
-    return { ok: true, data: withOrigin.data };
+    // A title is made from the chat's messages: shown only while the caller may read them all.
+    try {
+        return { ok: true, data: await withReadableChatTitles(db, { userId: args.userId, userEmail: args.userEmail }, withOrigin.data) };
+    } catch (error) {
+        return { ok: false, error };
+    }
 }
 
 // POST /chat/create

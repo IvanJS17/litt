@@ -1,6 +1,7 @@
 // Project chat service functions: list a project's assistant chats.
 
 import { checkProjectAccess } from "../../lib/access";
+import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { queryFailureCause, selectAllByKey } from "../../lib/batchedQuery";
 import { type ProjectRole } from "../../lib/permissions";
 import { type Db, attachChatCreatorLabels } from "./projects.shared";
@@ -53,5 +54,10 @@ export async function listProjectChats(
     chat.is_owner = !!chat.user_id && chat.user_id === userId;
     chat.access_role = access.projectRole;
   }
-  return { ok: true, chats };
+  // A title is made from the chat's messages: shown only while the caller may read them all.
+  try {
+    return { ok: true, chats: await withReadableChatTitles(db, { userId, userEmail }, chats) };
+  } catch (error) {
+    return { ok: false, kind: "db_error", error: queryFailureCause(error) };
+  }
 }

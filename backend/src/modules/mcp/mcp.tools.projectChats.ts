@@ -33,6 +33,7 @@ import { clientNameOf } from "./mcp.grants";
 import {
     attemptSchema,
     chatAccess,
+    chatReader,
     chatWorkspace,
     confidenceSchema,
     followTurn,
@@ -77,7 +78,7 @@ async function runProjectTurn(
     },
 ) {
     const files = await attachedDocuments(call, args.documentIds);
-    const history = args.chatId ? await loadChatHistory(call.db, args.chatId) : [];
+    const history = args.chatId ? await loadChatHistory(call.db, args.chatId, await chatReader(call)) : [];
     const parsed = parseProjectChatRequest({
         messages: [
             ...history,

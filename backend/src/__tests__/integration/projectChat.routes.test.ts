@@ -210,6 +210,12 @@ vi.mock("../../middleware/auth", () => ({
 const loadFirmProfileFor = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => null as null | Record<string, unknown>));
 vi.mock("../../lib/firmProfileStore", () => ({ loadFirmProfileFor }));
 
+// Models that replay their stored reasoning are opt-in per configured model; a test turns it on for one request.
+vi.mock("../../lib/llm/registry", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/llm/registry")>()),
+    replaysReasoning: vi.fn(() => false),
+}));
+
 vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../../modules/chat/engine/index")>();
     return {
@@ -217,6 +223,7 @@ vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
         buildProjectDocContext: (...args: unknown[]) =>
             buildProjectDocContext(...args),
         enrichWithPriorEvents: vi.fn(async (messages: unknown) => messages),
+        attachPriorReasoning: vi.fn(async (messages: unknown) => messages),
         buildWorkflowStore: vi.fn(async () => new Map()),
         buildMessages: (...args: unknown[]) => buildMessages(...args),
         runLLMStream: (...args: unknown[]) => runLLMStream(...args),
@@ -745,6 +752,15 @@ describe("POST /projects/:projectId/chat", () => {
         expect(buildMessages.mock.calls[0]?.[2] as string).not.toContain("FIRM PROFILE");
     });
 
+    it("judges the stored reasoning it replays for the person whose turn it is", async () => {
+        const engine = await import("../../modules/chat/engine/index.js");
+        const registry = await import("../../lib/llm/registry.js");
+        vi.mocked(registry.replaysReasoning).mockReturnValueOnce(true);
+        const res = await request(app).post("/projects/p1/chat").set("Authorization", "Bearer test").send(VALID_BODY);
+        expect(res.status).toBe(200);
+        expect(vi.mocked(engine.attachPriorReasoning).mock.calls.at(-1)?.at(-1)).toEqual({ userId: "u1", userEmail: "u1@test.local" });
+    });
+
     it("streams SSE on the happy path with project access granted", async () => {
         const res = await request(app)
             .post("/projects/p1/chat")
@@ -756,6 +772,9 @@ describe("POST /projects/:projectId/chat", () => {
         expect(res.text).toContain('"type":"chat_id"');
         expect(res.text).toContain('"type":"chat_title"');
         expect(runLLMStream).toHaveBeenCalledTimes(1);
+        // What the previous answer replays is judged for the person whose turn it is.
+        const engine = await import("../../modules/chat/engine/index.js");
+        expect(vi.mocked(engine.enrichWithPriorEvents).mock.calls.at(-1)?.at(-1)).toEqual({ userId: "u1", userEmail: "u1@test.local" });
         expect(buildProjectDocContext).toHaveBeenCalledWith(
             "p1", "u1", expect.anything(), VALID_BODY.messages, "u1@test.local",
         );
