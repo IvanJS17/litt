@@ -84,6 +84,8 @@ export function newNonce(): string {
  * - Scripts: the nonce (Next stamps it on its own scripts; `layout.tsx` stamps
  *   the two boot scripts) plus `'strict-dynamic'`, so a trusted script may load
  *   the ones it needs. No `'unsafe-inline'`; `'unsafe-eval'` only in development.
+ *   `'wasm-unsafe-eval'` lets a trusted script compile WebAssembly, which the
+ *   Word document viewer needs to lay out text; it does not allow `eval`.
  * - Styles keep `'unsafe-inline'`: the UI libraries set `style` attributes, and
  *   a nonce cannot cover those.
  * - Nothing may frame the app (`frame-ancestors 'none'`).
@@ -101,7 +103,10 @@ export function buildContentSecurityPolicy({
     const development = env.NODE_ENV === "development";
     const directives: [string, string[]][] = [
         ["default-src", ["'self'"]],
-        ["script-src", ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(development ? ["'unsafe-eval'"] : [])]],
+        [
+            "script-src",
+            ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", "'wasm-unsafe-eval'", ...(development ? ["'unsafe-eval'"] : [])],
+        ],
         ["style-src", ["'self'", "'unsafe-inline'"]],
         ["img-src", ["'self'", "data:", "blob:", ...(storage ? [storage] : []), ...GOOGLE_PICKER_IMAGE_SOURCES]],
         ["font-src", ["'self'", "data:"]],
