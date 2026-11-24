@@ -4,6 +4,7 @@ import {
     COMPOSER_BOTTOM_OFFSET,
     COMPOSER_CLEARANCE,
     COMPOSER_FADE,
+    composerFadeBackground,
     useComposerInset,
 } from "./useComposerInset";
 
@@ -68,6 +69,36 @@ describe("useComposerInset", () => {
         // The fade covers the composer and the strip above it.
         expect(result.current.fadeHeight).toBe(
             260 + COMPOSER_BOTTOM_OFFSET + COMPOSER_FADE,
+        );
+    });
+
+    it("leaves the end of the thread clear of the fade at any composer height", () => {
+        vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+        const { result } = renderHook(() => useComposerInset(116));
+        const box = composer(90);
+        act(() => result.current.composerRef(box.element));
+
+        for (const height of [90, 138, 260]) {
+            box.grow(height);
+            act(() => resize?.());
+            const aboveComposer =
+                result.current.bottomPadding -
+                (height + COMPOSER_BOTTOM_OFFSET);
+            const fadeAboveComposer =
+                (result.current.fadeHeight ?? 0) -
+                (height + COMPOSER_BOTTOM_OFFSET);
+            // The last line rests at the end of the scroll: the fade must not
+            // start below it, or its last lines are washed out for good.
+            expect(fadeAboveComposer).toBe(COMPOSER_FADE);
+            expect(aboveComposer).toBeGreaterThanOrEqual(fadeAboveComposer);
+        }
+    });
+
+    it("fades to the colour only where the composer starts", () => {
+        // A solid stretch above the composer would hide text that can still
+        // be in view, not only text scrolled under the composer.
+        expect(composerFadeBackground("red")).toBe(
+            `linear-gradient(to bottom, transparent, red ${COMPOSER_FADE}px)`,
         );
     });
 

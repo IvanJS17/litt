@@ -4,12 +4,15 @@ import { useLayoutEffect, useState } from "react";
 
 /** The floating composer sits this far above its pane's bottom (`bottom-3`). */
 export const COMPOSER_BOTTOM_OFFSET = 12;
-/** Space kept between the end of the thread and the composer. */
-export const COMPOSER_CLEARANCE = 16;
 /** Height of the fade the thread scrolls into above the composer. */
-export const COMPOSER_FADE = 48;
-/** The fade is already opaque this far above the composer. */
-const COMPOSER_FADE_SOLID = 24;
+export const COMPOSER_FADE = 32;
+/**
+ * Space kept between the end of the thread and the composer. It is the fade's
+ * own height: the fade is a way out for text that scrolls under the composer,
+ * so the last line, resting at the end of the scroll, stays above it and
+ * readable, whatever the width of the pane.
+ */
+export const COMPOSER_CLEARANCE = COMPOSER_FADE;
 
 /**
  * Measures the floating composer so the thread above it can reserve its real
@@ -48,7 +51,7 @@ export function useComposerInset(minimumPadding: number) {
     };
 }
 
-/** A fade from transparent to `color`, opaque from just above the composer. */
+/** A fade from transparent to `color`, opaque only where the composer starts. */
 export function composerFadeBackground(color: string) {
-    return `linear-gradient(to bottom, transparent, ${color} ${COMPOSER_FADE - COMPOSER_FADE_SOLID}px)`;
+    return `linear-gradient(to bottom, transparent, ${color} ${COMPOSER_FADE}px)`;
 }
