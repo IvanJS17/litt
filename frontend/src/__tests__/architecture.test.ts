@@ -291,8 +291,8 @@ const ALLOWED_MARKDOWN_LIBRARIES: [string, string, string][] = [
 // The props that change what a Markdown element parses or lets through, with
 // the value each file uses today. Anything else is a decision to take here.
 const MARKDOWN_CONTROL_PROPS = new Set([
-    "rehypePlugins", "remarkPlugins", "urlTransform", "allowElement", "allowedElements",
-    "disallowedElements", "unwrapDisallowed", "skipHtml",
+    "rehypePlugins", "remarkPlugins", "remarkRehypeOptions", "urlTransform", "allowElement",
+    "allowedElements", "disallowedElements", "unwrapDisallowed", "skipHtml",
 ]);
 const REMARK_GFM = "frontend/src/app/components";
 // [file, prop, value as written (whitespace collapsed)]
@@ -478,6 +478,7 @@ describe("Markdown from a model or another person", () => {
             wrap("<ReactMarkdown components={withSafeMarkdownImages()} disallowedElements={['p']}>{t}</ReactMarkdown>"),
             wrap("<ReactMarkdown components={withSafeMarkdownImages()} unwrapDisallowed>{t}</ReactMarkdown>"),
             wrap("<ReactMarkdown components={withSafeMarkdownImages()} skipHtml>{t}</ReactMarkdown>"),
+            wrap("<ReactMarkdown components={withSafeMarkdownImages()} remarkRehypeOptions={{ handlers: {} }}>{t}</ReactMarkdown>"),
             // the allowlist is per file: another file may not use this file's plugin
             wrap("<ReactMarkdown components={withSafeMarkdownImages()} rehypePlugins={[rehypeKatex]}>{t}</ReactMarkdown>"),
         ];
