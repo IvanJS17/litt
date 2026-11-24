@@ -77,6 +77,7 @@ import {
 } from "../../lib/llm/models";
 import type { Provider } from "../../lib/llm/types";
 import { hasApiKeyForModel } from "../../lib/modelSelection";
+import { resolveRequestedModel } from "../../lib/routerModels";
 import { getUserApiKeys, getEffectiveApiKeys } from "../../lib/providerCredentials/index";
 import {
   chatRouteColumns,
@@ -552,6 +553,13 @@ async function assertPlaybookModelAvailable(
  * pinChatRoute takes only the person's own key or the deployment's: an
  * organization's key is never taken implicitly, so work whose only key is the
  * firm's needs this choice.
+ *
+ * The model is governed as chat governs it (`resolveRequestedModel`, strict):
+ * a router model runs only if it is in the list that governs the key it would
+ * run on, the organization's saved list where the playbook's organization
+ * holds that router's key, the person's own otherwise. That list depends on
+ * the playbook's organization, not on which key was chosen, as in chat. A
+ * model outside it is refused, never replaced by another one.
  */
 export async function pinPlaybookRoute(
   db: Db,
@@ -563,6 +571,15 @@ export async function pinPlaybookRoute(
   const requested = parseCredentialRef(credentialRef);
   if (!requested.ok) throw new PlaybookRequestError(requested.detail);
   await assertPlaybookModelAvailable(userId, model, db, orgId);
+  try {
+    await resolveRequestedModel(model, "", userId, db, "throw", orgId);
+  } catch (error) {
+    if (error instanceof UserFacingError)
+      throw new PlaybookRequestError(error.message, 400, {
+        code: "model_unavailable",
+      });
+    throw error;
+  }
   const pinned = await pinChatRoute(db, {
     userId,
     orgId,
@@ -2338,6 +2355,24 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     playbook.orgId,
     args.credentialRef,
   );
+  // A firm's key runs only work whose playbook AND document belong to that
+  // firm. For a document of another organization (or a personal one) the
+  // chosen firm key is judged against the document's organization too, where
+  // it does not belong, so it is refused like any key the person may not use
+  // here. A person's own key is not affected.
+  if (
+    stored &&
+    stored.orgId !== playbook.orgId &&
+    typeof args.credentialRef === "string" &&
+    args.credentialRef.startsWith("org:")
+  )
+    await pinPlaybookRoute(
+      db,
+      args.userId,
+      args.model,
+      stored.orgId,
+      args.credentialRef,
+    );
   const authorization = await readAuthorizationStamp(
     db,
     stored ? stored.orgId : playbook.orgId,

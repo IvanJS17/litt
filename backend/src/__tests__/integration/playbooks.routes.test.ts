@@ -13,6 +13,8 @@ const {
   queuePlaybookCorrections,
   queuePlaybookDraft,
   queuePlaybookImport,
+  queuePlaybookProposals,
+  queuePlaybookReview,
   recordAudit,
 } = vi.hoisted(() => ({
   from: vi.fn(),
@@ -25,6 +27,8 @@ const {
   queuePlaybookImport: vi.fn(),
   queuePlaybookDraft: vi.fn(),
   queuePlaybookCorrections: vi.fn(),
+  queuePlaybookProposals: vi.fn(),
+  queuePlaybookReview: vi.fn(),
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -75,7 +79,18 @@ vi.mock("../../modules/playbooks/playbooks.service", async (importOriginal) => {
     await importOriginal<
       typeof import("../../modules/playbooks/playbooks.service")
     >();
-  return { ...actual, queuePlaybookImport, queuePlaybookDraft, queuePlaybookCorrections };
+  // The review and the proposals keep their real behaviour unless a test
+  // replaces it once: most of this file exercises their refusals.
+  queuePlaybookReview.mockImplementation(actual.queuePlaybookReview);
+  queuePlaybookProposals.mockImplementation(actual.queuePlaybookProposals);
+  return {
+    ...actual,
+    queuePlaybookImport,
+    queuePlaybookDraft,
+    queuePlaybookCorrections,
+    queuePlaybookProposals,
+    queuePlaybookReview,
+  };
 });
 
 import { playbooksRouter } from "../../modules/playbooks/playbooks.routes";
@@ -436,6 +451,41 @@ describe("draft playbooks over HTTP (LiTT)", () => {
     expect(response.status).toBe(409);
     expect(response.body.code).toBe("playbook_not_draft");
     expect(from).not.toHaveBeenCalledWith("playbook_imports");
+  });
+
+  it("passes the key the person chose to the proposals", async () => {
+    queuePlaybookProposals.mockResolvedValueOnce(started({ kind: "proposal", filename: "" }));
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/proposals`)
+      .send({ model: "claude-opus-5", answers: {}, credential_ref: "org:o1:claude:v2" });
+    expect(response.status).toBe(202);
+    expect(queuePlaybookProposals).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialRef: "org:o1:claude:v2" }),
+    );
+  });
+
+  it("passes the key the person chose to the review", async () => {
+    queuePlaybookReview.mockResolvedValueOnce({ id: "run-1", status: "running" });
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/review`)
+      .send({ documentText: "Contrato", model: "claude-opus-5", credential_ref: "org:o1:claude:v2" });
+    expect(response.status).toBe(202);
+    expect(queuePlaybookReview).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialRef: "org:o1:claude:v2" }),
+    );
+  });
+
+  it("answers a router model outside the firm's list with 400 and model_unavailable", async () => {
+    queuePlaybookReview.mockRejectedValueOnce(
+      new PlaybookRequestError("Model openrouter/openai/gpt-5-pro is not in your organization's saved OpenRouter models.", 400, {
+        code: "model_unavailable",
+      }),
+    );
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/review`)
+      .send({ documentText: "Contrato", model: "openrouter/openai/gpt-5-pro", credential_ref: "org:o1:openrouter:v1" });
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("model_unavailable");
   });
 
   it("answers 404 for a decision on a change id that cannot exist", async () => {

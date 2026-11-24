@@ -488,6 +488,8 @@ model looks the key up again. A malformed `credential_ref` is a `400`; a key the
 person may not use fails closed with `chat_route_credential_unavailable`, and
 no other key is tried.
 
+The server applies chat's model rule as well: a router model runs only if it is in the list that governs its key (the organization's saved list where the playbook's organization holds that router's key, the person's own otherwise); any other is refused with `400 model_unavailable`, never replaced by another model. A firm's key runs a review only when both the playbook and the reviewed document belong to that firm.
+
 ## In the assistant
 
 **Use in assistant**, or **Playbooks** in the composer's **+** menu, attaches
