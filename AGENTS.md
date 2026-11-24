@@ -325,10 +325,11 @@ means fix the code, not the test.
    the write lane (`backend/src/modules/mcp/__tests__/mcp.scopeDeclared.test.ts`).
    A person's global sign-out, and a password recovery that signs out
    everywhere, end their connections.
-4. Text from a model or a provider (a model's reply, a provider's error) is
-   size-bounded through `backend/src/lib/modelJsonFence.ts` before it is
-   scanned or parsed, and code only meets expressions and loops whose cost grows
-   in proportion to the text (`backend/src/__tests__/regexShapes.test.ts`).
+4. A model's reply is size-bounded through `backend/src/lib/modelJsonFence.ts`
+   before it is scanned or parsed. Any other text from outside (a provider's
+   error body, a remote server's reply) must be bounded before it is scanned or
+   parsed. An expression applied to such text must cost in proportion to its
+   length (`backend/src/__tests__/regexShapes.test.ts`).
 5. Heavy file processing (conversion, extraction, rendering), including the
    parsing of an uploaded file's content, runs outside the API process with
    limits of size, time and memory; its child processes end with it
@@ -338,11 +339,10 @@ means fix the code, not the test.
    are limited per account and client address, with a higher limit per account
    across addresses.
 7. In a firm's workspace or matter, work must run only on a key the firm's
-   administrators allow: the firm's key, or the person's own key where the firm
-   allows personal keys. Work started without naming a key follows the order in
-   `docs/mcp-server.md`. A conversation keeps the model and key it started
-   with; if they cannot run, the work is refused and is not moved to another
-   model.
+   administrators allow; `docs/mcp-server.md` says which keys those are and
+   the order used when none is named. A conversation keeps the model and key it
+   started with; if they cannot run, the work is refused and is not moved to
+   another model.
 8. A restriction on an account does not depend on the terms version accepted.
 9. Rendered Markdown does not load images from other sites: wrap `components`
    in `withSafeMarkdownImages` from `@mike/ui` (`frontend/src/__tests__/architecture.test.ts`).
