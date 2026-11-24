@@ -12,6 +12,7 @@ import {
 import { Modal } from "../modals/Modal";
 import { FieldLabel } from "../ui/form-field";
 import { useTranslations } from "next-intl";
+import { withSafeMarkdownImages } from "@mike/ui";
 
 interface Props {
     col: ColumnConfig;
@@ -59,7 +60,7 @@ export function WFColumnViewModal({ col, onClose }: Props) {
                 <div>
                     <FieldLabel as="p">{t("workflows.prompt")}</FieldLabel>
                     <div className="text-base text-gray-700 leading-relaxed font-serif prose prose-base max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{col.prompt || t("workflows.noPromptDefined")}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={withSafeMarkdownImages()}>{col.prompt || t("workflows.noPromptDefined")}</ReactMarkdown>
                     </div>
                 </div>
             </div>

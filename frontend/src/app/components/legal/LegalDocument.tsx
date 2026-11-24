@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLocale, useTranslations } from "next-intl";
+import { withSafeMarkdownImages } from "@mike/ui";
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { LegalBackLink } from "@/app/components/legal/LegalBackLink";
 import { LegalFragmentScroll } from "@/app/components/legal/LegalFragmentScroll";
@@ -63,6 +64,7 @@ export function LegalDocument({ markdown }: { markdown: string }) {
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeLegalAnchors]}
+                            components={withSafeMarkdownImages()}
                         >
                             {markdown}
                         </ReactMarkdown>

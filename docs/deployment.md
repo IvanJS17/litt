@@ -478,6 +478,14 @@ so the frontend process needs the same value the backend signs URLs against
 (the bundled `docker-compose.yml` passes it). `LITT_CSP_REPORT_ONLY=true` makes
 the policy report instead of enforce; `deploy/prod/README.md` has the details.
 
+Independently of that policy, the Markdown renderers (web app and Word add-in) draw an
+image from another site as a link that opens in a new tab, never as an image the
+browser loads on its own; one shared rule, `MarkdownImageUI` in `packages/ui`,
+applies it. An architecture test fails when a `react-markdown` element in production code does not
+pass its `components` through that rule (or carries a spread attribute, a plugin or a URL transform
+that is not on the test's list), or when production code imports another library that renders
+Markdown or HTML text, unless the test lists that use; it does not cover other ways of rendering text.
+
 ### Object-storage CORS for direct uploads
 
 LiTT's upload-session API gives an authenticated browser a short-lived signed

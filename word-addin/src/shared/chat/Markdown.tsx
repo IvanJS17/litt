@@ -2,7 +2,11 @@ import { clientTranslator } from "@mike/client";
 import { Children, createContext, memo, useContext } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { CitationPillUI, CitationReviewHintUI } from "@mike/ui";
+import {
+  CitationPillUI,
+  CitationReviewHintUI,
+  withSafeMarkdownImages,
+} from "@mike/ui";
 
 import { cn } from "../lib/utils";
 
@@ -170,7 +174,7 @@ export const Markdown = memo(function Markdown({
     >
       <ReactMarkdown
         remarkPlugins={REMARK_PLUGINS}
-        components={MARKDOWN_COMPONENTS}
+        components={withSafeMarkdownImages(MARKDOWN_COMPONENTS)}
       >
         {children}
       </ReactMarkdown>

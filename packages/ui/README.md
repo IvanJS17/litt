@@ -47,6 +47,18 @@ add-in Dockerfile to `/packages/ui`, the paths the aliases resolve to in each
 image; `frontend/src/__tests__/architecture.test.ts` checks
 that the alias and the copy agree.
 
+## Markdown images
+
+`withSafeMarkdownImages(components?)` returns a frozen `react-markdown`
+`components` table whose `img` is `MarkdownImageUI`: an image from the page's
+own origin is drawn, any other becomes a link to it (new tab,
+`rel="noopener noreferrer"`), and an empty or unparsable address draws nothing.
+`frontend/src/__tests__/architecture.test.ts` fails when a `react-markdown`
+element in production code does not pass its table through it, has a spread
+attribute, or sets a plugin or URL transform missing from the test's list, and
+when production code imports another Markdown or HTML renderer that the test
+does not list. The package does not import `react-markdown` itself.
+
 ## Tests and stories
 
 Tests are colocated (`src/*.test.tsx`) and run with the frontend's Vitest:
