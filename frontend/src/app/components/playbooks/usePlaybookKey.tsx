@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ModalFieldLabel } from "@/app/components/modals/ModalFieldLabel";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
@@ -12,7 +12,10 @@ import {
   PERSONAL_WORKSPACE,
   useWorkspace,
 } from "@/app/contexts/WorkspaceContext";
-import type { ChatCredentialOptions } from "@/app/lib/mikeApi";
+import {
+  getChatCredentialOptions,
+  type ChatCredentialOptions,
+} from "@/app/lib/mikeApi";
 
 /**
  * LiTT governed BYOK: which key a piece of playbook model work runs on. The
@@ -25,6 +28,12 @@ export interface PlaybookKey {
   /** The ref to send, or null when no key is offered (the server then says so). */
   value: string | null;
   setValue: (ref: string) => void;
+  /**
+   * The ref to send with a submit. While the answer for the current model and
+   * workspace is still on its way (the dialog just opened, or the model just
+   * changed), it waits for that answer instead of sending no key.
+   */
+  resolve: () => Promise<string | null>;
 }
 
 /**
@@ -63,10 +72,26 @@ export function usePlaybookKey(params: {
     );
   }, [choice.options, scope]);
   const current = loadedFor.options === choice.options && loadedFor.scope === scope;
+  const loaded = current && choice.options !== null;
+  const value = current ? choice.value : null;
+  const prior = choice.value;
+  const resolve = useCallback(async (): Promise<string | null> => {
+    if (loaded || !model) return value;
+    try {
+      const fresh = await getChatCredentialOptions({ model, orgId });
+      // The person's pick stays while the new answer still offers it.
+      return fresh.options.some((option) => option.credential_ref === prior)
+        ? prior
+        : (fresh.default ?? null);
+    } catch {
+      return null;
+    }
+  }, [loaded, model, orgId, prior, value]);
   return {
     options: current ? choice.options : null,
-    value: current ? choice.value : null,
+    value,
     setValue: choice.setValue,
+    resolve,
   };
 }
 

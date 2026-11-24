@@ -879,6 +879,23 @@ describe("playbooks page", () => {
       );
     });
 
+    it("waits for the keys when a new run starts before they have arrived", async () => {
+      workspace.workspaceId = "org-1";
+      workspace.activeOrganization = { name: "Test firm" };
+      vi.mocked(getChatCredentialOptions)
+        .mockImplementationOnce(() => new Promise(() => undefined))
+        .mockResolvedValue({ provider: "claude", options: [FIRM], default: FIRM.credential_ref });
+      await startReview();
+      await waitFor(() => expect(getChatCredentialOptions).toHaveBeenCalledTimes(1));
+      await userEvent.click(screen.getByRole("button", { name: "Start review" }));
+      await waitFor(() =>
+        expect(reviewDocumentWithPlaybook).toHaveBeenCalledWith(
+          "pb-b",
+          expect.objectContaining({ credentialRef: FIRM.credential_ref }),
+        ),
+      );
+    });
+
     it("lets the person pick between two keys for a new run", async () => {
       offerKeys([OWN, FIRM], OWN.credential_ref);
       await startReview();

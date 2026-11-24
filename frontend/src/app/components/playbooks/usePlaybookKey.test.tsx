@@ -86,4 +86,86 @@ describe("usePlaybookKey", () => {
     act(() => result.current.setValue(FIRM.credential_ref));
     expect(result.current.value).toBe(FIRM.credential_ref);
   });
+
+  describe("the key a submit sends", () => {
+    const never = () => new Promise<Awaited<ReturnType<typeof getChatCredentialOptions>>>(() => undefined);
+
+    it("is the loaded one, without asking again", async () => {
+      workspace.workspaceId = "org-1";
+      vi.mocked(getChatCredentialOptions).mockResolvedValue({
+        provider: "claude",
+        options: [FIRM],
+        default: FIRM.credential_ref,
+      });
+      const { result } = renderHook(() => usePlaybookKey({ model: "claude-a", enabled: true }));
+      await waitFor(() => expect(result.current.value).toBe(FIRM.credential_ref));
+      await expect(result.current.resolve()).resolves.toBe(FIRM.credential_ref);
+      expect(getChatCredentialOptions).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for the keys of the model just chosen instead of sending none", async () => {
+      workspace.workspaceId = "org-1";
+      vi.mocked(getChatCredentialOptions)
+        .mockResolvedValueOnce({ provider: "claude", options: [FIRM], default: FIRM.credential_ref })
+        .mockImplementationOnce(never)
+        .mockResolvedValueOnce({ provider: "openai", options: [GPT], default: GPT.credential_ref });
+      const { result, rerender } = renderHook(
+        ({ model }) => usePlaybookKey({ model, enabled: true }),
+        { initialProps: { model: "claude-a" } },
+      );
+      await waitFor(() => expect(result.current.value).toBe(FIRM.credential_ref));
+
+      rerender({ model: "gpt-b" });
+      expect(result.current.value).toBeNull();
+      await expect(result.current.resolve()).resolves.toBe(GPT.credential_ref);
+      expect(getChatCredentialOptions).toHaveBeenLastCalledWith({ model: "gpt-b", orgId: "org-1" });
+    });
+
+    it("waits when the dialog has only just opened", async () => {
+      workspace.workspaceId = "org-1";
+      vi.mocked(getChatCredentialOptions)
+        .mockImplementationOnce(never)
+        .mockResolvedValueOnce({ provider: "claude", options: [FIRM], default: FIRM.credential_ref });
+      const { result } = renderHook(() => usePlaybookKey({ model: "claude-a", enabled: true }));
+      expect(result.current.value).toBeNull();
+      await expect(result.current.resolve()).resolves.toBe(FIRM.credential_ref);
+    });
+
+    it("keeps the person's pick when the model just chosen still offers it", async () => {
+      workspace.workspaceId = "org-1";
+      const both = { provider: "claude" as const, options: [OWN, FIRM], default: OWN.credential_ref };
+      vi.mocked(getChatCredentialOptions)
+        .mockResolvedValueOnce(both)
+        .mockImplementationOnce(never)
+        .mockResolvedValueOnce(both);
+      const { result, rerender } = renderHook(
+        ({ model }) => usePlaybookKey({ model, enabled: true }),
+        { initialProps: { model: "claude-a" } },
+      );
+      await waitFor(() => expect(result.current.value).toBe(OWN.credential_ref));
+      act(() => result.current.setValue(FIRM.credential_ref));
+
+      rerender({ model: "claude-b" });
+      await expect(result.current.resolve()).resolves.toBe(FIRM.credential_ref);
+    });
+
+    it("sends none when no key is offered or the keys cannot be read", async () => {
+      workspace.workspaceId = "org-1";
+      vi.mocked(getChatCredentialOptions)
+        .mockResolvedValueOnce({ provider: "claude", options: [], default: null })
+        .mockImplementationOnce(never)
+        .mockRejectedValueOnce(new Error("offline"));
+      const { result, rerender } = renderHook(
+        ({ model }) => usePlaybookKey({ model, enabled: true }),
+        { initialProps: { model: "claude-a" } },
+      );
+      await waitFor(() => expect(getChatCredentialOptions).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(result.current.options).not.toBeNull());
+      await expect(result.current.resolve()).resolves.toBeNull();
+      expect(getChatCredentialOptions).toHaveBeenCalledTimes(1);
+
+      rerender({ model: "claude-b" });
+      await expect(result.current.resolve()).resolves.toBeNull();
+    });
+  });
 });

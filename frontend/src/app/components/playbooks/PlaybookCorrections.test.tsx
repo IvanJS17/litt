@@ -121,6 +121,7 @@ function keyFor(options: Array<typeof FIRM | typeof OWN>, value: string | null):
     options: { provider: "claude", options, default: value },
     value,
     setValue: setKey,
+    resolve: async () => value,
   };
 }
 

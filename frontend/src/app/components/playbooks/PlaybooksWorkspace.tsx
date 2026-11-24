@@ -764,7 +764,7 @@ function PlaybooksWorkspace() {
   async function startDraft(request: PlaybookIntakeRequest): Promise<boolean> {
     try {
       const started = await startPlaybookDraft(
-        { ...request, model, credentialRef: playbookKey.value },
+        { ...request, model, credentialRef: await playbookKey.resolve() },
         workspaceId,
       );
       setImports((current) => [started, ...current]);
@@ -859,7 +859,7 @@ function PlaybooksWorkspace() {
         importName,
         importTargetId ?? undefined,
         workspaceId,
-        playbookKey.value,
+        await playbookKey.resolve(),
       );
       setImports((current) => [started, ...current]);
       setFollowedImportId(started.id);
@@ -1201,7 +1201,7 @@ function PlaybooksWorkspace() {
             model,
             reviewMode,
             reviewScope,
-            credentialRef: playbookKey.value,
+            credentialRef: await playbookKey.resolve(),
           });
           setRun(result);
           // History shows it running while it runs on the server.
