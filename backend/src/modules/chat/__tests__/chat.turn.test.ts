@@ -360,6 +360,19 @@ describe("runChatTurn against a sink that is not HTTP", () => {
         expect(finish).toHaveBeenCalledTimes(1);
     });
 
+    it("hands the key the conversation is pinned to to the engine, for the tools that start work of their own", async () => {
+        mocks.runLLMStream.mockResolvedValue({ fullText: "ok", events: [{ type: "content", text: "ok" }], citations: [] });
+        mocks.prepareChatStream.mockResolvedValue({
+            ok: true,
+            prepared: prepared({
+                route: { provider: "claude", model: "test-model", credentialRef: "org:o1:claude:v3" },
+            }),
+        });
+        const started = await start();
+        await runChatTurn(db, started, memorySink(started).sink);
+        expect(mocks.runLLMStream.mock.calls[0]![0]).toMatchObject({ credentialRef: "org:o1:claude:v3" });
+    });
+
     it("hands the sink's own signal, activity hook and writer to the engine", async () => {
         mocks.runLLMStream.mockResolvedValue({
             fullText: "ok",

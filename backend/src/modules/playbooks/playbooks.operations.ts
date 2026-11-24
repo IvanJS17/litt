@@ -1641,6 +1641,7 @@ export async function beginPlaybookImport(
         startedAt: now,
         route: pinned.route,
         authorization,
+        ...(args.documentId ? { documentId: args.documentId } : {}),
       },
     };
   } catch (error) {
@@ -1679,6 +1680,16 @@ export async function compilePlaybookImport(
     attemptId,
   );
   try {
+    // The key's content rule again, before the document is read: the saved
+    // document can have moved to another organization while the job waited.
+    stage = enterImportStage("checking_model");
+    await assertFirmKeyForDocuments(
+      db,
+      work.route?.credentialRef,
+      work.orgId,
+      work.documentId ? [work.documentId] : [],
+    );
+    stage = enterImportStage("validating_file");
     const buffer = typeof file === "function" ? await file() : file;
     const fileType = playbookImportFileType(work.filename);
     if (!fileType)

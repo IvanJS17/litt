@@ -19,7 +19,12 @@ vi.mock("../../documents/documents.service", async (original) => ({
 
 import { beginPlaybookDraft } from "../playbooks.draft";
 import { beginPlaybookProposals } from "../playbooks.proposals";
-import { beginPlaybookImport, blankPlaybookContent } from "../playbooks.operations";
+import { queuePlaybookImport } from "../playbooks.jobs";
+import {
+  assertFirmKeyForDocuments,
+  beginPlaybookImport,
+  blankPlaybookContent,
+} from "../playbooks.operations";
 import { database, ORG as FIRM_A, OTHER as FIRM_B, type Row } from "./playbookTestDb";
 import { keyRow } from "./playbookTestKeys";
 
@@ -147,5 +152,35 @@ describe.each(FLOWS)("%s", (flow, run) => {
   it("leaves the person's own key as before, whatever the documents' firm", async () => {
     await expect(run(await world({ [DOC_1]: FIRM_B }), OWN_KEY, [DOC_1])).resolves.toBeTruthy();
     await expect(run(await world({ [DOC_1]: null }), OWN_KEY, [DOC_1])).resolves.toBeTruthy();
+  });
+});
+
+describe("the key rule on the paths that reach it", () => {
+  it("refuses a queued import of another firm's saved document on the firm's key, and queues nothing", async () => {
+    const db = await world({ [DOC_1]: FIRM_B });
+    await expect(
+      queuePlaybookImport({
+        userId: "u1",
+        model: "claude-opus-5",
+        workspace: FIRM_A,
+        credentialRef: FIRM_A_KEY,
+        source: { documentId: DOC_1 },
+        db,
+      }),
+    ).rejects.toMatchObject({
+      stage: "checking_model",
+      message: expect.stringContaining("no longer available"),
+    });
+    const { data } = await db.from("db_jobs").select("id");
+    expect(data ?? []).toEqual([]);
+  });
+
+  it("refuses the firm's key for a document id that has no row", async () => {
+    const db = await world({ [DOC_1]: FIRM_A });
+    await expect(
+      assertFirmKeyForDocuments(db, FIRM_A_KEY, FIRM_A, [DOC_2]),
+    ).rejects.toMatchObject({ status: 409, code: "chat_route_credential_unavailable" });
+    await expect(assertFirmKeyForDocuments(db, FIRM_A_KEY, FIRM_A, [DOC_1])).resolves.toBeUndefined();
+    await expect(assertFirmKeyForDocuments(db, OWN_KEY, FIRM_A, [DOC_2])).resolves.toBeUndefined();
   });
 });

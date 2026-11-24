@@ -329,6 +329,7 @@ describe("subagentRouteGovernor", () => {
         expect(result).toMatchObject({ ok: true, model: "claude-opus-5-5", provider: "claude" });
         if (!result.ok) return;
         expect(result.apiKeys.claude).toBe("sk-claude");
+        expect(result.credentialRef).toBe("user:u1:claude:v2");
         expect(result.apiKeys.disabledProviders).toContain("gemini");
         expect(tables.audit_events).toEqual([
             expect.objectContaining({

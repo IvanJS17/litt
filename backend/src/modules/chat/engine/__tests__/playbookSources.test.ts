@@ -33,6 +33,7 @@ async function run(store: DocStore, index: DocIndex) {
   return runToolCalls([call], store, H, {} as Db, () => {}, undefined, undefined, index, undefined, undefined, "P", undefined, {
     userEmail: EMAIL,
     model: "m",
+    credentialRef: "user:u1:claude:v1",
   });
 }
 const stored = () => ({
