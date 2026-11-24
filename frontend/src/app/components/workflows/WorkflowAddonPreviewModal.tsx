@@ -9,7 +9,7 @@ import {
   LIQUID_GLASS_HOVER_CLASS,
   LIQUID_SUBTLE_PANEL_SURFACE_CLASS,
 } from "@/app/components/ui/liquid-surface";
-import { TabPillButtonUI } from "@mike/ui";
+import { TabPillButtonUI, withSafeMarkdownImages } from "@mike/ui";
 import { Modal } from "../modals/Modal";
 import { FileTypeIcon } from "../shared/FileTypeIcon";
 import { PdfView } from "../shared/views/PdfView";
@@ -23,9 +23,9 @@ type AddonAsset = NonNullable<WorkflowAddon["assets"]>[number];
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 
-const markdownComponents: React.ComponentProps<
-  typeof ReactMarkdown
->["components"] = {
+const markdownComponents: NonNullable<
+  React.ComponentProps<typeof ReactMarkdown>["components"]
+> = {
   h1: ({ children }) => (
     <h3 className="mb-1 mt-4 text-base font-semibold leading-tight text-gray-950 first:mt-0">
       {children}
@@ -150,7 +150,7 @@ function SkillViewer({ skill }: { skill: string }) {
           >
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
-              components={markdownComponents}
+              components={withSafeMarkdownImages(markdownComponents)}
             >
               {markdown || t("workflows.noInstructionsProvided")}
             </ReactMarkdown>

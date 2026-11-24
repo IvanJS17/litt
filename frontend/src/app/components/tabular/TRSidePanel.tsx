@@ -8,7 +8,7 @@ import {
     useState,
 } from "react";
 
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
     ChevronDown,
@@ -41,7 +41,7 @@ import {
     LIQUID_GLASS_PRESSED_CLASS,
     LIQUID_FLOAT_PANEL_SURFACE_CLASS,
 } from "@/app/components/ui/liquid-surface";
-import { CloseButton, CitationPillUI } from "@mike/ui";
+import { CloseButton, CitationPillUI, withSafeMarkdownImages } from "@mike/ui";
 import { resolveDocumentViewType } from "@/app/lib/documentViewType";
 import { useTranslations } from "next-intl";
 import { CitationReviewHint, needsCitationReview } from "@/app/components/assistant/message/CitationReviewHint";
@@ -867,7 +867,7 @@ function MarkdownContent({
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            components={{
+            components={withSafeMarkdownImages<Components>({
                 p: ({ node, ...props }) =>
                     inline ? (
                         <span {...props} />
@@ -955,7 +955,7 @@ function MarkdownContent({
                         </code>
                     );
                 },
-            }}
+            })}
         >
             {processed}
         </ReactMarkdown>

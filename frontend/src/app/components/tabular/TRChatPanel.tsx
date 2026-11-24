@@ -18,7 +18,7 @@ import {
     useState,
     type CSSProperties,
 } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Pencil, Trash2 } from "lucide-react";
 import { CitationReviewHint, needsCitationReview } from "@/app/components/assistant/message/CitationReviewHint";
@@ -74,6 +74,7 @@ import {
     type TrainingNoteView,
     matchTrainingNotes,
     useTrainingTurnNotes,
+    withSafeMarkdownImages,
 } from "@mike/ui";
 import { subscribeToTabularChatSettingsUpdates } from "@/app/lib/tabularChatSettingsEvents";
 import { sortChatsByActivity, touchChatActivity } from "@/app/lib/chatActivity";
@@ -332,7 +333,7 @@ const TRMarkdown = memo(function TRMarkdown({text, citationsList, onCitationClic
         >
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
-                components={{
+                components={withSafeMarkdownImages<Components>({
                     p: ({ node, ...props }) => (
                         <p className="mb-2 leading-6" {...props} />
                     ),
@@ -388,7 +389,7 @@ const TRMarkdown = memo(function TRMarkdown({text, citationsList, onCitationClic
                             </code>
                         );
                     },
-                }}
+                })}
             >
                 {text}
             </ReactMarkdown>

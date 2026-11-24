@@ -2,14 +2,13 @@ import { clientTranslator } from "@mike/client";
 import { Children, createContext, memo, useContext } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { CitationPillUI, CitationReviewHintUI } from "@mike/ui";
+import {
+  CitationPillUI,
+  CitationReviewHintUI,
+  withSafeMarkdownImages,
+} from "@mike/ui";
 
 import { cn } from "../lib/utils";
-
-// Hoisted so react-markdown receives referentially stable props — an inline
-// plugins array/components object defeats its internal memoization and forces
-// a full re-parse of every message on every transcript render.
-const REMARK_PLUGINS = [remarkGfm];
 
 /**
  * The citation numbers the automatic check put in the low band, for the
@@ -169,8 +168,8 @@ export const Markdown = memo(function Markdown({
       )}
     >
       <ReactMarkdown
-        remarkPlugins={REMARK_PLUGINS}
-        components={MARKDOWN_COMPONENTS}
+        remarkPlugins={[remarkGfm]}
+        components={withSafeMarkdownImages(MARKDOWN_COMPONENTS)}
       >
         {children}
       </ReactMarkdown>

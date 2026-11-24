@@ -3,7 +3,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ModalUI } from "@mike/ui";
+import { ModalUI, withSafeMarkdownImages } from "@mike/ui";
 import { useLocale, useTranslations } from "next-intl";
 import { LegalLinks } from "@/app/components/legal/LegalLinks";
 import { AVISO_SIMPLIFICADO } from "@/content/legal/avisoSimplificado";
@@ -36,7 +36,7 @@ export function SignupLegal() {
                 breadcrumbs={[t("simplifiedTitle")]}
             >
                 <div className="space-y-2 p-6 text-left text-sm text-gray-800 [&_a]:underline [&_h1]:font-semibold">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{AVISO_SIMPLIFICADO}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={withSafeMarkdownImages()}>{AVISO_SIMPLIFICADO}</ReactMarkdown>
                 </div>
             </ModalUI>
         </p>
