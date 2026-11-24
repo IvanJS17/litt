@@ -435,7 +435,12 @@ only that firm's content, the model rule, one route per conversation). With no u
 key nothing is chosen and the call is refused as before. A `credential_ref` the app
 names always wins, and a conversation that already exists keeps its own key. The
 organization asked about is the one the work belongs to (the matter's, the review's,
-the playbook's, otherwise the call's workspace). `run_tabular_review` and the tabular
+otherwise the call's workspace). `run_playbook_review` asks about the playbook's
+organization only when the document's workspace is that organization (a firm's playbook
+on that firm's document runs on the firm's key); a playbook on a document of another
+workspace names no reference and runs as it always did, on the person's own key. A
+document an app attaches to a conversation or a run must belong to the workspace of the
+call, otherwise the call is refused. `run_tabular_review` and the tabular
 workflow take no reference: generation uses the web's key bag, which already prefers the
 firm's key. Scanned-page reading and the case-file split use the saved LandingAI key
 (the firm's first). The web screens' own preselection is unchanged.
@@ -552,7 +557,7 @@ removes its connections and tokens and keeps the history.
   audit and fail-closed, sanitized failures, cleanup, and the write lane.
 * `backend/src/__tests__/integration/mcp.tools.donna.routes.test.ts` — the Donna tools through `/mcp`: the matrix against the web routes (owner, editor, viewer, apprentice, firm admin without membership, outsider, workspace not in the grant, private matter non-member), a non-retainer matter, caps, «Hoy», confirmed-only profile, egress and audit.
 * `backend/src/__tests__/integration/mcp.tools.workflowsDocuments.routes.test.ts` — the layer 2a tools through `/mcp`: the parity matrices against `GET /workflows`, `GET /quick-actions` and the compare and convert routes (owner, editor, viewer, admin, apprentice, outsider, a connection that does not cover the firm), private matter, scopes, apprentice rules, compare across matters, 409 for a retained pasante version, strict audit and fail-closed, write lane (429), sanitized errors. The model, the tabular lease and the isolated parser are stood in for at the seams the web routes use.
-* `backend/src/__tests__/integration/mcp.tools.defaultKey.routes.test.ts` — which key each model-running tool uses in a firm workspace (firm key only; own key and firm key; own key only; personal keys off) and in the personal workspace, with real key rows; a named reference wins, no key refuses, a firm's key does not run another firm's document. `modules/mcp/__tests__/mcp.defaultKey.test.ts` fails when a tool passes a reference without the helper.
+* `backend/src/__tests__/integration/mcp.tools.defaultKey.routes.test.ts` — which key each model-running tool uses in a firm workspace (firm key only; own key and firm key; own key only; personal keys off) and in the personal workspace, with real key rows; a named reference wins, no key refuses, a firm's key does not run another firm's document, and documents of another workspace are refused. `modules/mcp/__tests__/mcp.defaultKey.test.ts` fails when a registered tool has no key class in its table, when the table names a tool that is not registered, or when a tool file passes a reference without the helper.
 * `backend/src/modules/mcp/__tests__/mcp.toolkit.test.ts` — cursors, text
   windows, the untrusted wrapper, matter matching, and the rule that tool files
   do not query tables.

@@ -4,7 +4,7 @@
 // Everything goes through the services behind the /tabular-review routes. A
 // run is the same server-owned synchronous generation the web starts
 // (`startTabularGeneration`, shared with POST /:reviewId/generate): it claims
-// the review's lease, runs on the review's own model with the person's keys
+// the review's lease, runs on the review's own model with the workspace's keys
 // (no fallback: a review whose model has no usable key does not start), and its
 // cells carry the citation checks the extraction already makes. The tool starts
 // it, waits a little and otherwise answers `running` for the status tool.
@@ -538,7 +538,7 @@ export async function runReviewFor(call: McpCall, reviewId: string) {
     const userId = call.principal.userId;
     const userEmail = (await call.userEmail()) || undefined;
     // The checks POST /generate makes before it claims anything: edit standing,
-    // columns, and a usable model with the person's key (no fallback).
+    // columns, and a usable model with the workspace's key (no fallback).
     const prepared = await prepareTabularGenerate(call.db, { reviewId, userId, userEmail });
     if (!prepared.ok) refuse(preparedGenerateFailure(prepared));
     const started = await startTabularGeneration(call.db, {
@@ -582,7 +582,7 @@ export const runTabularReview = defineMcpTool({
     name: "run_tabular_review",
     title: "Run a tabular review (LiTT)",
     description:
-        "Starts LiTT's extraction of a tabular review's cells that are not filled yet, with the review's own model and the person's AI key. Returns the progress; if it finishes within about 45 seconds status is completed, otherwise running and get_tabular_run_status follows it. A review already running answers review_running.",
+        "Starts LiTT's extraction of a tabular review's cells that are not filled yet, with the review's own model and the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace). Returns the progress; if it finishes within about 45 seconds status is completed, otherwise running and get_tabular_run_status follows it. A review already running answers review_running.",
     inputSchema: z.object({ review_id: idSchema("review_id") }),
     scope: "litt.run",
     lane: "write",

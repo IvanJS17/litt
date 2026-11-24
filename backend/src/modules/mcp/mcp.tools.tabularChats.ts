@@ -143,7 +143,7 @@ export const sendTabularChatMessage = defineMcpTool({
         chat_id: idSchema("chat_id").optional().describe("A thread of this review from list_tabular_chats. Leave out to start a new one."),
         message: messageSchema,
         model: z.string().trim().min(1).max(200).optional().describe("New thread only: a model id the workspace's key can run. Default: the person's usual model."),
-        credential_ref: z.string().trim().min(1).max(200).optional().describe("New thread only: which saved key to use, when the person has several for the provider."),
+        credential_ref: z.string().trim().min(1).max(200).optional().describe("New thread only: which saved key to use, the person's own or the firm's. Leave it out and LiTT uses the workspace's default key."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
     }),

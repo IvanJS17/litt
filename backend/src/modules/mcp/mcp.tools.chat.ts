@@ -359,7 +359,7 @@ export const startChat = defineMcpTool({
         matter_id: idSchema("matter_id").optional().describe("A matter from find_matters, to talk about it and its documents."),
         workspace: z.string().optional().describe("A workspace id from list_workspaces (ignored with matter_id). Defaults to the connection's default workspace."),
         model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
-        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
+        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use: the person's own or the firm's. Leave it out and LiTT uses the workspace's default key."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
     }),

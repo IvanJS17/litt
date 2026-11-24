@@ -43,7 +43,7 @@ import {
     turnCapabilities,
 } from "./mcp.tools.chat";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
-import { idSchema, loadDocument, matterWorkspace } from "./mcp.toolkit";
+import { documentInCallWorkspace, idSchema, matterWorkspace } from "./mcp.toolkit";
 
 const MAX_CHAT_DOCUMENTS = 10;
 
@@ -53,11 +53,11 @@ const documentIdsSchema = z
     .optional()
     .describe(`Documents of this matter to put in front of the assistant for this message (up to ${MAX_CHAT_DOCUMENTS}). It can read the rest of the matter's documents by itself.`);
 
-/** The documents the call names, once the person can open each one and this connection covers it. */
+/** The documents the call names: each one openable, covered by this connection and in the call's workspace. */
 async function attachedDocuments(call: McpCall, documentIds: string[] | undefined) {
     const files: { filename: string; document_id: string }[] = [];
     for (const id of [...new Set(documentIds ?? [])]) {
-        const { doc } = await loadDocument(call, id);
+        const { doc } = await documentInCallWorkspace(call, id);
         files.push({ filename: String(doc.filename ?? ""), document_id: id });
     }
     return files;
@@ -140,7 +140,7 @@ export const startProjectChat = defineMcpTool({
         message: messageSchema,
         document_ids: documentIdsSchema,
         model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
-        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
+        credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use: the person's own or the firm's. Leave it out and LiTT uses the workspace's default key."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
     }),

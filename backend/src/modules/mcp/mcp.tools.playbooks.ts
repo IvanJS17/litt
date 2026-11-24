@@ -11,7 +11,7 @@
 // playbook and the document text (untrusted, recorded as egress) with a signed
 // ticket, then validates and records what comes back. Apprentices only get A.
 
-import { defaultKeyFor } from "./mcp.defaultKey";
+import { defaultKeyFor, workspaceOrgId } from "./mcp.defaultKey";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { loadActiveVersion } from "../../lib/documentVersions";
@@ -386,7 +386,7 @@ export const runPlaybookReview = defineMcpTool({
     name: "run_playbook_review",
     title: "Run a playbook review (LiTT)",
     description:
-        "Starts a review of one document against one ready playbook, run by LiTT with the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace). Returns a run_id; if the review finishes within about 45 seconds the summary and findings come back too, otherwise status is running and get_playbook_run follows it. Tracked changes in the Word file are off unless apply_tracked_changes is true. Needs ids, not names.",
+        "Starts a review of one document against one ready playbook, run by LiTT on the firm's key when the playbook and the document belong to the same firm, otherwise on the person's own key (or the deployment's in the personal workspace). Returns a run_id; if the review finishes within about 45 seconds the summary and findings come back too, otherwise status is running and get_playbook_run follows it. Tracked changes in the Word file are off unless apply_tracked_changes is true. Needs ids, not names.",
     inputSchema: z.object({
         playbook_id: idSchema("playbook_id"),
         document_id: idSchema("document_id"),
@@ -421,7 +421,7 @@ export const runPlaybookReview = defineMcpTool({
             );
 
         // The person must be able to open the document (and the grant to cover it).
-        await loadDocument(call, args.document_id);
+        const { workspace: documentSpace } = await loadDocument(call, args.document_id);
         const version = await loadActiveVersion(args.document_id, call.db);
         if (!version) throw notFound("The document");
         const isDocx = version.file_type === "docx" || /\.docx$/i.test(version.filename ?? "");
@@ -435,8 +435,13 @@ export const runPlaybookReview = defineMcpTool({
                 throw new McpToolError("text_unavailable", "The text of this document is not ready or could not be extracted.", "Open the document in LiTT; a scanned file may need to be read there first.");
             documentText = stored.text;
         }
-        // The work belongs to the playbook's organization: its key is the one asked for.
-        const credentialRef = await defaultKeyFor(call, { model, orgId: playbook.orgId ?? null });
+        // The playbook's key is asked for only when the document is of the playbook's own
+        // organization (both may be the personal workspace); any other pairing runs as it did
+        // before connected apps had a default key.
+        const credentialRef =
+            workspaceOrgId(documentSpace) === (playbook.orgId ?? null)
+                ? await defaultKeyFor(call, { model, orgId: playbook.orgId ?? null })
+                : undefined;
         const started = await guard(() =>
             queuePlaybookReview({
                 userId,

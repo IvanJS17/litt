@@ -194,6 +194,26 @@ export async function documentsOutsideGrant(call: McpCall, documentIds: readonly
     return new Set(outside);
 }
 
+/**
+ * A document a run or a conversation names: openable by the person, covered by
+ * this connection, and in the workspace the call runs in. One place for every
+ * tool that puts a document in front of LiTT's own model, so the work and the
+ * key it runs on stay in one workspace.
+ */
+export async function documentInCallWorkspace(
+    call: McpCall,
+    documentId: string,
+): Promise<{ doc: DocumentRow; workspace: string }> {
+    const loaded = await loadDocument(call, documentId);
+    if (loaded.workspace !== call.workspace)
+        throw new McpToolError(
+            "document_workspace_mismatch",
+            "That document is in another workspace than the one this runs in.",
+            "Pick documents of the same workspace (or matter) as the run.",
+        );
+    return loaded;
+}
+
 export const documentWorkspace = async (call: McpCall, documentId: string): Promise<string> =>
     (await loadDocument(call, documentId)).workspace;
 

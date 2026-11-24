@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import type { Db } from "../../lib/supabase";
 import type { Row } from "../helpers/memoryDb";
+import { toolsOfClass } from "../helpers/mcpKeyClasses";
 
 // Which key work started by a connected app runs on, for each tool that has
 // LiTT run model work, in four situations:
@@ -68,12 +69,19 @@ vi.mock("../../modules/user/user.settings", async (importOriginal) => {
     };
 });
 
+// The conversation an existing thread id names, as the service reads it: the
+// route columns it was pinned with (none for a thread started before keys were pinned).
+const existingChat = (table: "chats" | "tabular_review_chats", id: string | null | undefined) => {
+    const row = id ? h.state!.tables[table].find((chat) => chat.id === id) : undefined;
+    return row ? { model: row.model as string | null, model_provider: (row.model_provider as string | null) ?? null, credential_ref: (row.credential_ref as string | null) ?? null } : null;
+};
+
 // The three conversation seams: the route is resolved for real, then the
 // stand-in stops (a refused route answers with its own code).
 async function resolveTurnRoute(
     seam: string,
     db: Db,
-    args: { userId: string; orgId: string | null; model: string | null | undefined; credentialRef: string | null | undefined },
+    args: { userId: string; orgId: string | null; model: string | null | undefined; credentialRef: string | null | undefined; chat?: { model?: string | null; model_provider?: string | null; credential_ref?: string | null } | null },
 ) {
     const { resolveUserChatSelection, governChatRoute } = await import("../../modules/user/user.service.js");
     const selection = await resolveUserChatSelection(db, { userId: args.userId, requestedModel: args.model, orgId: args.orgId });
@@ -86,7 +94,7 @@ async function resolveTurnRoute(
     const governed = await governChatRoute(db, {
         userId: args.userId,
         orgId: args.orgId,
-        chat: null,
+        chat: args.chat ?? null,
         requestedModel: args.model,
         selectedModel: selection.selectedModel,
         requestedCredentialRef: args.credentialRef,
@@ -104,18 +112,21 @@ vi.mock("../../modules/chat/chat.turn", async (importOriginal) => {
     const { checkProjectAccess, resolveStandaloneOrgId } = await import("../../lib/access.js");
     return {
         ...original,
-        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; parsed: { model?: string | null; credentialRef?: string | null; orgId?: unknown; project: { projectId: string | null } } }) => {
+        startChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; parsed: { model?: string | null; credentialRef?: string | null; chatId?: string | null; orgId?: unknown; project: { projectId: string | null } } }) => {
             let orgId: string | null;
             if (args.parsed.project.projectId) {
                 const access = await checkProjectAccess(args.parsed.project.projectId, args.userId, args.userEmail ?? "", db);
                 if (!access.ok) return { ok: false as const, status: 404, detail: "Project not found" };
                 orgId = (access.project.org_id as string | null) ?? null;
+            } else if (args.parsed.chatId) {
+                // An existing conversation runs in the organization it was created in.
+                orgId = ((h.state!.tables.chats.find((chat) => chat.id === args.parsed.chatId)?.org_id as string | null | undefined) ?? null);
             } else {
                 const standalone = await resolveStandaloneOrgId(db, { userId: args.userId, orgId: args.parsed.orgId });
                 if (!standalone.ok) return { ok: false as const, status: 400, detail: standalone.detail };
                 orgId = standalone.orgId;
             }
-            return resolveTurnRoute("chat", db, { userId: args.userId, orgId, model: args.parsed.model, credentialRef: args.parsed.credentialRef });
+            return resolveTurnRoute("chat", db, { userId: args.userId, orgId, model: args.parsed.model, credentialRef: args.parsed.credentialRef, chat: existingChat("chats", args.parsed.chatId) });
         }),
     };
 });
@@ -124,10 +135,10 @@ vi.mock("../../modules/project-chat/projectChat.turn", async (importOriginal) =>
     const { checkProjectAccess } = await import("../../lib/access.js");
     return {
         ...original,
-        startProjectChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; projectId: string; parsed: { model?: string | null; credentialRef?: string | null } }) => {
+        startProjectChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; projectId: string; parsed: { model?: string | null; credentialRef?: string | null; chatId?: string | null } }) => {
             const access = await checkProjectAccess(args.projectId, args.userId, args.userEmail ?? "", db);
             if (!access.ok) return { ok: false as const, status: 404, detail: "Project not found" };
-            return resolveTurnRoute("project_chat", db, { userId: args.userId, orgId: (access.project.org_id as string | null) ?? null, model: args.parsed.model, credentialRef: args.parsed.credentialRef });
+            return resolveTurnRoute("project_chat", db, { userId: args.userId, orgId: (access.project.org_id as string | null) ?? null, model: args.parsed.model, credentialRef: args.parsed.credentialRef, chat: existingChat("chats", args.parsed.chatId) });
         }),
     };
 });
@@ -135,9 +146,9 @@ vi.mock("../../modules/tabular/tabular.chatTurn", async (importOriginal) => {
     const original = await importOriginal<typeof import("../../modules/tabular/tabular.chatTurn")>();
     return {
         ...original,
-        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; reviewId: string; parsed: { model?: string; credentialRef?: string | null } }) => {
+        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; reviewId: string; parsed: { model?: string; credentialRef?: string | null; chatId?: string | null } }) => {
             const review = h.state!.tables.tabular_reviews.find((r) => r.id === args.reviewId)!;
-            const out = await resolveTurnRoute("tabular_chat", db, { userId: args.userId, orgId: (review.org_id as string | null) ?? null, model: args.parsed.model, credentialRef: args.parsed.credentialRef });
+            const out = await resolveTurnRoute("tabular_chat", db, { userId: args.userId, orgId: (review.org_id as string | null) ?? null, model: args.parsed.model, credentialRef: args.parsed.credentialRef, chat: existingChat("tabular_review_chats", args.parsed.chatId) });
             return { ok: false as const, status: out.status, code: out.code, detail: out.detail, kind: "status" as const, body: { code: out.code, detail: out.detail } };
         }),
     };
@@ -213,6 +224,9 @@ const QA_MAIN = "eeeeeeee-1000-4000-8000-0000000000f1";
 const WF_PERSONAL = "ffffffff-0000-4000-8000-0000000000f2";
 const QA_PERSONAL = "eeeeeeee-1000-4000-8000-0000000000f2";
 
+const PINNED_CHAT = "ffffffff-0000-4000-8000-0000000000c1";
+const PINNED_PROJECT_CHAT = "ffffffff-0000-4000-8000-0000000000c2";
+const PINNED_THREAD = "ffffffff-0000-4000-8000-0000000000c3";
 const USER_REF = `user:${OWNER}:claude:v1`;
 const FIRM_REF = `org:${ORG}:claude:v2`;
 
@@ -382,19 +396,28 @@ const tabularOutcome = (reply: { ok: boolean; code: string | null }): Outcome =>
     return bag?.claude === "sk-firm" ? "firm key" : bag?.claude === "sk-own" ? "own key" : `other (${bag?.claude})`;
 };
 
-type Probe = { tool: string; run: (token: string, ws: string) => Promise<Outcome>; cls: string };
+type Probe = { name: string; tool: string; run: (token: string, ws: string) => Promise<Outcome>; cls: string };
 const personal = (ws: string) => ws === "personal";
 const PROBES: Probe[] = [
-    { tool: "start_chat", cls: "b", run: async (token, ws) => ((await callTool(token, "start_chat", { message: "hola", workspace: ws, model: MODEL })), lastRoute()) },
-    { tool: "start_chat (model not named)", cls: "b", run: async (token, ws) => ((await callTool(token, "start_chat", { message: "hola", workspace: ws })), lastRoute()) },
-    { tool: "start_chat (matter)", cls: "b", run: async (token, ws) => ((await callTool(token, "start_chat", { message: "hola", matter_id: personal(ws) ? PROJECT_PERSONAL : PROJECT_PUBLIC, model: MODEL })), lastRoute()) },
-    { tool: "start_project_chat", cls: "b", run: async (token, ws) => ((await callTool(token, "start_project_chat", { message: "hola", matter_id: personal(ws) ? PROJECT_PERSONAL : PROJECT_PUBLIC, model: MODEL })), lastRoute()) },
-    { tool: "send_tabular_chat_message (new thread)", cls: "b", run: async (token, ws) => ((await callTool(token, "send_tabular_chat_message", { review_id: personal(ws) ? REVIEW_PERSONAL : REVIEW_PUBLIC, message: "hola", model: MODEL })), lastRoute()) },
-    { tool: "run_workflow (assistant)", cls: "b", run: async (token, ws) => ((await callTool(token, "run_workflow", { workflow_id: personal(ws) ? WF_PERSONAL : WF_ASSIST, workspace: ws, model: MODEL })), lastRoute()) },
-    { tool: "run_quick_action", cls: "b", run: async (token, ws) => ((await callTool(token, "run_quick_action", { quick_action_id: personal(ws) ? QA_PERSONAL : QA_MAIN, workspace: ws, model: MODEL })), lastRoute()) },
-    { tool: "run_playbook_review", cls: "b", run: async (token, ws) => playbookOutcome(await callTool(token, "run_playbook_review", { playbook_id: personal(ws) ? PLAYBOOK_PERSONAL : PLAYBOOK_READY, document_id: personal(ws) ? DOC_PERSONAL : DOC_FIRM, model: MODEL })), },
-    { tool: "run_tabular_review", cls: "b", run: async (token, ws) => tabularOutcome(await callTool(token, "run_tabular_review", { review_id: personal(ws) ? REVIEW_PERSONAL : REVIEW_PUBLIC })) },
+    { name: "start_chat", tool: "start_chat", cls: "b", run: async (token, ws) => ((await callTool(token, "start_chat", { message: "hola", workspace: ws, model: MODEL })), lastRoute()) },
+    { name: "start_chat", tool: "start_chat (model not named)", cls: "b", run: async (token, ws) => ((await callTool(token, "start_chat", { message: "hola", workspace: ws })), lastRoute()) },
+    { name: "start_chat", tool: "start_chat (matter)", cls: "b", run: async (token, ws) => ((await callTool(token, "start_chat", { message: "hola", matter_id: personal(ws) ? PROJECT_PERSONAL : PROJECT_PUBLIC, model: MODEL })), lastRoute()) },
+    { name: "start_project_chat", tool: "start_project_chat", cls: "b", run: async (token, ws) => ((await callTool(token, "start_project_chat", { message: "hola", matter_id: personal(ws) ? PROJECT_PERSONAL : PROJECT_PUBLIC, model: MODEL })), lastRoute()) },
+    { name: "send_tabular_chat_message", tool: "send_tabular_chat_message (new thread)", cls: "b", run: async (token, ws) => ((await callTool(token, "send_tabular_chat_message", { review_id: personal(ws) ? REVIEW_PERSONAL : REVIEW_PUBLIC, message: "hola", model: MODEL })), lastRoute()) },
+    { name: "run_workflow", tool: "run_workflow (assistant)", cls: "b", run: async (token, ws) => ((await callTool(token, "run_workflow", { workflow_id: personal(ws) ? WF_PERSONAL : WF_ASSIST, workspace: ws, model: MODEL })), lastRoute()) },
+    { name: "run_quick_action", tool: "run_quick_action", cls: "b", run: async (token, ws) => ((await callTool(token, "run_quick_action", { quick_action_id: personal(ws) ? QA_PERSONAL : QA_MAIN, workspace: ws, model: MODEL })), lastRoute()) },
+    { name: "run_playbook_review", tool: "run_playbook_review", cls: "b", run: async (token, ws) => playbookOutcome(await callTool(token, "run_playbook_review", { playbook_id: personal(ws) ? PLAYBOOK_PERSONAL : PLAYBOOK_READY, document_id: personal(ws) ? DOC_PERSONAL : DOC_FIRM, model: MODEL })), },
+    { name: "run_tabular_review", tool: "run_tabular_review", cls: "b", run: async (token, ws) => tabularOutcome(await callTool(token, "run_tabular_review", { review_id: personal(ws) ? REVIEW_PERSONAL : REVIEW_PUBLIC })) },
 ];
+
+describe("the probes cover the registered tools that run on a key", () => {
+    it("has a probe for every default-key tool and names only default-key or key-bag tools", () => {
+        const probed = new Set(PROBES.map((probe) => probe.name));
+        expect(toolsOfClass("default-key").filter((name) => !probed.has(name)), "default-key tool without a probe").toEqual([]);
+        const allowed = new Set([...toolsOfClass("default-key"), ...toolsOfClass("key-bag")]);
+        expect([...probed].filter((name) => !allowed.has(name)), "probe of a tool in another class").toEqual([]);
+    });
+});
 
 describe.each(PROBES)("$tool starts model work on the key the web's selector defaults to", (probe) => {
     it.each(SITUATIONS)("situation $id: $label", async (s) => {
@@ -474,5 +497,146 @@ describe("class (c): the saved key of a third-party service (scanned-page readin
         const key = await resolveScanKey(h.state!.db as Db, OWNER, where === "personal" ? null : ORG);
         h.matrix.push(`scan key (read_scanned_document, propose_case_file_split) | ${label} | ${key === "sk-firm" ? "firm key" : key === "sk-own" ? "own key" : "none"}`);
         expect(key).toBe(expected);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// A document a run or a conversation names must be of the workspace it runs in.
+// ---------------------------------------------------------------------------
+describe("documents a conversation or run names are of the call's workspace", () => {
+    const MISMATCH = "document_workspace_mismatch";
+    const WORKSPACES = [ORG, ORG2, "personal"];
+
+    const TOOLS: { tool: string; call: (documentId: string) => [string, object] }[] = [
+        { tool: "start_project_chat", call: (id) => ["start_project_chat", { message: "hola", matter_id: PROJECT_PUBLIC, model: MODEL, document_ids: [id] }] },
+        { tool: "run_workflow (assistant)", call: (id) => ["run_workflow", { workflow_id: WF_ASSIST, workspace: ORG, model: MODEL, document_ids: [id] }] },
+        { tool: "run_quick_action", call: (id) => ["run_quick_action", { quick_action_id: QA_MAIN, workspace: ORG, model: MODEL, document_id: id }] },
+    ];
+
+    describe.each(TOOLS)("$tool on the firm's key", ({ call }) => {
+        it("a document of another firm is refused and nothing is started", async () => {
+            await setUp("firm_key_only");
+            const token = await connect(WORKSPACES);
+            const reply = await callTool(token, ...call(DOC_B));
+            expect(reply.code).toBe(MISMATCH);
+            expect(h.routes).toEqual([]);
+            expect(tables().chats).toHaveLength(0);
+        });
+
+        it("a personal document is refused and nothing is started", async () => {
+            await setUp("firm_key_only");
+            const token = await connect(WORKSPACES);
+            const reply = await callTool(token, ...call(DOC_PERSONAL));
+            expect(reply.code).toBe(MISMATCH);
+            expect(h.routes).toEqual([]);
+            expect(tables().chats).toHaveLength(0);
+        });
+
+        it("a document of the same workspace runs on the firm's key", async () => {
+            await setUp("firm_key_only");
+            const token = await connect(WORKSPACES);
+            await callTool(token, ...call(DOC_FIRM));
+            expect(h.routes.at(-1)).toMatchObject({ ok: true, credentialRef: FIRM_REF });
+        });
+    });
+
+    it("an existing matter conversation refuses a foreign document too", async () => {
+        await setUp("own_key_allowed");
+        tables().chats.push({ id: PINNED_PROJECT_CHAT, user_id: OWNER, project_id: PROJECT_PUBLIC, org_id: ORG, title: null, model: MODEL, model_provider: "claude", credential_ref: USER_REF, origin: "web", created_at: "2026-11-10T10:00:00Z", updated_at: "2026-11-10T11:00:00Z" });
+        const token = await connect(WORKSPACES);
+        const reply = await callTool(token, "send_project_chat_message", { chat_id: PINNED_PROJECT_CHAT, message: "hola", document_ids: [DOC_B] });
+        expect(reply.code).toBe(MISMATCH);
+        expect(h.routes).toEqual([]);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// run_playbook_review asks about the playbook's organization only when the
+// document is that organization's; otherwise it behaves as before the change.
+// ---------------------------------------------------------------------------
+describe("run_playbook_review: the key follows the playbook only for the playbook's own workspace", () => {
+    const WORKSPACES = [ORG, ORG2, "personal"];
+    const run = async (playbook: string, document: string) => {
+        const token = await connect(WORKSPACES);
+        tables().playbook_runs.length = 0;
+        const reply = await callTool(token, "run_playbook_review", { playbook_id: playbook, document_id: document, model: MODEL });
+        return { outcome: playbookOutcome(reply), runs: tables().playbook_runs.length };
+    };
+
+    it("a firm's playbook on the same firm's document runs on the firm's key", async () => {
+        await setUp("own_key_allowed");
+        expect(await run(PLAYBOOK_READY, DOC_FIRM)).toEqual({ outcome: "firm key", runs: 1 });
+    });
+
+    it("a firm's playbook on a personal document runs on the person's own key, as before", async () => {
+        await setUp("own_key_allowed");
+        expect(await run(PLAYBOOK_READY, DOC_PERSONAL)).toEqual({ outcome: "own key", runs: 1 });
+    });
+
+    it("a firm's playbook on a personal document with no own key of the person is refused, as before", async () => {
+        await setUp("firm_key_only");
+        const result = await run(PLAYBOOK_READY, DOC_PERSONAL);
+        expect(result.runs).toBe(0);
+        expect(result.outcome).toMatch(/^refused/);
+        h.matrix.push(`run_playbook_review (firm playbook, personal document, no own key) | ${result.outcome}`);
+    });
+
+    it("a firm's playbook on another firm's document runs on the person's own key, as before", async () => {
+        await setUp("own_key_allowed");
+        tables().org_api_keys.push({ ...(await keyRow({ kind: "org", id: ORG2 }, "claude", "sk-firmB", 3)), org_id: ORG2 });
+        expect(await run(PLAYBOOK_READY, DOC_B)).toEqual({ outcome: "own key", runs: 1 });
+    });
+
+    it("a personal playbook on a personal document runs on the person's own key", async () => {
+        await setUp("own_key_allowed");
+        expect(await run(PLAYBOOK_PERSONAL, DOC_PERSONAL)).toEqual({ outcome: "own key", runs: 1 });
+    });
+
+    it("a personal playbook on the firm's document stays as before (the person's own key)", async () => {
+        await setUp("own_key_allowed");
+        expect(await run(PLAYBOOK_PERSONAL, DOC_FIRM)).toEqual({ outcome: "own key", runs: 1 });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// A conversation that exists keeps the key it was pinned with.
+// ---------------------------------------------------------------------------
+describe("an existing conversation keeps its key and gets no default", () => {
+    const WORKSPACES = [ORG, "personal"];
+    const pinnedTo = [
+        ["the person's own key", USER_REF],
+        ["the firm's key", FIRM_REF],
+    ] as const;
+
+    const SENDERS: { tool: string; seed: (ref: string) => void; args: object }[] = [
+        {
+            tool: "send_chat_message",
+            seed: (ref) => tables().chats.push({ id: PINNED_CHAT, user_id: OWNER, project_id: null, org_id: ORG, title: null, model: MODEL, model_provider: "claude", credential_ref: ref, origin: "web", created_at: "2026-11-10T10:00:00Z", updated_at: "2026-11-10T11:00:00Z" }),
+            args: { chat_id: PINNED_CHAT, message: "hola" },
+        },
+        {
+            tool: "send_project_chat_message",
+            seed: (ref) => tables().chats.push({ id: PINNED_PROJECT_CHAT, user_id: OWNER, project_id: PROJECT_PUBLIC, org_id: ORG, title: null, model: MODEL, model_provider: "claude", credential_ref: ref, origin: "web", created_at: "2026-11-10T10:00:00Z", updated_at: "2026-11-10T11:00:00Z" }),
+            args: { chat_id: PINNED_PROJECT_CHAT, message: "hola" },
+        },
+        {
+            tool: "send_tabular_chat_message",
+            seed: (ref) => tables().tabular_review_chats.push({ id: PINNED_THREAD, review_id: REVIEW_PUBLIC, user_id: OWNER, title: null, model: MODEL, model_provider: "claude", credential_ref: ref, reasoning_level: null, created_at: "2026-11-10T10:00:00Z", updated_at: "2026-11-10T11:00:00Z" }),
+            args: { review_id: REVIEW_PUBLIC, chat_id: PINNED_THREAD, message: "hola", model: MODEL },
+        },
+    ];
+
+    describe.each(SENDERS)("$tool", ({ tool, seed, args }) => {
+        it.each(pinnedTo)("pinned to %s: the route stays that key", async (_label, ref) => {
+            // The firm's key is the default for a new conversation here; the pinned one must not be replaced.
+            await setUp("own_key_allowed");
+            tables().org_api_keys = tables().org_api_keys ?? [];
+            if (!tables().tabular_review_chats) tables().tabular_review_chats = [];
+            seed(ref);
+            const token = await connect(WORKSPACES);
+            await callTool(token, tool, args);
+            expect(h.routes.at(-1)).toMatchObject({ ok: true, credentialRef: ref });
+            expect(h.routes.at(-1)?.requested ?? null).toBeNull();
+        });
     });
 });

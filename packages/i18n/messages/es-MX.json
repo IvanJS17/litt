@@ -1003,8 +1003,10 @@
     "returnTo": "Al decidir, regresas a {host}. Permítela solo si reconoces esa dirección.",
     "scopes": {
       "chat": "Usar el asistente de LiTT por ti.",
+      "chatKeyNote": "El trabajo del asistente corre con la llave del espacio de trabajo que elijas (la del despacho, en el espacio de un despacho).",
       "read": "Leer tus asuntos, documentos y resultados.",
-      "run": "Correr revisiones y otras tareas que usan tus llaves de IA o tus créditos.",
+      "run": "Correr revisiones y otras tareas que usan llaves de IA o créditos.",
+      "runKeyNote": "El trabajo que hace el asistente propio de LiTT corre con la llave del espacio de trabajo que elijas (la del despacho, en el espacio de un despacho).",
       "title": "Qué puede hacer",
       "write": "Guardar resultados y crear o subir documentos."
     },
