@@ -107,7 +107,7 @@ function suggestion(code: string): string | undefined {
         case "model_required":
         case "model_unavailable":
         case "missing_api_key":
-            return "Name a model the person has a key for, or add the key in LiTT's settings. LiTT does not switch models by itself.";
+            return "Name a model the workspace has a key for, or add the key in LiTT's settings. LiTT does not switch models by itself.";
         default:
             return undefined;
     }
@@ -370,7 +370,7 @@ export const createTabularReviewTool = defineMcpTool({
         columns: z.array(columnInput).min(1).max(MAX_COLUMNS),
         matter_id: idSchema("matter_id").optional().describe("Create it inside this matter."),
         workspace: z.string().optional().describe("Without a matter: the workspace. Defaults to the connection's default workspace."),
-        model: z.string().trim().max(200).optional().describe("A model id the person has a key for. Defaults to the person's saved tabular model."),
+        model: z.string().trim().max(200).optional().describe("A model id the workspace's key can run. Defaults to the person's saved tabular model."),
     }),
     scope: "litt.write",
     lane: "write",

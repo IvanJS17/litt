@@ -11,6 +11,7 @@
 // playbook and the document text (untrusted, recorded as egress) with a signed
 // ticket, then validates and records what comes back. Apprentices only get A.
 
+import { defaultKeyFor } from "./mcp.defaultKey";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { loadActiveVersion } from "../../lib/documentVersions";
@@ -385,7 +386,7 @@ export const runPlaybookReview = defineMcpTool({
     name: "run_playbook_review",
     title: "Run a playbook review (LiTT)",
     description:
-        "Starts a review of one document against one ready playbook, run by LiTT with the person's own AI key. Returns a run_id; if the review finishes within about 45 seconds the summary and findings come back too, otherwise status is running and get_playbook_run follows it. Tracked changes in the Word file are off unless apply_tracked_changes is true. Needs ids, not names.",
+        "Starts a review of one document against one ready playbook, run by LiTT with the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace). Returns a run_id; if the review finishes within about 45 seconds the summary and findings come back too, otherwise status is running and get_playbook_run follows it. Tracked changes in the Word file are off unless apply_tracked_changes is true. Needs ids, not names.",
     inputSchema: z.object({
         playbook_id: idSchema("playbook_id"),
         document_id: idSchema("document_id"),
@@ -393,7 +394,7 @@ export const runPlaybookReview = defineMcpTool({
         review_scope: z.enum(REVIEW_SCOPES).optional().describe("full (default) reports every rule; issues only what needs attention."),
         instructions: z.string().trim().max(8000).optional().describe("Extra guidance for this review."),
         apply_tracked_changes: z.boolean().optional().describe("Write the suggested edits into a new version of the Word document (default false)."),
-        model: z.string().trim().max(200).optional().describe("A model id the person has a key for. Defaults to the person's usual model."),
+        model: z.string().trim().max(200).optional().describe("A model id the workspace's key can run. Defaults to the person's usual model."),
     }),
     scope: "litt.run",
     lane: "write",
@@ -434,6 +435,8 @@ export const runPlaybookReview = defineMcpTool({
                 throw new McpToolError("text_unavailable", "The text of this document is not ready or could not be extracted.", "Open the document in LiTT; a scanned file may need to be read there first.");
             documentText = stored.text;
         }
+        // The work belongs to the playbook's organization: its key is the one asked for.
+        const credentialRef = await defaultKeyFor(call, { model, orgId: playbook.orgId ?? null });
         const started = await guard(() =>
             queuePlaybookReview({
                 userId,
@@ -444,6 +447,7 @@ export const runPlaybookReview = defineMcpTool({
                 documentName: version.filename ?? undefined,
                 instructions: args.instructions,
                 model,
+                credentialRef,
                 reviewMode: args.review_mode ?? "strict",
                 reviewScope: args.review_scope ?? "full",
                 applyEdits: args.apply_tracked_changes === true,

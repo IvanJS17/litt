@@ -15,7 +15,7 @@
 //     workflow's columns and starts it through the tabular tools' own path
 //     (`createReviewFor` / `runReviewFor`).
 //
-// Mode A only: LiTT's model runs the work with the person's own key. There is
+// Mode A only: LiTT's model runs the work with the workspace's key. There is
 // no mode B here, so an apprentice may use these tools (their conversation goes
 // through "Tu turno primero" and the sealed-draft rules like any other).
 //
@@ -428,7 +428,7 @@ export const runWorkflow = defineMcpTool({
     name: "run_workflow",
     title: "Run a workflow (LiTT)",
     description:
-        "Runs a workflow with LiTT's own engine and the person's own AI key (LiTT does not switch models). An assistant workflow opens a conversation with LiTT's assistant with the workflow applied (and the documents attached) and returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. A tabular workflow creates a tabular review from the workflow's columns over the given documents and starts it; get_tabular_run_status follows it. Needs litt.run, plus litt.chat for an assistant workflow or litt.write for a tabular one.",
+        "Runs a workflow with LiTT's own engine and the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace) (LiTT does not switch models). An assistant workflow opens a conversation with LiTT's assistant with the workflow applied (and the documents attached) and returns chat_id and turn_id; if the answer is not ready the status is 'generating' and get_chat_turn follows it. A tabular workflow creates a tabular review from the workflow's columns over the given documents and starts it; get_tabular_run_status follows it. Needs litt.run, plus litt.chat for an assistant workflow or litt.write for a tabular one.",
     inputSchema: z.object({
         workflow_id: idSchema("workflow_id").describe("A workflow from list_workflows."),
         matter_id: idSchema("matter_id").optional().describe("Run it inside this matter (the conversation or review belongs to it)."),
@@ -440,7 +440,7 @@ export const runWorkflow = defineMcpTool({
             .describe(`Documents to work on: up to ${MAX_CHAT_DOCUMENTS} for an assistant workflow; required (up to ${MAX_REVIEW_DOCUMENTS}) for a tabular one.`),
         inputs: z.string().trim().min(1).max(50_000).optional().describe("Assistant workflow: what to ask along with the workflow (default: the workflow's title)."),
         title: z.string().trim().min(1).max(200).optional().describe("Tabular workflow: the review's title (default: the workflow's title)."),
-        model: z.string().trim().min(1).max(200).optional().describe("A model id the person has a key for. Default: the person's usual model."),
+        model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
         credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
@@ -537,7 +537,7 @@ export const runQuickAction = defineMcpTool({
         matter_id: idSchema("matter_id").optional().describe("Run it inside this matter."),
         workspace: z.string().optional().describe("Without a matter: a workspace id from list_workspaces. Defaults to the connection's default workspace."),
         inputs: z.string().trim().min(1).max(50_000).optional().describe("Something to add after the action's own request."),
-        model: z.string().trim().min(1).max(200).optional().describe("A model id the person has a key for. Default: the person's usual model."),
+        model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
         credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
         attempt: attemptSchema,
         confidence: confidenceSchema,

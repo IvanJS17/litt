@@ -38,6 +38,7 @@ import { recordMcpChatEgress } from "./mcp.calls";
 import { clientNameOf } from "./mcp.grants";
 import { PERSONAL_WORKSPACE } from "./mcp.principal";
 import { chatReleases, chatTurnRelease, titleReleases, withheldFields, type Release } from "./mcp.release";
+import { defaultKeyFor, workspaceOrgId } from "./mcp.defaultKey";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
 import {
     cursorSchema,
@@ -268,6 +269,9 @@ export async function runTurn(
     },
 ) {
     const history = args.chatId ? await loadChatHistory(call.db, args.chatId, await chatReader(call)) : [];
+    // A new conversation is pinned to a key now; a named one wins, an existing one keeps its own.
+    const credentialRef =
+        args.credentialRef ?? (args.chatId ? undefined : await defaultKeyFor(call, { model: args.model, orgId: workspaceOrgId(args.workspace) }));
     const parsed = parseChatTurnRequest({
         messages: [
             ...history,
@@ -282,7 +286,7 @@ export async function runTurn(
         ...(args.chatId ? {} : args.matterId ? { project_id: args.matterId } : {}),
         ...(args.chatId || args.matterId || args.workspace === PERSONAL_WORKSPACE ? {} : { org_id: args.workspace }),
         ...(args.model ? { model: args.model } : {}),
-        ...(args.credentialRef ? { credential_ref: args.credentialRef } : {}),
+        ...(credentialRef ? { credential_ref: credentialRef } : {}),
         // "Tu turno primero": an apprentice brings their own approach first.
         ...(args.attempt ? { attempt: args.attempt } : {}),
         ...(args.confidence ? { confidence: args.confidence } : {}),
@@ -349,12 +353,12 @@ export const startChat = defineMcpTool({
     name: "start_chat",
     title: "Start a conversation with LiTT's assistant",
     description:
-        "Starts a new conversation with LiTT's own assistant and sends its first message. The assistant answers with LiTT's model for that workspace, using the person's own key; the model is fixed for the conversation and LiTT never switches to another one. Give matter_id to talk about a matter and its documents, otherwise the conversation belongs to the workspace. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn.",
+        "Starts a new conversation with LiTT's own assistant and sends its first message. The assistant answers with LiTT's model for that workspace, using the workspace's key (the firm's key in a firm's workspace, the person's own in the personal workspace); the model is fixed for the conversation and LiTT never switches to another one. Give matter_id to talk about a matter and its documents, otherwise the conversation belongs to the workspace. The conversation appears in the person's LiTT history marked as coming from this app. Waits a short while; if the answer is not ready the status is 'generating': follow it with get_chat_turn.",
     inputSchema: z.object({
         message: messageSchema,
         matter_id: idSchema("matter_id").optional().describe("A matter from find_matters, to talk about it and its documents."),
         workspace: z.string().optional().describe("A workspace id from list_workspaces (ignored with matter_id). Defaults to the connection's default workspace."),
-        model: z.string().trim().min(1).max(200).optional().describe("A model id the person has a key for. Default: the person's usual model."),
+        model: z.string().trim().min(1).max(200).optional().describe("A model id the workspace's key can run. Default: the person's usual model."),
         credential_ref: z.string().trim().min(1).max(200).optional().describe("Which saved key to use, when the person has several for the provider."),
         attempt: attemptSchema,
         confidence: confidenceSchema,
