@@ -155,7 +155,8 @@ describe("conversion admission", () => {
     const calls = Array.from({ length: 12 }, (_, index) =>
       officeFileToPdf(`/tmp/in-${index}.docx`, `/tmp/mike-convert-admission-${index}`).catch((error: unknown) => error),
     );
-    await tick();
+    // Wait for the first conversions to start, however busy the machine is.
+    for (let waited = 0; waited < 200 && processes.peak === 0; waited++) await tick();
     await tick();
     expect(processes.peak).toBeLessThan(10);
     expect(processes.peak).toBeGreaterThan(0);

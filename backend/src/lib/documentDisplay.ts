@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import { Readable } from "node:stream";
-import { CONVERSION_MAX_SOURCE_BYTES, CONVERSION_PLACES, CONVERSION_SOURCE_TOO_LARGE_CODE, docxToPdf } from "./convert";
+import { docxToPdf } from "./convert";
+import { CONVERSION_MAX_SOURCE_BYTES, CONVERSION_PLACES, CONVERSION_SOURCE_TOO_LARGE_CODE } from "./conversionLimits";
 import { ExtractionBusyError } from "./extraction/limits";
 import {
   contentTypeForDocumentType,

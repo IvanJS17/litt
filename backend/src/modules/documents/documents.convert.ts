@@ -24,12 +24,8 @@ import type {
     DocumentConversionType,
 } from "@mike/contracts";
 import { AppError } from "../../lib/appError";
-import {
-    CONVERSION_MAX_SOURCE_BYTES,
-    CONVERSION_SOURCE_TOO_LARGE_CODE,
-    ConversionError,
-    docxToPdf,
-} from "../../lib/convert";
+import { ConversionError, docxToPdf } from "../../lib/convert";
+import { CONVERSION_MAX_SOURCE_BYTES, CONVERSION_SOURCE_TOO_LARGE_CODE } from "../../lib/conversionLimits";
 import { contentSha256, loadActiveVersion, type ActiveVersion } from "../../lib/documentVersions";
 import { contentTypeForDocumentType, isMarkdownDocumentType } from "../../lib/documentTypes";
 import { ExtractionBusyError, ExtractionLimitError, runIsolatedExtraction } from "../../lib/extraction/isolated";

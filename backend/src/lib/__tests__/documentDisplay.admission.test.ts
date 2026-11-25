@@ -33,7 +33,7 @@ beforeEach(async () => {
   process.env.SOFFICE_BINARY_PATH = process.execPath;
   vi.resetModules();
   ({ loadDocumentDisplay } = await import("../documentDisplay.js"));
-  ({ CONVERSION_MAX_SOURCE_BYTES } = await import("../convert.js"));
+  ({ CONVERSION_MAX_SOURCE_BYTES } = await import("../conversionLimits.js"));
 });
 
 afterEach(() => {
