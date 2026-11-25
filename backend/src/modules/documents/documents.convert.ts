@@ -24,7 +24,12 @@ import type {
     DocumentConversionType,
 } from "@mike/contracts";
 import { AppError } from "../../lib/appError";
-import { ConversionError, docxToPdf } from "../../lib/convert";
+import {
+    CONVERSION_MAX_SOURCE_BYTES,
+    CONVERSION_SOURCE_TOO_LARGE_CODE,
+    ConversionError,
+    docxToPdf,
+} from "../../lib/convert";
 import { contentSha256, loadActiveVersion, type ActiveVersion } from "../../lib/documentVersions";
 import { contentTypeForDocumentType, isMarkdownDocumentType } from "../../lib/documentTypes";
 import { ExtractionBusyError, ExtractionLimitError, runIsolatedExtraction } from "../../lib/extraction/isolated";
@@ -46,12 +51,12 @@ import { deleteDocumentAndVersionFiles, type Db } from "./documents.shared";
 
 export const CONVERT_NOT_SUPPORTED_CODE = "convert_not_supported";
 export const CONVERT_PDF_WITHOUT_TEXT_CODE = "convert_pdf_without_text";
-export const CONVERT_SOURCE_TOO_LARGE_CODE = "convert_source_too_large";
+export const CONVERT_SOURCE_TOO_LARGE_CODE = CONVERSION_SOURCE_TOO_LARGE_CODE;
 export const CONVERT_UNREADABLE_CODE = "convert_unreadable";
 export const CONVERT_UNAVAILABLE_CODE = "convert_unavailable";
 
 /** Largest source a conversion reads. Markdown is parsed in this process, so its cap is lower. */
-export const CONVERT_MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+export const CONVERT_MAX_SOURCE_BYTES = CONVERSION_MAX_SOURCE_BYTES;
 export const CONVERT_MAX_MARKDOWN_BYTES = 5 * 1024 * 1024;
 
 const TARGETS: readonly DocumentConversionType[] = ["md", "docx", "pdf"];

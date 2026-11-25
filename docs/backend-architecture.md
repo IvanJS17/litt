@@ -118,8 +118,8 @@ request is bounded where it is held:
   text is confirmed on a larger text before it fails.
 - The queued documents ZIP export reads each stored object as a stream with
   the store's per-step time limit, writes the archive to a temporary file and
-  uploads it from there. It keeps the limits of the direct download: 200
-  documents and 2 GB. An error or stall while reading any object, or an object
+  uploads it from there. It takes at most 500 documents
+  (`MAX_ZIP_EXPORT_DOCUMENTS`) and keeps the direct download's 2 GB limit. An error or stall while reading any object, or an object
   larger than its limit, ends the job through its normal failure path, and the
   file is removed when the job ends, whether it succeeded or failed. A
   directory left by a process that died mid-export (its name starts with
@@ -137,7 +137,15 @@ request is bounded where it is held:
   that cannot be stored now is queued as a conversion job, and the upload
   worker requeues the file. The counters belong to one thread, as the
   extraction slots do: the API, the jobs and the uploads threads each have
-  their own.
+  their own. A display conversion reads a source of at most 25 MiB
+  (`CONVERSION_MAX_SOURCE_BYTES` in `lib/convert.ts`, the same bound as the
+  convert, compare and split routes): the stored size is read first, so a
+  larger source is not downloaded and does not wait for a place, and the
+  route answers 400 with the code `convert_source_too_large`. A display holds
+  its source from the download until the converter ends, so at most as many
+  displays read one as the converter has places (ten per thread); the next is
+  answered 503 with `Retry-After` without reading anything. A stored PDF
+  rendition is served whatever the size of the source.
 
 #### Chat turns
 

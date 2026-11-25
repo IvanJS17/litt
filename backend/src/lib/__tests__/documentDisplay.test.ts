@@ -26,13 +26,20 @@ vi.mock("../convert", async (importOriginal) => {
 });
 
 import { Readable } from "node:stream";
-import { loadDocumentDisplay, streamStoredDisplay } from "../documentDisplay";
+import { CONVERSION_MAX_SOURCE_BYTES } from "../convert";
+import {
+  DisplaySourceTooLargeError,
+  loadDocumentDisplay,
+  prepareDocumentDisplay,
+  streamStoredDisplay,
+} from "../documentDisplay";
 
 describe("loadDocumentDisplay", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.downloadFile.mockResolvedValue(Buffer.from("source"));
     mocks.docxToPdf.mockResolvedValue(Buffer.from("converted"));
+    mocks.headFile.mockResolvedValue({ size: 6, etag: null, contentType: null });
   });
 
   it.each(["doc", "docx", "ppt", "pptx"])(
@@ -104,6 +111,60 @@ describe("loadDocumentDisplay", () => {
     const signal = new AbortController().signal;
     await loadDocumentDisplay({ filename: "Asset.docx", fileType: "docx", storagePath: "asset.docx", signal });
     expect(mocks.docxToPdf).toHaveBeenCalledWith(expect.anything(), { signal });
+  });
+});
+
+describe("display source bound", () => {
+  const word = { filename: "Big.docx", fileType: "docx", storagePath: "big.docx" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.downloadFile.mockResolvedValue(Buffer.from("source"));
+    mocks.docxToPdf.mockResolvedValue(Buffer.from("converted"));
+  });
+
+  it("refuses a source over the bound without downloading it or asking for a conversion place", async () => {
+    mocks.headFile.mockResolvedValue({ size: CONVERSION_MAX_SOURCE_BYTES + 1, etag: null, contentType: null });
+    await expect(loadDocumentDisplay(word)).rejects.toBeInstanceOf(DisplaySourceTooLargeError);
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+    expect(mocks.docxToPdf).not.toHaveBeenCalled();
+  });
+
+  it("converts a source exactly at the bound", async () => {
+    mocks.headFile.mockResolvedValue({ size: CONVERSION_MAX_SOURCE_BYTES, etag: null, contentType: null });
+    const result = await loadDocumentDisplay(word);
+    expect(mocks.docxToPdf).toHaveBeenCalledOnce();
+    expect(result?.contentType).toBe("application/pdf");
+  });
+
+  it("answers not found, without downloading, when the stored object is not there", async () => {
+    mocks.headFile.mockResolvedValue(null);
+    expect(await loadDocumentDisplay(word)).toBeNull();
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+  });
+
+  it("still serves a stored rendition of an over-bound source", async () => {
+    mocks.headFile.mockResolvedValue({ size: CONVERSION_MAX_SOURCE_BYTES + 1, etag: null, contentType: null });
+    const result = await loadDocumentDisplay({ ...word, pdfStoragePath: "big.pdf" });
+    expect(mocks.downloadFile).toHaveBeenCalledWith("big.pdf");
+    expect(mocks.docxToPdf).not.toHaveBeenCalled();
+    expect(result?.contentType).toBe("application/pdf");
+  });
+
+  it("refuses over-bound bytes handed to prepareDocumentDisplay before asking for a conversion place", async () => {
+    await expect(
+      prepareDocumentDisplay({ ...word, sourceBytes: Buffer.alloc(CONVERSION_MAX_SOURCE_BYTES + 1) }),
+    ).rejects.toBeInstanceOf(DisplaySourceTooLargeError);
+    expect(mocks.docxToPdf).not.toHaveBeenCalled();
+  });
+
+  it("starts no conversion and reads nothing for 10 concurrent displays of an over-bound source", async () => {
+    mocks.headFile.mockResolvedValue({ size: CONVERSION_MAX_SOURCE_BYTES + 1, etag: null, contentType: null });
+    mocks.docxToPdf.mockImplementation(() => new Promise(() => {}));
+    const outcomes = await Promise.allSettled(Array.from({ length: 10 }, () => loadDocumentDisplay(word)));
+    expect(outcomes.every((o) => o.status === "rejected")).toBe(true);
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+    expect(mocks.docxToPdf).not.toHaveBeenCalled();
   });
 });
 
