@@ -51,7 +51,16 @@ function waitingOn(socket: Socket | undefined): Set<() => void> | undefined {
     waiting = created;
     waitingByConnection.set(socket, created);
     socket.once("close", () => {
-      for (const run of [...created]) run();
+      // One that fails does not keep the rest from running; it is thrown after them.
+      const failures: unknown[] = [];
+      for (const run of [...created]) {
+        try {
+          run();
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      if (failures.length > 0) throw failures[0];
     });
   }
   return waiting;

@@ -122,6 +122,70 @@ describe("abortOnClose", () => {
     await expect.poll(() => waiting?.aborted).toBe(true);
   });
 
+  it("aborts every response that waits on a connection when its client leaves", async () => {
+    const waiting: AbortSignal[] = [];
+    const port = await listen((req, res) => {
+      if (req.url !== "/first") waiting.push(abortOnClose(res));
+    });
+    const socket = net.connect(port, "127.0.0.1", () =>
+      socket.write(get("/first") + get("/second") + get("/third") + get("/fourth")),
+    );
+    socket.on("error", () => undefined);
+    await expect.poll(() => waiting.length).toBe(3);
+    socket.destroy();
+    await expect.poll(() => waiting.map((signal) => signal.aborted)).toEqual([true, true, true]);
+  });
+
+  it("runs the rest of what waits on a connection when one of them throws", async () => {
+    const ran: string[] = [];
+    let seen = 0;
+    const port = await listen((req, res) => {
+      if (req.url === "/first") return;
+      const name = req.url!;
+      onResponseClosed(res, () => {
+        ran.push(name);
+        if (name === "/second") throw new Error("listener failed");
+      });
+      seen += 1;
+    });
+    // The failure still surfaces, once everything waiting has run.
+    const surfaced: unknown[] = [];
+    const onUncaught = (error: unknown) => surfaced.push(error);
+    const others = process.listeners("uncaughtException");
+    process.removeAllListeners("uncaughtException");
+    process.on("uncaughtException", onUncaught);
+    try {
+      const socket = net.connect(port, "127.0.0.1", () =>
+        socket.write(get("/first") + get("/second") + get("/third") + get("/fourth")),
+      );
+      socket.on("error", () => undefined);
+      await expect.poll(() => seen).toBe(3);
+      socket.destroy();
+      await expect.poll(() => ran).toEqual(["/second", "/third", "/fourth"]);
+      await expect.poll(() => surfaced).toHaveLength(1);
+    } finally {
+      process.off("uncaughtException", onUncaught);
+      for (const listener of others) process.on("uncaughtException", listener);
+    }
+  });
+
+  it("leaves a response on another connection alone when a client leaves", async () => {
+    const signals = new Map<string, AbortSignal>();
+    const port = await listen((req, res) => {
+      signals.set(req.url!, abortOnClose(res));
+    });
+    const staying = net.connect(port, "127.0.0.1", () => staying.write(get("/staying")));
+    const leaving = net.connect(port, "127.0.0.1", () => leaving.write(get("/leaving")));
+    staying.on("error", () => undefined);
+    leaving.on("error", () => undefined);
+    await expect.poll(() => signals.size).toBe(2);
+    leaving.destroy();
+    await expect.poll(() => signals.get("/leaving")!.aborted).toBe(true);
+    await settled();
+    expect(signals.get("/staying")!.aborted).toBe(false);
+    staying.destroy();
+  });
+
   it("does not abort a waiting response while its client is there, and it is sent in its turn", async () => {
     let waiting: AbortSignal | undefined;
     let answerFirst: () => void = () => undefined;
