@@ -3,6 +3,7 @@
 // case's questionnaire becomes changes proposed one by one, checked by the
 // server against the copy; the copy is read-only while they are computed;
 // each change is accepted or rejected over the rule it was proposed for.
+import JSZip from "jszip";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { completeText, getUserApiKeys, recordAudit, reportError, storage } = vi.hoisted(() => ({
@@ -40,6 +41,9 @@ vi.mock("../../../lib/storage", async (original) => ({
 }));
 
 import type { DbJob } from "../../../lib/dbq/types";
+import { DbJobDeferredError } from "../../../lib/dbq/types";
+import { EXTRACTION_OPS } from "../../../lib/extraction/ops";
+import { ExtractionBusyError } from "../../../lib/extraction/isolated";
 import type { Db } from "../../../lib/supabase";
 import { loadPinnedChatRoute, recordChatEgress } from "../../user/user.service";
 import { checkProposalOutput, decidePlaybookChange, listPlaybookChanges } from "../playbooks.changes";
@@ -405,6 +409,43 @@ describe("proposals over the copy", () => {
     expect(result.changes).toHaveLength(40);
     expect(result.counts.discarded).toBe(5);
     expect(new Set(result.changes.map((change) => change.ruleId)).size).toBe(40);
+  });
+
+  it("defers the job when the parser is busy, leaving the proposal running and nothing recorded as failed", async () => {
+    const stagedKey = "playbooks/lawyer/imports/11111111-2222-4333-8444-555555555555.docx";
+    const fixture = await copied();
+    await queuePlaybookProposals({
+      userId: LAWYER.id,
+      userEmail: LAWYER.email,
+      playbookId: fixture.copy.id,
+      model: MODEL,
+      answers: { q6: RED_LINE },
+      attachments: [{ storageKey: stagedKey, filename: "Cláusulas.docx" }],
+      db: fixture.db,
+    });
+    const { db, tables } = fixture;
+    const work = tables.db_jobs.at(-1)!.payload as PlaybookProposalWork;
+    const zip = new JSZip();
+    zip.file(
+      "word/document.xml",
+      `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${CLAUSE}</w:t></w:r></w:p></w:body></w:document>`,
+    );
+    storage.downloadFile.mockResolvedValue(await zip.generateAsync({ type: "arraybuffer" }));
+    completeText.mockResolvedValue(JSON.stringify({ changes: [] }));
+    const parse = vi.spyOn(EXTRACTION_OPS, "docxText").mockRejectedValueOnce(new ExtractionBusyError());
+    try {
+      await expect(handlePlaybookDraft(db, job(work))).rejects.toBeInstanceOf(DbJobDeferredError);
+      // Deferred, not failed: the run stays open, the copy is kept, no model was asked, no failure was audited.
+      expect(tables.playbook_imports.at(-1)).toMatchObject({ status: "running" });
+      expect(copyRow(tables, fixture.copy.id)).toMatchObject({ status: "draft" });
+      expect(completeText).not.toHaveBeenCalled();
+      expect(recordAudit.mock.calls.map(([, event]) => event)).not.toContainEqual(
+        expect.objectContaining({ action: "playbook.proposals_ready", status: "failed" }),
+      );
+      // The retry reads the file and goes on.
+      await handlePlaybookDraft(db, job(work));
+      expect(tables.playbook_imports.at(-1)).toMatchObject({ status: "completed" });
+    } finally { parse.mockRestore(); }
   });
 
   it("refuses a ready playbook and asks no model", async () => {

@@ -646,6 +646,25 @@ describe("a draft from the questionnaire, end to end", () => {
       } finally { parse.mockRestore(); }
     });
 
+    it("refuses a Word attachment whose body is empty as having no readable text", async () => {
+      const { db, tables } = await queued();
+      const zip = new JSZip();
+      zip.file(
+        "word/document.xml",
+        `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/></w:body></w:document>`,
+      );
+      storage.downloadFile.mockResolvedValue(await zip.generateAsync({ type: "arraybuffer" }));
+
+      await handlePlaybookDraft(db, job(tables.db_jobs[0].payload));
+
+      expect(tables.playbook_imports[0]).toMatchObject({
+        status: "failed",
+        error: expect.stringContaining("no tiene texto legible"),
+      });
+      expect(completeText).not.toHaveBeenCalled();
+      expect(tables.playbooks ?? []).toEqual([]);
+    });
+
     it("fails the draft with a reason for the person when the parser's limits stop the file", async () => {
       const { db, tables } = await queued();
       storage.downloadFile.mockResolvedValue(await docx(`Cláusula quinta. ${CLAUSE}`));

@@ -72,5 +72,7 @@ describe("the parser's two Word readers", () => {
     const bytes = await docxWith("<w:p/>");
     expect(await EXTRACTION_OPS.docxBodyText(bytes)).toBe("");
     expect((await EXTRACTION_OPS.docxText(bytes)).trim()).toBe("");
+    // Stored as read, so that a supplementary document with an empty body is a source with no text, as it always was.
+    expect((await extractPlaybookSourceText("docx", bytes)).trim()).toBe("");
   });
 });
