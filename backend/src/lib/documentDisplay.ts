@@ -170,8 +170,10 @@ export function sendDocumentDisplay(
     buildContentDisposition("inline", payload.filename),
   );
   // The file is held in memory until the client has it. A client that makes
-  // no progress for this long does not keep it, or a display's place.
+  // no progress for this long does not keep it, or a display's place. The
+  // limit ends with this response: the connection's next request is not under it.
   res.setTimeout(envInt("DISPLAY_SEND_IDLE_MS", 60_000), () => res.destroy());
+  res.prependOnceListener("finish", () => res.socket?.setTimeout(0));
   res.send(payload.bytes);
 }
 

@@ -1,3 +1,5 @@
+import net from "node:net";
+import type { AddressInfo } from "node:net";
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -374,6 +376,56 @@ describe("workflow add-on catalog routes", () => {
     expect(Number(response.headers["retry-after"])).toBeGreaterThan(0);
     expect(reportError).not.toHaveBeenCalled();
   });
+
+  it("keeps a converted asset's place while its client has not read it: the next display is told to wait", async () => {
+    const display = "/workflow-addons/c0a7a1e1-0000-4000-8000-000000000001/assets/reference-1/display";
+    from.mockImplementation((table: string) =>
+      table === "mike_workflows"
+        ? singleQueryReturning({ id: "c0a7a1e1-0000-4000-8000-000000000001", type: "assistant" })
+        : singleQueryReturning({
+            id: "reference-1",
+            filename: "Deck.pptx",
+            file_type: "pptx",
+            storage_path: "mike-workflows/c0a7a1e1-0000-4000-8000-000000000001/deck.pptx",
+          }),
+    );
+    // One converted file, larger than a connection takes without being read.
+    docxToPdf.mockResolvedValue(Buffer.alloc(32 * 1024 * 1024, 1));
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise((resolve) => server.once("listening", resolve));
+    const port = (server.address() as AddressInfo).port;
+    const clients: net.Socket[] = [];
+    try {
+      // Ten clients receive the start of their display and read no further.
+      await Promise.all(
+        Array.from({ length: 10 }, () =>
+          new Promise<void>((resolve) => {
+            const socket = net.connect(port, "127.0.0.1", () =>
+              socket.write(`GET ${display} HTTP/1.1\r\nHost: localhost\r\n\r\n`),
+            );
+            socket.once("data", () => {
+              socket.pause();
+              resolve();
+            });
+            socket.on("error", () => undefined);
+            clients.push(socket);
+          }),
+        ),
+      );
+
+      const next = await request(app).get(display);
+      expect(next.status).toBe(503);
+      expect(Number(next.headers["retry-after"])).toBeGreaterThan(0);
+
+      // When those clients go, their places come back.
+      for (const socket of clients) socket.destroy();
+      await vi.waitFor(async () => expect((await request(app).get(display)).status).toBe(200), { timeout: 5_000 });
+    } finally {
+      for (const socket of clients) socket.destroy();
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  }, 20_000);
 
 it("answers a presentation over the conversion bound with the convert code, and reads and converts nothing", async () => {
   from.mockImplementation((table: string) =>
