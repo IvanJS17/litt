@@ -63,7 +63,7 @@ describe("startInTurn", () => {
     app.use((req, res) => {
       started.push(req.url);
       if (req.url === "/first") answerFirst = () => res.end("first");
-      else res.end(req.url);
+      else res.end(req.url === "/second" ? "second" : "third");
     });
     const port = await listen(app);
     const answered = sendAtOnce(port, get("/first") + get("/second") + get("/third"), 2_000);
@@ -73,8 +73,9 @@ describe("startInTurn", () => {
     answerFirst();
     await expect.poll(() => started).toEqual(["/first", "/second", "/third"]);
     const { text } = await answered;
-    expect(text.indexOf("first")).toBeLessThan(text.indexOf("/second"));
-    expect(text.indexOf("/second")).toBeLessThan(text.indexOf("/third"));
+    expect(text.indexOf("first")).toBeGreaterThan(-1);
+    expect(text.indexOf("first")).toBeLessThan(text.indexOf("second"));
+    expect(text.indexOf("second")).toBeLessThan(text.indexOf("third"));
   });
 
   it("starts a waiting request in its own context, not that of the request ahead of it", async () => {
