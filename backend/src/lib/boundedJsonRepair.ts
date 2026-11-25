@@ -64,7 +64,7 @@ function deadlineOf(milliseconds: number): number {
     return whole >= 1 ? Math.min(whole, MAX_REPAIR_DEADLINE_MS) : 0;
 }
 
-// The library's error is made in the context's realm, so `instanceof RangeError` does not hold.
+// Matched by name and message, so the check does not depend on the realm the error was made in.
 const isStackOverflow = (error: unknown) =>
     (error as { name?: unknown } | null)?.name === "RangeError" && /call stack/i.test(String((error as { message?: unknown }).message));
 

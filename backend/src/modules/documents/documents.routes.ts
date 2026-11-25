@@ -16,7 +16,9 @@ import { pipeToResponse } from "../../lib/pipeToResponse";
 import { setOperation } from "../../lib/observability/report";
 import { buildContentDisposition, createFileReadStream } from "../../lib/storage";
 import {
+    DisplaySourceTooLargeError,
     sendDisplayBusy,
+    sendDisplayTooLarge,
     sendDocumentDisplay,
     sendDocumentDisplayStream,
 } from "../../lib/documentDisplay";
@@ -128,6 +130,7 @@ documentsRouter.get("/:documentId/display", requireAuth, asyncRoute(async (req, 
     if (!result.ok) {
         if (result.kind === "error") {
             if (result.error instanceof ExtractionBusyError) return void sendDisplayBusy(res);
+            if (result.error instanceof DisplaySourceTooLargeError) return void sendDisplayTooLarge(res);
             return void sendInternalError(res, result.error);
         }
         return void res.status(404).json({ detail: result.detail });
