@@ -20,12 +20,13 @@ vi.mock("libreoffice-convert", () => ({
   },
 }));
 
-const storage = vi.hoisted(() => ({ size: 0, downloads: 0 }));
+const storage = vi.hoisted(() => ({ size: 0, downloads: 0, onDownload: null as (() => void) | null }));
 vi.mock("../storage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../storage")>()),
   headFile: async () => ({ size: storage.size, etag: null, contentType: null }),
   downloadFile: async () => {
     storage.downloads += 1;
+    storage.onDownload?.();
     return new ArrayBuffer(1);
   },
   downloadFileIfAvailable: async () => null,
@@ -38,6 +39,7 @@ beforeEach(async () => {
   converter.started = 0;
   converter.finishes = false;
   storage.downloads = 0;
+  storage.onDownload = null;
   process.env.SOFFICE_BINARY_PATH = process.execPath;
   vi.resetModules();
   ({ loadDocumentDisplay } = await import("../documentDisplay.js"));
@@ -129,6 +131,28 @@ describe("concurrent displays of a Word file with no stored rendition", () => {
       await loadDocumentDisplay(word).catch(() => undefined);
       await loadDocumentDisplay({ ...word, signal: gone.signal }).catch(() => undefined);
     }
+    expect((await loadDocumentDisplay(word))?.contentType).toBe("application/pdf");
+  });
+
+  it("reads nothing and converts nothing for a response that has already ended", async () => {
+    storage.size = CONVERSION_MAX_SOURCE_BYTES;
+    converter.finishes = true;
+    const gone = new AbortController();
+    gone.abort();
+    expect(await loadDocumentDisplay({ ...word, signal: gone.signal })).toBeNull();
+    expect(storage.downloads).toBe(0);
+    expect(converter.started).toBe(0);
+  });
+
+  it("gives the place back when the response ends while its source is being read", async () => {
+    storage.size = CONVERSION_MAX_SOURCE_BYTES;
+    converter.finishes = true;
+    for (let display = 0; display < 12; display++) {
+      const response = new AbortController();
+      storage.onDownload = () => response.abort();
+      await loadDocumentDisplay({ ...word, signal: response.signal }).catch(() => undefined);
+    }
+    storage.onDownload = null;
     expect((await loadDocumentDisplay(word))?.contentType).toBe("application/pdf");
   });
 });

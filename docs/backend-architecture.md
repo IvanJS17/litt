@@ -145,7 +145,10 @@ request is bounded where it is held:
   its source from the download, and then the converted file until its response
   closes, so at most as many displays hold one as the converter has places (ten
   per thread); the next is answered 503 with `Retry-After` without reading
-  anything. A response whose client makes no progress for a minute
+  anything. A route that displays takes the
+  signal it passes from `abortOnClose` (`lib/abortOnClose.ts`), which is already
+  aborted when the client left before the handler ran, so such a request reads
+  nothing and holds no place. A response whose client makes no progress for a minute
   (`DISPLAY_SEND_IDLE_MS`) is closed within about two, so a client that stops
   reading does not keep the file or the place; until then it holds both, and
   nothing shares the places between people. Only the response built in memory

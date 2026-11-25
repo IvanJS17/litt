@@ -100,6 +100,8 @@ function pdfFilename(filename: string): string {
 export async function loadDocumentDisplay(
   source: DocumentDisplaySource,
 ): Promise<DocumentDisplayPayload | null> {
+  // A response that has already ended is given nothing: no read, no place.
+  if (source.signal?.aborted) return null;
   const fileType = normalizedFileType(source);
   const convertToPdf = shouldConvertToPdf(fileType);
 

@@ -13,7 +13,8 @@ import { Readable } from "node:stream";
  *
  * - backpressure: a slow client pauses the read from object storage;
  * - a client that disconnects destroys `source` and rejects, whether the
- *   helper is waiting on the socket to drain or on a stalled source;
+ *   helper is waiting on the socket to drain or on a stalled source, and
+ *   also when it had disconnected before this was called;
  * - a `source` error rejects. If bytes are already on the wire the response
  *   is destroyed, so the client sees a broken download rather than a short
  *   one that looks complete. If nothing was sent, the response is left
@@ -33,6 +34,11 @@ export async function pipeToResponse(
     // wrap() does not forward destroy to the legacy stream it reads from.
     if (wrapped) source.destroy();
   };
+  // A response that closed before this call will not emit 'close' again.
+  if (res.destroyed) {
+    destroySource();
+    throw prematureClose();
+  }
   const closed = new AbortController();
   const onClose = () => {
     // The 'close' after 'finish' is a completed response, not a disconnect.
