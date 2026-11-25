@@ -48,6 +48,8 @@ export const EXTRACTION_OPS = {
   // mammoth as the fallback when it comes back empty.
   docxText: async (bytes: ArrayBuffer) =>
     (await extractDocxBodyText(Buffer.from(bytes))) || mammothRawText(bytes),
+  /** Exactly the accepted body text the tracked-change matcher anchors against, with no fallback: empty when the body has no text. */
+  docxBodyText: (bytes: ArrayBuffer) => extractDocxBodyText(Buffer.from(bytes)),
   spreadsheet: async (bytes: ArrayBuffer) =>
     spreadsheetToLLMText(Buffer.from(bytes)),
   presentation: (bytes: ArrayBuffer) =>

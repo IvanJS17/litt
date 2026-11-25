@@ -48,7 +48,13 @@ import { assertPersonalWorkspaceAllowed } from "../../lib/managedAccounts";
 import { PERSONAL_WORKSPACE, resolveWorkspaceFilter, workspaceMatches, type WorkspaceFilter } from "../../lib/workspace";
 import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import type { EditAnnotation } from "@mike/contracts";
-import { extractDocxBodyText, type EditInput } from "../../lib/docxTrackedChanges";
+import { type EditInput } from "../../lib/docxTrackedChanges";
+import {
+  ExtractionBusyError,
+  ExtractionLimitError,
+  withExtractionRequest,
+} from "../../lib/extraction/isolated";
+import type { ExtractionOp } from "../../lib/extraction/ops";
 import { loadActiveVersion } from "../../lib/documentVersions";
 import { buildDownloadUrl } from "../../lib/downloadTokens";
 import { isVersionHeld } from "../../lib/trainingRelease";
@@ -172,6 +178,33 @@ export class PlaybookRequestError extends AppError {
     super("playbooks.request_invalid", message, options);
     this.status = status;
     if (options?.code) this.code = options.code;
+  }
+}
+
+/**
+ * The text of a Word or PDF file, read by the parser process (it bounds the
+ * file's size, time and memory), never in this one. A parser busy for the
+ * whole wait is retry-later and passes through as it is; one stopped at its
+ * limit is a refusal the person can act on; anything else is an unreadable file.
+ */
+export async function readDocumentTextInParser(
+  op: Extract<ExtractionOp, "pdfForModel" | "docxText" | "docxBodyText">,
+  bytes: ArrayBuffer,
+): Promise<string> {
+  try {
+    return await withExtractionRequest((extract) => extract(op, bytes));
+  } catch (cause) {
+    if (cause instanceof ExtractionBusyError) throw cause;
+    if (cause instanceof ExtractionLimitError)
+      throw new PlaybookRequestError("The document is too large to read.", 400, {
+        cause,
+        code: "request_too_large",
+      });
+    throw new PlaybookRequestError(
+      "The document could not be read. Check that it is a valid .docx or .pdf file.",
+      400,
+      { cause },
+    );
   }
 }
 
@@ -2284,8 +2317,14 @@ async function loadReviewDocument(
   if (!isDocx) return { filename, isDocx, text: null, orgId };
   const current = await loadCurrentVersionBytes(documentId, db, version.id);
   if (!current) throw missing();
+  // The accepted body text the tracked-change matcher anchors against, exactly:
+  // no fallback reader, so a quote located here is found again when applied.
+  const bytes = current.bytes.buffer.slice(
+    current.bytes.byteOffset,
+    current.bytes.byteOffset + current.bytes.byteLength,
+  ) as ArrayBuffer;
   return {
-    filename, isDocx, text: await extractDocxBodyText(current.bytes),
+    filename, isDocx, text: await readDocumentTextInParser("docxBodyText", bytes),
     version: { id: version.id, storagePath: current.storage_path },
     orgId,
   };

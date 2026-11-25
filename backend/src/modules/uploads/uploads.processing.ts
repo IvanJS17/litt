@@ -21,7 +21,6 @@ import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { pathToFileURL } from "node:url";
 
 import { resolveContentOrgId } from "../../lib/access";
 import { AppError } from "../../lib/appError";
@@ -44,7 +43,6 @@ import {
   isMarkdownDocumentType,
   shouldConvertToPdf,
 } from "../../lib/documentTypes";
-import { countPagesWithoutText } from "../../lib/pdfText";
 import { uploadJobWallClockMs } from "../../lib/runtimeConfig";
 import {
   copyFile,
@@ -299,7 +297,7 @@ async function hasPdfSignature(filePath: string): Promise<boolean> {
 // can open must never be refused here as "not a PDF".
 async function validatePdfFile(filePath: string): Promise<void> {
   if (await hasPdfSignature(filePath)) return;
-  if ((await countPdfPages(filePath)) !== null) return;
+  if ((await readPdfCounts(filePath)) !== null) return;
   throw new InvalidPdfFileError();
 }
 
@@ -325,44 +323,26 @@ type SealedFileArtifact = {
   sha256: string;
 };
 
-async function countPdfPages(filePath: string): Promise<number | null> {
-  let loadingTask:
-    | {
-        promise: Promise<{ numPages: number }>;
-        destroy?: () => Promise<void>;
-      }
-    | undefined;
-  try {
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as string);
-    loadingTask = (
-      pdfjsLib as unknown as {
-        getDocument: (options: unknown) => {
-          promise: Promise<{ numPages: number }>;
-          destroy?: () => Promise<void>;
-        };
-      }
-    ).getDocument({ url: pathToFileURL(filePath).href });
-    const pdf = await loadingTask.promise;
-    return pdf.numPages;
-  } catch {
-    return null;
-  } finally {
-    await loadingTask?.destroy?.().catch(() => {});
-  }
-}
-
 // Measured once at upload so the document list can flag scanned PDFs without
-// re-reading them. Null when the PDF cannot be parsed.
-async function countTextlessPdfPages(filePath: string): Promise<number | null> {
+// re-reading them. The file is parsed once, in the parser process (never here,
+// where a PDF with very many pages would hold the worker thread), and both numbers
+// come from that one parse. Null when the PDF cannot be parsed or the parser's
+// limits stop it: the counts are then unknown and the upload goes on. A parser
+// that stays busy through the whole wait is not a verdict on the file, so that
+// one reaches the job, which requeues without charging an attempt.
+type PdfCounts = { pageCount: number; textlessPageCount: number };
+
+async function readPdfCounts(filePath: string): Promise<PdfCounts | null> {
   try {
-    const bytes = await readFile(filePath);
-    return await countPagesWithoutText(
-      bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength,
-      ) as ArrayBuffer,
-    );
-  } catch {
+    return await withBackgroundExtraction({ waitMs: PARSER_SLOT_WAIT_MS }, async (extract) => {
+      const bytes = await readFile(filePath);
+      const { pages, total } = await extract("pdfTextlessPages", bytes.buffer.slice(
+        bytes.byteOffset, bytes.byteOffset + bytes.byteLength,
+      ) as ArrayBuffer);
+      return { pageCount: total, textlessPageCount: pages.length };
+    });
+  } catch (error) {
+    if (error instanceof ExtractionBusyError) throw error;
     return null;
   }
 }
@@ -640,12 +620,10 @@ async function processCreatedDocument(
     documentId,
     sourceStoragePath: sourcePath,
   });
-  const pageCount =
-    file.file_type === "pdf" ? await countPdfPages(artifact.filePath) : null;
-  const textlessPageCount =
-    file.file_type === "pdf"
-      ? await countTextlessPdfPages(artifact.filePath)
-      : null;
+  const pdfCounts =
+    file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
+  const pageCount = pdfCounts?.pageCount ?? null;
+  const textlessPageCount = pdfCounts?.textlessPageCount ?? null;
 
   await requireWritableDestination(db, session, file, [], holdsJob);
   const { error: versionError } = await createDocumentVersion(db, {
@@ -755,12 +733,10 @@ async function processNewDocumentVersion(
           versionSlug,
           sourceStoragePath: sourcePath,
         });
-  const pageCount =
-    file.file_type === "pdf" ? await countPdfPages(artifact.filePath) : null;
-  const textlessPageCount =
-    file.file_type === "pdf"
-      ? await countTextlessPdfPages(artifact.filePath)
-      : null;
+  const pdfCounts =
+    file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
+  const pageCount = pdfCounts?.pageCount ?? null;
+  const textlessPageCount = pdfCounts?.textlessPageCount ?? null;
 
   await requireWritableDestination(db, session, file, [sourcePath, pdfPath], holdsJob);
   const { data: version, error } = await createDocumentVersion(db, {
@@ -889,12 +865,10 @@ async function processReplacementDocumentVersion(
         versionSlug,
         sourceStoragePath: sourcePath,
       });
-  const pageCount =
-    file.file_type === "pdf" ? await countPdfPages(artifact.filePath) : null;
-  const textlessPageCount =
-    file.file_type === "pdf"
-      ? await countTextlessPdfPages(artifact.filePath)
-      : null;
+  const pdfCounts =
+    file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
+  const pageCount = pdfCounts?.pageCount ?? null;
+  const textlessPageCount = pdfCounts?.textlessPageCount ?? null;
   await requireWritableDestination(db, session, file, [sourcePath, pdfPath], holdsJob);
   const { data: updated, error } = await updateDocumentVersion(
     db,

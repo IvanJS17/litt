@@ -2,7 +2,11 @@ import { AppError } from "../appError";
 import { isBlockedDestinationError } from "../blockedDestination";
 import { reportError } from "../observability/report";
 import { guardedFetch, validateRemoteMcpUrl } from "../mcp/client";
-import { extractPdfTextForModel } from "../pdfText";
+import {
+    ExtractionBusyError,
+    ExtractionLimitError,
+    withExtractionRequest,
+} from "../extraction/isolated";
 import { withTimeout } from "./http";
 import { SEARCH_SERVICES } from "./services";
 import type { WebPage, WebSearchAccount } from "./types";
@@ -137,13 +141,31 @@ async function fetchPage(url: string, signal: AbortSignal | undefined) {
     }
 }
 
+// A PDF is read in the parser process, which bounds its size, time and memory.
+async function readPdf(body: ArrayBuffer): Promise<string> {
+    try {
+        return await withExtractionRequest((extract) => extract("pdfForModel", body));
+    } catch (error) {
+        if (error instanceof ExtractionLimitError) throw tooLarge();
+        if (error instanceof ExtractionBusyError) {
+            throw new WebPageUnreadableError(
+                "Reading documents is busy. Try again shortly.",
+                { cause: error },
+            );
+        }
+        throw new WebPageUnreadableError("The PDF could not be read.", {
+            cause: error,
+        });
+    }
+}
+
 async function readDirectly(
     url: string,
     signal: AbortSignal | undefined,
 ): Promise<WebPage> {
     const { finalUrl, contentType, charset, body } = await fetchPage(url, signal);
     if (isPdf(contentType, body)) {
-        return { url: finalUrl, title: null, text: await extractPdfTextForModel(body) };
+        return { url: finalUrl, title: null, text: await readPdf(body) };
     }
     if (contentType === "text/html" || contentType === "application/xhtml+xml") {
         return {

@@ -63,6 +63,8 @@ import {
   extractPlaybookSourceText,
   playbookSourceFileType,
 } from "./playbooks.sources";
+import { DbJobDeferredError } from "../../lib/dbq/types";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { isStagedPlaybookImportKey } from "./playbooks.staging";
 import { provenanceCounts } from "./playbooks.starter";
 import type {
@@ -73,6 +75,9 @@ import type {
   PlaybookImport,
   PlaybookImportStage,
 } from "./playbooks.types";
+
+/** How long a draft waits before its job reads an attachment again after the parser was busy. */
+const PARSER_BUSY_RETRY_MS = 30_000;
 
 /** Per attachment and in total: beyond this the draft fails, never truncates. */
 export const MAX_DRAFT_ATTACHMENT_CHARS = 40_000;
@@ -719,7 +724,19 @@ export async function readDraftSource(
     throw new PlaybookRequestError(`El adjunto ${label} es demasiado grande.`);
   const fileType = playbookSourceFileType(filename);
   if (!fileType) throw new PlaybookRequestError("Adjunta archivos .docx o .pdf.");
-  const extracted = await extractPlaybookSourceText(fileType, bytes);
+  let extracted: string;
+  try {
+    extracted = await extractPlaybookSourceText(fileType, bytes);
+  } catch (error) {
+    // A busy parser says nothing about the file: run the job again later
+    // instead of failing the draft as if the file were bad.
+    if (error instanceof ExtractionBusyError)
+      throw new DbJobDeferredError(
+        new Date(Date.now() + PARSER_BUSY_RETRY_MS).toISOString(),
+        "document_extraction_busy",
+      );
+    throw error;
+  }
   if (!extracted.trim())
     throw new PlaybookRequestError(
       `El adjunto ${label} no tiene texto legible. Si es un PDF escaneado, necesita OCR antes de adjuntarlo.`,
@@ -990,6 +1007,8 @@ export async function compilePlaybookDraft(
       });
     return playbook;
   } catch (error) {
+    // Deferred, not failed: the row stays running and the job comes back.
+    if (error instanceof DbJobDeferredError) throw error;
     const recorded = await recordDraftFailure(db, work, stage, error);
     // A failed draft leaves no playbook: its sources go with it (cascade),
     // and their stored objects are removed. The discard is guarded by the

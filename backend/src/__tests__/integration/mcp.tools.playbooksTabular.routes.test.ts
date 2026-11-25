@@ -27,6 +27,7 @@ const h = vi.hoisted(() => ({
     started: [] as string[],
     runGate: null as null | Promise<void>,
     stopMidway: false,
+    parserBusy: false,
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -54,10 +55,18 @@ vi.mock("../../lib/storage", async (importOriginal) => ({
 
 // The model-side of playbooks: which models the person has keys for, and the
 // queue that runs a review. Everything else in the module is the real code.
-vi.mock("../../modules/playbooks/playbooks.operations", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("../../modules/playbooks/playbooks.operations")>()),
-    playbookConfiguration: vi.fn(async () => ({ availableModelIds: h.defaultModel ? [h.defaultModel] : [], defaultModel: h.defaultModel })),
-}));
+vi.mock("../../modules/playbooks/playbooks.operations", async (importOriginal) => {
+    const original = await importOriginal<typeof import("../../modules/playbooks/playbooks.operations")>();
+    return {
+        ...original,
+        playbookConfiguration: vi.fn(async () => ({ availableModelIds: h.defaultModel ? [h.defaultModel] : [], defaultModel: h.defaultModel })),
+        // A busy parser has no free place to read the playbook's sources.
+        getPlaybook: vi.fn(async (...args: Parameters<typeof original.getPlaybook>) => {
+            if (h.parserBusy) throw new ExtractionBusyError();
+            return original.getPlaybook(...args);
+        }),
+    };
+});
 vi.mock("../../modules/playbooks/playbooks.jobs", async (importOriginal) => {
     const original = await importOriginal<typeof import("../../modules/playbooks/playbooks.jobs")>();
     const ops = await import("../../modules/playbooks/playbooks.operations.js");
@@ -227,6 +236,7 @@ vi.mock("../../modules/tabular/tabular.generation", async (importOriginal) => {
 });
 
 import { app } from "../../app";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { signTicket } from "../../modules/mcp/mcp.tickets";
 import {
@@ -268,6 +278,7 @@ beforeEach(() => {
     h.started = [];
     h.runGate = null;
     h.stopMidway = false;
+    h.parserBusy = false;
     resetGrantBudgets();
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
@@ -566,6 +577,14 @@ describe("playbooks: find and get", () => {
         expect(TOOL_AUDIT("get_playbook")[0].detail).toMatchObject({ playbook_id: PLAYBOOK_READY });
         // A draft can be read but is not offered to run.
         expect((await callTool(token, "get_playbook", { playbook_id: PLAYBOOK_DRAFT })).data.status).toBe("draft");
+    });
+
+    it("get_playbook answers unavailable, with a retry delay, when the parser is busy", async () => {
+        as("editor");
+        const token = await connect();
+        h.parserBusy = true;
+        const out = await callTool(token, "get_playbook", { playbook_id: PLAYBOOK_READY });
+        expect(out).toMatchObject({ ok: false, code: "unavailable", data: { retryable: true, retry_after_seconds: 30 } });
     });
 });
 
