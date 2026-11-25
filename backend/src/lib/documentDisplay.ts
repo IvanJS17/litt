@@ -21,7 +21,11 @@ export interface DocumentDisplaySource {
   fileType?: string | null;
   storagePath: string;
   pdfStoragePath?: string | null;
-  /** The request's abort: a conversion still queued for a place leaves the queue. */
+  /**
+   * Aborts when the request's response closes, finished or not. A conversion
+   * still queued for a place leaves the queue then, and a converted display
+   * keeps its place until then.
+   */
   signal?: AbortSignal;
 }
 
@@ -48,7 +52,7 @@ function toBuffer(bytes: ArrayBuffer | ArrayBufferView): Buffer {
     : Buffer.from(bytes);
 }
 
-/** Display conversions of this thread that hold a downloaded source right now. */
+/** Display conversions of this thread that hold a source or a converted file right now. */
 let displaySourcesHeld = 0;
 
 /** A Word or presentation source above the conversion bound: it is not read or converted. */
@@ -114,22 +118,35 @@ export async function loadDocumentDisplay(
     const metadata = await headFile(source.storagePath);
     if (!metadata) return null;
     if (metadata.size > CONVERSION_MAX_SOURCE_BYTES) throw new DisplaySourceTooLargeError();
-    // A display holds its source from the download until the converter ends,
-    // so no more displays read one than the converter has places: the rest
-    // are told to retry, as a full converter tells them.
+    // A display holds its source from the download, and then the converted
+    // file until its response ends, so no more displays hold one than the
+    // converter has places: the rest are told to retry, as a full converter
+    // tells them.
     if (displaySourcesHeld >= CONVERSION_PLACES) throw new ExtractionBusyError();
     displaySourcesHeld += 1;
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      displaySourcesHeld -= 1;
+    };
+    let converted: DocumentDisplayPayload | null = null;
     try {
       const sourceBytes = await downloadFile(source.storagePath);
       if (!sourceBytes) return null;
-      return await prepareDocumentDisplay({
+      converted = await prepareDocumentDisplay({
         filename: source.filename,
         fileType,
         sourceBytes,
         signal: source.signal,
       });
+      return converted;
     } finally {
-      displaySourcesHeld -= 1;
+      // With a converted file and a response still open, the place goes back
+      // when that response closes; otherwise now.
+      if (converted && source.signal && !source.signal.aborted)
+        source.signal.addEventListener("abort", release, { once: true });
+      else release();
     }
   }
 

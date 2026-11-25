@@ -206,6 +206,17 @@ describe("GET /single-documents/:documentId/display", () => {
         expect(res.headers["content-type"]).toContain("application/pdf");
     });
 
+    it("gives a converted display's place back when its response ends: twelve in a row are all served", async () => {
+        fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
+        active.current = { ...active.current, pdf_storage_path: null };
+        docxToPdf.mockResolvedValue(PDF);
+        for (let display = 0; display < 12; display++) {
+            const res = await request(app).get(`/single-documents/${DOC}/display`).set(...AUTH);
+            expect(res.status).toBe(200);
+        }
+        expect(docxToPdf).toHaveBeenCalledTimes(12);
+    });
+
     it("hands the request's abort to the conversion queue", async () => {
         fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
         active.current = { ...active.current, pdf_storage_path: null };

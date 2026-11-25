@@ -68,9 +68,13 @@ workflowAddonsRouter.get(
   requireAuth,
   asyncRoute(async (req, res) => {
     const db = createServerSupabase();
+    // A converted asset keeps its place until this response closes.
+    const requestAbort = new AbortController();
+    res.once("close", () => requestAbort.abort());
     const result = await loadWorkflowAddonAssetDisplay(db, {
       addonId: req.params.addonId,
       assetId: req.params.assetId,
+      signal: requestAbort.signal,
     });
     if (!result.ok) {
       if (result.kind === "error" && result.error instanceof ExtractionBusyError) return void sendDisplayBusy(res);

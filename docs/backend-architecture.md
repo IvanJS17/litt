@@ -142,9 +142,10 @@ request is bounded where it is held:
   convert, compare and split routes): the stored size is read first, so a
   larger source is not downloaded and does not wait for a place, and the
   route answers 400 with the code `convert_source_too_large`. A display holds
-  its source from the download until the converter ends, so at most as many
-  displays read one as the converter has places (ten per thread); the next is
-  answered 503 with `Retry-After` without reading anything. A stored PDF
+  its source from the download, and then the converted file until its response
+  closes, so at most as many displays hold one as the converter has places (ten
+  per thread); the next is answered 503 with `Retry-After` without reading
+  anything. The converter may hold a second copy of a source while it works. A stored PDF
   rendition is served whatever the size of the source.
 
 #### Chat turns
