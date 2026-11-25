@@ -4,6 +4,7 @@
 // document and not a generic one.
 
 import JSZip from "jszip";
+import { scanXmlElements } from "./xmlScan";
 
 export type DocxInventory = {
     comments: number;
@@ -22,7 +23,26 @@ export type DocxInventory = {
 const MAX_PART_BYTES = 64 * 1024 * 1024;
 
 const count = (xml: string, pattern: RegExp) => xml.match(pattern)?.length ?? 0;
-const HAS_TEXT = /<w:t(?:\s[^>]*)?>[^<]*\S[^<]*<\/w:t>/;
+
+const CLOSE_TEXT_TAG = "</w:t>";
+
+/**
+ * Whether a part holds a text run that is not blank. A run is a `<w:t>` start
+ * tag (the name followed by `>` or a blank), then text and `</w:t>`. One
+ * stray `<` among the text counts as a character of it, so
+ * `<w:t> <b/> </w:t>` has text; two do not end the run.
+ */
+function hasTextRun(xml: string): boolean {
+    for (const tag of scanXmlElements(xml, [], ["w:t"])) {
+        if (tag.attrs !== "" && tag.attrs.charAt(0).trim() !== "") continue;
+        const first = xml.indexOf("<", tag.end);
+        if (first < 0) continue;
+        if (xml.startsWith(CLOSE_TEXT_TAG, first) && xml.slice(tag.end, first).trim() !== "") return true;
+        const second = xml.indexOf("<", first + 1);
+        if (second >= 0 && xml.startsWith(CLOSE_TEXT_TAG, second)) return true;
+    }
+    return false;
+}
 
 async function readPart(zip: JSZip, name: string): Promise<string> {
     const entry = zip.file(name);
@@ -44,14 +64,19 @@ export async function inspectDocx(bytes: ArrayBuffer | Buffer): Promise<DocxInve
     const withText = async (prefix: string) => {
         let total = 0;
         for (const name of partNames.filter((n) => new RegExp(`^word/${prefix}\\d*\\.xml$`).test(n))) {
-            if (HAS_TEXT.test(await readPart(zip, name))) total++;
+            if (hasTextRun(await readPart(zip, name))) total++;
         }
         return total;
     };
 
     // A note without a w:type is a real one; separators carry w:type="separator" and the like.
-    const realNotes = (xml: string, tag: string) =>
-        count(xml, new RegExp(`<w:${tag}\\s(?![^>]*w:type=)[^>]*>`, "g"));
+    const realNotes = (xml: string, tag: string) => {
+        let total = 0;
+        for (const note of scanXmlElements(xml, [], [`w:${tag}`])) {
+            if (note.attrs.charAt(0).trim() === "" && note.attrs !== "" && !note.attrs.includes("w:type=")) total++;
+        }
+        return total;
+    };
 
     return {
         comments: count(comments, /<w:comment[\s>]/g),

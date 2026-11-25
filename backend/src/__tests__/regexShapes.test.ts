@@ -112,8 +112,7 @@ const FILES = sourceFiles(SRC).map((f) => relative(SRC, f).split(sep).join("/"))
  * whose count differs from what the file holds (a new identical expression in
  * a listed file is a new expression). A reason is one of
  *   "pending: file owned by another open change",
- *   "input bounded by <constant>",
- *   "second part of this delivery".
+ *   "input bounded by <constant>".
  */
 const RATCHET: { file: string; source: string; count: number; reason: string }[] = [
     { file: "lib/mcp/client.ts", source: "^_+|_+$", count: 1, reason: "pending: file owned by another open change (the connector OAuth branch)" },
@@ -123,27 +122,16 @@ const RATCHET: { file: string; source: string; count: number; reason: string }[]
     { file: "modules/user/user.routes.ts", source: "\\/+$", count: 1, reason: "pending: file owned by another open change (the connector OAuth branch)" },
     { file: "lib/inviteEmail.ts", source: "already.*registered", count: 1, reason: "pending: file owned by another open change (the invited-address sign-up branch)" },
     { file: "lib/llm/cloudProviders.ts", source: "\\/+$", count: 3, reason: "input bounded: a base URL or endpoint is refused over 300 characters (the literal in normalizeCustomBaseUrl and normalizeAzureEndpoint); azureClientTarget reads an endpoint already normalized" },
-    { file: "lib/memory/archive.ts", source: "[. ]+$", count: 1, reason: "second part of this delivery: a trim of project names" },
-    { file: "lib/docxInventory.ts", source: "<w:t(?:\\s[^>]*)?>[^<]*\\S[^<]*<\\/w:t>", count: 1, reason: "second part of this delivery: the Word XML scans" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:t\\b[^>]*?\\/>|<w:t\\b[^>]*>([\\s\\S]*?)<\\/w:t>|<w:(tab|br|cr)\\b[^>]*>", count: 1, reason: "second part of this delivery: Word XML" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:style\\b([^>]*)>([\\s\\S]*?)<\\/w:style>", count: 1, reason: "second part of this delivery: Word XML" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:name\\b([^>]*)\\/>", count: 1, reason: "second part of this delivery: Word XML" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:body\\b[^>]*>([\\s\\S]*?)<\\/w:body>", count: 1, reason: "second part of this delivery: Word XML" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:(p|tbl)\\b[^>]*>[\\s\\S]*?<\\/w:\\1>", count: 1, reason: "second part of this delivery: Word XML" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:tr\\b[^>]*>([\\s\\S]*?)<\\/w:tr>", count: 1, reason: "second part of this delivery: Word XML" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:tc\\b[^>]*>([\\s\\S]*?)<\\/w:tc>", count: 1, reason: "second part of this delivery: Word XML" },
-    { file: "modules/playbooks/playbooks.word.ts", source: "<w:p\\b[^>]*>[\\s\\S]*?<\\/w:p>", count: 1, reason: "second part of this delivery: Word XML" },
     { file: "lib/observability/diagnostics.ts", source: "\\btools?\\.\\d+|input_schema|invalid schema for function|function parameters|tool[^.]*\\bschema\\b", count: 1, reason: "input bounded by PROVIDER_MESSAGE_CHARS (4,096 characters of the provider's message)" },
-    { file: "modules/auth/auth.messages.ts", source: "password .*too (weak|short)", count: 1, reason: "second part of this delivery: classifiers of identity-service error messages (their length is not bounded here)" },
     { file: "lib/webSearch/pageReader.ts", source: "<meta[^>]+charset\\s*=\\s*[\"']?\\s*([\\w.:-]+)", count: 1, reason: "input bounded by the first 1,024 bytes of a page (metaCharset)" },
     { file: "modules/client-profile/client-profile.dates.ts", source: "^(\\d{1,2})\\s*(?:o|º|°)?\\s+de\\s+([a-záéíóú]+)\\s+(?:de|del)\\s+(\\d{4})$", count: 1, reason: "input bounded by VALUE_MAX (1,000 characters) in client-profile.extract.shared.ts" },
     { file: "modules/client-profile/client-profile.dates.ts", source: "(\\d{1,4})\\s*\\)?\\s*d[ií]as?(?:\\s+(h[aá]biles|naturales|calendario))?", count: 1, reason: "input bounded by VALUE_MAX (1,000 characters) in client-profile.extract.shared.ts" },
     { file: "lib/workflowCatalogSource.ts", source: "^---\\n([\\s\\S]*?)\\n---(?:\\n|$)([\\s\\S]*)$", count: 1, reason: "input bounded by MAX_FILE_BYTES (5 MiB), a file of a pinned catalog archive" },
     { file: "modules/radar/radar.rules.ts", source: "^https:\\/\\/[^\\s/]+\\.[^\\s/]+", count: 1, reason: "input bounded: a citation url of the bundled rule catalog, not user text" },
 ];
-const RATCHET_MAX_ENTRIES = 24;
+const RATCHET_MAX_ENTRIES = 13;
 // Patterns built at run time (`new RegExp(variable)`) are not read; their number is fixed here so a new one is a decision.
-const DYNAMIC_PATTERNS = 18;
+const DYNAMIC_PATTERNS = 14;
 
 /** Every flagged pattern, once, with how many times it appears in its file. */
 const flagged = (): { key: string; file: string; source: string; kinds: string[]; count: number }[] => {
