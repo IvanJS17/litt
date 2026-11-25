@@ -41,6 +41,7 @@ import IORedis from "ioredis";
 import type { Response } from "express";
 import { REDIS_URL } from "../../lib/queue/connection";
 import { redisEnabled } from "../../lib/dbq/driver";
+import { onResponseClosed } from "../../lib/responseClosed";
 import { startSseHeartbeat } from "../../lib/sseHeartbeat";
 import { enqueueExtraction } from "../../lib/queue/extractionQueue";
 import {
@@ -266,7 +267,9 @@ async function tailTabularRun(args: {
         resolve(key, update); // "done" | "error"
     };
 
-    res.on("close", abandon);
+    // At once for a client that has already left: it is then neither
+    // subscribed for nor polled for.
+    onResponseClosed(res, abandon);
 
     // Nothing to do — every targeted cell is already done.
     if (pending.size === 0) return void finish();
@@ -275,7 +278,7 @@ async function tailTabularRun(args: {
     // Only when the async flag is on: the GET view is also reachable in
     // synchronous (no-Redis) deployments, where dialing Redis would hang the
     // stream — there the DB-poll backstop below does all the resolving.
-    if (process.env.ASYNC_TABULAR_EXTRACTION === "true" && redisEnabled()) {
+    if (!finished && process.env.ASYNC_TABULAR_EXTRACTION === "true" && redisEnabled()) {
         try {
             sub = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
             await sub.subscribe(runProgressChannel(reviewId));
@@ -297,6 +300,8 @@ async function tailTabularRun(args: {
     }
 
     if (afterSubscribe) await afterSubscribe();
+    // The client left meanwhile: the enqueued work goes on without a view.
+    if (finished) return;
 
     // Backstop: reconcile against the DB in case a pub/sub frame was missed (or,
     // for a reconnecting view, to replay progress that happened while away).
