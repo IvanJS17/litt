@@ -8,15 +8,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // the store as the client takes it, keeps its validator, and a busy converter
 // is a retry-later answer. The real storage facade runs over a fake store.
 
-const { active, docxToPdf, reportError } = vi.hoisted(() => ({
+const { active, auth, docxToPdf, reportError } = vi.hoisted(() => ({
     active: { current: null as Record<string, unknown> | null },
+    // A test can make the session check wait, and see how many requests wait on it.
+    auth: { gate: null as Promise<void> | null, waiting: 0 },
     docxToPdf: vi.fn(),
     reportError: vi.fn(),
 }));
 
 vi.mock("../../lib/supabase", () => ({ createServerSupabase: vi.fn(() => ({})) }));
 vi.mock("../../middleware/auth", () => ({
-    requireAuth: (_req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => {
+    requireAuth: async (_req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => {
+        if (auth.gate) {
+            auth.waiting += 1;
+            await auth.gate;
+        }
         res.locals.userId = "u1";
         res.locals.userEmail = "u1@test.local";
         next();
@@ -216,6 +222,47 @@ describe("GET /single-documents/:documentId/display", () => {
         }
         expect(docxToPdf).toHaveBeenCalledTimes(12);
     });
+
+    it("holds no place for a client that left while its session was being checked: the next display is served", async () => {
+        fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
+        active.current = { ...active.current, pdf_storage_path: null };
+        docxToPdf.mockResolvedValue(PDF);
+        const server = app.listen(0, "127.0.0.1");
+        await new Promise((resolve) => server.once("listening", resolve));
+        const { port } = server.address() as AddressInfo;
+        let gone = 0;
+        server.on("connection", (socket) => socket.once("close", () => (gone += 1)));
+        let open: () => void = () => undefined;
+        auth.waiting = 0;
+        auth.gate = new Promise<void>((resolve) => (open = resolve));
+        try {
+            // Ten clients ask for the display and leave before their session is known.
+            for (let client = 0; client < 10; client++) {
+                const socket = connect(port, "127.0.0.1", () =>
+                    socket.write(
+                        `GET /single-documents/${DOC}/display HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer test\r\n\r\n`,
+                        () => socket.destroy(),
+                    ),
+                );
+                socket.on("error", () => {});
+            }
+            await vi.waitFor(() => expect([auth.waiting, gone]).toEqual([10, 10]), { timeout: 5_000 });
+        } finally {
+            auth.gate = null;
+            open();
+        }
+        try {
+            // Their requests go on with nobody to answer.
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            const res = await request(app).get(`/single-documents/${DOC}/display`).set(...AUTH);
+            expect(res.status).toBe(200);
+            // Nothing was converted for those who left.
+            expect(docxToPdf).toHaveBeenCalledTimes(1);
+        } finally {
+            server.closeAllConnections();
+            await new Promise((resolve) => server.close(resolve));
+        }
+    }, 20_000);
 
     it("hands the request's abort to the conversion queue", async () => {
         fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });

@@ -7,6 +7,7 @@ import { Router, type Response } from "express";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
+import { abortOnClose } from "../../lib/abortOnClose";
 import { DisplaySourceTooLargeError, sendDisplayBusy, sendDisplayTooLarge, sendDocumentDisplay } from "../../lib/documentDisplay";
 import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { sendInternalError } from "../../lib/httpError";
@@ -69,12 +70,10 @@ workflowAddonsRouter.get(
   asyncRoute(async (req, res) => {
     const db = createServerSupabase();
     // A converted asset keeps its place until this response closes.
-    const requestAbort = new AbortController();
-    res.once("close", () => requestAbort.abort());
     const result = await loadWorkflowAddonAssetDisplay(db, {
       addonId: req.params.addonId,
       assetId: req.params.assetId,
-      signal: requestAbort.signal,
+      signal: abortOnClose(res),
     });
     if (!result.ok) {
       if (result.kind === "error" && result.error instanceof ExtractionBusyError) return void sendDisplayBusy(res);
