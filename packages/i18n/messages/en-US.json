@@ -1295,6 +1295,7 @@
       "off": "Donna is off in this project. The project owner or a firm admin can turn it on in the project details.",
       "noRun": "Donna did not analyse this request. It only analyses new requests; you can ask it to analyse this one now.",
       "capReached": "Donna's monthly limit for this firm has been reached. It resumes on the 1st.",
+      "dailyCapReached": "Your daily limit for Donna has been reached. It resumes tomorrow.",
       "noDocuments": "The request has no documents yet: Donna read only the title.",
       "read": "Read {read} of {total} documents.",
       "partial": "One document was read only in part because of its size.",

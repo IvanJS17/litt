@@ -5,7 +5,11 @@ import {
     buildJevQuestions,
     buildTriageSystemPrompt,
     buildTriageUserPrompt,
+    DONNA_DAILY_CAP_CODE,
+    DONNA_DAILY_CAP_DETAIL,
+    DONNA_DAILY_RUN_CAP_PER_PERSON,
     DONNA_MONTHLY_RUN_CAP,
+    dayWindow,
     hasAlarmWord,
     jevState,
     monthWindow,
@@ -27,6 +31,28 @@ const CANDIDATES = [
     { user_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", role: "matter_owner" as const },
     { user_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", role: "editor" as const },
 ];
+
+describe("the daily cap of a person", () => {
+    it("is 100 runs by default, with its own code and a message that resumes tomorrow", () => {
+        expect(DONNA_DAILY_RUN_CAP_PER_PERSON).toBe(100);
+        expect(DONNA_DAILY_CAP_CODE).toBe("donna_daily_cap");
+        expect(DONNA_DAILY_CAP_DETAIL).toContain("Se reanuda mañana");
+    });
+
+    it("counts the calendar day in Mexico City", () => {
+        expect(dayWindow(new Date("2026-11-19T12:00:00Z"))).toEqual({
+            label: "2026-11-19",
+            start: "2026-11-19T06:00:00.000Z",
+            end: "2026-11-20T06:00:00.000Z",
+        });
+        // 05:59 UTC is still the evening before in Mexico City; 06:00 UTC starts the day.
+        expect(dayWindow(new Date("2026-11-19T05:59:59.999Z")).label).toBe("2026-11-18");
+        expect(dayWindow(new Date("2026-11-19T06:00:00.000Z")).label).toBe("2026-11-19");
+        // The last day of a month and of a year.
+        expect(dayWindow(new Date("2026-11-30T20:00:00Z"))).toMatchObject({ label: "2026-11-30", end: "2026-12-01T06:00:00.000Z" });
+        expect(dayWindow(new Date("2027-01-01T03:00:00Z"))).toMatchObject({ label: "2026-12-31", end: "2027-01-01T06:00:00.000Z" });
+    });
+});
 
 describe("the cap", () => {
     it("is one constant: 1,000 runs a month", () => {

@@ -57,7 +57,7 @@ export function TriageCard({ projectId, matterId, request, types, assignees, onC
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
-  const [capReached, setCapReached] = useState(false);
+  const [capReached, setCapReached] = useState<"monthly" | "daily" | null>(null);
   const [edit, setEdit] = useState<Edit | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   const tRef = useRef(t);
@@ -122,12 +122,13 @@ export function TriageCard({ projectId, matterId, request, types, assignees, onC
   async function runAgain() {
     if (busy) return;
     setBusy("run");
-    setCapReached(false);
+    setCapReached(null);
     setRefused(null);
     try {
       setCard(await runTriage(projectId, matterId, requestId));
     } catch (error) {
-      if (errorCode(error) === "donna_monthly_cap") setCapReached(true);
+      if (errorCode(error) === "donna_monthly_cap") setCapReached("monthly");
+      else if (errorCode(error) === "donna_daily_cap") setCapReached("daily");
       else if (errorCode(error) === "donna_disabled") setAttempt((n) => n + 1);
       else notifyError(error, { action: tRef.current("donna.card.couldNotRun") });
     } finally {
@@ -481,7 +482,7 @@ export function TriageCard({ projectId, matterId, request, types, assignees, onC
       ) : null}
       {capReached ? (
         <p role="alert" className="text-sm text-red-700">
-          {t("donna.card.capReached")}
+          {t(capReached === "daily" ? "donna.card.dailyCapReached" : "donna.card.capReached")}
         </p>
       ) : null}
       {!card.can_decide && run ? <p className="text-xs text-gray-500">{t("donna.card.readOnly")}</p> : null}

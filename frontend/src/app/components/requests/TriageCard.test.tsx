@@ -211,6 +211,17 @@ describe("TriageCard", () => {
     expect(mocks.notifyError).not.toHaveBeenCalled();
   });
 
+  it("shows its own message, not the monthly one, when a person has used the day's runs", async () => {
+    const user = userEvent.setup({ delay: null });
+    mocks.runTriage.mockRejectedValue({ code: "donna_daily_cap" });
+    renderCard();
+    await user.click(await screen.findByRole("button", { name: "Analyse again" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("daily limit");
+    expect(alert).not.toHaveTextContent("monthly limit");
+    expect(mocks.notifyError).not.toHaveBeenCalled();
+  });
+
   it("offers to retry when the card cannot be loaded", async () => {
     const user = userEvent.setup({ delay: null });
     mocks.getTriageCard.mockRejectedValueOnce(new Error("down"));

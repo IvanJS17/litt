@@ -1295,6 +1295,7 @@
       "off": "Donna está apagada en este proyecto. El propietario del proyecto o un administrador del despacho puede encenderla en los datos del proyecto.",
       "noRun": "Donna no analizó esta solicitud. Solo analiza las solicitudes nuevas; puedes pedirle que la analice ahora.",
       "capReached": "Límite mensual de Donna alcanzado para este despacho. Se reanuda el día 1.",
+      "dailyCapReached": "Alcanzaste el límite diario de Donna. Se reanuda mañana.",
       "noDocuments": "La solicitud aún no tiene documentos: Donna leyó solo el título.",
       "read": "Leí {read} de {total} documentos.",
       "partial": "Un documento se leyó solo en parte por su tamaño.",

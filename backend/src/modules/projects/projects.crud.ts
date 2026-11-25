@@ -7,6 +7,7 @@ import {
   attachActiveVersionPaths,
   attachLatestVersionNumbers,
 } from "../../lib/documentVersions";
+import { recordAudit } from "../../lib/audit";
 import { isPersonalOrg } from "../../lib/personalOrgs";
 import { assertPersonalWorkspaceAllowed } from "../../lib/managedAccounts";
 import { buildProjectExportManifest, projectManifestFilename } from "./projects.export";
@@ -404,6 +405,36 @@ export async function listProjectIds(
   return { ok: true, ids };
 }
 
+/**
+ * One audit event when Donna's switch of a project changes: who, the firm, the
+ * project, the old and the new value. Written after the change, like the firm's
+ * other audited settings (recordAudit never throws; a lost row is reported).
+ */
+async function recordDonnaSwitchChange(
+  db: Db,
+  args: {
+    userId: string;
+    userEmail?: string | null;
+    orgId: string | null;
+    projectId: string;
+    oldValue: boolean;
+    newValue: boolean;
+  },
+): Promise<void> {
+  await recordAudit(db, {
+    userId: args.userId,
+    userEmail: args.userEmail ?? null,
+    orgId: args.orgId,
+    projectId: args.projectId,
+    action: "project.donna_switch.changed",
+    detail: {
+      project_id: args.projectId,
+      old_value: args.oldValue,
+      new_value: args.newValue,
+    },
+  });
+}
+
 export type CreateProjectResult =
   | { ok: true; project: Record<string, unknown> }
   | { ok: false; kind: "validation"; detail: string }
@@ -516,6 +547,13 @@ export async function createProject(
         error: donnaError,
         created: { id: (data as { id: string }).id },
       };
+    await recordDonnaSwitchChange(db, {
+      userId,
+      orgId: org_id ?? null,
+      projectId: (data as { id: string }).id,
+      oldValue: true,
+      newValue: false,
+    });
   }
   return {
     ok: true,
@@ -822,6 +860,18 @@ export async function updateProject(
   if (requestedVisibility.visibility)
     updates.visibility = requestedVisibility.visibility;
 
+  // The stored value before the change, to know whether the switch really changes.
+  let previousDonna: boolean | null = null;
+  if ("donna_enabled" in updates) {
+    const { data: before, error: beforeError } = await db
+      .from("projects")
+      .select("donna_enabled")
+      .eq("id", projectId)
+      .maybeSingle();
+    if (beforeError) return { ok: false, kind: "db_error", error: beforeError };
+    previousDonna = (before as { donna_enabled?: boolean } | null)?.donna_enabled ?? null;
+  }
+
   const { data, error } = await db
     .from("projects")
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -829,6 +879,19 @@ export async function updateProject(
     .select("*")
     .single();
   if (error || !data) return { ok: false, kind: "not_found" };
+  if (
+    typeof updates.donna_enabled === "boolean" &&
+    previousDonna !== null &&
+    previousDonna !== updates.donna_enabled
+  )
+    await recordDonnaSwitchChange(db, {
+      userId,
+      userEmail,
+      orgId: access.project.org_id ?? null,
+      projectId,
+      oldValue: previousDonna,
+      newValue: updates.donna_enabled,
+    });
 
   // Paged: an unpaged read stopped at max_rows, so a project past 1000
   // documents silently lost the rest from its detail payload.
