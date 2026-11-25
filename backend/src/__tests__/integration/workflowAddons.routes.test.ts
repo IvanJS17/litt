@@ -4,8 +4,10 @@ import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { from, eq, headFile, downloadFile, uploadFile, deleteFile, docxToPdf, reportError } =
+const { auth, from, eq, headFile, downloadFile, uploadFile, deleteFile, docxToPdf, reportError } =
   vi.hoisted(() => ({
+    // A test can make the session check wait, and see how many requests wait on it.
+    auth: { gate: null as Promise<void> | null, waiting: 0 },
     from: vi.fn(),
     eq: vi.fn(),
     headFile: vi.fn(),
@@ -29,11 +31,15 @@ vi.mock("../../lib/supabase", () => ({
 }));
 
 vi.mock("../../middleware/auth", () => ({
-  requireAuth: (
+  requireAuth: async (
     _req: unknown,
     res: { locals: Record<string, unknown> },
     next: () => void,
   ) => {
+    if (auth.gate) {
+      auth.waiting += 1;
+      await auth.gate;
+    }
     res.locals.userId = "u1";
     next();
   },
@@ -422,6 +428,53 @@ describe("workflow add-on catalog routes", () => {
       await vi.waitFor(async () => expect((await request(app).get(display)).status).toBe(200), { timeout: 5_000 });
     } finally {
       for (const socket of clients) socket.destroy();
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  }, 20_000);
+
+  it("holds no place for a client that left while its session was being checked: the next display is served", async () => {
+    const display = "/workflow-addons/c0a7a1e1-0000-4000-8000-000000000001/assets/reference-1/display";
+    from.mockImplementation((table: string) =>
+      table === "mike_workflows"
+        ? singleQueryReturning({ id: "c0a7a1e1-0000-4000-8000-000000000001", type: "assistant" })
+        : singleQueryReturning({
+            id: "reference-1",
+            filename: "Deck.pptx",
+            file_type: "pptx",
+            storage_path: "mike-workflows/c0a7a1e1-0000-4000-8000-000000000001/deck.pptx",
+          }),
+    );
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise((resolve) => server.once("listening", resolve));
+    const port = (server.address() as AddressInfo).port;
+    let gone = 0;
+    server.on("connection", (socket) => socket.once("close", () => (gone += 1)));
+    let open: () => void = () => undefined;
+    auth.waiting = 0;
+    auth.gate = new Promise<void>((resolve) => (open = resolve));
+    try {
+      // Ten clients ask for the display and leave before their session is known.
+      for (let client = 0; client < 10; client++) {
+        const socket = net.connect(port, "127.0.0.1", () =>
+          socket.write(`GET ${display} HTTP/1.1\r\nHost: localhost\r\n\r\n`, () => socket.destroy()),
+        );
+        socket.on("error", () => undefined);
+      }
+      await vi.waitFor(() => expect([auth.waiting, gone]).toEqual([10, 10]), { timeout: 5_000 });
+    } finally {
+      auth.gate = null;
+      open();
+    }
+    try {
+      // Their requests go on with nobody to answer.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const next = await request(app).get(display);
+      expect(next.status).toBe(200);
+      // Nothing was read or converted for those who left.
+      expect(downloadFile).toHaveBeenCalledTimes(1);
+      expect(docxToPdf).toHaveBeenCalledTimes(1);
+    } finally {
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
     }

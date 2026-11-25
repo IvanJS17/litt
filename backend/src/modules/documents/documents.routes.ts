@@ -10,6 +10,7 @@ import type { Readable } from "node:stream";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
+import { abortOnClose } from "../../lib/abortOnClose";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { sendInternalError } from "../../lib/httpError";
 import { pipeToResponse } from "../../lib/pipeToResponse";
@@ -115,9 +116,9 @@ documentsRouter.get("/:documentId/display", requireAuth, asyncRoute(async (req, 
     const versionIdParam =
         typeof req.query.version_id === "string" ? req.query.version_id : null;
     const db = createServerSupabase();
-    // A conversion still queued for a place leaves the queue with its request.
-    const requestAbort = new AbortController();
-    res.once("close", () => requestAbort.abort());
+    // A conversion still queued for a place leaves the queue with its request,
+    // and a converted display keeps its place until this response closes.
+    const responseClosed = abortOnClose(res);
 
     const result = await getDisplayableVersion(
         documentId,
@@ -125,7 +126,7 @@ documentsRouter.get("/:documentId/display", requireAuth, asyncRoute(async (req, 
         userEmail,
         versionIdParam,
         db,
-        requestAbort.signal,
+        responseClosed,
     );
     if (!result.ok) {
         if (result.kind === "error") {
