@@ -1,5 +1,6 @@
 import type { ServerResponse } from "node:http";
 import type { Socket } from "node:net";
+import { reportError } from "./observability/report";
 
 /**
  * Whether nobody can receive this response any more: it has closed, or its
@@ -51,16 +52,15 @@ function waitingOn(socket: Socket | undefined): Set<() => void> | undefined {
     waiting = created;
     waitingByConnection.set(socket, created);
     socket.once("close", () => {
-      // One that fails does not keep the rest from running; it is thrown after them.
-      const failures: unknown[] = [];
+      // One that fails does not keep the rest from running, and does not end
+      // the process: its failure is reported, once, and the rest go on.
       for (const run of [...created]) {
         try {
           run();
         } catch (error) {
-          failures.push(error);
+          reportError(error, { tags: { component: "http", operation: "http.close_listener" } });
         }
       }
-      if (failures.length > 0) throw failures[0];
     });
   }
   return waiting;
