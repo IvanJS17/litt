@@ -150,7 +150,11 @@ request is bounded where it is held:
   aborted when the client left before the handler ran, so such a request reads
   nothing and holds no place, and which also follows the connection: a
   response waiting behind an earlier one on its connection does not close when
-  its client leaves. `pipeToResponse` uses the same test and the same wait. A response whose client makes no progress for a minute
+  its client leaves. `pipeToResponse` uses the same test and the same wait. A request that
+  arrives while the answer to an earlier one on the same connection is still
+  going out starts only in its turn (`middleware/startInTurn.ts`, the first
+  middleware), so it reads nothing and holds no place while it cannot be
+  answered. A response whose client makes no progress for a minute
   (`DISPLAY_SEND_IDLE_MS`) is closed within about two, so a client that stops
   reading does not keep the file or the place; until then it holds both, and
   nothing shares the places between people. Only the response built in memory
