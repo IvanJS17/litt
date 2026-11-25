@@ -28,7 +28,7 @@ import { randomUUID } from "node:crypto";
 import { loadFirmProfileFor } from "../../lib/firmProfileStore";
 import {
     checkProjectAccess,
-    creatorScopedAllowed,
+    mayChangeReviewChat,
     ensureReviewAccess,
     projectHasSharedAudience,
 } from "../../lib/access";
@@ -332,19 +332,9 @@ export async function ensureReviewChatWriteAccess(
     // the container's admins inherit the operation; while a creator exists
     // nothing changes, and an admin still may not touch a colleague's live
     // thread.
-    if (
-        !creatorScopedAllowed(
-            {
-                // "isCreator" is about THIS chat. `access` was derived for
-                // the REVIEW, and the review's creator is not thereby the
-                // creator of every chat inside it — passing `access` whole
-                // would hand them everyone's threads.
-                isCreator: !!chat.user_id && chat.user_id === userId,
-                projectRole: access.projectRole,
-            },
-            chat.user_id,
-        )
-    )
+    // "isCreator" is about THIS chat, not the review: the review's creator
+    // is not thereby the creator of everyone's threads (mayChangeReviewChat).
+    if (!mayChangeReviewChat(access, chat.user_id, userId))
         return failure("forbidden", "Only the chat's creator can modify it");
     // The review's organization rides along: a model change is judged
     // against the keys the review runs on.
