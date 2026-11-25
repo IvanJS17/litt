@@ -8,6 +8,7 @@ import {
   shouldConvertToPdf,
 } from "./documentTypes";
 import { pipeToResponse } from "./pipeToResponse";
+import { envInt } from "./runtimeConfig";
 import {
   buildContentDisposition,
   createFileReadStream,
@@ -168,6 +169,9 @@ export function sendDocumentDisplay(
     "Content-Disposition",
     buildContentDisposition("inline", payload.filename),
   );
+  // The file is held in memory until the client has it. A client that makes
+  // no progress for this long does not keep it, or a display's place.
+  res.setTimeout(envInt("DISPLAY_SEND_IDLE_MS", 60_000), () => res.destroy());
   res.send(payload.bytes);
 }
 
