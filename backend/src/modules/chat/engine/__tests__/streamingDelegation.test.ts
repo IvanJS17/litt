@@ -703,7 +703,7 @@ describe("runDelegateCall", () => {
     const child = spawn.mock.calls[0][0];
     expect(child.apiMessages[0].content).toContain("doc-0");
     expect(child.apiMessages[0].content).not.toContain("doc-1");
-    expect(await readDocumentContent("doc-1", child.docStore, vi.fn(), child.docIndex)).toBe(
+    expect(await readDocumentContent("doc-1", child.docStore, vi.fn(), child.docIndex, undefined, { actor: { userId: "u1", userEmail: null } })).toBe(
       "Document not found.",
     );
   });

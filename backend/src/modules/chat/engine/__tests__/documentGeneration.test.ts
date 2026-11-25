@@ -59,8 +59,8 @@ async function generatedXml(options: {
     "test-user",
     fakeDb() as never,
     options.numberSections === undefined
-      ? undefined
-      : { numberSections: options.numberSections },
+      ? { projectId: null, orgId: null, userEmail: null }
+      : { numberSections: options.numberSections, projectId: null, orgId: null, userEmail: null },
   );
 
   expect(result).not.toHaveProperty("error");

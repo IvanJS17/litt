@@ -1353,6 +1353,7 @@ export async function runLLMStream(params: {
         pending = label
           ? readDocumentContent(label, docStore, () => {}, docIndex, db, {
               emitEvents: false,
+              actor: { userId, userEmail: userEmail ?? null },
             })
           : Promise.resolve("");
         sourceTextByDocId.set(docId, pending);

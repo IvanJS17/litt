@@ -13,7 +13,7 @@ it("normalizes a document once across many find_in_document probes", async () =>
   const regexTests = vi.spyOn(RegExp.prototype, "test");
   for (const query of ["supplier", "indemnify", "buyer", "the", "shall"]) {
     const result = JSON.parse(
-      await findInDocumentContent({ docLabel: "D1", query, docStore, write: () => {} }),
+      await findInDocumentContent({ docLabel: "D1", query, docStore, write: () => {}, actor: { userId: "user-1", userEmail: null } }),
     );
     expect(result.total_matches).toBe(query === "the" ? 500 : 250);
   }

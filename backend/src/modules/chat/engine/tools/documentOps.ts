@@ -2,6 +2,7 @@ import { loadVersionTextState, cachedTextForModel } from "../../../../lib/docume
 import {
   applyTrackedEditsToDocument,
   createDocumentVersion,
+  documentOpenableNow,
   loadCurrentVersionBytes,
   readStoredDocumentText,
   storedDocumentTextCurrent,
@@ -15,6 +16,9 @@ import { convertedPdfKey, docxToPdf } from "../../../../lib/convert";
 import { enqueueConversion } from "../../../../lib/queue/conversionQueue";
 import { enqueueDbJob } from "../../../../lib/dbq/enqueue";
 import type { Db } from "../../../../lib/supabase";
+import { AppError } from "../../../../lib/appError";
+import { mayAddDocumentNow } from "../../../../lib/access";
+import { reportError } from "../../../../lib/observability/report";
 import { buildDownloadUrl } from "../../../../lib/downloadTokens";
 import { isVersionHeld } from "../../../../lib/trainingRelease";
 import { bulletListMarker, letteredListMarker, numberedListMarker } from "../../../../lib/modelJsonFence";
@@ -72,12 +76,14 @@ export async function generateDocx(
   sections: unknown[],
   userId: string,
   db: Db,
-  options?: {
+  options: {
     landscape?: boolean;
     numberSections?: boolean;
-    projectId?: string | null;
+    projectId: string | null;
     /** The conversation's organization: where a standalone document is filed. */
-    orgId?: string | null;
+    orgId: string | null;
+    /** The person the turn runs for: whether they may add the document is asked at the write. */
+    userEmail: string | null;
   },
 ) {
   try {
@@ -522,9 +528,10 @@ export async function generateDocx(
       extension: "docx",
       buffer: buf,
       userId,
+      userEmail: options.userEmail,
       db,
-      projectId: options?.projectId ?? null,
-      orgId: options?.orgId ?? null,
+      projectId: options.projectId,
+      orgId: options.orgId,
     });
   } catch (e) {
     return { error: String(e) };
@@ -916,21 +923,93 @@ ${slides
   return zip.generateAsync({ type: "nodebuffer" });
 }
 
+/** What a turn answers when it may not (or cannot be shown to) open a document. */
+export const DOCUMENT_UNREADABLE = "Document could not be read.";
+export const NOT_ALLOWED_TO_ADD = "You do not have permission to add documents here.";
+
+/** The person a running turn reads and writes for. */
+export type TurnActor = { userId: string; userEmail: string | null };
+
+/**
+ * A check that could not be made refuses and is reported once, with the
+ * original error and nothing from the conversation.
+ */
+function reportAccessCheckFailure(error: unknown) {
+  reportError(
+    new AppError("chat.access_check_failed", "Live access check failed", { cause: error }),
+    { tags: { component: "chat-stream", operation: "chat.tool" } },
+  );
+}
+
+/** May this person open this stored document now? Fails closed. */
+export async function mayOpenStoredDocumentNow(
+  db: Db | undefined,
+  documentId: string | null | undefined,
+  actor: TurnActor,
+): Promise<boolean> {
+  if (!db || !documentId || !actor.userId) return false;
+  try {
+    return await documentOpenableNow(db, { documentId, userId: actor.userId, userEmail: actor.userEmail });
+  } catch (error) {
+    reportAccessCheckFailure(error);
+    return false;
+  }
+}
+
+/**
+ * May this person read what the turn holds under this label, now? The one
+ * rule every read of a stored document asks before it resolves the current
+ * version or touches any text. Request-scoped text has no stored document
+ * behind it; a search result must also be bound to the turn's own person.
+ */
+export async function mayReadDocumentNow(
+  docLabel: string,
+  docStore: DocStore,
+  docIndex: DocIndex | undefined,
+  db: Db | undefined,
+  actor: TurnActor,
+): Promise<boolean> {
+  const docInfo = docStore.get(docLabel);
+  if (!docInfo || docInfo.inline_text !== undefined) return true;
+  // A search result is also bound to the person it was found for, checked
+  // before the database is asked.
+  if (docInfo.search_source && docInfo.search_source.userId !== actor.userId) return false;
+  return mayOpenStoredDocumentNow(
+    db,
+    docIndex?.[docLabel]?.document_id ?? (docInfo.search_source ? undefined : docInfo.asset_document_id),
+    actor,
+  );
+}
+
+/** May this person add a document to this destination now? Fails closed. */
+export async function mayAddDocumentHere(db: Db, destination: Parameters<typeof mayAddDocumentNow>[1]): Promise<boolean> {
+  try {
+    return await mayAddDocumentNow(db, destination);
+  } catch (error) {
+    reportAccessCheckFailure(error);
+    return false;
+  }
+}
+
 async function persistGeneratedFile(params: {
   title: string;
   extension: "docx" | "xlsx" | "pptx";
   buffer: Buffer;
   userId: string;
+  userEmail: string | null;
   db: Db;
-  projectId?: string | null;
+  projectId: string | null;
   /**
    * The organization of the conversation it was generated in. A document
    * made in an organization's workspace belongs to that organization; inside
    * a project the project's organization is stamped by the database.
    */
-  orgId?: string | null;
+  orgId: string | null;
 }) {
-  const { title, extension, buffer, userId, db, projectId, orgId } = params;
+  const { title, extension, buffer, userId, userEmail, db, projectId, orgId } = params;
+  // The person may add here NOW, whatever the turn was allowed when it began.
+  const destination = { userId, userEmail, projectId, orgId };
+  if (!(await mayAddDocumentHere(db, destination))) return { ok: false as const, error: NOT_ALLOWED_TO_ADD };
   const docId = crypto.randomUUID().replace(/-/g, "");
   const filename = safeGeneratedFilename(title, extension);
   const key = generatedDocKey(userId, docId, filename);
@@ -974,6 +1053,8 @@ async function persistGeneratedFile(params: {
   }
 
   const downloadUrl = buildDownloadUrl(key, filename);
+  // The upload and rendition can take a while: ask again before the row.
+  if (!(await mayAddDocumentHere(db, destination))) return { ok: false as const, error: NOT_ALLOWED_TO_ADD };
   const { data: docRow, error: docErr } = await db
     .from("documents")
     .insert({
@@ -1051,7 +1132,7 @@ export async function generateExcel(
   sheets: unknown[],
   userId: string,
   db: Db,
-  options?: { projectId?: string | null; orgId?: string | null },
+  options: { projectId: string | null; orgId: string | null; userEmail: string | null },
 ) {
   try {
     const normalizedTitle = typeof title === "string" ? title : "Workbook";
@@ -1064,9 +1145,10 @@ export async function generateExcel(
       extension: "xlsx",
       buffer,
       userId,
+      userEmail: options.userEmail,
       db,
-      projectId: options?.projectId ?? null,
-      orgId: options?.orgId ?? null,
+      projectId: options.projectId,
+      orgId: options.orgId,
     });
   } catch (e) {
     return { error: String(e) };
@@ -1078,7 +1160,7 @@ export async function generatePpt(
   slides: unknown[],
   userId: string,
   db: Db,
-  options?: { projectId?: string | null; orgId?: string | null },
+  options: { projectId: string | null; orgId: string | null; userEmail: string | null },
 ) {
   try {
     const normalizedTitle = typeof title === "string" ? title : "Presentation";
@@ -1091,9 +1173,10 @@ export async function generatePpt(
       extension: "pptx",
       buffer,
       userId,
+      userEmail: options.userEmail,
       db,
-      projectId: options?.projectId ?? null,
-      orgId: options?.orgId ?? null,
+      projectId: options.projectId,
+      orgId: options.orgId,
     });
   } catch (e) {
     return { error: String(e) };
@@ -1205,14 +1288,18 @@ export async function readDocumentContent(
   docLabel: string,
   docStore: DocStore,
   write: (s: string) => void,
-  docIndex?: DocIndex,
-  db?: Db,
-  opts?: {
+  docIndex: DocIndex | undefined,
+  db: Db | undefined,
+  opts: {
+    /** The person the turn runs for: every stored document is checked against them at the read. */
+    actor: TurnActor;
+    /** The verdict of mayReadDocumentNow when the caller already asked it. */
+    mayRead?: boolean;
     emitEvents?: boolean;
     readIdentity?: Awaited<ReturnType<typeof getTurnReadIdentity>>;
   },
 ): Promise<string> {
-  const emitEvents = opts?.emitEvents ?? true;
+  const emitEvents = opts.emitEvents ?? true;
   devLog(`[read_document] called with docLabel="${docLabel}"`);
   const docInfo = docStore.get(docLabel);
   if (!docInfo) {
@@ -1222,13 +1309,21 @@ export async function readDocumentContent(
     );
     return "Document not found.";
   }
+  // Whether this person may open the document is asked NOW, before the current
+  // version is resolved and before any held text, stored text or file is
+  // touched: what the turn was allowed when it began decides nothing. A
+  // search result keeps its own, stricter check below (bound to a revision).
+  // Request-scoped Word text has no stored document behind it.
+  const mayRead =
+    opts.mayRead ?? (await mayReadDocumentNow(docLabel, docStore, docIndex, db, opts.actor));
+  if (!mayRead) return DOCUMENT_UNREADABLE;
   devLog(
     `[read_document] docInfo: filename="${docInfo.filename}", file_type="${docInfo.file_type}", storage_path="${docInfo.storage_path}"`,
   );
 
   const documentId = docIndex?.[docLabel]?.document_id;
   const readIdentity =
-    opts?.readIdentity ??
+    opts.readIdentity ??
     await getTurnReadIdentity({ docLabel, docStore, docIndex, db });
   const versionId =
     readIdentity?.versionId ?? docIndex?.[docLabel]?.version_id ?? null;
@@ -1703,6 +1798,10 @@ export async function findInDocumentContent(params: {
   write: (s: string) => void;
   docIndex?: DocIndex;
   db?: Db;
+  /** The person the turn runs for (see readDocumentContent). */
+  actor: TurnActor;
+  /** The verdict of mayReadDocumentNow when the caller already asked it. */
+  mayRead?: boolean;
   readIdentity?: Awaited<ReturnType<typeof getTurnReadIdentity>>;
 }): Promise<string> {
   const {
@@ -1726,6 +1825,13 @@ export async function findInDocumentContent(params: {
       ok: false,
       error: `Document '${docLabel}' not found.`,
     });
+  }
+  // Asked first, as in readDocumentContent: a refused document gets the neutral
+  // answer with no event, and nothing resolved after the turn began.
+  const mayRead =
+    params.mayRead ?? (await mayReadDocumentNow(docLabel, docStore, docIndex, db, params.actor));
+  if (!mayRead) {
+    return JSON.stringify({ ok: false, filename: docInfo.filename, error: DOCUMENT_UNREADABLE });
   }
   const documentId = docIndex?.[docLabel]?.document_id;
   const readIdentity =
@@ -1756,9 +1862,9 @@ export async function findInDocumentContent(params: {
     write,
     docIndex,
     db,
-    { emitEvents: false, readIdentity },
+    { emitEvents: false, readIdentity, actor: params.actor, mayRead: true },
   );
-  if (!text || text === "Document could not be read.") {
+  if (!text || text === DOCUMENT_UNREADABLE) {
     write(
       `data: ${JSON.stringify({
         type: "doc_find",

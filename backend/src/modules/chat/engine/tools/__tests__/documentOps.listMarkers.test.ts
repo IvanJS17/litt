@@ -47,7 +47,7 @@ function makeDb() {
 const SIZE = { small: 4_000, large: 128_000 };
 
 const generate = (content: string, heading = "Clause") =>
-  generateDocx("Agreement", [{ heading, content }], "user-1", makeDb() as never, { numberSections: true });
+  generateDocx("Agreement", [{ heading, content }], "user-1", makeDb() as never, { numberSections: true, projectId: null, orgId: null, userEmail: null });
 
 describe("list markers of a generated document", () => {
   // A marker, a long run of blanks, then text and a line separator that is not a line break.

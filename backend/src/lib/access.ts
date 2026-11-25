@@ -35,7 +35,10 @@ import {
     type ContentGrantKind,
 } from "./contentAccess";
 import { isPersonalOrg, teamOrgIdOf } from "./personalOrgs";
-import { assertPersonalWorkspaceAllowed } from "./managedAccounts";
+import {
+    assertPersonalWorkspaceAllowed,
+    PersonalWorkspaceDisabledError,
+} from "./managedAccounts";
 import {
     can,
     isProjectRole,
@@ -505,6 +508,51 @@ export async function checkProjectAccess(
     // A personal project: closed to an account its firm manages.
     assertPersonalWorkspaceAllowed(userId);
     return { ok: true, isCreator, orgRole: null, projectRole, project: proj };
+}
+
+/**
+ * May this person add a document to this destination NOW? The one answer
+ * every document a running turn creates asks for, at the moment it writes:
+ * what the turn was allowed when it started decides nothing. Built only from
+ * the verdicts above, so it can never disagree with them:
+ *
+ *   - inside a project: the project verdict, with `content.edit`;
+ *   - otherwise in a firm's workspace: current membership of that firm;
+ *   - otherwise in the personal workspace: open to the person (closed to an
+ *     account its firm manages).
+ *
+ * Throws when a lookup cannot be answered by a verdict that reports it; the
+ * caller must not write then.
+ */
+export async function mayAddDocumentNow(
+    db: Db,
+    destination: {
+        userId: string;
+        userEmail: string | null;
+        projectId: string | null;
+        orgId: string | null;
+    },
+): Promise<boolean> {
+    const { userId, userEmail, projectId, orgId } = destination;
+    try {
+        if (projectId) {
+            const access = await checkProjectAccess(
+                projectId,
+                userId,
+                userEmail,
+                db,
+            );
+            return access.ok && can(access.projectRole, "content.edit");
+        }
+        const teamOrgId = await teamOrgIdOf(db, orgId);
+        if (teamOrgId) return (await getOrgRole(userId, teamOrgId, db)) !== null;
+        assertPersonalWorkspaceAllowed(userId);
+        return true;
+    } catch (error) {
+        // A closed personal workspace is a verdict, not a failure.
+        if (error instanceof PersonalWorkspaceDisabledError) return false;
+        throw error;
+    }
 }
 
 /** A personal project is private only while it has no direct grants. */

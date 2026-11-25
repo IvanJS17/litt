@@ -111,7 +111,7 @@ describe("generatePpt rendition path", () => {
     process.env.ASYNC_DOCUMENT_CONVERSION = "false";
     const db = makeDb();
 
-    const out = await generatePpt("Deck", SLIDES, "user-1", db as never);
+    const out = await generatePpt("Deck", SLIDES, "user-1", db as never, { projectId: null, orgId: null, userEmail: null });
 
     expect(out).not.toHaveProperty("error");
     expect(docxToPdf).toHaveBeenCalledTimes(1);
@@ -125,7 +125,7 @@ describe("generatePpt rendition path", () => {
     docxToPdf.mockRejectedValueOnce(new ExtractionBusyError());
     const db = makeDb();
 
-    const out = await generatePpt("Deck", SLIDES, "user-1", db as never);
+    const out = await generatePpt("Deck", SLIDES, "user-1", db as never, { projectId: null, orgId: null, userEmail: null });
 
     expect(out).not.toHaveProperty("error");
     const version = db.inserts.find((i) => i.table === "document_versions");
@@ -137,7 +137,7 @@ describe("generatePpt rendition path", () => {
     process.env.ASYNC_DOCUMENT_CONVERSION = "true";
     const db = makeDb();
 
-    const out = await generatePpt("Deck", SLIDES, "user-1", db as never);
+    const out = await generatePpt("Deck", SLIDES, "user-1", db as never, { projectId: null, orgId: null, userEmail: null });
 
     expect(out).not.toHaveProperty("error");
     expect(docxToPdf).not.toHaveBeenCalled();
@@ -163,7 +163,7 @@ describe("generatePpt rendition path", () => {
     enqueueConversion.mockRejectedValueOnce(new Error("redis down"));
     const db = makeDb();
 
-    const out = await generatePpt("Deck", SLIDES, "user-1", db as never);
+    const out = await generatePpt("Deck", SLIDES, "user-1", db as never, { projectId: null, orgId: null, userEmail: null });
 
     expect(out).not.toHaveProperty("error");
     expect(out).toHaveProperty("document_id", "doc-db-1");
@@ -174,7 +174,7 @@ describe("generatePpt rendition path", () => {
     const db = makeDb();
     const { generateExcel } = await import("../documentOps.js");
 
-    const out = await generateExcel("Book", [], "user-1", db as never);
+    const out = await generateExcel("Book", [], "user-1", db as never, { projectId: null, orgId: null, userEmail: null });
 
     expect(out).not.toHaveProperty("error");
     expect(docxToPdf).not.toHaveBeenCalled();

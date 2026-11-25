@@ -57,6 +57,13 @@ vi.mock("../../../../lib/downloadTokens", async (importOriginal) => {
 });
 
 import { ExtractionBusyError } from "../../../../lib/extraction/limits";
+// These tests are about what replication copies; whether the person may read the
+// source and add the copies is asked of the database (liveTurnAuthority.test.ts).
+vi.mock("../tools/documentOps", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../tools/documentOps")>()),
+    mayOpenStoredDocumentNow: async () => true,
+    mayAddDocumentHere: async () => true,
+}));
 import { runToolCalls } from "../tools/toolDispatcher";
 import type { DocIndex, DocStore } from "../types";
 
