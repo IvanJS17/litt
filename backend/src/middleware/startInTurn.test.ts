@@ -138,6 +138,58 @@ describe("startInTurn", () => {
     }
   });
 
+  it("counts each connection on its own: two clients with sixty waiting each are both served", async () => {
+    const answerHeld: Array<() => void> = [];
+    const app = express();
+    app.use(startInTurn);
+    app.use((req, res) => {
+      if (req.url === "/held") answerHeld.push(() => res.end("ok"));
+      else res.end("ok");
+    });
+    const port = await listen(app);
+    const requests = get("/held") + Array.from({ length: 60 }, (_value, index) => get(`/${index}`)).join("");
+    const first = sendAtOnce(port, requests, 2_000);
+    const second = sendAtOnce(port, requests, 2_000);
+    await expect.poll(() => answerHeld.length).toBe(2);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    for (const answer of answerHeld) answer();
+    for (const { text, closed } of await Promise.all([first, second])) {
+      expect(text.split("HTTP/1.1 200").length - 1).toBe(61);
+      expect(closed).toBe(false);
+    }
+  });
+
+  it("keeps the same limit on a connection that has already been served many requests", async () => {
+    let held = 0;
+    const app = express();
+    app.use(startInTurn);
+    app.use((req, res) => {
+      // The held request is never answered.
+      if (req.url === "/held") held += 1;
+      else setImmediate(() => res.end("ok"));
+    });
+    const port = await listen(app);
+    const batch = Array.from({ length: 61 }, (_value, index) => get(`/${index}`)).join("");
+    let text = "";
+    let closed = false;
+    const socket = net.connect(port, "127.0.0.1");
+    socket.on("data", (chunk) => (text += chunk.toString("latin1")));
+    socket.on("error", () => undefined);
+    socket.on("close", () => (closed = true));
+    try {
+      for (const answeredSoFar of [61, 122, 183]) {
+        socket.write(batch);
+        await expect.poll(() => text.split("HTTP/1.1 200").length - 1).toBe(answeredSoFar);
+      }
+      socket.write(get("/held") + Array.from({ length: 101 }, (_value, index) => get(`/${index}`)).join(""));
+      await expect.poll(() => closed, { timeout: 5_000 }).toBe(true);
+      expect(held).toBe(1);
+      expect(text.split("HTTP/1.1 200").length - 1).toBe(183);
+    } finally {
+      socket.destroy();
+    }
+  });
+
   it("closes a connection that sends more requests than it waits for, and starts none of them", async () => {
     let started = 0;
     const app = express();
