@@ -124,6 +124,24 @@ async function rawGet(path: string, extraHeaders: string[] = [], waitMs = 1_500)
 
 const PDF = Buffer.from("%PDF-1.7 stored rendition bytes");
 
+/** Ten displays converting at once are all served: every place is free. */
+async function expectEveryPlaceFree() {
+    const converting: ((pdf: Buffer) => void)[] = [];
+    docxToPdf.mockReset();
+    docxToPdf.mockImplementation(() => new Promise<Buffer>((resolve) => converting.push(resolve)));
+    const displays = Array.from({ length: 10 }, () =>
+        request(app).get(`/single-documents/${DOC}/display`).set(...AUTH).then((res) => res.status),
+    );
+    try {
+        await vi.waitFor(() => expect(converting).toHaveLength(10), { timeout: 5_000 });
+    } finally {
+        // Whatever started is let finish, so a failure here does not hang the run.
+        docxToPdf.mockResolvedValue(PDF);
+        for (const finish of converting) finish(PDF);
+    }
+    expect(await Promise.all(displays)).toEqual(Array.from({ length: 10 }, () => 200));
+}
+
 beforeEach(() => {
     docxToPdf.mockReset();
     reportError.mockReset();
@@ -258,6 +276,103 @@ describe("GET /single-documents/:documentId/display", () => {
             expect(res.status).toBe(200);
             // Nothing was converted for those who left.
             expect(docxToPdf).toHaveBeenCalledTimes(1);
+        } finally {
+            server.closeAllConnections();
+            await new Promise((resolve) => server.close(resolve));
+        }
+    }, 20_000);
+
+    it("does nothing for a display that waited behind another on its connection when the client left: every place is free", async () => {
+        fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
+        active.current = { ...active.current, pdf_storage_path: null };
+        // Conversions wait until the clients have left.
+        const converting: ((pdf: Buffer) => void)[] = [];
+        docxToPdf.mockImplementation(() => new Promise<Buffer>((resolve) => converting.push(resolve)));
+        const server = app.listen(0, "127.0.0.1");
+        await new Promise((resolve) => server.once("listening", resolve));
+        const { port } = server.address() as AddressInfo;
+        let gone = 0;
+        server.on("connection", (socket) => socket.once("close", () => (gone += 1)));
+        const one = `GET /single-documents/${DOC}/display HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer test\r\n\r\n`;
+        try {
+            // Five clients each ask for two displays at once on one connection.
+            const clients = Array.from({ length: 5 }, () => {
+                const socket = connect(port, "127.0.0.1", () => socket.write(one + one));
+                socket.on("error", () => {});
+                return socket;
+            });
+            // The first of each is converting; the second waits its turn.
+            await vi.waitFor(() => expect(converting).toHaveLength(5), { timeout: 5_000 });
+            for (const socket of clients) socket.destroy();
+            await vi.waitFor(() => expect(gone).toBe(5), { timeout: 5_000 });
+            for (const finish of converting) finish(PDF);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            expect(docxToPdf).toHaveBeenCalledTimes(5);
+            await expectEveryPlaceFree();
+        } finally {
+            // Whatever is still converting is let finish, so a failure here does not reach the next test.
+            for (const finish of converting) finish(PDF);
+            server.closeAllConnections();
+            await new Promise((resolve) => server.close(resolve));
+        }
+    }, 30_000);
+
+    it("starts no display that waits behind an unanswered request on its connection: every place stays free", async () => {
+        // A stored rendition larger than a connection takes without being read.
+        const reads = fakeStore({
+            "u/Contract.pdf": { bytes: Buffer.alloc(32 * 1024 * 1024, 1), etag: null },
+            "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null },
+        });
+        docxToPdf.mockResolvedValue(PDF);
+        const server = app.listen(0, "127.0.0.1");
+        await new Promise((resolve) => server.once("listening", resolve));
+        const { port } = server.address() as AddressInfo;
+        const one = `GET /single-documents/${DOC}/display HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer test\r\n\r\n`;
+        const socket = connect(port, "127.0.0.1");
+        socket.on("error", () => {});
+        try {
+            // The client asks for the stored rendition and does not read it...
+            await new Promise<void>((resolve) => socket.once("connect", () => resolve()));
+            socket.pause();
+            socket.write(one);
+            await vi.waitFor(() => expect(reads.opened).toEqual(["u/Contract.pdf"]), { timeout: 5_000 });
+            // ...then asks, on the same connection, for ten displays that need a conversion.
+            active.current = { ...active.current, pdf_storage_path: null };
+            socket.write(one.repeat(10));
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            expect(docxToPdf).not.toHaveBeenCalled();
+            await expectEveryPlaceFree();
+        } finally {
+            socket.destroy();
+            server.closeAllConnections();
+            await new Promise((resolve) => server.close(resolve));
+        }
+    }, 30_000);
+
+    it("answers, in order, the requests a client sends at once on one connection", async () => {
+        fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
+        active.current = { ...active.current, pdf_storage_path: null };
+        docxToPdf.mockResolvedValue(PDF);
+        const server = app.listen(0, "127.0.0.1");
+        await new Promise((resolve) => server.once("listening", resolve));
+        const { port } = server.address() as AddressInfo;
+        const one = `GET /single-documents/${DOC}/display HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer test\r\n\r\n`;
+        try {
+            const text = await new Promise<string>((resolve) => {
+                let received = "";
+                const socket = connect(port, "127.0.0.1", () => socket.write(one.repeat(3)));
+                socket.on("error", () => {});
+                socket.on("data", (chunk: Buffer) => {
+                    received += chunk.toString("latin1");
+                    if (received.split(PDF.toString("latin1")).length - 1 === 3) {
+                        socket.destroy();
+                        resolve(received);
+                    }
+                });
+                setTimeout(() => resolve(received), 5_000);
+            });
+            expect(text.split("HTTP/1.1 200").length - 1).toBe(3);
+            expect(docxToPdf).toHaveBeenCalledTimes(3);
         } finally {
             server.closeAllConnections();
             await new Promise((resolve) => server.close(resolve));

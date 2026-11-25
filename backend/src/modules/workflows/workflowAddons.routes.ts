@@ -7,7 +7,7 @@ import { Router, type Response } from "express";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
-import { abortOnClose } from "../../lib/abortOnClose";
+import { abortOnClose } from "../../lib/responseClosed";
 import { DisplaySourceTooLargeError, sendDisplayBusy, sendDisplayTooLarge, sendDocumentDisplay } from "../../lib/documentDisplay";
 import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { sendInternalError } from "../../lib/httpError";

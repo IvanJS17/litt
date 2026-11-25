@@ -146,9 +146,18 @@ request is bounded where it is held:
   closes, so at most as many displays hold one as the converter has places (ten
   per thread); the next is answered 503 with `Retry-After` without reading
   anything. A route that displays takes the
-  signal it passes from `abortOnClose` (`lib/abortOnClose.ts`), which is already
+  signal it passes from `abortOnClose` (`lib/responseClosed.ts`), which is already
   aborted when the client left before the handler ran, so such a request reads
-  nothing and holds no place. A response whose client makes no progress for a minute
+  nothing and holds no place, and which also follows the connection: a
+  response waiting behind an earlier one on its connection does not close when
+  its client leaves. `pipeToResponse` uses the same test and the same wait. A request that
+  arrives while the answer to an earlier one on the same connection is still
+  going out starts only in its turn (`middleware/startInTurn.ts`, the first
+  middleware), so it reads nothing and holds no place while it cannot be
+  answered. It starts in the context it arrived in, not in that of the request
+  ahead of it, and a connection with more than a hundred requests waiting is
+  closed: nothing is written for a waiting request, so nothing else slows down
+  a client that keeps sending them. A response whose client makes no progress for a minute
   (`DISPLAY_SEND_IDLE_MS`) is closed within about two, so a client that stops
   reading does not keep the file or the place; until then it holds both, and
   nothing shares the places between people. Only the response built in memory
