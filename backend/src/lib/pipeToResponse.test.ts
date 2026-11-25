@@ -181,6 +181,114 @@ describe("pipeToResponse", () => {
     expect(destroyed).toBe(true);
   }, 10_000);
 
+  it("destroys the source and rejects for a response waiting behind an earlier one when the client leaves", async () => {
+    let destroyed = false;
+    let started = false;
+    let settle!: (outcome: unknown) => void;
+    const outcome = new Promise((resolve) => (settle = resolve));
+    server = http.createServer((req, res) => {
+      // The first is never answered, so the second waits for the connection.
+      if (req.url !== "/second") return;
+      const source = new Readable({
+        read() {
+          this.push(Buffer.alloc(1024 * 1024));
+        },
+        destroy(error, callback) {
+          destroyed = true;
+          callback(error);
+        },
+      });
+      started = true;
+      pipeToResponse(source, res).then(() => settle("resolved"), settle);
+    });
+    await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    const socket = net.connect(port, "127.0.0.1", () =>
+      socket.write(
+        "GET /first HTTP/1.1\r\nHost: localhost\r\n\r\nGET /second HTTP/1.1\r\nHost: localhost\r\n\r\n",
+      ),
+    );
+    socket.on("error", () => undefined);
+    await expect.poll(() => started).toBe(true);
+    socket.destroy();
+
+    const result = await Promise.race([
+      outcome,
+      new Promise((resolve) => setTimeout(() => resolve("never settled"), 3_000)),
+    ]);
+    expect(result).toMatchObject({ code: "ERR_STREAM_PREMATURE_CLOSE" });
+    expect(destroyed).toBe(true);
+  }, 10_000);
+
+  it("destroys the source and rejects for a waiting response whose client had left before it was called", async () => {
+    let destroyed = false;
+    let settle!: (outcome: unknown) => void;
+    const outcome = new Promise((resolve) => (settle = resolve));
+    server = http.createServer(async (req, res) => {
+      if (req.url !== "/second") return;
+      await new Promise((resolve) => req.socket.once("close", resolve));
+      const source = new Readable({
+        read() {
+          this.push(Buffer.alloc(1024 * 1024));
+        },
+        destroy(error, callback) {
+          destroyed = true;
+          callback(error);
+        },
+      });
+      pipeToResponse(source, res).then(() => settle("resolved"), settle);
+    });
+    await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    const socket = net.connect(port, "127.0.0.1", () =>
+      socket.write(
+        "GET /first HTTP/1.1\r\nHost: localhost\r\n\r\nGET /second HTTP/1.1\r\nHost: localhost\r\n\r\n",
+        () => socket.destroy(),
+      ),
+    );
+    socket.on("error", () => undefined);
+
+    const result = await Promise.race([
+      outcome,
+      new Promise((resolve) => setTimeout(() => resolve("never settled"), 3_000)),
+    ]);
+    expect(result).toMatchObject({ code: "ERR_STREAM_PREMATURE_CLOSE" });
+    expect(destroyed).toBe(true);
+  }, 10_000);
+
+  it("sends a response that waited behind an earlier one, whole, once its turn comes", async () => {
+    const body = Buffer.alloc(3 * 1024 * 1024, 7);
+    let answerFirst: () => void = () => undefined;
+    let started = false;
+    server = http.createServer((req, res) => {
+      if (req.url === "/first") {
+        answerFirst = () => res.end("first");
+        return;
+      }
+      started = true;
+      res.setHeader("Content-Length", body.length);
+      void pipeToResponse(Readable.from([body.subarray(0, 1024 * 1024), body.subarray(1024 * 1024)]), res);
+    });
+    await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    const received = await new Promise<number>((resolve) => {
+      let bytes = 0;
+      const socket = net.connect(port, "127.0.0.1", () =>
+        socket.write(
+          "GET /first HTTP/1.1\r\nHost: localhost\r\n\r\nGET /second HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+        ),
+      );
+      socket.on("data", (chunk) => (bytes += chunk.length));
+      socket.on("close", () => resolve(bytes));
+      void (async () => {
+        await expect.poll(() => started).toBe(true);
+        await new Promise((wait) => setTimeout(wait, 100));
+        answerFirst();
+      })();
+    });
+    expect(received).toBeGreaterThan(body.length);
+  }, 10_000);
+
   it("breaks the download when the source fails after bytes were sent", async () => {
     const { url, outcome } = await serve(() =>
       Readable.from(

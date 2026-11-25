@@ -124,6 +124,24 @@ async function rawGet(path: string, extraHeaders: string[] = [], waitMs = 1_500)
 
 const PDF = Buffer.from("%PDF-1.7 stored rendition bytes");
 
+/** Ten displays converting at once are all served: every place is free. */
+async function expectEveryPlaceFree() {
+    const converting: ((pdf: Buffer) => void)[] = [];
+    docxToPdf.mockReset();
+    docxToPdf.mockImplementation(() => new Promise<Buffer>((resolve) => converting.push(resolve)));
+    const displays = Array.from({ length: 10 }, () =>
+        request(app).get(`/single-documents/${DOC}/display`).set(...AUTH).then((res) => res.status),
+    );
+    try {
+        await vi.waitFor(() => expect(converting).toHaveLength(10), { timeout: 5_000 });
+    } finally {
+        // Whatever started is let finish, so a failure here does not hang the run.
+        docxToPdf.mockResolvedValue(PDF);
+        for (const finish of converting) finish(PDF);
+    }
+    expect(await Promise.all(displays)).toEqual(Array.from({ length: 10 }, () => 200));
+}
+
 beforeEach(() => {
     docxToPdf.mockReset();
     reportError.mockReset();
@@ -263,6 +281,37 @@ describe("GET /single-documents/:documentId/display", () => {
             await new Promise((resolve) => server.close(resolve));
         }
     }, 20_000);
+
+    it("holds no place for displays that waited behind another on their connection when the client left", async () => {
+        fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
+        active.current = { ...active.current, pdf_storage_path: null };
+        // Conversions wait until the clients have left.
+        const converting: ((pdf: Buffer) => void)[] = [];
+        docxToPdf.mockImplementation(() => new Promise<Buffer>((resolve) => converting.push(resolve)));
+        const server = app.listen(0, "127.0.0.1");
+        await new Promise((resolve) => server.once("listening", resolve));
+        const { port } = server.address() as AddressInfo;
+        let gone = 0;
+        server.on("connection", (socket) => socket.once("close", () => (gone += 1)));
+        const one = `GET /single-documents/${DOC}/display HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer test\r\n\r\n`;
+        try {
+            // Five clients each ask for two displays at once on one connection.
+            const clients = Array.from({ length: 5 }, () => {
+                const socket = connect(port, "127.0.0.1", () => socket.write(one + one));
+                socket.on("error", () => {});
+                return socket;
+            });
+            await vi.waitFor(() => expect(converting).toHaveLength(10), { timeout: 5_000 });
+            for (const socket of clients) socket.destroy();
+            await vi.waitFor(() => expect(gone).toBe(5), { timeout: 5_000 });
+            for (const finish of converting) finish(PDF);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            await expectEveryPlaceFree();
+        } finally {
+            server.closeAllConnections();
+            await new Promise((resolve) => server.close(resolve));
+        }
+    }, 30_000);
 
     it("hands the request's abort to the conversion queue", async () => {
         fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
