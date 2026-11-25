@@ -1425,8 +1425,13 @@ type DeletableRow = {
  * Split rows into the ones `userId` may delete through the single-item route
  * right now and the rest, for a bulk delete. Reviews and chats use the same
  * verdict as ensureReviewAccess / ensureChatAccess and the same capability
- * rule as the routes; matters are checked once each, not once per row. A
- * lookup that cannot answer throws, so the caller deletes nothing.
+ * rule as the routes; matters are checked once each, not once per row. The
+ * reads that list the rows throw when they fail, so the caller deletes
+ * nothing. The per-row lookups reused here (matter, membership, override and
+ * grant) answer "no" when the database errors, as they do for the single-item
+ * routes: a row whose verdict could not be obtained is kept, exactly as the
+ * single-item route would refuse it, and counts in `kept`; rows judged on
+ * lookups that answered are still deleted.
  */
 export async function splitRowsByDeleteRule<T extends DeletableRow>(
     kind: "tabular_review" | "chat",

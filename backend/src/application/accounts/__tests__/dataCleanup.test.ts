@@ -25,9 +25,25 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
     checkProjectAccess,
 }));
 
+// LiTT: the real DELETE /chat/:chatId is mounted below; it reads the database
+// the current test built and trusts the caller these tests name.
+const route = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("../../../middleware/auth", () => ({
+    requireAuth: (_req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => {
+        res.locals.userId = "u1";
+        res.locals.userEmail = "u1@test.local";
+        next();
+    },
+}));
+vi.mock("../../../lib/supabase", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../lib/supabase")>()),
+    createServerSupabase: () => route.db,
+}));
+
+import express from "express";
+import request from "supertest";
+import { chatRouter } from "../../../modules/chat/chat.routes";
 import { deleteFile, listFiles } from "../../../lib/storage";
-import { can } from "../../../lib/permissions";
-import { getAccessibleChat } from "../../../modules/chat/chat.access";
 import { deleteTabularReview } from "../../../modules/tabular/tabular.reviews";
 import {
     deleteAllUserChats,
@@ -56,6 +72,8 @@ function makeDb(
     options: {
         deleteErrors?: Record<string, string>;
         selectErrors?: Record<string, string>;
+        /** Fails the selects of one table that carry matching `.eq()` filters. */
+        selectFails?: (table: string, eqs: Record<string, unknown>) => boolean;
         maxRows?: number;
         maxInIds?: number;
         /** Answers for the RPCs a test cares about (access questions). */
@@ -248,6 +266,7 @@ function makeDb(
             let patch: Row = {};
             let limitCount = Infinity;
             let uriTooLong = false;
+            const eqs: Record<string, unknown> = {};
             let one: "none" | "maybe" = "none";
             const orders: Array<[string, boolean]> = [];
             const narrow = (next: (row: Row) => boolean) => {
@@ -274,6 +293,7 @@ function makeDb(
                     return query;
                 },
                 eq: (column: string, value: unknown) => {
+                    eqs[column] = value;
                     narrow((row) => row[column] === value);
                     return query;
                 },
@@ -337,6 +357,8 @@ function makeDb(
                             data: null,
                             error: { message: options.selectErrors[table], code: "XX000" },
                         };
+                    } else if (mode === "select" && options.selectFails?.(table, eqs)) {
+                        result = { data: null, error: { message: "boom", code: "XX000" } };
                     } else if (mode === "delete") {
                         const message = options.deleteErrors?.[table];
                         if (message) {
@@ -1460,16 +1482,28 @@ describe("cleanup past PostgREST's max_rows", () => {
 
 describe("bulk deletes in a firm's workspace", () => {
     const EMAIL = "u1@test.local";
+    const withAppended = (tables: Record<string, Row[]>, append: Record<string, Row[]> = {}) => {
+        for (const [name, rows] of Object.entries(append)) tables[name] = [...(tables[name] ?? []), ...rows];
+        return tables;
+    };
     const FIRM = "o1";
 
     // u1 is a member of the firm. p-open: u1 created it. p-closed: a private
     // matter whose team no longer includes u1. p-archived: archived matter.
     // p-viewer: u2's matter where u1 holds a Viewer override.
     const firm = (
-        options: { members?: Row[]; extra?: Record<string, Row[]>; log?: string[]; selectErrors?: Record<string, string> } = {},
+        options: {
+            members?: Row[];
+            extra?: Record<string, Row[]>;
+            /** Added to the tables above instead of replacing them. */
+            append?: Record<string, Row[]>;
+            log?: string[];
+            selectErrors?: Record<string, string>;
+            selectFails?: (table: string, eqs: Record<string, unknown>) => boolean;
+        } = {},
     ) =>
         makeDb(
-            {
+            withAppended({
                 organizations: [{ id: FIRM, kind: "team" }],
                 org_members: options.members ?? [
                     { org_id: FIRM, user_id: "u1", role: "member" },
@@ -1510,10 +1544,11 @@ describe("bulk deletes in a firm's workspace", () => {
                     { id: "rc-colleague", user_id: "u1", review_id: "r-colleague" },
                 ],
                 ...options.extra,
-            },
+            }, options.append),
             {
                 log: options.log,
                 selectErrors: options.selectErrors,
+                selectFails: options.selectFails,
                 rpcs: {
                     private_matter_denied_project_ids: (args) =>
                         (args.p_project_ids as string[]).filter((id) => id === "p-closed"),
@@ -1585,19 +1620,64 @@ describe("bulk deletes in a firm's workspace", () => {
         }
     });
 
-    it("takes the same decision as the single-conversation delete, row by row", async () => {
+    it("takes the same decision as DELETE /chat/:chatId, row by row", async () => {
         const bulk = firm();
         await deleteAllUserChats(bulk.db, "u1", FIRM, EMAIL);
+        const app = express().use("/chat", chatRouter);
         for (const id of ["c-open", "c-closed", "c-archived", "c-viewer", "c-standalone"]) {
-            const { db } = firm();
-            const access = await getAccessibleChat(db, { chatId: id, userId: "u1", userEmail: EMAIL });
-            // DELETE /chat/:chatId: owner of the matter, or the author while an editor.
-            const mayDelete =
-                access.ok &&
-                (can(access.projectRole, "container.delete") ||
-                    (access.isCreator && can(access.projectRole, "content.edit")));
-            expect({ id, gone: !ids(bulk.tables.chats).includes(id) }).toEqual({ id, gone: mayDelete });
+            route.db = firm().db;
+            const res = await request(app).delete(`/chat/${id}`);
+            expect({ id, gone: !ids(bulk.tables.chats).includes(id) }).toEqual({ id, gone: res.status === 204 });
         }
+    });
+
+    describe("when a lookup fails", () => {
+        // A second matter u1 created, so one matter can fail while another answers.
+        const other = {
+            projects: [{ id: "p-other", user_id: "u1", org_id: FIRM, visibility: "private", archived_at: null }],
+            chats: [{ id: "c-other", user_id: "u1", org_id: FIRM, project_id: "p-other" }],
+            tabular_reviews: [{ id: "r-other", user_id: "u1", org_id: FIRM, project_id: "p-other" }],
+            tabular_review_chats: [{ id: "rc-other", user_id: "u1", review_id: "r-other" }],
+            tabular_cells: [
+                { id: "cell-open", review_id: "r-open" },
+                { id: "cell-other", review_id: "r-other" },
+            ],
+        };
+        const matterOpenFails = (table: string, eqs: Record<string, unknown>) =>
+            table === "projects" && eqs.id === "p-open";
+
+        it("keeps every row of the matter that could not be judged and deletes the rows of the others", async () => {
+            const { db, tables } = firm({ append: other, selectFails: matterOpenFails });
+            const result = await deleteAllUserChats(db, "u1", FIRM, EMAIL);
+            expect(ids(tables.chats)).toEqual(["c-open", "c-closed", "c-archived", "c-viewer", "c-colleague"]);
+            // rc-open and rc-colleague sit in reviews of the failed matter.
+            expect(ids(tables.tabular_review_chats)).toEqual(["rc-open", "rc-closed", "rc-archived", "rc-colleague"]);
+            expect(result).toEqual({ kept: 8 });
+        });
+
+        it("deletes no review of that matter, nor anything under one", async () => {
+            const { db, tables } = firm({ append: other, selectFails: matterOpenFails });
+            const result = await deleteAllUserTabularReviews(db, "u1", FIRM, EMAIL);
+            expect(ids(tables.tabular_reviews)).toEqual(["r-open", "r-closed", "r-archived", "r-viewer", "r-colleague"]);
+            expect(ids(tables.tabular_review_chats)).toEqual(["rc-open", "rc-closed", "rc-archived", "rc-viewer", "rc-colleague"]);
+            expect(ids(tables.tabular_cells)).toEqual(["cell-open"]);
+            expect(result).toEqual({ deleted: 2, kept: 4 });
+        });
+
+        it.each([
+            ["chats", "chats"],
+            ["tabular_review_chats", "chats"],
+            ["tabular_reviews", "chats"],
+            ["tabular_reviews", "reviews"],
+        ])("deletes nothing at all and rejects when the read of %s fails (%s bulk)", async (table, action) => {
+            const { db, tables } = firm({ append: other, selectErrors: { [table]: "boom" } });
+            const run = action === "chats" ? deleteAllUserChats : deleteAllUserTabularReviews;
+            await expect(run(db, "u1", FIRM, EMAIL)).rejects.toThrow();
+            expect(ids(tables.chats)).toHaveLength(7);
+            expect(ids(tables.tabular_reviews)).toHaveLength(7);
+            expect(ids(tables.tabular_review_chats)).toHaveLength(7);
+            expect(ids(tables.tabular_cells)).toHaveLength(2);
+        });
     });
 
     it("asks the access questions a fixed number of times however many rows there are", async () => {
