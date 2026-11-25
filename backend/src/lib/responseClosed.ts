@@ -23,8 +23,18 @@ export function responseClosed(res: ServerResponse): boolean {
  * listener for this, however many of its responses are waited for.
  */
 export function onResponseClosed(res: ServerResponse, listener: () => void): () => void {
+  // A listener that fails is reported, once, wherever it runs: at once here,
+  // from the response's own 'close', or from its connection's. It neither
+  // stops the others nor reaches the caller or the process.
+  const report = () => {
+    try {
+      listener();
+    } catch (error) {
+      reportError(error, { tags: { component: "http", operation: "http.close_listener" } });
+    }
+  };
   if (responseClosed(res)) {
-    listener();
+    report();
     return () => undefined;
   }
   const waiting = waitingOn(res.req?.socket);
@@ -34,7 +44,7 @@ export function onResponseClosed(res: ServerResponse, listener: () => void): () 
   };
   const run = () => {
     stop();
-    listener();
+    report();
   };
   res.once("close", run);
   waiting?.add(run);
@@ -52,15 +62,7 @@ function waitingOn(socket: Socket | undefined): Set<() => void> | undefined {
     waiting = created;
     waitingByConnection.set(socket, created);
     socket.once("close", () => {
-      // One that fails does not keep the rest from running, and does not end
-      // the process: its failure is reported, once, and the rest go on.
-      for (const run of [...created]) {
-        try {
-          run();
-        } catch (error) {
-          reportError(error, { tags: { component: "http", operation: "http.close_listener" } });
-        }
-      }
+      for (const run of [...created]) run();
     });
   }
   return waiting;

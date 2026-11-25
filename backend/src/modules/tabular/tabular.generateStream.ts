@@ -280,15 +280,20 @@ async function tailTabularRun(args: {
     // stream — there the DB-poll backstop below does all the resolving.
     if (!finished && process.env.ASYNC_TABULAR_EXTRACTION === "true" && redisEnabled()) {
         try {
-            sub = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
-            await sub.subscribe(runProgressChannel(reviewId));
-            sub.on("message", (_channel, message) => {
-                try {
-                    onUpdate(JSON.parse(message) as RunProgressUpdate);
-                } catch {
-                    /* ignore malformed frame */
-                }
-            });
+            const opened = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+            sub = opened;
+            await opened.subscribe(runProgressChannel(reviewId));
+            // The client left while this was being made: the subscription is
+            // already being closed, and that is not a failed subscribe.
+            if (!finished) {
+                opened.on("message", (_channel, message) => {
+                    try {
+                        onUpdate(JSON.parse(message) as RunProgressUpdate);
+                    } catch {
+                        /* ignore malformed frame */
+                    }
+                });
+            }
         } catch (err) {
             // The stream degrades to the DB-poll backstop; worth an issue
             // (the Redis error is the cause), not a failed response.

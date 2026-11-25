@@ -156,8 +156,11 @@ request is bounded where it is held:
   wait, and so does the progress view of a tabular review: for a client that
   has left it neither subscribes to the review's channel nor polls the
   database, while the extraction already handed to the queue goes on. A
-  listener that fails when a connection closes is reported once, through the
-  reporting helper, and does not stop the others or the process. A request that
+  listener that fails when its response or its connection closes (or at once,
+  when that had already happened) is reported once, through the reporting
+  helper, and does not stop the others, its caller or the process. A client
+  that leaves while the view's subscription or a download's read is being
+  opened is not reported as a failure. A request that
   arrives while the answer to an earlier one on the same connection is still
   going out starts only in its turn (`middleware/startInTurn.ts`, the first
   middleware), so it reads nothing and holds no place while it cannot be

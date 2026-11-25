@@ -65,6 +65,9 @@ async function sendObject(
     try {
         body = await download.open(clientGone);
     } catch (error) {
+        // The client left while the read was being opened: nobody to answer,
+        // and not a failure of the store.
+        if (clientGone.aborted) return;
         // The error answer is JSON, not this object: drop its validator.
         res.removeHeader("ETag");
         throw error;

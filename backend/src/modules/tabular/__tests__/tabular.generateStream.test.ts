@@ -342,12 +342,17 @@ describe("run-view for a client that has left", () => {
         const res = fakeRes();
         const started = view(res, fake.db);
         await vi.waitFor(() => expect(redisSubscribe).toHaveBeenCalled());
+        reportError.mockClear();
         res.emit("close");
         subscribed();
         await started;
         await vi.advanceTimersByTimeAsync(3_000 * 4);
         expect(fake.calls).toHaveLength(0);
         expect(vi.getTimerCount()).toBe(0);
+        // A client leaving is not a failed subscription: nothing is reported
+        // and no message handler is attached for it.
+        expect(reportError).not.toHaveBeenCalled();
+        expect(redisMessages.handler).toBeNull();
     });
 
     it("still gives a client that stays its events, through the subscription and through the database", async () => {

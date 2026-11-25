@@ -184,6 +184,64 @@ describe("abortOnClose", () => {
     });
   });
 
+  it("reports a listener that fails on the response that holds the connection, and runs the others registered on it", async () => {
+    const ran: string[] = [];
+    const failure = new Error("listener failed");
+    let registered = false;
+    const port = await listen((_req, res) => {
+      onResponseClosed(res, () => {
+        ran.push("first");
+        throw failure;
+      });
+      onResponseClosed(res, () => ran.push("second"));
+      registered = true;
+    });
+    const surfaced: unknown[] = [];
+    const onUncaught = (error: unknown) => surfaced.push(error);
+    const others = process.listeners("uncaughtException");
+    process.removeAllListeners("uncaughtException");
+    process.on("uncaughtException", onUncaught);
+    try {
+      const socket = net.connect(port, "127.0.0.1", () => socket.write(get("/")));
+      socket.on("error", () => undefined);
+      await expect.poll(() => registered).toBe(true);
+      socket.destroy();
+      await expect.poll(() => ran).toEqual(["first", "second"]);
+      await settled();
+      expect(surfaced).toEqual([]);
+    } finally {
+      process.off("uncaughtException", onUncaught);
+      for (const listener of others) process.on("uncaughtException", listener);
+    }
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(failure, {
+      tags: { component: "http", operation: "http.close_listener" },
+    });
+  });
+
+  it("reports a listener that fails for a response that had already closed, instead of throwing to its caller", async () => {
+    const failure = new Error("listener failed");
+    let outcome: "returned" | "threw" | undefined;
+    const port = await listen(async (_req, res) => {
+      await new Promise((resolve) => res.once("close", resolve));
+      try {
+        onResponseClosed(res, () => {
+          throw failure;
+        });
+        outcome = "returned";
+      } catch {
+        outcome = "threw";
+      }
+    });
+    const socket = net.connect(port, "127.0.0.1", () => socket.write(get("/"), () => socket.destroy()));
+    socket.on("error", () => undefined);
+    await expect.poll(() => outcome).toBe("returned");
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(failure, {
+      tags: { component: "http", operation: "http.close_listener" },
+    });
+  });
+
   it("reports each listener that fails when several do, and still runs them all", async () => {
     const ran: string[] = [];
     let seen = 0;

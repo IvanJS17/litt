@@ -219,6 +219,35 @@ describe("GET /download/:token streaming", () => {
     await expect(storageReleased).resolves.toBeDefined();
   });
 
+  it("does not treat a client that leaves while the storage read is being opened as a failure", async () => {
+    let opening = false;
+    let released = false;
+    const adapter = adapterReading(async function* () {
+      yield FIRST;
+    });
+    // The store takes its time to open the read; only an abort lets it go.
+    adapter.openReadStream = vi.fn(
+      (_key: string, options?: { signal?: AbortSignal }) =>
+        new Promise<never>((_resolve, reject) => {
+          opening = true;
+          options?.signal?.addEventListener("abort", () => {
+            released = true;
+            reject(options.signal!.reason);
+          });
+        }),
+    ) as never;
+    setStorageAdapter(adapter);
+    const socket = net.connect((server.address() as AddressInfo).port, "127.0.0.1", () =>
+      socket.write(`GET ${path()} HTTP/1.1\r\nHost: localhost\r\n\r\n`),
+    );
+    socket.on("error", () => undefined);
+    await vi.waitFor(() => expect(opening).toBe(true));
+    socket.destroy();
+    await vi.waitFor(() => expect(released).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(console.error).not.toHaveBeenCalled();
+  }, 10_000);
+
   it("opens no storage read for a client that left before the handler ran", async () => {
     const adapter = adapterReading(async function* () {
       yield FIRST;
