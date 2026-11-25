@@ -128,4 +128,44 @@ describe("buildMemoryArchive", () => {
     expect(names).not.toContain("app/memory.md");
     expect(names.some((name) => name.includes("--p1/"))).toBe(false);
   });
+
+  it.each([
+    ["Matter. ", "Matter"],
+    ["Matter . . ", "Matter"],
+    ["  . Matter .. ", ". Matter -"],
+    [". . Matter", ". . Matter"],
+    ["Acme S.A. de C.V.", "Acme S.A. de C.V"],
+    ["a...", "a-"],
+    ["...", "-"],
+    [" . ", "project"],
+    ["", "project"],
+  ])("names the folder of the project %j as %j", async (name, folder) => {
+    const db = fakeDb({
+      projects: [{ id: "p1", name, org_id: null }],
+      memory_files: [{ project_id: "p1", content: "# Project p1" }],
+    });
+    listAccessibleProjectIds.mockResolvedValue(["p1"]);
+    const { names } = await files(await buildMemoryArchive(db as never, "u1", "u1@example.test"));
+    expect(names.find((entry) => entry.startsWith("projects/"))).toBe(`projects/${folder}--p1/memory.md`);
+  });
+
+  it("trims the trailing dots and blanks of a very long project name in time proportional to its length", async () => {
+    const elapsed = async (pairs: number) => {
+      const db = fakeDb({
+        projects: [{ id: "p1", name: `${". ".repeat(pairs)}x`, org_id: null }],
+        memory_files: [{ project_id: "p1", content: "# Project p1" }],
+      });
+      listAccessibleProjectIds.mockResolvedValue(["p1"]);
+      const started = performance.now();
+      const { names } = await files(await buildMemoryArchive(db as never, "u1", "u1@example.test"));
+      expect(names.some((entry) => entry.startsWith("projects/. . . . "))).toBe(true);
+      return performance.now() - started;
+    };
+    await elapsed(100);
+    const small = await elapsed(15_000);
+    expect(small, `30000 characters took ${small.toFixed(0)} ms`).toBeLessThan(1_500);
+    const large = await elapsed(60_000);
+    expect(large, `120000 characters took ${large.toFixed(0)} ms`).toBeLessThan(6_000);
+    expect(large / Math.max(small, 50), "ratio").toBeLessThan(10);
+  }, 120_000);
 });

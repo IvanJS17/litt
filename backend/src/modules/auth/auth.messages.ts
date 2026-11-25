@@ -98,18 +98,58 @@ export const CODE_DETAILS: Readonly<Record<string, string>> = {
   validation_failed: "Some of the information provided isn't valid.",
 };
 
+/** What a legacy message is tested with: `test` answers like `RegExp.prototype.test`. */
+type MessagePattern = { test(message: string): boolean };
+
+const asciiLower = (code: number) => (code >= 65 && code <= 90 ? code + 32 : code);
+
+/** Whether `message` holds the lowercase `word` at `at`, ignoring the case of ASCII letters. */
+function wordAt(message: string, at: number, word: string): boolean {
+  if (at + word.length > message.length) return false;
+  for (let i = 0; i < word.length; i++) {
+    if (asciiLower(message.charCodeAt(at + i)) !== word.charCodeAt(i)) return false;
+  }
+  return true;
+}
+
+/**
+ * "password ", then on the same line "too weak" or "too short", in any case
+ * (what `/password .*too (weak|short)/i` answered). One pass over a message
+ * whose length is not bounded here: the first "password " of a line is the
+ * only one that matters.
+ */
+const WEAK_PASSWORD_MESSAGE: MessagePattern = {
+  test(message) {
+    let afterPassword = false;
+    for (let i = 0; i < message.length; ) {
+      const code = message.charCodeAt(i);
+      if (code === 10 || code === 13 || code === 0x2028 || code === 0x2029) {
+        afterPassword = false;
+      } else if (!afterPassword && wordAt(message, i, "password ")) {
+        afterPassword = true;
+        i += "password ".length;
+        continue;
+      } else if (afterPassword && (wordAt(message, i, "too weak") || wordAt(message, i, "too short"))) {
+        return true;
+      }
+      i++;
+    }
+    return false;
+  },
+};
+
 /**
  * Older GoTrue releases send only a message. Recognise the common ones so
  * they receive the same treatment as coded errors.
  */
-export const MESSAGE_CODES: ReadonlyArray<[RegExp, string]> = [
+export const MESSAGE_CODES: ReadonlyArray<[MessagePattern, string]> = [
   [/invalid login credentials/i, "invalid_credentials"],
   [/email not confirmed/i, "email_not_confirmed"],
   [/user already registered/i, "user_already_exists"],
   [/already been registered/i, "user_already_exists"],
   [/password should be at least/i, "password_too_short"],
   [/cannot be longer than 72/i, "password_too_long"],
-  [/password .*too (weak|short)/i, "weak_password"],
+  [WEAK_PASSWORD_MESSAGE, "weak_password"],
   [/rate limit exceeded/i, "over_request_rate_limit"],
   [/too many requests/i, "over_request_rate_limit"],
   [/token has expired|otp expired|expired or invalid/i, "otp_expired"],

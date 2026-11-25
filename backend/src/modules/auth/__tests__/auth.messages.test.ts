@@ -127,3 +127,46 @@ describe("describeAuthValidationIssues", () => {
     });
   });
 });
+
+describe("describeAuthProviderError on messages without a code", () => {
+  const codeOf = (message: string) => describeAuthProviderError({ status: 400, message }, fallback).code;
+
+  it.each([
+    ["Password is too weak", "weak_password"],
+    ["password too short", "weak_password"],
+    ["The new PASSWORD is TOO Short for this project", "weak_password"],
+    ["password too weaker than allowed", "weak_password"],
+    ["first line\npassword x\nPassword y too short", "weak_password"],
+    ["password a\u2028x password b too weak", "weak_password"],
+    ["password  too weak", "weak_password"],
+    ["Password should be at least 6 characters", "password_too_short"],
+    ["passwordtoo weak", null],
+    ["password is too strong", null],
+    ["password a\nb too weak", null],
+    ["password a\r\ntoo short", null],
+    ["password a\u2028too weak", null],
+    ["too weak a password ", null],
+    ["pass word too weak", null],
+    ["password", null],
+    ["", null],
+  ])("reads %j as %j", (message, code) => {
+    expect(codeOf(message)).toBe(code);
+  });
+
+  it("reads a very long message in time proportional to its length", () => {
+    const elapsed = (repeats: number, tail: string) => {
+      const message = `${"password ".repeat(repeats)}${tail}`;
+      const started = performance.now();
+      const code = codeOf(message);
+      return { ms: performance.now() - started, code };
+    };
+    elapsed(100, "");
+    const small = elapsed(6_000, "");
+    expect(small.code).toBeNull();
+    expect(small.ms, `6000 repeats took ${small.ms.toFixed(0)} ms`).toBeLessThan(1_500);
+    const large = elapsed(24_000, "");
+    expect(large.ms, `24000 repeats took ${large.ms.toFixed(0)} ms`).toBeLessThan(6_000);
+    expect(large.ms / Math.max(small.ms, 50), "ratio").toBeLessThan(10);
+    expect(elapsed(24_000, " too short").code).toBe("weak_password");
+  }, 120_000);
+});

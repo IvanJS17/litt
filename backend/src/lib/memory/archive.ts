@@ -12,14 +12,22 @@ type ProjectLabel = {
   org_id: string | null;
 };
 
+/** `text` without the dots and blanks at its end. */
+function trimTrailingDotsAndBlanks(text: string): string {
+  let end = text.length;
+  while (end > 0 && (text[end - 1] === "." || text[end - 1] === " ")) end--;
+  return text.slice(0, end);
+}
+
 function archiveSegment(value: string): string {
-  const normalized = value
-    .normalize("NFKC")
-    .replace(/[\\/]/g, "-")
-    .replace(/[\u0000-\u001f\u007f<>:"|?*]/g, "-")
-    .replace(/\.{2,}/g, "-")
-    .trim()
-    .replace(/[. ]+$/g, "");
+  const normalized = trimTrailingDotsAndBlanks(
+    value
+      .normalize("NFKC")
+      .replace(/[\\/]/g, "-")
+      .replace(/[\u0000-\u001f\u007f<>:"|?*]/g, "-")
+      .replace(/\.{2,}/g, "-")
+      .trim(),
+  );
   return Array.from(normalized || "project")
     .slice(0, 80)
     .join("");

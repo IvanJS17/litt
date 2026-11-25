@@ -1,5 +1,8 @@
+import type { Readable } from "node:stream";
 import JSZip from "jszip";
 import { extractPdfText } from "../../lib/pdfText";
+import { UserFacingError } from "../../lib/userFacingError";
+import { firstXmlElement, scanXmlElements, xmlAttribute } from "../../lib/xmlScan";
 
 export type PlaybookSourceRef = {
   id: string;
@@ -54,42 +57,62 @@ function decodeXml(value: string): string {
   );
 }
 
-function attr(xml: string, name: string): string | null {
-  const match = xml.match(new RegExp(`\\b${name}="([^"]*)"`, "i"));
-  return match ? decodeXml(match[1]) : null;
+function attr(attrs: string, name: string): string | null {
+  const value = xmlAttribute(attrs, name);
+  return value === null ? null : decodeXml(value);
 }
 
+/** The value of the first `tag` start tag in `xml`: its w:val, else its val. */
 function tagValue(xml: string, tag: string): string | null {
-  const match = xml.match(new RegExp(`<${tag}\\b([^>]*)/?>`, "i"));
-  return match ? attr(match[1], "w:val") ?? attr(match[1], "val") : null;
+  const element = firstXmlElement(xml, [], [tag]);
+  return element ? attr(element.attrs, "w:val") ?? attr(element.attrs, "val") : null;
+}
+
+/** `text` without the blanks and tabs that come right before a line break. */
+function stripBlanksBeforeLineBreaks(text: string): string {
+  const pieces: string[] = [];
+  let kept = 0;
+  for (let i = 0; i < text.length; ) {
+    if (text[i] !== " " && text[i] !== "\t") {
+      i++;
+      continue;
+    }
+    let end = i;
+    while (text[end] === " " || text[end] === "\t") end++;
+    if (text[end] === "\n") {
+      pieces.push(text.slice(kept, i));
+      kept = end;
+    }
+    i = end;
+  }
+  pieces.push(text.slice(kept));
+  return pieces.join("");
 }
 
 function textFromParagraph(xml: string): string {
   const pieces: string[] = [];
-  // The alternation is ordered, and every branch must consume its own tag
-  // completely. An empty <w:t/> and a self-closing <w:br/> or <w:tab/> have to
-  // match before the text-run branch, or its lazy body would run past the tag
-  // and swallow the next run's text up to the following </w:t>.
-  const token =
-    /<w:t\b[^>]*?\/>|<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:(tab|br|cr)\b[^>]*>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = token.exec(xml))) {
-    const separator = match[2]?.toLowerCase();
-    if (separator === "tab") pieces.push("\t");
-    else if (separator) pieces.push("\n");
-    else if (match[1] !== undefined) pieces.push(decodeXml(match[1]));
+  // A self-closing <w:t/> is an empty run, and a text run with no closing
+  // tag is not one: neither takes the text of the run that follows.
+  for (const element of scanXmlElements(xml, ["w:t"], ["w:tab", "w:br", "w:cr"])) {
+    if (element.name === "w:tab") pieces.push("\t");
+    else if (element.name === "w:t") {
+      if (!element.selfClosing) pieces.push(decodeXml(element.inner));
+    } else pieces.push("\n");
   }
-  return pieces.join("").replace(/[ \t]+\n/g, "\n").trim();
+  return stripBlanksBeforeLineBreaks(pieces.join("")).trim();
 }
 
 function styleNames(stylesXml: string): Map<string, string> {
   const styles = new Map<string, string>();
-  const re = /<w:style\b([^>]*)>([\s\S]*?)<\/w:style>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(stylesXml))) {
-    const id = attr(match[1], "w:styleId");
-    const nameTag = match[2].match(/<w:name\b([^>]*)\/>/i);
-    const name = nameTag ? attr(nameTag[1], "w:val") : null;
+  for (const style of scanXmlElements(stylesXml, ["w:style"])) {
+    const id = attr(style.attrs, "w:styleId");
+    // The first self-closing <w:name/> of the style.
+    let name: string | null = null;
+    for (const tag of scanXmlElements(style.inner, [], ["w:name"])) {
+      if (!tag.selfClosing) continue;
+      name = attr(tag.attrs.slice(0, -1), "w:val");
+      break;
+    }
     if (id) styles.set(id, name || id);
   }
   return styles;
@@ -98,44 +121,83 @@ function styleNames(stylesXml: string): Map<string, string> {
 function paragraphMetadata(
   xml: string,
   styles: Map<string, string>,
+  headingLevels: Map<string, number | null>,
 ): { style: string | null; level: number | null } {
   const styleId = tagValue(xml, "w:pStyle");
   const style = styleId ? styles.get(styleId) ?? styleId : null;
   const outline = tagValue(xml, "w:outlineLvl");
-  const headingMatch = (style ?? "").match(/heading\s*(\d+)/i);
-  const level = outline !== null
-    ? Number.parseInt(outline, 10) + 1
-    : headingMatch
-      ? Number.parseInt(headingMatch[1], 10)
-      : null;
-  return { style, level: Number.isFinite(level) ? level : null };
+  let headingLevel: number | null = null;
+  if (outline === null && style !== null) {
+    // A style name can be long and many paragraphs can use it: read it once.
+    if (!headingLevels.has(style)) {
+      const headingMatch = style.match(/heading\s*(\d+)/i);
+      headingLevels.set(style, headingMatch ? Number.parseInt(headingMatch[1], 10) : null);
+    }
+    headingLevel = headingLevels.get(style) ?? null;
+  }
+  const level = outline !== null ? Number.parseInt(outline, 10) + 1 : headingLevel;
+  return { style, level: level !== null && Number.isFinite(level) ? level : null };
+}
+
+/**
+ * A part of the Word file that inflates to more than this is not read. A
+ * playbook body holds a few MiB of XML at the most (the import refuses more
+ * than 150,000 characters of text), and a larger part only holds the jobs
+ * thread and memory before that refusal.
+ */
+export const MAX_WORD_PART_BYTES = 16 * 1024 * 1024;
+
+const TOO_LARGE = "The document is too large to import.";
+
+/**
+ * The text of a part of the Word file, or null when there is none. The part
+ * is inflated in chunks and refused as soon as the text it holds passes the
+ * bound, whatever size its header declares.
+ */
+async function readWordPart(zip: JSZip, path: string): Promise<string | null> {
+  const entry = zip.file(path);
+  if (!entry) return null;
+  return new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    const stream = entry.nodeStream("nodebuffer") as Readable;
+    stream.on("data", (chunk: Buffer) => {
+      total += chunk.length;
+      if (total > MAX_WORD_PART_BYTES) {
+        chunks.length = 0;
+        stream.destroy();
+        reject(new UserFacingError(TOO_LARGE));
+      } else chunks.push(chunk);
+    });
+    stream.on("error", reject);
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+  });
 }
 
 export async function extractPlaybookWordStructure(
   buffer: Buffer,
 ): Promise<PlaybookWordStructure> {
   const zip = await JSZip.loadAsync(buffer);
-  const documentXml = await zip.file("word/document.xml")?.async("text");
+  const documentXml = await readWordPart(zip, "word/document.xml");
   if (!documentXml) throw new Error("The Word file does not contain a document body.");
-  const stylesXml = (await zip.file("word/styles.xml")?.async("text")) ?? "";
+  const stylesXml = (await readWordPart(zip, "word/styles.xml")) ?? "";
   const styles = styleNames(stylesXml);
-  const body = documentXml.match(/<w:body\b[^>]*>([\s\S]*?)<\/w:body>/i)?.[1];
+  const headingLevels = new Map<string, number | null>();
+  const body = firstXmlElement(documentXml, ["w:body"])?.inner;
   if (!body) throw new Error("The Word document body could not be read.");
 
   const blocks: PlaybookWordStructure["blocks"] = [];
   const sources: PlaybookSourceRef[] = [];
   let paragraphIndex = 0;
   let tableIndex = 0;
-  const blockRe = /<w:(p|tbl)\b[^>]*>[\s\S]*?<\/w:\1>/gi;
-  let blockMatch: RegExpExecArray | null;
-  while ((blockMatch = blockRe.exec(body))) {
-    const xml = blockMatch[0];
-    if (blockMatch[1] === "p") {
+  for (const block of scanXmlElements(body, ["w:p", "w:tbl"])) {
+    const xml = block.outer;
+    if (block.name === "w:p") {
       const text = textFromParagraph(xml);
       if (!text) continue;
       paragraphIndex += 1;
       const sourceRef = `P${paragraphIndex}`;
-      const metadata = paragraphMetadata(xml, styles);
+      const metadata = paragraphMetadata(xml, styles, headingLevels);
       sources.push({
         id: sourceRef,
         kind: "paragraph",
@@ -149,19 +211,15 @@ export async function extractPlaybookWordStructure(
 
     tableIndex += 1;
     const rows: Array<Array<{ sourceRef: string; text: string }>> = [];
-    const rowRe = /<w:tr\b[^>]*>([\s\S]*?)<\/w:tr>/gi;
-    let rowMatch: RegExpExecArray | null;
     let rowIndex = 0;
-    while ((rowMatch = rowRe.exec(xml))) {
+    for (const row of scanXmlElements(xml, ["w:tr"])) {
       rowIndex += 1;
       const cells: Array<{ sourceRef: string; text: string }> = [];
-      const cellRe = /<w:tc\b[^>]*>([\s\S]*?)<\/w:tc>/gi;
-      let cellMatch: RegExpExecArray | null;
       let columnIndex = 0;
-      while ((cellMatch = cellRe.exec(rowMatch[1]))) {
+      for (const cell of scanXmlElements(row.inner, ["w:tc"])) {
         columnIndex += 1;
-        const paragraphs = [...cellMatch[1].matchAll(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/gi)]
-          .map((item) => textFromParagraph(item[0]))
+        const paragraphs = [...scanXmlElements(cell.inner, ["w:p"])]
+          .map((item) => textFromParagraph(item.outer))
           .filter(Boolean);
         const text = paragraphs.join("\n").trim();
         const sourceRef = `T${tableIndex}R${rowIndex}C${columnIndex}`;
