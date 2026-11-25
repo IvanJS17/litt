@@ -4,12 +4,19 @@
 // from `modules/`.
 
 /** Variables a child may inherit: where programs and LibreOffice live, the
- * profile home and the locale. No credential is, or may become, one of them. */
+ * profile home, the locale, and the temp directory and allocator setting of
+ * the process that starts it (so a converter started by the parser keeps
+ * writing inside the parser's scratch directory). No credential is, or may
+ * become, one of them. */
 export const CHILD_ENV_ALLOWLIST: readonly string[] = [
   "PATH",
   "SystemRoot",
   "HOME",
   "LANG",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "MALLOC_ARENA_MAX",
   "SOFFICE_BINARY_PATH",
   "LIBREOFFICE_BINARY_PATH",
   "LIBRE_OFFICE_EXE",

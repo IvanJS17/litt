@@ -1,7 +1,8 @@
 // Every process the backend starts gets an explicit environment built by
-// `lib/childEnv.ts`. This scan fails when a production file starts a process
-// through `child_process` and is not on the list below, so a new spawn cannot
-// quietly inherit the backend's whole environment.
+// `lib/childEnv.ts`. This scan fails when a production file loads a module that
+// starts processes and is not on the list below, so a new spawn cannot quietly
+// inherit the backend's whole environment. It does not check each call inside a
+// listed file: the real-process tests of those files do.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
@@ -16,12 +17,12 @@ const ALLOWED: Record<string, string> = {
   "lib/integrations/googleDriveExtract.ts": "Drive reader fork: childProcessEnv({ NODE_ENV })",
 };
 
-const STARTS_PROCESS =
-  /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)\s*\(|from\s+["'](?:node:)?child_process["']|require\(\s*["'](?:node:)?child_process["']\s*\)|import\(\s*["'](?:node:)?child_process["']\s*\)/;
-const IMPORTS_CHILD_PROCESS = /["'](?:node:)?child_process["']/;
+// A file can only start a process by loading one of these modules, whatever
+// the quoting or the import form.
+const PROCESS_MODULE = /["'`](?:(?:node:)?child_process|cross-spawn|execa)["'`]/;
 
 export function startsProcess(source: string): boolean {
-  return IMPORTS_CHILD_PROCESS.test(source) && STARTS_PROCESS.test(source);
+  return PROCESS_MODULE.test(source);
 }
 
 function productionFiles(dir: string, out: string[] = []): string[] {
@@ -41,6 +42,9 @@ describe("child processes", () => {
   it("the scan flags a file that starts a process", () => {
     expect(startsProcess('import { spawn } from "node:child_process";\nspawn("tool", []);')).toBe(true);
     expect(startsProcess('const { execFile } = require("child_process");')).toBe(true);
+    expect(startsProcess("const cp = await import(`node:child_process`);\ncp.spawn(\"tool\", []);")).toBe(true);
+    expect(startsProcess('import spawn from "cross-spawn";\nspawn("tool", []);')).toBe(true);
+    expect(startsProcess('import { execa } from "execa";\nawait execa("tool");')).toBe(true);
     expect(startsProcess("const x = /a/.exec(text);")).toBe(false);
   });
 

@@ -38,6 +38,14 @@ describe("childProcessEnv", () => {
     expect(childProcessEnv()).not.toHaveProperty("LIBRE_OFFICE_EXE");
   });
 
+  it("passes on the temp directory and allocator setting of the process that starts the child", () => {
+    vi.stubEnv("TMPDIR", "/scratch/parser");
+    vi.stubEnv("TMP", "/scratch/parser");
+    vi.stubEnv("TEMP", "/scratch/parser");
+    vi.stubEnv("MALLOC_ARENA_MAX", "2");
+    expect(childProcessEnv()).toMatchObject({ TMPDIR: "/scratch/parser", TMP: "/scratch/parser", TEMP: "/scratch/parser", MALLOC_ARENA_MAX: "2" });
+  });
+
   it("adds the caller's explicit extras, which win over the allowlist", () => {
     vi.stubEnv("TMPDIR", "/ambient");
     const env = childProcessEnv({ TMPDIR: "/scratch", MALLOC_ARENA_MAX: "2" });

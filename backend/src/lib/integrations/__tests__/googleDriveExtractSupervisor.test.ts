@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 const { forkMock } = vi.hoisted(() => ({ forkMock: vi.fn() }));
 vi.mock("node:child_process", () => ({ fork: forkMock }));
 import { extractGoogleDriveBinary } from "../googleDriveExtract";
+import { CHILD_ENV_ALLOWLIST } from "../../childEnv";
 
 afterEach(() => {
     vi.useRealTimers();
@@ -44,7 +45,7 @@ it("kills stalled parsers, caps concurrency and does not pass deployment credent
     );
     const forkEnv = forkMock.mock.calls[0][2].env as Record<string, string>;
     expect(forkEnv.PATH).toBe(process.env.PATH);
-    expect(Object.keys(forkEnv).filter((name) => !["NODE_ENV", "PATH", "SystemRoot", "HOME", "LANG"].includes(name))).toEqual([]);
+    expect(Object.keys(forkEnv).filter((name) => name !== "NODE_ENV" && !CHILD_ENV_ALLOWLIST.includes(name))).toEqual([]);
     await vi.advanceTimersByTimeAsync(2000);
     await Promise.all([first, second]);
     for (const child of children)
