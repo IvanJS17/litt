@@ -37,10 +37,36 @@ export class RepairBudget {
     }
 }
 
-/** A repair was refused by a bound: the size of its text or its time. */
-export function isRepairRefusal(error: unknown): boolean {
-    return error instanceof BoundedTextError || error instanceof RepairDeadlineError;
+/** The library ran out of stack on a text: too deeply nested for it to be repaired. */
+export class RepairDepthError extends Error {
+    readonly code = "repair_depth";
+    constructor(
+        readonly length: number,
+        options?: { cause?: unknown },
+    ) {
+        super(`The repair of a text of ${length} characters is nested too deeply to be repaired`, options);
+        this.name = "RepairDepthError";
+    }
 }
+
+/** A repair was refused by a bound: the size of its text, its time or its nesting. */
+export function isRepairRefusal(error: unknown): boolean {
+    return error instanceof BoundedTextError || error instanceof RepairDeadlineError || error instanceof RepairDepthError;
+}
+
+/** The longest deadline the engine accepts is 2^32 - 1 ms; a repair is never given more than this. */
+export const MAX_REPAIR_DEADLINE_MS = 2 ** 31;
+
+/** The one whole-millisecond deadline of a repair; `0` when it is not a finite number of at least 1. */
+function deadlineOf(milliseconds: number): number {
+    if (!Number.isFinite(milliseconds)) return 0;
+    const whole = Math.floor(milliseconds);
+    return whole >= 1 ? Math.min(whole, MAX_REPAIR_DEADLINE_MS) : 0;
+}
+
+// The library's error is made in the context's realm, so `instanceof RangeError` does not hold.
+const isStackOverflow = (error: unknown) =>
+    (error as { name?: unknown } | null)?.name === "RangeError" && /call stack/i.test(String((error as { message?: unknown }).message));
 
 // The library runs inside a context so that the engine can stop it at a deadline while the caller
 // stays synchronous. The context is made once, and holds the text only while a repair runs.
@@ -70,13 +96,14 @@ export function repairContextInputForTests(): string {
 /**
  * The repaired JSON text of `text`. Throws `BoundedTextError` for a text over `maxChars`;
  * `RepairDeadlineError` when the repair did not finish within the time left in `budget` (or
- * `limits.maxMs` without one); any other error is the library's own, for a text it cannot repair.
+ * `limits.maxMs` without one) or that time is not a usable deadline; `RepairDepthError` when the
+ * library ran out of stack; any other error is the library's own, for a text it cannot repair.
  * The wall time of the repair, whatever its end, is taken from `budget`.
  */
 export function repairJson(text: string, limits: { maxChars: number; maxMs: number }, budget?: RepairBudget): string {
     assertBoundedText(text, limits.maxChars);
-    const allowedMs = budget ? Math.floor(budget.remaining) : limits.maxMs;
-    if (!(allowedMs >= 1)) throw new RepairDeadlineError(text.length, Math.max(0, allowedMs || 0));
+    const allowedMs = deadlineOf(budget ? budget.remaining : limits.maxMs);
+    if (allowedMs < 1) throw new RepairDeadlineError(text.length, 0);
     repairObserver?.(text.length, allowedMs);
     const { ctx, script } = context();
     const started = performance.now();
@@ -87,6 +114,7 @@ export function repairJson(text: string, limits: { maxChars: number; maxMs: numb
         if ((error as { code?: unknown } | null)?.code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
             throw new RepairDeadlineError(text.length, allowedMs, { cause: error });
         }
+        if (isStackOverflow(error)) throw new RepairDepthError(text.length, { cause: error });
         throw error;
     } finally {
         ctx.input = "";

@@ -1,19 +1,25 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import vm from "node:vm";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
     isRepairRefusal,
+    MAX_REPAIR_DEADLINE_MS,
     RepairBudget,
     RepairDeadlineError,
     repairContextInputForTests,
     repairJson,
     setRepairObserverForTests,
 } from "../boundedJsonRepair";
+import { parseToolScalar } from "../llm/toolCallParsing";
 import { BoundedTextError } from "../modelJsonFence";
 
-afterEach(() => setRepairObserverForTests(null));
+afterEach(() => {
+    setRepairObserverForTests(null);
+    vi.restoreAllMocks();
+});
 
 const direct = createRequire(join(__dirname, "boundedJsonRepair.test.ts"))("jsonrepair") as { jsonrepair: (text: string) => string };
 const LIMITS = { maxChars: 200_000, maxMs: 300 };
@@ -170,4 +176,75 @@ describe("the repairs of one reading share one time budget", () => {
         expect(done + refused).toBe(20_000);
         expect(performance.now() - started).toBeLessThan(3_000);
     }, 30_000);
+});
+
+const BAD_DEADLINES = [0.5, 0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 2 ** 32, 1e12];
+
+describe("a deadline the engine would reject is a refusal or is made valid", () => {
+    /** Ends as a repair or as a refusal; never as the engine's own range error. */
+    function endsWell(read: () => string) {
+        try {
+            expect(read()).toBe('{"a":"b"}');
+        } catch (error) {
+            expect(error).not.toBeInstanceOf(RangeError);
+            expect((error as { code?: unknown }).code).not.toBe("ERR_OUT_OF_RANGE");
+            expect(error).toBeInstanceOf(RepairDeadlineError);
+            expect(isRepairRefusal(error)).toBe(true);
+        }
+    }
+
+    it.each(BAD_DEADLINES)("ends a repair with maxMs %s as a repair or a refusal", (maxMs) => {
+        endsWell(() => repairJson("{'a':'b'}", { maxChars: 1_000, maxMs }));
+    });
+
+    it.each(BAD_DEADLINES)("ends a repair with %s left in the budget as a repair or a refusal", (left) => {
+        const budget = new RepairBudget(1_000);
+        budget.remaining = left;
+        endsWell(() => repairJson("{'a':'b'}", LIMITS, budget));
+    });
+
+    it("refuses a deadline that is not a finite number of at least one millisecond, and floors the rest", () => {
+        for (const maxMs of [0.5, 0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+            expect(() => repairJson("{'a':'b'}", { maxChars: 1_000, maxMs })).toThrow(RepairDeadlineError);
+        }
+        const given: number[] = [];
+        setRepairObserverForTests((_chars, ms) => given.push(ms));
+        repairJson("{'a':'b'}", { maxChars: 1_000, maxMs: 7.9 });
+        repairJson("{'a':'b'}", { maxChars: 1_000, maxMs: 2 ** 32 });
+        repairJson("{'a':'b'}", { maxChars: 1_000, maxMs: 1e12 });
+        expect(given).toEqual([7, MAX_REPAIR_DEADLINE_MS, MAX_REPAIR_DEADLINE_MS]);
+        expect(MAX_REPAIR_DEADLINE_MS).toBeLessThanOrEqual(2 ** 32 - 1);
+    });
+});
+
+describe("the deadline reaches the engine", () => {
+    it("passes the whole-millisecond deadline as the timeout option, with a budget and without one", () => {
+        const spy = vi.spyOn(vm.Script.prototype, "runInContext");
+        repairJson("{'a':'b'}", { maxChars: 1_000, maxMs: 250.7 });
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.calls[0][1]).toEqual({ timeout: 250 });
+        repairJson("{'a':'b'}", LIMITS, new RepairBudget(640.9));
+        expect(spy).toHaveBeenCalledTimes(2);
+        expect(spy.mock.calls[1][1]).toEqual({ timeout: 640 });
+    });
+});
+
+describe("a stack overflow inside the library is a refusal", () => {
+    const deep = '[{"a":'.repeat(33_000);
+
+    it("is refused by repairJson, with the refusal that ends a reading", () => {
+        let failure: unknown;
+        try {
+            repairJson(deep, LIMITS);
+        } catch (error) {
+            failure = error;
+        }
+        expect(failure).toBeInstanceOf(Error);
+        expect(isRepairRefusal(failure)).toBe(true);
+        expect(repairJson("{'a':'b'}", LIMITS)).toBe('{"a":"b"}');
+    });
+
+    it("ends the reading of a tool scalar as a call that cannot be recovered", () => {
+        expect(() => parseToolScalar(deep)).toThrow(/could not recover/);
+    });
 });

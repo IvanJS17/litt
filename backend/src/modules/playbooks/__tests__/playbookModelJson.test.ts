@@ -4,6 +4,14 @@ import { expectLinearCost } from "../../../__tests__/helpers/linearCost";
 import { MODEL_TEXT_MAX_CHARS } from "../../../lib/modelJsonFence";
 import { parseModelJson, PlaybookModelOutputError, validatePlaybookCompilationWithRetry } from "../playbooks.operations";
 
+describe("parseModelJson on an answer that overflows the library's stack", () => {
+    it("ends as the error of an answer that cannot be read", () => {
+        const deep = '[{"a":'.repeat(15_000) + "}";
+        expect(() => parseModelJson(deep)).toThrow(PlaybookModelOutputError);
+        expect(() => parseModelJson(deep)).toThrow("The model did not return structured JSON.");
+    });
+});
+
 describe("parseModelJson", () => {
     it("reads an answer followed by a long run of blanks in linear time", () => {
         expectLinearCost((n) => parseModelJson('{"findings":[]}' + " ".repeat(n) + "x"), { small: 2_000, large: 64_000 });
