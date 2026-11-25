@@ -146,8 +146,10 @@ request is bounded where it is held:
   closes, so at most as many displays hold one as the converter has places (ten
   per thread); the next is answered 503 with `Retry-After` without reading
   anything. A response whose client makes no progress for a minute
-  (`DISPLAY_SEND_IDLE_MS`) is closed, so a client that stops reading does not
-  keep the file or the place. The converter may hold a second copy of a source
+  (`DISPLAY_SEND_IDLE_MS`) is closed within about two, so a client that stops
+  reading does not keep the file or the place; until then it holds both, and
+  nothing shares the places between people. Only the response built in memory
+  has this limit: a stored rendition is streamed and holds no file in memory. The converter may hold a second copy of a source
   while it works. A stored PDF
   rendition is served whatever the size of the source.
 
