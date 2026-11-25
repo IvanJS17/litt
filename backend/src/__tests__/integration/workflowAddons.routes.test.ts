@@ -339,6 +339,16 @@ describe("workflow add-on catalog routes", () => {
     expect(response.headers["content-type"]).toMatch(/^application\/pdf/);
     expect(response.headers["content-disposition"]).toContain("Deck.pdf");
     expect(Buffer.from(response.body).toString()).toBe("converted-pdf");
+
+    // A converted asset's place comes back when its response ends: more
+    // displays than the converter has places are served one after another.
+    for (let display = 0; display < 12; display++) {
+      const again = await request(app).get(
+        "/workflow-addons/c0a7a1e1-0000-4000-8000-000000000001/assets/reference-1/display",
+      );
+      expect(again.status).toBe(200);
+    }
+    expect(docxToPdf).toHaveBeenCalledTimes(13);
   });
 
   it("answers 503 with Retry-After, and reports nothing, when the converter is busy", async () => {

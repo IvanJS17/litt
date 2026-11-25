@@ -112,7 +112,7 @@ export async function listWorkflowAddons(
  */
 export async function loadWorkflowAddonAssetDisplay(
   db: Db,
-  params: { addonId: string; assetId: string },
+  params: { addonId: string; assetId: string; signal?: AbortSignal },
 ): Promise<ServiceResult<DocumentDisplayPayload>> {
   const { data: addon, error: addonError } = await db
     .from("mike_workflows")
@@ -142,6 +142,7 @@ export async function loadWorkflowAddonAssetDisplay(
       filename: asset.filename,
       fileType: asset.file_type,
       storagePath: asset.storage_path,
+      signal: params.signal,
     });
     if (!display) {
       return failure("not_found", "Asset not found in storage");

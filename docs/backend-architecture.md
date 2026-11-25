@@ -138,13 +138,14 @@ request is bounded where it is held:
   worker requeues the file. The counters belong to one thread, as the
   extraction slots do: the API, the jobs and the uploads threads each have
   their own. A display conversion reads a source of at most 25 MiB
-  (`CONVERSION_MAX_SOURCE_BYTES` in `lib/convert.ts`, the same bound as the
+  (`CONVERSION_MAX_SOURCE_BYTES` in `lib/conversionLimits.ts`, the same bound as the
   convert, compare and split routes): the stored size is read first, so a
   larger source is not downloaded and does not wait for a place, and the
   route answers 400 with the code `convert_source_too_large`. A display holds
-  its source from the download until the converter ends, so at most as many
-  displays read one as the converter has places (ten per thread); the next is
-  answered 503 with `Retry-After` without reading anything. A stored PDF
+  its source from the download, and then the converted file until its response
+  closes, so at most as many displays hold one as the converter has places (ten
+  per thread); the next is answered 503 with `Retry-After` without reading
+  anything. The converter may hold a second copy of a source while it works. A stored PDF
   rendition is served whatever the size of the source.
 
 #### Chat turns
