@@ -15,6 +15,7 @@ import {
     creatorScopedAllowed,
     ensureReviewAccess,
     filterAccessibleDocumentIds,
+    mayDeleteContainer,
     normalizeEmail,
     resolveContentOrgId,
     resolveStandaloneOrgId,
@@ -1459,7 +1460,7 @@ export async function deleteTabularReview(
     if (reviewError || !review) return failure("not_found", "Review not found");
     const access = await ensureReviewAccess(review, userId, userEmail, db);
     if (!access.ok) return failure("not_found", "Review not found");
-    if (!can(access.projectRole, "container.delete"))
+    if (!mayDeleteContainer(access))
         return failure(
             "forbidden",
             "You do not have permission to delete this review",

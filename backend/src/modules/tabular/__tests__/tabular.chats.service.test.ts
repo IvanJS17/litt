@@ -244,6 +244,57 @@ describe("deleteTabularReviewChat", () => {
         });
     });
 
+    // The gate asks who wrote THE CHAT, not who wrote the review.
+    it("403s the review's creator on a thread a colleague wrote", async () => {
+        ensureReviewAccess.mockResolvedValue({
+            ok: true,
+            isCreator: true,
+            orgRole: null,
+            projectRole: "owner",
+        });
+        const { db, calls } = remove({
+            tables: chatIn({
+                tabular_review_chats: {
+                    data: { id: "chat-1", review_id: "rev-1", user_id: "other" },
+                    error: null,
+                },
+            }),
+        });
+        const result = await deleteTabularReviewChat(db, {
+            reviewId: "rev-1",
+            chatId: "chat-1",
+            userId: "user-1",
+            userEmail: "me@example.com",
+        });
+        expect(result).toMatchObject({ ok: false, kind: "forbidden" });
+        expect(calls.some((call) => call.op === "delete")).toBe(false);
+    });
+
+    it("lets a person who did not write the review delete their own thread in it", async () => {
+        ensureReviewAccess.mockResolvedValue({
+            ok: true,
+            isCreator: false,
+            orgRole: null,
+            projectRole: "editor",
+        });
+        const { db, calls } = remove({
+            tables: chatIn({
+                tabular_reviews: {
+                    data: { id: "rev-1", user_id: "other", project_id: null },
+                    error: null,
+                },
+            }),
+        });
+        const result = await deleteTabularReviewChat(db, {
+            reviewId: "rev-1",
+            chatId: "chat-1",
+            userId: "user-1",
+            userEmail: "me@example.com",
+        });
+        expect(result).toEqual({ ok: true, data: null });
+        expect(calls.some((call) => call.op === "delete")).toBe(true);
+    });
+
     it("lets an owner act once the chat's creator is gone", async () => {
         // `user_id` is ON DELETE SET NULL, so "only the creator" would
         // otherwise mean nobody — the thread would be stranded.

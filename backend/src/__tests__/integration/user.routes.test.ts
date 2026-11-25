@@ -405,8 +405,8 @@ describe("user.routes", () => {
                 ? v
                 : null,
         );
-        deleteAllUserChats.mockResolvedValue(undefined);
-        deleteAllUserTabularReviews.mockResolvedValue(undefined);
+        deleteAllUserChats.mockResolvedValue({ kept: 0 });
+        deleteAllUserTabularReviews.mockResolvedValue({ deleted: 0, kept: 0 });
         deleteUserPrivateMemories.mockResolvedValue(undefined);
         deleteUserAccountData.mockResolvedValue(undefined);
         deleteUserProjects.mockResolvedValue(undefined);
@@ -2109,6 +2109,7 @@ describe("user.routes", () => {
                 expect.anything(),
                 "u1",
                 null,
+                "u1@test.local",
             );
         });
 
@@ -2136,7 +2137,22 @@ describe("user.routes", () => {
                 expect.anything(),
                 "u1",
                 null,
+                "u1@test.local",
             );
+        });
+
+        it.each([
+            ["/user/chats", () => deleteAllUserChats, { kept: 3 }],
+            ["/user/tabular-reviews", () => deleteAllUserTabularReviews, { deleted: 2, kept: 3 }],
+        ] as const)("DELETE %s says how many rows were kept when some could not be deleted", async (path, helper, outcome) => {
+            helper().mockResolvedValueOnce(outcome);
+
+            const res = await request(app)
+                .delete(path)
+                .set(...AUTH);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ kept: 3 });
         });
 
         it("DELETE /user/memories wipes app and private-project memory", async () => {
@@ -2176,6 +2192,10 @@ describe("user.routes", () => {
             // DELETE /user/projects also passes the caller's email (LiTT
             // checks each project as DELETE /projects/:id does).
             expect(helper().mock.calls[0]?.slice(0, 3)).toEqual([expect.anything(), "u1", ORG_ID]);
+            // The person's address rides along where each row is judged
+            // as the single-item delete judges it.
+            if (path === "/user/chats" || path === "/user/tabular-reviews" || path === "/user/projects")
+                expect(helper().mock.calls[0]?.[3]).toBe("u1@test.local");
         });
 
         it.each([
@@ -2217,7 +2237,7 @@ describe("user.routes", () => {
                 .set(...AUTH);
 
             expect(res.status).toBe(204);
-            expect(deleteAllUserChats).toHaveBeenCalledWith(expect.anything(), "u1", ORG_ID);
+            expect(deleteAllUserChats).toHaveBeenCalledWith(expect.anything(), "u1", ORG_ID, "u1@test.local");
         });
 
         it.each([
