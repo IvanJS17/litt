@@ -22,7 +22,7 @@ import {
     requestIdOf,
 } from "./engine/index";
 import { setOperation } from "../../lib/observability/report";
-import { normalizeEmail } from "../../lib/access";
+import { mayDeleteChat, normalizeEmail } from "../../lib/access";
 import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { can } from "../../lib/permissions";
@@ -474,8 +474,7 @@ chatRouter.delete("/:chatId", requireAuth, asyncRoute(async (req, res) => {
     const access = await getAccessibleChat(db, { chatId, userId, userEmail });
     if (!access.ok)
         return void res.status(404).json({ detail: "Chat not found" });
-    if (!can(access.projectRole, "container.delete") &&
-        !(access.isCreator && can(access.projectRole, "content.edit")))
+    if (!mayDeleteChat(access))
         return void res
             .status(403)
             .json({ detail: "You do not have permission to delete this chat" });

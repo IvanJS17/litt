@@ -7,6 +7,9 @@ vi.mock("../../../../../lib/documentTextCache", async load => ({ ...await load<o
 vi.mock("../../../../documents/documents.service", async load => ({ ...await load<object>(), loadCurrentVersionBytes: mocks.bytes }));
 vi.mock("../../../../../lib/extraction/isolated", async load => ({ ...await load<object>(), withExtractionRequest: (work: (extract: typeof mocks.extract) => unknown) => work(mocks.extract) }));
 import { readDocumentContent } from "../documentOps";
+// A database that says the person may open the document, and an actor to ask it for.
+const OPEN = { rpc: async () => ({ data: true, error: null }) } as unknown as Db;
+const actor = { userId: "reader", userEmail: null };
 const index: DocIndex = { D1: { document_id: "doc", filename: "test.docx", version_id: "version" } };
 const store = (): DocStore => new Map([["D1", { storage_path: "source", filename: "test.docx", file_type: "docx" }]]);
 beforeEach(() => {
@@ -17,33 +20,33 @@ beforeEach(() => {
   mocks.extract.mockResolvedValue("Parsed contract");
 });
 it("serves current persisted text without downloading or parsing", async () => {
-  expect(await readDocumentContent("D1", store(), () => {}, index, {} as Db)).toBe("Cached contract");
+  expect(await readDocumentContent("D1", store(), () => {}, index, OPEN, { actor })).toBe("Cached contract");
   expect(mocks.bytes).not.toHaveBeenCalled(); expect(mocks.extract).not.toHaveBeenCalled();
 });
 it("reuses the turn's fallback extraction for citation verification", async () => {
   mocks.text.mockResolvedValue({ revision: "r1", text: null, textlessPageCount: 0 });
   const docs = store();
-  expect(await readDocumentContent("D1", docs, () => {}, index, {} as Db)).toBe("Parsed contract");
-  expect(await readDocumentContent("D1", docs, () => {}, index, {} as Db, { emitEvents: false })).toBe("Parsed contract");
+  expect(await readDocumentContent("D1", docs, () => {}, index, OPEN, { actor })).toBe("Parsed contract");
+  expect(await readDocumentContent("D1", docs, () => {}, index, OPEN, { emitEvents: false, actor })).toBe("Parsed contract");
   expect(mocks.extract).toHaveBeenCalledTimes(1); expect(mocks.bytes).toHaveBeenCalledTimes(1);
 });
 it("invalidates an in-place edit even if version ID and storage path are reused", async () => {
   const docs = store();
-  await readDocumentContent("D1", docs, () => {}, index, {} as Db);
+  await readDocumentContent("D1", docs, () => {}, index, OPEN, { actor });
   mocks.active.mockResolvedValue({ id: "version", storage_path: "source", text_revision: "r2" });
   mocks.text.mockResolvedValue({ revision: "r2", text: "Edited contract", textlessPageCount: 0 });
-  expect(await readDocumentContent("D1", docs, () => {}, index, {} as Db, { emitEvents: false })).toBe("Edited contract");
+  expect(await readDocumentContent("D1", docs, () => {}, index, OPEN, { emitEvents: false, actor })).toBe("Edited contract");
   expect(mocks.text).toHaveBeenCalledTimes(2);
 });
 it("keeps turn caches separate", async () => {
-  await readDocumentContent("D1", store(), () => {}, index, {} as Db);
-  await readDocumentContent("D1", store(), () => {}, index, {} as Db);
+  await readDocumentContent("D1", store(), () => {}, index, OPEN, { actor });
+  await readDocumentContent("D1", store(), () => {}, index, OPEN, { actor });
   expect(mocks.text).toHaveBeenCalledTimes(2);
 });
 it("reads a Markdown document through the plain-text reader, not mammoth", async () => {
   mocks.text.mockResolvedValue({ revision: "r1", text: null, textlessPageCount: 0 });
   const docs: DocStore = new Map([["D1", { storage_path: "source", filename: "notes.md", file_type: "md" }]]);
   mocks.extract.mockResolvedValue("# Notes");
-  expect(await readDocumentContent("D1", docs, () => {}, index, {} as Db)).toBe("# Notes");
+  expect(await readDocumentContent("D1", docs, () => {}, index, OPEN, { actor })).toBe("# Notes");
   expect(mocks.extract).toHaveBeenCalledWith("markdownText", expect.anything());
 });

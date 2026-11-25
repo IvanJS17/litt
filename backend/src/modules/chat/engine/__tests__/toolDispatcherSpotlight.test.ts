@@ -67,11 +67,13 @@ async function dispatchDocumentTool(
         ],
         DOC_STORE,
         "user-1",
-        {} as never,
+        // The person may still open the document.
+        { rpc: async () => ({ data: true, error: null }) } as never,
         () => undefined,
         undefined,
         undefined,
-        undefined,
+        // The stored document the entry stands for: it is asked about first.
+        { "doc-0": { document_id: "document-1", filename: FILENAME, version_id: "version-2", version_number: 2 } },
         undefined,
         turnReadState,
         undefined,

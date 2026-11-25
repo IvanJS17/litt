@@ -63,6 +63,22 @@ export async function readStoredDocumentText(db: Db, args: {
 }
 
 /**
+ * May this person open this stored document now? The authorization half of
+ * read_document_text, on its own: every read a running turn makes asks it, so a
+ * turn built while access was open stops serving text once access is gone.
+ * Throws when the database cannot answer (the caller must not read then).
+ */
+export async function documentOpenableNow(db: Db, args: {
+  userId: string; userEmail?: string | null; documentId: string;
+}): Promise<boolean> {
+  const { data, error } = await db.rpc("document_text_access", {
+    p_document_id: args.documentId, p_user_id: args.userId, p_user_email: args.userEmail ?? null,
+  });
+  if (error) throw error;
+  return data === true;
+}
+
+/**
  * The cheap half of readStoredDocumentText: is the actor still allowed to read
  * this document, and is the version still live at `revision`? A ready text row
  * is keyed by its source revision, so "same revision" means "same text" and a
@@ -73,15 +89,12 @@ export async function storedDocumentTextCurrent(db: Db, args: {
   userId: string; userEmail?: string | null; documentId: string; versionId: string; revision: string;
 }): Promise<boolean> {
   const [access, version] = await Promise.all([
-    db.rpc("document_text_access", {
-      p_document_id: args.documentId, p_user_id: args.userId, p_user_email: args.userEmail ?? null,
-    }),
+    documentOpenableNow(db, args),
     db.from("document_versions").select("text_revision")
       .eq("id", args.versionId).eq("document_id", args.documentId).is("deleted_at", null)
       .maybeSingle(),
   ]);
-  if (access.error) throw access.error;
   if (version.error) throw version.error;
-  return access.data === true
+  return access
     && (version.data as { text_revision?: string | null } | null)?.text_revision === args.revision;
 }

@@ -35,7 +35,10 @@ import {
     type ContentGrantKind,
 } from "./contentAccess";
 import { isPersonalOrg, teamOrgIdOf } from "./personalOrgs";
-import { assertPersonalWorkspaceAllowed } from "./managedAccounts";
+import {
+    assertPersonalWorkspaceAllowed,
+    PersonalWorkspaceDisabledError,
+} from "./managedAccounts";
 import {
     can,
     isProjectRole,
@@ -505,6 +508,51 @@ export async function checkProjectAccess(
     // A personal project: closed to an account its firm manages.
     assertPersonalWorkspaceAllowed(userId);
     return { ok: true, isCreator, orgRole: null, projectRole, project: proj };
+}
+
+/**
+ * May this person add a document to this destination NOW? The one answer
+ * every document a running turn creates asks for, at the moment it writes:
+ * what the turn was allowed when it started decides nothing. Built only from
+ * the verdicts above, so it can never disagree with them:
+ *
+ *   - inside a project: the project verdict, with `content.edit`;
+ *   - otherwise in a firm's workspace: current membership of that firm;
+ *   - otherwise in the personal workspace: open to the person (closed to an
+ *     account its firm manages).
+ *
+ * Throws when a lookup cannot be answered by a verdict that reports it; the
+ * caller must not write then.
+ */
+export async function mayAddDocumentNow(
+    db: Db,
+    destination: {
+        userId: string;
+        userEmail: string | null;
+        projectId: string | null;
+        orgId: string | null;
+    },
+): Promise<boolean> {
+    const { userId, userEmail, projectId, orgId } = destination;
+    try {
+        if (projectId) {
+            const access = await checkProjectAccess(
+                projectId,
+                userId,
+                userEmail,
+                db,
+            );
+            return access.ok && can(access.projectRole, "content.edit");
+        }
+        const teamOrgId = await teamOrgIdOf(db, orgId);
+        if (teamOrgId) return (await getOrgRole(userId, teamOrgId, db)) !== null;
+        assertPersonalWorkspaceAllowed(userId);
+        return true;
+    } catch (error) {
+        // A closed personal workspace is a verdict, not a failure.
+        if (error instanceof PersonalWorkspaceDisabledError) return false;
+        throw error;
+    }
 }
 
 /** A personal project is private only while it has no direct grants. */
@@ -1370,4 +1418,121 @@ export async function loadOpenableProjects(
     for (const project of admitted)
         if (!denied.has(project.id)) opened.set(project.id, { orgId: project.org_id });
     return opened;
+}
+
+/**
+ * Whether someone with this access may delete the row itself: a matter, or a
+ * review (the container). The single-item delete routes and the Settings
+ * bulk deletes all ask exactly this.
+ */
+export function mayDeleteContainer(access: { projectRole: ProjectRole }): boolean {
+    return can(access.projectRole, "container.delete");
+}
+
+/**
+ * Whether someone with this access may delete a conversation: the owner of
+ * its matter, or its author while they can still edit there (authorship
+ * never restores write access after a downgrade to Viewer).
+ */
+export function mayDeleteChat(access: {
+    isCreator: boolean;
+    projectRole: ProjectRole;
+}): boolean {
+    return (
+        mayDeleteContainer(access) ||
+        (access.isCreator && can(access.projectRole, "content.edit"))
+    );
+}
+
+/**
+ * Whether `userId`, with this access to the REVIEW, may change or delete a
+ * conversation inside it that `chatUserId` wrote (see creatorScopedAllowed).
+ */
+export function mayChangeReviewChat(
+    access: { projectRole: ProjectRole },
+    chatUserId: string | null | undefined,
+    userId: string,
+): boolean {
+    return creatorScopedAllowed(
+        {
+            isCreator: !!chatUserId && chatUserId === userId,
+            projectRole: access.projectRole,
+        },
+        chatUserId,
+    );
+}
+
+type DeletableRow = {
+    id: string;
+    user_id: string | null;
+    project_id: string | null;
+    org_id?: string | null;
+};
+
+/**
+ * Split rows into the ones `userId` may delete through the single-item route
+ * right now and the rest, for a bulk delete. Reviews and chats use the same
+ * verdict as ensureReviewAccess / ensureChatAccess and the same capability
+ * rule as the routes; matters are checked once each, not once per row. The
+ * reads that list the rows throw when they fail, so the caller deletes
+ * nothing. The per-row lookups reused here (matter, membership, override and
+ * grant) answer "no" when the database errors, as they do for the single-item
+ * routes: a row whose verdict could not be obtained is kept, exactly as the
+ * single-item route would refuse it, and counts in `kept`; rows judged on
+ * lookups that answered are still deleted.
+ */
+export async function splitRowsByDeleteRule<T extends DeletableRow>(
+    kind: "tabular_review" | "chat",
+    rows: readonly T[],
+    userId: string,
+    userEmail: string | null | undefined,
+    db: Db,
+): Promise<{ deletable: T[]; kept: T[] }> {
+    const check = createSharedRowAccessChecker(kind, userId, userEmail, db);
+    const deletable: T[] = [];
+    const kept: T[] = [];
+    for (const row of rows) {
+        const access = await check(row);
+        const allowed =
+            access.ok &&
+            (kind === "chat" ? mayDeleteChat(access) : mayDeleteContainer(access));
+        (allowed ? deletable : kept).push(row);
+    }
+    return { deletable, kept };
+}
+
+/**
+ * The review conversations of `userId` that the single-conversation delete
+ * (ensureReviewChatWriteAccess) would allow: the review must be one the
+ * person can still open, then the conversation's own author rule applies.
+ * `reviews` are the rows the conversations belong to.
+ */
+export async function splitReviewChatsByDeleteRule<
+    C extends { review_id: string | null; user_id: string | null },
+>(
+    chats: readonly C[],
+    reviews: readonly DeletableRow[],
+    userId: string,
+    userEmail: string | null | undefined,
+    db: Db,
+): Promise<{ deletable: C[]; kept: C[] }> {
+    const check = createSharedRowAccessChecker("tabular_review", userId, userEmail, db);
+    const reviewById = new Map(reviews.map((review) => [review.id, review]));
+    const verdicts = new Map<string, Promise<ResourceAccess>>();
+    const deletable: C[] = [];
+    const kept: C[] = [];
+    for (const chat of chats) {
+        const review = chat.review_id ? reviewById.get(chat.review_id) : undefined;
+        let access: ResourceAccess = { ok: false };
+        if (review) {
+            let pending = verdicts.get(review.id);
+            if (!pending) {
+                pending = check(review);
+                verdicts.set(review.id, pending);
+            }
+            access = await pending;
+        }
+        (access.ok && mayChangeReviewChat(access, chat.user_id, userId) ? deletable : kept).push(chat);
+    }
+    return { deletable, kept };
 }

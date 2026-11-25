@@ -19,8 +19,12 @@ import {
     selectAllByKey,
     uniqueIds,
 } from "../../lib/batchedQuery";
-import { checkProjectAccess } from "../../lib/access";
-import { can } from "../../lib/permissions";
+import {
+    checkProjectAccess,
+    mayDeleteContainer,
+    splitReviewChatsByDeleteRule,
+    splitRowsByDeleteRule,
+} from "../../lib/access";
 
 // Every `.in()` id list travels in the request URL, for reads, updates and
 // deletes alike. 500 UUIDs is about 18 KB of URL, past the gateway's limit;
@@ -732,103 +736,158 @@ export async function deleteUserOrganizations(
     }
 }
 
+type OwnedRow = {
+    id: string | null;
+    user_id: string | null;
+    project_id: string | null;
+    org_id: string | null;
+};
+
 /**
  * The chats a user started in one workspace: an organization's (`orgId`), or
  * Personal's (`orgId` null), matching public.workspace_matches. Settings'
  * "Delete all" works on the active workspace only, so clearing Personal
  * history never reaches a firm's, nor one firm's another's.
+ *
+ * In an organization only the conversations the person could delete one at
+ * a time go (DELETE /chat/:chatId, and a review's conversations only with a
+ * review they can still open); the others stay and are counted in `kept`.
+ * Every decision is made before the first delete, so a lookup that fails
+ * leaves everything in place.
  */
 export async function deleteAllUserChats(
     db: Db,
     userId: string,
     orgId: string | null,
-) {
+    userEmail?: string | null,
+): Promise<{ kept: number }> {
+    if (orgId) {
+        // A firm's rows are enumerated so each can be judged; a chat
+        // created after this read is not touched, as the person did not
+        // have it when they asked.
+        const chats = await selectEveryRow<OwnedRow>(
+            "Failed to load chats",
+            () =>
+                db
+                    .from("chats")
+                    .select("id, user_id, project_id, org_id")
+                    .eq("user_id", userId)
+                    .eq("org_id", orgId),
+        );
+        const own = chats.filter((chat): chat is OwnedRow & { id: string } => !!chat.id);
+        const split = await splitRowsByDeleteRule("chat", own, userId, userEmail, db);
+        const reviewChats = await splitUserTabularReviewChats(db, userId, orgId, userEmail);
+        await deleteByIds(db, "chats", split.deletable.map((chat) => chat.id));
+        await deleteByIds(db, "tabular_review_chats", reviewChats.deletable);
+        return { kept: split.kept.length + reviewChats.kept };
+    }
     // Conversation BEFORE DELETE triggers fence in-flight curator promotion
     // in the same transaction, including Word chats removed by document
     // cascades. An assistant chat carries its workspace (a project chat its
     // project's), so it is deleted by filter, with no pre-enumeration for a
     // new one to slip past. Word chats exist only in Personal: the add-in
     // works nowhere else.
-    const assistantChats = db.from("chats").delete().eq("user_id", userId);
     const [assistantResult, wordResult] = await Promise.all([
-        orgId
-            ? assistantChats.eq("org_id", orgId)
-            : assistantChats.is("org_id", null),
-        orgId
-            ? Promise.resolve({ error: null })
-            : db.from("word_documents").delete().eq("user_id", userId),
+        db.from("chats").delete().eq("user_id", userId).is("org_id", null),
+        db.from("word_documents").delete().eq("user_id", userId),
     ]);
 
     await throwIfError(assistantResult.error, "Failed to delete assistant chats");
     await throwIfError(wordResult.error, "Failed to delete Word chats");
-    await deleteUserTabularReviewChats(db, userId, orgId);
+    const reviewChats = await splitUserTabularReviewChats(db, userId, null, userEmail);
+    await deleteByIds(db, "tabular_review_chats", reviewChats.deletable);
+    return { kept: 0 };
 }
 
 /**
  * A tabular review chat has no workspace of its own; it is in its review's.
  * The user's chats on other people's reviews count too, as in the
- * unscoped delete this replaced.
+ * unscoped delete this replaced. Personal's are all theirs to delete; in an
+ * organization a chat goes only with a review the person can still open
+ * (ensureReviewChatWriteAccess's rule). Returns the ids to delete and how
+ * many in the workspace stay.
  */
-async function deleteUserTabularReviewChats(
+async function splitUserTabularReviewChats(
     db: Db,
     userId: string,
     orgId: string | null,
-) {
+    userEmail?: string | null,
+): Promise<{ deletable: string[]; kept: number }> {
     const rows = await selectEveryRow<{
         id: string | null;
         review_id: string | null;
+        user_id: string | null;
     }>("Failed to load tabular chats", () =>
-        db.from("tabular_review_chats").select("id, review_id").eq("user_id", userId),
+        db.from("tabular_review_chats").select("id, review_id, user_id").eq("user_id", userId),
     );
 
-    const reviewsInWorkspace = new Set<string>();
+    const reviewsInWorkspace: OwnedRow[] = [];
     for (const batch of chunkArray(
         uniqueIds(rows.map((row) => row.review_id)),
         DELETE_BATCH_SIZE,
     )) {
-        const reviews = db.from("tabular_reviews").select("id").in("id", batch);
+        const reviews = db
+            .from("tabular_reviews")
+            .select("id, user_id, project_id, org_id")
+            .in("id", batch);
         const { data, error } = await (orgId
             ? reviews.eq("org_id", orgId)
             : reviews.is("org_id", null));
         await throwIfError(error, "Failed to load tabular reviews");
-        for (const row of (data ?? []) as { id: string | null }[]) {
-            if (row.id) reviewsInWorkspace.add(row.id);
-        }
+        reviewsInWorkspace.push(...((data ?? []) as OwnedRow[]).filter((row) => !!row.id));
     }
 
-    await deleteByIds(
+    const inWorkspace = new Set(reviewsInWorkspace.map((review) => review.id));
+    const here = rows.filter((row) => !!row.review_id && inWorkspace.has(row.review_id));
+    if (!orgId)
+        return { deletable: uniqueIds(here.map((row) => row.id)), kept: 0 };
+    const split = await splitReviewChatsByDeleteRule(
+        here,
+        reviewsInWorkspace as { id: string; user_id: string | null; project_id: string | null; org_id: string | null }[],
+        userId,
+        userEmail,
         db,
-        "tabular_review_chats",
-        uniqueIds(
-            rows
-                .filter((row) => !!row.review_id && reviewsInWorkspace.has(row.review_id))
-                .map((row) => row.id),
-        ),
     );
+    return {
+        deletable: uniqueIds(split.deletable.map((row) => row.id)),
+        kept: split.kept.length,
+    };
 }
 
-/** The tabular reviews a user owns in one workspace (`orgId` null is Personal). */
+/**
+ * The tabular reviews a user owns in one workspace (`orgId` null is
+ * Personal). In an organization only the ones the person could delete one at
+ * a time (DELETE /tabular-review/:id) go; the rest stay and are counted.
+ */
 export async function deleteAllUserTabularReviews(
     db: Db,
     userId: string,
     orgId: string | null,
-) {
-    const reviews = await selectEveryRow<{ id: string | null }>(
+    userEmail?: string | null,
+): Promise<{ deleted: number; kept: number }> {
+    const reviews = await selectEveryRow<OwnedRow>(
         "Failed to load tabular reviews",
         () => {
-            const owned = db.from("tabular_reviews").select("id").eq("user_id", userId);
+            const owned = db
+                .from("tabular_reviews")
+                .select("id, user_id, project_id, org_id")
+                .eq("user_id", userId);
             return orgId ? owned.eq("org_id", orgId) : owned.is("org_id", null);
         },
     );
 
-    const reviewIds = uniqueIds(reviews.map((row) => row.id));
-    if (reviewIds.length === 0) return 0;
+    const own = reviews.filter((review): review is OwnedRow & { id: string } => !!review.id);
+    const { deletable, kept } = orgId
+        ? await splitRowsByDeleteRule("tabular_review", own, userId, userEmail, db)
+        : { deletable: own, kept: [] };
+    const reviewIds = uniqueIds(deletable.map((row) => row.id));
+    if (reviewIds.length === 0) return { deleted: 0, kept: kept.length };
 
     // The parent delete is atomic. Its FK cascades fire the conversation
     // fence trigger for every child chat, including one created concurrently.
     await deleteByIds(db, "tabular_reviews", reviewIds);
 
-    return reviewIds.length;
+    return { deleted: reviewIds.length, kept: kept.length };
 }
 
 /**
@@ -940,7 +999,7 @@ export async function deleteUserProjects(
     const deletable: string[] = [];
     for (const id of ids) {
         const access = await checkProjectAccess(id, userId, userEmail ?? undefined, db);
-        if (access.ok && can(access.projectRole, "container.delete")) deletable.push(id);
+        if (access.ok && mayDeleteContainer(access)) deletable.push(id);
     }
     return deleteProjectsByIds(db, deletable);
 }

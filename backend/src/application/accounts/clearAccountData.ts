@@ -17,10 +17,11 @@ export async function deleteUserChats(
     db: Db,
     userId: string,
     orgId: string | null,
-): Promise<{ ok: true } | { ok: false; error: unknown }> {
+    userEmail?: string | null,
+): Promise<{ ok: true; kept: number } | { ok: false; error: unknown }> {
     try {
-        await deleteAllUserChats(db, userId, orgId);
-        return { ok: true };
+        const { kept } = await deleteAllUserChats(db, userId, orgId, userEmail);
+        return { ok: true, kept };
     } catch (err) {
         return {
             ok: false,
@@ -50,10 +51,11 @@ export async function deleteUserTabularReviews(
     db: Db,
     userId: string,
     orgId: string | null,
-): Promise<{ ok: true } | { ok: false; error: unknown }> {
+    userEmail?: string | null,
+): Promise<{ ok: true; kept: number } | { ok: false; error: unknown }> {
     try {
-        await deleteAllUserTabularReviews(db, userId, orgId);
-        return { ok: true };
+        const { kept } = await deleteAllUserTabularReviews(db, userId, orgId, userEmail);
+        return { ok: true, kept };
     } catch (err) {
         return {
             ok: false,

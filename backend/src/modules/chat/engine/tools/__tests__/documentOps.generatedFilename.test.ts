@@ -113,10 +113,10 @@ async function generate(
   const uploadCallStart = uploadFile.mock.calls.length;
   const result =
     extension === "docx"
-      ? await generateDocx(title, SECTIONS, "user-1", db as never)
+      ? await generateDocx(title, SECTIONS, "user-1", db as never, { projectId: null, orgId: null, userEmail: null })
       : extension === "xlsx"
-        ? await generateExcel(title, SHEETS, "user-1", db as never)
-        : await generatePpt(title, SLIDES, "user-1", db as never);
+        ? await generateExcel(title, SHEETS, "user-1", db as never, { projectId: null, orgId: null, userEmail: null })
+        : await generatePpt(title, SLIDES, "user-1", db as never, { projectId: null, orgId: null, userEmail: null });
 
   expect(result).not.toHaveProperty("error");
   const generated = result as Generated;

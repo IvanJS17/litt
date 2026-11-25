@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { scanXmlElements } from "./xmlScan";
 
 const XML_ENTITIES: Record<string, string> = {
   amp: "&",
@@ -26,12 +27,9 @@ function decodeXml(text: string) {
 
 function extractTagText(xml: string, tagName: string) {
   const parts: string[] = [];
-  const re = new RegExp(
-    `<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`,
-    "gi",
-  );
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(xml))) parts.push(decodeXml(match[1]));
+  for (const element of scanXmlElements(xml, [tagName])) {
+    if (!element.selfClosing) parts.push(decodeXml(element.inner));
+  }
   return parts;
 }
 
