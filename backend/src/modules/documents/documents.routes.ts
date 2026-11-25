@@ -10,7 +10,7 @@ import type { Readable } from "node:stream";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
-import { abortOnClose } from "../../lib/abortOnClose";
+import { abortOnClose } from "../../lib/responseClosed";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { sendInternalError } from "../../lib/httpError";
 import { pipeToResponse } from "../../lib/pipeToResponse";
