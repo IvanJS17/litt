@@ -26,7 +26,7 @@ vi.mock("../convert", async (importOriginal) => {
 });
 
 import { Readable } from "node:stream";
-import { CONVERSION_MAX_SOURCE_BYTES } from "../convert";
+import { CONVERSION_MAX_SOURCE_BYTES } from "../conversionLimits";
 import {
   DisplaySourceTooLargeError,
   loadDocumentDisplay,
