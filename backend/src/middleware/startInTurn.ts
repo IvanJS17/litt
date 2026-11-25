@@ -3,7 +3,7 @@ import type { Socket } from "node:net";
 import type { NextFunction, Request, Response } from "express";
 
 /** Requests one connection may have waiting for their turn. */
-const MAX_WAITING_PER_CONNECTION = 100;
+const MAX_WAITING_PER_CONNECTION = 32;
 
 const waitingByConnection = new WeakMap<Socket, number>();
 
