@@ -7,10 +7,13 @@ import crypto from "node:crypto";
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { downloadFile, headFile, uploadFile } from "../../lib/storage";
 import { removePlaybookObjects } from "./playbooks.reporting";
-import { extractDocxBodyText } from "../../lib/docxTrackedChanges";
-import { extractPdfTextForModel } from "../../lib/pdfText";
 import { getFileStreamSource } from "../documents/documents.service";
-import { editablePlaybook, getPlaybook, PlaybookRequestError } from "./playbooks.operations";
+import {
+  editablePlaybook,
+  getPlaybook,
+  PlaybookRequestError,
+  readDocumentTextInParser,
+} from "./playbooks.operations";
 import { type Playbook } from "./playbooks.types";
 import {
   listPlaybookSourceRows,
@@ -100,19 +103,10 @@ export async function extractPlaybookSourceText(
   fileType: PlaybookSourceFileType,
   bytes: ArrayBuffer,
 ): Promise<string> {
-  let text: string;
-  try {
-    text =
-      fileType === "pdf"
-        ? await extractPdfTextForModel(bytes)
-        : await extractDocxBodyText(Buffer.from(bytes));
-  } catch (cause) {
-    throw new PlaybookRequestError(
-      "The document could not be read. Check that it is a valid .docx or .pdf file.",
-      400,
-      { cause },
-    );
-  }
+  const text = await readDocumentTextInParser(
+    fileType === "pdf" ? "pdfForModel" : "docxText",
+    bytes,
+  );
   // Postgres text cannot hold NUL, which some PDFs carry.
   return text.replace(/\u0000/g, "").slice(0, MAX_STORED_TEXT_CHARS);
 }

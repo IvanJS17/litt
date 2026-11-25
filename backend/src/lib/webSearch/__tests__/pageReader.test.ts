@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { guardedFetch, validateRemoteMcpUrl, extractPdfTextForModel } = vi.hoisted(() => ({
+const { guardedFetch, validateRemoteMcpUrl } = vi.hoisted(() => ({
     guardedFetch: vi.fn(),
     validateRemoteMcpUrl: vi.fn(),
-    extractPdfTextForModel: vi.fn(),
 }));
 
 vi.mock("../../mcp/client", () => ({ guardedFetch, validateRemoteMcpUrl }));
-vi.mock("../../pdfText", () => ({ extractPdfTextForModel }));
 
 const { reportError } = vi.hoisted(() => ({ reportError: vi.fn(() => null) }));
 vi.mock("../../observability/report", async (importOriginal) => ({
@@ -16,6 +14,8 @@ vi.mock("../../observability/report", async (importOriginal) => ({
 }));
 
 import { BlockedDestinationError } from "../../blockedDestination";
+import { EXTRACTION_OPS } from "../../extraction/ops";
+import { ExtractionBusyError, ExtractionLimitError } from "../../extraction/isolated";
 import { WebPageUnreadableError, readWebPage } from "../pageReader";
 
 const ARTICLE = `<!doctype html>
@@ -49,6 +49,7 @@ beforeEach(() => {
     validateRemoteMcpUrl.mockReset();
     validateRemoteMcpUrl.mockImplementation(async (url: string) => url);
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
 });
 
 describe("readWebPage", () => {
@@ -119,11 +120,42 @@ describe("readWebPage", () => {
         guardedFetch.mockResolvedValue(
             page("%PDF-1.7 ...", "application/octet-stream"),
         );
-        extractPdfTextForModel.mockResolvedValue("Order adopting rules.");
+        const parse = vi.spyOn(EXTRACTION_OPS, "pdfForModel").mockResolvedValue("Order adopting rules.");
 
         const result = await readWebPage("https://files.example.test/filing");
 
+        // Read by the parser process, not in the API process.
+        expect(parse).toHaveBeenCalledTimes(1);
         expect(result.text).toBe("Order adopting rules.");
+    });
+
+    it("reports a PDF the parser's limits stop as one that cannot be read", async () => {
+        guardedFetch.mockResolvedValue(page("%PDF-1.7 ...", "application/pdf"));
+        vi.spyOn(EXTRACTION_OPS, "pdfForModel").mockRejectedValue(
+            new ExtractionLimitError("parser deadline exceeded"),
+        );
+
+        await expect(unreadable(readWebPage("https://files.example.test/big.pdf"))).resolves.toBe(
+            "The page is too large to read.",
+        );
+    });
+
+    it("reports a busy parser as a PDF that cannot be read right now", async () => {
+        guardedFetch.mockResolvedValue(page("%PDF-1.7 ...", "application/pdf"));
+        vi.spyOn(EXTRACTION_OPS, "pdfForModel").mockRejectedValue(new ExtractionBusyError());
+
+        await expect(unreadable(readWebPage("https://files.example.test/a.pdf"))).resolves.toBe(
+            "Reading documents is busy. Try again shortly.",
+        );
+    });
+
+    it("reports a PDF the parser fails on as one that cannot be read", async () => {
+        guardedFetch.mockResolvedValue(page("%PDF-1.7 ...", "application/pdf"));
+        vi.spyOn(EXTRACTION_OPS, "pdfForModel").mockRejectedValue(new Error("child exited"));
+
+        await expect(unreadable(readWebPage("https://files.example.test/a.pdf"))).resolves.toBe(
+            "The PDF could not be read.",
+        );
     });
 
     it("refuses file types it cannot read", async () => {

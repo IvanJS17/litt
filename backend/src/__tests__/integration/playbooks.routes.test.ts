@@ -15,6 +15,7 @@ const {
   queuePlaybookImport,
   queuePlaybookProposals,
   queuePlaybookReview,
+  addPlaybookSourceFromDocument,
   recordAudit,
 } = vi.hoisted(() => ({
   from: vi.fn(),
@@ -29,6 +30,7 @@ const {
   queuePlaybookCorrections: vi.fn(),
   queuePlaybookProposals: vi.fn(),
   queuePlaybookReview: vi.fn(),
+  addPlaybookSourceFromDocument: vi.fn(),
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -90,11 +92,13 @@ vi.mock("../../modules/playbooks/playbooks.service", async (importOriginal) => {
     queuePlaybookCorrections,
     queuePlaybookProposals,
     queuePlaybookReview,
+    addPlaybookSourceFromDocument,
   };
 });
 
 import { playbooksRouter } from "../../modules/playbooks/playbooks.routes";
 import { PlaybookRequestError } from "../../modules/playbooks/playbooks.service";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 
 // Route handlers reject a non-uuid playbook id before the query. These tests
 // name a real uuid so they still reach the handler.
@@ -473,6 +477,25 @@ describe("draft playbooks over HTTP (LiTT)", () => {
     expect(queuePlaybookReview).toHaveBeenCalledWith(
       expect.objectContaining({ credentialRef: "org:o1:claude:v2" }),
     );
+  });
+
+  it("answers a busy parser during a review with the busy answer the document routes give, not a 500", async () => {
+    queuePlaybookReview.mockRejectedValueOnce(new ExtractionBusyError());
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/review`)
+      .send({ documentId: DOCUMENT_ID, model: "claude-opus-5" });
+    expect(response.status).toBe(503);
+    expect(response.headers["retry-after"]).toBe("30");
+    expect(response.body).toEqual({ detail: "Document conversion is busy. Try again shortly." });
+  });
+
+  it("answers a busy parser while adding a supporting document with the same busy answer", async () => {
+    addPlaybookSourceFromDocument.mockRejectedValueOnce(new ExtractionBusyError());
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/sources`)
+      .send({ documentId: DOCUMENT_ID });
+    expect(response.status).toBe(503);
+    expect(response.headers["retry-after"]).toBe("30");
   });
 
   it("answers a router model outside the firm's list with 400 and model_unavailable", async () => {

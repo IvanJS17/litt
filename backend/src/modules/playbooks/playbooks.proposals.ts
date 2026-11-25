@@ -61,6 +61,7 @@ import {
 } from "./playbooks.operations";
 import { parseAnswers, PLAYBOOK_QUESTIONS, type PlaybookAnswers } from "./playbooks.questionnaire";
 import { importReportStage, removePlaybookObjects, reportPlaybookFailure } from "./playbooks.reporting";
+import { DbJobDeferredError } from "../../lib/dbq/types";
 import { listPlaybookSourceRows } from "./playbooks.sourceStore";
 import { addPlaybookSourceBytes, MAX_PLAYBOOK_SOURCES } from "./playbooks.sources";
 import {
@@ -676,6 +677,8 @@ export async function compilePlaybookProposals(
     }
     return copy;
   } catch (error) {
+    // Deferred, not failed: the row stays running and the job comes back.
+    if (error instanceof DbJobDeferredError) throw error;
     const recorded = await recordProposalFailure(db, work, stage, error);
     if (recorded) await discardProposal(db, work);
     throw error;
