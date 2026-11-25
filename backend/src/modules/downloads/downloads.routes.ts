@@ -13,6 +13,7 @@ import {
 } from "../../lib/storage";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { pipeToResponse } from "../../lib/pipeToResponse";
+import { abortOnClose } from "../../lib/responseClosed";
 import {
     resolveTokenDownload,
     type ObjectDownload,
@@ -57,14 +58,16 @@ async function sendObject(
         return void res.end();
     }
 
-    const clientGone = new AbortController();
-    res.once("close", () => {
-        if (!res.writableFinished) clientGone.abort();
-    });
+    // Already aborted for a client that left before this ran: no read is opened for it.
+    const clientGone = abortOnClose(res);
+    if (clientGone.aborted) return;
     let body;
     try {
-        body = await download.open(clientGone.signal);
+        body = await download.open(clientGone);
     } catch (error) {
+        // The client left while the read was being opened: nobody to answer,
+        // and not a failure of the store.
+        if (clientGone.aborted) return;
         // The error answer is JSON, not this object: drop its validator.
         res.removeHeader("ETag");
         throw error;

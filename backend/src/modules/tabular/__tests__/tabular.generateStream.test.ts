@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-const { redisEnabled, reportError, redisConnect, streamChatWithTools } = vi.hoisted(() => ({
+const { redisEnabled, reportError, redisConnect, redisSubscribe, redisMessages, streamChatWithTools } = vi.hoisted(() => ({
     redisEnabled: vi.fn(() => false),
+    redisSubscribe: vi.fn(async (_channel: string): Promise<undefined> => undefined),
+    redisMessages: { handler: null as null | ((channel: string, message: string) => void) },
     reportError: vi.fn(),
     redisConnect: vi.fn(),
     streamChatWithTools: vi.fn(),
@@ -30,6 +32,13 @@ vi.mock("ioredis", () => ({
         constructor() {
             redisConnect();
         }
+        subscribe(channel: string) {
+            return redisSubscribe(channel);
+        }
+        on(_event: string, handler: (channel: string, message: string) => void) {
+            redisMessages.handler = handler;
+        }
+        async quit() {}
     },
 }));
 
@@ -279,6 +288,87 @@ describe("run-view reconcile poll", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+});
+
+describe("run-view for a client that has left", () => {
+    const REVIEW_ROWS = [{ id: "row-1" }, { id: "row-2" }];
+    const terminalCells = REVIEW_ROWS.flatMap((row) => [0, 1].map((column_index) => ({
+        id: `cell-${row.id}-${column_index}`, review_id: "rev", row_id: row.id, column_index,
+        status: "done", content: JSON.stringify({ summary: "x" }),
+    })));
+    const fakeRes = (extra: Record<string, unknown> = {}) => Object.assign(new EventEmitter(), {
+        setHeader: () => {}, flushHeaders: () => {}, writableEnded: false,
+        write: vi.fn(() => true), end() { this.writableEnded = true; },
+    }, extra);
+    const view = (res: unknown, db: unknown) => streamTabularRunView({
+        res: res as never, db: db as never, reviewId: "rev", columns: COLUMNS,
+        rows: REVIEW_ROWS as never, cellMap: new Map(), log: { error: vi.fn() } as never,
+    });
+
+    afterEach(() => {
+        delete process.env.ASYNC_TABULAR_EXTRACTION;
+        redisEnabled.mockReturnValue(false);
+        redisConnect.mockReset();
+        redisSubscribe.mockReset();
+        redisSubscribe.mockImplementation(async () => undefined);
+        redisMessages.handler = null;
+        vi.useRealTimers();
+    });
+
+    it.each([
+        ["its response has closed", { destroyed: true }],
+        ["its connection has closed", { req: { socket: { destroyed: true } } }],
+    ])("subscribes to nothing and reads nothing when %s before the view starts", async (_what, gone) => {
+        vi.useFakeTimers();
+        process.env.ASYNC_TABULAR_EXTRACTION = "true";
+        redisEnabled.mockReturnValue(true);
+        const fake = tableDb({ tabular_cells: terminalCells });
+        await view(fakeRes(gone), fake.db);
+        await vi.advanceTimersByTimeAsync(3_000 * 4);
+        expect(redisConnect).not.toHaveBeenCalled();
+        expect(fake.calls).toHaveLength(0);
+        // Nothing is left running for it either.
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("stops subscribing and reading when the client leaves while the subscription is being made", async () => {
+        vi.useFakeTimers();
+        process.env.ASYNC_TABULAR_EXTRACTION = "true";
+        redisEnabled.mockReturnValue(true);
+        let subscribed!: () => void;
+        redisSubscribe.mockImplementation(() => new Promise<undefined>((resolve) => (subscribed = () => resolve(undefined))));
+        const fake = tableDb({ tabular_cells: terminalCells });
+        const res = fakeRes();
+        const started = view(res, fake.db);
+        await vi.waitFor(() => expect(redisSubscribe).toHaveBeenCalled());
+        reportError.mockClear();
+        res.emit("close");
+        subscribed();
+        await started;
+        await vi.advanceTimersByTimeAsync(3_000 * 4);
+        expect(fake.calls).toHaveLength(0);
+        expect(vi.getTimerCount()).toBe(0);
+        // A client leaving is not a failed subscription: nothing is reported
+        // and no message handler is attached for it.
+        expect(reportError).not.toHaveBeenCalled();
+        expect(redisMessages.handler).toBeNull();
+    });
+
+    it("still gives a client that stays its events, through the subscription and through the database", async () => {
+        vi.useFakeTimers();
+        process.env.ASYNC_TABULAR_EXTRACTION = "true";
+        redisEnabled.mockReturnValue(true);
+        const fake = tableDb({ tabular_cells: terminalCells.filter((cell) => cell.row_id === "row-2") });
+        const res = fakeRes();
+        await view(res, fake.db);
+        // One cell arrives from the progress channel...
+        redisMessages.handler!("channel", JSON.stringify({ type: "cell_update", row_id: "row-1", column_index: 0, status: "done", content: { summary: "x" } }));
+        expect(res.write).toHaveBeenCalledWith(expect.stringContaining('"row_id":"row-1"'));
+        // ...and the rest are found by the poll, which then ends the stream.
+        await vi.advanceTimersByTimeAsync(3_000);
+        expect(fake.calls.length).toBeGreaterThan(0);
+        expect(res.write).toHaveBeenCalledWith(expect.stringContaining('"row_id":"row-2"'));
     });
 });
 

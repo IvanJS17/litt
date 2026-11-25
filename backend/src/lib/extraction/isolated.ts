@@ -11,6 +11,7 @@ import { admission, type AdmissionOptions } from "./admission";
 import { EXTRACTION_MAX_BYTES, ExtractionLimitError, extractionIsolated, extractionLauncher, extractionMemoryMb, extractionTimeoutMs } from "./limits";
 import { asExtractionFailure, extractionFailureFromWire, type ExtractionFailureWire } from "./failure";
 import { AppError } from "../appError";
+import { childProcessEnv } from "../childEnv";
 
 export { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError } from "./limits";
 export { ExtractionParseError } from "./failure";
@@ -67,7 +68,7 @@ const PARSER_UNAVAILABLE_MESSAGE =
 function killParser(child: ChildProcess): void {
   if (!child.pid) return;
   if (process.platform === "win32") {
-    execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], () => { child.kill("SIGKILL"); });
+    execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { env: childProcessEnv() }, () => { child.kill("SIGKILL"); });
   } else {
     // Includes LibreOffice descendants, including after the parser has exited.
     try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
@@ -113,13 +114,9 @@ async function startParser(): Promise<Parser> {
   const { command, args } = extractionCommand(entry);
   const scratch = await mkdtemp(path.join(tmpdir(), "mike-extraction-"));
   // No application credentials or inherited NODE_OPTIONS in the parser.
-  const env: NodeJS.ProcessEnv = {};
-  for (const name of ["PATH", "SystemRoot", "HOME", "LANG", "SOFFICE_BINARY_PATH", "LIBREOFFICE_BINARY_PATH", "LIBRE_OFFICE_EXE"]) {
-    if (process.env[name] !== undefined) env[name] = process.env[name];
-  }
-  env.TMPDIR = env.TMP = env.TEMP = scratch;
-  // Avoid glibc arena reservations exhausting RLIMIT_AS at low actual usage.
-  env.MALLOC_ARENA_MAX = "2";
+  // The scratch directory is the parser's temp directory; glibc arena
+  // reservations would otherwise exhaust RLIMIT_AS at low actual usage.
+  const env = childProcessEnv({ TMPDIR: scratch, TMP: scratch, TEMP: scratch, MALLOC_ARENA_MAX: "2" });
   const child = spawn(command, args, {
     env, detached: process.platform !== "win32",
     stdio: ["ignore", "ignore", "pipe", "ipc"], serialization: "advanced",

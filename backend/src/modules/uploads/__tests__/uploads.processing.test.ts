@@ -648,6 +648,79 @@ describe("upload processing", () => {
     expect(order[0]).toBe("interactive");
   });
 
+  describe("page counts of an uploaded PDF are read by the parser process", () => {
+    const replaceSession = {
+      ...baseSession, purpose: "document_version_replace",
+      destination: { document_id: "doc", version_id: "v", expected_content_sha256: undefined },
+    };
+
+    async function replaceWithPdf(bytes: Buffer) {
+      mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
+      const db = fakeDb({ document_versions: [
+        { data: { id: "v", storage_path: "old/key", content_sha256: null } },
+        { data: { id: "v" } },
+      ] });
+      const result = await processUploadFile(db as never, replaceSession as never, {
+        ...baseFile, expected_size_bytes: bytes.length,
+      });
+      return { db, result };
+    }
+
+    it("takes both numbers from one parse of the file, without opening it with pdf.js in this process", async () => {
+      const parse = vi.spyOn(EXTRACTION_OPS, "pdfTextlessPages").mockResolvedValue({ pages: [2], total: 3 });
+      try {
+        const { db } = await replaceWithPdf(buildOnePagePdf());
+        expect(parse).toHaveBeenCalledTimes(1);
+        expect(db.calls).toContainEqual(expect.objectContaining({
+          table: "document_versions", operation: "update",
+          payload: expect.objectContaining({ page_count: 3, textless_page_count: 1 }),
+        }));
+      } finally { parse.mockRestore(); }
+    });
+
+    it("leaves the counts unknown and carries on when the parser refuses the file for a limit", async () => {
+      const parse = vi.spyOn(EXTRACTION_OPS, "pdfTextlessPages")
+        .mockRejectedValue(new ExtractionLimitError("parser deadline exceeded"));
+      try {
+        const { db, result } = await replaceWithPdf(buildOnePagePdf());
+        expect(result).toEqual({ id: "v" });
+        expect(db.calls).toContainEqual(expect.objectContaining({
+          table: "document_versions", operation: "update",
+          payload: expect.objectContaining({ page_count: null, textless_page_count: null }),
+        }));
+      } finally { parse.mockRestore(); }
+    });
+
+    it("leaves the counts unknown when the parser cannot read the PDF", async () => {
+      const parse = vi.spyOn(EXTRACTION_OPS, "pdfTextlessPages").mockRejectedValue(new Error("document_text_pdf_unreadable"));
+      try {
+        const { db } = await replaceWithPdf(buildOnePagePdf());
+        expect(db.calls).toContainEqual(expect.objectContaining({
+          table: "document_versions", operation: "update",
+          payload: expect.objectContaining({ page_count: null, textless_page_count: null }),
+        }));
+      } finally { parse.mockRestore(); }
+    });
+
+    it("hands a busy parser back to the job so it is requeued", async () => {
+      const parse = vi.spyOn(EXTRACTION_OPS, "pdfTextlessPages").mockRejectedValue(new ExtractionBusyError());
+      try {
+        await expect(replaceWithPdf(buildOnePagePdf())).rejects.toBeInstanceOf(ExtractionBusyError);
+      } finally { parse.mockRestore(); }
+    });
+
+    it("asks the parser, not pdf.js here, whether a file without a PDF header still opens", async () => {
+      const parse = vi.spyOn(EXTRACTION_OPS, "pdfTextlessPages").mockResolvedValue({ pages: [], total: 1 });
+      try {
+        const bytes = Buffer.concat([Buffer.from("x".repeat(1100)), buildOnePagePdf()]);
+        mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
+        const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id } }] });
+        await processUploadFile(db as never, baseSession, { ...baseFile, expected_size_bytes: bytes.length });
+        expect(parse).toHaveBeenCalled();
+      } finally { parse.mockRestore(); }
+    });
+  });
+
   it("requeues a DOCX the parser stayed too busy for without spending an attempt or reporting", async () => {
     const parse = vi.spyOn(EXTRACTION_OPS, "validateDocxPackage").mockRejectedValueOnce(new ExtractionBusyError());
     const bytes = await minimalDocxBytes();

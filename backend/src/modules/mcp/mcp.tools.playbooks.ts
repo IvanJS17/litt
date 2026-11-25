@@ -32,6 +32,7 @@ import {
     savePlaybookClientReview,
     type ClientFindingInput,
 } from "../playbooks/playbooks.service";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { signTicket, verifyTicket } from "./mcp.tickets";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
 import {
@@ -92,6 +93,9 @@ async function guard<T>(work: () => Promise<T>): Promise<T> {
                     : undefined,
             );
         }
+        // The parser had no free place in time: only about timing.
+        if (error instanceof ExtractionBusyError)
+            throw new McpToolError("unavailable", "Document processing is busy.", "Try again in a moment.", { retryAfterSeconds: 30 });
         throw error;
     }
 }

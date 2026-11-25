@@ -23,6 +23,8 @@ vi.mock("../../../lib/docxTrackedChanges", async (original) => ({
 }));
 
 import { blankPlaybookContent, beginPlaybookReview } from "../playbooks.operations";
+import { EXTRACTION_OPS } from "../../../lib/extraction/ops";
+import { ExtractionBusyError, ExtractionLimitError } from "../../../lib/extraction/isolated";
 import { keyRow } from "./playbookTestKeys";
 import { database, ORG as FIRM_A, OTHER as FIRM_B } from "./playbookTestDb";
 
@@ -144,5 +146,37 @@ describe("the model of a review is trimmed and governed as in the other flows", 
       status: 400,
       code: "model_unavailable",
     });
+  });
+});
+
+describe("the text of the document under review is read by the parser process", () => {
+  it("asks the parser for the body text and does not read the file here", async () => {
+    const parse = vi.spyOn(EXTRACTION_OPS, "docxBodyText").mockResolvedValue("From the parser.");
+    try {
+      await review(await world(FIRM_A));
+      expect(parse).toHaveBeenCalledTimes(1);
+      expect(docs.extractDocxBodyText).not.toHaveBeenCalled();
+    } finally { parse.mockRestore(); }
+  });
+
+  it("answers a 400 with the too-large code when the parser's limits stop the file", async () => {
+    const parse = vi.spyOn(EXTRACTION_OPS, "docxBodyText").mockRejectedValue(new ExtractionLimitError("parser deadline exceeded"));
+    try {
+      await expect(review(await world(FIRM_A))).rejects.toMatchObject({ status: 400, code: "request_too_large" });
+    } finally { parse.mockRestore(); }
+  });
+
+  it("lets a busy parser through as the typed busy error", async () => {
+    const parse = vi.spyOn(EXTRACTION_OPS, "docxBodyText").mockRejectedValue(new ExtractionBusyError());
+    try {
+      await expect(review(await world(FIRM_A))).rejects.toBeInstanceOf(ExtractionBusyError);
+    } finally { parse.mockRestore(); }
+  });
+
+  it("answers a 400 for a file the parser cannot read", async () => {
+    const parse = vi.spyOn(EXTRACTION_OPS, "docxBodyText").mockRejectedValue(new Error("not a zip"));
+    try {
+      await expect(review(await world(FIRM_A))).rejects.toMatchObject({ status: 400 });
+    } finally { parse.mockRestore(); }
   });
 });

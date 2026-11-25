@@ -4,6 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { AppError } from "./appError";
+import { childProcessEnv } from "./childEnv";
 import { MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CONVERSIONS } from "./conversionLimits";
 import { admission } from "./extraction/admission";
 import { ExtractionBusyError } from "./extraction/limits";
@@ -123,7 +124,7 @@ async function getConvert() {
       filter: undefined,
       options: {
         sofficeBinaryPaths?: string[];
-        execOptions?: { timeout?: number; killSignal?: NodeJS.Signals };
+        execOptions?: { timeout?: number; killSignal?: NodeJS.Signals; env?: NodeJS.ProcessEnv };
       },
       callback?: (err: Error | null, result: Buffer) => void,
     ) => Promise<Buffer> | void;
@@ -147,6 +148,8 @@ async function getConvert() {
               execOptions: {
                 timeout: uploadConversionTimeoutMs(),
                 killSignal: "SIGKILL",
+                // Only the allowlisted variables, not the backend's secrets.
+                env: childProcessEnv(),
               },
             },
             (err, result) => {
@@ -361,7 +364,12 @@ export async function officeFileToPdf(
         ],
         // Its own process group, so the deadline reaches soffice.bin and any
         // other descendant, not only this direct child.
-        { stdio: ["ignore", "ignore", "pipe"], detached: process.platform !== "win32" },
+        {
+          stdio: ["ignore", "ignore", "pipe"],
+          detached: process.platform !== "win32",
+          // Only the allowlisted variables, not the backend's secrets.
+          env: childProcessEnv(),
+        },
       );
       let timedOut = false;
       // LibreOffice can wedge on a malformed document and never exit, which

@@ -35,6 +35,9 @@ vi.mock("../../../lib/storage", async (original) => ({
 }));
 
 import type { DbJob } from "../../../lib/dbq/types";
+import { DbJobDeferredError } from "../../../lib/dbq/types";
+import { EXTRACTION_OPS } from "../../../lib/extraction/ops";
+import { ExtractionBusyError, ExtractionLimitError } from "../../../lib/extraction/isolated";
 import type { Db } from "../../../lib/supabase";
 import { loadPinnedChatRoute, recordChatEgress } from "../../user/user.service";
 import {
@@ -624,5 +627,53 @@ describe("a draft from the questionnaire, end to end", () => {
     ).rejects.toMatchObject({ status: 400 });
     // Never another account's object.
     expect(storage.deleteFile).not.toHaveBeenCalledWith(expect.stringContaining("playbooks/other/"));
+  });
+
+  describe("an attachment the parser could not read", () => {
+    it("defers the job when the parser is busy, leaving the draft running and nothing saved", async () => {
+      const { db, tables } = await queued();
+      storage.downloadFile.mockResolvedValue(await docx(`Cláusula quinta. ${CLAUSE}`));
+      const parse = vi.spyOn(EXTRACTION_OPS, "docxText").mockRejectedValueOnce(new ExtractionBusyError());
+      try {
+        await expect(handlePlaybookDraft(db, job(tables.db_jobs[0].payload))).rejects.toBeInstanceOf(DbJobDeferredError);
+        expect(tables.playbook_imports[0]).toMatchObject({ status: "running" });
+        expect(tables.playbooks ?? []).toEqual([]);
+        expect(completeText).not.toHaveBeenCalled();
+        // The retry reads the file and goes on.
+        completeText.mockResolvedValue(output([rule({ origin: { kind: "clause", sourceId: "A1", quote: CLAUSE } })]));
+        await handlePlaybookDraft(db, job(tables.db_jobs[0].payload));
+        expect(tables.playbook_imports[0]).toMatchObject({ status: "completed" });
+      } finally { parse.mockRestore(); }
+    });
+
+    it("refuses a Word attachment whose body is empty as having no readable text", async () => {
+      const { db, tables } = await queued();
+      const zip = new JSZip();
+      zip.file(
+        "word/document.xml",
+        `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/></w:body></w:document>`,
+      );
+      storage.downloadFile.mockResolvedValue(await zip.generateAsync({ type: "arraybuffer" }));
+
+      await handlePlaybookDraft(db, job(tables.db_jobs[0].payload));
+
+      expect(tables.playbook_imports[0]).toMatchObject({
+        status: "failed",
+        error: expect.stringContaining("no tiene texto legible"),
+      });
+      expect(completeText).not.toHaveBeenCalled();
+      expect(tables.playbooks ?? []).toEqual([]);
+    });
+
+    it("fails the draft with a reason for the person when the parser's limits stop the file", async () => {
+      const { db, tables } = await queued();
+      storage.downloadFile.mockResolvedValue(await docx(`Cláusula quinta. ${CLAUSE}`));
+      const parse = vi.spyOn(EXTRACTION_OPS, "docxText").mockRejectedValue(new ExtractionLimitError("parser deadline exceeded"));
+      try {
+        await handlePlaybookDraft(db, job(tables.db_jobs[0].payload));
+        expect(tables.playbook_imports[0]).toMatchObject({ status: "failed", error: "The document is too large to read." });
+        expect(tables.playbooks ?? []).toEqual([]);
+      } finally { parse.mockRestore(); }
+    });
   });
 });

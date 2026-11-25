@@ -1109,6 +1109,8 @@ export async function runToolCalls(
           // The review ended because the turn was stopped: not a failure.
           if (stopped()) break;
           if (error instanceof PlaybookRequestError) fail(error.message);
+          else if (error instanceof ExtractionBusyError)
+            fail("Document processing is busy. Try again shortly.");
           else {
             reportToolFailure(error);
             console.warn("[run_tools] run_playbook failed", safeError(error));

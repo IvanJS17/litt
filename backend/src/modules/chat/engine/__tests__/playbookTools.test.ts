@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { ExtractionBusyError } from "../../../../lib/extraction/limits";
 import type { Db } from "../../../../lib/supabase";
 
 const playbooks = vi.hoisted(() => ({
@@ -253,6 +254,19 @@ it("hands the model the draft refusal's message, as for any refused review", asy
     error:
       "Este playbook es un borrador. Un editor debe marcarlo como listo antes de usarlo en revisiones.",
   });
+  expect(reportError).not.toHaveBeenCalled();
+});
+
+it("tells the model to try again shortly when the parser is busy, without reporting a failure", async () => {
+  playbooks.reviewWithPlaybook.mockRejectedValue(new ExtractionBusyError());
+
+  const result = await dispatch([
+    call("run_playbook", { playbook_id: "pb-1", doc_id: "doc-0" }),
+  ]);
+
+  expect(
+    JSON.parse((result.toolResults[0] as { content: string }).content),
+  ).toEqual({ error: "Document processing is busy. Try again shortly." });
   expect(reportError).not.toHaveBeenCalled();
 });
 

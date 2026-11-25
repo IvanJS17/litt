@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { Router, type Response } from "express";
 import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import { sendInternalError } from "../../lib/httpError";
+import { sendDisplayBusy } from "../../lib/documentDisplay";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { pipeToResponse } from "../../lib/pipeToResponse";
 import { setOperation } from "../../lib/observability/report";
 import {
@@ -123,6 +125,9 @@ function sendError(res: Response, error: unknown): void {
       ...(error.code ? { code: error.code } : {}),
     });
   }
+  // The parser process had no free place in time: the same answer the
+  // document routes give, so a client treats both alike.
+  if (error instanceof ExtractionBusyError) return void sendDisplayBusy(res);
   sendInternalError(res, error);
 }
 
