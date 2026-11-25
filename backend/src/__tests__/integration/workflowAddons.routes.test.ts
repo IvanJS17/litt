@@ -2,10 +2,11 @@ import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { from, eq, downloadFile, uploadFile, deleteFile, docxToPdf, reportError } =
+const { from, eq, headFile, downloadFile, uploadFile, deleteFile, docxToPdf, reportError } =
   vi.hoisted(() => ({
     from: vi.fn(),
     eq: vi.fn(),
+    headFile: vi.fn(),
     downloadFile: vi.fn(),
     uploadFile: vi.fn(),
     deleteFile: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock("../../lib/storage", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/storage")>();
   return {
     ...actual,
+    headFile,
     downloadFile,
     uploadFile,
     deleteFile,
@@ -91,6 +93,7 @@ describe("workflow add-on catalog routes", () => {
     downloadFile.mockResolvedValue(
       new TextEncoder().encode("reference").buffer,
     );
+    headFile.mockResolvedValue({ size: 10, etag: null, contentType: null });
     uploadFile.mockResolvedValue(undefined);
     deleteFile.mockResolvedValue(undefined);
     docxToPdf.mockResolvedValue(Buffer.from("converted-pdf"));
@@ -361,4 +364,29 @@ describe("workflow add-on catalog routes", () => {
     expect(Number(response.headers["retry-after"])).toBeGreaterThan(0);
     expect(reportError).not.toHaveBeenCalled();
   });
+
+it("answers a presentation over the conversion bound with the convert code, and reads and converts nothing", async () => {
+  from.mockImplementation((table: string) =>
+    table === "mike_workflows"
+      ? singleQueryReturning({ id: "c0a7a1e1-0000-4000-8000-000000000001", type: "assistant" })
+      : singleQueryReturning({
+          id: "reference-1",
+          filename: "Deck.pptx",
+          file_type: "pptx",
+          storage_path: "mike-workflows/c0a7a1e1-0000-4000-8000-000000000001/deck.pptx",
+        }),
+  );
+  headFile.mockResolvedValue({ size: 25 * 1024 * 1024 + 1, etag: null, contentType: null });
+  reportError.mockClear();
+
+  const response = await request(app).get(
+    "/workflow-addons/c0a7a1e1-0000-4000-8000-000000000001/assets/reference-1/display",
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe("convert_source_too_large");
+  expect(downloadFile).not.toHaveBeenCalled();
+  expect(docxToPdf).not.toHaveBeenCalled();
+  expect(reportError).not.toHaveBeenCalled();
+});
 });

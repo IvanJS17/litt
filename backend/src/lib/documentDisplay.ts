@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import { Readable } from "node:stream";
-import { docxToPdf } from "./convert";
+import { CONVERSION_MAX_SOURCE_BYTES, CONVERSION_PLACES, CONVERSION_SOURCE_TOO_LARGE_CODE, docxToPdf } from "./convert";
+import { ExtractionBusyError } from "./extraction/limits";
 import {
   contentTypeForDocumentType,
   shouldConvertToPdf,
@@ -46,6 +47,17 @@ function toBuffer(bytes: ArrayBuffer | ArrayBufferView): Buffer {
     : Buffer.from(bytes);
 }
 
+/** Display conversions of this thread that hold a downloaded source right now. */
+let displaySourcesHeld = 0;
+
+/** A Word or presentation source above the conversion bound: it is not read or converted. */
+export class DisplaySourceTooLargeError extends Error {
+  constructor() {
+    super("The document is too large to preview.");
+    this.name = "DisplaySourceTooLargeError";
+  }
+}
+
 export async function prepareDocumentDisplay(source: {
   filename: string;
   fileType?: string | null;
@@ -54,6 +66,7 @@ export async function prepareDocumentDisplay(source: {
 }): Promise<DocumentDisplayPayload> {
   const fileType = normalizedFileType(source);
   if (shouldConvertToPdf(fileType)) {
+    if (source.sourceBytes.byteLength > CONVERSION_MAX_SOURCE_BYTES) throw new DisplaySourceTooLargeError();
     return {
       bytes: await docxToPdf(toBuffer(source.sourceBytes), { signal: source.signal }),
       contentType: "application/pdf",
@@ -95,14 +108,28 @@ export async function loadDocumentDisplay(
         };
       }
     }
-    const sourceBytes = await downloadFile(source.storagePath);
-    if (!sourceBytes) return null;
-    return prepareDocumentDisplay({
-      filename: source.filename,
-      fileType,
-      sourceBytes,
-      signal: source.signal,
-    });
+    // The size is learned without reading the object: a source above the
+    // bound is never downloaded. headFile gives null for an object that is not there.
+    const metadata = await headFile(source.storagePath);
+    if (!metadata) return null;
+    if (metadata.size > CONVERSION_MAX_SOURCE_BYTES) throw new DisplaySourceTooLargeError();
+    // A display holds its source from the download until the converter ends,
+    // so no more displays read one than the converter has places: the rest
+    // are told to retry, as a full converter tells them.
+    if (displaySourcesHeld >= CONVERSION_PLACES) throw new ExtractionBusyError();
+    displaySourcesHeld += 1;
+    try {
+      const sourceBytes = await downloadFile(source.storagePath);
+      if (!sourceBytes) return null;
+      return await prepareDocumentDisplay({
+        filename: source.filename,
+        fileType,
+        sourceBytes,
+        signal: source.signal,
+      });
+    } finally {
+      displaySourcesHeld -= 1;
+    }
   }
 
   const storedBytes = await downloadFile(source.storagePath);
@@ -213,4 +240,12 @@ export async function sendDocumentDisplayStream(
 export function sendDisplayBusy(res: Response): void {
   res.setHeader("Retry-After", "30");
   res.status(503).json({ detail: "Document conversion is busy. Try again shortly." });
+}
+
+/** The source is above the conversion bound: the answer the convert surface gives. */
+export function sendDisplayTooLarge(res: Response): void {
+  res.status(400).json({
+    code: CONVERSION_SOURCE_TOO_LARGE_CODE,
+    detail: "The document is too large to preview.",
+  });
 }

@@ -186,6 +186,26 @@ describe("GET /single-documents/:documentId/display", () => {
         expect(reportError).not.toHaveBeenCalled();
     });
 
+    it("answers a source over the bound with the convert surface's code, not 500, and reads and converts nothing", async () => {
+        const reads = fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null, headSize: 25 * 1024 * 1024 + 1 } });
+        active.current = { ...active.current, pdf_storage_path: null };
+        const res = await request(app).get(`/single-documents/${DOC}/display`).set(...AUTH);
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("convert_source_too_large");
+        expect(reads.whole).toEqual([]);
+        expect(docxToPdf).not.toHaveBeenCalled();
+        expect(reportError).not.toHaveBeenCalled();
+    });
+
+    it("still displays a small Word file with no stored rendition", async () => {
+        fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
+        active.current = { ...active.current, pdf_storage_path: null };
+        docxToPdf.mockResolvedValue(PDF);
+        const res = await request(app).get(`/single-documents/${DOC}/display`).set(...AUTH);
+        expect(res.status).toBe(200);
+        expect(res.headers["content-type"]).toContain("application/pdf");
+    });
+
     it("hands the request's abort to the conversion queue", async () => {
         fakeStore({ "u/Contract.docx": { bytes: Buffer.from("docx bytes"), etag: null } });
         active.current = { ...active.current, pdf_storage_path: null };

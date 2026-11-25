@@ -268,6 +268,11 @@ export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
   return patched;
 }
 
+/** Largest source a conversion reads, wherever the conversion is asked for. */
+export const CONVERSION_MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+/** The answer code for a source above that bound. */
+export const CONVERSION_SOURCE_TOO_LARGE_CODE = "convert_source_too_large";
+
 // Each conversion is a LibreOffice process inside the container every user
 // shares: a few run at once, a few more wait their turn for a fixed time, and
 // the rest are refused with ExtractionBusyError (retry later, not a failed
@@ -276,6 +281,8 @@ export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
 const MAX_CONCURRENT_CONVERSIONS = 2;
 const MAX_QUEUED_CONVERSIONS = 8;
 const CONVERSION_WAIT_MS = 30_000;
+/** Conversions one thread holds at a time, running or waiting. */
+export const CONVERSION_PLACES = MAX_CONCURRENT_CONVERSIONS + MAX_QUEUED_CONVERSIONS;
 const conversionAdmission = admission(MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CONVERSIONS);
 
 /**
