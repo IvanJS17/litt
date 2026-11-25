@@ -22,8 +22,12 @@ import { MAX_EXTRACT_TEXT_CHARS } from "../client-profile/client-profile.service
 /** Runs a firm may start per calendar month (Mexico City). One constant, easy to adjust. */
 export const DONNA_MONTHLY_RUN_CAP = 1_000;
 
-/** Runs one person may cause per calendar day (Mexico City), automatic and manual. DONNA_DAILY_RUN_CAP_PER_PERSON overrides it. */
-export const DONNA_DAILY_RUN_CAP_PER_PERSON = envInt("DONNA_DAILY_RUN_CAP_PER_PERSON", 100);
+/**
+ * Runs one person may cause per calendar day (Mexico City), automatic and manual.
+ * DONNA_DAILY_RUN_CAP_PER_PERSON overrides it, up to a ceiling: the cap is passed
+ * to the database as an integer, which an oversized override would not fit.
+ */
+export const DONNA_DAILY_RUN_CAP_PER_PERSON = Math.min(envInt("DONNA_DAILY_RUN_CAP_PER_PERSON", 100), 1_000_000);
 
 /**
  * Characters of title plus documents one run reads. Below the 120,000 the BYOK

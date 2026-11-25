@@ -30,6 +30,7 @@ import { createProject, updateProject } from "../projects.crud";
 const PROJECT = "00000000-0000-4000-8000-000000000120";
 let tables: Record<string, Row[]>;
 let db: ReturnType<typeof memoryDb>["db"];
+let failNext: ReturnType<typeof memoryDb>["failNext"];
 
 beforeEach(() => {
     h.role = "owner";
@@ -45,6 +46,7 @@ beforeEach(() => {
     );
     tables = world.tables;
     db = world.db;
+    failNext = world.failNext;
 });
 
 describe("creating a project", () => {
@@ -135,6 +137,37 @@ describe("the switch leaves an audit record", () => {
             }
             expect(value).toBe(tables.projects[0].donna_enabled);
         }
+    });
+
+    it("writes the event when the switch changed and the rest of the change then fails", async () => {
+        // The second write to the project (its other fields) fails; the switch was already written.
+        let writes = 0;
+        const failingDb = {
+            rpc: db.rpc,
+            from(table: string) {
+                const query = db.from(table) as unknown as { update: (values: unknown) => unknown };
+                if (table !== "projects") return query;
+                const update = query.update.bind(query);
+                query.update = (values: unknown) => {
+                    writes += 1;
+                    if (writes === 2) failNext("projects", "update", { message: "down" });
+                    return update(values);
+                };
+                return query;
+            },
+        } as unknown as typeof db;
+        const result = await updateProject(failingDb, { projectId: PROJECT, userId: "u1", body: { donna_enabled: false, name: "Otro" } });
+        expect(result).toMatchObject({ ok: false });
+        expect(tables.projects[0].donna_enabled).toBe(false);
+        expect(events()).toHaveLength(1);
+        expect(events()[0]).toMatchObject({ detail: { old_value: true, new_value: false } });
+    });
+
+    it("records a personal project created with Donna off under no firm, also when the firm was sent empty", async () => {
+        const created = await createProject(db, { userId: "u1", name: "Personal", org_id: "", donna_enabled: false });
+        expect(created).toMatchObject({ ok: true });
+        expect(events()).toHaveLength(1);
+        expect(events()[0].org_id ?? null).toBeNull();
     });
 
     it("writes none when the change is refused", async () => {

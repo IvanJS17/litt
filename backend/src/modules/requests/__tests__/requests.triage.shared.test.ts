@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { JEV_MODEL, type JevResponse } from "../../../lib/jev";
 import {
     applyAlarm,
@@ -37,6 +37,18 @@ describe("the daily cap of a person", () => {
         expect(DONNA_DAILY_RUN_CAP_PER_PERSON).toBe(100);
         expect(DONNA_DAILY_CAP_CODE).toBe("donna_daily_cap");
         expect(DONNA_DAILY_CAP_DETAIL).toContain("Se reanuda mañana");
+    });
+
+    it("keeps an oversized override within what the database takes as an integer", async () => {
+        vi.resetModules();
+        vi.stubEnv("DONNA_DAILY_RUN_CAP_PER_PERSON", "99999999999");
+        try {
+            const reloaded = await import("../requests.triage.shared.js");
+            expect(reloaded.DONNA_DAILY_RUN_CAP_PER_PERSON).toBe(1_000_000);
+        } finally {
+            vi.unstubAllEnvs();
+            vi.resetModules();
+        }
     });
 
     it("counts the calendar day in Mexico City", () => {

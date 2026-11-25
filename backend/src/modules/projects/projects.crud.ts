@@ -549,7 +549,7 @@ export async function createProject(
       };
     await recordDonnaSwitchChange(db, {
       userId,
-      orgId: org_id ?? null,
+      orgId: resolvedOrgId,
       projectId: (data as { id: string }).id,
       oldValue: true,
       newValue: false,
@@ -861,9 +861,9 @@ export async function updateProject(
     updates.visibility = requestedVisibility.visibility;
 
   // The switch is written on its own and only where it differs from the stored
-  // value, so its audit event is written exactly when a row changed, also when
-  // two changes arrive together.
-  let donnaChangedTo: boolean | null = null;
+  // value, and its audit event right after it: the event is written exactly
+  // when a row changed, also when two changes arrive together or the rest of
+  // this change then fails.
   if (typeof updates.donna_enabled === "boolean") {
     const { data: changed, error: switchError } = await db
       .from("projects")
@@ -872,7 +872,15 @@ export async function updateProject(
       .neq("donna_enabled", updates.donna_enabled)
       .select("id");
     if (switchError) return { ok: false, kind: "db_error", error: switchError };
-    if ((changed ?? []).length > 0) donnaChangedTo = updates.donna_enabled;
+    if ((changed ?? []).length > 0)
+      await recordDonnaSwitchChange(db, {
+        userId,
+        userEmail,
+        orgId: access.project.org_id ?? null,
+        projectId,
+        oldValue: !updates.donna_enabled,
+        newValue: updates.donna_enabled,
+      });
     delete updates.donna_enabled;
   }
 
@@ -883,15 +891,6 @@ export async function updateProject(
     .select("*")
     .single();
   if (error || !data) return { ok: false, kind: "not_found" };
-  if (donnaChangedTo !== null)
-    await recordDonnaSwitchChange(db, {
-      userId,
-      userEmail,
-      orgId: access.project.org_id ?? null,
-      projectId,
-      oldValue: !donnaChangedTo,
-      newValue: donnaChangedTo,
-    });
 
   // Paged: an unpaged read stopped at max_rows, so a project past 1000
   // documents silently lost the rest from its detail payload.
