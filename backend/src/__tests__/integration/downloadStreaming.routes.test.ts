@@ -1,5 +1,6 @@
 import express from "express";
 import http from "node:http";
+import net from "node:net";
 import type { AddressInfo } from "node:net";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,8 +20,11 @@ vi.hoisted(() => {
 
 import { headFile, openFileStream, setStorageAdapter, type StorageAdapter } from "../../lib/storage";
 
+// A test can make the session check wait, to let a client leave first.
+const auth = vi.hoisted(() => ({ gate: null as Promise<void> | null }));
 vi.mock("../../middleware/auth", () => ({
-  requireAuth: (_req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => {
+  requireAuth: async (_req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => {
+    if (auth.gate) await auth.gate;
     res.locals.userId = "u1";
     next();
   },
@@ -214,6 +218,99 @@ describe("GET /download/:token streaming", () => {
 
     await expect(storageReleased).resolves.toBeDefined();
   });
+
+  it("does not treat a client that leaves while the storage read is being opened as a failure", async () => {
+    let opening = false;
+    let released = false;
+    const adapter = adapterReading(async function* () {
+      yield FIRST;
+    });
+    // The store takes its time to open the read; only an abort lets it go.
+    adapter.openReadStream = vi.fn(
+      (_key: string, options?: { signal?: AbortSignal }) =>
+        new Promise<never>((_resolve, reject) => {
+          opening = true;
+          options?.signal?.addEventListener("abort", () => {
+            released = true;
+            reject(options.signal!.reason);
+          });
+        }),
+    ) as never;
+    setStorageAdapter(adapter);
+    const socket = net.connect((server.address() as AddressInfo).port, "127.0.0.1", () =>
+      socket.write(`GET ${path()} HTTP/1.1\r\nHost: localhost\r\n\r\n`),
+    );
+    socket.on("error", () => undefined);
+    await vi.waitFor(() => expect(opening).toBe(true));
+    socket.destroy();
+    await vi.waitFor(() => expect(released).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(console.error).not.toHaveBeenCalled();
+  }, 10_000);
+
+  it("opens no storage read for a client that left before the handler ran", async () => {
+    const adapter = adapterReading(async function* () {
+      yield FIRST;
+      yield SECOND;
+    });
+    setStorageAdapter(adapter);
+    let letSessionThrough: () => void = () => undefined;
+    auth.gate = new Promise<void>((resolve) => (letSessionThrough = resolve));
+    try {
+      let gone = false;
+      server.once("connection", (socket) => socket.once("close", () => (gone = true)));
+      const socket = net.connect((server.address() as AddressInfo).port, "127.0.0.1", () =>
+        socket.write(`GET ${path()} HTTP/1.1\r\nHost: localhost\r\n\r\n`, () => socket.destroy()),
+      );
+      socket.on("error", () => undefined);
+      await vi.waitFor(() => expect(gone).toBe(true));
+      letSessionThrough();
+      // The handler has run once the service has asked the store for the size.
+      await vi.waitFor(() => expect(adapter.headFile).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(adapter.openReadStream).not.toHaveBeenCalled();
+    } finally {
+      auth.gate = null;
+      letSessionThrough();
+    }
+  }, 10_000);
+
+  it("releases the storage read of a request waiting behind an earlier one on its connection when the client leaves", async () => {
+    const opened: Array<{ url: string; signal: AbortSignal | undefined }> = [];
+    let released!: () => void;
+    const secondReleased = new Promise<void>((resolve) => (released = resolve));
+    const adapter = adapterReading(async function* () {
+      yield FIRST;
+      await new Promise(() => undefined);
+    });
+    // Each read is told apart by the order it was opened in; the second one is the waiting request's.
+    vi.mocked(adapter.openReadStream).mockImplementation(async (_key, options) => {
+      opened.push({ url: String(opened.length), signal: options?.signal });
+      if (opened.length === 2) options?.signal?.addEventListener("abort", () => released());
+      return (async function* () {
+        yield FIRST;
+        // Stalls like a slow store; only an abort ends it.
+        await new Promise<never>((_resolve, reject) =>
+          options?.signal?.addEventListener("abort", () => reject(options.signal?.reason)),
+        );
+      })();
+    });
+    setStorageAdapter(adapter);
+    const request = `GET ${path()} HTTP/1.1\r\nHost: localhost\r\n\r\n`;
+    const socket = net.connect((server.address() as AddressInfo).port, "127.0.0.1", () => socket.write(request + request));
+    socket.on("error", () => undefined);
+    socket.on("data", () => undefined);
+    try {
+      await vi.waitFor(() => expect(opened).toHaveLength(2));
+      socket.destroy();
+      await Promise.race([
+        secondReleased,
+        new Promise((_resolve, reject) => setTimeout(() => reject(new Error("the waiting request's read was not released")), 3_000)),
+      ]);
+    } finally {
+      socket.destroy();
+    }
+  }, 10_000);
 
   it("ends the response short and releases the store when a read fails mid-stream", async () => {
     let finished = false;

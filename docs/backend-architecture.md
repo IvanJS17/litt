@@ -148,15 +148,26 @@ request is bounded where it is held:
   anything. A route that displays takes the
   signal it passes from `abortOnClose` (`lib/responseClosed.ts`), which is already
   aborted when the client left before the handler ran, so such a request reads
-  nothing and holds no place, and which also follows the connection: a
-  response waiting behind an earlier one on its connection does not close when
-  its client leaves. `pipeToResponse` uses the same test and the same wait. A request that
+  no object bytes, converts nothing and holds no place (it still resolves
+  access and may ask the store for an object's metadata), and which also
+  follows the connection: a response waiting behind an earlier one on its
+  connection does not close when its client leaves. `pipeToResponse` and the
+  download-by-link route (`/download/:token`) use the same test and the same
+  wait, and so does the progress view of a tabular review: for a client that
+  has left it neither subscribes to the review's channel nor polls the
+  database, while the extraction already handed to the queue goes on. A
+  listener that fails when its response or its connection closes (or at once,
+  when that had already happened) is reported once, through the reporting
+  helper, and does not stop the others, its caller or the process. A client
+  that leaves while the view's subscription or a download's read is being
+  opened is not reported as a failure. A request that
   arrives while the answer to an earlier one on the same connection is still
   going out starts only in its turn (`middleware/startInTurn.ts`, the first
   middleware), so it reads nothing and holds no place while it cannot be
   answered. It starts in the context it arrived in, not in that of the request
-  ahead of it, and a connection with more than a hundred requests waiting is
-  closed: nothing is written for a waiting request, so nothing else slows down
+  ahead of it, and a connection with more than 32 requests waiting is
+  closed (nothing legitimate sends requests ahead of their answers).
+  Nothing is written for a waiting request, so nothing else slows down
   a client that keeps sending them. A response whose client makes no progress for a minute
   (`DISPLAY_SEND_IDLE_MS`) is closed within about two, so a client that stops
   reading does not keep the file or the place; until then it holds both, and
