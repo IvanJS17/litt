@@ -26,6 +26,9 @@ test-results/
 playwright-report/
 e2e/.auth/
 
+# pdf.js fonts, decoders, character maps and colour profiles, copied from node_modules by frontend/scripts/copyPdfViewerAssets.mjs
+/frontend/public/pdfjs/
+
 # Local Supabase scaffold. Keep the shared project configuration reproducible,
 # while excluding CLI state and other generated local files.
 /supabase/

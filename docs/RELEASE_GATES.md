@@ -54,6 +54,9 @@ Required:
 - clean worktree;
 - governing verdict `PASS` or approved non-blocking reservations;
 - no timeout/silence/harness failure substituted for PASS.
+- a change that adds untrusted input, a call to a third party, or a new
+  permission or scope has had a security review of what it adds, by a checker
+  other than its author; the review is recorded with the snapshot it covered.
 
 Any changed byte invalidates the verdict.
 

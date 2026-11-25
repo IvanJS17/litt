@@ -15,11 +15,19 @@
 
 import type { MatterRequestComplexity, MatterRequestTypeSeed, TriageUrgency } from "@mike/contracts";
 import { choiceQuestion, noulQuestion, readChoice, readNoul, readScore, scoreQuestion, type JevQuestion, type JevResponse } from "../../lib/jev";
+import { envInt } from "../../lib/runtimeConfig";
 import { unwrapFencedAnswer } from "../../lib/modelJsonFence";
 import { MAX_EXTRACT_TEXT_CHARS } from "../client-profile/client-profile.service";
 
 /** Runs a firm may start per calendar month (Mexico City). One constant, easy to adjust. */
 export const DONNA_MONTHLY_RUN_CAP = 1_000;
+
+/**
+ * Runs one person may cause per calendar day (Mexico City), automatic and manual.
+ * DONNA_DAILY_RUN_CAP_PER_PERSON overrides it, up to a ceiling: the cap is passed
+ * to the database as an integer, which an oversized override would not fit.
+ */
+export const DONNA_DAILY_RUN_CAP_PER_PERSON = Math.min(envInt("DONNA_DAILY_RUN_CAP_PER_PERSON", 100), 1_000_000);
 
 /**
  * Characters of title plus documents one run reads. Below the 120,000 the BYOK
@@ -36,6 +44,7 @@ export const TRIAGE_TIMEOUT_MS = 120_000;
 export const TRIAGE_MAX_OUTPUT_TOKENS = 3_000;
 
 export const DONNA_CAP_CODE = "donna_monthly_cap";
+export const DONNA_DAILY_CAP_CODE = "donna_daily_cap";
 export const DONNA_DISABLED_CODE = "donna_disabled";
 export const TRIAGE_TRAINEE_CODE = "triage_trainee";
 export const TRIAGE_IN_PROGRESS_CODE = "triage_in_progress";
@@ -44,6 +53,8 @@ export const TRIAGE_ITEM_OBSOLETE_CODE = "triage_item_obsolete";
 export const INVALID_TRIAGE_DECISION_CODE = "invalid_triage_decision";
 
 export const DONNA_CAP_DETAIL = "Límite mensual de Donna alcanzado para este despacho. Se reanuda el día 1 del mes.";
+
+export const DONNA_DAILY_CAP_DETAIL = "Alcanzaste el límite diario de análisis de Donna. Se reanuda mañana.";
 
 /** Under this, Jev's pick is shown as «confianza baja». */
 export const CONFIDENT_FROM = 0.7;
@@ -98,6 +109,18 @@ export function monthWindow(now: Date): { label: string; start: string; end: str
     label: `${year}-${pad(month + 1)}`,
     start: `${year}-${pad(month + 1)}-01T06:00:00.000Z`,
     end: `${next.year}-${pad(next.month + 1)}-01T06:00:00.000Z`,
+  };
+}
+
+/** The day a run counts in for its person: the calendar day in Mexico City. */
+export function dayWindow(now: Date): { label: string; start: string; end: string } {
+  const local = new Date(now.getTime() - 6 * 3_600_000);
+  const midnight = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+  const start = new Date(midnight + 6 * 3_600_000);
+  return {
+    label: new Date(midnight).toISOString().slice(0, 10),
+    start: start.toISOString(),
+    end: new Date(start.getTime() + 24 * 3_600_000).toISOString(),
   };
 }
 
