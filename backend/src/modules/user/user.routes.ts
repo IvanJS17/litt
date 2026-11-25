@@ -1671,6 +1671,15 @@ async function dataActionWorkspace(
     return { orgId };
 }
 
+// A bulk delete that removed everything it was asked to answers 204, as it
+// always did. When rows were left because the person could not delete them
+// one at a time, it says how many (the screen can then avoid claiming that
+// everything is gone).
+function sendBulkDeleteResult(res: Response, kept: number) {
+    if (kept > 0) return void res.status(200).json({ kept });
+    res.status(204).send();
+}
+
 // DELETE /user/chats?workspace=
 userRouter.delete(
     "/chats",
@@ -1682,9 +1691,14 @@ userRouter.delete(
         const db = createServerSupabase();
         const workspace = await dataActionWorkspace(db, userId, req.query.workspace, "delete", res);
         if (!workspace) return;
-        const result = await deleteUserChats(db, userId, workspace.orgId);
+        const result = await deleteUserChats(
+            db,
+            userId,
+            workspace.orgId,
+            res.locals.userEmail as string | undefined,
+        );
         if (!result.ok) return void sendInternalError(res, result.error);
-        res.status(204).send();
+        sendBulkDeleteResult(res, result.kept);
     }),
 );
 
@@ -1721,9 +1735,14 @@ userRouter.delete(
         const db = createServerSupabase();
         const workspace = await dataActionWorkspace(db, userId, req.query.workspace, "delete", res);
         if (!workspace) return;
-        const result = await deleteUserTabularReviews(db, userId, workspace.orgId);
+        const result = await deleteUserTabularReviews(
+            db,
+            userId,
+            workspace.orgId,
+            res.locals.userEmail as string | undefined,
+        );
         if (!result.ok) return void sendInternalError(res, result.error);
-        res.status(204).send();
+        sendBulkDeleteResult(res, result.kept);
     }),
 );
 
