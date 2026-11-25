@@ -1,4 +1,5 @@
 import http from "node:http";
+import net from "node:net";
 import type { AddressInfo } from "node:net";
 import { Readable, Stream } from "node:stream";
 import JSZip from "jszip";
@@ -146,6 +147,39 @@ describe("pipeToResponse", () => {
     expect((error as NodeJS.ErrnoException).code).toBe("ERR_STREAM_PREMATURE_CLOSE");
     expect(destroyed).toBe(true);
   });
+
+  it("destroys the source and rejects when the response had closed before it was called", async () => {
+    let destroyed = false;
+    let settle!: (outcome: unknown) => void;
+    const outcome = new Promise((resolve) => (settle = resolve));
+    server = http.createServer(async (_req, res) => {
+      // The client leaves while the handler is still waiting on something else.
+      await new Promise((resolve) => res.once("close", resolve));
+      const source = new Readable({
+        read() {
+          this.push(Buffer.alloc(1024 * 1024));
+        },
+        destroy(error, callback) {
+          destroyed = true;
+          callback(error);
+        },
+      });
+      pipeToResponse(source, res).then(() => settle("resolved"), settle);
+    });
+    await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    const socket = net.connect(port, "127.0.0.1", () =>
+      socket.write("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n", () => socket.destroy()),
+    );
+    socket.on("error", () => undefined);
+
+    const result = await Promise.race([
+      outcome,
+      new Promise((resolve) => setTimeout(() => resolve("never settled"), 3_000)),
+    ]);
+    expect(result).toMatchObject({ code: "ERR_STREAM_PREMATURE_CLOSE" });
+    expect(destroyed).toBe(true);
+  }, 10_000);
 
   it("breaks the download when the source fails after bytes were sent", async () => {
     const { url, outcome } = await serve(() =>
