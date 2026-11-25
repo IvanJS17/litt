@@ -67,7 +67,8 @@ async function dispatchDocumentTool(
         ],
         DOC_STORE,
         "user-1",
-        {} as never,
+        // The person may still open the document.
+        { rpc: async () => ({ data: true, error: null }) } as never,
         () => undefined,
         undefined,
         undefined,

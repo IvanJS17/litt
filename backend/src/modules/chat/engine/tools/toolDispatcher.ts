@@ -71,6 +71,10 @@ import {
   clearTurnReadsForDocument,
   readDocumentContent,
   findInDocumentContent,
+  mayAddDocumentHere,
+  mayOpenStoredDocumentNow,
+  DOCUMENT_UNREADABLE,
+  NOT_ALLOWED_TO_ADD,
   runEditDocument,
   safeGeneratedFilename,
   type DocEditedResult,
@@ -343,6 +347,19 @@ export async function runToolCalls(
   } = results;
   const approvalItems: ConnectorApprovalItem[] = [];
   const documentLocks = options.documentLocks ?? createKeyedLock();
+  // The person this turn runs for. Every stored document it reads or creates
+  // is checked against them at that moment (documentOps).
+  const actor = { userId, userEmail: options.userEmail ?? null };
+  const generatedFor = { projectId: projectId ?? null, orgId: options.orgId ?? null, userEmail: actor.userEmail };
+  // A repeat read in the same turn gets a "text already returned" notice, not
+  // text; it still goes only to a person who may open the document now.
+  const mayRepeatRead = async (docId: string, documentId: string | undefined) =>
+    docStore.get(docId)?.inline_text !== undefined ||
+    (await mayOpenStoredDocumentNow(
+      db,
+      documentId ?? docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id,
+      actor,
+    ));
 
   const registerGeneratedDocument = (
     tc: ToolCall,
@@ -561,7 +578,7 @@ export async function runToolCalls(
           const docId = resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;
           const info = docStore.get(docId);
           if (!info) return null;
-          const text = await readDocumentContent(docId, docStore, write, docIndex, db, { emitEvents: false });
+          const text = await readDocumentContent(docId, docStore, write, docIndex, db, { emitEvents: false, actor });
           return { filename: info.filename, text };
         },
         text: methodologyText(await readAnnexLocale(db, userId)),
@@ -583,10 +600,7 @@ export async function runToolCalls(
         write(
           `data: ${JSON.stringify({ type: "doc_created_start", filename: previewFilename })}\n\n`,
         );
-        const generated = await generateDocx(title, outcome.annex.sections, userId, db, {
-          projectId: projectId ?? null,
-          orgId: options.orgId ?? null,
-        });
+        const generated = await generateDocx(title, outcome.annex.sections, userId, db, generatedFor);
         registerGeneratedDocument(
           tc,
           { ...(generated as Record<string, unknown>), calculation: outcome.payload },
@@ -643,7 +657,7 @@ export async function runToolCalls(
         docIndex,
         db,
       });
-      if (readIdentity && turnReadState?.has(readIdentity.key)) {
+      if (readIdentity && turnReadState?.has(readIdentity.key) && (await mayRepeatRead(docId, readIdentity.documentId))) {
         const promptFilename = spotlightFilename(readIdentity.filename, nonce);
         const sourceNotice = sourceMaterialNotice(
           docStore.get(docId)?.source_kind,
@@ -661,14 +675,16 @@ export async function runToolCalls(
         write,
         docIndex,
         db,
-        { readIdentity },
+        { readIdentity, actor },
       );
       const filename = docStore.get(docId)?.filename;
       const documentId = docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id;
-      if (readIdentity && turnReadState) {
+      // A refused read served nothing: it is not recorded as read.
+      const served = content !== DOCUMENT_UNREADABLE;
+      if (served && readIdentity && turnReadState) {
         turnReadState.set(readIdentity.key, readIdentity);
       }
-      if (filename)
+      if (served && filename)
         docsRead.push({
           filename,
           document_id: readIdentity?.documentId ?? documentId,
@@ -834,6 +850,7 @@ export async function runToolCalls(
         write,
         docIndex,
         db,
+        actor,
         readIdentity,
       });
       const filename = docInfo?.filename;
@@ -881,7 +898,7 @@ export async function runToolCalls(
           docIndex,
           db,
         });
-        if (readIdentity && turnReadState?.has(readIdentity.key)) {
+        if (readIdentity && turnReadState?.has(readIdentity.key) && (await mayRepeatRead(docId, readIdentity.documentId))) {
           const filename = docStore.get(docId)?.filename ?? docId;
           const promptFilename = spotlightFilename(filename, nonce);
           const sourceNotice = sourceMaterialNotice(
@@ -900,10 +917,12 @@ export async function runToolCalls(
           write,
           docIndex,
           db,
-          { readIdentity },
+          { readIdentity, actor },
         );
         const filename = docStore.get(docId)?.filename ?? docId;
-        if (readIdentity && turnReadState) {
+        // A refused read served nothing: it is not recorded as read.
+        const served = content !== DOCUMENT_UNREADABLE;
+        if (served && readIdentity && turnReadState) {
           turnReadState.set(readIdentity.key, readIdentity);
         }
         // Document body is user-controlled; spotlight it.
@@ -915,7 +934,7 @@ export async function runToolCalls(
         parts.push(
           `--- ${docId} ---\n${citationReminder(docId, filename, promptFilename)}${sourceNotice ? `\n${sourceNotice}` : ""}\n\n${fencedContent}`,
         );
-        if (docStore.get(docId)) {
+        if (served && docStore.get(docId)) {
           const documentId = docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id;
           docsRead.push({
             filename,
@@ -1001,6 +1020,7 @@ export async function runToolCalls(
             ? undefined
             : await readDocumentContent(docId, docStore, write, docIndex, db, {
                 emitEvents: false,
+                actor,
               });
           // The review saves its suggestions as a new version.
           if (stopped()) break;
@@ -1463,6 +1483,22 @@ export async function runToolCalls(
         );
       } else {
         try {
+          // The source is a read and the copies are writes, each asked of
+          // the database now: the turn's start decides neither.
+          if (
+            !(await mayOpenStoredDocumentNow(
+              db,
+              sourceIndexed?.document_id ?? sourceInfo.asset_document_id,
+              actor,
+            ))
+          ) {
+            fail(`Document '${rawDocId}' is not available in this chat.`);
+            continue;
+          }
+          if (!(await mayAddDocumentHere(db, { userId, ...generatedFor }))) {
+            fail(NOT_ALLOWED_TO_ADD);
+            continue;
+          }
           // Pull the active version once — every copy gets the
           // same starting bytes (with any accepted tracked
           // changes rolled in), no point re-fetching per copy.
@@ -1562,6 +1598,11 @@ export async function runToolCalls(
             }
             await Promise.all(uploadJobs);
 
+            // Uploads take time: ask once more before any row exists.
+            if (!(await mayAddDocumentHere(db, { userId, ...generatedFor }))) {
+              fail(NOT_ALLOWED_TO_ADD);
+              continue;
+            }
             // Bytes are durable; now record the rows in one
             // round-trip per table.
             const docRows = newDocs.map((d) => ({
@@ -1781,12 +1822,7 @@ export async function runToolCalls(
         args.sections as unknown[],
         userId,
         db,
-        {
-          landscape,
-          numberSections,
-          projectId: projectId ?? null,
-          orgId: options.orgId ?? null,
-        },
+        { landscape, numberSections, ...generatedFor },
       );
       registerGeneratedDocument(
         tc,
@@ -1806,7 +1842,7 @@ export async function runToolCalls(
         args.sheets as unknown[],
         userId,
         db,
-        { projectId: projectId ?? null, orgId: options.orgId ?? null },
+        generatedFor,
       );
       registerGeneratedDocument(
         tc,
@@ -1826,7 +1862,7 @@ export async function runToolCalls(
         args.slides as unknown[],
         userId,
         db,
-        { projectId: projectId ?? null, orgId: options.orgId ?? null },
+        generatedFor,
       );
       registerGeneratedDocument(
         tc,

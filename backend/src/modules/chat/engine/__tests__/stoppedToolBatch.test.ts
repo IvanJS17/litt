@@ -38,6 +38,10 @@ vi.mock("../../../../lib/mcpConnectors", () => ({
 vi.mock("../tools/documentOps", async (original) => ({
   ...(await original<typeof import("../tools/documentOps")>()),
   runEditDocument,
+  // These tests are about the stop; whether the person may read the source and
+  // add the copies is asked of the database (liveTurnAuthority.test.ts).
+  mayOpenStoredDocumentNow: async () => true,
+  mayAddDocumentHere: async () => true,
 }));
 vi.mock("../tools/connectorApprovals", async (original) => ({
   ...(await original<typeof import("../tools/connectorApprovals")>()),

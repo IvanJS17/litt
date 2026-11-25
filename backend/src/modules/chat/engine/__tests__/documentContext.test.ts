@@ -532,6 +532,9 @@ describe("active Word document context", () => {
             ACTIVE_WORD_DOCUMENT_ID,
             store,
             (line) => writes.push(line),
+            undefined,
+            undefined,
+            { actor: { userId: "user-1", userEmail: null } },
         );
 
         expect(text).toBe("CONTRACT BODY TEXT");
