@@ -3,9 +3,9 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "predev": "node scripts/copyPdfStandardFonts.mjs",
+        "predev": "node scripts/copyPdfViewerAssets.mjs",
         "dev": "next dev",
-        "prebuild": "node scripts/copyPdfStandardFonts.mjs",
+        "prebuild": "node scripts/copyPdfViewerAssets.mjs",
         "build": "next build",
         "start": "next start",
         "lint": "eslint",

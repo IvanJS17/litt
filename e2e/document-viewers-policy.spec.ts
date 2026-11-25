@@ -18,7 +18,7 @@
 import fs from "fs";
 import path from "path";
 import { test, expect, type Page } from "./fixtures";
-import { createProject, PDF_FIXTURE } from "./helpers";
+import { createProject, PDF_FIXTURE, SCANNED_PDF_FIXTURE } from "./helpers";
 import { recordCspViolations } from "./cspViolations";
 import { writeSyntheticDocx } from "./syntheticDocx";
 
@@ -98,9 +98,62 @@ test("a PDF opens under the enforced page policy", async ({ page }) => {
 
     // The viewer's standard fonts are served by the app itself; a missing font
     // is not a policy violation, the PDF is just drawn with a substitute.
-    const font = await page.request.get("/standard_fonts/LiberationSans-Regular.ttf");
+    const font = await page.request.get("/pdfjs/standard_fonts/LiberationSans-Regular.ttf");
     expect(font.status(), "the app serves the PDF viewer's standard fonts").toBe(200);
 
     // REGRESSION: fails on any directive the production policy refuses.
     csp.expectNone("the PDF viewer");
+});
+
+test("a scanned PDF page is drawn under the enforced page policy", async ({ page }) => {
+    const csp = await recordCspViolations(page);
+
+    await createProject(page, `E2E scanned PDF view ${Date.now()}`, SCANNED_PDF_FIXTURE);
+    await openDocument(page, path.basename(SCANNED_PDF_FIXTURE));
+
+    // The page is one black square on white, drawn from a CCITT image. PDF.js
+    // decodes that with a WebAssembly module from the app's own origin; without
+    // it the canvas stays blank and the viewer shows no error.
+    const canvas = page.locator(".document-canvas canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(message("shared.pdfView.failedToLoadDocument"))).toHaveCount(0);
+
+    // REGRESSION: fails when the image decoder is not served or not allowed.
+    await expect
+        .poll(
+            async () =>
+                canvas.evaluate((element) => {
+                    const { width, height } = element as HTMLCanvasElement;
+                    if (!width || !height) return 0;
+                    // The middle of the page, where the square is.
+                    const x = Math.floor(width / 4);
+                    const y = Math.floor(height / 4);
+                    const w = Math.floor(width / 2);
+                    const h = Math.floor(height / 2);
+                    const data = (element as HTMLCanvasElement)
+                        .getContext("2d")!
+                        .getImageData(x, y, w, h).data;
+                    let dark = 0;
+                    for (let i = 0; i < data.length; i += 4) {
+                        if (data[i + 3] > 0 && data[i] + data[i + 1] + data[i + 2] < 150) dark += 1;
+                    }
+                    return dark / (data.length / 4);
+                }),
+            { message: "the scanned page's canvas is mostly dark where the square is", timeout: 30_000 },
+        )
+        .toBeGreaterThan(0.5);
+
+    // The decoders, character maps and colour profile are served by the app itself.
+    for (const asset of [
+        "/pdfjs/standard_fonts/LiberationSans-Regular.ttf",
+        "/pdfjs/wasm/jbig2.wasm",
+        "/pdfjs/cmaps/UniJIS-UCS2-H.bcmap",
+        "/pdfjs/iccs/CGATS001Compat-v2-micro.icc",
+    ]) {
+        const response = await page.request.get(asset);
+        expect(response.status(), `the app serves ${asset}`).toBe(200);
+    }
+
+    // REGRESSION: fails on any directive the production policy refuses.
+    csp.expectNone("a scanned PDF");
 });

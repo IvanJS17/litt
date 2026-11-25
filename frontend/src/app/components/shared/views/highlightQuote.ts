@@ -11,9 +11,20 @@ export async function getPdfJs() {
     return pdfjsLib;
 }
 
-// Served by the app itself: scripts/copyPdfStandardFonts.mjs publishes the
-// installed pdfjs-dist's fonts under public/ before `next dev` and `next build`.
-export const STANDARD_FONT_DATA_URL = "/standard_fonts/";
+// Served by the app itself: scripts/copyPdfViewerAssets.mjs publishes these
+// directories of the installed pdfjs-dist under public/pdfjs/ before `next dev`
+// and `next build`. Without them pdf.js cannot decode CCITT, JBIG2 or JPEG 2000
+// images (the page is drawn blank) or read the character maps of CJK fonts that
+// are not embedded (the text is neither drawn nor extracted).
+const PDF_VIEWER_ASSET_ROOT = "/pdfjs";
+
+/** The `getDocument` options that tell pdf.js where its assets are: same-origin absolute paths. */
+export const PDF_VIEWER_ASSET_URLS = {
+    standardFontDataUrl: `${PDF_VIEWER_ASSET_ROOT}/standard_fonts/`,
+    wasmUrl: `${PDF_VIEWER_ASSET_ROOT}/wasm/`,
+    cMapUrl: `${PDF_VIEWER_ASSET_ROOT}/cmaps/`,
+    iccUrl: `${PDF_VIEWER_ASSET_ROOT}/iccs/`,
+} as const;
 
 const HIGHLIGHT_CLASS = "pdf-text-highlight";
 const ORIGINAL_TEXT_ATTR = "data-original-text";

@@ -71,6 +71,7 @@ import { HeaderButtonUI, Dropdown, DropdownContent, DropdownItem, DropdownTrigge
 import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
 import { reportFault, notifyError } from "@/app/lib/userFacingError";
 import { PageHeader } from "@/app/components/shared/PageHeader";
+import { PDF_VIEWER_ASSET_URLS } from "@/app/components/shared/views/highlightQuote";
 import { Modal } from "@/app/components/modals/Modal";
 import { ModalFieldLabel } from "@/app/components/modals/ModalFieldLabel";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
@@ -176,8 +177,12 @@ async function extractReviewText(file: File): Promise<string> {
       "pdfjs-dist/build/pdf.worker.min.mjs",
       import.meta.url,
     ).toString();
-    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() })
-      .promise;
+    // Only the character maps matter here: without them the text of a
+    // CJK font that is not embedded cannot be read at all.
+    const pdf = await pdfjs.getDocument({
+      data: await file.arrayBuffer(),
+      cMapUrl: PDF_VIEWER_ASSET_URLS.cMapUrl,
+    }).promise;
     const pages: string[] = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);

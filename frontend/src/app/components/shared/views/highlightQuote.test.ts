@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { STANDARD_FONT_DATA_URL, highlightQuote } from "./highlightQuote";
+import { PDF_VIEWER_ASSET_URLS, highlightQuote } from "./highlightQuote";
 
 const HIGHLIGHT = ".pdf-text-highlight";
 
@@ -88,12 +88,22 @@ describe("highlightQuote", () => {
     });
 });
 
-describe("the standard font location", () => {
-    it("is a same-origin path that ends with a slash and names no version", () => {
-        expect(STANDARD_FONT_DATA_URL).toMatch(/^\/[^/]/);
-        expect(STANDARD_FONT_DATA_URL.endsWith("/")).toBe(true);
-        expect(STANDARD_FONT_DATA_URL).not.toMatch(/^[a-z][a-z0-9+.-]*:|^\/\//i);
-        expect(STANDARD_FONT_DATA_URL).not.toMatch(/\d+\.\d+/);
-        expect(STANDARD_FONT_DATA_URL).not.toMatch(/@/);
+describe("the pdf.js asset locations", () => {
+    const urls = Object.values(PDF_VIEWER_ASSET_URLS);
+
+    it("names the four directories pdf.js is given", () => {
+        expect(Object.keys(PDF_VIEWER_ASSET_URLS).sort()).toEqual(["cMapUrl", "iccUrl", "standardFontDataUrl", "wasmUrl"]);
+    });
+
+    it.each(urls)("%s is a same-origin path that ends with a slash and names no version", (url) => {
+        expect(url).toMatch(/^\/[^/]/);
+        expect(url.endsWith("/")).toBe(true);
+        expect(url).not.toMatch(/^[a-z][a-z0-9+.-]*:|^\/\//i);
+        expect(url).not.toMatch(/\d+\.\d+/);
+        expect(url).not.toMatch(/@/);
+    });
+
+    it("are four different directories", () => {
+        expect(new Set(urls).size).toBe(4);
     });
 });

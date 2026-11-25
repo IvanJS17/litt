@@ -478,9 +478,11 @@ so the frontend process needs the same value the backend signs URLs against
 (the bundled `docker-compose.yml` passes it). `LITT_CSP_REPORT_ONLY=true` makes
 the policy report instead of enforce; `deploy/prod/README.md` has the details.
 The only third-party hosts the web app's policy names are Google's, for the
-Drive file chooser; the PDF viewer reads its standard fonts from the app's own origin
-(`/standard_fonts/`, copied from the installed `pdfjs-dist` by
-`frontend/scripts/copyPdfStandardFonts.mjs` before `next dev` and `next build`).
+Drive file chooser; the PDF viewer reads its fonts, image decoders (CCITT, JBIG2, JPEG 2000),
+character maps and colour profile from the app's own origin (`/pdfjs/standard_fonts/`,
+`/pdfjs/wasm/`, `/pdfjs/cmaps/` and `/pdfjs/iccs/`, copied from the installed `pdfjs-dist` by
+`frontend/scripts/copyPdfViewerAssets.mjs` before `next dev` and `next build`). They need no
+directive beyond those already allowed (`'self'`, `'wasm-unsafe-eval'`).
 The document viewers are exercised under the enforced policy by
 `e2e/document-viewers-policy.spec.ts`, which fails on any
 `securitypolicyviolation` event. Verify a change to the policy in a production
