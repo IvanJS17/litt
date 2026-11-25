@@ -292,21 +292,55 @@ begin
       updated_at = now()
   where user_id = new.id;
 
+  if old_email = new_email then
+    return new;
+  end if;
+
+  -- An invitation is an offer to whoever held the address when it was made.
+  -- An existing account that takes an address does not answer the invitations
+  -- still pending for it: they are withdrawn (the firm can invite again).
+  -- Answered and expired invitations are left as they are.
+  if new_email <> '' then
+    update public.org_invitations
+       set status = 'cancelled', cancelled_at = now()
+     where email = new_email
+       and status = 'pending'
+       and expires_at > now();
+    delete from public.platform_invitations
+     where email = new_email
+       and status = 'pending'
+       and expires_at > now();
+  end if;
+
+  if old_email = '' then
+    return new;
+  end if;
+
+  -- Pending invitations addressed to the address this account gives up are
+  -- withdrawn the way account erasure withdraws them, so whoever later
+  -- registers that address inherits no offer made to its previous holder.
+  update public.org_invitations
+     set status = 'cancelled', cancelled_at = now()
+   where email = old_email
+     and status = 'pending'
+     and expires_at > now();
+  delete from public.platform_invitations
+   where email = old_email
+     and status = 'pending'
+     and expires_at > now();
+
   -- Direct grants are keyed by normalized email, so they belong to whoever
   -- holds that address. When this account's address changes, its grants
   -- follow it: left behind, the person silently loses their shares and
   -- whoever later registers the old address (a reassigned mailbox) inherits
   -- them, Owner grants included. A grant already held by the new address is
   -- kept at the stronger of the two roles.
-  if old_email = '' or old_email = new_email then
-    return new;
-  end if;
-
   if new_email = '' then
     delete from public.project_access_grants where email = old_email;
     delete from public.chat_access_grants where email = old_email;
     delete from public.tabular_review_access_grants where email = old_email;
     delete from public.workflow_shares where shared_with_email = old_email;
+    delete from public.playbook_shares where shared_with_email = old_email;
     return new;
   end if;
 
@@ -383,6 +417,25 @@ begin
           and kept.shared_with_email = new_email
      );
   update public.workflow_shares
+     set shared_with_email = new_email
+   where shared_with_email = old_email;
+
+  update public.playbook_shares as kept
+     set role = moved.role
+    from public.playbook_shares as moved
+   where moved.shared_with_email = old_email
+     and kept.shared_with_email = new_email
+     and kept.playbook_id = moved.playbook_id
+     and (case moved.role when 'owner' then 2 when 'editor' then 1 else 0 end)
+       > (case kept.role when 'owner' then 2 when 'editor' then 1 else 0 end);
+  delete from public.playbook_shares as moved
+   where moved.shared_with_email = old_email
+     and exists (
+       select 1 from public.playbook_shares as kept
+        where kept.playbook_id = moved.playbook_id
+          and kept.shared_with_email = new_email
+     );
+  update public.playbook_shares
      set shared_with_email = new_email
    where shared_with_email = old_email;
 
@@ -23524,5 +23577,6 @@ insert into public.schema_migrations (filename) values
   ('20261121_10_litt_sessions_ended_at.sql'),
   ('20261122_20_litt_playbook_run_stored_document.sql'),
   ('20261122_21_litt_training_defense_sources.sql'),
-  ('20261124_20_litt_donna_run_reservation.sql')
+  ('20261124_20_litt_donna_run_reservation.sql'),
+  ('20261125_01_litt_email_change_invitations_and_playbook_shares.sql')
 on conflict (filename) do nothing;
