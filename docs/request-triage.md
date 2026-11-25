@@ -70,7 +70,25 @@ on its team (404), as for any project setting.
 and manual together (`requests.triage.shared.ts`; change that one constant). At the cap a
 manual run answers `429 donna_monthly_cap` («Límite mensual de Donna alcanzado para este
 despacho») and an automatic one does not start; saved cards stay; it resumes on the 1st.
-No other limit exists.
+
+A person also has a daily cap: `DONNA_DAILY_RUN_CAP_PER_PERSON` (default `100`, environment
+variable, positive integer) runs per calendar day (Mexico City), counting every run the
+person causes, manual and automatic (an automatic run belongs to the person who created the
+request or linked the document). At it, a manual run answers `429 donna_daily_cap`
+(«Alcanzaste el límite diario de análisis de Donna. Se reanuda mañana.») and an automatic
+one does not start. Another person of the same firm still runs.
+
+**A run takes its place before anything is sent.** Once Donna is on, the request exists and
+the documents are not the ones the last run saw, the run calls `public.reserve_donna_run`:
+in one transaction, under an advisory lock per firm, it counts the firm's places in the month
+and the person's places in the day and inserts the place only if both are under their cap
+(`ok`, `monthly_cap` or `daily_cap`). Only then is anything sent. A run refused because the
+documents are unchanged takes no place; a run that fails after taking it keeps it. «Runs used
+this month» (the cap and the usage view) is the number of places, from
+`matter_request_triage_reservations` (migration `20261124_20_litt_donna_run_reservation.sql`,
+insert-only; it also counted the runs that existed). The usage view's tokens, cost and
+per-project figures still come from `matter_request_triage_runs`, so a place whose run never
+got written counts as used and adds nothing to those figures.
 
 `GET /orgs/:orgId/donna/usage` (firm owner or admin, shown in Ajustes del despacho ›
 General): runs used and left, Jev runs with input/output tokens and cost
@@ -137,5 +155,5 @@ classification; no firm key for Jev; no platform key for the drafts.
 `lib/__tests__/jev.test.ts` (client contract), `requests.triage.shared.test.ts`,
 `requestTriage.routes.test.ts` (auto-run, switch, permissions, cap, BYOK absent, no text
 stored, decisions, usage), `projects.donna.test.ts`, `requestTriage.postgres.test.ts`
-(opt in with `MIKE_TEST_POSTGRES_CONTAINER`), and the frontend `TriageCard`,
+(opt in with `MIKE_TEST_POSTGRES_CONTAINER`), `dbDonnaReservation.supabase.test.ts` (the function and its lock, in CI), and the frontend `TriageCard`,
 `DonnaUsageSettings`, `NewProjectModal` and `ProjectDetailsModal` suites.

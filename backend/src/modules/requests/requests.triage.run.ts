@@ -38,7 +38,6 @@ import { listAssignees } from "./requests.assignees";
 import { recordRequestEvent } from "./requests.events";
 import { isRecord } from "./requests.shared";
 import { loadTypes } from "./requests.types";
-import { countMonthRuns } from "./requests.triage.usage";
 import {
   applyAlarm,
   buildJevQuestions,
@@ -46,8 +45,13 @@ import {
   buildTriageUserPrompt,
   DONNA_CAP_CODE,
   DONNA_CAP_DETAIL,
+  DONNA_DAILY_CAP_CODE,
+  DONNA_DAILY_CAP_DETAIL,
+  DONNA_DAILY_RUN_CAP_PER_PERSON,
   DONNA_DISABLED_CODE,
   DONNA_MONTHLY_RUN_CAP,
+  dayWindow,
+  monthWindow,
   docId,
   hasAlarmWord,
   JEV_SURFACE,
@@ -323,6 +327,28 @@ function validateDraft(
   return { items, quotesRejected };
 }
 
+/** Takes a place for the run: refused when the firm's month or the person's day is full. */
+async function reserveRun(db: Db, ctx: TriageContext, now: Date): Promise<ServiceResult<null>> {
+  const month = monthWindow(now);
+  const day = dayWindow(now);
+  const { data, error } = await db.rpc("reserve_donna_run", {
+    p_org_id: ctx.orgId,
+    p_user_id: ctx.userId,
+    p_request_id: ctx.requestId,
+    p_month_start: month.start,
+    p_month_end: month.end,
+    p_day_start: day.start,
+    p_day_end: day.end,
+    p_month_cap: DONNA_MONTHLY_RUN_CAP,
+    p_day_cap: DONNA_DAILY_RUN_CAP_PER_PERSON,
+  });
+  if (error) return internalFailure(error);
+  if (data === "monthly_cap") return failure("conflict", DONNA_CAP_DETAIL, DONNA_CAP_CODE);
+  if (data === "daily_cap") return failure("conflict", DONNA_DAILY_CAP_DETAIL, DONNA_DAILY_CAP_CODE);
+  if (data !== "ok") return internalFailure(new Error("reserve_donna_run returned an unexpected answer"));
+  return ok(null);
+}
+
 /** Runs triage for one request and records it. */
 export async function executeTriage(
   db: Db,
@@ -356,11 +382,6 @@ async function runTriage(
     const enabled = await donnaEnabled(db, ctx.projectId);
     if (!enabled.ok) return enabled;
     if (!enabled.data) return failure("conflict", "Donna is off in this project.", DONNA_DISABLED_CODE);
-
-    // The monthly cap, before anything is read or sent.
-    const used = await countMonthRuns(db, ctx.orgId, now);
-    if (!used.ok) return used;
-    if (used.data >= DONNA_MONTHLY_RUN_CAP) return failure("conflict", DONNA_CAP_DETAIL, DONNA_CAP_CODE);
 
     const { data: requestData, error: requestError } = await db
       .from("matter_requests")
@@ -399,6 +420,11 @@ async function runTriage(
         if (before === now) return failure("conflict", "The documents are the ones the last run read.", TRIAGE_UNCHANGED_CODE);
       }
     }
+
+    // The run takes its place (the firm's month, the person's day) before anything is
+    // sent, in one step; a run that fails afterwards keeps it.
+    const reserved = await reserveRun(db, ctx, now);
+    if (!reserved.ok) return reserved;
 
     const selection = selectDocuments(rounds.data, request.title);
     const candidates: Candidate[] = assignees.data.map((one) => ({ user_id: one.user_id, role: one.role }));
@@ -584,7 +610,7 @@ const dirty = new Set<string>();
  * background run as on creation (switch on, cap, egress record), coalesced: a
  * burst of links waits `docDebounceMs` and makes one run; a link while a run is
  * going makes one more run when it ends; and a run is skipped when the documents
- * are exactly those the last run saw. It counts against the monthly cap like any.
+ * are exactly those the last run saw (it then takes no place). It counts against the caps like any.
  */
 export function scheduleDocumentTriage(db: Db, ctx: Omit<TriageContext, "trigger">): void {
   const key = ctx.requestId;

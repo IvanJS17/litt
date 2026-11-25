@@ -52,11 +52,11 @@ import {
   updateMatterRequest,
   updateRequestType,
 } from "./requests.service";
-import { DONNA_CAP_CODE } from "./requests.triage.shared";
+import { DONNA_CAP_CODE, DONNA_DAILY_CAP_CODE } from "./requests.triage.shared";
 
 function send<T>(res: Response, result: ServiceResult<T>, status = 200) {
-  // The firm used up its month of Donna runs: a quota, not a conflict of state.
-  if (!result.ok && result.kind === "conflict" && result.code === DONNA_CAP_CODE)
+  // The firm used up its month of Donna runs, or the person their day: a quota, not a conflict of state.
+  if (!result.ok && result.kind === "conflict" && (result.code === DONNA_CAP_CODE || result.code === DONNA_DAILY_CAP_CODE))
     return void res.status(429).json({ code: result.code, detail: result.detail });
   if (!result.ok) return void sendServiceFailure(res, result);
   res.status(status).json(result.data);
