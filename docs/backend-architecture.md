@@ -145,7 +145,10 @@ request is bounded where it is held:
   its source from the download, and then the converted file until its response
   closes, so at most as many displays hold one as the converter has places (ten
   per thread); the next is answered 503 with `Retry-After` without reading
-  anything. The converter may hold a second copy of a source while it works. A stored PDF
+  anything. A response whose client makes no progress for a minute
+  (`DISPLAY_SEND_IDLE_MS`) is closed, so a client that stops reading does not
+  keep the file or the place. The converter may hold a second copy of a source
+  while it works. A stored PDF
   rendition is served whatever the size of the source.
 
 #### Chat turns
