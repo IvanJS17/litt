@@ -73,6 +73,7 @@ import {
   findInDocumentContent,
   mayAddDocumentHere,
   mayOpenStoredDocumentNow,
+  mayReadDocumentNow,
   DOCUMENT_UNREADABLE,
   NOT_ALLOWED_TO_ADD,
   runEditDocument,
@@ -351,16 +352,6 @@ export async function runToolCalls(
   // is checked against them at that moment (documentOps).
   const actor = { userId, userEmail: options.userEmail ?? null };
   const generatedFor = { projectId: projectId ?? null, orgId: options.orgId ?? null, userEmail: actor.userEmail };
-  // A repeat read in the same turn gets a "text already returned" notice, not
-  // text; it still goes only to a person who may open the document now.
-  const mayRepeatRead = async (docId: string, documentId: string | undefined) =>
-    docStore.get(docId)?.inline_text !== undefined ||
-    (await mayOpenStoredDocumentNow(
-      db,
-      documentId ?? docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id,
-      actor,
-    ));
-
   const registerGeneratedDocument = (
     tc: ToolCall,
     result: Record<string, unknown>,
@@ -651,13 +642,12 @@ export async function runToolCalls(
     if (tc.function.name === "read_document") {
       const rawDocId = args.doc_id as string;
       const docId = resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;
-      const readIdentity = await getTurnReadIdentity({
-        docLabel: docId,
-        docStore,
-        docIndex,
-        db,
-      });
-      if (readIdentity && turnReadState?.has(readIdentity.key) && (await mayRepeatRead(docId, readIdentity.documentId))) {
+      // Asked first: a refused read resolves no version and records nothing.
+      const mayRead = await mayReadDocumentNow(docId, docStore, docIndex, db, actor);
+      const readIdentity = mayRead
+        ? await getTurnReadIdentity({ docLabel: docId, docStore, docIndex, db })
+        : null;
+      if (readIdentity && turnReadState?.has(readIdentity.key)) {
         const promptFilename = spotlightFilename(readIdentity.filename, nonce);
         const sourceNotice = sourceMaterialNotice(
           docStore.get(docId)?.source_kind,
@@ -675,7 +665,7 @@ export async function runToolCalls(
         write,
         docIndex,
         db,
-        { readIdentity, actor },
+        { readIdentity, actor, mayRead },
       );
       const filename = docStore.get(docId)?.filename;
       const documentId = docIndex?.[docId]?.document_id ?? docStore.get(docId)?.asset_document_id;
@@ -835,12 +825,10 @@ export async function runToolCalls(
         typeof args.max_results === "number" ? args.max_results : undefined;
       const contextChars =
         typeof args.context_chars === "number" ? args.context_chars : undefined;
-      const readIdentity = await getTurnReadIdentity({
-        docLabel: docId,
-        docStore,
-        docIndex,
-        db,
-      });
+      const mayRead = await mayReadDocumentNow(docId, docStore, docIndex, db, actor);
+      const readIdentity = mayRead
+        ? await getTurnReadIdentity({ docLabel: docId, docStore, docIndex, db })
+        : null;
       const content = await findInDocumentContent({
         docLabel: docId,
         query,
@@ -851,10 +839,11 @@ export async function runToolCalls(
         docIndex,
         db,
         actor,
+        mayRead,
         readIdentity,
       });
       const filename = docInfo?.filename;
-      if (filename) {
+      if (filename && mayRead) {
         let totalMatches = 0;
         try {
           const parsed = JSON.parse(content) as {
@@ -892,13 +881,11 @@ export async function runToolCalls(
       const docIds = rawDocIds.map((id) => labelFor(id) ?? id);
       const parts: string[] = [];
       for (const docId of docIds) {
-        const readIdentity = await getTurnReadIdentity({
-          docLabel: docId,
-          docStore,
-          docIndex,
-          db,
-        });
-        if (readIdentity && turnReadState?.has(readIdentity.key) && (await mayRepeatRead(docId, readIdentity.documentId))) {
+        const mayRead = await mayReadDocumentNow(docId, docStore, docIndex, db, actor);
+        const readIdentity = mayRead
+          ? await getTurnReadIdentity({ docLabel: docId, docStore, docIndex, db })
+          : null;
+        if (readIdentity && turnReadState?.has(readIdentity.key)) {
           const filename = docStore.get(docId)?.filename ?? docId;
           const promptFilename = spotlightFilename(filename, nonce);
           const sourceNotice = sourceMaterialNotice(
@@ -917,7 +904,7 @@ export async function runToolCalls(
           write,
           docIndex,
           db,
-          { readIdentity, actor },
+          { readIdentity, actor, mayRead },
         );
         const filename = docStore.get(docId)?.filename ?? docId;
         // A refused read served nothing: it is not recorded as read.

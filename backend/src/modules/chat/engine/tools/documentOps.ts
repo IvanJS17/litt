@@ -956,6 +956,31 @@ export async function mayOpenStoredDocumentNow(
   }
 }
 
+/**
+ * May this person read what the turn holds under this label, now? The one
+ * rule every read of a stored document asks before it resolves the current
+ * version or touches any text. Request-scoped text has no stored document
+ * behind it; a search result must also be bound to the turn's own person.
+ */
+export async function mayReadDocumentNow(
+  docLabel: string,
+  docStore: DocStore,
+  docIndex: DocIndex | undefined,
+  db: Db | undefined,
+  actor: TurnActor,
+): Promise<boolean> {
+  const docInfo = docStore.get(docLabel);
+  if (!docInfo || docInfo.inline_text !== undefined) return true;
+  // A search result is also bound to the person it was found for, checked
+  // before the database is asked.
+  if (docInfo.search_source && docInfo.search_source.userId !== actor.userId) return false;
+  return mayOpenStoredDocumentNow(
+    db,
+    docIndex?.[docLabel]?.document_id ?? (docInfo.search_source ? undefined : docInfo.asset_document_id),
+    actor,
+  );
+}
+
 /** May this person add a document to this destination now? Fails closed. */
 export async function mayAddDocumentHere(db: Db, destination: Parameters<typeof mayAddDocumentNow>[1]): Promise<boolean> {
   try {
@@ -1268,6 +1293,8 @@ export async function readDocumentContent(
   opts: {
     /** The person the turn runs for: every stored document is checked against them at the read. */
     actor: TurnActor;
+    /** The verdict of mayReadDocumentNow when the caller already asked it. */
+    mayRead?: boolean;
     emitEvents?: boolean;
     readIdentity?: Awaited<ReturnType<typeof getTurnReadIdentity>>;
   },
@@ -1287,16 +1314,9 @@ export async function readDocumentContent(
   // touched: what the turn was allowed when it began decides nothing. A
   // search result keeps its own, stricter check below (bound to a revision).
   // Request-scoped Word text has no stored document behind it.
-  if (docInfo.inline_text === undefined) {
-    const mayOpen = docInfo.search_source
-      ? docInfo.search_source.userId === opts.actor.userId
-      : await mayOpenStoredDocumentNow(
-          db,
-          docIndex?.[docLabel]?.document_id ?? docInfo.asset_document_id,
-          opts.actor,
-        );
-    if (!mayOpen) return DOCUMENT_UNREADABLE;
-  }
+  const mayRead =
+    opts.mayRead ?? (await mayReadDocumentNow(docLabel, docStore, docIndex, db, opts.actor));
+  if (!mayRead) return DOCUMENT_UNREADABLE;
   devLog(
     `[read_document] docInfo: filename="${docInfo.filename}", file_type="${docInfo.file_type}", storage_path="${docInfo.storage_path}"`,
   );
@@ -1780,6 +1800,8 @@ export async function findInDocumentContent(params: {
   db?: Db;
   /** The person the turn runs for (see readDocumentContent). */
   actor: TurnActor;
+  /** The verdict of mayReadDocumentNow when the caller already asked it. */
+  mayRead?: boolean;
   readIdentity?: Awaited<ReturnType<typeof getTurnReadIdentity>>;
 }): Promise<string> {
   const {
@@ -1803,6 +1825,13 @@ export async function findInDocumentContent(params: {
       ok: false,
       error: `Document '${docLabel}' not found.`,
     });
+  }
+  // Asked first, as in readDocumentContent: a refused document gets the neutral
+  // answer with no event, and nothing resolved after the turn began.
+  const mayRead =
+    params.mayRead ?? (await mayReadDocumentNow(docLabel, docStore, docIndex, db, params.actor));
+  if (!mayRead) {
+    return JSON.stringify({ ok: false, filename: docInfo.filename, error: DOCUMENT_UNREADABLE });
   }
   const documentId = docIndex?.[docLabel]?.document_id;
   const readIdentity =
@@ -1833,7 +1862,7 @@ export async function findInDocumentContent(params: {
     write,
     docIndex,
     db,
-    { emitEvents: false, readIdentity, actor: params.actor },
+    { emitEvents: false, readIdentity, actor: params.actor, mayRead: true },
   );
   if (!text || text === DOCUMENT_UNREADABLE) {
     write(

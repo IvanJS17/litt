@@ -27,6 +27,7 @@ vi.mock("../../../../lib/queue/conversionQueue", () => ({ enqueueConversion: vi.
 
 import { withRequestPrincipal } from "../../../../lib/managedAccounts";
 import { runToolCalls } from "../tools/toolDispatcher";
+import { readDocumentContent } from "../tools/documentOps";
 import { METHODOLOGY_TOOL_NAME } from "../tools/methodologyTool";
 import type { DocIndex, DocStore } from "../types";
 
@@ -396,5 +397,147 @@ describe("creating a document in a running turn", () => {
       run([call("generate_docx", generators[0][1])], w));
     expect(JSON.parse(content(r))).toMatchObject({ ok: false });
     nothingWritten(w);
+  });
+});
+
+describe("a refused stored document is asked about before anything else happens", () => {
+  const runWithEvents = (tools: ReturnType<typeof call>[], w: ReturnType<typeof world>, o: RunOptions = {}) => {
+    const events: string[] = [];
+    const result = runToolCalls(tools, o.docStore ?? store(), ME, w.db, (s) => { events.push(s); }, undefined, undefined,
+      o.docIndex ?? index(), undefined, new Map(), o.projectId ?? null, "nonce",
+      { userEmail: EMAIL, orgId: o.orgId ?? null, ...o.extra });
+    return result.then((r) => ({ r, events }));
+  };
+  const methodologyCall = call(METHODOLOGY_TOOL_NAME, {
+    calculation: "proportion", annex: false,
+    inputs: [
+      { name: "numerator", value: "1", source: { kind: "document", doc_id: "doc-0", quote: "twelve months" } },
+      { name: "denominator", value: "2" },
+    ],
+  });
+  const readers = [
+    ["read_document", call("read_document", { doc_id: "doc-0" }), {}],
+    ["fetch_documents", call("fetch_documents", { doc_ids: ["doc-0"] }), {}],
+    ["find_in_document", call("find_in_document", { doc_id: "doc-0", query: "lease" }), {}],
+    ["the methodology reader", methodologyCall, { extra: { methodology: true } }],
+  ] as const;
+
+  it.each(readers)("%s does not resolve the current version, and emits nothing, for a refused document", async (_name, tool, o) => {
+    const w = world();
+    w.state.readable.delete(DOC);
+    mocks.active.mockResolvedValue({ id: "v2-later", version_number: 7, storage_path: "stored/lease-v2.docx", text_revision: "r2" });
+    const { r, events } = await runWithEvents([tool], w, o);
+    expect(mocks.active).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+    expect(JSON.stringify(r)).not.toContain("v2-later");
+    nothingServed();
+  });
+
+  it("the citation read does not resolve the current version for a refused document", async () => {
+    const w = world();
+    w.state.readable.delete(DOC);
+    const events: string[] = [];
+    const text = await readDocumentContent("doc-0", store(), (s) => { events.push(s); }, index(), w.db,
+      { emitEvents: false, actor: { userId: ME, userEmail: EMAIL } });
+    expect(text).toBe(NEUTRAL);
+    expect(mocks.active).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+  });
+
+  it("find_in_document on a refused document tells the client and the turn record nothing about it", async () => {
+    const w = world();
+    w.state.readable.delete(DOC);
+    mocks.active.mockResolvedValue({ id: "v2-later", version_number: 7, storage_path: "stored/lease-v2.docx", text_revision: "r2" });
+    const { r, events } = await runWithEvents([call("find_in_document", { doc_id: "doc-0", query: "lease" })], w);
+    expect(events).toEqual([]);
+    expect(r.docsFound).toEqual([]);
+    expect(JSON.parse(content(r))).toEqual({ ok: false, filename: "lease.docx", error: NEUTRAL });
+  });
+
+  it("find_in_document for a person who may open the document emits the same events in the same order, with one question", async () => {
+    const w = world();
+    const { r, events } = await runWithEvents([call("find_in_document", { doc_id: "doc-0", query: "lease" })], w);
+    expect(events.map((e) => JSON.parse(e.slice(6)).type)).toEqual(["doc_find_start", "doc_find"]);
+    expect(JSON.parse(events[0].slice(6))).toMatchObject({ document_id: DOC, version_id: "v1", version_number: 1, query: "lease" });
+    expect(r.docsFound).toEqual([expect.objectContaining({ document_id: DOC, version_id: "v1", version_number: 1, total_matches: 1 })]);
+    expect(w.state.asked).toEqual(["document_text_access"]);
+  });
+
+  it("refuses a search entry recorded for another person, with no query sent for it", async () => {
+    const entry = (userId: string) => store({ search_source: { revision: "r1", userId, userEmail: null } });
+    const w = world();
+    const denied = await run([call("read_document", { doc_id: "doc-0" })], w, { docStore: entry("someone-else") });
+    expect(content(denied)).toContain(NEUTRAL);
+    expect(w.state.rpcs).toEqual([]);
+    nothingServed();
+    // The same entry bound to the turn's own person does reach the database.
+    await run([call("read_document", { doc_id: "doc-0" })], w, { docStore: entry(ME) });
+    expect(w.state.rpcs).toContain("read_document_text");
+  });
+});
+
+describe("a search result is read only while the person may open its document", () => {
+  const entry = () => store({ search_source: { revision: "r1", userId: ME, userEmail: EMAIL } });
+  /** The database double, with a ready stored text for the search read, and every question it is asked. */
+  const searching = () => {
+    const w = world();
+    const asked: string[] = [];
+    const base = (w.db as unknown as { rpc: (n: string, a: Row) => Promise<unknown>; from: unknown });
+    const db = {
+      from: base.from,
+      rpc: async (name: string, args: Row) => {
+        asked.push(name);
+        if (name === "read_document_text") return { data: { revision: "r1", status: "ready", text: SOURCE_TEXT, textless_page_count: 0 }, error: null };
+        return base.rpc(name, args);
+      },
+    } as never;
+    w.state.tables.document_versions = [{ id: "v1", document_id: DOC, text_revision: "r1", deleted_at: null }];
+    return { w, db, asked };
+  };
+  const turn = (db: never, docStore: DocStore, readState: Map<string, unknown>, tool: ReturnType<typeof call>) => {
+    const events: string[] = [];
+    return runToolCalls([tool], docStore, ME, db, (e) => { events.push(e); }, undefined, undefined, index(), undefined,
+      readState as never, null, "nonce", { userEmail: EMAIL }).then((r) => ({ r, events }));
+  };
+  const textQuestions = (asked: string[]) => asked.filter((n) => n === "read_document_text");
+
+  it.each([
+    ["read_document", call("read_document", { doc_id: "doc-0" })],
+    ["fetch_documents", call("fetch_documents", { doc_ids: ["doc-0"] })],
+  ] as const)("%s: a repeat read after access was withdrawn gets the neutral answer, no notice, no event, no text question", async (_n, tool) => {
+    const { w, db, asked } = searching();
+    const docStore = entry(); const readState = new Map();
+    const first = await turn(db, docStore, readState, tool);
+    expect(content(first.r)).toContain(SOURCE_TEXT);
+    w.state.readable.delete(DOC);
+    asked.length = 0;
+    const again = await turn(db, docStore, readState, tool);
+    expect(content(again.r)).toContain(NEUTRAL);
+    expect(content(again.r)).not.toContain("already");
+    expect(again.events).toEqual([]);
+    expect(again.r.docsRead).toEqual([]);
+    expect(asked).toEqual(["document_text_access"]);
+  });
+
+  it("a first read after access was withdrawn gets the neutral answer and emits nothing", async () => {
+    const { w, db, asked } = searching();
+    w.state.readable.delete(DOC);
+    const { r, events } = await turn(db, entry(), new Map(), call("read_document", { doc_id: "doc-0" }));
+    expect(content(r)).toContain(NEUTRAL);
+    expect(events).toEqual([]);
+    expect(r.docsRead).toEqual([]);
+    expect(textQuestions(asked)).toEqual([]);
+  });
+
+  it("for a person who keeps access: first read serves the text, repeat gives the notice, with the questions listed", async () => {
+    const { db, asked } = searching();
+    const docStore = entry(); const readState = new Map();
+    const first = await turn(db, docStore, readState, call("read_document", { doc_id: "doc-0" }));
+    expect(content(first.r)).toContain(SOURCE_TEXT);
+    expect(asked).toEqual(["document_text_access", "read_document_text"]);
+    asked.length = 0;
+    const again = await turn(db, docStore, readState, call("read_document", { doc_id: "doc-0" }));
+    expect(content(again.r)).toContain("already_read");
+    expect(asked).toEqual(["document_text_access"]);
   });
 });

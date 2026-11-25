@@ -72,7 +72,8 @@ async function dispatchDocumentTool(
         () => undefined,
         undefined,
         undefined,
-        undefined,
+        // The stored document the entry stands for: it is asked about first.
+        { "doc-0": { document_id: "document-1", filename: FILENAME, version_id: "version-2", version_number: 2 } },
         undefined,
         turnReadState,
         undefined,
