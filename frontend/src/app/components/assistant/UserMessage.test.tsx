@@ -17,7 +17,7 @@ describe("UserMessage", () => {
                 }}
             />,
         );
-        expect(screen.getByText("Your approach")).toBeInTheDocument();
+        expect(screen.getByText("The approach you sent")).toBeInTheDocument();
         expect(
             screen.getByText("Coincide: la cláusula quinta aplica."),
         ).toBeInTheDocument();
@@ -54,7 +54,7 @@ describe("UserMessage", () => {
 
     it("shows nothing extra without a note", () => {
         render(<UserMessage content="¿Procede la rescisión?" />);
-        expect(screen.queryByText("Your approach")).toBeNull();
+        expect(screen.queryByText("The approach you sent")).toBeNull();
     });
 
     it("opens a document-backed file pill", async () => {

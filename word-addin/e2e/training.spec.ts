@@ -75,7 +75,7 @@ test("a pasante sends their approach and mark with the turn and sees the verdict
   expect(body.attempt).toBe(ATTEMPT);
   expect(body.confidence).toBe(3);
   const note = page.getByRole("region", { name: "Private training notes" });
-  await expect(note.getByText("Your approach", { exact: true })).toBeVisible();
+  await expect(note.getByText("The approach you sent", { exact: true })).toBeVisible();
   await expect(note.getByText(ATTEMPT, { exact: true })).toBeVisible();
   await expect(note.getByText("Your mark: Fairly sure")).toBeVisible();
   await expect(

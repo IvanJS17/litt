@@ -7590,6 +7590,8 @@
       },
       "turn": {
         "attemptLabel": "Tu planteamiento (2–3 líneas)",
+        "attemptLabelNext": "Tu planteamiento para la siguiente pregunta (2–3 líneas)",
+        "attemptNextLine": "Antes de tu siguiente pregunta se te pedirá un planteamiento.",
         "attemptPlaceholder": "Antes de preguntar, escribe cómo lo resolverías tú.",
         "attemptReady": "Listo. Después de la respuesta verás un contraste con tu planteamiento.",
         "attemptTooLong": "{length}/{max} caracteres. {excess, plural, one {Sobra # carácter} other {Sobran # caracteres}}.",
@@ -7608,7 +7610,7 @@
           "weak": "débil",
           "wrong": "equivocado"
         },
-        "noteAttemptHeading": "Tu planteamiento",
+        "noteAttemptHeading": "Planteamiento que enviaste",
         "noteCloseHeading": "Cómo salió la ronda",
         "noteConfidence": "Tu marca: {level}",
         "noteContrastFailed": "No se pudo generar el contraste",

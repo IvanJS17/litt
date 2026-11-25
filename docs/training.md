@@ -545,6 +545,27 @@ person still owes an approach of their own. The server decides either way. A com
 including one opened from the assistant's chat list, asks with that project
 (`project_id`), so it shows the stage for the project's practice area.
 
+**The block folds once a chat has a message.** The rule is the same, the
+server still asks for the approach and the mark on every turn, and what is
+sent does not change. But the web composer does not keep the block
+(approach, counter, thermometer, hint and counterparty controls) open over the
+conversation while the trainee reads the answer: in a chat that already has a
+message (so also right after one is sent), the composer is its ordinary single input
+plus one plain line, a button («Antes de tu siguiente pregunta se te pedirá un
+planteamiento.», `aria-expanded`), saying an approach will be asked for. The
+block opens again when the trainee clicks in the input, types, or activates
+the line (focus then goes to the approach field). Focus alone does not open
+it, because the input is focused again each time the window comes back; the
+line folds an open, empty block again. The block is never folded over content: an approach or a mark already given (after «Pedir una
+pista», or a «Responder» prefill), a refused send, or the server's
+`training_attempt_required` / `training_confidence_required` keep or put it
+open. A new chat with no message shows it open. Once the chat has a message the
+field reads «Tu planteamiento para la siguiente pregunta (2–3 líneas)» (the
+first message keeps «Tu planteamiento (2–3 líneas)»), and the private note
+beside a sent message is headed «Planteamiento que enviaste». One
+implementation in `ChatInput` serves the assistant, project and tabular chats;
+the Word add-in keeps the open block and the first label.
+
 ### Hints and the counterparty's lawyer on screen (layer 3)
 
 The composers (web chat, project and tabular chat, and Word) show the modes

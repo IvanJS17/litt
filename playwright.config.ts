@@ -15,6 +15,7 @@ const SYNTHETIC_SPECS = [
     /settings-search-latency\.spec\.ts/,
     /lote2-mobile\.spec\.ts/,
     /text-size\.spec\.ts/,
+    /training-answer-visible\.spec\.ts/,
     /settings-two-homes\.spec\.ts/,
 ];
 

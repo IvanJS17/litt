@@ -7590,6 +7590,8 @@
       },
       "turn": {
         "attemptLabel": "Your approach (2–3 lines)",
+        "attemptLabelNext": "Your approach for the next question (2–3 lines)",
+        "attemptNextLine": "An approach will be asked for before your next question.",
         "attemptPlaceholder": "Before asking, write how you would solve it.",
         "attemptReady": "Ready. After the answer you'll see a contrast with your approach.",
         "attemptTooLong": "{length}/{max} characters. {excess, plural, one {# character over the limit} other {# characters over the limit}}.",
@@ -7608,7 +7610,7 @@
           "weak": "weak",
           "wrong": "wrong"
         },
-        "noteAttemptHeading": "Your approach",
+        "noteAttemptHeading": "The approach you sent",
         "noteCloseHeading": "How the round went",
         "noteConfidence": "Your mark: {level}",
         "noteContrastFailed": "The contrast couldn't be generated",

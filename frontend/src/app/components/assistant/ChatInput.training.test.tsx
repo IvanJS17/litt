@@ -3,6 +3,7 @@ import { requestTrainingReply } from "@mike/ui";
 import esMX from "../../../../../packages/i18n/messages/es-MX.json";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useTrainingStage } from "@/app/hooks/useTrainingStage";
 import { ChatInput } from "./ChatInput";
@@ -51,19 +52,30 @@ class ResizeObserverMock {
 
 const ATTEMPT = "Creo que procede la rescisión por incumplimiento de la cláusula quinta.";
 
-function renderComposer(onSubmit = vi.fn()) {
-    render(
+// As on every chat surface, the parent holds the messages: a chat has one
+// from the moment the first is sent.
+function Composer({ onSubmit }: { onSubmit: (message: unknown) => void }) {
+    const [hasMessages, setHasMessages] = useState(false);
+    return (
         <ChatInput
             trainingTurns
+            hasMessages={hasMessages}
             projectId="p1"
             chatKey="chat-1"
             chatId="chat-1"
             chatModel="gpt-6-luna"
-            onSubmit={onSubmit}
+            onSubmit={(message) => {
+                setHasMessages(true);
+                onSubmit(message);
+            }}
             onCancel={vi.fn()}
             isLoading={false}
-        />,
+        />
     );
+}
+
+function renderComposer(onSubmit = vi.fn()) {
+    render(<Composer onSubmit={onSubmit} />);
     return onSubmit;
 }
 
@@ -128,9 +140,15 @@ describe("ChatInput — «Tu turno primero»", () => {
                 confidence: 3,
             }),
         );
-        // One mark per approach: the next approach starts without one.
+        // The block folds away while the answer is read; the next approach
+        // starts empty and without a mark when it opens again.
+        expect(screen.queryByRole("radio", { name: "Fairly sure" })).toBeNull();
+        expect(screen.queryByLabelText("Your approach for the next question (2–3 lines)")).toBeNull();
+        const line = screen.getByRole("button", { name: /approach will be asked for/ });
+        expect(line).toHaveAttribute("aria-expanded", "false");
+        fireEvent.click(line);
         expect(screen.getByRole("radio", { name: "Fairly sure" })).not.toBeChecked();
-        expect(field).toHaveValue("");
+        expect(screen.getByLabelText("Your approach for the next question (2–3 lines)")).toHaveValue("");
     });
 
     it("asks for the approach alone from a server that does not ask for a mark", () => {
@@ -205,6 +223,31 @@ describe("ChatInput — «Tu turno primero»", () => {
             "Seguro",
         ]);
         expect(screen.getByText(/Faltan 60 caracteres/)).toBeInTheDocument();
+    });
+
+    it("in es-MX, a chat with messages folds the block into a line, and opens it with the next-question label", () => {
+        vi.mocked(useTrainingStage).mockReturnValue(owed);
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <ChatInput
+                    trainingTurns
+                    hasMessages
+                    projectId="p1"
+                    chatKey="chat-1"
+                    chatModel="gpt-6-luna"
+                    onSubmit={vi.fn()}
+                    onCancel={vi.fn()}
+                    isLoading={false}
+                />
+            </IntlClientProvider>,
+        );
+        expect(screen.queryByRole("radiogroup")).toBeNull();
+        const line = screen.getByRole("button", {
+            name: "Antes de tu siguiente pregunta se te pedirá un planteamiento.",
+        });
+        expect(line).toHaveAttribute("aria-expanded", "false");
+        fireEvent.click(screen.getByPlaceholderText("¿En qué te ayudo?"));
+        expect(screen.getByLabelText("Tu planteamiento para la siguiente pregunta (2–3 líneas)")).toBeRequired();
     });
 
     it("shows a pasante with an urgency pass a line instead of the field, and sends without an attempt", () => {
@@ -383,7 +426,7 @@ describe("ChatInput — «Tu turno primero»", () => {
             });
             expect(sent).not.toHaveProperty("confidence");
             expect(box).toHaveValue("");
-            expect(screen.getByLabelText("Your approach (2–3 lines)")).toHaveValue(ATTEMPT);
+            expect(screen.getByLabelText("Your approach for the next question (2–3 lines)")).toHaveValue(ATTEMPT);
         });
 
         it("keeps a mark already given through a hint, and sends it with the full answer", () => {
@@ -420,7 +463,10 @@ describe("ChatInput — «Tu turno primero»", () => {
                 }),
             );
             // A turn of the round is a whole turn: the approach and the mark start over.
-            expect(screen.getByLabelText("Your approach (2–3 lines)")).toHaveValue("");
+            // Nothing is left in the block, so it folds; opened again it is empty.
+            expect(screen.queryByRole("radiogroup")).toBeNull();
+            fireEvent.click(screen.getByRole("button", { name: /approach will be asked for/ }));
+            expect(screen.getByLabelText("Your approach for the next question (2–3 lines)")).toHaveValue("");
             expect(screen.getByRole("radio", { name: "Fairly sure" })).not.toBeChecked();
         });
 
