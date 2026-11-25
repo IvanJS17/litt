@@ -860,16 +860,20 @@ export async function updateProject(
   if (requestedVisibility.visibility)
     updates.visibility = requestedVisibility.visibility;
 
-  // The stored value before the change, to know whether the switch really changes.
-  let previousDonna: boolean | null = null;
-  if ("donna_enabled" in updates) {
-    const { data: before, error: beforeError } = await db
+  // The switch is written on its own and only where it differs from the stored
+  // value, so its audit event is written exactly when a row changed, also when
+  // two changes arrive together.
+  let donnaChangedTo: boolean | null = null;
+  if (typeof updates.donna_enabled === "boolean") {
+    const { data: changed, error: switchError } = await db
       .from("projects")
-      .select("donna_enabled")
+      .update({ donna_enabled: updates.donna_enabled })
       .eq("id", projectId)
-      .maybeSingle();
-    if (beforeError) return { ok: false, kind: "db_error", error: beforeError };
-    previousDonna = (before as { donna_enabled?: boolean } | null)?.donna_enabled ?? null;
+      .neq("donna_enabled", updates.donna_enabled)
+      .select("id");
+    if (switchError) return { ok: false, kind: "db_error", error: switchError };
+    if ((changed ?? []).length > 0) donnaChangedTo = updates.donna_enabled;
+    delete updates.donna_enabled;
   }
 
   const { data, error } = await db
@@ -879,18 +883,14 @@ export async function updateProject(
     .select("*")
     .single();
   if (error || !data) return { ok: false, kind: "not_found" };
-  if (
-    typeof updates.donna_enabled === "boolean" &&
-    previousDonna !== null &&
-    previousDonna !== updates.donna_enabled
-  )
+  if (donnaChangedTo !== null)
     await recordDonnaSwitchChange(db, {
       userId,
       userEmail,
       orgId: access.project.org_id ?? null,
       projectId,
-      oldValue: previousDonna,
-      newValue: updates.donna_enabled,
+      oldValue: !donnaChangedTo,
+      newValue: donnaChangedTo,
     });
 
   // Paged: an unpaged read stopped at max_rows, so a project past 1000

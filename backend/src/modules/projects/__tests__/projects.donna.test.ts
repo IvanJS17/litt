@@ -118,6 +118,25 @@ describe("the switch leaves an audit record", () => {
         expect(events()).toHaveLength(0);
     });
 
+    it("keeps the record true to the stored value when two changes arrive together", async () => {
+        for (const pair of [[false, true], [true, false], [false, false]]) {
+            tables.projects[0].donna_enabled = true;
+            (tables.audit_events ?? []).length = 0;
+            await Promise.all(
+                pair.map((value) => updateProject(db, { projectId: PROJECT, userId: "u1", body: { donna_enabled: value } })),
+            );
+            // Replaying the events from the starting value gives the stored value.
+            let value = true;
+            for (const event of events()) {
+                const detail = event.detail as { old_value: boolean; new_value: boolean };
+                expect(detail.old_value).toBe(value);
+                expect(detail.new_value).toBe(!value);
+                value = detail.new_value;
+            }
+            expect(value).toBe(tables.projects[0].donna_enabled);
+        }
+    });
+
     it("writes none when the change is refused", async () => {
         h.role = "viewer";
         await updateProject(db, { projectId: PROJECT, userId: "u2", body: { donna_enabled: false } });

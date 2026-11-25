@@ -55,6 +55,12 @@ language plpgsql
 set search_path = ''
 as $$
 begin
+  -- The counts must see what earlier runs committed while this one waited for
+  -- the lock. That holds at READ COMMITTED (how the backend's client runs a
+  -- function), not under a snapshot taken before the wait.
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception 'reserve_donna_run must run at read committed';
+  end if;
   -- One firm at a time: the counts below and the insert cannot interleave
   -- with another run of the same firm. Released when the transaction ends.
   perform pg_catalog.pg_advisory_xact_lock(
