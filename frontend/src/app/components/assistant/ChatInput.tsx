@@ -56,6 +56,7 @@ import {
     TrainingModesUI,
     focusTrainingAttempt,
     useTrainingReply,
+    useTrainingStageStale,
     withTrainingReply,
     TrainingUrgencyPassLineUI,
 } from "@mike/ui";
@@ -186,6 +187,12 @@ interface Props {
      * ("Tu turno primero"). A pasante's turn there needs their approach.
      */
     trainingTurns?: boolean;
+    /**
+     * The chat already holds a message. A trainee's approach block is then
+     * folded into one line until they start another message, so the
+     * conversation has the room. Without it (a new chat) the block is open.
+     */
+    hasMessages?: boolean;
 }
 
 /**
@@ -247,6 +254,7 @@ function ChatInputForChatImpl(
         draftStore,
         offerCredentialChoice = true,
         trainingTurns = false,
+        hasMessages = false,
     }: Props,
     ref: ForwardedRef<ChatInputHandle>,
 ) {
@@ -375,6 +383,22 @@ function ChatInputForChatImpl(
     // composer held then. It is said until the person types.
     const [modeErrorAt, setModeErrorAt] = useState<string | null>(null);
     const modeError = modeErrorAt !== null && modeErrorAt === value;
+    // The approach block is folded once the chat has a message. It opens when
+    // the person starts another message (a click in the input, typing, the
+    // line), when it holds text or a mark, when a send is refused, and when
+    // the server says the stage is out of date. Focus alone does not open it:
+    // the input is focused again each time the window comes back.
+    const [trainingOpened, setTrainingOpened] = useState(false);
+    const laterTurn = hasMessages;
+    const trainingEmpty =
+        attempt === "" &&
+        confidence === null &&
+        !attemptError &&
+        !confidenceError &&
+        !modeError;
+    const trainingFolded = laterTurn && !trainingOpened && trainingEmpty;
+    const openTraining = () => setTrainingOpened(true);
+    useTrainingStageStale(openTraining, needsAttempt && trainingTurns);
     // «Responder» on a basis question brings it, quoted, to the approach.
     useTrainingReply({
         enabled: needsAttempt && trainingTurns,
@@ -856,6 +880,9 @@ function ChatInputForChatImpl(
         }
         setAttemptError(false);
         setConfidenceError(false);
+        // A hint keeps the approach for the next turn: the block stays open,
+        // so emptying the field does not fold it away mid-edit.
+        if (needsAttempt && mode !== "hint") setTrainingOpened(false);
 
         onSubmit?.({
             role: "user",
@@ -1061,16 +1088,48 @@ function ChatInputForChatImpl(
 
                     {needsAttempt ? (
                         <>
-                            <TrainingAttemptFieldUI
-                                id={trainingAttemptId}
-                                className="px-4 pt-4"
-                                value={attempt}
-                                onChange={setAttempt}
-                                text={trainingText.attempt}
-                                disabled={!composerOpen}
-                                showError={attemptError}
-                            />
-                            {needsConfidence ? (
+                            {laterTurn ? (
+                                <button
+                                    type="button"
+                                    disabled={!composerOpen}
+                                    aria-expanded={!trainingFolded}
+                                    aria-controls={
+                                        trainingFolded
+                                            ? undefined
+                                            : trainingAttemptId
+                                    }
+                                    onClick={() => {
+                                        // Open and empty: the line folds it
+                                        // again. Otherwise it leads to the
+                                        // approach.
+                                        if (trainingOpened && trainingEmpty) {
+                                            setTrainingOpened(false);
+                                            return;
+                                        }
+                                        openTraining();
+                                        focusTrainingAttempt(trainingAttemptId);
+                                    }}
+                                    className="mx-4 mt-4 block w-[calc(100%-2rem)] rounded-md text-left text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-focus/30 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {trainingText.attemptNextLine}
+                                </button>
+                            ) : null}
+                            {trainingFolded ? null : (
+                                <TrainingAttemptFieldUI
+                                    id={trainingAttemptId}
+                                    className="px-4 pt-3"
+                                    value={attempt}
+                                    onChange={setAttempt}
+                                    text={
+                                        laterTurn
+                                            ? trainingText.attemptNext
+                                            : trainingText.attempt
+                                    }
+                                    disabled={!composerOpen}
+                                    showError={attemptError}
+                                />
+                            )}
+                            {!trainingFolded && needsConfidence ? (
                                 <TrainingConfidenceUI
                                     id={trainingConfidenceId}
                                     className="px-4 pt-3"
@@ -1084,7 +1143,7 @@ function ChatInputForChatImpl(
                                     showError={confidenceError}
                                 />
                             ) : null}
-                            {trainingTurn.modes.length > 0 ? (
+                            {!trainingFolded && trainingTurn.modes.length > 0 ? (
                                 <TrainingModesUI
                                     id={trainingModesId}
                                     className="px-4 pt-3"
@@ -1122,7 +1181,11 @@ function ChatInputForChatImpl(
                                 t,
                             })}
                             value={value}
-                            onChange={(event) => updateInput(event.target)}
+                            onChange={(event) => {
+                                openTraining();
+                                updateInput(event.target);
+                            }}
+                            onClick={openTraining}
                             onPaste={handlePaste}
                             onKeyDown={handleKeyDown}
                             enterKeyHint={softKeyboard ? "enter" : "send"}

@@ -2162,6 +2162,7 @@ export function TRChatPanel({
                     hideWorkflowButton
                     offerCredentialChoice={false}
                     trainingTurns
+                    hasMessages={messages.length > 0}
                     projectId={projectId}
                     chatModel={currentChatModel}
                     chatReasoningLevel={currentChatReasoningLevel}

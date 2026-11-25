@@ -971,6 +971,7 @@ export function ProjectChatPanel({
                             >
                                 <ChatInput
                                     trainingTurns
+                                    hasMessages={messages.length > 0}
                                     key={`${activeChatId || "new"}:${composerResetKey}`}
                                     ref={chatInputRef}
                                     onSubmit={handleSubmit}

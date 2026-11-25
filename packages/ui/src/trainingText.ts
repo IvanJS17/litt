@@ -34,6 +34,8 @@ export type TrainingTurnKey =
   | `${Modes}.rungs.where`
   | `${Modes}.rungsLabel`
   | `${Turn}.attemptLabel`
+  | `${Turn}.attemptLabelNext`
+  | `${Turn}.attemptNextLine`
   | `${Turn}.attemptPlaceholder`
   | `${Turn}.attemptReady`
   | `${Turn}.attemptTooLong`
@@ -93,9 +95,21 @@ export function trainingConfidenceText(t: TrainingTranslate): TrainingConfidence
   };
 }
 
-export function trainingAttemptText(t: TrainingTranslate): TrainingAttemptFieldText {
+/**
+ * `next` is set once the chat already has a message: the field then asks for
+ * the approach of the NEXT question. Without it (Word, a first message) the
+ * label is the original one.
+ */
+export function trainingAttemptText(
+  t: TrainingTranslate,
+  options: { next?: boolean } = {},
+): TrainingAttemptFieldText {
   return {
-    label: t("training.criterion.turn.attemptLabel"),
+    label: t(
+      options.next
+        ? "training.criterion.turn.attemptLabelNext"
+        : "training.criterion.turn.attemptLabel",
+    ),
     placeholder: t("training.criterion.turn.attemptPlaceholder"),
     ready: t("training.criterion.turn.attemptReady"),
     tooShort: ({ length, min, missing }) =>
@@ -103,6 +117,11 @@ export function trainingAttemptText(t: TrainingTranslate): TrainingAttemptFieldT
     tooLong: ({ length, max, excess }) =>
       t("training.criterion.turn.attemptTooLong", { length, max, excess }),
   };
+}
+
+/** The plain line a composer shows in place of the folded approach block. */
+export function trainingAttemptNextLine(t: TrainingTranslate): string {
+  return t("training.criterion.turn.attemptNextLine");
 }
 
 export function trainingNoteText(t: TrainingTranslate): TrainingNoteText {

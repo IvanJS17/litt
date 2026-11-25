@@ -45,7 +45,7 @@ describe("TrainingNoteUI", () => {
   it("shows the approach, the contrast and the privacy legend", () => {
     note(ready, { className: "extra" });
     expect(screen.getByRole("region", { name: "Private training notes" })).toHaveClass("extra");
-    expect(screen.getByRole("heading", { name: "Your approach" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "The approach you sent" })).toBeInTheDocument();
     expect(screen.getByText(base.attempt)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Contrast with your approach" })).toBeInTheDocument();
     expect(screen.getByText("Coincide: la cláusula quinta aplica.")).toBeInTheDocument();

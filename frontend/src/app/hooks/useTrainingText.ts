@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
+    trainingAttemptNextLine,
     trainingAttemptText,
     trainingCloseMessage,
     trainingConfidenceText,
@@ -25,6 +26,9 @@ export function useTrainingText() {
         const translate: TrainingTranslate = t;
         return {
             attempt: trainingAttemptText(translate),
+            // Once the chat has a message: the approach for the NEXT question.
+            attemptNext: trainingAttemptText(translate, { next: true }),
+            attemptNextLine: trainingAttemptNextLine(translate),
             confidence: trainingConfidenceText(translate),
             modes: trainingModesText(translate),
             closeMessage: trainingCloseMessage(translate),

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { fakeTranslate, noteText, attemptText, confidenceText, modesText } from "./trainingTestText";
 import {
+  trainingAttemptNextLine,
+  trainingAttemptText,
   trainingCloseMessage,
   trainingNeedsQuestionText,
   trainingUrgencyPassText,
@@ -25,6 +27,17 @@ describe("trainingText", () => {
     expect(noteText.foundation("weak")).toBe("Basis: weak");
     expect(noteText.verdicts.no_coincide).toBe("Doesn't match");
     expect(noteText.confidenceLevels[1]).toBe("Almost a guess");
+  });
+
+  it("keeps the first label by default and asks for the next question's approach on request", () => {
+    expect(trainingAttemptText(fakeTranslate).label).toBe("Your approach (2–3 lines)");
+    expect(trainingAttemptText(fakeTranslate, { next: false }).label).toBe("Your approach (2–3 lines)");
+    expect(trainingAttemptText(fakeTranslate, { next: true }).label).toBe(
+      "Your approach for the next question (2–3 lines)",
+    );
+    expect(trainingAttemptNextLine(fakeTranslate)).toBe(
+      "An approach will be asked for before your next question.",
+    );
   });
 
   it("builds the words of the hint ladder and the counterparty round", () => {
