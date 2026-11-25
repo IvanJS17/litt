@@ -139,8 +139,13 @@ function paragraphMetadata(
   return { style, level: level !== null && Number.isFinite(level) ? level : null };
 }
 
-/** A part of the Word file that inflates to more than this is not read. */
-export const MAX_WORD_PART_BYTES = 64 * 1024 * 1024;
+/**
+ * A part of the Word file that inflates to more than this is not read. A
+ * playbook body holds a few MiB of XML at the most (the import refuses more
+ * than 150,000 characters of text), and a larger part only holds the jobs
+ * thread and memory before that refusal.
+ */
+export const MAX_WORD_PART_BYTES = 16 * 1024 * 1024;
 
 const TOO_LARGE = "The document is too large to import.";
 

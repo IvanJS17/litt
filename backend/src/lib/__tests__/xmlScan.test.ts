@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { firstXmlElement, scanXmlElements, xmlAttribute } from "../xmlScan";
 
-const found = (xml: string, containers: string[], tags: string[] = []) => [...scanXmlElements(xml, containers, tags)];
+/** The elements of a short text; a scan that never ends fails here instead of filling the memory. */
+const found = (xml: string, containers: string[], tags: string[] = []) => {
+    const elements = [];
+    for (const element of scanXmlElements(xml, containers, tags)) {
+        elements.push(element);
+        if (elements.length > xml.length) throw new Error("the scan found more elements than the text has characters");
+    }
+    return elements;
+};
 const inners = (xml: string, containers: string[], tags: string[] = []) =>
     found(xml, containers, tags).map((element) => element.inner);
-
-/** The time of `run` in milliseconds. */
-function timed(run: () => unknown): number {
-    const started = performance.now();
-    run();
-    return performance.now() - started;
-}
 
 describe("scanXmlElements", () => {
     it("finds an element with its attributes, body and closing tag, in document order", () => {
@@ -131,11 +132,51 @@ describe("xmlAttribute", () => {
     });
 });
 
-describe("the cost of a scan", () => {
-    // Bounds are generous: the machine may be busy, and a quadratic scan of
-    // inputs this size takes many seconds.
-    const SMALL = 40_000;
-    const LARGE = 160_000;
+/**
+ * The work of a scan, counted and not timed: the characters walked by the
+ * string searches the scanner uses (`indexOf`, `startsWith`, `endsWith`),
+ * counted as the distance from the start position to the hit, or to the end
+ * of the text on a miss. It throws as soon as the total passes `budget`, so a
+ * scan that repeats its searches fails at once instead of running on.
+ */
+function walkedBy(budget: number, scan: () => void): number {
+    const proto = String.prototype;
+    const { indexOf, startsWith, endsWith } = proto;
+    let walked = 0;
+    const add = (n: number) => {
+        walked += n;
+        if (walked > budget) throw new Error(`the scan walked more than ${budget} characters`);
+    };
+    proto.indexOf = function (this: string, search: string, from = 0) {
+        const hit = indexOf.call(this, search, from);
+        add((hit < 0 ? this.length : hit) - Math.min(Math.max(from, 0), this.length) + search.length);
+        return hit;
+    };
+    proto.startsWith = function (this: string, search: string, position = 0) {
+        add(search.length);
+        return startsWith.call(this, search, position);
+    };
+    proto.endsWith = function (this: string, search: string, end?: number) {
+        add(search.length);
+        return endsWith.call(this, search, end);
+    };
+    try {
+        scan();
+    } finally {
+        proto.indexOf = indexOf;
+        proto.startsWith = startsWith;
+        proto.endsWith = endsWith;
+    }
+    return walked;
+}
+
+describe("the work of a scan", () => {
+    // The most any shape needs is about 21 characters walked per character (a text of nothing
+    // but `<`); the budget is about twice that,
+    // with headroom; a scan that repeats a search walks many times its input.
+    const BUDGET_FACTOR = 40;
+    const SMALL = 2_000;
+    const LARGE = 16_000;
     const shapes: Record<string, (n: number) => string> = {
         "start tags with no closing tag": (n) => "<w:p>".repeat(n),
         "start tags never ended by `>`": (n) => "<w:p ".repeat(n),
@@ -145,27 +186,43 @@ describe("the cost of a scan", () => {
         "a long run of blanks": (n) => `<w:p>${" ".repeat(n * 5)}`,
         "tags of several names, none closed": (n) => "<w:t><w:tab/><w:p><w:tr>".repeat(n),
         "open angle brackets": (n) => "<".repeat(n * 5),
+        "names that alternate and invalidate each cache": (n) => "<w:p><w:tbl></w:p></w:tbl>".repeat(n),
+        "a flood of self-closing tags": (n) => "<w:p/>".repeat(n),
+        "elements closed in turn": (n) => "<w:p>a</w:p><w:tr>b</w:tr>".repeat(n),
     };
 
-    it.each(Object.entries(shapes))("reads %s in time proportional to its length", (_label, make) => {
-        const run = (n: number) => timed(() => {
-            for (const element of scanXmlElements(make(n), ["w:p", "w:t", "w:tr"], ["w:tab"])) void element.inner.length;
+    const walk = (xml: string) =>
+        walkedBy(BUDGET_FACTOR * xml.length, () => {
+            for (const element of scanXmlElements(xml, ["w:p", "w:t", "w:tr", "w:tbl"], ["w:tab"])) void element.end;
         });
-        run(1_000);
-        // The fastest of three runs: a pause of a busy machine slows one run, not all.
-        const small = Math.min(run(SMALL), run(SMALL), run(SMALL));
-        const large = Math.min(run(LARGE), run(LARGE));
-        expect(small, `${SMALL} units took ${small.toFixed(0)} ms`).toBeLessThan(1_500);
-        expect(large, `${LARGE} units took ${large.toFixed(0)} ms`).toBeLessThan(6_000);
-        // Four times the input: a linear scan takes about four times as long, a quadratic one sixteen.
-        expect(large / Math.max(small, 50), `ratio ${(large / Math.max(small, 50)).toFixed(1)}`).toBeLessThan(10);
+
+    it.each(Object.entries(shapes))("reads %s within a budget proportional to its length", (_label, make) => {
+        const small = make(SMALL);
+        const large = make(LARGE);
+        const ratioSmall = walk(small) / small.length;
+        const ratioLarge = walk(large) / large.length;
+        // Eight times the input walks about eight times the characters: the ratio stays flat.
+        expect(ratioLarge, `walked/length ${ratioSmall.toFixed(2)} at ${SMALL}, ${ratioLarge.toFixed(2)} at ${LARGE}`).toBeLessThan(
+            ratioSmall * 1.5 + 0.5,
+        );
     });
 
-    it("finds the attribute of a huge start tag in time proportional to its length", () => {
-        const attrs = (n: number) => ` a="${"x".repeat(n)}" ` + 'w:val="v"'.repeat(1);
-        const small = Math.min(...[1, 2, 3].map(() => timed(() => xmlAttribute(attrs(2_000_000), "w:val"))));
-        const large = Math.min(...[1, 2].map(() => timed(() => xmlAttribute(attrs(8_000_000), "w:val"))));
-        expect(large).toBeLessThan(2_000);
-        expect(large / Math.max(small, 50)).toBeLessThan(10);
+    it("reads the attribute of a huge start tag within a budget proportional to its length", () => {
+        const attrs = (n: number) => ` a="${"x".repeat(n)}" w:val="v"`;
+        const walkAttr = (n: number) => {
+            const text = attrs(n);
+            return walkedBy(BUDGET_FACTOR * text.length, () => void xmlAttribute(text, "w:val")) / text.length;
+        };
+        const small = walkAttr(SMALL * 50);
+        const large = walkAttr(LARGE * 50);
+        expect(large, `walked/length ${small.toFixed(2)} then ${large.toFixed(2)}`).toBeLessThan(small * 1.5 + 0.5);
+    });
+
+    it("counts a scan that repeats its searches as over budget", () => {
+        expect(() =>
+            walkedBy(100, () => {
+                for (let i = 0; i < 50; i++) "x".repeat(20).indexOf("y");
+            }),
+        ).toThrow(/walked more than/);
     });
 });
