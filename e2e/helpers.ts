@@ -12,6 +12,12 @@ import path from "path";
 /** The one-page PDF every upload flow attaches. */
 export const PDF_FIXTURE = path.join(__dirname, "fixtures/test.pdf");
 
+/**
+ * A synthetic one-page "scan": a black square drawn as a CCITT Group 4 image,
+ * the compression of most black-and-white scans. It has no text.
+ */
+export const SCANNED_PDF_FIXTURE = path.join(__dirname, "fixtures/synthetic-scan-ccitt.pdf");
+
 /** Anthropic model available through the CI provider fixture or a local live key. */
 export const CLAUDE_MODEL_LABEL = "Claude Sonnet 5.5";
 

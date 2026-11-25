@@ -22,7 +22,12 @@ vi.mock("./highlightQuote", () => ({
     }),
     clearHighlights: vi.fn(),
     highlightQuote: vi.fn(),
-    STANDARD_FONT_DATA_URL: "/standard_fonts/",
+    PDF_VIEWER_ASSET_URLS: {
+        standardFontDataUrl: "/pdfjs/standard_fonts/",
+        wasmUrl: "/pdfjs/wasm/",
+        cMapUrl: "/pdfjs/cmaps/",
+        iccUrl: "/pdfjs/iccs/",
+    },
 }));
 
 const pdfDocument = {
@@ -74,6 +79,13 @@ describe("PdfView loading", () => {
         );
         const { rerender, unmount } = render(view());
         await waitFor(() => expect(mocks.getDocument).toHaveBeenCalledTimes(1));
+        expect(mocks.getDocument.mock.calls[0][0]).toEqual({
+            data: expect.any(Uint8Array),
+            standardFontDataUrl: "/pdfjs/standard_fonts/",
+            wasmUrl: "/pdfjs/wasm/",
+            cMapUrl: "/pdfjs/cmaps/",
+            iccUrl: "/pdfjs/iccs/",
+        });
         expect(transferred[0].byteLength).toBe(0);
         expect(source.byteLength).toBe(4);
         expect(Array.from(new Uint8Array(source))).toEqual([37, 80, 68, 70]);

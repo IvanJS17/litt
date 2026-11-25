@@ -410,6 +410,10 @@ agrega ninguna de estas cabeceras: no repetirlas en `Caddyfile.litt`, porque una
 copia con otro valor se sumaría a la del código (dos `Content-Security-Policy`
 se aplican las dos).
 
+La política de la web solo nombra hosts de terceros para el selector de
+archivos de Google Drive; el visor de PDF carga sus fuentes, decodificadores de imagen, mapas de caracteres y perfil de color del propio origen
+(`/pdfjs/standard_fonts/`, `/pdfjs/wasm/`, `/pdfjs/cmaps/` y `/pdfjs/iccs/`, que `npm run build` copia desde `pdfjs-dist`).
+
 **Variables** (las leen `litt-web` y `litt-word`; `compose.yaml` ya las pasa):
 
 - `R2_ENDPOINT_URL`: de ahí sale el origen del almacén al que el navegador

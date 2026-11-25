@@ -304,6 +304,52 @@ or local test artifacts.
 - Verify meaningful regressions through the written report line as well as source-level tests. Test diagnostic usefulness, ownership/deduplication, and privacy.
 - Prefer focused simplification and root-cause fixes over suppressing symptoms or building new reporting frameworks.
 
+## Security rules
+
+LiTT is public and holds client documents. Where a test is named, a failure
+means fix the code, not the test.
+
+1. A route that changes a firm's members, roles, invitations or settings
+   requires `requireMfaIfEnrolled`. The test goes by the route's own path as
+   registered in its router and covers paths naming members, roles,
+   invitations, owners or settings; other changes to who can reach something
+   (access to a matter or a conversation, sharing, visibility) are outside it
+   (`backend/src/__tests__/membershipStepUp.test.ts`).
+2. Content computed from documents (assistant conversations, tabular-review
+   chat messages, playbook runs, the account export) is served only after checking,
+   when it is read, that the reader can open the sources now, with
+   `keepReadableDerived` in `backend/src/lib/access.ts`. A new reader of content
+   computed from documents does the same and writes no check of its own.
+3. Every connected-apps (MCP) tool declares its `scope` and `lane`; the toolkit
+   checks the scope, never the tool. A tool that writes or spends a key is on
+   the write lane (`backend/src/modules/mcp/__tests__/mcp.scopeDeclared.test.ts`).
+   A person's global sign-out, and a password recovery that signs out
+   everywhere, end their connections.
+4. A model's reply is size-bounded through `backend/src/lib/modelJsonFence.ts`
+   before it is scanned or parsed. Any other text from outside (a provider's
+   error body, a remote server's reply) must be bounded before it is scanned or
+   parsed. An expression applied to such text must cost in proportion to its
+   length (`backend/src/__tests__/regexShapes.test.ts`).
+5. Heavy file processing (conversion, extraction, rendering), including the
+   parsing of an uploaded file's content, runs outside the API process with
+   limits of size, time and memory; its child processes end with it
+   (`backend/src/lib/extraction/isolated.ts`, `limits.ts`).
+6. The visitor's address comes only from the configured chain of trusted proxies
+   (`TRUST_PROXY_HOPS`), never from a header a client can set. Sign-in attempts
+   are limited per account and client address, with a higher limit per account
+   across addresses.
+7. In a firm's workspace or matter, work must run only on a key the firm's
+   administrators allow; `docs/mcp-server.md` says which keys those are and
+   the order used when none is named. A conversation keeps the model and key it
+   started with; if they cannot run, the work is refused and is not moved to
+   another model.
+8. A restriction on an account does not depend on the terms version accepted.
+9. Rendered Markdown does not load images from other sites: wrap `components`
+   in `withSafeMarkdownImages` from `@mike/ui` (`frontend/src/__tests__/architecture.test.ts`).
+10. An OAuth return is accepted only from the session that started it.
+11. Commit messages, PR texts, comments and tests describe the behaviour wanted,
+    never how a weakness is used, and name no private paths or identifiers from private material.
+
 ## LiTT fork
 
 This repository is LiTT (`IvanJS17/litt`), derived from MikeOSS

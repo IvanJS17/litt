@@ -114,6 +114,7 @@ import { app } from "../../app";
 import { JEV_MODEL, JevError } from "../../lib/jev";
 import { flushDocumentTriage, settleTriageRuns, triageTiming } from "../../modules/requests/requests.service";
 import { DONNA_MONTHLY_RUN_CAP } from "../../modules/requests/requests.triage.shared";
+import { DONNA_DAILY_RUN_CAP_PER_PERSON } from "../../modules/requests/requests.triage.shared";
 import { memoryDb } from "../helpers/memoryDb";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -176,6 +177,23 @@ const generative = (over: Record<string, unknown> = {}) =>
         ...over,
     });
 
+/**
+ * public.reserve_donna_run, one call at a time (a transaction under the firm's lock):
+ * counts the firm's reservations in the month and the person's in the day, and takes
+ * the place only if both are under their cap. The real function is proved in
+ * dbDonnaReservation.supabase.test.ts.
+ */
+const reserveDonnaRun = (args: Record<string, unknown>, all: Record<string, Row[]>) => {
+    const rows = (all.matter_request_triage_reservations ??= []);
+    const within = (row: Row, from: unknown, to: unknown) => String(row.created_at) >= String(from) && String(row.created_at) < String(to);
+    const month = rows.filter((row) => row.org_id === args.p_org_id && within(row, args.p_month_start, args.p_month_end)).length;
+    if (month >= Number(args.p_month_cap)) return "monthly_cap";
+    const day = rows.filter((row) => row.org_id === args.p_org_id && row.user_id === args.p_user_id && within(row, args.p_day_start, args.p_day_end)).length;
+    if (day >= Number(args.p_day_cap)) return "daily_cap";
+    rows.push({ id: `reservation-${rows.length}`, org_id: args.p_org_id, user_id: args.p_user_id, request_id: args.p_request_id, created_at: new Date().toISOString() });
+    return "ok";
+};
+
 beforeEach(() => {
     h.jev.calls = [];
     h.jev.error = null;
@@ -232,7 +250,8 @@ beforeEach(() => {
         matter_request_triage_runs: [],
         matter_request_triage_items: [],
         matter_request_triage_decisions: [],
-    });
+        matter_request_triage_reservations: [],
+    }, { reserve_donna_run: reserveDonnaRun });
 });
 
 /** Creates a request (with one linked document) and waits for the automatic run. */
@@ -296,6 +315,8 @@ describe("the automatic run", () => {
         expect((await card(created.body.id)).body).toMatchObject({ pending: false, run: { classify_status: "ok" } });
     });
 });
+
+const reservations = () => tables().matter_request_triage_reservations;
 
 describe("documents linked later are read by themselves", () => {
     const link = (requestId: string, versionId: string) => request(app).post(`${base}/${requestId}/rounds`).send({ version_id: versionId });
@@ -368,14 +389,15 @@ describe("documents linked later are read by themselves", () => {
 
     it("counts against the monthly cap like any run, and stops at it", async () => {
         const requestId = await createRequest(false);
-        for (let i = 0; i < DONNA_MONTHLY_RUN_CAP - 1; i += 1)
-            runs().push({ id: id(20_000 + i), org_id: ORG, project_id: PROJECT, created_at: new Date().toISOString(), classify_error: null, generative_status: "ok" });
+        for (let i = 0; i < DONNA_MONTHLY_RUN_CAP - 2; i += 1)
+            reservations().push({ id: id(20_000 + i), org_id: ORG, user_id: id(900 + (i % 50)), created_at: new Date().toISOString() });
         await link(requestId, VERSION);
         await read();
-        expect(runs()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
+        expect(reservations()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
         await link(requestId, VERSION2);
         await read();
-        expect(runs()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
+        expect(reservations()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
+        expect(runs()).toHaveLength(2);
     });
 });
 
@@ -647,7 +669,7 @@ describe("permissions", () => {
 describe("the monthly cap", () => {
     const fill = (count: number, orgId = ORG, createdAt = new Date().toISOString()) => {
         for (let i = 0; i < count; i += 1)
-            tables().matter_request_triage_runs.push({ id: id(10_000 + i), org_id: orgId, project_id: PROJECT, created_at: createdAt, classify_error: null, generative_status: "ok" });
+            reservations().push({ id: id(10_000 + i), org_id: orgId, user_id: id(900 + (i % 50)), created_at: createdAt });
     };
 
     it("answers 429 with the message once the firm has used 1,000 runs this month, and runs nothing", async () => {
@@ -672,10 +694,133 @@ describe("the monthly cap", () => {
         expect((await create()).status).toBe(201);
         await settleTriageRuns();
         expect(h.jev.calls).toHaveLength(0);
-        expect(tables().matter_request_triage_runs).toHaveLength(DONNA_MONTHLY_RUN_CAP);
-        tables().matter_request_triage_runs.length = 0;
+        expect(reservations()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
+        expect(tables().matter_request_triage_runs).toHaveLength(0);
+        reservations().length = 0;
         fill(DONNA_MONTHLY_RUN_CAP, id(101));
         fill(DONNA_MONTHLY_RUN_CAP, ORG, "2020-01-15T12:00:00.000Z");
+        expect((await create()).status).toBe(201);
+        await settleTriageRuns();
+        expect(h.jev.calls).toHaveLength(1);
+    });
+});
+
+describe("a run takes its place before anything is sent", () => {
+    const openAll = async (count: number) => {
+        // Requests are created with the switch off (no automatic run), then it goes on.
+        tables().projects[0].donna_enabled = false;
+        as(OWNER);
+        const ids: string[] = [];
+        for (let i = 0; i < count; i += 1) {
+            const created = await create({ title: `Solicitud ${i}` });
+            expect(created.status).toBe(201);
+            ids.push(created.body.id as string);
+        }
+        await settleTriageRuns();
+        tables().projects[0].donna_enabled = true;
+        return ids;
+    };
+    const post = (requestId: string, user = OWNER) => {
+        as(user);
+        return request(app).post(`${base}/${requestId}/triage`).then((res) => res);
+    };
+
+    it("lets exactly the free places through when 13 runs start together, with the classifier held open", async () => {
+        const ids = await openAll(13);
+        for (let i = 0; i < DONNA_MONTHLY_RUN_CAP - 3; i += 1)
+            reservations().push({ id: id(30_000 + i), org_id: ORG, user_id: id(900 + (i % 50)), created_at: new Date().toISOString() });
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        h.jev.answer = () => gate.then(() => jevAnswer());
+        const all = ids.map((requestId) => post(requestId));
+        // Wait until the refused ones have answered and the allowed ones sit at the classifier.
+        for (let i = 0; i < 200 && h.jev.calls.length < 3; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(h.jev.calls).toHaveLength(3);
+        release();
+        const results = await Promise.all(all);
+        expect(results.filter((res) => res.status === 200)).toHaveLength(3);
+        const refused = results.filter((res) => res.status === 429);
+        expect(refused).toHaveLength(10);
+        for (const res of refused) expect(res.body.code).toBe("donna_monthly_cap");
+        expect(h.jev.calls).toHaveLength(3);
+        expect(h.llm.calls).toHaveLength(3);
+        expect(reservations()).toHaveLength(DONNA_MONTHLY_RUN_CAP);
+    });
+
+    it("keeps the place of a run that fails after taking it", async () => {
+        const [requestId] = await openAll(1);
+        h.state!.failNext("matter_request_triage_runs", "insert", { message: "down" });
+        as(OWNER);
+        expect((await request(app).post(`${base}/${requestId}/triage`)).status).toBe(500);
+        expect(tables().matter_request_triage_runs).toHaveLength(0);
+        expect(reservations()).toHaveLength(1);
+        expect(h.jev.calls).toHaveLength(1);
+    });
+
+    it("takes no place when nothing was sent: the documents are unchanged, the switch is off, or the request is unknown", async () => {
+        const requestId = await createRequest(false);
+        expect(reservations()).toHaveLength(1);
+        triageTiming.docDebounceMs = 60_000;
+        await request(app).post(`${base}/${requestId}/rounds`).send({ version_id: VERSION });
+        flushDocumentTriage();
+        await settleTriageRuns();
+        expect(reservations()).toHaveLength(2);
+        const second = await request(app).post(`${base}/${requestId}/rounds`).send({ version_id: VERSION2 });
+        await request(app).delete(`${base}/${requestId}/rounds/${second.body.id}`);
+        flushDocumentTriage();
+        await settleTriageRuns();
+        expect(reservations()).toHaveLength(2);
+        tables().projects[0].donna_enabled = false;
+        as(OWNER);
+        expect((await request(app).post(`${base}/${requestId}/triage`)).status).toBe(409);
+        expect(reservations()).toHaveLength(2);
+    });
+
+    it("reserves before the classifier call and before the drafting call", async () => {
+        const [requestId] = await openAll(1);
+        h.jev.answer = () => {
+            expect(reservations()).toHaveLength(1);
+            return jevAnswer();
+        };
+        as(OWNER);
+        expect((await request(app).post(`${base}/${requestId}/triage`)).status).toBe(200);
+        expect(h.egress).toHaveLength(1);
+    });
+});
+
+describe("the daily cap of a person", () => {
+    const today = () => new Date().toISOString();
+    const fillPerson = (user: string, count: number, createdAt = today()) => {
+        for (let i = 0; i < count; i += 1) reservations().push({ id: id(40_000 + i), org_id: ORG, user_id: user, created_at: createdAt });
+    };
+
+    it("refuses the 101st run of a person in a day with donna_daily_cap (429) and still runs another person of the firm", async () => {
+        expect(DONNA_DAILY_RUN_CAP_PER_PERSON).toBe(100);
+        const requestId = await createRequest();
+        fillPerson(OWNER, DONNA_DAILY_RUN_CAP_PER_PERSON - 2);
+        as(OWNER);
+        expect((await request(app).post(`${base}/${requestId}/triage`)).status).toBe(200);
+        h.jev.calls = [];
+        h.llm.calls = [];
+        const refused = await request(app).post(`${base}/${requestId}/triage`);
+        expect(refused.status).toBe(429);
+        expect(refused.body.code).toBe("donna_daily_cap");
+        expect(refused.body.detail).toContain("Se reanuda mañana");
+        expect(h.jev.calls).toHaveLength(0);
+        expect(h.llm.calls).toHaveLength(0);
+        as(EDITOR);
+        expect((await request(app).post(`${base}/${requestId}/triage`)).status).toBe(200);
+    });
+
+    it("counts the automatic runs of the person who created the request, and not yesterday's", async () => {
+        fillPerson(OWNER, DONNA_DAILY_RUN_CAP_PER_PERSON);
+        as(OWNER);
+        expect((await create()).status).toBe(201);
+        await settleTriageRuns();
+        expect(h.jev.calls).toHaveLength(0);
+        reservations().length = 0;
+        fillPerson(OWNER, DONNA_DAILY_RUN_CAP_PER_PERSON, new Date(Date.now() - 2 * 86_400_000).toISOString());
         expect((await create()).status).toBe(201);
         await settleTriageRuns();
         expect(h.jev.calls).toHaveLength(1);

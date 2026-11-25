@@ -7,6 +7,7 @@ import {
   attachActiveVersionPaths,
   attachLatestVersionNumbers,
 } from "../../lib/documentVersions";
+import { recordAudit } from "../../lib/audit";
 import { isPersonalOrg } from "../../lib/personalOrgs";
 import { assertPersonalWorkspaceAllowed } from "../../lib/managedAccounts";
 import { buildProjectExportManifest, projectManifestFilename } from "./projects.export";
@@ -404,6 +405,36 @@ export async function listProjectIds(
   return { ok: true, ids };
 }
 
+/**
+ * One audit event when Donna's switch of a project changes: who, the firm, the
+ * project, the old and the new value. Written after the change, like the firm's
+ * other audited settings (recordAudit never throws; a lost row is reported).
+ */
+async function recordDonnaSwitchChange(
+  db: Db,
+  args: {
+    userId: string;
+    userEmail?: string | null;
+    orgId: string | null;
+    projectId: string;
+    oldValue: boolean;
+    newValue: boolean;
+  },
+): Promise<void> {
+  await recordAudit(db, {
+    userId: args.userId,
+    userEmail: args.userEmail ?? null,
+    orgId: args.orgId,
+    projectId: args.projectId,
+    action: "project.donna_switch.changed",
+    detail: {
+      project_id: args.projectId,
+      old_value: args.oldValue,
+      new_value: args.newValue,
+    },
+  });
+}
+
 export type CreateProjectResult =
   | { ok: true; project: Record<string, unknown> }
   | { ok: false; kind: "validation"; detail: string }
@@ -516,6 +547,13 @@ export async function createProject(
         error: donnaError,
         created: { id: (data as { id: string }).id },
       };
+    await recordDonnaSwitchChange(db, {
+      userId,
+      orgId: resolvedOrgId,
+      projectId: (data as { id: string }).id,
+      oldValue: true,
+      newValue: false,
+    });
   }
   return {
     ok: true,
@@ -821,6 +859,30 @@ export async function updateProject(
   }
   if (requestedVisibility.visibility)
     updates.visibility = requestedVisibility.visibility;
+
+  // The switch is written on its own and only where it differs from the stored
+  // value, and its audit event right after it: the event is written exactly
+  // when a row changed, also when two changes arrive together or the rest of
+  // this change then fails.
+  if (typeof updates.donna_enabled === "boolean") {
+    const { data: changed, error: switchError } = await db
+      .from("projects")
+      .update({ donna_enabled: updates.donna_enabled })
+      .eq("id", projectId)
+      .neq("donna_enabled", updates.donna_enabled)
+      .select("id");
+    if (switchError) return { ok: false, kind: "db_error", error: switchError };
+    if ((changed ?? []).length > 0)
+      await recordDonnaSwitchChange(db, {
+        userId,
+        userEmail,
+        orgId: access.project.org_id ?? null,
+        projectId,
+        oldValue: !updates.donna_enabled,
+        newValue: updates.donna_enabled,
+      });
+    delete updates.donna_enabled;
+  }
 
   const { data, error } = await db
     .from("projects")

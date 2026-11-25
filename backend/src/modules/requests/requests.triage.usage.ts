@@ -12,11 +12,11 @@ import { DONNA_MONTHLY_RUN_CAP, monthWindow } from "./requests.triage.shared";
 
 const MAX_RUNS_READ = 20_000;
 
-/** Runs the firm started in the calendar month of `now` (automatic and manual). */
+/** Places the firm's runs took in the calendar month of `now` (automatic and manual): the number the cap compares. */
 export async function countMonthRuns(db: Db, orgId: string, now: Date = new Date()): Promise<ServiceResult<number>> {
   const window = monthWindow(now);
   const { count, error } = await db
-    .from("matter_request_triage_runs")
+    .from("matter_request_triage_reservations")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
     .gte("created_at", window.start)
@@ -66,7 +66,11 @@ export async function getDonnaUsage(
       if (row.generative_status !== "no_key") byok += 1;
       perProject.set(row.project_id, (perProject.get(row.project_id) ?? 0) + 1);
     }
-    const used = rows.length;
+    // The month's count is the places taken; a place whose run failed before it was
+    // written has no row here, so it adds nothing to the tokens, cost or per-project figures.
+    const usedResult = await countMonthRuns(db, who.data.orgId, now);
+    if (!usedResult.ok) return usedResult;
+    const used = usedResult.data;
     return ok({
       month: window.label,
       limit: DONNA_MONTHLY_RUN_CAP,

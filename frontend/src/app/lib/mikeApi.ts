@@ -6516,7 +6516,7 @@ export async function getTriageCard(
     return apiRequest("matter.requests", triagePath(projectId, matterId, requestId));
 }
 
-/** A new run at the lawyer's click; it counts against the firm's month (429 `donna_monthly_cap`). */
+/** A new run at the lawyer's click; it counts against the firm's month and the person's day (429 `donna_monthly_cap` / `donna_daily_cap`). */
 export async function runTriage(
     projectId: string,
     matterId: string,

@@ -30,6 +30,7 @@ import { createProject, updateProject } from "../projects.crud";
 const PROJECT = "00000000-0000-4000-8000-000000000120";
 let tables: Record<string, Row[]>;
 let db: ReturnType<typeof memoryDb>["db"];
+let failNext: ReturnType<typeof memoryDb>["failNext"];
 
 beforeEach(() => {
     h.role = "owner";
@@ -45,6 +46,7 @@ beforeEach(() => {
     );
     tables = world.tables;
     db = world.db;
+    failNext = world.failNext;
 });
 
 describe("creating a project", () => {
@@ -90,5 +92,109 @@ describe("changing the switch", () => {
         const bad = await updateProject(db, { projectId: PROJECT, userId: "u1", body: { donna_enabled: "off" } });
         expect(bad).toMatchObject({ ok: false, kind: "validation" });
         expect(tables.projects[0].donna_enabled).toBe(true);
+    });
+});
+
+describe("the switch leaves an audit record", () => {
+    const events = () => tables.audit_events ?? [];
+
+    it("writes one event with who, firm, project, old and new value when the stored value changes", async () => {
+        await updateProject(db, { projectId: PROJECT, userId: "u1", userEmail: "u1@example.test", body: { donna_enabled: false } });
+        expect(events()).toHaveLength(1);
+        expect(events()[0]).toMatchObject({
+            action: "project.donna_switch.changed",
+            user_id: "u1",
+            user_email: "u1@example.test",
+            org_id: "org-1",
+            project_id: PROJECT,
+            detail: { project_id: PROJECT, old_value: true, new_value: false },
+        });
+        await updateProject(db, { projectId: PROJECT, userId: "u1", body: { donna_enabled: true } });
+        expect(events()).toHaveLength(2);
+        expect(events()[1]).toMatchObject({ detail: { old_value: false, new_value: true } });
+    });
+
+    it("writes none when the value is sent but is the stored one, or is not sent", async () => {
+        await updateProject(db, { projectId: PROJECT, userId: "u1", body: { donna_enabled: true } });
+        await updateProject(db, { projectId: PROJECT, userId: "u1", body: { name: "Otro nombre" } });
+        expect(events()).toHaveLength(0);
+    });
+
+    it("keeps the record true to the stored value when two changes arrive together", async () => {
+        for (const pair of [[false, true], [true, false], [false, false]]) {
+            tables.projects[0].donna_enabled = true;
+            (tables.audit_events ?? []).length = 0;
+            await Promise.all(
+                pair.map((value) => updateProject(db, { projectId: PROJECT, userId: "u1", body: { donna_enabled: value } })),
+            );
+            // Replaying the events from the starting value gives the stored value.
+            let value = true;
+            for (const event of events()) {
+                const detail = event.detail as { old_value: boolean; new_value: boolean };
+                expect(detail.old_value).toBe(value);
+                expect(detail.new_value).toBe(!value);
+                value = detail.new_value;
+            }
+            expect(value).toBe(tables.projects[0].donna_enabled);
+        }
+    });
+
+    it("writes the event when the switch changed and the rest of the change then fails", async () => {
+        // The second write to the project (its other fields) fails; the switch was already written.
+        let writes = 0;
+        const failingDb = {
+            rpc: db.rpc,
+            from(table: string) {
+                const query = db.from(table) as unknown as { update: (values: unknown) => unknown };
+                if (table !== "projects") return query;
+                const update = query.update.bind(query);
+                query.update = (values: unknown) => {
+                    writes += 1;
+                    if (writes === 2) failNext("projects", "update", { message: "down" });
+                    return update(values);
+                };
+                return query;
+            },
+        } as unknown as typeof db;
+        const result = await updateProject(failingDb, { projectId: PROJECT, userId: "u1", body: { donna_enabled: false, name: "Otro" } });
+        expect(result).toMatchObject({ ok: false });
+        expect(tables.projects[0].donna_enabled).toBe(false);
+        expect(events()).toHaveLength(1);
+        expect(events()[0]).toMatchObject({ detail: { old_value: true, new_value: false } });
+    });
+
+    it("records a personal project created with Donna off under no firm, also when the firm was sent empty", async () => {
+        const created = await createProject(db, { userId: "u1", name: "Personal", org_id: "", donna_enabled: false });
+        expect(created).toMatchObject({ ok: true });
+        expect(events()).toHaveLength(1);
+        expect(events()[0].org_id ?? null).toBeNull();
+    });
+
+    it("writes none when the change is refused", async () => {
+        h.role = "viewer";
+        await updateProject(db, { projectId: PROJECT, userId: "u2", body: { donna_enabled: false } });
+        expect(events()).toHaveLength(0);
+    });
+
+    it("writes one when a project is created with Donna off, and none when it is created as it comes", async () => {
+        await createProject(db, { userId: "u1", name: "Iguala", org_id: "org-1" });
+        expect(events()).toHaveLength(0);
+        const created = await createProject(db, { userId: "u1", name: "Iguala", org_id: "org-1", donna_enabled: false });
+        expect(created).toMatchObject({ ok: true });
+        expect(events()).toHaveLength(1);
+        expect(events()[0]).toMatchObject({
+            action: "project.donna_switch.changed",
+            user_id: "u1",
+            org_id: "org-1",
+            detail: { old_value: true, new_value: false },
+        });
+    });
+
+    it("does not fail the change when the event cannot be written (as the firm's other audited settings), and the change stays", async () => {
+        const world = memoryDb({ projects: [{ id: PROJECT, name: "P", org_id: "org-1", donna_enabled: true }] });
+        world.failNext("audit_events", "insert", { message: "down" });
+        const result = await updateProject(world.db, { projectId: PROJECT, userId: "u1", body: { donna_enabled: false } });
+        expect(result).toMatchObject({ ok: true, body: { donna_enabled: false } });
+        expect(world.tables.projects[0].donna_enabled).toBe(false);
     });
 });
