@@ -24,6 +24,9 @@ beforeEach(async () => {
     res.once("close", () => responseClosed({ sent: socket.bytesWritten }));
     sendDocumentDisplay(res, { bytes: Buffer.alloc(SIZE, 1), contentType: "application/pdf", filename: "Big.pdf" });
   });
+  app.get("/late", (_req, res) => {
+    setTimeout(() => res.send("late answer"), 1_500);
+  });
   server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   port = (server.address() as AddressInfo).port;
@@ -67,5 +70,22 @@ describe("sending a display built in memory", () => {
     expect((await closed).sent).toBeGreaterThan(SIZE);
     await new Promise((resolve) => client.socket.once("close", resolve));
     expect(client.received()).toBeGreaterThan(SIZE);
+  }, 15_000);
+
+  it("leaves the connection to the request that follows on it, however long that one takes", async () => {
+    const answer = await new Promise<string>((resolve) => {
+      let tail = "";
+      const socket = net.connect(port, "127.0.0.1", () => {
+        // Both requests are sent at once; the second is answered after the display.
+        socket.write(
+          "GET /display HTTP/1.1\r\nHost: localhost\r\n\r\n" +
+            "GET /late HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+        );
+      });
+      socket.on("data", (chunk) => (tail = (tail + chunk.toString("latin1")).slice(-64)));
+      socket.on("error", () => undefined);
+      socket.on("close", () => resolve(tail));
+    });
+    expect(answer.endsWith("late answer")).toBe(true);
   }, 15_000);
 });
