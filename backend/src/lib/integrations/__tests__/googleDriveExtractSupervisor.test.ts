@@ -42,6 +42,9 @@ it("kills stalled parsers, caps concurrency and does not pass deployment credent
     expect(JSON.stringify(forkMock.mock.calls)).not.toContain(
         "never-send-to-parser",
     );
+    const forkEnv = forkMock.mock.calls[0][2].env as Record<string, string>;
+    expect(forkEnv.PATH).toBe(process.env.PATH);
+    expect(Object.keys(forkEnv).filter((name) => !["NODE_ENV", "PATH", "SystemRoot", "HOME", "LANG"].includes(name))).toEqual([]);
     await vi.advanceTimersByTimeAsync(2000);
     await Promise.all([first, second]);
     for (const child of children)

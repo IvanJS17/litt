@@ -157,6 +157,21 @@ describe("runIsolatedExtraction", () => {
     expect(vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env).not.toHaveProperty("ELECTRON_RUN_AS_NODE");
   });
 
+  it("starts the parser with exactly the allowlisted variables, a scratch temp directory and the arena cap", async () => {
+    vi.stubEnv("SUPABASE_SECRET_KEY", "fake-supabase-secret-not-real");
+    vi.stubEnv("ANTHROPIC_API_KEY", "fake-anthropic-key-not-real");
+    vi.stubEnv("NODE_OPTIONS", "--max-old-space-size=1");
+    await expect(runIsolatedExtraction("pdfForModel", async () => onePagePdf())).resolves.toContain("24CV-1234");
+    const env = vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env ?? {};
+    const allowed = new Set(["PATH", "SystemRoot", "HOME", "LANG", "SOFFICE_BINARY_PATH", "LIBREOFFICE_BINARY_PATH", "LIBRE_OFFICE_EXE", "TMPDIR", "TMP", "TEMP", "MALLOC_ARENA_MAX"]);
+    expect(Object.keys(env).filter((name) => !allowed.has(name))).toEqual([]);
+    expect(env.PATH).toBe(process.env.PATH);
+    expect(env.MALLOC_ARENA_MAX).toBe("2");
+    expect(env.TMPDIR).toMatch(/mike-extraction-/);
+    expect(env.TMP).toBe(env.TMPDIR);
+    expect(env.TEMP).toBe(env.TMPDIR);
+  });
+
   it.skipIf(!existsSync("/usr/bin/soffice"))("converts Office content using real LibreOffice inside the bounded process", async () => {
     const doc = new Document({ sections: [{ children: [new Paragraph("Synthetic lease clause 721")] }] });
     const buffer = await Packer.toBuffer(doc);

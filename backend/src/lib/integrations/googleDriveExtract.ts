@@ -1,5 +1,6 @@
 import { fork } from "node:child_process";
 import path from "node:path";
+import { childProcessEnv } from "../childEnv";
 import { googleDriveLimits } from "./googleDriveLimits";
 import { GoogleDriveUserError } from "./googleDriveHttp";
 
@@ -33,10 +34,7 @@ export async function extractGoogleDriveBinary(
                     stdio: ["ignore", "ignore", "ignore", "ipc"],
                     serialization: "advanced",
                     // Parsers never need deployment secrets or network credentials.
-                    env: {
-                        NODE_ENV: process.env.NODE_ENV,
-                        PATH: process.env.PATH,
-                    },
+                    env: childProcessEnv({ NODE_ENV: process.env.NODE_ENV }),
                 },
             );
             let settled = false;
