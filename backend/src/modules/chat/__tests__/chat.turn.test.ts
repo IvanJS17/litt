@@ -63,6 +63,7 @@ import {
     getAssistantTurnRun,
     resetAssistantTurnRunsForTests,
 } from "../../../lib/assistantTurnRuns";
+import { MAX_LIVE_RUNS_PER_USER, startStreamRun } from "../../../lib/streamRuns";
 import { AssistantStreamAbortError } from "../engine/index";
 import type { Db } from "../../../lib/supabase";
 import {
@@ -284,6 +285,17 @@ describe("startChatTurn", () => {
             code: "turn_in_progress",
             detail: "A response is already being generated for this chat.",
         });
+        expect(mocks.discardRejectedChatInput).toHaveBeenCalledTimes(1);
+        expect(mocks.releaseMemoryConversationTurn).toHaveBeenCalledTimes(1);
+    });
+
+    it("answers 429, discards the input and releases the lease when the person already has the most live runs", async () => {
+        for (let n = 0; n < MAX_LIVE_RUNS_PER_USER; n += 1) {
+            startStreamRun({ id: `held-${n}`, key: `held:${n}`, userId: "u1", forcedStopFrames: [] });
+        }
+        mocks.prepareChatStream.mockResolvedValue({ ok: true, prepared: prepared() });
+        const refused = await startChatTurn(db, { userId: "u1", userEmail: undefined, requestId: undefined, parsed });
+        expect(refused).toMatchObject({ ok: false, status: 429, code: "rate_limited" });
         expect(mocks.discardRejectedChatInput).toHaveBeenCalledTimes(1);
         expect(mocks.releaseMemoryConversationTurn).toHaveBeenCalledTimes(1);
     });

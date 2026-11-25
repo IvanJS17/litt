@@ -96,6 +96,15 @@ const MODULES = existsSync(join(SRC, "modules"))
     )
   : [];
 
+/**
+ * True when the text names the repair library as a bare module specifier or as a whole path
+ * segment: the name between quotes (any style), slashes or backslashes. A text scan: it cannot
+ * see a name that is built at run time.
+ */
+function namesRepairLibrary(text: string): boolean {
+  return /["'`\/\\]jsonrepair["'`\/\\]/.test(text);
+}
+
 describe("backend architecture", () => {
   it("domain implementations cannot import application workflows or their own facade", () => {
     const offenders: string[] = [];
@@ -250,5 +259,46 @@ describe("backend architecture", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("rule 10: the JSON repair library is reached only through lib/boundedJsonRepair.ts", () => {
+    // The library has no bound on its time; the one helper runs it under a deadline.
+    const offenders = PRODUCTION_FILES.filter(
+      (file) =>
+        file !== "lib/boundedJsonRepair.ts" &&
+        (importsOf(file).some((spec) => spec === "jsonrepair" || spec.startsWith("jsonrepair/")) ||
+          namesRepairLibrary(read(file))),
+    );
+    expect(offenders).toEqual([]);
+    expect(namesRepairLibrary(read("lib/boundedJsonRepair.ts"))).toBe(true);
+  });
+
+  it("rule 10: the text scan sees every spelling of a load of the library", () => {
+    const named = [
+      'import { jsonrepair } from "jsonrepair";',
+      'export { jsonrepair } from "jsonrepair";',
+      'const m = () => import("jsonrepair");',
+      'const x = require("jsonrepair");',
+      'const x = require (\'jsonrepair\');',
+      "const x = require(`jsonrepair`);",
+      'const x = require("jsonrepair/stream");',
+      'const x = module.require("jsonrepair");',
+      'const x = require("../../../node_modules/jsonrepair/lib/umd/jsonrepair.js");',
+      'const x = require("/abs/node_modules/jsonrepair/lib/cjs/index.js");',
+      'const x = require("..\\\\node_modules\\\\jsonrepair\\\\lib\\\\index.js");',
+      'const x = createRequire(__filename)("jsonrepair");',
+      'const x = createRequire(import.meta.url)("jsonrepair/lib/cjs/index.js");',
+      "const x = require(`../node_modules/jsonrepair/lib/umd/jsonrepair.js`);",
+    ];
+    const notNamed = [
+      'import { x } from "./jsonrepairs";',
+      'const x = require("my-jsonrepair");',
+      'const x = require("./boundedJsonRepair");',
+      'import { repairJson } from "../boundedJsonRepair";',
+      'const x = "jsonrepairing";',
+      "const x = 1; // no library here",
+    ];
+    for (const sample of named) expect(namesRepairLibrary(sample), sample).toBe(true);
+    for (const sample of notNamed) expect(namesRepairLibrary(sample), sample).toBe(false);
   });
 });

@@ -896,6 +896,19 @@ describe("upload processing", () => {
     },
   );
 
+  it("hands a busy converter back to the job queue instead of storing the document without a rendition", async () => {
+    const bytes = await minimalDocxBytes();
+    mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
+    mocks.officeFileToPdf.mockRejectedValue(new ExtractionBusyError());
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id }, error: null }] });
+
+    await expect(processUploadFile(db as never, baseSession, {
+      ...baseFile, filename: "valid.docx", file_type: "docx", expected_size_bytes: bytes.length,
+    })).rejects.toBeInstanceOf(ExtractionBusyError);
+    expect(db.rpc).not.toHaveBeenCalledWith("create_document_version", expect.anything());
+    expect(await readdir(processingTempRoot)).toEqual([]);
+  });
+
   it.each([
     ["word/document.xml", "non-whitespace top-level text"],
     ["_rels/.rels", "non-whitespace top-level text"],

@@ -13,7 +13,9 @@ import { queryFailureCause, selectAllByKey, selectInBatches } from "../../lib/ba
 import { zipExportLimitDetail } from "../../lib/zipExport";
 import {
     loadDocumentDisplay,
+    streamStoredDisplay,
     type DocumentDisplayPayload,
+    type DocumentDisplayStream,
 } from "../../lib/documentDisplay";
 import { downloadFilenameForVersion, type Db } from "./documents.shared";
 import { ensureDocumentAccess } from "./documents.access";
@@ -55,8 +57,9 @@ export async function getDisplayableVersion(
     userEmail: string,
     versionIdParam: string | null,
     db: Db,
+    signal?: AbortSignal,
 ): Promise<
-    | { ok: true; display: DocumentDisplayPayload; held: boolean }
+    | { ok: true; display: DocumentDisplayPayload | DocumentDisplayStream; held: boolean }
     | { ok: false; kind: "not_found"; detail: string }
     | { ok: false; kind: "error"; error: unknown }
 > {
@@ -75,12 +78,16 @@ export async function getDisplayableVersion(
     );
 
     try {
-        const display = await loadDocumentDisplay({
+        const source = {
             filename: displayFilename,
             fileType: active.file_type,
             storagePath: active.storage_path,
             pdfStoragePath: active.pdf_storage_path,
-        });
+            signal,
+        };
+        // A stored object is served from the store as it is sent; only a
+        // file that has to be converted is read into memory.
+        const display = (await streamStoredDisplay(source)) ?? (await loadDocumentDisplay(source));
         if (!display)
             return {
                 ok: false,

@@ -30,9 +30,20 @@ export class InvalidApiKeyError extends UserFacingError {
  *             (reason "API_KEY_INVALID")
  *   Anthropic 401 "invalid x-api-key" (type "authentication_error")
  *   OpenAI    401 "Incorrect API key provided" (code "invalid_api_key")
+ *
+ * The words that say the key is bad must follow "api key" within 200
+ * characters of the same sentence (no full stop or quote between): a gap that
+ * is unbounded would be tried again from every "api key" in a long answer.
  */
 const INVALID_KEY_TEXT =
-  /(api[ _-]?key[^."]*\b(?:not valid|invalid|incorrect|expired)|invalid[ _-]?(?:x-)?api[ _-]?key|api_key_invalid|incorrect api key)/i;
+  /(api[ _-]?key[^."]{0,200}\b(?:not valid|invalid|incorrect|expired)|invalid[ _-]?(?:x-)?api[ _-]?key|api_key_invalid|incorrect api key)/i;
+
+/**
+ * How much of an answer is read for the words about a key. The messages above
+ * are a few hundred characters; the answer of a server the person chose may
+ * be megabytes, and each "api key" in it costs a search of its own.
+ */
+const KEY_TEXT_WINDOW_CHARS = 64 * 1024;
 
 function statusCodeOf(error: unknown): number | undefined {
   if (!error || typeof error !== "object") return undefined;
@@ -80,7 +91,7 @@ export function isInvalidApiKeyError(error: unknown): boolean {
   const status = statusCodeOf(error);
   if (status === 401) return true;
   if (status !== 400 && status !== 403) return false;
-  return INVALID_KEY_TEXT.test(describeError(error));
+  return INVALID_KEY_TEXT.test(describeError(error).slice(0, KEY_TEXT_WINDOW_CHARS));
 }
 
 /**

@@ -10,12 +10,20 @@ import type { Readable } from "node:stream";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
+import { abortOnClose } from "../../lib/responseClosed";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { sendInternalError } from "../../lib/httpError";
 import { pipeToResponse } from "../../lib/pipeToResponse";
 import { setOperation } from "../../lib/observability/report";
 import { buildContentDisposition, createFileReadStream } from "../../lib/storage";
-import { sendDocumentDisplay } from "../../lib/documentDisplay";
+import {
+    DisplaySourceTooLargeError,
+    sendDisplayBusy,
+    sendDisplayTooLarge,
+    sendDocumentDisplay,
+    sendDocumentDisplayStream,
+} from "../../lib/documentDisplay";
+import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { contentTypeForDocumentType } from "../../lib/documentTypes";
 import { uniqueArchiveFilename } from "../../lib/zipExport";
 import {
@@ -108,6 +116,9 @@ documentsRouter.get("/:documentId/display", requireAuth, asyncRoute(async (req, 
     const versionIdParam =
         typeof req.query.version_id === "string" ? req.query.version_id : null;
     const db = createServerSupabase();
+    // A conversion still queued for a place leaves the queue with its request,
+    // and a converted display keeps its place until this response closes.
+    const responseClosed = abortOnClose(res);
 
     const result = await getDisplayableVersion(
         documentId,
@@ -115,14 +126,23 @@ documentsRouter.get("/:documentId/display", requireAuth, asyncRoute(async (req, 
         userEmail,
         versionIdParam,
         db,
+        responseClosed,
     );
     if (!result.ok) {
-        if (result.kind === "error")
+        if (result.kind === "error") {
+            if (result.error instanceof ExtractionBusyError) return void sendDisplayBusy(res);
+            if (result.error instanceof DisplaySourceTooLargeError) return void sendDisplayTooLarge(res);
             return void sendInternalError(res, result.error);
+        }
         return void res.status(404).json({ detail: result.detail });
     }
     if (result.held) res.setHeader("Cache-Control", "no-store");
-    sendDocumentDisplay(res, result.display);
+    if (!("stream" in result.display)) return void sendDocumentDisplay(res, result.display);
+    try {
+        await sendDocumentDisplayStream(res, result.display);
+    } catch (error) {
+        return void sendInternalError(res, error);
+    }
 }));
 
 // GET /single-documents/:documentId/file

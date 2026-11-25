@@ -7,7 +7,8 @@ import { tmpdir } from "node:os";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import type { ExtractionOp, ExtractionOps } from "./ops";
 import type { OcrFill } from "../ocr/pages";
-import { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError, extractionIsolated, extractionLauncher, extractionMemoryMb, extractionTimeoutMs } from "./limits";
+import { admission, type AdmissionOptions } from "./admission";
+import { EXTRACTION_MAX_BYTES, ExtractionLimitError, extractionIsolated, extractionLauncher, extractionMemoryMb, extractionTimeoutMs } from "./limits";
 import { asExtractionFailure, extractionFailureFromWire, type ExtractionFailureWire } from "./failure";
 import { AppError } from "../appError";
 
@@ -220,38 +221,6 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
   });
 }
 
-const MAX_WAITERS = 8;
-
-// Separate download concurrency from parser concurrency. A slow storage read
-// must not stop another already-downloaded tabular row from being parsed.
-type AdmissionOptions = { waitMs?: number; interactive?: boolean };
-
-function admission(limit: number, maxWaiters = MAX_WAITERS) {
-  const queue: Array<{ grant: () => void; interactive?: boolean }> = [];
-  let active = 0;
-  return async <T>(options: AdmissionOptions, work: () => Promise<T>): Promise<T> => {
-    if (active >= limit) {
-      if (options.waitMs === 0 || queue.length >= maxWaiters) throw new ExtractionBusyError();
-      await new Promise<void>((resolve, reject) => {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        const grant = () => { clearTimeout(timer); resolve(); };
-        const waiter = { grant, interactive: options.interactive };
-        const background = options.interactive ? queue.findIndex((item) => !item.interactive) : -1;
-        queue.splice(background < 0 ? queue.length : background, 0, waiter);
-        if (options.waitMs !== undefined) timer = setTimeout(() => {
-          queue.splice(queue.indexOf(waiter), 1);
-          reject(new ExtractionBusyError());
-        }, options.waitMs);
-      });
-    } else active++;
-    try { return await work(); }
-    finally {
-      const next = queue.shift();
-      if (next) next.grant();
-      else active--;
-    }
-  };
-}
 const parserAdmission = admission(1);
 const requestAdmission = admission(3);
 // Only one background source is loaded at a time. Waiting jobs hold no buffers;

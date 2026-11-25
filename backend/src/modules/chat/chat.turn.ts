@@ -28,7 +28,7 @@ import {
     startAssistantTurnRun,
     type AssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
-import { stopOutcomeFrame } from "../../lib/streamRuns";
+import { StreamRunLimitError, stopOutcomeFrame } from "../../lib/streamRuns";
 import { createCitationSupportTurn } from "../../lib/citationSupport";
 import { enqueueChatTurnAudit, stoppedTurnAuditStatus } from "../../lib/audit";
 import {
@@ -307,12 +307,19 @@ export async function startChatTurn(
         // The generation is a server-owned run from here on: it survives the
         // caller's socket (a refresh, a closed tab) and only the Stop
         // endpoint aborts it. One run per chat at a time.
-        const run = startAssistantTurnRun({
-            id: assistantMessageId ?? randomUUID(),
-            chatId,
-            userId,
-            assistantMessageId: turnMessageId,
-        });
+        let run: ReturnType<typeof startAssistantTurnRun> = null;
+        let refusal: StreamRunLimitError | null = null;
+        try {
+            run = startAssistantTurnRun({
+                id: assistantMessageId ?? randomUUID(),
+                chatId,
+                userId,
+                assistantMessageId: turnMessageId,
+            });
+        } catch (error) {
+            if (!(error instanceof StreamRunLimitError)) throw error;
+            refusal = error;
+        }
         if (!run) {
             if (inputMessageId) {
                 const discarded = await discardRejectedChatInput(db, {
@@ -323,6 +330,9 @@ export async function startChatTurn(
                 if (!discarded.ok) {
                     return { ok: false, internal: true, error: discarded.error };
                 }
+            }
+            if (refusal) {
+                return { ok: false, status: refusal.status, code: refusal.code, detail: refusal.message };
             }
             return {
                 ok: false,

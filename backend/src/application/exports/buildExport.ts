@@ -12,13 +12,20 @@ import { createDocumentAccessChecker } from "../../lib/access";
 import { selectInBatches } from "../../lib/batchedQuery";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { attachActiveVersionPaths, downloadFilenameForVersion } from "../../lib/documentVersions";
-import { downloadFile, uploadFile } from "../../lib/storage";
+import { createWriteStream } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { headFile, openFileStream, uploadFile, uploadFileFromPath } from "../../lib/storage";
+import { ARCHIVE_FILENAME, EXPORT_TEMP_PREFIX } from "./exportTempFiles";
 import { assertVersionReleasable, type SealStage } from "../../lib/trainingRelease";
 import type { Db } from "../../lib/supabase";
 import type { ExportBuildRequest } from "./exportContracts";
 import { buildMemoryArchive } from "../../lib/memory/archive";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
-import { uniqueArchiveFilename } from "../../lib/zipExport";
+import { uniqueArchiveFilename, zipExportLimitDetail } from "../../lib/zipExport";
 import { memberDataActionAllowed } from "../../modules/orgs/orgs.service";
 import {
     JsonExportType,
@@ -29,7 +36,8 @@ import {
 } from "./exportContracts";
 /** One finished artifact, ready to park in storage. */
 type ExportArtifact = {
-    body: Buffer;
+    /** Held in memory, or (a large archive) written to a file that is uploaded from disk. */
+    body: Buffer | { filePath: string; remove: () => Promise<void> };
     filename: string;
     /** Stored on the object and replayed as the download's Content-Type. */
     contentType: string;
@@ -147,6 +155,17 @@ async function buildDocumentsZipExport(db: Db, job: ExportBuildRequest, userId: 
     let added = 0;
     const usedNames = new Set<string>();
     const omitted: string[] = [];
+    // Each object is read from storage as the archive consumes it and the
+    // archive is written to a file as it is produced, so neither the files nor
+    // the archive are held in memory. The limit is the direct download's.
+    const sources: Readable[] = [];
+    let archive: Readable | undefined;
+    let recordedBytes = 0;
+    let streamedBytes = 0;
+    const refuseOverLimit = (bytes: number) => {
+        const detail = zipExportLimitDetail(0, bytes);
+        if (detail) throw new NonRetryableJobError(detail);
+    };
     for (const doc of readable) {
         if (!doc.storage_path || !doc.current_version_id) continue;
         const active = {
@@ -173,27 +192,57 @@ async function buildDocumentsZipExport(db: Db, job: ExportBuildRequest, userId: 
             omitted.push(filename);
             continue;
         }
-        const raw = await downloadFile(active.storage_path);
-        if (!raw)
+        const stored = await headFile(active.storage_path);
+        if (!stored)
             continue;
-        // Sequential, unlike the sync route's Promise.all: this path exists
-        // for selections large enough that fetching every file at once is
-        // what would blow the memory ceiling.
-        zip.file(uniqueArchiveFilename(filename, usedNames), Buffer.from(raw));
+        recordedBytes += stored.size;
+        refuseOverLimit(recordedBytes);
+        // The store's own size is a claim; the bytes that arrive are counted
+        // too. Nothing is read until the archive reaches this entry. Whatever
+        // goes wrong while reading it (a store error, a stalled read, bytes
+        // past the limit) ends the whole archive with that error: the archive
+        // library does not end by itself when one entry's source fails.
+        const entry = Readable.from(
+            (async function* () {
+                try {
+                    const stored = await openFileStream(active.storage_path);
+                    sources.push(stored);
+                    for await (const chunk of stored) {
+                        streamedBytes += chunk.length;
+                        refuseOverLimit(streamedBytes);
+                        yield chunk;
+                    }
+                } catch (error) {
+                    archive?.destroy(error as Error);
+                    throw error;
+                }
+            })(),
+        );
+        sources.push(entry);
+        zip.file(uniqueArchiveFilename(filename, usedNames), entry);
         added++;
     }
     if (omitted.length > 0) zip.file(uniqueArchiveFilename(OMITTED_LIST_FILENAME, usedNames), omittedList(omitted));
     if (added === 0 && omitted.length === 0) {
         throw new Error(`[export.build] no accessible documents for job ${job.id}`);
     }
-    return {
-        body: await zip.generateAsync({
-            type: "nodebuffer",
-            compression: "DEFLATE",
-        }),
-        filename: "documents.zip",
-        contentType: "application/zip",
-    };
+    const directory = await mkdtemp(join(tmpdir(), EXPORT_TEMP_PREFIX));
+    const remove = () => rm(directory, { recursive: true, force: true });
+    try {
+        const filePath = join(directory, ARCHIVE_FILENAME);
+        const stream = zip.generateNodeStream({ type: "nodebuffer", streamFiles: true, compression: "DEFLATE" }) as Readable;
+        archive = stream;
+        await pipeline(stream, createWriteStream(filePath));
+        return {
+            body: { filePath, remove },
+            filename: "documents.zip",
+            contentType: "application/zip",
+        };
+    } catch (error) {
+        for (const source of sources) source.destroy();
+        await remove();
+        throw error;
+    }
 }
 async function buildMemoryZipExport(
     db: Db,
@@ -248,7 +297,15 @@ export async function buildExport(db: Db, job: ExportBuildRequest): Promise<Reco
     // and keyed by job id (a re-run overwrites its own artifact — idempotent).
     const storagePath = `exports/${userId}/${job.id}-${artifact.filename}`;
     const body = artifact.body;
-    await uploadFile(storagePath, body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer, artifact.contentType);
+    if (Buffer.isBuffer(body)) {
+        await uploadFile(storagePath, body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer, artifact.contentType);
+    } else {
+        try {
+            await uploadFileFromPath(storagePath, body.filePath, artifact.contentType);
+        } finally {
+            await body.remove();
+        }
+    }
     // The completion audit row replaces the one the old sync route wrote.
     // The filtered exports have no such row: neither of their sync routes
     // recorded one, and inventing it here would change the history feed.

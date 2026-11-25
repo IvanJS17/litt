@@ -1,8 +1,10 @@
 import type { LanguageModelMiddleware } from "ai" with {
   "resolution-mode": "import",
 };
+import { MODEL_TEXT_MAX_CHARS } from "../modelJsonFence";
 import {
   collapseTrademarkOwnerCalls,
+  isUnreadableToolCallReply,
   parseTextToolCalls,
   TextToolMarkupFilter,
   ThinkTagFilter,
@@ -63,6 +65,14 @@ function toToolCallParts(calls: NormalizedToolCall[]): StreamPart[] {
 function toolCallsFromText(text: string): NormalizedToolCall[] | null {
   try {
     const calls = parseTextToolCalls(text, 0);
+    // A reply over the bound is not scanned for calls (it is plain text), but
+    // one that opens a tool call is not an answer either: its markup is never
+    // shown, so the step ends as it does for a call that cannot be read.
+    if (!calls.length && isUnreadableToolCallReply(text)) {
+      throw new Error(
+        `The local model returned a tool call that LiTT could not read because the reply is over ${MODEL_TEXT_MAX_CHARS} characters. Retry the request or use the deterministic Trademark Monitor mode.`,
+      );
+    }
     return calls.length ? calls : null;
   } catch (error) {
     throw error instanceof Error ? error : new Error(String(error));

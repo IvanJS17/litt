@@ -4,6 +4,7 @@ import {
   InvalidApiKeyError,
   isInvalidApiKeyError,
 } from "./apiKeyErrors";
+import { patternsApplied, UNBOUNDED_WILDCARD } from "./__tests__/regexUse";
 
 /** Shaped like the AI SDK's APICallError, which is what reaches us. */
 function apiCallError(fields: {
@@ -159,5 +160,48 @@ describe("asInvalidApiKeyError", () => {
         "Anthropic",
       ),
     ).toBeNull();
+  });
+});
+
+describe("classifying a key failure takes time in proportion to its size", () => {
+  it("applies no pattern with a wildcard between two searched parts to a 400 or 403 answer", () => {
+    const body = "api key ".repeat(20_000);
+    const sources = patternsApplied(() => {
+      expect(isInvalidApiKeyError(apiCallError({ statusCode: 400, responseBody: body }))).toBe(false);
+      expect(isInvalidApiKeyError(apiCallError({ statusCode: 403, message: body }))).toBe(false);
+    });
+    expect(sources.length).toBeGreaterThan(0);
+    expect(sources.filter((source) => UNBOUNDED_WILDCARD.test(source))).toEqual([]);
+  });
+
+  it("names the key in the same sentence: a keyword within a short distance of \"api key\"", () => {
+    const key = (message: string) => isInvalidApiKeyError(apiCallError({ statusCode: 400, message }));
+    expect(key("The API key you supplied is not valid")).toBe(true);
+    expect(key("API key not valid. Please pass a valid API key.")).toBe(true);
+    expect(key("Your API key, created last year for the old project, has expired")).toBe(true);
+    expect(key("The api_key has expired")).toBe(true);
+    expect(key("api key. It is invalid")).toBe(false);
+    expect(key('api key "x" invalid')).toBe(false);
+    expect(key("model invalid, see your api key settings")).toBe(false);
+  });
+
+  it("stays quick on a large answer of repeated first words (a generous bound, not the proof)", () => {
+    const started = Date.now();
+    expect(isInvalidApiKeyError(apiCallError({ statusCode: 400, responseBody: "api key ".repeat(60_000) }))).toBe(false);
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+  it("reads only the first 64 KiB of an answer, however long it is", () => {
+    const key = (message: string) => isInvalidApiKeyError(apiCallError({ statusCode: 400, message }));
+    const window = 64 * 1024;
+    expect(key("The API key is not valid. " + "x".repeat(8 * 1024 * 1024))).toBe(true);
+    expect(key("x".repeat(window - 40) + " The API key is not valid.")).toBe(true);
+    expect(key("x".repeat(window + 10) + " The API key is not valid.")).toBe(false);
+  });
+
+  it("takes time in proportion to the window for an answer of many megabytes (a generous bound, not the proof)", () => {
+    const body = "api key ".repeat(1024 * 1024);
+    const started = Date.now();
+    expect(isInvalidApiKeyError(apiCallError({ statusCode: 400, responseBody: body }))).toBe(false);
+    expect(Date.now() - started).toBeLessThan(2_000);
   });
 });

@@ -10,6 +10,8 @@ import {
     authConfigPatch,
     guardedFetch,
     headersForAuth,
+    MAX_MCP_RESPONSE_BYTES,
+    ResponseTooLargeError,
     loadConnector,
     mcpOAuthCallbackUrl,
     normalizeJsonSchema,
@@ -68,11 +70,22 @@ async function withMcpClient<T>(
                   mcpOAuthCallbackUrl(),
               )
             : undefined;
+    // An answer past the ceiling ends the call at once, even when it arrives as
+    // an event stream nobody is otherwise waiting on.
+    let overLimit: (error: Error) => void = () => {};
+    const exceeded = new Promise<never>((_, reject) => {
+        overLimit = reject;
+    });
+    exceeded.catch(() => undefined);
     const transport = new StreamableHTTPClientTransport(
         new URL(connector.server_url),
         {
             ...(authProvider ? { authProvider } : {}),
-            fetch: guardedFetch,
+            fetch: (input, init) =>
+                guardedFetch(input, init, {
+                    maxResponseBytes: MAX_MCP_RESPONSE_BYTES,
+                    onResponseTooLarge: overLimit,
+                }),
             requestInit: {
                 headers: headersForAuth(authConfig),
                 redirect: "manual",
@@ -84,10 +97,13 @@ async function withMcpClient<T>(
         enforceStrictCapabilities: true,
     });
     try {
-        await client.connect(transport, { timeout: MCP_REQUEST_TIMEOUT_MS });
-        return await callback(client);
+        await Promise.race([
+            client.connect(transport, { timeout: MCP_REQUEST_TIMEOUT_MS }),
+            exceeded,
+        ]);
+        return await Promise.race([callback(client), exceeded]);
     } catch (err) {
-        if (err instanceof McpOAuthRequiredError) throw err;
+        if (err instanceof McpOAuthRequiredError || err instanceof ResponseTooLargeError) throw err;
         // OAuth connectors already surface genuine auth failures (401s) through
         // the auth provider, so probing here would convert *every* tool-call
         // error into a misleading "OAuth required" and hide the real cause.

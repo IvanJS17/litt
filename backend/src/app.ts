@@ -68,6 +68,7 @@ import {
 import { configuredAllowedOrigins } from "./lib/origins";
 import { envInt, sourceCommit } from "./lib/runtimeConfig";
 import { requestDiagnostics } from "./middleware/requestDiagnostics";
+import { startInTurn } from "./middleware/startInTurn";
 import { requireAuth } from "./middleware/auth";
 
 export const app = express();
@@ -403,6 +404,8 @@ const mcpRegisterLimiter = makeLimiter({
 
 app.disable("x-powered-by");
 app.set("trust proxy", envInt("TRUST_PROXY_HOPS", 1));
+// First, before anything is counted or read for the request.
+app.use(startInTurn);
 app.use(requestDiagnostics);
 app.use(protectInternalErrorResponses);
 

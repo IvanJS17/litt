@@ -1199,6 +1199,17 @@ describe("server-owned Word turns", () => {
     },
   );
 
+  it("answers 429 when the person already has the most live runs, and starts no generation", async () => {
+    const { MAX_LIVE_RUNS_PER_USER, startStreamRun } = await import("../../lib/streamRuns.js");
+    for (let n = 0; n < MAX_LIVE_RUNS_PER_USER; n += 1) {
+      startStreamRun({ id: `held-${n}`, key: `held:${n}`, userId: "u1", forcedStopFrames: [] });
+    }
+    const refused = await send();
+    expect(refused.status).toBe(429);
+    expect(refused.body).toMatchObject({ code: "rate_limited" });
+    expect(runLLMStream).not.toHaveBeenCalled();
+  });
+
   it("refuses a second turn while one is generating into the chat", async () => {
     const held = heldGeneration();
     const first = send();

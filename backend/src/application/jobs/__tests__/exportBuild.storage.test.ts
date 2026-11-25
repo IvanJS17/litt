@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 import { setStorageAdapter, StorageOperationError } from "../../../lib/storage";
 import type { DbJob } from "../../../lib/dbq/types";
+import { createExportStorageFake } from "../../exports/__tests__/exportStorageFake";
 
 vi.mock("../../../lib/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/access")>()),
@@ -16,8 +17,7 @@ vi.mock("../../../lib/documentVersions", async (importOriginal) => ({
 }));
 import { handleExportBuild } from "../exportBuild";
 
-const download = vi.fn<(key: string) => Promise<ArrayBuffer | null>>();
-const upload = vi.fn<(key: string, bytes: ArrayBuffer, contentType: string) => Promise<void>>();
+let fake = createExportStorageFake(() => new Uint8Array([1, 2, 3]));
 const job: DbJob = {
   id: "export-1", kind: "export.build",
   payload: { userId: "u1", type: "documents-zip", document_ids: ["d1", "d2"] },
@@ -29,22 +29,26 @@ const db = {
 };
 
 beforeEach(() => {
-  download.mockReset().mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
-  upload.mockReset().mockResolvedValue(undefined);
-  setStorageAdapter({ enabled: true, configurationHint: "test", downloadFile: download, uploadFile: upload } as never);
+  fake = createExportStorageFake(() => new Uint8Array([1, 2, 3]));
+  setStorageAdapter(fake.adapter());
 });
 
 describe("required document export reads", () => {
   it.each(["ECONNRESET", "AccessDenied"])("fails before publishing a partial ZIP when a selected document read fails with %s", async code => {
-    download.mockResolvedValueOnce(new Uint8Array([1]).buffer).mockRejectedValueOnce(Object.assign(new Error("storage failure"), { code }));
+    let reads = 0;
+    fake = createExportStorageFake(() => {
+      if (++reads === 3) throw Object.assign(new Error("storage failure"), { code });
+      return new Uint8Array([1]);
+    });
+    setStorageAdapter(fake.adapter());
     await expect(handleExportBuild(db as never, job)).rejects.toBeInstanceOf(StorageOperationError);
-    expect(upload).not.toHaveBeenCalled();
+    expect(fake.uploads).toEqual([]);
   });
 
   it("publishes both selected files when their reads succeed", async () => {
     await expect(handleExportBuild(db as never, job)).resolves.toMatchObject({ filename: "documents.zip" });
-    expect(upload).toHaveBeenCalledOnce();
-    const zip = await JSZip.loadAsync(upload.mock.calls[0]![1]);
+    expect(fake.uploads).toHaveLength(1);
+    const zip = await JSZip.loadAsync(fake.uploads[0]!.bytes);
     expect(Object.keys(zip.files)).toEqual(["d1.docx", "d2.docx"]);
   });
 });

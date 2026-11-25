@@ -392,6 +392,9 @@ async function buildPdfRendition(args: {
     await uploadFileFromPath(key, pdfPath, "application/pdf");
     return key;
   } catch (error) {
+    // A busy converter is retry-later, not a failed conversion: the job is
+    // requeued without charging an attempt.
+    if (error instanceof ExtractionBusyError) throw error;
     // Non-fatal for the upload (the original stays usable) but a conversion
     // that fails is either a LibreOffice regression or a malformed file we
     // should know about — the log line names the file type so a format-wide

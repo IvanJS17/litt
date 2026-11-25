@@ -12,7 +12,7 @@ import {
   getAssistantTurnRun,
   startAssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
-import { stopOutcomeFrame } from "../../lib/streamRuns";
+import { StreamRunLimitError, stopOutcomeFrame } from "../../lib/streamRuns";
 // HTTP layer for the word-chat module — the Word task pane's chat surface.
 //
 // Route handlers parse params/query/body, call the wordChat.service functions,
@@ -750,16 +750,22 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
   // and only POST /word-chat/:chatId/turn/:turnId/stop aborts it. `chatId`
   // always exists by now — a cloud row's id, or the UUID local storage was
   // given — so every Word turn is keyed and resumable, local ones included.
-  const run = startAssistantTurnRun({
-    id: assistantMessageId,
-    chatId,
-    userId,
-    assistantMessageId,
-    surface: "word",
-    // What the resume endpoints authorise against; a local chat has no row.
-    clientDocumentId: parsedDocumentId.value,
-    persistChat,
-  });
+  let run: ReturnType<typeof startAssistantTurnRun> = null;
+  try {
+    run = startAssistantTurnRun({
+      id: assistantMessageId,
+      chatId,
+      userId,
+      assistantMessageId,
+      surface: "word",
+      // What the resume endpoints authorise against; a local chat has no row.
+      clientDocumentId: parsedDocumentId.value,
+      persistChat,
+    });
+  } catch (error) {
+    if (!(error instanceof StreamRunLimitError)) throw error;
+    return void res.status(error.status).json({ code: error.code, detail: error.message });
+  }
   if (!run) {
     return void res.status(409).json({
       code: "turn_in_progress",

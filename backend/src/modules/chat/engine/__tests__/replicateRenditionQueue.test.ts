@@ -56,6 +56,7 @@ vi.mock("../../../../lib/downloadTokens", async (importOriginal) => {
     };
 });
 
+import { ExtractionBusyError } from "../../../../lib/extraction/limits";
 import { runToolCalls } from "../tools/toolDispatcher";
 import type { DocIndex, DocStore } from "../types";
 
@@ -197,6 +198,17 @@ describe("replicate_document rendition path", () => {
         expect(docxToPdf).toHaveBeenCalledTimes(1);
         expect(enqueueConversion).not.toHaveBeenCalled();
         expect(versionRows[0][0].pdf_storage_path).toMatch(/^converted-pdfs\//);
+    });
+
+    it("flag off: a busy converter queues one conversion job per copy instead of leaving them rendition-less", async () => {
+        process.env.ASYNC_DOCUMENT_CONVERSION = "false";
+        docxToPdf.mockRejectedValue(new ExtractionBusyError());
+        const { db, versionRows } = replicationDb();
+
+        await replicate(db, {}, 2);
+
+        expect(versionRows[0].map((r) => r.pdf_storage_path)).toEqual([null, null]);
+        expect(enqueueConversion).toHaveBeenCalledTimes(2);
     });
 
     it("flag on: no in-band LibreOffice; one conversion job per copy", async () => {

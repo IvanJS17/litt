@@ -4,6 +4,14 @@ import { expectLinearCost } from "../../../__tests__/helpers/linearCost";
 import { MODEL_TEXT_MAX_CHARS } from "../../../lib/modelJsonFence";
 import { parseModelJson, PlaybookModelOutputError, validatePlaybookCompilationWithRetry } from "../playbooks.operations";
 
+describe("parseModelJson on an answer that overflows the library's stack", () => {
+    it("ends as the error of an answer that cannot be read", () => {
+        const deep = '[{"a":'.repeat(15_000) + "}";
+        expect(() => parseModelJson(deep)).toThrow(PlaybookModelOutputError);
+        expect(() => parseModelJson(deep)).toThrow("The model did not return structured JSON.");
+    });
+});
+
 describe("parseModelJson", () => {
     it("reads an answer followed by a long run of blanks in linear time", () => {
         expectLinearCost((n) => parseModelJson('{"findings":[]}' + " ".repeat(n) + "x"), { small: 2_000, large: 64_000 });
@@ -92,5 +100,27 @@ describe("the size check of the playbook answer repair", () => {
         expect(() => parse(longReview(LARGEST_ANSWER_CHARS * 1.5, "cut").text)).toThrow("The model did not return structured JSON.");
         expect(() => parse(longReview(LARGEST_ANSWER_CHARS * 1.5, "unescaped quote").text)).toThrow("The model did not return structured JSON.");
         expect(repair).not.toHaveBeenCalled();
+    });
+    // A closed text of quotes takes the library seconds to minutes; the repair runs under a deadline of one
+    // second and is refused when it does not finish. The assertions keep three times that as slack.
+    it.each([
+        ["an apostrophe", "'"],
+        ["a curly quote", "\u2018"],
+        ["a backtick", "`"],
+    ])("refuses a damaged answer full of %s that ends in a bracket, within three times the time allowed", async (_name, quote) => {
+        const { parseModelJson: parse } = await load();
+        for (const length of [8_002, 20_002]) {
+            const answer = "{" + (quote + "a").repeat((length - 2) / 2) + "}";
+            const started = performance.now();
+            expect(() => parse(answer)).toThrow("The model did not return structured JSON.");
+            expect(performance.now() - started).toBeLessThan(3_000);
+        }
+        // After a refusal the next honest answer is repaired.
+        expect(parse("{'a': 1,}")).toEqual({ a: 1 });
+    }, 30_000);
+    it("reads a long damaged answer of paired quotes without being refused", async () => {
+        const { parseModelJson: parse } = await load();
+        const answer = `{"text":"${'say \\"x\\" '.repeat(11_000)}",}`;
+        expect((parse(answer) as { text: string }).text.length).toBeGreaterThan(80_000);
     });
 });

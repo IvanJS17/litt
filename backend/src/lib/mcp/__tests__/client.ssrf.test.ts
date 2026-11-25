@@ -460,3 +460,63 @@ describe("guardedFetch for public web pages", () => {
         expect(res.status).toBe(200);
     });
 });
+
+describe("guardedFetch response size cap", () => {
+    const fetchSpy = vi.mocked(undiciFetch);
+
+    beforeEach(() => {
+        fetchSpy.mockReset();
+    });
+
+    /** A body of `count` 1 KiB chunks that records how many were pulled. */
+    function chunkedResponse(count: number) {
+        const pulled = { chunks: 0, cancelled: false };
+        const body = new ReadableStream<Uint8Array>({
+            pull(controller) {
+                if (pulled.chunks >= count) return controller.close();
+                pulled.chunks += 1;
+                controller.enqueue(new Uint8Array(1024).fill(97));
+            },
+            cancel() {
+                pulled.cancelled = true;
+            },
+        });
+        const response = new Response(body, {
+            status: 200,
+            headers: { "content-type": "application/json" },
+        }) as unknown as Awaited<ReturnType<typeof undiciFetch>>;
+        return { response, pulled };
+    }
+
+    it("fails a read that goes past the decoded byte limit and stops pulling the body", async () => {
+        resolvesTo("93.184.216.34");
+        const { response, pulled } = chunkedResponse(1000);
+        fetchSpy.mockResolvedValue(response);
+
+        const res = await guardedFetch(
+            "https://public.example.com/mcp",
+            { method: "POST", body: "{}" },
+            { maxResponseBytes: 4096 },
+        );
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("application/json");
+        await expect(res.text()).rejects.toThrow(/larger than/);
+        expect(pulled.chunks).toBeLessThan(20);
+        expect(pulled.cancelled).toBe(true);
+    });
+
+    it("passes a response within the limit through unchanged", async () => {
+        resolvesTo("93.184.216.34");
+        const { response } = chunkedResponse(3);
+        fetchSpy.mockResolvedValue(response);
+
+        const res = await guardedFetch(
+            "https://public.example.com/mcp",
+            { method: "POST", body: "{}" },
+            { maxResponseBytes: 4096 },
+        );
+
+        expect((await res.text()).length).toBe(3 * 1024);
+    });
+});

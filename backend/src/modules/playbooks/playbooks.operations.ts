@@ -35,9 +35,7 @@ import { AppError } from "../../lib/appError";
 import { safeError } from "../../lib/safeError";
 import { COMPLETION_REASONING_HEADROOM_TOKENS } from "../../lib/llm/aiSdk";
 import { BoundedTextError, charsForTokens, stripCodeFence } from "../../lib/modelJsonFence";
-const { jsonrepair } = require("jsonrepair") as {
-  jsonrepair: (text: string) => string;
-};
+import { isRepairRefusal, repairJson } from "../../lib/boundedJsonRepair";
 import { z } from "zod";
 import { readableRunRows, readableRuns, runWithheldReason } from "./playbooks.runAccess";
 import {
@@ -242,6 +240,12 @@ const REVIEW_MAX_OUTPUT_TOKENS = 20_000;
  */
 export const PLAYBOOK_REPAIR_MAX_CHARS = charsForTokens(REVIEW_MAX_OUTPUT_TOKENS + COMPLETION_REASONING_HEADROOM_TOKENS);
 
+/**
+ * The most time the repair of one malformed answer may take, in milliseconds: the library is slow
+ * on some damaged shapes, and an answer cut at the output limit repairs in a small part of it.
+ */
+const PLAYBOOK_REPAIR_MAX_MS = 1_000;
+
 export function parseModelJson(raw: string): unknown {
   let cleaned: string;
   try {
@@ -262,12 +266,22 @@ export function parseModelJson(raw: string): unknown {
       try {
         return JSON.parse(slice);
       } catch {
-        if (slice.length > PLAYBOOK_REPAIR_MAX_CHARS) {
-          throw new PlaybookModelOutputError(
-            "The model did not return structured JSON.",
+        try {
+          return JSON.parse(
+            repairJson(slice, {
+              maxChars: PLAYBOOK_REPAIR_MAX_CHARS,
+              maxMs: PLAYBOOK_REPAIR_MAX_MS,
+            }),
           );
+        } catch (repairError) {
+          // A text the bounds refuse is an answer that cannot be read, as one that is not JSON is.
+          if (isRepairRefusal(repairError)) {
+            throw new PlaybookModelOutputError(
+              "The model did not return structured JSON.",
+            );
+          }
+          throw repairError;
         }
-        return JSON.parse(jsonrepair(slice));
       }
     }
     throw new PlaybookModelOutputError(

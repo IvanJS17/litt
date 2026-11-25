@@ -86,6 +86,9 @@ function listedModels(payload: unknown): CatalogModel[] {
         .map((id) => ({ id, label: id }));
 }
 
+/** A model list is kilobytes of ids; this is far above the largest real one. */
+const MAX_MODEL_LIST_BYTES = 1024 * 1024;
+
 async function readModels(
     doFetch: typeof fetch,
     baseUrl: string,
@@ -182,6 +185,7 @@ export async function listCustomEndpointModels(
                 (input, init) =>
                     guardedFetch(input, init, {
                         label: CUSTOM_ENDPOINT_URL_LABEL,
+                        maxResponseBytes: MAX_MODEL_LIST_BYTES,
                     }),
                 credentials.baseUrl,
                 credentials.apiKey,

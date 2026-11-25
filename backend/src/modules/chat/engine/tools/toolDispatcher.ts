@@ -52,6 +52,7 @@ import {
 } from "../types";
 import { downloadFile, downloadFileIfAvailable, storageKey, uploadFile } from "../../../../lib/storage";
 import { convertedPdfKey, docxToPdf } from "../../../../lib/convert";
+import { ExtractionBusyError } from "../../../../lib/extraction/limits";
 import { enqueueConversion } from "../../../../lib/queue/conversionQueue";
 import {
   contentTypeForDocumentType,
@@ -1495,6 +1496,8 @@ export async function runToolCalls(
                     converted.byteOffset + converted.byteLength,
                   ) as ArrayBuffer;
                 } catch (conversionError) {
+                  // A busy converter is retry-later: the queue fills it in.
+                  if (conversionError instanceof ExtractionBusyError) deferCopyConversion = true;
                   devLog(
                     `[replicate_document] Office→PDF conversion failed for ${sourceFilename}:`,
                     conversionError,

@@ -48,6 +48,7 @@ vi.mock("../../../../../lib/supabase", () => ({
   createServerSupabase: vi.fn(),
 }));
 
+import { ExtractionBusyError } from "../../../../../lib/extraction/limits";
 import { generatePpt } from "../documentOps";
 
 type Insert = { table: string; payload: Record<string, unknown> };
@@ -117,6 +118,19 @@ describe("generatePpt rendition path", () => {
     expect(enqueueConversion).not.toHaveBeenCalled();
     const version = db.inserts.find((i) => i.table === "document_versions");
     expect(version?.payload.pdf_storage_path).toMatch(/^converted-pdfs\//);
+  });
+
+  it("flag off: a busy converter queues the conversion instead of leaving the version rendition-less", async () => {
+    process.env.ASYNC_DOCUMENT_CONVERSION = "false";
+    docxToPdf.mockRejectedValueOnce(new ExtractionBusyError());
+    const db = makeDb();
+
+    const out = await generatePpt("Deck", SLIDES, "user-1", db as never);
+
+    expect(out).not.toHaveProperty("error");
+    const version = db.inserts.find((i) => i.table === "document_versions");
+    expect(version?.payload.pdf_storage_path).toBeNull();
+    expect(enqueueConversion).toHaveBeenCalledTimes(1);
   });
 
   it("flag on: skips LibreOffice and enqueues a conversion for the new version", async () => {

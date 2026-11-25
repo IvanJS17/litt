@@ -3,15 +3,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // The background refresh posts a stored secret and refresh token; only the
 // network edge is replaced.
 const world = vi.hoisted(() => ({
-    calls: [] as Array<{ url: string; body: string }>,
+    calls: [] as Array<{ url: string; body: string; maxResponseBytes?: number; hasDeadline: boolean }>,
 }));
 
 vi.mock("./client", async (importOriginal) => {
     const actual = await importOriginal<typeof import("./client")>();
     return {
         ...actual,
-        guardedFetch: async (input: unknown, init?: RequestInit) => {
-            world.calls.push({ url: String(input), body: String(init?.body ?? "") });
+        guardedFetch: async (
+            input: unknown,
+            init?: RequestInit,
+            options?: { maxResponseBytes?: number },
+        ) => {
+            world.calls.push({
+                url: String(input),
+                body: String(init?.body ?? ""),
+                maxResponseBytes: options?.maxResponseBytes,
+                hasDeadline: !!init?.signal,
+            });
             return new Response(
                 JSON.stringify({ access_token: "AT-new", token_type: "Bearer", expires_in: 3600 }),
                 { status: 200, headers: { "content-type": "application/json" } },
@@ -111,5 +120,12 @@ describe("refreshOAuthAccessToken", () => {
         });
         await refreshOAuthAccessToken(row, db);
         expect(world.calls.map((c) => c.url)).toEqual(["https://as.example.test/token"]);
+    });
+
+    it("reads the token endpoint's answer under a size cap and a deadline", async () => {
+        const { db, row } = setup({ token_endpoint: "https://oauth2.googleapis.com/token", resource: GOOGLE });
+        await refreshOAuthAccessToken(row, db);
+        expect(world.calls[0].maxResponseBytes).toBeGreaterThan(0);
+        expect(world.calls[0].hasDeadline).toBe(true);
     });
 });

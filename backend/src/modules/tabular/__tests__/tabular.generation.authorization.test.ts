@@ -41,6 +41,7 @@ vi.mock("../../../lib/audit", () => ({ recordAudit: vi.fn() }));
 vi.mock("../../user/user.service", () => ({ getUserModelSettings: vi.fn() }));
 vi.mock("../../chat/chat.service", () => ({ ASSISTANT_ERROR_MESSAGE: "error" }));
 
+import { MAX_LIVE_RUNS_PER_USER, resetStreamRunsForTests, startStreamRun } from "../../../lib/streamRuns";
 import { tableDb } from "../../../__tests__/helpers/tableDb";
 import * as epoch from "../../../lib/authorizationEpoch";
 import { startTabularGeneration, runTabularGeneration } from "../tabular.generation";
@@ -102,6 +103,22 @@ beforeEach(() => {
     queryTabularAllColumns.mockReset();
     loadRowDocumentText.mockReset();
     loadRowDocumentText.mockResolvedValue("## Source document\ntext");
+});
+
+describe("starting a tabular generation", () => {
+    it("is refused with 429, and starts nothing, when the person already has the most live runs", async () => {
+        resetStreamRunsForTests();
+        for (let n = 0; n < MAX_LIVE_RUNS_PER_USER; n += 1) {
+            startStreamRun({ id: `held-${n}`, key: `held:${n}`, userId: "user-1", forcedStopFrames: [] });
+        }
+        const w = world();
+        const refused = await startTabularGeneration(w.db, {
+            reviewId: "rev-1", userId: "user-1", userEmail: undefined, expectedUpdatedAt: "2026-01-01T00:00:00Z",
+            columns: COLUMNS, model: "m", apiKeys: {},
+        });
+        expect(refused).toMatchObject({ ok: false, kind: "status", status: 429, body: { code: "rate_limited" } });
+        resetStreamRunsForTests();
+    });
 });
 
 describe("synchronous tabular generation and the authorization epoch", () => {

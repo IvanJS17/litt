@@ -1,11 +1,8 @@
-// jsonrepair declares "type": "module" but ships a CommonJS build; importing
-// it normally trips TS1479 under this package's Node16 CJS resolution.
-const { jsonrepair } = require("jsonrepair") as {
-  jsonrepair: (text: string) => string;
-};
-
-import { assertBoundedText, BoundedTextError, stripCodeFence } from "../modelJsonFence";
+import { isRepairRefusal, RepairBudget, repairJson, setRepairObserverForTests } from "../boundedJsonRepair";
+import { assertBoundedText, BoundedTextError, MODEL_TEXT_MAX_CHARS, stripCodeFence } from "../modelJsonFence";
 import type { NormalizedToolCall } from "./types";
+
+export { setRepairObserverForTests };
 
 /**
  * The most a tool call's arguments may hold to be repaired rather than refused:
@@ -14,8 +11,31 @@ import type { NormalizedToolCall } from "./types";
  */
 export const TOOL_ARGUMENT_REPAIR_MAX_CHARS = 200_000;
 
-function repairToolJson(text: string): string {
-  return jsonrepair(assertBoundedText(text, TOOL_ARGUMENT_REPAIR_MAX_CHARS));
+/**
+ * The most time the repairs of one reading of a reply may take, in milliseconds, shared by every
+ * text the reading repairs: the library is slow on some damaged shapes, and an honest reply (a few
+ * documents of 150,000 characters, or dozens of 5,000-character ones) repairs in a small part of it.
+ */
+export const TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS = 1_000;
+
+/** The repairs of one reading of a reply (one call of a public entry point) are paid from one budget. */
+const newRepairBudget = (): RepairBudget => new RepairBudget(TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS);
+
+const UNRECOVERABLE_CALL_MESSAGE =
+  "The local model returned a tool call that LiTT could not recover. Retry the request or use the deterministic Trademark Monitor mode.";
+
+/**
+ * Runs a reading of a reply. An argument a bound refuses (the limit of its text or the time of the
+ * reading) is not text that is not JSON: the reading ends with the error of a call that cannot be
+ * read, and no call of the reply is handed on, rather than one with arguments missing or retyped.
+ */
+function endOnRefusal<T>(read: () => T): T {
+  try {
+    return read();
+  } catch (error) {
+    if (isRepairRefusal(error)) throw new Error(UNRECOVERABLE_CALL_MESSAGE, { cause: error });
+    throw error;
+  }
 }
 
 /**
@@ -23,11 +43,11 @@ function repairToolJson(text: string): string {
  * is, whatever its size up to the shared bound (linear); only text that is not
  * is repaired, and only up to `TOOL_ARGUMENT_REPAIR_MAX_CHARS`.
  */
-function parseToolJson(text: string): unknown {
+function parseToolJson(text: string, budget: RepairBudget): unknown {
   try {
     return JSON.parse(assertBoundedText(text));
   } catch {
-    return JSON.parse(repairToolJson(text));
+    return JSON.parse(repairJson(text, { maxChars: TOOL_ARGUMENT_REPAIR_MAX_CHARS, maxMs: TOOL_ARGUMENT_REPAIR_REPLY_BUDGET_MS }, budget));
   }
 }
 
@@ -117,10 +137,17 @@ const TEXT_TOOL_MARKERS = [
   "<|dsml|invoke",
 ];
 
+const LONGEST_TEXT_TOOL_MARKER = Math.max(...TEXT_TOOL_MARKERS.map((marker) => marker.length));
+
 /** Suppress textual tool markup even when its opening marker spans chunks. */
 export class TextToolMarkupFilter {
   private buffer = "";
   private suppressing = false;
+
+  /** Whether a tool marker has been seen: what follows it is not shown. */
+  get suppressed(): boolean {
+    return this.suppressing;
+  }
 
   feed(text: string): string {
     if (this.suppressing || !text) return "";
@@ -140,10 +167,13 @@ export class TextToolMarkupFilter {
       return visible;
     }
 
+    // The held-back tail is a marker's beginning: it starts at one of the last
+    // "<" no more than a marker's length from the end, so earlier ones (their
+    // tails only get longer) are not looked at.
     for (
       let index = lower.lastIndexOf("<");
-      index >= 0;
-      index = lower.lastIndexOf("<", index - 1)
+      index >= 0 && lower.length - index <= LONGEST_TEXT_TOOL_MARKER;
+      index = index === 0 ? -1 : lower.lastIndexOf("<", index - 1)
     ) {
       const suffix = lower.slice(index);
       if (TEXT_TOOL_MARKERS.some((marker) => marker.startsWith(suffix))) {
@@ -192,21 +222,85 @@ export function deduplicateToolCalls(
   });
 }
 
+/**
+ * Whether the text holds anything that reads as a tool call. A key on a line of
+ * its own (`name:`) counts only when nothing but whitespace comes before it on
+ * that line; the whitespace before a key is looked at once per key, never as a
+ * run that starts again at every line break.
+ */
+function hasToolMarkup(text: string): boolean {
+  if (/<(?:tool_call|toolcall)\b|<\|tool_call(?:_start)?\|>|<function(?:=|\s+name=)/i.test(text)) return true;
+  const key = /(?:tool|function|name)\s*[:=]/gi;
+  for (let match = key.exec(text); match; match = key.exec(text)) {
+    let before = match.index - 1;
+    while (before >= 0 && /\s/.test(text[before])) {
+      if (text[before] === "\n") return true;
+      before--;
+    }
+    if (before < 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Each block that opens with `open` and ends at the first `close` after it
+ * (both global patterns, used from where the last block ended);
+ * an opening with no closing after it, and so every later one, is not a block.
+ * The closing is searched once from the end of each block, so the work
+ * follows the text, not the number of openings.
+ */
+function* blocksBetween(
+  text: string,
+  open: RegExp,
+  close: RegExp,
+): Generator<{ open: RegExpExecArray; inner: string }> {
+  const opening = open;
+  const closing = close;
+  for (let from = 0; from <= text.length; ) {
+    opening.lastIndex = from;
+    const start = opening.exec(text);
+    if (!start) return;
+    const innerStart = start.index + start[0].length;
+    closing.lastIndex = innerStart;
+    const end = closing.exec(text);
+    if (!end) return;
+    yield { open: start, inner: text.slice(innerStart, end.index) };
+    from = end.index + end[0].length;
+  }
+}
+
+/** Whether a reply is longer than the reader scans and holds the opening of a tool call. */
+export function isUnreadableToolCallReply(text: string): boolean {
+  if (text.length <= MODEL_TEXT_MAX_CHARS) return false;
+  const filter = new TextToolMarkupFilter();
+  filter.feed(text);
+  return filter.suppressed;
+}
+
+/**
+ * The calls a model wrote as text. A reply longer than `MODEL_TEXT_MAX_CHARS`
+ * (the bound that applies to model text everywhere else; a streamed reply may
+ * be larger than it) is not scanned and is plain text.
+ */
 export function parseTextToolCalls(
   text: string,
   iteration: number,
 ): NormalizedToolCall[] {
-  const dsmlCalls = parseDsmlToolCalls(text, iteration);
+  if (text.length > MODEL_TEXT_MAX_CHARS) return [];
+  return endOnRefusal(() => readTextToolCalls(text, iteration));
+}
+
+function readTextToolCalls(
+  text: string,
+  iteration: number,
+): NormalizedToolCall[] {
+  const budget = newRepairBudget();
+  const dsmlCalls = readDsmlToolCalls(text, iteration, budget);
   if (dsmlCalls.length) return deduplicateToolCalls(dsmlCalls);
-  if (
-    !/<(?:tool_call|toolcall)\b|<\|tool_call(?:_start)?\|>|<function(?:=|\s+name=)|(?:^|\n)\s*(?:tool|function|name)\s*[:=]/i.test(
-      text,
-    )
-  )
-    return [];
+  if (!hasToolMarkup(text)) return [];
   const bodies: string[] = [];
   const tagPattern =
-    /<(?:tool_call|toolcall)\b[^>]*>|<\|tool_call(?:_start)?\|>/gi;
+    /<(?:tool_call|toolcall)\b[^>]{0,200}>|<\|tool_call(?:_start)?\|>/gi;
   const openTags = [...text.matchAll(tagPattern)];
   for (const [index, openTag] of openTags.entries()) {
     const start = (openTag.index ?? 0) + openTag[0].length;
@@ -219,11 +313,11 @@ export function parseTextToolCalls(
   }
 
   const calls = bodies.flatMap((body, bodyIndex): NormalizedToolCall[] => {
-    const xmlStyleCall = parseXmlStyleToolCall(body, iteration, bodyIndex);
+    const xmlStyleCall = parseXmlStyleToolCall(body, iteration, bodyIndex, budget);
     if (xmlStyleCall) return [xmlStyleCall];
     try {
       const candidate = normalizeQwenToolMapSyntax(extractJsonCandidate(body));
-      const parsed = parseToolJson(candidate);
+      const parsed = parseToolJson(candidate, budget);
       const rows = Array.isArray(parsed) ? parsed : [parsed];
       const parsedCalls = rows.flatMap(
         (row, rowIndex): NormalizedToolCall[] => {
@@ -267,10 +361,14 @@ export function parseTextToolCalls(
           ];
         },
       );
-      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex);
-      return parsedCalls.length ? parsedCalls : looseCall ? [looseCall] : [];
+      if (parsedCalls.length) return parsedCalls;
+      // Read loosely only when the JSON holds no call: the reading is paid for from the budget.
+      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex, budget);
+      return looseCall ? [looseCall] : [];
     } catch (error) {
-      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex);
+      // A refused repair is not a body that holds no call: it ends the reading.
+      if (isRepairRefusal(error)) throw error;
+      const looseCall = parseLooseTextToolCall(body, iteration, bodyIndex, budget);
       if (looseCall) return [looseCall];
       if (process.env.DEBUG_LLM_TOOL_CALLS === "1") {
         console.error("[openai-compatible] unrecoverable textual tool call", {
@@ -278,9 +376,7 @@ export function parseTextToolCalls(
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      throw new Error(
-        "The local model returned a tool call that LiTT could not recover. Retry the request or use the deterministic Trademark Monitor mode.",
-      );
+      throw new Error(UNRECOVERABLE_CALL_MESSAGE);
     }
   });
   if (!calls.length) {
@@ -295,20 +391,36 @@ export function parseDsmlToolCalls(
   value: string,
   iteration: number,
 ): NormalizedToolCall[] {
+  return endOnRefusal(() => readDsmlToolCalls(value, iteration, newRepairBudget()));
+}
+
+function readDsmlToolCalls(
+  value: string,
+  iteration: number,
+  budget: RepairBudget,
+): NormalizedToolCall[] {
+  if (value.length > MODEL_TEXT_MAX_CHARS) return [];
   if (!/<[｜|]DSML[｜|]invoke\b/i.test(value)) return [];
   const calls: NormalizedToolCall[] = [];
-  const invokePattern =
-    /<[｜|]DSML[｜|]invoke\s+name=["']?([^>"'\s]+)["']?\s*>([\s\S]*?)<\/[｜|]DSML[｜|]invoke\s*>/gi;
-  for (const [index, invoke] of [...value.matchAll(invokePattern)].entries()) {
+  // A tool or parameter name is at most 200 characters, and so are the attributes of an opening tag.
+  const invokes = blocksBetween(
+    value,
+    /<[｜|]DSML[｜|]invoke\s+name=["']?([^>"'\s]{1,200})["']?\s*>/gi,
+    /<\/[｜|]DSML[｜|]invoke\s*>/gi,
+  );
+  for (const [index, invoke] of [...invokes].entries()) {
     const input: Record<string, unknown> = {};
-    const parameterPattern =
-      /<[｜|]DSML[｜|]parameter\s+name=["']?([^>"'\s]+)["']?(?:\s+[^>]*)?>([\s\S]*?)<\/[｜|]DSML[｜|]parameter\s*>/gi;
-    for (const parameter of invoke[2].matchAll(parameterPattern)) {
-      input[parameter[1]] = parseToolScalar(parameter[2]);
+    const parameters = blocksBetween(
+      invoke.inner,
+      /<[｜|]DSML[｜|]parameter\s+name=["']?([^>"'\s]{1,200})["']?(?:\s[^>]{0,200})?>/gi,
+      /<\/[｜|]DSML[｜|]parameter\s*>/gi,
+    );
+    for (const parameter of parameters) {
+      input[parameter.open[1]] = readToolScalar(parameter.inner, budget);
     }
     calls.push({
       id: `call_text_${iteration}_dsml_${index}`,
-      name: invoke[1].trim(),
+      name: invoke.open[1].trim(),
       input,
     });
   }
@@ -370,6 +482,7 @@ function parseLooseTextToolCall(
   value: string,
   iteration: number,
   bodyIndex: number,
+  budget: RepairBudget,
 ): NormalizedToolCall | null {
   const nameMatch = value.match(
     /(?:["']?name["']?|["']?(?:tool|function)["']?)\s*[:=]\s*["']?([^"'\s,}]+)["']?/i,
@@ -389,11 +502,13 @@ function parseLooseTextToolCall(
       extractJsonCandidate(candidate),
     );
     try {
-      const parsed = parseToolJson(repaired);
+      const parsed = parseToolJson(repaired, budget);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         Object.assign(input, parsed);
       }
-    } catch {
+    } catch (error) {
+      // A refusal by a bound is not an argument payload that is not JSON.
+      if (isRepairRefusal(error)) throw error;
       // A call with an unrecoverable argument payload is still returned so the
       // connector can provide its normal validation error instead of hiding the
       // model's tool name behind a generic parser failure.
@@ -410,15 +525,39 @@ function parseXmlStyleToolCall(
   value: string,
   iteration: number,
   bodyIndex: number,
+  budget: RepairBudget,
 ): NormalizedToolCall | null {
   const functionMatch = value.match(
-    /<function(?:=|\s+name=["'])([^>"'\s]+)["']?\s*>/i,
+    /<function(?:=|\s+name=["'])([^>"'\s]{1,200})["']?\s*>/i,
   );
   if (!functionMatch) return null;
   const input: Record<string, unknown> = {};
-  const fieldPattern = /<([a-zA-Z_][\w.-]*)>\s*([\s\S]*?)\s*<\/\1>/g;
-  for (const match of value.matchAll(fieldPattern)) {
-    input[match[1]] = parseToolScalar(match[2]);
+  // `<name>value</name>`: the closing tag must repeat the name, and the value
+  // ends at the first such closing after the opening. Every closing tag is
+  // found once, with its position kept under its name; the openings are
+  // visited from left to right, so each name's cursor only moves forward and
+  // an opening costs no search of its own.
+  const closings = new Map<string, number[]>();
+  const closingTag = /<\/([a-zA-Z_][\w.-]*)>/g;
+  for (let match = closingTag.exec(value); match; match = closingTag.exec(value)) {
+    const positions = closings.get(match[1]);
+    if (positions) positions.push(match.index);
+    else closings.set(match[1], [match.index]);
+  }
+  const cursors = new Map<string, number>();
+  const fieldOpen = /<([a-zA-Z_][\w.-]*)>/g;
+  for (let match = fieldOpen.exec(value); match; match = fieldOpen.exec(value)) {
+    const name = match[1];
+    const positions = closings.get(name);
+    if (!positions) continue;
+    const innerStart = match.index + match[0].length;
+    let cursor = cursors.get(name) ?? 0;
+    while (cursor < positions.length && positions[cursor] < innerStart) cursor++;
+    cursors.set(name, cursor);
+    if (cursor === positions.length) continue;
+    const closeAt = positions[cursor];
+    input[name] = readToolScalar(value.slice(innerStart, closeAt).trim(), budget);
+    fieldOpen.lastIndex = closeAt + name.length + 3;
   }
   return {
     id: `call_text_${iteration}_${bodyIndex}_xml`,
@@ -428,6 +567,10 @@ function parseXmlStyleToolCall(
 }
 
 export function parseToolScalar(value: string): unknown {
+  return endOnRefusal(() => readToolScalar(value, newRepairBudget()));
+}
+
+function readToolScalar(value: string, budget: RepairBudget): unknown {
   const trimmed = value.trim();
   if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(trimmed)) {
     const number = Number(trimmed);
@@ -438,8 +581,10 @@ export function parseToolScalar(value: string): unknown {
   if (/^(?:null|none)$/i.test(trimmed)) return null;
   if (/^[\[{]/.test(trimmed)) {
     try {
-      return parseToolJson(trimmed);
-    } catch {
+      return parseToolJson(trimmed, budget);
+    } catch (error) {
+      // A refusal by a bound is not a value that is not JSON.
+      if (isRepairRefusal(error)) throw error;
       // Preserve the original string when a nested value is not JSON-like.
     }
   }

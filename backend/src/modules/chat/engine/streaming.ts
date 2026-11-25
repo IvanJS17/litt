@@ -669,7 +669,7 @@ export async function runLLMStream(params: {
     const snapshot = ++citationSnapshotSeq;
     write(
       `data: ${JSON.stringify({ type: "citations", status, citations })}\n\n`,
-      { replay: () => snapshot === citationSnapshotSeq },
+      { replay: () => snapshot === citationSnapshotSeq, slot: "citations" },
     );
   };
 
@@ -850,6 +850,10 @@ export async function runLLMStream(params: {
         if (result.event) write(`data: ${JSON.stringify(result.event)}\n\n`);
         return result;
       });
+      // A rejection is delivered to whoever awaits the run; it is observed
+      // here so it can never go unhandled while the tool batch awaits other
+      // work, and the awaiting turn fails with it as usual.
+      run.catch(() => {});
       delegationRuns.set(call.id, run);
     }
     return run;
@@ -1110,6 +1114,7 @@ export async function runLLMStream(params: {
             ? delegateCalls.map((call) => startDelegation(call, delegateContext))
             : [],
         );
+        delegating.catch(() => {});
         const webResults = await Promise.all(
           webCalls.map((call) =>
             runWebToolCall(call, {
@@ -1397,6 +1402,7 @@ export async function runLLMStream(params: {
   citationSnapshotSeq += 1;
   write(
     `data: ${JSON.stringify({ type: "citations", status: "final", citations })}\n\n`,
+    { slot: "citations" },
   );
   if (!isSubagent && answerModel) {
     const details: AssistantEvent = {

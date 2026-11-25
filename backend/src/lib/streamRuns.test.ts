@@ -10,6 +10,7 @@ import {
     getActiveStreamRun,
     getStreamRun,
     resetStreamRunsForTests,
+    setRunByteLimitForTests,
     startStreamRun,
     stopOutcomeFrame,
 } from "./streamRuns";
@@ -309,6 +310,96 @@ describe("stream runs", () => {
         res.writableEnded = true;
         run.write("data: ignored\n\n");
         expect(res.chunks).toEqual([]);
+    });
+
+    describe("buffered output ceiling", () => {
+        it("stops a run whose buffered frames pass the ceiling and ends readers with one error then DONE", () => {
+            setRunByteLimitForTests(300);
+            const run = startStreamRun({
+                id: "run-big",
+                key: "chat:big",
+                userId: "u1",
+                forcedStopFrames,
+            })!;
+            const reader = fakeResponse();
+            attachStreamRunSse(reader as unknown as Response, run);
+
+            expect(run.write("x".repeat(60))).toBe(true);
+            expect(run.write("y".repeat(60))).toBe(false);
+
+            expect(run.signal.aborted).toBe(true);
+            expect(run.stopReason).toBe("output_limit");
+            // Later writes from the unwinding route are dropped, not buffered.
+            expect(run.write("Q".repeat(500))).toBe(false);
+            const late = fakeResponse();
+            run.subscribe(1, { write: (c) => late.write(c), end: () => late.end() });
+            const text = late.chunks.join("");
+            expect(text).not.toContain("x".repeat(60));
+            expect(text).not.toContain("QQ");
+            expect(text).toContain('"type":"error"');
+            expect(text).toContain("[DONE]");
+            expect(reader.chunks.join("")).toContain('"type":"error"');
+        });
+
+        it("stops a run at the real ceiling, about 32 MiB of frames", () => {
+            const run = startStreamRun({ id: "run-real", key: "chat:real", userId: "u1", forcedStopFrames })!;
+            const line = `data: ${"x".repeat(1024 * 1024)}\n\n`;
+            let accepted = 0;
+            while (accepted < 100 && run.write(line)) accepted += 1;
+            expect(accepted).toBeGreaterThan(20);
+            expect(accepted).toBeLessThan(33);
+            expect(run.stopReason).toBe("output_limit");
+        });
+
+        it("counts what a frame occupies in memory, so many tiny frames stop early", () => {
+            setRunByteLimitForTests(4_000);
+            const run = startStreamRun({ id: "run-tiny", key: "chat:tiny", userId: "u1", forcedStopFrames })!;
+            let accepted = 0;
+            while (run.write("data: x\n\n") && accepted < 4_000) accepted += 1;
+            // 4,000 bytes of ten-byte lines would otherwise admit about 400 frames.
+            expect(accepted).toBeLessThan(40);
+            expect(run.stopReason).toBe("output_limit");
+        });
+
+        it("keeps only the latest frame of a slot: superseded ones neither count nor replay", () => {
+            setRunByteLimitForTests(1_000);
+            const run = startStreamRun({ id: "run-slot", key: "chat:slot", userId: "u1", forcedStopFrames })!;
+            const live: string[] = [];
+            run.subscribe(1, { write: (c) => live.push(c), end: () => {} });
+            for (let i = 1; i <= 50; i += 1) {
+                expect(run.write(`data: snapshot-${i}\n\n`, { slot: "snapshot" })).toBe(true);
+            }
+            expect(run.stopReason).toBeNull();
+            // Everyone attached when each was written still receives every one.
+            expect(live).toHaveLength(50);
+            const late = fakeResponse();
+            run.subscribe(1, { write: (c) => late.write(c), end: () => late.end() });
+            expect(late.chunks.join("")).toContain("snapshot-50");
+            expect(late.chunks.join("")).not.toContain("snapshot-49");
+        });
+    });
+
+    describe("live runs per person", () => {
+        const start = (n: number, userId = "u1") =>
+            startStreamRun({ id: `run-${userId}-${n}`, key: `chat:${userId}-${n}`, userId, forcedStopFrames });
+
+        it("refuses a ninth unfinished run of one person with a stable code, and no other person's", () => {
+            for (let n = 1; n <= 8; n += 1) expect(start(n)).not.toBeNull();
+            expect(() => start(9)).toThrowError(expect.objectContaining({ code: "rate_limited", status: 429 }));
+            expect(start(1, "u2")).not.toBeNull();
+        });
+
+        it("frees a place when a run finishes, and a finished run kept for reconnects takes none", () => {
+            const runs = Array.from({ length: 8 }, (_, i) => start(i + 1)!);
+            runs[0].finish();
+            expect(start(9)).not.toBeNull();
+            expect(() => start(10)).toThrow();
+        });
+
+        it("still answers null, not a refusal, for a second run under one key", () => {
+            expect(start(1)).not.toBeNull();
+            expect(startStreamRun({ id: "other", key: "chat:u1-1", userId: "u1", forcedStopFrames })).toBeNull();
+        });
     });
 
     describe("deadlines", () => {

@@ -1,6 +1,7 @@
 import { once } from "node:events";
 import type { ServerResponse } from "node:http";
 import { Readable } from "node:stream";
+import { onResponseClosed, responseClosed } from "./responseClosed";
 
 /**
  * Stream `source` into an HTTP response; one call per response.
@@ -9,11 +10,14 @@ import { Readable } from "node:stream";
  * Express and its middleware already put 4 on every response, so each
  * streamed download went one over Node's default limit of 10 and raised a
  * MaxListenersExceededWarning. This adds one 'close'
- * listener and keeps what the routes relied on from `pipeline`:
+ * listener to the response (its connection carries one for all its
+ * responses) and keeps what the routes relied on from `pipeline`:
  *
  * - backpressure: a slow client pauses the read from object storage;
  * - a client that disconnects destroys `source` and rejects, whether the
- *   helper is waiting on the socket to drain or on a stalled source;
+ *   helper is waiting on the socket to drain or on a stalled source, and
+ *   also when it had disconnected before this was called or while the
+ *   response was waiting behind an earlier one on its connection;
  * - a `source` error rejects. If bytes are already on the wire the response
  *   is destroyed, so the client sees a broken download rather than a short
  *   one that looks complete. If nothing was sent, the response is left
@@ -33,6 +37,11 @@ export async function pipeToResponse(
     // wrap() does not forward destroy to the legacy stream it reads from.
     if (wrapped) source.destroy();
   };
+  // A response that closed before this call will not emit 'close' again.
+  if (responseClosed(res)) {
+    destroySource();
+    throw prematureClose();
+  }
   const closed = new AbortController();
   const onClose = () => {
     // The 'close' after 'finish' is a completed response, not a disconnect.
@@ -43,7 +52,7 @@ export async function pipeToResponse(
     // the helper and the storage read would stay pending indefinitely.
     destroySource();
   };
-  res.once("close", onClose);
+  const stopWaiting = onResponseClosed(res, onClose);
   try {
     for await (const chunk of chunks) {
       if (closed.signal.aborted) break;
@@ -61,7 +70,7 @@ export async function pipeToResponse(
     if (res.headersSent && !res.writableFinished) res.destroy();
     throw closed.signal.aborted ? prematureClose() : error;
   } finally {
-    res.off("close", onClose);
+    stopWaiting();
   }
 }
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Readable } from "node:stream";
 import type { Db } from "../../lib/supabase";
 import type { AuditEventInput } from "../../lib/audit";
 
@@ -146,6 +147,12 @@ vi.mock("../../lib/storage", async (importOriginal) => ({
     listFiles: (prefix: string) => listFiles(prefix),
     downloadFile: (...a: unknown[]) => downloadFile(...a),
     downloadFileIfAvailable: (...a: unknown[]) => downloadFile(...a),
+    // The queued ZIP export reads each object as a stream and uploads the
+    // finished archive from a file; both are recorded as the same calls.
+    headFile: async () => ({ size: 3, etag: null, contentType: null }),
+    openFileStream: async () => Readable.from([new Uint8Array([1, 2, 3])]),
+    uploadFileFromPath: (key: string, _path: string, contentType: string) =>
+        uploadFile(key, new ArrayBuffer(0), contentType),
 }));
 
 import { ACCOUNT_DELETION_RECEIPT } from "../../application/jobs/accountDelete";

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setStorageAdapter } from "../../../lib/storage";
 import type { DbJob } from "../../../lib/dbq/types";
 import { memoryDb, type Row } from "../../../__tests__/helpers/memoryDb";
+import { createExportStorageFake } from "../../exports/__tests__/exportStorageFake";
 
 vi.mock("../../../lib/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/access")>()),
@@ -15,8 +16,7 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
 import { handleExportBuild } from "../exportBuild";
 
 const HASH = "a".repeat(64);
-const download = vi.fn<(key: string) => Promise<ArrayBuffer | null>>();
-const upload = vi.fn<(key: string, bytes: ArrayBuffer, contentType: string) => Promise<void>>();
+let fake = createExportStorageFake(() => new Uint8Array([1, 2, 3]));
 const job: DbJob = {
   id: "export-1", kind: "export.build",
   payload: { userId: "u1", type: "documents-zip", document_ids: ["d1", "d2"] },
@@ -45,15 +45,14 @@ beforeEach(() => {
     ],
     training_version_approvals: [],
   };
-  download.mockReset().mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
-  upload.mockReset().mockResolvedValue(undefined);
-  setStorageAdapter({ enabled: true, configurationHint: "test", downloadFile: download, uploadFile: upload } as never);
+  fake = createExportStorageFake(() => new Uint8Array([1, 2, 3]));
+  setStorageAdapter(fake.adapter());
 });
 
 async function exportedZip() {
   await handleExportBuild(memoryDb(tables).db, job);
-  expect(upload).toHaveBeenCalledOnce();
-  return JSZip.loadAsync(upload.mock.calls[0]![1]);
+  expect(fake.uploads).toHaveLength(1);
+  return JSZip.loadAsync(fake.uploads[0]!.bytes);
 }
 
 describe("documents-zip export of a pasante's draft", () => {
@@ -62,8 +61,7 @@ describe("documents-zip export of a pasante's draft", () => {
     expect(Object.keys(zip.files).sort()).toEqual(["Contrato.docx", "OMITIDOS.txt"]);
     const list = await zip.file("OMITIDOS.txt")!.async("string");
     expect(list).toContain("- Demanda borrador.docx: borrador de pasante pendiente de aprobación.");
-    expect(download).toHaveBeenCalledTimes(1);
-    expect(download).toHaveBeenCalledWith("d1.docx");
+    expect(fake.opened).toEqual(["d1.docx"]);
   });
 
   it("includes the draft approved for its current bytes", async () => {
@@ -83,7 +81,7 @@ describe("documents-zip export of a pasante's draft", () => {
     tables.document_versions[0].training_stage = "pasante";
     const zip = await exportedZip();
     expect(Object.keys(zip.files)).toEqual(["OMITIDOS.txt"]);
-    expect(download).not.toHaveBeenCalled();
+    expect(fake.opened).toEqual([]);
   });
 });
 

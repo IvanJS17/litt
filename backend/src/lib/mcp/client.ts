@@ -524,7 +524,90 @@ type GuardedFetchOptions = {
      * callers that treat a redirect as a failure (client metadata documents).
      */
     followRedirects?: boolean;
+    /**
+     * Fail a read of the response body once it has produced more than this
+     * many DECODED bytes, however small the compressed answer was. A function
+     * decides from the response itself (a streamed answer may be left unlimited).
+     */
+    maxResponseBytes?: number | ((response: Response) => number | undefined);
+    /** Told when a read passes the limit, as it happens (a stream nobody is waiting on still ends there). */
+    onResponseTooLarge?: (error: ResponseTooLargeError) => void;
+    /**
+     * Also fail a read once this many bytes arrive without a newline (an
+     * event line that never ends). Applies only where `maxResponseBytes`
+     * limits the response.
+     */
+    maxLineBytes?: number;
+    /** The error a read that passes a limit fails with, instead of `ResponseTooLargeError`. */
+    tooLargeError?: () => Error;
 };
+
+/** A remote server's answer went past the decoded-size limit. */
+export class ResponseTooLargeError extends Error {
+    constructor(maxBytes: number) {
+        super(
+            `The remote server's response was larger than ${
+                maxBytes % (1024 * 1024) === 0 ? `${maxBytes / (1024 * 1024)} MiB` : `${maxBytes} bytes`
+            }.`,
+        );
+        this.name = "ResponseTooLargeError";
+    }
+}
+
+/**
+ * Decoded-size ceiling for what a user-chosen MCP or OAuth server may answer
+ * with. Tool lists, tool results and OAuth metadata are kilobytes; this is
+ * well above the largest of them and far below the process's memory.
+ */
+export const MAX_MCP_RESPONSE_BYTES = 8 * 1024 * 1024;
+
+function capResponseBody(
+    response: Response,
+    maxBytes: number,
+    onTooLarge?: (error: ResponseTooLargeError) => void,
+    maxLineBytes?: number,
+    tooLargeError?: () => Error,
+): Response {
+    if (!response.body) return response;
+    let total = 0;
+    let line = 0;
+    const capped = response.body.pipeThrough(
+        new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, controller) {
+                total += chunk.byteLength;
+                if (maxLineBytes !== undefined) {
+                    // Bytes since the last newline, across chunk boundaries.
+                    let start = 0;
+                    let newline = chunk.indexOf(10);
+                    while (newline !== -1) {
+                        line += newline - start;
+                        if (line > maxLineBytes) break;
+                        line = 0;
+                        start = newline + 1;
+                        newline = chunk.indexOf(10, start);
+                    }
+                    if (newline === -1) line += chunk.byteLength - start;
+                }
+                if (total > maxBytes || (maxLineBytes !== undefined && line > maxLineBytes)) {
+                    const error = new ResponseTooLargeError(maxBytes);
+                    onTooLarge?.(error);
+                    controller.error(tooLargeError?.() ?? error);
+                    return;
+                }
+                controller.enqueue(chunk);
+            },
+        }),
+    );
+    // The size and coding headers describe the wire form, not these bytes.
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    headers.delete("content-encoding");
+    return new Response(capped, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+    });
+}
 
 export async function guardedFetch(
     input: Parameters<typeof fetch>[0],
@@ -533,10 +616,23 @@ export async function guardedFetch(
 ): Promise<Response> {
     const label = options.label ?? DEFAULT_GUARD_LABEL;
     try {
-        return await guardedFetchUnlabelled(input, init, {
+        const response = await guardedFetchUnlabelled(input, init, {
             ...options,
             label,
         });
+        const limit =
+            typeof options.maxResponseBytes === "function"
+                ? options.maxResponseBytes(response)
+                : options.maxResponseBytes;
+        return limit === undefined
+            ? response
+            : capResponseBody(
+                  response,
+                  limit,
+                  options.onResponseTooLarge,
+                  options.maxLineBytes,
+                  options.tooLargeError,
+              );
     } catch (error) {
         // A connect-time rejection surfaces from undici as "fetch failed"
         // with the shared agent's caller-neutral error as its cause.

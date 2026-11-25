@@ -4,6 +4,7 @@ import type { Server } from "node:http";
 import { Worker as ThreadWorker } from "node:worker_threads";
 import path from "node:path";
 import { app } from "./app";
+import { removeStaleExportDirectories } from "./application/exports/exportTempFiles";
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
@@ -123,6 +124,16 @@ function spawnWorkerThread(role: WorkerRole): void {
   });
 }
 
+/** Removes what a process that died mid-export left behind; never blocks start-up. */
+async function sweepAbandonedExports(): Promise<void> {
+  try {
+    const removed = await removeStaleExportDirectories();
+    if (removed.length) console.log(`[exports] removed ${removed.length} abandoned archive folder(s)`);
+  } catch (error) {
+    console.warn("[exports] could not clean up abandoned archive folders", error);
+  }
+}
+
 let server: Server | null = null;
 
 async function main(): Promise<void> {
@@ -136,6 +147,9 @@ async function main(): Promise<void> {
   // provably absent and only warns when the answer is unavailable, so the
   // cost of gating is one round trip of boot latency, never a crash loop.
   await enforceDocumentLifecycleMigration();
+  // Archives a process that died mid-export left in the temporary folder. Only
+  // a process that runs background work builds exports.
+  if (WORKERS_MODE !== "none") void sweepAbandonedExports();
 
   server = listenOrFail(
     app,

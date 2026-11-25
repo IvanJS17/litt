@@ -26,6 +26,8 @@ import {
   type ProviderKeySource,
 } from "./providerErrors";
 import { createRawLlmStreamRecorder, logRawLlmStream } from "./rawStreamLog";
+import { deadlineMessage, runByteLimit } from "../streamRuns";
+import { UserFacingError } from "../userFacingError";
 
 installProviderWarningLogger();
 
@@ -567,6 +569,16 @@ export async function streamAiSdk(
   let fullText = "";
   let iteration = 0;
   const openReasoningBlocks = new Set<string>();
+  // Everything the model sends in this call (answer, reasoning and streamed
+  // tool arguments) counts against the run ceiling, whether or not the engine
+  // turns it into frames, and the provider request is cut off past it.
+  let producedBytes = 0;
+  const countProduced = (text: string) => {
+    producedBytes += Buffer.byteLength(text);
+    if (producedBytes <= runByteLimit()) return;
+    internalAbort.abort();
+    throw new UserFacingError(deadlineMessage("output_limit"));
+  };
   const maxIterations = params.maxIterations ?? DEFAULT_MAX_ITERATIONS;
   let lastFinishReason: string | undefined;
   let lastRawFinishReason: string | undefined;
@@ -638,6 +650,7 @@ export async function streamAiSdk(
           });
           break;
         case "text-delta":
+          countProduced(part.text);
           fullText += part.text;
           params.callbacks?.onContentDelta?.(part.text);
           break;
@@ -645,8 +658,12 @@ export async function streamAiSdk(
           openReasoningBlocks.add(part.id);
           break;
         case "reasoning-delta":
+          countProduced(part.text);
           openReasoningBlocks.add(part.id);
           params.callbacks?.onReasoningDelta?.(part.text);
+          break;
+        case "tool-input-delta":
+          countProduced(part.delta);
           break;
         case "reasoning-end":
           if (openReasoningBlocks.delete(part.id)) {
@@ -746,7 +763,10 @@ export async function streamAiSdk(
           runToolsFailure.first ??= { error: part.error };
           throw guardAbortShaped(rethrowable(part.error, config.label));
         case "error":
-          throw guardAbortShaped(toProviderStreamError(part.error, config));
+          throw guardAbortShaped(
+            outputLimitRefusal(part.error) ??
+              toProviderStreamError(part.error, config),
+          );
         case "abort": {
           const stalled = params.abortSignal?.aborted
             ? null
@@ -787,12 +807,26 @@ export async function streamAiSdk(
     // Tool failures (including pauses) retain their original identity.
     const fatal = runToolsFailure.first
       ? guardAbortShaped(rethrowable(runToolsFailure.first.error, config.label))
-      : guardAbortShaped(toProviderStreamError(error, config));
+      : guardAbortShaped(
+          outputLimitRefusal(error) ?? toProviderStreamError(error, config),
+        );
     await rawStreamRecorder?.flush("error", fatal);
     throw fatal;
   } finally {
     params.abortSignal?.removeEventListener("abort", forwardAbort);
   }
+}
+
+/**
+ * The output-limit refusal a provider's fetch raised while its answer was
+ * being read, whether the SDK passed it on or wrapped it in its own error.
+ */
+function outputLimitRefusal(error: unknown): UserFacingError | undefined {
+  const message = deadlineMessage("output_limit");
+  for (let depth = 0, e = error; e instanceof Error && depth < 5; depth += 1, e = e.cause) {
+    if (e instanceof UserFacingError && e.message === message) return e;
+  }
+  return undefined;
 }
 
 export async function completeAiSdkText(
@@ -834,7 +868,11 @@ export async function completeAiSdkText(
   } catch (error) {
     // The provider's own error, unconverted (callers classify it), with
     // whose key was sent recorded on it for the reporting level.
-    throw withKeySource(error, config.keySource, config.provider);
+    throw withKeySource(
+      outputLimitRefusal(error) ?? error,
+      config.keySource,
+      config.provider,
+    );
   }
   if (params.onUsage) {
     // Recording usage never changes the answer: a callback that throws is ignored.
