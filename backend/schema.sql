@@ -299,17 +299,16 @@ begin
   -- An invitation is an offer to whoever held the address when it was made.
   -- An existing account that takes an address does not answer the invitations
   -- still pending for it: they are withdrawn (the firm can invite again).
-  -- Answered and expired invitations are left as they are.
+  -- Every pending invitation goes, one past its date included: sending it
+  -- again gives it a new date. Answered invitations are left as they are.
   if new_email <> '' then
     update public.org_invitations
        set status = 'cancelled', cancelled_at = now()
      where email = new_email
-       and status = 'pending'
-       and expires_at > now();
+       and status = 'pending';
     delete from public.platform_invitations
      where email = new_email
-       and status = 'pending'
-       and expires_at > now();
+       and status = 'pending';
   end if;
 
   if old_email = '' then
@@ -322,12 +321,10 @@ begin
   update public.org_invitations
      set status = 'cancelled', cancelled_at = now()
    where email = old_email
-     and status = 'pending'
-     and expires_at > now();
+     and status = 'pending';
   delete from public.platform_invitations
    where email = old_email
-     and status = 'pending'
-     and expires_at > now();
+     and status = 'pending';
 
   -- Direct grants are keyed by normalized email, so they belong to whoever
   -- holds that address. When this account's address changes, its grants

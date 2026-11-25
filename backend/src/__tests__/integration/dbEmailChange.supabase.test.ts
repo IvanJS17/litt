@@ -11,9 +11,10 @@ import { resolvePlaybookRoles } from "../../modules/playbooks/playbooks.access";
 // auth.users shows it. Gated like dbJobs.supabase.test.ts: run a local stack,
 // then export
 //   SUPABASE_TEST_URL, SUPABASE_TEST_SERVICE_ROLE_KEY
-// The identity service has no call that clears an address, so the cleared-address
-// branch is exercised by the local database proof only. Every test creates its own accounts, firm and playbooks with random
-// addresses and removes them afterwards.
+// The identity service has no call that clears an address and accepts none
+// with surrounding spaces, so those branches are not exercised here. Every test
+// creates its own accounts, firm and playbooks with random addresses and
+// removes them afterwards.
 const url = process.env.SUPABASE_TEST_URL;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY;
 const maybeDescribe = url && serviceKey ? describe : describe.skip;
@@ -136,8 +137,8 @@ maybeDescribe("address change: invitations and playbook shares", () => {
 
         expect(await orgInviteStatuses(oldAddress)).toEqual(["accepted", "cancelled"]);
         expect(await platformInviteStatuses(oldAddress)).toEqual([]);
-        // An invitation that had already expired is left as it is.
-        expect(await orgInviteStatuses(expired)).toEqual(["pending"]);
+        // One past its date goes too: sending it again would give it a new date.
+        expect(await orgInviteStatuses(expired)).toEqual(["cancelled"]);
         // Nothing is left for whoever registers the old address next.
         expect(await canSignUp(db, oldAddress)).toBe(false);
         const nextHolder = await listMyInvitations(db, { userEmail: oldAddress });
@@ -152,7 +153,10 @@ maybeDescribe("address change: invitations and playbook shares", () => {
         const moved = await makePlaybook(creator);
         const oldStronger = await makePlaybook(creator);
         const newStronger = await makePlaybook(creator);
+        const editorOverViewer = await makePlaybook(creator);
         await share(moved, oldAddress, "editor");
+        await share(editorOverViewer, oldAddress, "editor");
+        await share(editorOverViewer, newAddress, "viewer");
         await share(oldStronger, oldAddress, "owner");
         await share(oldStronger, newAddress, "viewer");
         await share(newStronger, oldAddress, "viewer");
@@ -163,6 +167,7 @@ maybeDescribe("address change: invitations and playbook shares", () => {
         expect(await sharesOf(moved)).toEqual([{ shared_with_email: newAddress, role: "editor" }]);
         expect(await sharesOf(oldStronger)).toEqual([{ shared_with_email: newAddress, role: "owner" }]);
         expect(await sharesOf(newStronger)).toEqual([{ shared_with_email: newAddress, role: "owner" }]);
+        expect(await sharesOf(editorOverViewer)).toEqual([{ shared_with_email: newAddress, role: "editor" }]);
 
         // Through the application's own lookup: the person keeps the share, a
         // second account confirmed on the old address gets nothing.
@@ -199,7 +204,10 @@ maybeDescribe("address change: invitations and playbook shares", () => {
         expect(mine).toEqual({ ok: true, invitations: [] });
     });
 
-    it("leaves everything alone when the address changes only in case or surrounding spaces", async () => {
+    // The identity service may put the address in lower case before the row is
+    // written, in which case the function does not run at all; either way a
+    // change of case alone must leave everything where it is.
+    it("leaves everything alone when the address changes only in case", async () => {
         const base = address("same");
         const person = await makeUser(base);
         const org = await makeOrg(person);
@@ -209,7 +217,7 @@ maybeDescribe("address change: invitations and playbook shares", () => {
         await platformInvite(base);
         await share(playbook, base, "editor");
 
-        await changeAddress(person, ` ${base.toUpperCase()} `);
+        await changeAddress(person, base.toUpperCase());
 
         expect(await orgInviteStatuses(base)).toEqual(["pending"]);
         expect(await platformInviteStatuses(base)).toEqual(["pending"]);
