@@ -66,7 +66,7 @@ import { tableDb } from "../../../__tests__/helpers/tableDb";
 import { syntheticPdf } from "../../../lib/__tests__/pdfFixtures";
 import type { Db } from "../../../lib/supabase";
 import { handleStorageCleanup } from "../../../lib/dbq/storageCleanup";
-import { processUploadJob, UPLOAD_JOB_LEASE_SECONDS, UPLOAD_JOB_MAX_ATTEMPTS } from "../uploads.processing";
+import { cleanupUploadSessions, processUploadJob, UPLOAD_JOB_LEASE_SECONDS, UPLOAD_JOB_MAX_ATTEMPTS } from "../uploads.processing";
 import { completeUploadSessionFile, refreshUploadUrls } from "../uploads.sessions";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -418,7 +418,7 @@ describe("a refusal decided while an earlier attempt of the job is still finishi
 
 describe("an attempt that no longer holds its job", () => {
   it.each(["create", "newVersion", "replace"])(
-    "stores nothing and cleans nothing when the job was taken during the copy (%s)",
+    "stores nothing and queues no cleanup when the job was taken during the copy (%s)",
     async (kindKey) => {
       const w = world();
       versionRpc(w);
@@ -439,6 +439,51 @@ describe("an attempt that no longer holds its job", () => {
       expect(w.tables.upload_session_files[0].status).toBe("processing");
     },
   );
+
+  it.each(["create", "newVersion", "replace"])(
+    "stores nothing when the job is taken after its last check began (%s)",
+    async (kindKey) => {
+      const w = world();
+      versionRpc(w);
+      openSession(w, KINDS[kindKey]);
+      claim(w, 1);
+      // The attempt is stuck in its second destination check, which started
+      // while it still held the job; the job is taken meanwhile.
+      const getUserById = (w.db as any).auth.admin.getUserById;
+      let asked = 0;
+      (w.db as any).auth.admin.getUserById = async (...args: unknown[]) => {
+        if (++asked === 2) stealLease(w);
+        return getUserById(...args);
+      };
+
+      await expect(processUploadJob(w.db, "job-1", "w1")).rejects.toThrow();
+
+      expect(asked).toBe(2);
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled();
+      expect(mocks.updateDocumentVersion).not.toHaveBeenCalled();
+      expect(mocks.copyFile).toHaveBeenCalledTimes(1);
+      expect(w.tables.db_jobs).toEqual([]);
+      expect(mocks.deleteFile).not.toHaveBeenCalled();
+    },
+  );
+
+  it("finishes an upload that is slow but still holds its job", async () => {
+    const w = world();
+    versionRpc(w);
+    openSession(w, KINDS.newVersion);
+    claim(w, 1);
+    mocks.copyFile.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      return { size: pdfBytes.length, etag: "e" };
+    });
+
+    await processUploadJob(w.db, "job-1", "w1");
+
+    expect(mocks.createDocumentVersion).toHaveBeenCalledTimes(1);
+    expect(w.tables.upload_session_files[0].status).toBe("completed");
+    expect(w.tables.db_jobs).toEqual([]);
+    expect(mocks.deleteFile.mock.calls.map((c) => c[0])).toEqual(["sealed/c1"]);
+  });
 
   it.each(["create", "newVersion", "replace"])(
     "does not copy anything when the job was taken before the copy (%s)",
@@ -624,4 +669,202 @@ describe("the cleanup of a failed created document", () => {
 
     expect(statusWhenVersionWritten).toBe("processing");
   });
+
+  describe("a session opened by the previous release (workflow_reference_create)", () => {
+    const legacy: Kind = {
+      purpose: "workflow_reference_create", destination: { workflow_id: WORKFLOW }, resource: RESOURCE,
+    };
+    const rowOf = (w: World) => w.tables.documents.find((d) => d.id === RESOURCE);
+
+    it("moves its document out of processing when the job fails, then removes it with its bytes on the last attempt", async () => {
+      const w = world();
+      openSession(w, legacy);
+      claim(w, 1);
+      failVersion();
+
+      await processUploadJob(w.db, "job-1", "w1");
+      expect(w.tables.upload_processing_jobs[0].status).toBe("queued");
+      expect(rowOf(w)?.status).toBe("error");
+
+      reclaim(w, UPLOAD_JOB_MAX_ATTEMPTS);
+      await processUploadJob(w.db, "job-1", "w1");
+
+      expect(rowOf(w)).toBeUndefined();
+      expect(mocks.deleteFile.mock.calls.map((c) => c[0] as string).some((key) => key.includes(RESOURCE))).toBe(true);
+    });
+
+    it("leaves no document row behind when it is refused after the row was written", async () => {
+      const w = world();
+      openSession(w, legacy);
+      claim(w, 1);
+      // The owner leaves while the file is copied: the second check refuses.
+      mocks.copyFile.mockImplementation(async () => {
+        removeFromOrg(w.tables);
+        return { size: pdfBytes.length, etag: "e" };
+      });
+
+      await processUploadJob(w.db, "job-1", "w1");
+
+      expect(w.tables.upload_session_files[0]).toMatchObject({ status: "error", error_code: "destination_unavailable" });
+      expect(rowOf(w)).toBeUndefined();
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("a cleanup is queued only by the attempt that ends the job", () => {
+  const failVersion = () =>
+    mocks.createDocumentVersion.mockImplementation(async () => ({ data: null, error: new Error("transient failure") }));
+  const failUpdate = () =>
+    mocks.updateDocumentVersion.mockImplementation(async () => ({ data: null, error: new Error("transient failure") }));
+  const failStore = () => {
+    failVersion();
+    failUpdate();
+  };
+  const cleanupJobs = (w: World) => w.tables.db_jobs.filter((row) => row.kind === "storage.cleanup");
+  const storedOf = (w: World, kindKey: string) => {
+    const documentId = kindKey === "create" ? RESOURCE : DOCUMENT;
+    const document = w.tables.documents.find((d) => d.id === documentId);
+    return w.tables.document_versions.find((v) => v.id === document?.current_version_id);
+  };
+
+  it.each(["create", "newVersion", "replace"])(
+    "keeps the bytes the holder stores when the loser's turn ended earlier and a cleanup runs between its copy and its store (%s)",
+    async (kindKey) => {
+      const w = world();
+      versionRpc(w);
+      openSession(w, KINDS[kindKey]);
+      claim(w, 1);
+      // Attempt 1 loses the job during its copy.
+      mocks.copyFile.mockImplementationOnce(async () => {
+        stealLease(w);
+        return { size: pdfBytes.length, etag: "e" };
+      });
+      await expect(processUploadJob(w.db, "job-1", "w1")).rejects.toThrow("upload_job_lease_lost");
+
+      // Attempt 2 holds the job: any cleanup due now runs after its copy and
+      // before it stores its version.
+      mocks.deleteFile.mockClear();
+      mocks.copyFile.mockImplementationOnce(async () => {
+        await runCleanupJobs(w);
+        return { size: pdfBytes.length, etag: "e" };
+      });
+      await processUploadJob(w.db, "job-1", "w2");
+
+      expect(w.tables.upload_session_files[0].status).toBe("completed");
+      const stored = storedOf(w, kindKey);
+      expect(stored, "the version was stored").toBeDefined();
+      const deleted = mocks.deleteFile.mock.calls.map((c) => c[0]);
+      expect(deleted).not.toContain(stored?.storage_path);
+      expect(deleted).not.toContain(stored?.pdf_storage_path);
+      // The uploaded source is released only after the version is stored.
+      expect(deleted).toEqual(["sealed/c1"]);
+    },
+  );
+
+  it.each(["create", "newVersion", "replace"])(
+    "queues the job's copies once when its last attempt fails after an earlier attempt copied (%s)",
+    async (kindKey) => {
+      const w = world();
+      versionRpc(w);
+      openSession(w, KINDS[kindKey]);
+      claim(w, 1);
+      failStore();
+      await processUploadJob(w.db, "job-1", "w1");
+      expect(w.tables.upload_processing_jobs[0].status).toBe("queued");
+      expect(cleanupJobs(w), "a job that goes on queues nothing").toEqual([]);
+      const copied = mocks.copyFile.mock.calls.map((c) => c[1] as string);
+
+      reclaim(w, UPLOAD_JOB_MAX_ATTEMPTS);
+      await processUploadJob(w.db, "job-1", "w1");
+
+      expect(w.tables.upload_processing_jobs[0].status).toBe("completed");
+      const queued = cleanupJobs(w);
+      expect(queued).toHaveLength(1);
+      expect(queued[0].payload).toMatchObject({ unlessUsedByVersion: true });
+      expect((queued[0].payload as { keys: string[] }).keys).toEqual(expect.arrayContaining(copied));
+
+      mocks.deleteFile.mockClear();
+      await runCleanupJobs(w);
+      expect(mocks.deleteFile.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(copied));
+    },
+  );
+
+  it.each(["create", "newVersion", "replace"])(
+    "queues the job's copies once when the sweep retires a job whose attempts are spent (%s)",
+    async (kindKey) => {
+      const w = world();
+      versionRpc(w);
+      openSession(w, KINDS[kindKey]);
+      claim(w, 1);
+      failStore();
+      await processUploadJob(w.db, "job-1", "w1");
+      const copied = mocks.copyFile.mock.calls.map((c) => c[1] as string);
+
+      // The last attempt's worker is gone: its lease is stale and no attempt is left.
+      Object.assign(w.tables.upload_processing_jobs[0], {
+        status: "running", locked_by: "gone", attempts: UPLOAD_JOB_MAX_ATTEMPTS,
+        locked_at: new Date(Date.now() - (UPLOAD_JOB_LEASE_SECONDS + 60) * 1000).toISOString(),
+      });
+      // The table fake has no `>=`; attempts are whole numbers.
+      const base = w.db.from.bind(w.db);
+      (w.db as any).from = (t: string) => {
+        const b = base(t) as any;
+        b.gte ??= (column: string, value: number) => b.gt(column, value - 1);
+        return b;
+      };
+      await cleanupUploadSessions(w.db);
+      await cleanupUploadSessions(w.db);
+
+      expect(w.tables.upload_processing_jobs[0].status).toBe("error");
+      const queued = cleanupJobs(w);
+      expect(queued).toHaveLength(1);
+      expect((queued[0].payload as { keys: string[] }).keys).toEqual(expect.arrayContaining(copied));
+    },
+  );
+
+  it.each(["create", "newVersion", "replace"])(
+    "queues nothing and deletes nothing when a later attempt succeeds (%s)",
+    async (kindKey) => {
+      const w = world();
+      versionRpc(w);
+      openSession(w, KINDS[kindKey]);
+      claim(w, 1);
+      (kindKey === "replace" ? mocks.updateDocumentVersion : mocks.createDocumentVersion)
+        .mockRejectedValueOnce(new Error("transient failure"));
+      await processUploadJob(w.db, "job-1", "w1");
+      expect(w.tables.upload_processing_jobs[0].status).toBe("queued");
+
+      mocks.deleteFile.mockClear();
+      reclaim(w, 2);
+      await processUploadJob(w.db, "job-1", "w1");
+
+      expect(w.tables.upload_session_files[0].status).toBe("completed");
+      expect(w.tables.db_jobs).toEqual([]);
+      expect(mocks.enqueueStorageCleanup).not.toHaveBeenCalled();
+      expect(mocks.deleteFile.mock.calls.map((c) => c[0])).toEqual(["sealed/c1"]);
+    },
+  );
+
+  it.each(["create", "newVersion", "replace"])(
+    "stores nothing when its job has already ended while it was still copying (%s)",
+    async (kindKey) => {
+      const w = world();
+      versionRpc(w);
+      openSession(w, KINDS[kindKey]);
+      claim(w, 1);
+      mocks.copyFile.mockImplementation(async () => {
+        // Another worker ended the job (retry limit) while this attempt stalled.
+        Object.assign(w.tables.upload_processing_jobs[0], { status: "error", locked_by: null });
+        return { size: pdfBytes.length, etag: "e" };
+      });
+
+      await expect(processUploadJob(w.db, "job-1", "w1")).rejects.toThrow("upload_job_lease_lost");
+
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled();
+      expect(mocks.updateDocumentVersion).not.toHaveBeenCalled();
+      expect(w.tables.document_versions.map((v) => v.id)).toEqual([VERSION]);
+      expect(mocks.deleteFile).not.toHaveBeenCalled();
+    },
+  );
 });

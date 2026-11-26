@@ -596,13 +596,22 @@ and that, when it runs, skips every object a stored document version points at
 (a retried job that refuses after an earlier attempt stored its version leaves
 that version and its objects alone; if the lookup fails the job deletes nothing
 and is retried). An attempt that no longer holds its job checks this before
-each storage write and before creating the version, and ends without writing
-and without queueing a cleanup. What remains possible: an attempt that
-stalls between its last check and the end of the version-creating call for
+each storage write and again immediately before creating the version, and ends
+without writing and without queueing a cleanup: the attempt that holds the job
+writes under the same storage keys, so nothing is removed while the job can
+still store. Only whoever ends the job queues a cleanup, for the keys the job
+writes under (recomputed from the session and the file, source and rendition):
+the attempt whose failure is final (refusal, or the last attempt spent), and
+the sweep that retires a running job whose attempts are spent. It is the same
+cleanup job, which skips every object a stored version points at. A job that
+goes on to another attempt queues nothing, and a worker that is still running
+for a job that has ended is refused at its next job check. What remains
+possible: an attempt that stalls inside the version-creating call itself for
 longer than that period can still store a version whose objects a cleanup
 already removed; the database function that creates the version does not check
-the job. Objects an attempt copied before it lost its job stay in storage,
-unreferenced, when no later attempt stores the version; no job removes them. A
+the job. Objects a job copied before it lost its turn, and that no later
+attempt stores, stay in storage unreferenced until the job ends and its cleanup
+runs. A
 session nobody completes is swept when it expires. A check whose own database read
 failed is not a refusal: the worker retries the job and the HTTP steps answer a
 server error. A retried job never rewrites the owner or placement of a

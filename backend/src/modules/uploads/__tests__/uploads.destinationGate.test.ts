@@ -510,6 +510,34 @@ describe("a retry of an upload whose earlier attempt finished the document", () 
     },
   );
 
+  // The re-ask removes a row only when BOTH hold: the file row has no marker
+  // (this attempt is the one that inserted it) AND the row is still empty and
+  // processing. Each case below is held by exactly one of the two.
+  const keepsTheRow = async (row: Row, marker: string | null) => {
+    const w = world();
+    openSession(w, KINDS[0], "processing");
+    w.tables.documents.push({
+      id: RESOURCE, user_id: ALICE, project_id: PROJECT, org_id: ORG, workflow_id: null,
+      archived_at: null, ...row,
+    });
+    landsAtTheUpsert(w);
+    const file = { ...workerFile(KINDS[0]), status: "processing", document_created_at: marker };
+
+    await expect(processUploadFile(w.db, workerSession(KINDS[0]), file)).rejects.toMatchObject({
+      message: "upload_destination_unavailable",
+      orphanedKeys: [],
+    });
+
+    expect(w.tables.documents.some((r) => r.id === RESOURCE)).toBe(true);
+    expect(mocks.deleteFile).not.toHaveBeenCalled();
+  };
+
+  it("keeps an empty processing row that an earlier attempt marked as its own", () =>
+    keepsTheRow({ status: "processing", current_version_id: null }, "2026-11-25T09:59:00Z"));
+
+  it("keeps a finished row even when no earlier attempt left a marker", () =>
+    keepsTheRow({ status: "ready", current_version_id: FINISHED_VERSION }, null));
+
   it("still removes a row this attempt created, and hands its keys to the cleanup", async () => {
     const w = world();
     openSession(w, KINDS[0], "processing");
