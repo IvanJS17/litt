@@ -18,14 +18,16 @@ export async function continuationMessages<M extends { role: string; content: st
     scope: TrainingScope,
     messages: M[],
 ): Promise<M[]> {
+    // The paused message is the last assistant one that a user message follows
+    // (the answers). With none, the request carries no history to continue
+    // from, and the model gets the fixed line alone.
     let paused = -1;
-    for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i]!.role === "assistant") {
+    for (let i = messages.length - 2; i >= 0; i--) {
+        if (messages[i]!.role === "assistant" && messages.slice(i + 1).some((m) => m.role === "user")) {
             paused = i;
             break;
         }
     }
-    if (paused < 0 || paused === messages.length - 1) return messages;
     if ((await resolveTurnTraining(db, userId, scope)).stage !== "pasante") return messages;
     const files = [...messages.slice(paused + 1)].reverse().find((m) => m.role === "user")?.files;
     return [

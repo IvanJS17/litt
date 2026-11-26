@@ -89,6 +89,7 @@ const review = (db: Db, credentialRef?: string, model = "claude-opus-5") =>
 beforeEach(() => {
   vi.stubEnv("USER_API_KEYS_ENCRYPTION_SECRET", "synthetic-secret");
   for (const name of ["ANTHROPIC_API_KEY", "CLAUDE_API_KEY"]) vi.stubEnv(name, "");
+  docs.completeText.mockReset();
   docs.loadActiveVersion.mockResolvedValue({ id: "v1", filename: "msa.docx", file_type: "docx" });
   docs.loadCurrentVersionBytes.mockResolvedValue({ bytes: Buffer.from(""), storage_path: "p" });
   docs.extractDocxBodyText.mockResolvedValue("Contract text");
@@ -220,6 +221,53 @@ describe("a firm that forbids personal keys for the document under review", () =
   it("does not run a recorded review on a personal key once the firm forbids them", async () => {
     const db = await world(FIRM_B, null);
     const started = await review(db, "user:u1:claude:v1");
+    forbid(FIRM_B);
+    docs.completeText.mockResolvedValue("{}");
+    await runPlaybookReview(db, started.work).catch(() => undefined);
+    expect(docs.completeText).not.toHaveBeenCalled();
+  });
+});
+
+describe("a playbook of one firm run on a document of another", () => {
+  const forbid = (org: string) => {
+    lastTables.organizations!.find((row) => row.id === org)!.allow_personal_ai_keys = false;
+  };
+  const OWN = "user:u1:claude:v1";
+
+  it("refuses a personal key when the playbook's firm forbids them and the document's firm allows them", async () => {
+    const db = await world(FIRM_B, FIRM_A);
+    forbid(FIRM_A);
+    await expect(review(db)).rejects.toMatchObject({ status: 409, code: "chat_route_credential_required" });
+    await expect(review(db, OWN)).rejects.toMatchObject({ status: 409, code: "chat_route_credential_unavailable" });
+  });
+
+  it("refuses a personal key when the document's firm forbids them and the playbook's firm allows them", async () => {
+    const db = await world(FIRM_B, FIRM_A);
+    forbid(FIRM_B);
+    await expect(review(db)).rejects.toMatchObject({ status: 409, code: "chat_route_credential_required" });
+    await expect(review(db, OWN)).rejects.toMatchObject({ status: 409, code: "chat_route_credential_unavailable" });
+  });
+
+  it("runs on a personal key when both firms allow them, and for one firm as before", async () => {
+    expect((await review(await world(FIRM_B, FIRM_A), OWN)).resolved.route.credentialRef).toBe(OWN);
+    expect((await review(await world(FIRM_A, FIRM_A), OWN)).resolved.route.credentialRef).toBe(OWN);
+    const same = await world(FIRM_A, FIRM_A);
+    forbid(FIRM_A);
+    await expect(review(same, OWN)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("does not run a queued review on a personal key once the playbook's firm forbids them", async () => {
+    const db = await world(FIRM_B, FIRM_A);
+    const started = await review(db, OWN);
+    forbid(FIRM_A);
+    docs.completeText.mockResolvedValue("{}");
+    await runPlaybookReview(db, started.work).catch(() => undefined);
+    expect(docs.completeText).not.toHaveBeenCalled();
+  });
+
+  it("does not run a queued review on a personal key once the document's firm forbids them", async () => {
+    const db = await world(FIRM_B, FIRM_A);
+    const started = await review(db, OWN);
     forbid(FIRM_B);
     docs.completeText.mockResolvedValue("{}");
     await runPlaybookReview(db, started.work).catch(() => undefined);

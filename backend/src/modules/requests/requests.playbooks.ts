@@ -14,12 +14,11 @@ import type {
   RequestTypePlaybookUnlinked,
 } from "@mike/contracts";
 import { recordAudit } from "../../lib/audit";
-import { getOrgRole } from "../../lib/access";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { isUuid } from "../../lib/uuid";
-import { resolvePlaybookRoles } from "../playbooks/playbooks.service";
 import { isRecord, INVALID_REQUEST_CODE } from "./requests.shared";
+import { type AccessRow, openableBy, type PlaybookRow } from "./requests.playbookAccess";
 import { manager, teamMember } from "./requests.types";
 
 type Actor = { userId: string; userEmail?: string | null; orgId: unknown };
@@ -37,21 +36,8 @@ function pgCode(error: unknown): string | undefined {
 }
 
 type LinkRow = { type_id: string; playbook_id: string; linked_at: string };
-type PlaybookRow = { id: string; name: string };
-type AccessRow = PlaybookRow & { user_id: string; org_id: string | null; visibility: string | null };
 
 const LINK_COLUMNS = "type_id, playbook_id, linked_at";
-
-/**
- * The playbooks of `rows` the person may open, by the playbooks module's own
- * rule: a member on a playbook's deny list does not see it.
- */
-async function openableBy(db: Db, userId: string, orgId: string, rows: AccessRow[]): Promise<PlaybookRow[]> {
-  const role = await getOrgRole(userId, orgId, db);
-  if (!role) return [];
-  const roles = await resolvePlaybookRoles(db, rows, userId, null, new Map([[orgId, role]]));
-  return rows.filter((row) => roles.has(row.id)).map((row) => ({ id: row.id, name: row.name }));
-}
 
 /** The ready playbooks shared with the firm the person may open: what can be linked, by name. */
 async function readyPlaybooks(db: Db, userId: string, orgId: string, ids?: string[]): Promise<ServiceResult<PlaybookRow[]>> {

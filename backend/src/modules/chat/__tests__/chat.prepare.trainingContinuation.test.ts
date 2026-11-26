@@ -61,15 +61,18 @@ function permissiveDb(): Db {
 }
 
 const NEW_QUESTION = "A brand new question the person never framed";
-const continuation = () =>
+const ANSWERS = "Responses to LiTT's questions:\n1. Court?\nCivil";
+type Sent = { role: "user" | "assistant"; content: string };
+const usual: Sent[] = [
+    { role: "user", content: "First question" },
+    { role: "assistant", content: "I need two facts." },
+    { role: "user", content: `${ANSWERS}\n\n${NEW_QUESTION}` },
+];
+const continuation = (messages: Sent[] = usual) =>
     prepareChatStream(permissiveDb(), {
         userId: "u1",
         userEmail: "u1@example.com",
-        messages: [
-            { role: "user" as const, content: "First question" },
-            { role: "assistant" as const, content: "I need two facts." },
-            { role: "user" as const, content: `Responses to LiTT's questions:\n1. Court?\nCivil\n\n${NEW_QUESTION}` },
-        ],
+        messages,
         chatId: null,
         inputMessageId: null,
         projectIdProvided: false,
@@ -99,5 +102,47 @@ describe("answering a paused turn's questions as a person in training", () => {
         stage.value = null;
         const prepared = await continuation();
         expect(sentToModel(prepared)).toContain(NEW_QUESTION);
+    });
+
+    // Layouts of the request that carry no paused assistant message followed
+    // by the answers: the new question must not reach the model in any.
+    it.each([
+        ["only the new question", [{ role: "user", content: NEW_QUESTION }]],
+        ["the answers and the new question, no assistant message", [{ role: "user", content: `${ANSWERS}\n\n${NEW_QUESTION}` }]],
+        ["the new question, then an assistant message last", [{ role: "user", content: NEW_QUESTION }, { role: "assistant", content: "ok" }]],
+        ["a paused message, the answers, a new question, an assistant message last", [
+            { role: "user", content: "First question" },
+            { role: "assistant", content: "I need two facts." },
+            { role: "user", content: ANSWERS },
+            { role: "user", content: NEW_QUESTION },
+            { role: "assistant", content: "ok" },
+        ]],
+        ["several user messages after the paused one", [
+            { role: "user", content: "First question" },
+            { role: "assistant", content: "I need two facts." },
+            { role: "user", content: ANSWERS },
+            { role: "user", content: NEW_QUESTION },
+        ]],
+    ] as [string, Sent[]][])("does not pass the new question with %s", async (_name, messages) => {
+        stage.value = "pasante";
+        const prepared = await continuation(messages);
+        expect(prepared).toMatchObject({ ok: true });
+        expect(sentToModel(prepared)).not.toContain(NEW_QUESTION);
+        expect(sentToModel(prepared)).toContain("Continue from them.");
+    });
+
+    it("still sends the history up to the paused message", async () => {
+        stage.value = "pasante";
+        const sent = sentToModel(await continuation());
+        expect(sent).toContain("First question");
+        expect(sent).toContain("I need two facts.");
+    });
+
+    it.each([
+        ["only the new question", [{ role: "user", content: NEW_QUESTION }]],
+        ["an assistant message last", [{ role: "user", content: NEW_QUESTION }, { role: "assistant", content: "ok" }]],
+    ] as [string, Sent[]][])("leaves the request of anyone else with %s as it was sent", async (_name, messages) => {
+        stage.value = null;
+        expect(sentToModel(await continuation(messages))).toContain(NEW_QUESTION);
     });
 });

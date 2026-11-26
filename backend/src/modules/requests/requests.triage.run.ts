@@ -36,6 +36,7 @@ import { resolveExtractionRoute } from "../client-profile/client-profile.service
 import { recordChatEgressOrThrow } from "../user/user.service";
 import { listAssignees } from "./requests.assignees";
 import { recordRequestEvent } from "./requests.events";
+import { ACCESS_COLUMNS, type AccessRow, openableBy } from "./requests.playbookAccess";
 import { isRecord } from "./requests.shared";
 import { loadTypes } from "./requests.types";
 import {
@@ -116,8 +117,12 @@ export async function donnaEnabled(db: Db, projectId: string): Promise<ServiceRe
   return ok(isRecord(data) && data.donna_enabled === true);
 }
 
-/** The ready, firm-wide playbooks linked to a type: what the card suggests. */
-export async function playbooksForType(db: Db, orgId: string, typeId: string): Promise<ServiceResult<PlaybookRef[]>> {
+/**
+ * The ready, firm-wide playbooks linked to a type that `userId` may open: what
+ * the card suggests and what the run may name (a denied one is neither shown
+ * nor sent to the model).
+ */
+export async function playbooksForType(db: Db, orgId: string, typeId: string, userId: string): Promise<ServiceResult<PlaybookRef[]>> {
   const { data: links, error } = await db
     .from("request_type_playbooks")
     .select("playbook_id")
@@ -131,14 +136,18 @@ export async function playbooksForType(db: Db, orgId: string, typeId: string): P
   if (ids.length === 0) return ok([]);
   const { data, error: playbookError } = await db
     .from("playbooks")
-    .select("id, name")
+    .select(ACCESS_COLUMNS)
     .eq("org_id", orgId)
     .eq("visibility", "organization")
     .eq("status", "ready")
     .in("id", ids)
     .order("name", { ascending: true });
   if (playbookError) return internalFailure(playbookError);
-  return ok((data ?? []) as unknown as PlaybookRef[]);
+  try {
+    return ok((await openableBy(db, userId, orgId, (data ?? []) as unknown as AccessRow[])) as PlaybookRef[]);
+  } catch (caught) {
+    return internalFailure(caught);
+  }
 }
 
 type RoundRow = { document_id: string; version_id: string; round_number: number; created_at: string | null };
@@ -492,7 +501,7 @@ async function runTriage(
     // 2. The firm's own AI route drafts.
     const typeId = classification.type?.typeId ?? request.type_id;
     const chosen = types.data.find((type) => type.id === typeId);
-    const playbooks = await playbooksForType(db, ctx.orgId, typeId);
+    const playbooks = await playbooksForType(db, ctx.orgId, typeId, ctx.userId);
     if (!playbooks.ok) return playbooks;
     const generative = await draft(db, ctx, deps, {
       title: request.title,

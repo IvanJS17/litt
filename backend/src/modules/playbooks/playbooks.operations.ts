@@ -81,7 +81,7 @@ import {
 } from "../../lib/llm/models";
 import type { Provider } from "../../lib/llm/types";
 import { hasApiKeyForModel, resolveEffectiveChatModel } from "../../lib/modelSelection";
-import { getUserApiKeys, getEffectiveApiKeys } from "../../lib/providerCredentials/index";
+import { getUserApiKeys, getEffectiveApiKeys, loadOrgKeyScope } from "../../lib/providerCredentials/index";
 import {
   chatRouteColumns,
   chatRouteOf,
@@ -695,6 +695,28 @@ export async function assertFirmKeyForDocuments(
     playbookOrg,
     documentIds.map((id) => orgs.get(id) ?? null),
   );
+}
+
+/**
+ * A person's own key runs a review only if every firm whose content it sends
+ * allows personal keys: the document's and, when it is another one, the
+ * playbook's (whose person must also still be a member). Refused with the
+ * code a key that cannot be used here already gets.
+ */
+async function assertPersonalKeyAllowedByPlaybookFirm(
+  db: Db,
+  userId: string,
+  playbookOrg: string | null,
+  contentOrg: string | null,
+  credentialRef: string,
+): Promise<void> {
+  if (!credentialRef.startsWith("user:")) return;
+  if (!playbookOrg || !contentOrg || playbookOrg === contentOrg) return;
+  const scope = await loadOrgKeyScope(userId, playbookOrg, db);
+  if (scope?.allowPersonal.ai) return;
+  throw new PlaybookRequestError(KEY_UNAVAILABLE, 409, {
+    code: "chat_route_credential_unavailable",
+  });
 }
 
 export async function loadPlaybookRoute(
@@ -2213,7 +2235,7 @@ function foldedUnit(code: number): number {
 }
 
 /** The first index of `needle` in `haystack` (KMP): O(haystack + needle), whatever their shape. */
-function linearIndexOf(haystack: ArrayLike<number>, length: number, needle: ArrayLike<number>): number {
+export function linearIndexOf(haystack: ArrayLike<number>, length: number, needle: ArrayLike<number>): number {
   const size = needle.length;
   if (size === 0) return 0;
   if (size > length) return -1;
@@ -2272,12 +2294,14 @@ function documentQuoteLocator(documentText: string) {
     const known = answers.get(quote);
     if (known !== undefined) return known;
     if (!folded) index();
-    const exact = Uint16Array.from(quote, (character) => character.charCodeAt(0));
+    // One code unit at a time: a character outside the basic plane is two.
+    const exact = Uint16Array.from({ length: quote.length }, (_, i) => quote.charCodeAt(i));
     let answer = "";
     if (linearIndexOf(raw!, documentText.length, exact) >= 0) answer = quote;
     else {
       const words = quote.split(/\s+/).filter(Boolean);
-      const wanted = Uint16Array.from(words.join(" "), (character) => foldedUnit(character.charCodeAt(0)));
+      const phrase = words.join(" ");
+      const wanted = Uint16Array.from({ length: phrase.length }, (_, i) => foldedUnit(phrase.charCodeAt(i)));
       const at = linearIndexOf(folded!.codes, folded!.length, wanted);
       if (at >= 0)
         answer = documentText.slice(folded!.starts[at], folded!.ends[at + wanted.length - 1]);
@@ -2554,13 +2578,36 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     ]);
   // The firm whose document is sent to the model decides which keys may run
   // the review (a personal key only where it allows them), as in chat.
-  const pinned = await pinPlaybookRoute(
+  let pinned = await pinPlaybookRoute(
     db,
     args.userId,
     model,
     stored?.orgId ?? playbook.orgId,
     args.credentialRef,
   );
+  // A playbook of another firm: its firm's rule on personal keys holds too.
+  try {
+    await assertPersonalKeyAllowedByPlaybookFirm(
+      db,
+      args.userId,
+      playbook.orgId,
+      stored?.orgId ?? null,
+      pinned.route.credentialRef,
+    );
+  } catch (refused) {
+    // Asked for by name: refused. Otherwise the choice is made under the
+    // playbook's firm, as it was when only that firm was asked.
+    if (typeof args.credentialRef === "string" && args.credentialRef.trim())
+      throw refused;
+    pinned = await pinPlaybookRoute(db, args.userId, model, playbook.orgId);
+    await assertPersonalKeyAllowedByPlaybookFirm(
+      db,
+      args.userId,
+      playbook.orgId,
+      stored?.orgId ?? null,
+      pinned.route.credentialRef,
+    );
+  }
   const authorization = await readAuthorizationStamp(
     db,
     stored ? stored.orgId : playbook.orgId,
@@ -2689,6 +2736,13 @@ export async function runPlaybookReview(
     const resolved =
       resolvedRoute ??
       (await loadPlaybookRoute(db, work.userId, contentOrg ?? keyScope, work.route));
+    await assertPersonalKeyAllowedByPlaybookFirm(
+      db,
+      work.userId,
+      keyScope,
+      contentOrg,
+      resolved.route.credentialRef,
+    );
     const keys = resolved.apiKeys;
     await recordChatEgress(db, {
       userId: work.userId,
