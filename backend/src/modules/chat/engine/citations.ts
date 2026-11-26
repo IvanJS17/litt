@@ -1,4 +1,4 @@
-import { type DocIndex, type DocStore, resolveDoc } from "./types";
+import { type DocIndex, type DocStore, resolveDoc, resolveDocLabel } from "./types";
 import {
   sourceDocumentType,
   type SourceDocumentQuote,
@@ -257,9 +257,14 @@ export function createCitation(
   docIndex: DocIndex,
   docStore?: DocStore,
 ) {
-  const docInfo = resolveDoc(citation.doc_id, docIndex);
-  const requestScopedDocument = docStore?.get(citation.doc_id);
-  const documentId = docInfo?.document_id ?? citation.doc_id;
+  // Resolve the id as the document tools do (label, filename, document id),
+  // so a citation is stored as the one by label would be.
+  const label =
+    (docStore && resolveDocLabel(citation.doc_id, docStore, docIndex)) ||
+    citation.doc_id;
+  const docInfo = resolveDoc(label, docIndex);
+  const requestScopedDocument = docStore?.get(label);
+  const documentId = docInfo?.document_id ?? label;
   const filename =
     docInfo?.filename ?? requestScopedDocument?.filename ?? citation.doc_id;
   const quotes: SourceDocumentQuote[] = citation.quotes.map((quote) => ({
