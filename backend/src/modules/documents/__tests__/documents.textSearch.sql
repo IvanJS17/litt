@@ -269,7 +269,8 @@ begin
     values(v,revision,'ready',(select jsonb_agg(jsonb_build_object('page',g,'text',repeat('texto leído ',1000))) from generate_series(1,7) g),'m',1.5,10,'{2,5,9}',null);
   r:=public.document_ocr_state(v);
   perform pg_temp.assert_true((r->>'pages_read')::int=7 and (r->>'page_count')::int=10 and r->'failed_pages'='[2,5,9]'::jsonb
-    and r->>'status'='ready' and (r->>'credits')::numeric=1.5 and r->>'source_revision'=revision::text and r->>'model'='m','state columns and pages read');
+    and r->>'status'='ready' and (r->>'credits')::numeric=1.5 and r->>'source_revision'=revision::text and r->>'model'='m'
+    and (r->>'updated_at')::timestamptz=(select updated_at from document_version_ocr where version_id=v),'state columns, stamp and pages read');
   perform pg_temp.assert_true(not r?'pages' and octet_length(r::text)<500,'the text of the pages is not in the answer');
   update document_version_ocr set pages=null,status='processing' where version_id=v;
   perform pg_temp.assert_true(public.document_ocr_state(v)->'pages_read'='null'::jsonb,'a reading with no pages yet has no count');
@@ -292,19 +293,38 @@ begin
   v:=(public.create_document_version(doc,'{"filename":"scan.pdf","storage_path":"scan.pdf","file_type":"pdf"}',true)->>'id')::uuid;
   select text_revision into revision from document_versions where id=v;
   perform pg_temp.assert_true(public.document_ocr_pages(v,0) is null,'no row, no answer');
-  -- several times the budget: 14 pages of 120,000 characters (three slices), and a 1-character page at the end
+  -- several times the budget: 14 pages of 120,000 characters (slices of whole pages; several), and a 1-character page at the end
   expected:=(select jsonb_agg(jsonb_build_object('page',g,'text',case when g=15 then 'é' else repeat('ñ😀',60000) end) order by g) from generate_series(1,15) g);
   insert into document_version_ocr(version_id,source_revision,status,pages) values(v,revision,'ready',expected);
   loop
     r:=public.document_ocr_pages(v,k); calls:=calls+1;
-    perform pg_temp.assert_true((select coalesce(sum(char_length(p->>'text')),0) from jsonb_array_elements(r->'pages') p)<=500000+120000,'one answer is at most the budget plus one page');
+    perform pg_temp.assert_true((select coalesce(sum(pg_column_size(p)),0) from jsonb_array_elements(r->'pages') p)<=500000+(select max(pg_column_size(p)) from jsonb_array_elements(r->'pages') p),'one answer is at most the budget plus one page');
     perform pg_temp.assert_true(jsonb_array_length(r->'pages')>=1,'at least one page');
     got:=got||(r->'pages');
     exit when r->'next' is null or r->'next'='null'::jsonb;
     k:=(r->>'next')::int;
   end loop;
-  perform pg_temp.assert_true(got=expected and calls=3,format('the slices put back give the same pages in the same order (%s calls)',calls));
+  perform pg_temp.assert_true(got=expected and calls>=3,format('the slices put back give the same pages in the same order (%s calls)',calls));
   perform pg_temp.assert_true(r->>'source_revision'=revision::text and r->>'updated_at' is not null,'the reading is identified');
+  -- thousands of blank pages, elements without text, and elements that are not pages: every answer is at most 1,000
+  -- elements and the budget plus one element, and the answers put back give the stored array
+  foreach expected in array array[
+    (select jsonb_agg(jsonb_build_object('page',g,'text','') order by g) from generate_series(1,8000) g),
+    (select jsonb_agg(jsonb_build_object('page',g,'blob',repeat('b',8000)) order by g) from generate_series(1,300) g),
+    '[null,"a string",7,{"page":1},{"page":2,"text":5},{"page":3,"text":null},{"page":4,"text":"x"},[1,2],true]'::jsonb] loop
+    update document_version_ocr set pages=expected where version_id=v;
+    got:='[]'; k:=0; calls:=0;
+    loop
+      r:=public.document_ocr_pages(v,k); calls:=calls+1;
+      perform pg_temp.assert_true(jsonb_array_length(r->'pages')<=1000 and jsonb_array_length(r->'pages')>=1,'an answer has between 1 and 1,000 elements');
+      perform pg_temp.assert_true((select sum(pg_column_size(p)) from jsonb_array_elements(r->'pages') p)<=500000+(select max(pg_column_size(p)) from jsonb_array_elements(r->'pages') p),'an answer is at most the budget plus one element');
+      got:=got||(r->'pages');
+      exit when r->'next' is null or r->'next'='null'::jsonb;
+      k:=(r->>'next')::int;
+    end loop;
+    perform pg_temp.assert_true(got=expected,format('the answers put back give the stored array (%s calls for %s elements)',calls,jsonb_array_length(expected)));
+  end loop;
+  perform pg_temp.assert_true(calls>=1,'ran');
   -- one page larger than the budget comes back alone
   update document_version_ocr set pages=jsonb_build_array(jsonb_build_object('page',1,'text',repeat('x',900000)),jsonb_build_object('page',2,'text','y'))  where version_id=v;
   r:=public.document_ocr_pages(v,0);
@@ -313,6 +333,8 @@ begin
   perform pg_temp.assert_true(jsonb_array_length(r->'pages')=1 and r->'next'='null'::jsonb,'and the next page follows');
   r:=public.document_ocr_pages(v,50);
   perform pg_temp.assert_true(r->'pages'='[]'::jsonb and r->'next'='null'::jsonb,'past the end gives nothing');
+  r:=public.document_ocr_pages(v,2147483647);
+  perform pg_temp.assert_true(r->'pages'='[]'::jsonb and r->'next'='null'::jsonb,'the largest start the type holds gives nothing');
   update document_version_ocr set pages='[]'::jsonb where version_id=v;
   r:=public.document_ocr_pages(v,0);
   perform pg_temp.assert_true(r->'pages'='[]'::jsonb and r->'next'='null'::jsonb,'an empty array is an empty answer');

@@ -143,7 +143,9 @@ function textReadsOutsideTheReaders(file: string, source: string): boolean {
 function readsScanTextOutsideTheAssembler(file: string, source: string): boolean {
   const text = stripComments(source);
   if (file !== "modules/documents/documents.ocr.state.ts" && /\bdocument_ocr_pages\b/.test(text)) return true;
-  return [...text.matchAll(/document_version_ocr/g)].some((m) =>
+  // an embed of the table in another select (`document_version_ocr(pages)`, `!inner(*)`, or no column list at all)
+  const embeds = [...text.matchAll(/document_version_ocr\s*(?:![\w.]+\s*)?\(([^)]*)\)/g)].some((m) => m[1].trim() === "" || /\*|\bpages\b/.test(m[1]));
+  return embeds || [...text.matchAll(/document_version_ocr/g)].some((m) =>
     /^[\s\S]{0,300}?\.select\(\s*["'`][^"'`]*(\bpages\b|\*)/.test(text.slice(m.index!)));
 }
 
@@ -382,13 +384,17 @@ describe("backend architecture", () => {
     expect(textReadsOutsideTheReaders("modules/documents/documents.other.ts", "// the table document_version_texts is server-only\nconst x = 1;")).toBe(false);
   });
 
-  it("rule 12: the pages read from a scan are reached only through the bounded function and its one assembler", () => {
+  it("rule 12: no file names the pages of a scan reading, in a select or an embed, outside the bounded function and its one assembler (a table named in the source, not one computed at run time)", () => {
     expect(PRODUCTION_FILES.filter((file) => readsScanTextOutsideTheAssembler(file, read(file)))).toEqual([]);
     // no select of `pages` or `*` from the table, not even in documents.ocr.state.ts
     expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", read("modules/documents/documents.ocr.state.ts"))).toBe(false);
     expect(code("modules/documents/documents.ocr.state.ts")).toMatch(/rpc\(\s*["']document_ocr_pages["']/);
     expect(code("modules/documents/documents.ocr.state.ts")).not.toMatch(/from\(\s*["']document_version_ocr["']\s*\)\s*\.select/);
     // the rule sees the forms
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'db.from("document_versions").select("id,document_version_ocr(pages)")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'select("id,document_version_ocr!inner(status,*)")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'select("id,document_version_ocr()")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'select("id,document_version_ocr(status,failed_pages)")')).toBe(false);
     expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
     expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
     expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", "db.from('document_version_ocr').select('*')")).toBe(true);

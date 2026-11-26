@@ -16,7 +16,7 @@ export type ScanRow = {
 };
 
 /** A reading's state as shown to a person: the row without the text of its pages, and how many pages were read. */
-export type ScanState = Omit<ScanRow, "pages"> & { pages_read: number | null };
+export type ScanState = Omit<ScanRow, "pages"> & { pages_read: number | null; updated_at: string };
 
 /**
  * The state of the reading of this version, without the text that was read (the database answers with the
@@ -37,7 +37,7 @@ type PagesSlice = { source_revision: string; updated_at: string; pages: OcrPage[
  * stamp); if a new reading replaces the row between two slices, the read starts again, and fails after three
  * tries rather than hand out a mix of two readings. This is the only way the text of a reading is read.
  */
-async function readReadingPages(db: Db, versionId: string): Promise<{ source_revision: string; pages: OcrPage[] | null } | null> {
+async function readReadingPages(db: Db, versionId: string): Promise<{ source_revision: string; updated_at: string; pages: OcrPage[] | null } | null> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let first: PagesSlice | null = null;
     const pages: OcrPage[] = [];
@@ -50,9 +50,9 @@ async function readReadingPages(db: Db, versionId: string): Promise<{ source_rev
       if (first === null && slice === null) return null;
       if (slice === null || (first !== null && (slice.source_revision !== first.source_revision || slice.updated_at !== first.updated_at))) { changed = true; break; }
       first ??= slice;
-      if (slice.pages === null) return { source_revision: slice.source_revision, pages: null };
+      if (slice.pages === null) return { source_revision: slice.source_revision, updated_at: slice.updated_at, pages: null };
       pages.push(...slice.pages);
-      if (slice.next === null) return { source_revision: slice.source_revision, pages };
+      if (slice.next === null) return { source_revision: slice.source_revision, updated_at: slice.updated_at, pages };
       from = slice.next;
     }
     if (changed) continue;
@@ -66,8 +66,9 @@ export async function loadScanRow(db: Db, versionId: string): Promise<ScanRow | 
     const read = await readReadingPages(db, versionId);
     const state = read ? await loadScanState(db, versionId) : null;
     if (!read || !state) return null;
-    if (state.source_revision !== read.source_revision) continue; // replaced between the two reads
-    const { pages_read: _count, ...row } = state;
+    // the pages and the state must be of one reading: the same revision AND the same stamp
+    if (state.source_revision !== read.source_revision || state.updated_at !== read.updated_at) continue;
+    const { pages_read: _count, updated_at: _stamp, ...row } = state;
     return { ...row, pages: read.pages };
   }
   throw new Error("The scan reading changed while it was being read");
