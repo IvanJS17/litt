@@ -69,25 +69,32 @@ export function AssistantSpecimen() {
     const [swaps, setSwaps] = useState(0);
     // How many of the six items the intro has brought in; null: not playing, all there.
     const [shown, setShown] = useState<number | null>(null);
-    const started = useRef(false);
+    // Set once this instance has decided to play the intro (see the effect).
+    const playing = useRef(false);
 
     useEffect(() => {
-        // Once per browser session; the ref also covers React's double effect in dev.
-        if (started.current) return;
-        started.current = true;
-        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-        try {
-            if (window.sessionStorage.getItem(INTRO_SESSION_KEY)) return;
-            window.sessionStorage.setItem(INTRO_SESSION_KEY, "1");
-        } catch {
-            return; // storage blocked: show the finished page, never loop
+        // Once per browser session. The ref carries the decision across React's
+        // dev-only mount, unmount, mount: the second run plays the intro again
+        // on the flag the first one set, instead of finding it taken.
+        if (!playing.current) {
+            if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+            try {
+                if (window.sessionStorage.getItem(INTRO_SESSION_KEY)) return;
+                window.sessionStorage.setItem(INTRO_SESSION_KEY, "1");
+            } catch {
+                return; // storage blocked: show the finished page, never loop
+            }
+            playing.current = true;
         }
         // The one motion of the page starts after mount, from the session flag.
         setShown(0);
+        const timers: number[] = [];
         for (let i = 1; i <= INTRO_ITEMS; i += 1) {
-            window.setTimeout(() => setShown(i), INTRO_START_MS + (i - 1) * INTRO_STEP_MS);
+            timers.push(window.setTimeout(() => setShown(i), INTRO_START_MS + (i - 1) * INTRO_STEP_MS));
         }
-        window.setTimeout(() => setShown(null), INTRO_START_MS + INTRO_ITEMS * INTRO_STEP_MS + 300);
+        timers.push(window.setTimeout(() => setShown(null), INTRO_START_MS + INTRO_ITEMS * INTRO_STEP_MS + 300));
+        // The page can go away mid-intro: no timer outlives it.
+        return () => timers.forEach((timer) => window.clearTimeout(timer));
     }, []);
 
     /** Props of the n-th item that comes in (0-based): hidden until its turn. */

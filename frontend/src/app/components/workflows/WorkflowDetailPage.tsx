@@ -92,6 +92,7 @@ import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { DocumentWorkspaceScope } from "@/app/contexts/WorkspaceContext";
 import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
 import { useQueryParamTab } from "@/app/hooks/useQueryParamTab";
+import { useUnmountSafeTimeout } from "@/app/hooks/useUnmountSafeTimeout";
 import {
   describeError,
   isAbortError,
@@ -192,19 +193,23 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
 
   // Save status
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const later = useUnmountSafeTimeout();
+  const saveStatusSeqRef = useRef(0);
   // Every save-status change goes through here, so an earlier save's
-  // "Saved" fade cannot clear a later "Saving…" or "Couldn't save".
-  const showSaveStatus = useCallback((status: SaveStatus) => {
-    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
-    saveStatusTimerRef.current =
-      status === "saved"
-        ? setTimeout(() => setSaveStatus("idle"), 2000)
-        : null;
-    setSaveStatus(status);
-  }, []);
+  // "Saved" fade cannot clear a later "Saving…" or "Couldn't save". The
+  // fade ends with the page: a save that finishes after it was left (the
+  // debounced autosave is not cancelled) schedules no timer.
+  const showSaveStatus = useCallback(
+    (status: SaveStatus) => {
+      const seq = ++saveStatusSeqRef.current;
+      if (status === "saved")
+        later(() => {
+          if (saveStatusSeqRef.current === seq) setSaveStatus("idle");
+        }, 2000);
+      setSaveStatus(status);
+    },
+    [later],
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Column selection

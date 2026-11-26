@@ -11,6 +11,7 @@ import { reviewRowRemoval } from "./reviewRowRemoval";
 import { reviewColumnRemoval } from "./reviewColumnRemoval";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useUnmountSafeTimeout } from "@/app/hooks/useUnmountSafeTimeout";
 import { useDelayedReviewRefs } from "@/app/hooks/useDelayedReviewRefs";
 import { useReviewAuditEntry } from "../training/reviewAudit/useReviewAuditEntry";
 import {
@@ -129,6 +130,7 @@ interface Props {
 /** Display a review grid and resume its active generation through the latest stream handler. */
 export function TRView({ reviewId, projectId }: Props) {
     const t = useTranslations();
+    const later = useUnmountSafeTimeout();
     const configuredModels = useConfiguredModels();
     const configuredModelIds = useMemo(
         () => configuredModels.map((model) => model.id),
@@ -1316,7 +1318,7 @@ export function TRView({ reviewId, projectId }: Props) {
         setTimeout(() => {
             tableRef.current?.scrollToCell(colIdx, rowIdx);
         }, 50);
-        setTimeout(() => setHighlightedCell(null), 3000);
+        later(() => setHighlightedCell(null), 3000);
     }
 
     function handleDocumentOpen(row: TabularReviewRow, document: Document) {

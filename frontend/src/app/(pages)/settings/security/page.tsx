@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { Copy } from "lucide-react";
+import { useUnmountSafeTimeout } from "@/app/hooks/useUnmountSafeTimeout";
 import {
   AuthApiError,
   challengeMfa,
@@ -191,6 +192,7 @@ function MfaSettingsSkeleton() {
 
 export default function SecurityPage() {
   const t = useTranslations();
+  const later = useUnmountSafeTimeout();
   const { profile, updateMfaOnLogin } = useUserProfile();
   const [loading, setLoading] = useState(true);
   const [factors, setFactors] = useState<MfaFactor[]>([]);
@@ -384,7 +386,7 @@ export default function SecurityPage() {
     if (!enrollment?.secret) return;
     await navigator.clipboard.writeText(enrollment.secret);
     setSetupKeyCopied(true);
-    window.setTimeout(() => setSetupKeyCopied(false), 1600);
+    later(() => setSetupKeyCopied(false), 1600);
   }
 
   async function requestUnenroll(factorId: string) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useUnmountSafeTimeout } from "@/app/hooks/useUnmountSafeTimeout";
 import { Check, ChevronLeft, Code2, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -79,6 +80,7 @@ function SkillViewer({ skill }: { skill: string }) {
   const t = useTranslations();
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
+  const later = useUnmountSafeTimeout();
   const previewRef = useRef<HTMLDivElement | null>(null);
   const markdown = withoutLeadingTitle(skill);
 
@@ -108,7 +110,7 @@ function SkillViewer({ skill }: { skill: string }) {
       await navigator.clipboard.writeText(skill.trim());
     }
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    later(() => setCopied(false), 1500);
   }
 
   return (
