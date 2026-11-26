@@ -1403,3 +1403,31 @@ describe("a review row whose document is gone", () => {
         expect(cells.raw).not.toContain("TEXTO-DE-LA-FILA-BORRADA");
     });
 });
+
+describe("a review row that groups the documents of a folder", () => {
+    const GONE = "bbbbbbbb-0000-4000-8000-0000000000ee";
+    const addFolderRow = (n: number, label: string, text: string, sources: string[]) => {
+        const row = `88888888-0000-4000-8000-0000000000e${n}`;
+        const t = tables();
+        t.tabular_review_rows.push({ id: row, review_id: REVIEW_PUBLIC, label, row_type: "folder", document_id: null, source_document_ids: sources, sort_index: 5 + n });
+        t.tabular_cells.push({ id: `77777777-0000-4000-8000-0000000002e${n}`, review_id: REVIEW_PUBLIC, row_id: row, document_id: null, column_index: 0, content: JSON.stringify({ summary: text, flag: "green", reasoning: "r" }), citations: null, status: "done", generation_id: null, created_at: "2026-11-05T10:00:00Z" });
+    };
+
+    it("is not shown when one of its documents has been deleted, whether it is the only one or one among live ones", async () => {
+        addFolderRow(1, "carpeta-vacia", "TEXTO-CARPETA-SOLO-BORRADA", [GONE]);
+        addFolderRow(2, "carpeta-mixta", "TEXTO-CARPETA-MIXTA", [DOC_PUBLIC, GONE]);
+        addFolderRow(3, "carpeta-viva", "TEXTO-CARPETA-VIVA", [DOC_PUBLIC]);
+        as("owner");
+        const token = await connect();
+        const review = await callTool(token, "get_tabular_review", { review_id: REVIEW_PUBLIC });
+        const cells = await callTool(token, "read_tabular_cells", { review_id: REVIEW_PUBLIC });
+        for (const out of [review.raw, cells.raw]) {
+            expect(out).not.toContain("carpeta-vacia");
+            expect(out).not.toContain("carpeta-mixta");
+            expect(out).not.toContain("TEXTO-CARPETA-SOLO-BORRADA");
+            expect(out).not.toContain("TEXTO-CARPETA-MIXTA");
+        }
+        // The control: a folder whose documents are all there is still read.
+        expect(cells.raw).toContain("TEXTO-CARPETA-VIVA");
+    });
+});

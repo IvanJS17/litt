@@ -28,6 +28,7 @@
 
 import { z } from "zod";
 import { loadActiveVersion } from "../../lib/documentVersions";
+import { loadCreatorProfiles } from "../../lib/userLookup";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { canUseWorkflowInWorkspace } from "../../lib/workflowWorkspace";
 import { listQuickActions } from "../quick-actions/quickActions.service";
@@ -50,7 +51,9 @@ import {
     idSchema,
     limitSchema,
     notFound,
+    originOf,
     serviceFailure,
+    type TextOrigin,
     untrusted,
     UNTRUSTED_NOTICE,
     windowOf,
@@ -96,6 +99,8 @@ type WorkflowView = {
     description: string | null;
     prompt: string | null;
     columns: Column[];
+    origin: TextOrigin;
+    sharedBy: string | null;
 };
 
 const stringOrNull = (value: unknown): string | null => (typeof value === "string" && value ? value : null);
@@ -115,11 +120,19 @@ async function readWorkflow(call: McpCall, workflowId: string): Promise<Workflow
               (c): c is Column => !!c && typeof c === "object" && typeof (c as Column).name === "string" && typeof (c as Column).prompt === "string",
           )
         : [];
+    const authorId = stringOrNull(body.user_id);
+    const isCreator = !!authorId && authorId === call.principal.userId;
+    const orgId = (await teamOrgIdOf(call.db, stringOrNull(body.org_id))) ?? null;
+    // Another account's text carries the name the web shows for its owner.
+    const author = !isCreator && !orgId && authorId ? (await loadCreatorProfiles(call.db, [{ user_id: authorId }])).get(authorId) : undefined;
+    const { origin, shared_by } = originOf({ isCreator, orgId }, author?.display_name);
     return {
+        origin,
+        sharedBy: shared_by,
         id: String(body.id),
         title: stringOrNull(metadata.title) ?? "",
         type: metadata.type === "tabular" ? "tabular" : "assistant",
-        orgId: (await teamOrgIdOf(call.db, stringOrNull(body.org_id))) ?? null,
+        orgId,
         role: stringOrNull(body.access_role),
         isOwner: typeof body.is_owner === "boolean" ? body.is_owner : null,
         practice: stringOrNull(metadata.practice),
@@ -248,6 +261,8 @@ export const getWorkflowTool = defineMcpTool({
             title: workflow.title,
             type: workflow.type,
             workspace: workspaceOf(workflow.orgId),
+            origin: workflow.origin,
+            shared_by: workflow.sharedBy,
             role: workflow.role,
             description: workflow.description,
             practice: workflow.practice,
