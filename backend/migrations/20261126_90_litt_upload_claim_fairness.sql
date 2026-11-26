@@ -1,16 +1,10 @@
 -- Migration date: 2026-11-26
 --
--- Two database-level closures.
+-- claim_upload_processing_job leaves accounts already at their running cap
+-- out of the candidate window BEFORE its limit, so one account's queue no
+-- longer hides another account's job from every worker.
 --
--- 1. claim_upload_processing_job leaves accounts already at their running cap
---    out of the candidate window BEFORE its limit, so one account's queue no
---    longer hides another account's job from every worker.
--- 2. The organization's authorization epoch also moves when a person is denied
---    a project, when a person's grant on a project is removed, and when a
---    project becomes private, so work queued before any of them is refused
---    when it runs.
---
--- Safe to re-run: create or replace, drop-before-create triggers.
+-- Safe to re-run: create or replace.
 
 create or replace function public.claim_upload_processing_job(
   target_worker_id text,
@@ -158,60 +152,3 @@ begin
   return claimed_job_id;
 end;
 $$;
-
--- Denying a person a project, removing their grant, or making a project
--- private, ends access that work queued earlier was authorized under. Changes
--- that only widen access leave the epoch alone.
-create or replace function public.bump_epoch_for_project_access_loss()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if tg_table_name = 'project_org_access_overrides' then
-    if new.role = 'deny' and (tg_op = 'INSERT' or old.role is distinct from 'deny') then
-      perform public.bump_authorization_epoch(new.org_id);
-    end if;
-  elsif new.visibility = 'private' and old.visibility is distinct from 'private' and new.org_id is not null then
-    perform public.bump_authorization_epoch(new.org_id);
-  end if;
-  return null;
-end;
-$$;
-
-drop trigger if exists project_overrides_epoch_bump on public.project_org_access_overrides;
-create trigger project_overrides_epoch_bump
-  after insert or update of role on public.project_org_access_overrides
-  for each row execute function public.bump_epoch_for_project_access_loss();
-
--- Removing grants: once per organization per statement, so a departure or a
--- deleted project that drops many grants moves the epoch once, not once per row.
-create or replace function public.bump_epoch_for_project_grants_removed()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare removed_org uuid;
-begin
-  for removed_org in select distinct r.org_id from removed_grants r where r.role <> 'deny' loop
-    perform public.bump_authorization_epoch(removed_org);
-  end loop;
-  return null;
-end;
-$$;
-
-drop trigger if exists project_overrides_grants_removed_epoch_bump on public.project_org_access_overrides;
-create trigger project_overrides_grants_removed_epoch_bump
-  after delete on public.project_org_access_overrides
-  referencing old table as removed_grants
-  for each statement execute function public.bump_epoch_for_project_grants_removed();
-
-drop trigger if exists projects_epoch_bump on public.projects;
-create trigger projects_epoch_bump
-  after update of visibility on public.projects
-  for each row execute function public.bump_epoch_for_project_access_loss();
-
-revoke execute on function public.bump_epoch_for_project_access_loss() from public, anon, authenticated;
-revoke execute on function public.bump_epoch_for_project_grants_removed() from public, anon, authenticated;
