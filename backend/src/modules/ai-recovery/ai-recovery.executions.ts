@@ -107,6 +107,28 @@ function toSummary(row: {
 }
 
 /**
+ * The project gate the matter's other content asks, before the matter gate:
+ * the three readers of AI review records (list, review, approved report)
+ * share it so none of them can serve what the project refuses.
+ */
+export async function projectReadable(
+  db: Db,
+  input: {
+    project_id: string;
+    identity: AuthenticatedIdentity;
+    user_email?: string | null;
+  },
+): Promise<boolean> {
+  const project = await checkProjectAccess(
+    input.project_id,
+    input.identity.user_id,
+    input.user_email,
+    db,
+  );
+  return project.ok;
+}
+
+/**
  * Executions recorded for one project that the caller may still open.
  *
  * The query is project-scoped and version-filtered; the matter gate then runs
@@ -124,13 +146,7 @@ export async function listExecutions(
   try {
     // The matter's other content needs the project gate first; the matter gate
     // below only narrows it.
-    const project = await checkProjectAccess(
-      input.project_id,
-      input.identity.user_id,
-      input.user_email,
-      db,
-    );
-    if (!project.ok) return ok([]);
+    if (!(await projectReadable(db, input))) return ok([]);
 
     const { data, error } = await db
       .from("ai_executions")
@@ -182,13 +198,7 @@ export async function readReview(
   },
 ): Promise<ServiceResult<HumanReview>> {
   try {
-    const project = await checkProjectAccess(
-      input.project_id,
-      input.identity.user_id,
-      input.user_email,
-      db,
-    );
-    if (!project.ok)
+    if (!(await projectReadable(db, input)))
       return { ok: false, kind: "not_found", code: "not_found", detail: "Not found." };
 
     const repository = createSupabaseAiReadRepository(db);

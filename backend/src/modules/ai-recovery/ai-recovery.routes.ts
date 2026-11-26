@@ -482,6 +482,7 @@ aiRecoveryRouter.get(
       project_id: projectId,
       execution_id: executionId,
       identity,
+      user_email: res.locals.userEmail,
       ...(revision === undefined ? {} : { revision }),
     });
     if (!result.ok) return sendServiceFailure(res, result);
