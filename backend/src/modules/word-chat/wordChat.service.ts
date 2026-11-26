@@ -330,6 +330,7 @@ export async function getWordChatWithMessages(
     db,
     { userId: args.userId, userEmail: args.userEmail },
     stored,
+    "word_chat_messages",
     "live",
   );
   const readableById = new Map(readable.map((message) => [message.id, message]));

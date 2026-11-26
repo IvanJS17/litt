@@ -249,7 +249,7 @@ async function loadUserChatsJudged(
     // holder can no longer open, or the attachment itself, stays behind; what
     // the holder typed stays. A chat with anything withheld loses its title,
     // which was written from the chat.
-    const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all);
+    const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all, "chat_messages");
     return {
         result: {
             chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
@@ -588,7 +588,7 @@ async function judgeUnlistedChats(
     const [chatIds, tabularIds] = [wanted("chat_id"), wanted("tabular_chat_id")];
     if (chatIds.length) {
         const all = await selectByIds(db, "chat_messages", "chat_id", chatIds);
-        judgeChats(all, (await readableChatMessages(db, reader, all)).messages, judged);
+        judgeChats(all, (await readableChatMessages(db, reader, all, "chat_messages")).messages, judged);
     }
     if (tabularIds.length) {
         const all = await selectCompleteChatMessages(db, tabularIds, "*");

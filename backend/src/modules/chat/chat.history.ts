@@ -147,7 +147,7 @@ export async function readChatTurn(
     const stored = data as StoredMessage;
     const judgement =
         stored.content !== null && stored.content !== undefined
-            ? await readableChatMessages(db, reader, await getMessagesOfChats(db, [args.chatId]), "live")
+            ? await readableChatMessages(db, reader, await getMessagesOfChats(db, [args.chatId]), "chat_messages", "live")
             : null;
     const unreadableReason = judgement?.reasons.get(args.turnId);
     const unreadable = !!judgement && !judgement.messages.some((row) => row.id === args.turnId);

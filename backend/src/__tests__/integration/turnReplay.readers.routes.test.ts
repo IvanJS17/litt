@@ -35,16 +35,21 @@ import { app } from "../../app";
 import { memoryDb } from "../helpers/memoryDb";
 import { resetAssistantTurnRunsForTests, startAssistantTurnRun } from "../../lib/assistantTurnRuns";
 import { getStreamRun } from "../../lib/streamRuns";
+import { mayWatchChatTurn } from "../../lib/chatReadAccess";
+import { ACTIVE_WORD_DOCUMENT_LIVE_FILENAME } from "../../modules/chat/engine/wordPrompt";
 
 const id = (prefix: string, n: number) => `${prefix}0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const READER = id("a", 1);
 const COLLEAGUE = id("a", 2);
 const CHAT = id("c", 1);
+// A Word chat is a row of its own table, with an id no web chat has.
+const WCHAT = id("c", 9);
 const TURN = id("e", 1);
 const WORD_DOC = id("b", 1);
 const WORD_ROW = id("b", 2);
 const OPEN_DOC = id("d", 1);
 const CLOSED_DOC = id("d", 2);
+const GONE_DOC = id("d", 7); // names no document: deleted, or never one
 const SECRET = "text computed from the closed file";
 
 const frame = (event: Record<string, unknown>) => `data: ${JSON.stringify(event)}\n\n`;
@@ -58,7 +63,7 @@ function world(extra: Record<string, Row[]> = {}) {
         chats: [{ id: CHAT, user_id: READER, project_id: null, title: "A chat" }],
         chat_messages: [],
         word_documents: [{ id: WORD_ROW, user_id: READER, client_document_id: WORD_DOC }],
-        word_chats: [{ id: CHAT, user_id: READER, word_document_id: WORD_ROW, title: "A Word chat" }],
+        word_chats: [{ id: WCHAT, user_id: READER, word_document_id: WORD_ROW, title: "A Word chat" }],
         word_chat_messages: [],
         word_document_edits: [],
         citation_support_checks: [],
@@ -71,16 +76,18 @@ function world(extra: Record<string, Row[]> = {}) {
 type Surface = {
     name: string;
     surface: "chat" | "word";
+    chatId: string;
     url: string;
     extra: Record<string, unknown>;
     messagesTable: string;
 };
 const SURFACES: Surface[] = [
-    { name: "chat", surface: "chat", url: `/chat/${CHAT}/turn/${TURN}/stream`, extra: {}, messagesTable: "chat_messages" },
+    { name: "chat", surface: "chat", chatId: CHAT, url: `/chat/${CHAT}/turn/${TURN}/stream`, extra: {}, messagesTable: "chat_messages" },
     {
         name: "Word chat",
         surface: "word",
-        url: `/word-chat/${CHAT}/turn/${TURN}/stream?document_id=${WORD_DOC}`,
+        chatId: WCHAT,
+        url: `/word-chat/${WCHAT}/turn/${TURN}/stream?document_id=${WORD_DOC}`,
         extra: { clientDocumentId: WORD_DOC, persistChat: true },
         messagesTable: "word_chat_messages",
     },
@@ -89,7 +96,7 @@ const SURFACES: Surface[] = [
 function startRun(s: Surface, sourceDocumentIds: string[] | null | undefined, text = SECRET) {
     const run = startAssistantTurnRun({
         id: TURN,
-        chatId: CHAT,
+        chatId: s.chatId,
         userId: READER,
         assistantMessageId: TURN,
         surface: s.surface,
@@ -168,7 +175,7 @@ describe.each(SURFACES)("replaying the stream of a $name turn", (s) => {
             [s.messagesTable]: [
                 {
                     id: id("f", 1),
-                    chat_id: CHAT,
+                    chat_id: s.chatId,
                     role: "assistant",
                     content: [{ type: "content", text: "earlier" }],
                     citations: [{ document_id: CLOSED_DOC, quote: "q" }],
@@ -188,7 +195,7 @@ describe.each(SURFACES)("replaying the stream of a $name turn", (s) => {
             [s.messagesTable]: [
                 {
                     id: id("f", 1),
-                    chat_id: CHAT,
+                    chat_id: s.chatId,
                     role: "assistant",
                     content: [{ type: "content", text: "earlier" }],
                     citations: [{ document_id: OPEN_DOC, quote: "q" }],
@@ -202,12 +209,167 @@ describe.each(SURFACES)("replaying the stream of a $name turn", (s) => {
         expect(res.status).toBe(200);
         expect(res.text).toContain(SECRET);
     });
+    it("keeps the frames of the person whose turn it is when a frame names a document that no longer exists", async () => {
+        world();
+        const run = startRun(s, [OPEN_DOC]);
+        run.write(frame({ type: "doc_created", document_id: GONE_DOC, filename: "draft.docx" }));
+        const res = await watch(s.url);
+        expect(res.status).toBe(200);
+        expect(res.text).toContain(SECRET);
+    });
+
+    it("keeps the frames of the person whose turn it is when a partial citation names an id the turn was never given", async () => {
+        world();
+        const run = startRun(s, [OPEN_DOC]);
+        run.write(
+            frame({ type: "citations", status: "partial", citations: [{ type: "citation_data", kind: "document", ref: 1, document: { document_id: GONE_DOC, title: GONE_DOC }, doc_id: GONE_DOC }] }),
+            { slot: "citations" } as never,
+        );
+        const res = await watch(s.url);
+        expect(res.status).toBe(200);
+        expect(res.text).toContain(SECRET);
+    });
+
+    it("answers like a turn that is gone when a partial citation names a document that exists and the reader cannot open", async () => {
+        world();
+        const run = startRun(s, [OPEN_DOC]);
+        run.write(
+            frame({ type: "citations", status: "partial", citations: [{ type: "citation_data", kind: "document", ref: 1, document: { document_id: CLOSED_DOC, title: "t" }, doc_id: CLOSED_DOC }] }),
+            { slot: "citations" } as never,
+        );
+        const res = await watch(s.url);
+        expect(res.status).toBe(404);
+        expect(res.text).not.toContain(SECRET);
+    });
+
+    it("keeps the frames of the person whose turn it is when an earlier answer cited a document that no longer exists", async () => {
+        world({
+            [s.messagesTable]: [
+                {
+                    id: id("f", 1),
+                    chat_id: s.chatId,
+                    role: "assistant",
+                    content: [{ type: "content", text: "earlier" }],
+                    citations: [{ document_id: GONE_DOC, quote: "q" }],
+                    files: null,
+                    created_at: "2026-11-10T10:00:01Z",
+                },
+            ],
+        });
+        startRun(s, [OPEN_DOC]);
+        const res = await watch(s.url);
+        expect(res.status).toBe(200);
+        expect(res.text).toContain(SECRET);
+    });
+
+    it("keeps the frames of the person whose turn it is when the turn was started on a document that no longer exists", async () => {
+        world();
+        startRun(s, [OPEN_DOC, GONE_DOC]);
+        const res = await watch(s.url);
+        expect(res.status).toBe(200);
+    });
+
+    it("refuses a reader who is not the owner of the chat when a frame names a document that does not exist", async () => {
+        world();
+        const run = startRun(s, [OPEN_DOC]);
+        run.write(frame({ type: "doc_created", document_id: GONE_DOC, filename: "draft.docx" }));
+        const stream = getStreamRun(TURN)!;
+        const reader = { userId: COLLEAGUE, userEmail: `${COLLEAGUE}@test.local` };
+        const chat = { chatId: s.chatId, table: s.messagesTable as "chat_messages" | "word_chat_messages" };
+        expect(await mayWatchChatTurn(h.state!.db as never, stream, chat, reader)).toBe(false);
+        const owner = { userId: READER, userEmail: `${READER}@test.local` };
+        expect(await mayWatchChatTurn(h.state!.db as never, stream, chat, owner)).toBe(true);
+    });
+});
+
+describe("a Word chat of its owner, answers that read the open Word document", () => {
+    const message = (n: number, over: Row): Row => ({
+        id: id("f", n),
+        chat_id: WCHAT,
+        role: "assistant",
+        content: null,
+        files: null,
+        citations: null,
+        created_at: `2026-11-10T10:00:0${n}Z`,
+        ...over,
+    });
+    // What the Word engine stores: the live read, and the read of the snapshot of the open document.
+    const liveRead = { type: "doc_read", filename: ACTIVE_WORD_DOCUMENT_LIVE_FILENAME };
+    const snapshotRead = { type: "doc_read", filename: "Contract.docx", version_id: null, version_number: null };
+    const transcript = (read: Row): Row[] => [
+        message(1, { role: "user", content: "summarise my document" }),
+        message(2, { content: [read, { type: "content", text: "ANSWER_ONE" }] }),
+        message(3, { role: "user", content: "and now?" }),
+        message(4, { content: [{ type: "content", text: "ANSWER_TWO" }] }),
+    ];
+
+    it.each([
+        ["a live read", liveRead],
+        ["a read of the snapshot", snapshotRead],
+    ])("gives the owner every answer whole after %s", async (_name, read) => {
+        world({ word_chat_messages: transcript(read) });
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
+        expect(res.status).toBe(200);
+        const messages = res.body.messages as Row[];
+        expect(messages.map((m) => m.content)).toEqual([
+            "summarise my document",
+            [read, { type: "content", text: "ANSWER_ONE" }],
+            "and now?",
+            [{ type: "content", text: "ANSWER_TWO" }],
+        ]);
+        expect(messages.some((m) => m.unreadable)).toBe(false);
+    });
+
+    it.each([
+        ["a live read", liveRead],
+        ["a read of the snapshot", snapshotRead],
+    ])("lets the owner reattach to their own turn after %s", async (_name, read) => {
+        world({ word_chat_messages: transcript(read) });
+        startRun(SURFACES[1], [OPEN_DOC]);
+        const res = await watch(SURFACES[1].url);
+        expect(res.status).toBe(200);
+        expect(res.text).toContain(SECRET);
+    });
+
+    it("still empties an answer that cites a stored document the owner can no longer open, and refuses reattaching", async () => {
+        world({
+            word_chat_messages: [
+                message(1, { role: "user", content: "q" }),
+                message(2, { content: [liveRead, { type: "content", text: SECRET }], citations: [{ document_id: CLOSED_DOC, quote: "secret clause" }] }),
+                message(3, { role: "user", content: "q2" }),
+                message(4, { content: [{ type: "content", text: "ANSWER_TWO" }] }),
+            ],
+        });
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
+        const messages = res.body.messages as Row[];
+        expect(messages[1]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "no_access" });
+        expect(messages[3]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "no_access" });
+        expect(JSON.stringify(res.body)).not.toContain(SECRET);
+        startRun(SURFACES[1], [OPEN_DOC]);
+        expect((await watch(SURFACES[1].url)).status).toBe(404);
+    });
+
+    it("withholds on its own an answer that cited a document since deleted, as a web chat does, and keeps the later ones", async () => {
+        world({
+            word_chat_messages: [
+                message(1, { role: "user", content: "q" }),
+                message(2, { content: [{ type: "content", text: "ANSWER_ONE" }], citations: [{ document_id: GONE_DOC, quote: "q" }] }),
+                message(3, { role: "user", content: "q2" }),
+                message(4, { content: [{ type: "content", text: "ANSWER_TWO" }] }),
+            ],
+        });
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
+        const messages = res.body.messages as Row[];
+        expect(messages[1]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "source_unknown" });
+        expect(messages[3]).toMatchObject({ content: [{ type: "content", text: "ANSWER_TWO" }] });
+        expect(messages[3].unreadable).toBeUndefined();
+    });
 });
 
 describe("a Word chat transcript", () => {
     const message = (n: number, over: Row): Row => ({
         id: id("f", n),
-        chat_id: CHAT,
+        chat_id: WCHAT,
         role: "assistant",
         content: null,
         files: null,
@@ -223,7 +385,7 @@ describe("a Word chat transcript", () => {
                 message(2, { content: [{ type: "content", text: SECRET }], citations: [{ document_id: CLOSED_DOC, quote: "secret clause" }] }),
             ],
         });
-        const res = await request(app).get(`/word-chat/${CHAT}?document_id=${WORD_DOC}`);
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
         expect(res.status).toBe(200);
         const messages = res.body.messages as Row[];
         expect(messages.map((m) => m.id)).toEqual([id("f", 1), id("f", 2)]);
@@ -241,7 +403,7 @@ describe("a Word chat transcript", () => {
                 message(2, { content: [{ type: "content", text: "an answer" }], citations: [{ document_id: OPEN_DOC, quote: "q" }] }),
             ],
         });
-        const res = await request(app).get(`/word-chat/${CHAT}?document_id=${WORD_DOC}`);
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
         expect(res.status).toBe(200);
         const messages = res.body.messages as Row[];
         expect(messages[1]).toMatchObject({ content: [{ type: "content", text: "an answer" }] });
@@ -255,7 +417,7 @@ describe("a Word chat transcript", () => {
                 message(2, { content: [{ type: "content", text: "an answer from the open Word document" }] }),
             ],
         });
-        const res = await request(app).get(`/word-chat/${CHAT}?document_id=${WORD_DOC}`);
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
         expect((res.body.messages as Row[])[1]).toMatchObject({ content: [{ type: "content", text: "an answer from the open Word document" }] });
     });
 });
