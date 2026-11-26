@@ -4294,6 +4294,7 @@ set search_path = public, pg_temp
 as $$
 declare
   candidate_ids uuid[];
+  capped_user_ids uuid[];
   candidate record;
   active_user_jobs integer;
   claimed_job_id uuid;
@@ -4311,12 +4312,27 @@ begin
   -- job pays a count on every poll of every worker even when nothing is
   -- claimable — one 50-file batch meant 50 lateral counts x 16 workers x 1/s.
   -- 32 candidates is plenty: a worker claims at most one job per poll.
+  -- Accounts already at their running cap are left out BEFORE the limit, so
+  -- their queue never fills the window and hides another account's job.
+  select coalesce(array_agg(capped.user_id), '{}'::uuid[])
+    into capped_user_ids
+  from (
+    select running_job.user_id
+    from public.upload_processing_jobs as running_job
+    where running_job.status = 'running'
+      and running_job.locked_at >
+        now() - make_interval(secs => target_lease_seconds)
+    group by running_job.user_id
+    having count(*) >= target_max_running_per_user
+  ) as capped;
+
   select array_agg(id)
     into candidate_ids
   from (
     select id
     from public.upload_processing_jobs
     where attempts < 3
+      and user_id <> all(capped_user_ids)
       and ((
         status = 'queued'
         and available_at <= now()
@@ -12735,12 +12751,68 @@ create trigger matters_epoch_bump
   after update or delete on public.matters
   for each row execute function public.bump_epoch_for_matter_scope_mutation();
 
+-- Denying a person a project, removing their grant, or making a project
+-- private, ends access that work queued earlier was authorized under. Changes
+-- that only widen access leave the epoch alone.
+create or replace function public.bump_epoch_for_project_access_loss()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_table_name = 'project_org_access_overrides' then
+    if new.role = 'deny' and (tg_op = 'INSERT' or old.role is distinct from 'deny') then
+      perform public.bump_authorization_epoch(new.org_id);
+    end if;
+  elsif new.visibility = 'private' and old.visibility is distinct from 'private' and new.org_id is not null then
+    perform public.bump_authorization_epoch(new.org_id);
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists project_overrides_epoch_bump on public.project_org_access_overrides;
+create trigger project_overrides_epoch_bump
+  after insert or update of role on public.project_org_access_overrides
+  for each row execute function public.bump_epoch_for_project_access_loss();
+
+-- Removing grants: once per organization per statement, so a departure or a
+-- deleted project that drops many grants moves the epoch once, not once per row.
+create or replace function public.bump_epoch_for_project_grants_removed()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare removed_org uuid;
+begin
+  for removed_org in select distinct r.org_id from removed_grants r where r.role <> 'deny' loop
+    perform public.bump_authorization_epoch(removed_org);
+  end loop;
+  return null;
+end;
+$$;
+
+drop trigger if exists project_overrides_grants_removed_epoch_bump on public.project_org_access_overrides;
+create trigger project_overrides_grants_removed_epoch_bump
+  after delete on public.project_org_access_overrides
+  referencing old table as removed_grants
+  for each statement execute function public.bump_epoch_for_project_grants_removed();
+
+drop trigger if exists projects_epoch_bump on public.projects;
+create trigger projects_epoch_bump
+  after update of visibility on public.projects
+  for each row execute function public.bump_epoch_for_project_access_loss();
+
 revoke execute on function public.bump_authorization_epoch(uuid) from public, anon, authenticated;
 grant execute on function public.bump_authorization_epoch(uuid) to service_role;
 revoke execute on function public.bump_epoch_for_org_member_mutation() from public, anon, authenticated;
 revoke execute on function public.bump_epoch_for_workspace_membership_mutation() from public, anon, authenticated;
 revoke execute on function public.bump_epoch_for_matter_membership_mutation() from public, anon, authenticated;
 revoke execute on function public.bump_epoch_for_matter_scope_mutation() from public, anon, authenticated;
+revoke execute on function public.bump_epoch_for_project_access_loss() from public, anon, authenticated;
+revoke execute on function public.bump_epoch_for_project_grants_removed() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 20261023_02_litt_onboarding_organization.sql
@@ -23863,5 +23935,6 @@ insert into public.schema_migrations (filename) values
   ('20261125_01_litt_email_change_invitations_and_playbook_shares.sql'),
   ('20261126_01_litt_private_matter_project_private.sql'),
   ('20261126_20_litt_db_jobs_fair_parser_claim.sql'),
-  ('20261126_30_litt_db_jobs_claim_kind_arm.sql')
+  ('20261126_30_litt_db_jobs_claim_kind_arm.sql'),
+  ('20261126_90_litt_upload_claim_fairness_and_access_loss_epoch.sql')
 on conflict (filename) do nothing;
