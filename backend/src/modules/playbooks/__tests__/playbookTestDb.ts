@@ -205,7 +205,17 @@ export function database(
     // The review publication RPC (upstream's contract model, below).
     return publicationRpc(tables, writes)(name, args);
   };
-  return { db: { from, rpc } as unknown as Db, writes, tables };
+  // The account's confirmed address, which queued jobs read when they run: in
+  // these fixtures a person's address is `<id>@example.com`.
+  const auth = {
+    admin: {
+      getUserById: async (id: string) => ({
+        data: { user: { email: `${id}@example.com`, email_confirmed_at: "2026-01-01T00:00:00Z" } },
+        error: null,
+      }),
+    },
+  };
+  return { db: { from, rpc, auth } as unknown as Db, writes, tables };
 }
 
 // Sequential contract model only. PostgreSQL tests establish the actual

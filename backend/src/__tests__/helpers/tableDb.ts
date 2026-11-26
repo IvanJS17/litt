@@ -48,6 +48,7 @@ export function tableDb(
     let offset = 0;
     let op: TableDbCall["op"] = "select";
     let payload: unknown;
+    let ignoreDuplicates = false;
     let tooLong = false;
     const inSizes: number[] = [];
     const settle = (one: boolean) => {
@@ -62,6 +63,7 @@ export function tableDb(
           .map((row) => ({ id: randomUUID(), ...row }));
         for (const row of inserted) {
           const existing = op === "upsert" ? rows.find((r) => r.id === row.id) : undefined;
+          if (existing && ignoreDuplicates) continue;
           if (existing) Object.assign(existing, row);
           else rows.push({ ...row });
         }
@@ -73,7 +75,10 @@ export function tableDb(
         const removed = new Set(matched.map((row) => row.id));
         for (const [child, column] of cascade[table] ?? [])
           tables[child] = (tables[child] ?? []).filter((row) => !removed.has(row[column]));
-        return Promise.resolve({ data: null, error: null });
+        return Promise.resolve({
+          data: one && matched[0] ? { ...matched[0] } : null,
+          error: null,
+        });
       }
       if (op === "update") {
         for (const row of matched) Object.assign(row, payload);
@@ -120,7 +125,9 @@ export function tableDb(
         settle(false).then(resolve, reject),
     };
     for (const name of ["update", "delete", "insert", "upsert"] as const) {
-      builder[name] = (value?: unknown) => ((op = name), (payload = value), builder);
+      builder[name] = (value?: unknown, options?: { ignoreDuplicates?: boolean }) => (
+        (op = name), (payload = value), (ignoreDuplicates = !!options?.ignoreDuplicates), builder
+      );
     }
     return builder;
   };

@@ -78,6 +78,15 @@ vi.mock("../uploads.manifest", async (original) => ({
 vi.mock("../../../lib/audit", () => ({ recordAudit: mocks.recordAudit }));
 // The destination gate has its own tests (uploads.destinationGate.test.ts);
 // here the owner still may write, unless a test says otherwise.
+// The erasure fence has its own tests (uploads.destinationGate.test.ts); here
+// no account is being erased.
+vi.mock("../../../lib/access", async (original) => ({
+  ...(await original<typeof import("../../../lib/access")>()),
+  accountErasureRequested: async () => false,
+}));
+vi.mock("../../../lib/confirmedEmail", () => ({
+  currentConfirmedEmail: async () => "owner@example.com",
+}));
 vi.mock("../uploads.access", () => ({
   sessionDestinationWritable: mocks.sessionDestinationWritable,
 }));

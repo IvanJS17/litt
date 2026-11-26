@@ -186,7 +186,8 @@ begin
     values(item,caller||'@example.test','viewer',colleague);
   insert into chats(user_id,project_id,org_id,title)
     values(colleague,member_project,team,'Private matter, caller on the team') returning id into item;
-  insert into chat_cases values(item,'matter-member'); insert into expected_visible values('matter-member','owner');
+  -- The caller is an editor on the matter's team: their matter role, not the organization's.
+  insert into chat_cases values(item,'matter-member'); insert into expected_visible values('matter-member','editor');
   insert into chats(user_id,project_id,org_id,title)
     values(colleague,public_matter_project,team,'Public matter') returning id into item;
   insert into chat_cases values(item,'public-matter'); insert into expected_visible values('public-matter','owner');

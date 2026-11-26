@@ -4,8 +4,11 @@ import { setStorageAdapter, StorageOperationError } from "../../../lib/storage";
 import type { DbJob } from "../../../lib/dbq/types";
 import { createExportStorageFake } from "../../exports/__tests__/exportStorageFake";
 
+// The account state and address the job reads are covered in buildExport.account.test.ts.
+vi.mock("../../../lib/confirmedEmail", () => ({ currentConfirmedEmail: async () => "" }));
 vi.mock("../../../lib/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/access")>()),
+  accountErasureRequested: async () => false,
   createDocumentAccessChecker: () => async () => ({ ok: true }),
 }));
 vi.mock("../../../lib/documentVersions", async (importOriginal) => ({

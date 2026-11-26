@@ -327,6 +327,7 @@ function lostTerminalWrites(db: Db, tables: Record<string, Row[]>, lose = true):
       Promise.resolve({ data: null, error: { message: "connection reset" } }).then(resolve),
   };
   return {
+    auth: db.auth,
     from(table: string) {
       const query = db.from(table as never) as unknown as Record<string, unknown>;
       if (table === "playbook_imports" && lose) {
@@ -358,6 +359,7 @@ function lostTerminalWrites(db: Db, tables: Record<string, Row[]>, lose = true):
 /** Inserting a playbook id that exists fails as Postgres does. */
 function uniquePlaybookIds(db: Db, tables: Record<string, Row[]>): Db {
   return {
+    auth: db.auth,
     from(table: string) {
       const query = db.from(table as never) as unknown as Record<string, unknown>;
       if (table !== "playbooks") return query;

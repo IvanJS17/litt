@@ -184,6 +184,12 @@ describe("the job", () => {
     { table: "document_versions", data: versionRow },
     { table: "documents", data: { id: "d1", org_id: "o1", archived_at: null } },
   ];
+  it("checks access for the address the account has when the job runs, not the one copied into it", async () => {
+    mocks.access.mockResolvedValue({ ok: false });
+    const fake = scriptedDb([...head()], "now@example.test");
+    await expect(handleDocumentOcr(fake.db, job)).rejects.toThrow("ocr_forbidden");
+    expect(mocks.access).toHaveBeenCalledWith("d1", "u1", "now@example.test", fake.db);
+  });
   it("reads, saves the reading with its provenance, then merges it into the text and clears the warning", async () => {
     mocks.parse.mockResolvedValue(read);
     mocks.publish.mockResolvedValue({ textlessPageCount: 1 });

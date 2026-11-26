@@ -243,6 +243,27 @@ export async function filterReadableChatMessages<T extends ProvenancedMessage>(
 }
 
 /**
+ * May this reader watch this run? A run is generated for the person who
+ * started it, over documents that person could read; what it streams is
+ * derived from them. It records those documents in `meta.sourceDocumentIds`,
+ * and the reader sees the run only while they can read every one of them
+ * (the rule `filterReadableChatMessages` applies to a stored message). A run
+ * that records none is of unknown provenance and is shown to nobody.
+ */
+export async function mayWatchRun(
+    db: Db,
+    run: { meta: unknown },
+    reader: { userId: string; userEmail: string | null | undefined },
+): Promise<boolean> {
+    const recorded = (run.meta as { sourceDocumentIds?: unknown } | null)
+        ?.sourceDocumentIds;
+    const sources = Array.isArray(recorded)
+        ? recorded.filter((id): id is string => typeof id === "string")
+        : null;
+    return (await keepReadableDerived(db, reader, [run], () => sources)).length === 1;
+}
+
+/**
  * A chat's title comes from its own turns (generated from the first message
  * or typed by its author), so it carries the chat's provenance: shown only
  * when the reader can read every message of the chat. `allMessages` must be

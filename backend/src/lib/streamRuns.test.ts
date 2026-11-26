@@ -12,6 +12,7 @@ import {
     resetStreamRunsForTests,
     setRunByteLimitForTests,
     startStreamRun,
+    stopRunsOfUser,
     stopOutcomeFrame,
 } from "./streamRuns";
 
@@ -511,5 +512,26 @@ describe("stream runs", () => {
             vi.advanceTimersByTime(IDLE_RUN_TIMEOUT_MS + 1);
             expect(stopOutcomeFrame(run)).toContain('"type":"error"');
         });
+    });
+});
+
+describe("stopping a person's runs", () => {
+    it("stops every live run of that person and no run of anybody else", () => {
+        const mine = start("run-a", "chat:a");
+        const alsoMine = start("run-b", "review:b");
+        const other = startStreamRun({
+            id: "run-c",
+            key: "chat:c",
+            userId: "u2",
+            forcedStopFrames,
+        })!;
+
+        expect(stopRunsOfUser("u1")).toBe(2);
+
+        expect(mine.signal.aborted).toBe(true);
+        expect(alsoMine.signal.aborted).toBe(true);
+        expect(mine.stopReason).toBe("user");
+        expect(other.signal.aborted).toBe(false);
+        expect(stopRunsOfUser("u1")).toBe(0);
     });
 });
