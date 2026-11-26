@@ -503,6 +503,9 @@ async function deleteOrphanedUserStorage(db: Db, userId: string) {
                 // an interrupted request never consumed: no row or trigger
                 // owns those.
                 ...(await listFiles(`playbooks/${userId}/`)),
+                // Staged and sealed objects of uploads that never finished;
+                // their session rows go with the account.
+                ...(await listFiles(`upload-sessions/${userId}/`)),
             ]),
         ];
         if (paths.length === 0) return;
