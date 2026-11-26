@@ -179,4 +179,26 @@ describe("buildCitationSupportInputs", () => {
         const inputs = await buildCitationSupportInputs({ prose, citations: many, getSourceText });
         expect(inputs).toHaveLength(MAX_CHECKED_CITATIONS);
     });
+
+    it("counts a verified citation toward the cap whether or not its claim or its document can be read", async () => {
+        const inOrder = (from: number) => Array.from({ length: MAX_CHECKED_CITATIONS }, (_, i) => citation(from + i, [verified("El plazo es de 30 días.")]));
+        const last = citation(900, [verified("El plazo es de 30 días.")]);
+        // The first group has no marker in the answer: no claim to check.
+        const noClaim = await buildCitationSupportInputs({ prose: "Dato [900].", citations: [...inOrder(1), last], getSourceText });
+        expect(noClaim).toEqual([]);
+        // The second group's document cannot be read.
+        const unreadable = await buildCitationSupportInputs({
+            prose: `${inOrder(1).map((c) => `Dato [${c.ref}].`).join(" ")} Dato [900].`,
+            citations: [...inOrder(1), last],
+            getSourceText: async (docId) => { throw new Error(`cannot read ${docId}`); },
+        });
+        expect(unreadable).toEqual([]);
+        const read: number[] = [];
+        await buildCitationSupportInputs({
+            prose: `${inOrder(1).map((c) => `Dato [${c.ref}].`).join(" ")} Dato [900].`,
+            citations: [...inOrder(1), last],
+            getSourceText: async () => { read.push(1); throw new Error("unreadable"); },
+        });
+        expect(read).toHaveLength(MAX_CHECKED_CITATIONS);
+    });
 });

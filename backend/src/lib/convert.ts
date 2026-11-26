@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -7,12 +8,8 @@ import { AppError } from "./appError";
 import { childProcessEnv } from "./childEnv";
 import { MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CONVERSIONS } from "./conversionLimits";
 import { admission } from "./extraction/admission";
-import { ExtractionBusyError } from "./extraction/limits";
 import { uploadConversionTimeoutMs } from "./runtimeConfig";
 
-let _convert:
-  ((buf: Buffer, ext: string, filter: undefined) => Promise<Buffer>) | null =
-  null;
 let _sofficeBinaryPaths: string[] | null = null;
 
 // Server-log text for the operator (never sent to a client). The backend
@@ -111,61 +108,6 @@ function resolveSofficeBinaryPaths(): string[] {
 
   _sofficeBinaryPaths = [...candidates].filter(executablePath);
   return _sofficeBinaryPaths;
-}
-
-async function getConvert() {
-  if (!_convert) {
-    const libre = await import("libreoffice-convert");
-    const convertWithOptions = libre.default.convertWithOptions.bind(
-      libre.default,
-    ) as (
-      buf: Buffer,
-      ext: string,
-      filter: undefined,
-      options: {
-        sofficeBinaryPaths?: string[];
-        execOptions?: { timeout?: number; killSignal?: NodeJS.Signals; env?: NodeJS.ProcessEnv };
-      },
-      callback?: (err: Error | null, result: Buffer) => void,
-    ) => Promise<Buffer> | void;
-    _convert = (buf, ext, filter) =>
-      new Promise<Buffer>((resolve, reject) => {
-        try {
-          const maybePromise = convertWithOptions(
-            buf,
-            ext,
-            filter,
-            {
-              sofficeBinaryPaths: resolveSofficeBinaryPaths(),
-              // The library runs soffice with execFile: without these a
-              // wedged soffice holds the caller forever.
-              // Not a process group kill: libreoffice-convert does not expose
-              // the child or let a launcher be put in front of soffice, and
-              // execFile's timeout signals only the direct child. A descendant
-              // that outlives it is reaped when the parser process group is
-              // killed (isolated.ts killParser) for the callers running there;
-              // officeFileToPdf, the upload-worker path, kills its group.
-              execOptions: {
-                timeout: uploadConversionTimeoutMs(),
-                killSignal: "SIGKILL",
-                // Only the allowlisted variables, not the backend's secrets.
-                env: childProcessEnv(),
-              },
-            },
-            (err, result) => {
-              if (err) reject(err);
-              else resolve(result);
-            },
-          );
-          if (maybePromise && typeof maybePromise.then === "function") {
-            maybePromise.then(resolve, reject);
-          }
-        } catch (err) {
-          reject(err);
-        }
-      });
-  }
-  return _convert;
 }
 
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
@@ -284,48 +226,25 @@ const conversionAdmission = admission(MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CON
  * Convert a DOCX/DOC buffer to PDF using LibreOffice.
  * Throws if LibreOffice is not installed or conversion fails. Throws
  * ExtractionBusyError when no place frees up in time, or `signal` aborts first.
+ * The conversion runs as officeFileToPdf's does, so at its deadline every
+ * process of LibreOffice's tree is killed before this settles, and the
+ * temporary files are removed after that.
  */
 export async function docxToPdf(buffer: Buffer, options: { signal?: AbortSignal } = {}): Promise<Buffer> {
   if (resolveSofficeBinaryPaths().length === 0) {
     throw converterUnavailable();
   }
-  const convert = await getConvert();
   const normalized = await normalizeDocxZipPaths(buffer);
-  const startedAt = Date.now();
-  try {
-    return await conversionAdmission({ waitMs: CONVERSION_WAIT_MS, signal: options.signal }, () =>
-      convert(normalized, ".pdf", undefined),
-    );
-  } catch (error) {
-    if (error instanceof AppError || error instanceof ExtractionBusyError) throw error;
-    // The library spawns soffice itself: a spawn failure is the converter
-    // missing or unexecutable, the same condition officeFileToPdf names.
-    const code = (error as { code?: unknown } | null)?.code;
-    if (code === "ENOENT" || code === "EACCES") throw converterUnavailable(error);
-    // execFile reports its own deadline as killed + SIGKILL. libreoffice-convert
-    // 1.9.1 drops that error when stderr mentions "error" (which a killed
-    // soffice often prints) and throws a plain one, so a failure that came
-    // after the deadline is also the deadline.
-    const killed = error as { killed?: unknown; signal?: unknown } | null;
-    const pastDeadline = Date.now() - startedAt >= uploadConversionTimeoutMs();
-    if ((killed?.killed === true && killed.signal === "SIGKILL") || pastDeadline) {
-      // Same kind either way (the deadline passed), but the operator log says
-      // whether the process was killed by it or failed on its own past it.
-      const wasKilled = killed?.killed === true && killed.signal === "SIGKILL";
-      throw new ConversionError(
-        "conversion.timeout",
-        wasKilled
-          ? `LibreOffice conversion timed out after ${uploadConversionTimeoutMs()}ms`
-          : `LibreOffice conversion failed after the ${uploadConversionTimeoutMs()}ms deadline (not killed by it)`,
-        { cause: error },
-      );
+  return conversionAdmission({ waitMs: CONVERSION_WAIT_MS, signal: options.signal }, async () => {
+    const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), "litt-docx-pdf-"));
+    try {
+      const inputPath = path.join(directory, "source.docx");
+      await fs.promises.writeFile(inputPath, normalized);
+      return await fs.promises.readFile(await convertOfficeFile(inputPath, path.join(directory, "out")));
+    } finally {
+      await fs.promises.rm(directory, { recursive: true, force: true }).catch(() => {});
     }
-    throw new ConversionError(
-      "conversion.failed",
-      "LibreOffice conversion failed",
-      { cause: error },
-    );
-  }
+  });
 }
 
 /**
@@ -333,7 +252,18 @@ export async function docxToPdf(buffer: Buffer, options: { signal?: AbortSignal 
  * This is the upload-worker path: it avoids loading either the source file or
  * converted PDF into the Node.js process.
  */
-export async function officeFileToPdf(
+export function officeFileToPdf(
+  inputPath: string,
+  outputDirectory: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<string> {
+  return conversionAdmission({ waitMs: CONVERSION_WAIT_MS, signal: options.signal }, () =>
+    convertOfficeFile(inputPath, outputDirectory),
+  );
+}
+
+/** One conversion, already admitted: LibreOffice in its own process group, killed whole at the deadline. */
+async function convertOfficeFile(
   inputPath: string,
   outputDirectory: string,
 ): Promise<string> {
@@ -348,9 +278,10 @@ export async function officeFileToPdf(
   const profileUrl = pathToFileURL(profileDirectory).href;
 
   const timeoutMs = uploadConversionTimeoutMs();
+  const ownGroup = process.platform !== "win32" && process.env.LITT_PARSER_PROCESS !== "1";
   let stderr = "";
   try {
-    await conversionAdmission({ waitMs: CONVERSION_WAIT_MS }, () => new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const child = spawn(
         binary,
         [
@@ -363,10 +294,12 @@ export async function officeFileToPdf(
           inputPath,
         ],
         // Its own process group, so the deadline reaches soffice.bin and any
-        // other descendant, not only this direct child.
+        // other descendant, not only this direct child. Inside the parser
+        // process it stays in the parser's group instead: killing the parser
+        // (its deadline, its parent's exit) then reaches LibreOffice too.
         {
           stdio: ["ignore", "ignore", "pipe"],
-          detached: process.platform !== "win32",
+          detached: ownGroup,
           // Only the allowlisted variables, not the backend's secrets.
           env: childProcessEnv(),
         },
@@ -377,7 +310,7 @@ export async function officeFileToPdf(
       const deadline = setTimeout(() => {
         timedOut = true;
         try {
-          if (child.pid && process.platform !== "win32") process.kill(-child.pid, "SIGKILL");
+          if (child.pid && ownGroup) process.kill(-child.pid, "SIGKILL");
           else child.kill("SIGKILL");
         } catch {
           child.kill("SIGKILL");
@@ -414,7 +347,7 @@ export async function officeFileToPdf(
           );
         }
       });
-    }));
+    });
   } finally {
     // A killed child leaves lock files behind in its user profile.
     await fs.promises

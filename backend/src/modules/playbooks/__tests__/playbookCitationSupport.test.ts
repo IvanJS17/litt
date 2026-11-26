@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { MAX_CHECKED_CITATIONS } from "../../../lib/citationSupport";
 import { locateQuoteInSource } from "../playbooks.draft";
 import { playbookCitationInputs, reviewSourcesFor } from "../playbooks.citationSupport";
 import type { PlaybookContent } from "../playbooks.types";
@@ -40,6 +41,15 @@ describe("playbookCitationInputs", () => {
         const sent = JSON.stringify(inputs.map((i) => i.state));
         expect(sent).not.toContain("A1");
         expect(sent).not.toContain(STORED);
+    });
+
+    it("places at most the checked number of quotes, found or not", () => {
+        const locate = vi.fn(() => null);
+        const rules = Array.from({ length: 200 }, (_, n) =>
+            rule({ id: `r${n}`, origin: { kind: "clause", sourceId: "A1", quote: `no está ${n}`, unbacked: false } }));
+        const inputs = playbookCitationInputs({ content: content(rules), sources, sourceIds: [STORED], locate });
+        expect(inputs).toEqual([]);
+        expect(locate.mock.calls.length).toBeLessThanOrEqual(MAX_CHECKED_CITATIONS);
     });
 
     it("skips rules that stand on an answer or general practice, and quotes it cannot place", () => {

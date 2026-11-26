@@ -39,6 +39,24 @@ describe("ZIP export limits", () => {
     );
   });
 
+  it("looks a name up a number of times proportional to the names, however many share one", () => {
+    // Counting the lookups, not timing them: N names against 4N names.
+    const lookups = (names: number) => {
+      let count = 0;
+      const used = new Set<string>();
+      const has = used.has.bind(used);
+      used.has = (value: string) => {
+        count += 1;
+        return has(value);
+      };
+      for (let index = 0; index < names; index++) uniqueArchiveFilename("Contract.pdf", used);
+      return count;
+    };
+    const small = lookups(200);
+    const large = lookups(800);
+    expect(large).toBeLessThanOrEqual(small * 4 + 8);
+  });
+
   it("preserves path-like and normalized-collision document names as distinct leaf entries", async () => {
     const requested = [
       "Agreement.pdf", "../Agreement.pdf", "./Agreement.pdf",

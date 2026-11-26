@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ExtractionBusyError, runIsolatedExtraction, withExtractionSlot, withExtractionRequest, withBackgroundExtraction } from "../isolated";
+import { ExtractionBusyError, runIsolatedExtraction, withExtractionSlot, withExtractionRequest, withBackgroundExtraction, backgroundExtractionSlotsFree } from "../isolated";
 import { extractionTimeoutMs } from "../limits";
 
 vi.mock("../ops", () => ({ EXTRACTION_OPS: { spreadsheet: async () => "text" } }));
@@ -132,5 +132,22 @@ describe("parser admission", () => {
     await expect(withExtractionSlot({ waitMs: 0 }, async () => "next")).resolves.toBe("next");
     vi.stubEnv("EXTRACTION_TIMEOUT_MS", "3600000");
     expect(extractionTimeoutMs()).toBe(300_000);
+  });
+});
+
+describe("background parser slots", () => {
+  it("reports no free slot while the parser or the background source is held", async () => {
+    expect(backgroundExtractionSlotsFree()).toBe(1);
+    const { held, release } = occupy();
+    expect(backgroundExtractionSlotsFree()).toBe(0);
+    release();
+    await held;
+    expect(backgroundExtractionSlotsFree()).toBe(1);
+    let finish!: () => void;
+    const background = withBackgroundExtraction({}, () => new Promise<void>((resolve) => { finish = resolve; }));
+    expect(backgroundExtractionSlotsFree()).toBe(0);
+    finish();
+    await background;
+    expect(backgroundExtractionSlotsFree()).toBe(1);
   });
 });

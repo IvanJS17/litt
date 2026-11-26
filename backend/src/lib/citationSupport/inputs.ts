@@ -171,14 +171,17 @@ export async function buildCitationSupportInputs(args: {
 }): Promise<CitationSupportInput[]> {
     const inputs: CitationSupportInput[] = [];
     const seen = new Set<number>();
+    // Citations examined, readable or not: the claim and the source of one cost the same either way.
+    let examined = 0;
     for (const citation of args.citations) {
-        if (inputs.length >= MAX_CHECKED_CITATIONS) break;
+        if (examined >= MAX_CHECKED_CITATIONS) break;
         const c = citation as Record<string, unknown> | null;
         if (!c || typeof c.ref !== "number" || seen.has(c.ref)) continue;
         const docId = typeof c.doc_id === "string" ? c.doc_id : null;
         const quotes = Array.isArray(c.quotes) ? (c.quotes as VerifiedQuote[]) : [];
         if (!docId || !quotes.length) continue;
         if (!quotes.every((q) => q.verification?.verified && typeof q.verification.start_char === "number" && typeof q.verification.end_char === "number")) continue;
+        examined += 1;
         const claim = claimForRef(args.prose, c.ref);
         if (!claim) continue;
         let source: string;

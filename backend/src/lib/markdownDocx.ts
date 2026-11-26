@@ -25,6 +25,8 @@ import {
     type ParagraphChild,
 } from "docx";
 
+import { ExtractionLimitError } from "./extraction/limits";
+
 const FONT = "Times New Roman";
 const SIZE = 22; // 11 pt, in half-points
 const MAX_LIST_DEPTH = 5;
@@ -225,8 +227,49 @@ function block(token: Token, depth: number, numbering: Numbering, listId: { next
     }
 }
 
+/**
+ * Table cells one document may have. The Markdown reader pads every row to the
+ * header's width, so the cell count is columns x rows and can far exceed the
+ * size of the text; each cell then costs a paragraph in the Word file.
+ */
+const MAX_TABLE_CELLS = 10_000;
+const DELIMITER_CELL = /^:?-+:?$/;
+
+/** The cells of a table's delimiter row ("| --- | :-: |"), or null when the line is not one. */
+function delimiterCells(line: string): string[] | null {
+    let text = line.trim();
+    if (text.startsWith("|")) text = text.slice(1);
+    if (text.endsWith("|")) text = text.slice(0, -1);
+    const cells = text.split("|");
+    return cells.every((cell) => DELIMITER_CELL.test(cell.trim())) ? cells : null;
+}
+
+/** An upper bound of the cells of every table, counted from the lines before any are read. */
+function paddedTableCells(markdown: string): number {
+    const lines = markdown.split(/\r\n|\r|\n/);
+    const body = (line: string) => {
+        let at = 0;
+        while (at < line.length && (line[at] === ">" || line[at] === " " || line[at] === "\t")) at += 1;
+        return line.slice(at);
+    };
+    let cells = 0;
+    for (let i = 1; i < lines.length; i++) {
+        const columns = delimiterCells(body(lines[i]))?.length;
+        if (!columns || !body(lines[i - 1]).includes("|")) continue;
+        let rows = 1;
+        while (i + 1 < lines.length && body(lines[i + 1]).trim() !== "") {
+            rows += 1;
+            i += 1;
+        }
+        cells += columns * rows;
+        if (cells > MAX_TABLE_CELLS) return cells;
+    }
+    return cells;
+}
+
 /** Convert Markdown text to the bytes of a .docx. */
 export async function markdownToDocx(markdown: string): Promise<Buffer> {
+    if (paddedTableCells(markdown) > MAX_TABLE_CELLS) throw new ExtractionLimitError("too many table cells");
     const numbering: Numbering = { references: [] };
     const listId = { next: 0 };
     // marked is ESM-only; the backend is CommonJS, so it loads on demand.

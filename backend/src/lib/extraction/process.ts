@@ -4,6 +4,9 @@ import type { OcrFill } from "../ocr/pages";
 import { EXTRACTION_MAX_BINARY_BYTES, EXTRACTION_MAX_TEXT_BYTES, ExtractionLimitError, isAllocationFailure } from "./limits";
 import { extractionFailureToWire } from "./failure";
 
+// Anything this process starts (LibreOffice) stays in its process group, which the parent kills whole.
+process.env.LITT_PARSER_PROCESS = "1";
+
 process.on("message", (request: { op: ExtractionOp; bytes: ArrayBuffer; fileType: string; ocr?: OcrFill; args?: unknown }) => {
   void (async () => {
     try {

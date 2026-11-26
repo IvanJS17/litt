@@ -16,6 +16,14 @@ import { extractDocumentMarkdown } from "./documentMarkdown";
 import { extractDocumentText } from "./documentText";
 import type { OcrFill } from "../ocr/pages";
 
+/** A fetched HTML page's main content as Markdown (the page's own address resolves its links). */
+async function webPageMarkdown(bytes: ArrayBuffer, args?: { url: string }): Promise<{ title: string | null; text: string }> {
+  const [{ parseHTML }, { Defuddle }] = await Promise.all([import("linkedom"), import("defuddle/node")]);
+  const { document } = parseHTML(new TextDecoder().decode(bytes));
+  const page = await Defuddle(document as unknown as Document, args?.url ?? "", { markdown: true });
+  return { title: page.title?.trim() || null, text: page.content ?? "" };
+}
+
 async function mammothRawText(bytes: ArrayBuffer): Promise<string> {
   const mammoth = await import("mammoth");
   return (await mammoth.extractRawText({ buffer: Buffer.from(bytes) })).value;
@@ -58,6 +66,8 @@ export const EXTRACTION_OPS = {
   markdownText: (bytes: ArrayBuffer) => decodeMarkdownBytes(bytes),
   legacyOfficeText: (bytes: ArrayBuffer) => extractLegacyOfficeText(bytes),
   rawText: (bytes: ArrayBuffer) => mammothRawText(bytes),
+  /** read_webpage: untrusted HTML is parsed here, never in the API process. */
+  webPageMarkdown: (bytes: ArrayBuffer, _fileType: string, _ocr?: OcrFill, args?: unknown) => webPageMarkdown(bytes, args as { url: string } | undefined),
 };
 
 export type ExtractionOps = typeof EXTRACTION_OPS;

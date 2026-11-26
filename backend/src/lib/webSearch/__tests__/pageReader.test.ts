@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { guardedFetch, validateRemoteMcpUrl } = vi.hoisted(() => ({
     guardedFetch: vi.fn(),
@@ -156,6 +156,46 @@ describe("readWebPage", () => {
         await expect(unreadable(readWebPage("https://files.example.test/a.pdf"))).resolves.toBe(
             "The PDF could not be read.",
         );
+    });
+
+    describe("an HTML page is read by the parser process", () => {
+        const ops = EXTRACTION_OPS as unknown as Record<string, unknown>;
+        const original = ops.webPageMarkdown;
+        const stand = (impl: (...args: unknown[]) => unknown) => {
+            const fn = vi.fn(impl);
+            ops.webPageMarkdown = fn;
+            return fn;
+        };
+        afterEach(() => {
+            if (original) ops.webPageMarkdown = original;
+            else delete ops.webPageMarkdown;
+        });
+
+        it("hands the page and its address to the parser and returns what it reads", async () => {
+            guardedFetch.mockResolvedValue(page(ARTICLE, "text/html; charset=utf-8"));
+            const parse = stand(async () => ({ title: " Parsed title ", text: "Text read by the parser." }));
+
+            const result = await readWebPage("https://example.test/s172");
+
+            expect(parse).toHaveBeenCalledTimes(1);
+            const [bytes, , , args] = parse.mock.calls[0] as [ArrayBuffer, string, unknown, { url: string }];
+            expect(new TextDecoder().decode(bytes)).toContain("promote the success of the company");
+            expect(args).toEqual({ url: "https://example.test/s172" });
+            expect(result).toMatchObject({ title: "Parsed title", text: "Text read by the parser." });
+        });
+
+        it.each([
+            [new ExtractionLimitError("parser deadline exceeded"), "The page is too large to read."],
+            [new ExtractionBusyError(), "Reading documents is busy. Try again shortly."],
+            [new Error("child exited"), "The page could not be read."],
+        ])("reports %s as an unreadable page", async (failure, message) => {
+            guardedFetch.mockResolvedValue(page(ARTICLE, "text/html"));
+            stand(async () => {
+                throw failure;
+            });
+
+            await expect(unreadable(readWebPage("https://example.test/a"))).resolves.toBe(message);
+        });
     });
 
     it("refuses file types it cannot read", async () => {

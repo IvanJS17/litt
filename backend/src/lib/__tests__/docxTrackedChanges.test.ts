@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 import {
     applyTrackedEdits,
@@ -33,6 +33,32 @@ async function readDocumentXml(bytes: Buffer): Promise<string> {
     const zip = await JSZip.loadAsync(bytes);
     return zip.file("word/document.xml")!.async("string");
 }
+
+describe("applyTrackedEdits on a very large document body", () => {
+    const edit = { find: "applies", replace: "governs", context_before: " ", context_after: "." };
+    const compressed = async (bodyXml: string) => {
+        const zip = await JSZip.loadAsync(await makeDocx(bodyXml));
+        return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    };
+    const filler = para("Filler text that repeats and therefore compresses to almost nothing. ".repeat(40));
+
+    it("leaves a body above the size budget unedited and says why, without reading it whole", async () => {
+        const bytes = await compressed(para("12.10 applies.") + filler.repeat(Math.ceil((9 * 1024 * 1024) / filler.length)));
+        expect(bytes.length).toBeLessThan(1024 * 1024);
+        const result = await applyTrackedEdits(bytes, [edit, edit]);
+        expect(result.changes).toEqual([]);
+        expect(result.errors.map((error) => error.index)).toEqual([0, 1]);
+        expect(result.errors[0].reason).toMatch(/too large/i);
+        expect(result.bytes).toBe(bytes);
+    });
+
+    it("still edits a long document under the budget", async () => {
+        const bytes = await compressed(para("12.10 applies.") + filler.repeat(Math.ceil((2 * 1024 * 1024) / filler.length)));
+        const result = await applyTrackedEdits(bytes, [edit]);
+        expect(result.errors).toEqual([]);
+        expect(result.changes).toHaveLength(1);
+    });
+});
 
 describe("extractDocxBodyText", () => {
     it("joins paragraph texts with newlines", async () => {
@@ -257,6 +283,95 @@ describe("applyTrackedEdits", () => {
         await expect(
             applyTrackedEdits(Buffer.from("plainly not a zip"), []),
         ).rejects.toThrow();
+    });
+});
+
+/** Counts the bytes read from the body part of every package loaded while it runs. */
+function countBodyBytesRead() {
+    const original = JSZip.loadAsync.bind(JSZip);
+    const state = { streams: 0, bytes: 0 };
+    const spy = vi.spyOn(JSZip, "loadAsync").mockImplementation((async (...args: Parameters<typeof JSZip.loadAsync>) => {
+        const zip = await original(...args);
+        const entry = zip.file("word/document.xml") as unknown as { internalStream(type: string): { on(event: string, fn: (chunk: Buffer) => void): unknown } };
+        const internalStream = entry.internalStream.bind(entry);
+        entry.internalStream = (type: string) => {
+            state.streams += 1;
+            const stream = internalStream(type);
+            stream.on("data", (chunk) => { state.bytes += chunk.byteLength; });
+            return stream;
+        };
+        return zip;
+    }) as typeof JSZip.loadAsync);
+    return { state, restore: () => spy.mockRestore() };
+}
+
+describe("accepting, rejecting and listing tracked changes on a very large document body", () => {
+    const filler = para("Filler text that repeats and therefore compresses to almost nothing. ".repeat(40));
+    const BUDGET = 8 * 1024 * 1024;
+    const largeBody = (megabytes: number) => para("12.10 applies.") + filler.repeat(Math.ceil((megabytes * 1024 * 1024) / filler.length));
+    const compressed = async (bodyXml: string) => {
+        const zip = await JSZip.loadAsync(await makeDocx(bodyXml));
+        return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    };
+    /** A package whose two zip headers declare 1,000 bytes for a body that inflates far past that. */
+    const lying = async (megabytes: number) => {
+        const bytes = Buffer.from(await compressed(largeBody(megabytes)));
+        const name = Buffer.from("word/document.xml");
+        let patched = 0;
+        for (let i = 0; i < bytes.length - 46; i++) {
+            if (bytes.readUInt32LE(i) === 0x04034b50 && bytes.subarray(i + 30, i + 30 + name.length).equals(name)) { bytes.writeUInt32LE(1000, i + 22); patched++; }
+            if (bytes.readUInt32LE(i) === 0x02014b50 && bytes.subarray(i + 46, i + 46 + name.length).equals(name)) { bytes.writeUInt32LE(1000, i + 24); patched++; }
+        }
+        expect(patched).toBe(2);
+        return bytes;
+    };
+
+    it.each(["accept", "reject"] as const)("%s leaves a body above the size budget alone and reads none of it", async (mode) => {
+        const bytes = await compressed(largeBody(9));
+        expect(bytes.length).toBeLessThan(1024 * 1024);
+        const counter = countBodyBytesRead();
+        try {
+            const resolved = await resolveTrackedChange(bytes, ["1", "2"], mode);
+            expect(resolved).toEqual({ bytes, found: false, tooLarge: true });
+            expect(counter.state.bytes).toBe(0);
+        } finally {
+            counter.restore();
+        }
+    });
+
+    it.each(["accept", "reject"] as const)("%s stops reading a package that declares a small body but inflates past the budget", async (mode) => {
+        const bytes = await lying(20);
+        const counter = countBodyBytesRead();
+        try {
+            const resolved = await resolveTrackedChange(bytes, ["1", "2"], mode);
+            expect(resolved).toEqual({ bytes, found: false, tooLarge: true });
+            expect(counter.state.streams).toBe(1);
+            expect(counter.state.bytes).toBeGreaterThan(BUDGET);
+            expect(counter.state.bytes).toBeLessThan(BUDGET + 4 * 1024 * 1024);
+        } finally {
+            counter.restore();
+        }
+    });
+
+    it("listing the changes of a body above the budget refuses it, however the package declares its size", async () => {
+        await expect(extractTrackedChangeIds(await compressed(largeBody(9)))).rejects.toThrow(/too large to edit/i);
+        const counter = countBodyBytesRead();
+        try {
+            await expect(extractTrackedChangeIds(await lying(20))).rejects.toThrow(/too large to edit/i);
+            expect(counter.state.bytes).toBeLessThan(BUDGET + 4 * 1024 * 1024);
+        } finally {
+            counter.restore();
+        }
+    });
+
+    it("still resolves a long body under the budget", async () => {
+        const base = await compressed(para("The fee is ten dollars.") + filler.repeat(Math.ceil((2 * 1024 * 1024) / filler.length)));
+        const applied = await applyTrackedEdits(base, [{ find: "ten", replace: "twenty", context_before: "The fee is ", context_after: " dollars" }]);
+        const { delId, insId } = applied.changes[0];
+        const resolved = await resolveTrackedChange(applied.bytes, [delId!, insId!], "accept");
+        expect(resolved.found).toBe(true);
+        expect(resolved.tooLarge).toBeUndefined();
+        await expect(extractTrackedChangeIds(resolved.bytes)).resolves.toEqual([]);
     });
 });
 

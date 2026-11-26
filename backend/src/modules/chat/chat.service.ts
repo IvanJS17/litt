@@ -120,4 +120,4 @@ export {
 
 // Locating a quote in a document's text, for services that check a model's
 // quote against the source (the periodic full reading of the training layer).
-export { locateQuote, verifyQuoteAgainstSource } from "./engine/verifyCitations";
+export { createQuoteVerifier, locateQuote, verifyQuoteAgainstSource } from "./engine/verifyCitations";

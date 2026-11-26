@@ -224,6 +224,11 @@ const requestAdmission = admission(3);
 // durable jobs time out, while inline jobs must wait because no runner retries them.
 const backgroundAdmission = admission(1, Infinity);
 
+/** Background parser slots that are idle right now (the job runner claims only that many parser-bound jobs). */
+export function backgroundExtractionSlotsFree(): number {
+  return Math.min(backgroundAdmission.free(), parserAdmission.free());
+}
+
 /** Reserve only the parser; source I/O belongs outside this slot. */
 export function withExtractionSlot<T>(
   options: AdmissionOptions,

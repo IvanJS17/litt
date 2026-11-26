@@ -16,6 +16,8 @@ import {
   verifyCitations,
 } from "./verifyCitations";
 
+const TOLERANT_CAP = 1_000_000;
+
 // Deterministic in-memory source text — no storage/model/network. Proves
 // verification only reads bytes handed to it (air-gap safe).
 const SOURCE = [
@@ -397,6 +399,40 @@ describe("verifyCitations (batch)", () => {
 });
 
 describe("shared quote normalization", () => {
+  it("indexes no source above the tolerant-match cap, yet still finds an exact quote in it", async () => {
+    const operations = await import("./tools/documentOps.js");
+    const normalize = vi.spyOn(operations, "normalizeWithMap");
+    const filler = "Plain filler words. ".repeat(Math.ceil(TOLERANT_CAP / 20));
+    const source = `${filler}the Tenant shall   pay rent`;
+    try {
+      expect(source.length).toBeGreaterThan(TOLERANT_CAP);
+      expect(locateQuote(source, "the Tenant shall pay rent")).toBeNull();
+      expect(locateQuote(source, "missing quote")).toBeNull();
+      expect(verifyQuoteAgainstSource(source, "never written here")).toMatchObject({ verified: false });
+      expect(normalize.mock.calls.filter(([text]) => text === source)).toHaveLength(0);
+      const exact = locateQuote(source, "the Tenant shall   pay rent");
+      expect(exact).toMatchObject({ start: filler.length, excerpt: "the Tenant shall   pay rent" });
+    } finally { normalize.mockRestore(); }
+  });
+
+  it("indexes no source above the tolerant-match cap when locating the segments of one quote, either", async () => {
+    const operations = await import("./tools/documentOps.js");
+    const normalize = vi.spyOn(operations, "normalizeWithMap");
+    const filler = "Plain filler words. ".repeat(Math.ceil(TOLERANT_CAP / 20));
+    const source = `${filler}Opening text. Middle text.${filler.slice(0, 200)}Closing text.`;
+    try {
+      expect(source.length).toBeGreaterThan(TOLERANT_CAP);
+      expect(verifyQuoteAgainstSource(source, "Opening text.[[PAGE_BREAK]]Closing text.")).toMatchObject({ verified: true });
+      expect(verifyQuoteAgainstSource(source, "Opening text.[[PAGE_BREAK]]CLOSING TEXT.")).toMatchObject({ verified: false });
+      expect(normalize.mock.calls.filter(([text]) => text === source)).toHaveLength(0);
+    } finally { normalize.mockRestore(); }
+  });
+
+  it("still tolerates spacing and case drift just under the cap", () => {
+    const source = `${"Plain filler words. ".repeat(100)}the Tenant shall   pay rent`;
+    expect(locateQuote(source, "THE TENANT SHALL PAY RENT")).toMatchObject({ excerpt: "the Tenant shall   pay rent" });
+  });
+
   it("builds no line-end hyphen index when the cheap tiers match", async () => {
     const operations = await import("./tools/documentOps.js");
     const normalize = vi.spyOn(operations, "normalizeWithMap");

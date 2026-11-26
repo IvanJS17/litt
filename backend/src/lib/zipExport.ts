@@ -38,6 +38,13 @@ function archiveNameKey(name: string): string {
 }
 
 /**
+ * The next copy number to try per name and per archive. Names are never taken
+ * back, so every number below it is taken and counting resumes from here:
+ * a thousand documents of one name take a thousand lookups, not a million.
+ */
+const nextCopyNumber = new WeakMap<Set<string>, Map<string, number>>();
+
+/**
  * A name for a document that is one entry of the archive (never a path) and
  * that no earlier entry has.
  */
@@ -55,12 +62,16 @@ export function uniqueArchiveFilename(
   const dot = requestedName.lastIndexOf(".");
   const stem = dot > 0 ? requestedName.slice(0, dot) : requestedName;
   const extension = dot > 0 ? requestedName.slice(dot) : "";
-  let copyNumber = 2;
+  const counters = nextCopyNumber.get(usedNames) ?? new Map<string, number>();
+  nextCopyNumber.set(usedNames, counters);
+  const counterKey = `${stem}\u0000${extension}`;
+  let copyNumber = counters.get(counterKey) ?? 2;
   let candidate = `${stem} (${copyNumber})${extension}`;
   while (taken(candidate)) {
     copyNumber += 1;
     candidate = `${stem} (${copyNumber})${extension}`;
   }
   usedNames.add(archiveNameKey(candidate));
+  counters.set(counterKey, copyNumber + 1);
   return candidate;
 }
