@@ -193,10 +193,11 @@ begin
   perform pg_temp.assert_true(jsonb_array_length(r->'matches')=0,'no match when there is none');
 
   -- A time budget stops a search INSIDE a large text, and says the answer is incomplete.
-  txt:='b'||repeat('a',6*1048576); perform public.publish_document_text(v,revision,txt,'hash',0);
+  -- The phrase makes every piece slow to scan, so on any machine it is the budget that ends the search.
+  txt:=repeat('a',6*1048576); perform public.publish_document_text(v,revision,txt,'hash',0);
   perform set_config('litt.text_search_budget_ms','50',true);
   t0:=clock_timestamp();
-  r:=public.find_document_text(actor::text,'','personal','library',repeat('a',499)||'b');
+  r:=public.find_document_text(actor::text,'','personal','library','b'||repeat('a',499));
   perform pg_temp.assert_true((r#>>'{coverage,search_incomplete}')='true' and jsonb_array_length(r->'matches')=0 and r->'next_offset'='null'::jsonb,'a stopped search is reported incomplete');
   perform pg_temp.assert_true(clock_timestamp()-t0<interval '1500 milliseconds','the budget stops the scan inside one text');
   perform set_config('litt.text_search_budget_ms','','true');
