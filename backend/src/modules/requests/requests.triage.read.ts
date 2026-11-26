@@ -11,6 +11,7 @@ import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serv
 import type { Db } from "../../lib/supabase";
 import { isUuid } from "../../lib/uuid";
 import { authorizeMatterMember } from "../matters/matters.service";
+import { ACCESS_COLUMNS, type AccessRow, openableBy } from "./requests.playbookAccess";
 import { donnaEnabled, isTriagePending, playbooksForType } from "./requests.triage.run";
 import { countMonthRuns } from "./requests.triage.usage";
 import { DONNA_MONTHLY_RUN_CAP } from "./requests.triage.shared";
@@ -108,7 +109,7 @@ export async function buildCard(
   const pending =
     isTriagePending(input.request.id) || (run === null && enabled.data && used.data < DONNA_MONTHLY_RUN_CAP && fresh);
   if (!run) {
-    const playbooks = await playbooksForType(db, input.orgId, input.request.type_id);
+    const playbooks = await playbooksForType(db, input.orgId, input.request.type_id, input.userId);
     if (!playbooks.ok) return playbooks;
     return ok({ enabled: enabled.data, can_decide: canDecide, pending, usage, run: null, items: [], playbooks: playbooks.data });
   }
@@ -143,9 +144,13 @@ export async function buildCard(
   const playbookIds = [...new Set(rows.map((row) => row.playbook_id).filter((id): id is string => !!id))];
   const named = new Map<string, string>();
   if (playbookIds.length > 0) {
-    const { data, error } = await db.from("playbooks").select("id, name").eq("org_id", input.orgId).in("id", playbookIds);
+    const { data, error } = await db.from("playbooks").select(ACCESS_COLUMNS).eq("org_id", input.orgId).in("id", playbookIds);
     if (error) return internalFailure(error);
-    for (const row of (data ?? []) as unknown as { id: string; name: string }[]) named.set(row.id, row.name);
+    try {
+      for (const row of await openableBy(db, input.userId, input.orgId, (data ?? []) as unknown as AccessRow[])) named.set(row.id, row.name);
+    } catch (caught) {
+      return internalFailure(caught);
+    }
   }
   const candidateIds = rows.filter((row) => row.value_user_id).map((row) => ({ user_id: row.value_user_id as string }));
   const profiles = candidateIds.length > 0 ? await loadCreatorProfiles(db, candidateIds) : new Map();
@@ -172,7 +177,7 @@ export async function buildCard(
   });
 
   const suggestedType = items.find((item) => item.kind === "type")?.type_id ?? input.request.type_id;
-  const playbooks = await playbooksForType(db, input.orgId, suggestedType);
+  const playbooks = await playbooksForType(db, input.orgId, suggestedType, input.userId);
   if (!playbooks.ok) return playbooks;
   const names = new Map(((unread.data ?? []) as unknown as { id: string; filename: string | null }[]).map((row) => [row.id, row.filename]));
   return ok({

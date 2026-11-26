@@ -19,6 +19,7 @@ import { AppError } from "../../lib/appError";
 import { meteredCompletion } from "../../lib/aiCallUsage";
 import { completeText } from "../../lib/llm";
 import { reportError } from "../../lib/observability/report";
+import { loadOrgKeyScope } from "../../lib/providerCredentials/index";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { UserFacingError } from "../../lib/userFacingError";
@@ -82,6 +83,14 @@ function routeFailure(error: Pick<ChatRouteFailure, "status" | "code" | "detail"
  * (`missing_api_key`, `model_required`, `chat_route_credential_required`, …).
  */
 export async function resolveExtractionRoute(db: Db, args: { userId: string; orgId: string }): Promise<ServiceResult<ExtractionRoute>> {
+  // Asked when the work runs, which can be long after the person linked the
+  // document: someone who is no longer in the firm has no route here.
+  if (!(await loadOrgKeyScope(args.userId, args.orgId, db)))
+    return failure(
+      "unprocessable",
+      "An API key is required to use this model. Add your own key or ask your organization to add one.",
+      "missing_api_key",
+    );
   const selection = await resolveUserChatSelection(db, { userId: args.userId, orgId: args.orgId });
   if (!selection.ok) return routeFailure(selection);
   // What the chat's key selector preselects for a new conversation here (the

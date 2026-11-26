@@ -438,7 +438,8 @@ organization asked about is the one the work belongs to (the matter's, the revie
 otherwise the call's workspace). `run_playbook_review` asks about the playbook's
 organization only when the document's workspace is that organization (a firm's playbook
 on that firm's document runs on the firm's key); a playbook on a document of another
-workspace names no reference and runs as it always did, on the person's own key. A
+workspace names no reference, and the document's firm decides which keys may run it: the
+person's own key only where that firm allows personal keys, otherwise the deployment's. A
 document an app attaches to a conversation or a run must belong to the workspace of the
 call, otherwise the call is refused. `run_tabular_review` and the tabular
 workflow take no reference: generation uses the web's key bag, which already prefers the

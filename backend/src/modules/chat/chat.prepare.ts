@@ -57,11 +57,14 @@ import { resolveEffectiveReasoningLevel } from "../../lib/modelSelection";
 import { replaysReasoning } from "../../lib/llm/registry";
 import { beginMemoryConversationTurn, releaseMemoryConversationTurn, type MemoryConversationTurn } from "../../lib/memory/schedule";
 import { getAccessibleChat, validateAccessibleProjectId } from "./chat.access";
+import { loadChatHistory } from "./chat.history";
 import {
     beginTrainingTurn,
     resolveCriteriaDelegation,
     unreadableSubagentRoutes,
     recordTrainingNote,
+    continuationMessages,
+    storedFilesOnly,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
 import type { CreatedTurnNote } from "../../lib/trainingNotes";
@@ -181,7 +184,10 @@ export async function prepareChatStream(
     // [http/internal-error] correlation log.
     | { ok: false; internal: true; error: unknown }
 > {
-    const { userId, userEmail, messages } = args;
+    const { userId, userEmail } = args;
+    let messages = args.messages;
+    // A person in training answering a paused turn: document names come from stored documents.
+    let trainingContinuation = false;
     let chatId = args.chatId;
     let chatTitle: string | null = null;
     let chatModel: string | null = null;
@@ -380,6 +386,18 @@ export async function prepareChatStream(
         }
         if (!begun.ok) return begun;
         trainingPlan = begun.plan;
+    } else if (args.askInputsResponse) {
+        try {
+            ({ messages, inTraining: trainingContinuation } = await continuationMessages(
+                db,
+                userId,
+                { orgId: contentOrgId, projectId: resolvedProjectId },
+                messages,
+                async () => (chatId ? loadChatHistory(db, chatId, { userId, userEmail }, { exactlyAsTheWebSends: true }) : []),
+            ));
+        } catch (error) {
+            return { ok: false, internal: true, error };
+        }
     }
 
     const selection = await resolveUserChatSelection(db, {
@@ -622,9 +640,10 @@ export async function prepareChatStream(
         // Generate the nonce before enriching prior events so document filenames
         // and workflow titles replayed from earlier turns are fenced as well.
         const nonce = generateSpotlightNonce(chatId);
-        const historyMessages = replaysReasoning(selectedModel)
+        const historyWithFiles = replaysReasoning(selectedModel)
             ? await attachPriorReasoning(messages, chatId, db, "chat_messages", history, { userId, userEmail })
             : messages;
+        const historyMessages = trainingContinuation ? storedFilesOnly(historyWithFiles, docIndex) : historyWithFiles;
         const timeZone = resolveRequestTimeZone(args.requestedTimeZone);
         const enrichedMessages = await enrichWithPriorEvents(
             historyMessages,
