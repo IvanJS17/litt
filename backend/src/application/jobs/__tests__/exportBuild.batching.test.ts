@@ -6,8 +6,11 @@ import { tableDb } from "../../../__tests__/helpers/tableDb";
 import { createExportStorageFake } from "../../exports/__tests__/exportStorageFake";
 
 const checks = vi.hoisted(() => ({ count: 0 }));
+// The account state and address the job reads are covered in buildExport.account.test.ts.
+vi.mock("../../../lib/confirmedEmail", () => ({ currentConfirmedEmail: async () => "" }));
 vi.mock("../../../lib/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/access")>()),
+  accountErasureRequested: async () => false,
   ensureDocAccess: async () => (checks.count++, { ok: true }),
   createDocumentAccessChecker: () => async () => (checks.count++, { ok: true }),
 }));

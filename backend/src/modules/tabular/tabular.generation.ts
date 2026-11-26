@@ -181,6 +181,12 @@ export async function startTabularGeneration(
         return internalFailure(work.error);
     }
     const { rows, cellMap } = work.data;
+    // What the run streams is derived from the documents of these rows (the
+    // ones its starter can read); a reader may watch it only while they can
+    // read them too.
+    Object.assign(run.meta as Record<string, unknown>, {
+        sourceDocumentIds: [...new Set(rows.flatMap((row) => row.source_document_ids ?? []))],
+    });
     const started: StartedTabularGeneration = {
         db,
         reviewId,

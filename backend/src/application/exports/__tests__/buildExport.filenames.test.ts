@@ -18,8 +18,10 @@ vi.mock("../../../lib/storage", async (importOriginal) => ({
     uploadFile: (...args: unknown[]) => (fake.uploadFile as (...a: unknown[]) => unknown)(...args),
 }));
 vi.mock("../../../lib/access", () => ({
+    accountErasureRequested: async () => false,
     createDocumentAccessChecker: () => async (doc: { id: string }) => ({ ok: !deniedIds.has(doc.id) }),
 }));
+vi.mock("../../../lib/confirmedEmail", () => ({ currentConfirmedEmail: async () => "" }));
 vi.mock("../../../lib/documentVersions", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../../lib/documentVersions")>()),
     attachActiveVersionPaths: async (_db: unknown, docs: Array<Record<string, unknown>>) => {

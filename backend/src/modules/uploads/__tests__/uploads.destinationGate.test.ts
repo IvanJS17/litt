@@ -394,3 +394,49 @@ describe("an upload session checks its destination each time it is used", () => 
     },
   );
 });
+
+describe("an upload for an account that is being erased", () => {
+  const requested = { user_id: ALICE, account_deletion_requested_at: "2026-11-25T10:00:00Z" };
+
+  it.each(KINDS)("writes nothing, however the session began: $name", async (kind) => {
+    const w = world();
+    openSession(w, kind, "uploaded");
+    w.tables.user_profiles = [requested];
+    const documentsBefore = JSON.stringify(w.tables.documents);
+
+    await expect(
+      processUploadFile(w.db, workerSession(kind), workerFile(kind)),
+    ).rejects.toMatchObject({ message: "upload_destination_unavailable" });
+
+    expect(JSON.stringify(w.tables.documents)).toBe(documentsBefore);
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(mocks.createDocumentVersion).not.toHaveBeenCalled();
+    expect(mocks.updateDocumentVersion).not.toHaveBeenCalled();
+  });
+
+  it("removes the document row it created when the erasure was requested while it wrote it", async () => {
+    const w = world();
+    openSession(w, KINDS[0], "uploaded");
+    w.tables.user_profiles = [{ user_id: ALICE, account_deletion_requested_at: null }];
+    const from = w.db.from.bind(w.db);
+    // The request lands between the check that opened the job and the row.
+    (w.db as { from: unknown }).from = (table: string) => {
+      const query = from(table) as { upsert: (...args: unknown[]) => unknown };
+      if (table !== "documents") return query;
+      const upsert = query.upsert.bind(query);
+      query.upsert = (...args: unknown[]) => {
+        const result = upsert(...args);
+        w.tables.user_profiles = [requested];
+        return result;
+      };
+      return query;
+    };
+
+    await expect(
+      processUploadFile(w.db, workerSession(KINDS[0]), workerFile(KINDS[0])),
+    ).rejects.toMatchObject({ message: "upload_destination_unavailable" });
+
+    expect(w.tables.documents.some((row) => row.id === RESOURCE)).toBe(false);
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+  });
+});

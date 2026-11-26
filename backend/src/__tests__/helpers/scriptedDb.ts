@@ -26,7 +26,7 @@ type Step =
 /** Strict query script: an unexpected query or changed mutation order fails.
  * Filters are recorded separately so tests can assert scope and ownership.
  */
-export function scriptedDb(steps: Step[]) {
+export function scriptedDb(steps: Step[], accountEmail = "a@example.test") {
   const calls: Query[] = [];
   let cursor = 0;
   const from = (table: string) => {
@@ -83,7 +83,19 @@ export function scriptedDb(steps: Step[]) {
     });
   };
   return {
-    db: { from, rpc } as unknown as Db,
+    // The account's confirmed address, for jobs that read it when they run.
+    db: {
+      from,
+      rpc,
+      auth: {
+        admin: {
+          getUserById: async () => ({
+            data: { user: { email: accountEmail, email_confirmed_at: "2026-01-01T00:00:00Z" } },
+            error: null,
+          }),
+        },
+      },
+    } as unknown as Db,
     calls,
     done: () =>
       expect(cursor, "Not all expected queries ran").toBe(steps.length),

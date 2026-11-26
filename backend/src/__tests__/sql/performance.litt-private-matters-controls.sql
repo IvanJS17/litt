@@ -30,6 +30,11 @@ begin
     values(ws,matter_project,'Private matter','private') returning id into matter;
   insert into public.matter_memberships(matter_id,user_id,role) values
     (matter,creator,'matter_owner'),(matter,teammate,'editor');
+  -- The matter's triggers keep its project private. The project is opened
+  -- again past them, so that the guards below are proven on their own.
+  set local session_replication_role = replica;
+  update public.projects set visibility='organization' where id=matter_project;
+  set local session_replication_role = origin;
   perform set_config('litt.org',org::text,true);
   perform set_config('litt.owner',owner_id::text,true);
   perform set_config('litt.creator',creator::text,true);

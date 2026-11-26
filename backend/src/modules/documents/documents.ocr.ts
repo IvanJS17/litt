@@ -2,6 +2,7 @@
 // text layer is read with the owner's own LandingAI key, in the background, and
 // the reading is merged into the text the assistant, the search and the
 // Markdown conversion already use.
+import { currentConfirmedEmail } from "../../lib/confirmedEmail";
 import { assertAuthorizationStamp, readAuthorizationStamp } from "../../lib/authorizationEpoch";
 import { enqueueDbJob } from "../../lib/dbq/enqueue";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
@@ -253,7 +254,8 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
   const { documentId, versionId, revision, userId } = job.payload;
   if (typeof documentId !== "string" || typeof versionId !== "string" || typeof revision !== "string" || typeof userId !== "string")
     return;
-  const userEmail = typeof job.payload.userEmail === "string" ? job.payload.userEmail : undefined;
+  // The account's address now: the one copied into the job may belong to somebody else by now.
+  const userEmail = await currentConfirmedEmail(db, userId);
 
   const { data: version, error } = await db.from("document_versions")
     .select("id,document_id,storage_path,file_type,content_sha256,size_bytes,training_stage,text_revision")

@@ -93,8 +93,11 @@ const ACTIVE_VERSION = {
 };
 
 const ensureDocAccess = vi.fn(async (..._a: unknown[]) => ({ ok: true }));
+// The account state and address the job reads are covered in buildExport.account.test.ts.
+vi.mock("../../lib/confirmedEmail", () => ({ currentConfirmedEmail: async () => "u@x.test" }));
 vi.mock("../../lib/access", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/access")>()),
+  accountErasureRequested: async () => false,
     ensureDocAccess: (...a: unknown[]) => ensureDocAccess(...a),
     // The export shares verdicts through the checker; route it to the spy.
     createDocumentAccessChecker:

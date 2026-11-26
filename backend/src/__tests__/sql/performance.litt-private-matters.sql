@@ -61,6 +61,11 @@ begin
     values(ws,matter_project,'Private matter','private') returning id into matter;
   insert into public.matter_memberships(matter_id,user_id,role) values
     (matter,creator,'matter_owner'),(matter,teammate,'editor');
+  -- The matter's triggers keep its project private. The project is opened
+  -- again past them, so that the guards below are proven on their own.
+  set local session_replication_role = replica;
+  update public.projects set visibility='organization' where id=matter_project;
+  set local session_replication_role = origin;
   insert into public.project_org_access_overrides(project_id,org_id,user_id,role)
     values(matter_project,org,member_id,'editor');
   -- Inserted directly: open_org_private_content refuses in LiTT.

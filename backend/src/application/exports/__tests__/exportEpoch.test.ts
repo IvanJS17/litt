@@ -39,6 +39,7 @@ function makeDb(epoch: number) {
   const calls: string[] = [];
   return {
     calls,
+    auth: { admin: { getUserById: async () => ({ data: { user: null }, error: null }) } },
     from(table: string) {
       calls.push(table);
       const query: Record<string, unknown> = {};
