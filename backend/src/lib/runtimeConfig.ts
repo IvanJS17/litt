@@ -57,17 +57,31 @@ export function uploadSessionRateLimitConfiguration(
 
 const GIBIBYTE = 1024 ** 3;
 
+/** A value that is only digits (no "5000abc", no sign, no decimals), or null. */
+function wholeNumber(raw: string | undefined): number | null {
+  if (!raw || !/^\d{1,15}$/.test(raw)) return null;
+  return Number.parseInt(raw, 10);
+}
+
 /**
  * The storage quota: bytes a firm may keep for each member who has accepted
- * (shared by the whole firm) and bytes of one person's personal space. A value
- * that is not a positive whole number is ignored, never read as "no limit".
+ * (shared by the whole firm), bytes of one person's personal space, and the
+ * margin (a percentage of the limit, 0-100) a new version of an existing
+ * document may go over it. A value that is not a whole positive number (the
+ * margin: a whole number from 0 to 100) uses the default, never "no limit".
  */
 export function storageQuotaConfiguration(
   env: NodeJS.ProcessEnv = process.env,
 ) {
+  const bytes = (name: string, fallback: number) => {
+    const value = wholeNumber(env[name]);
+    return value !== null && value > 0 ? value : fallback;
+  };
+  const margin = wholeNumber(env.STORAGE_QUOTA_VERSION_MARGIN_PERCENT);
   return {
-    bytesPerMember: envInt("STORAGE_QUOTA_BYTES_PER_MEMBER", 10 * GIBIBYTE, env),
-    personalBytes: envInt("STORAGE_QUOTA_PERSONAL_BYTES", 2 * GIBIBYTE, env),
+    bytesPerMember: bytes("STORAGE_QUOTA_BYTES_PER_MEMBER", 10 * GIBIBYTE),
+    personalBytes: bytes("STORAGE_QUOTA_PERSONAL_BYTES", 2 * GIBIBYTE),
+    versionMarginPercent: margin !== null && margin <= 100 ? margin : 10,
   };
 }
 

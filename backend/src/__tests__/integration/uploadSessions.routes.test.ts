@@ -210,6 +210,7 @@ describe("upload session routes", () => {
     expect(response.status).toBe(413);
     expect(response.body.code).toBe("storage_quota_exceeded");
     expect(response.body.detail).toMatch(/no storage space left/i);
+    expect(response.body.detail).toMatch(/new versions can't be saved/i);
     expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
   });
 
@@ -226,6 +227,89 @@ describe("upload session routes", () => {
     expect(response.body.code).toBe("uploads_in_progress_limit");
     expect(response.body.detail).toMatch(/uploads in progress/i);
     expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
+  });
+
+  describe("saving a new version of an existing document at the storage limit", () => {
+    const DOCUMENT = "22222222-2222-4222-8222-222222222222";
+    // The destination the web editor sends when it saves an edit.
+    const editorSave = () => ({
+      purpose: "document_version_create",
+      destination: {
+        document_id: DOCUMENT,
+        base_version_id: "33333333-3333-4333-8333-333333333333",
+        generate_pdf: false,
+      },
+      files: [{ client_id: "edit", filename: "contract.docx", size_bytes: 4321 }],
+    });
+    const OWN_DOCUMENT = {
+      id: DOCUMENT,
+      user_id: "11111111-1111-4111-8111-111111111111",
+      project_id: null,
+      org_id: null,
+      workflow_id: null,
+      current_version_id: "33333333-3333-4333-8333-333333333333",
+      archived_at: null,
+    };
+
+    it("is checked against the limit plus the margin, as a version of the document's own space", async () => {
+      mocks.documentRow.data = OWN_DOCUMENT;
+      mocks.ensureDocAccess.mockResolvedValue({ ok: true, projectRole: "owner", isOwner: true });
+
+      const response = await request(app).post("/upload-sessions").send(editorSave());
+
+      expect(response.status).toBe(201);
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "create_upload_session",
+        expect.objectContaining({
+          target_purpose: "document_version_create",
+          target_quota_org_id: null,
+          target_quota_user_id: "11111111-1111-4111-8111-111111111111",
+          target_quota_version_margin_percent: 10,
+        }),
+      );
+    });
+
+    it("is refused beyond the margin with the same stable code", async () => {
+      mocks.documentRow.data = OWN_DOCUMENT;
+      mocks.ensureDocAccess.mockResolvedValue({ ok: true, projectRole: "owner", isOwner: true });
+      mocks.rpc.mockResolvedValue({ error: { message: "storage_quota_exceeded" } });
+
+      const response = await request(app).post("/upload-sessions").send(editorSave());
+
+      expect(response.status).toBe(413);
+      expect(response.body.code).toBe("storage_quota_exceeded");
+      expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it("cannot pass a new document off as a version: a version purpose needs a document the person may edit", async () => {
+      // A document that does not exist (or is not visible).
+      mocks.documentRow.data = null;
+      let response = await request(app).post("/upload-sessions").send(editorSave());
+      expect(response.status).toBe(404);
+      // A document the person cannot open at all (another space).
+      mocks.documentRow.data = OWN_DOCUMENT;
+      mocks.ensureDocAccess.mockResolvedValue({ ok: false });
+      response = await request(app).post("/upload-sessions").send(editorSave());
+      expect(response.status).toBe(404);
+      // A document the person can read but not edit.
+      mocks.ensureDocAccess.mockResolvedValue({ ok: true, projectRole: "viewer", isOwner: false });
+      response = await request(app).post("/upload-sessions").send(editorSave());
+      expect(response.status).toBe(403);
+      // A version purpose that names no document.
+      const noDocument = editorSave();
+      noDocument.destination = {} as never;
+      response = await request(app).post("/upload-sessions").send(noDocument);
+      expect(response.status).toBe(400);
+      expect(mocks.rpc).not.toHaveBeenCalled();
+    });
+
+    it("gives a new document no margin: its purpose is the one the database checks against the limit", async () => {
+      await request(app).post("/upload-sessions").send(manifest());
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "create_upload_session",
+        expect.objectContaining({ target_purpose: "document_create" }),
+      );
+    });
   });
 
   it("applies the upload rate limit to sessions instead of individual files", async () => {

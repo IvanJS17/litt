@@ -21,19 +21,20 @@ export type StorageSpace =
   | { orgId: null; userId: string };
 
 type QuotaConfiguration = ReturnType<typeof storageQuotaConfiguration>;
+type UsageConfiguration = Pick<QuotaConfiguration, "bytesPerMember" | "personalBytes">;
 
 export type StorageSpaceUsage = { usedBytes: number; limitBytes: number };
 
 /**
  * Bytes a space uses (the stored file of every document version, previous
- * versions and the trash included, plus the bytes of upload sessions still
+ * versions included; a deleted version or document no longer counts, plus the bytes of upload sessions still
  * open) and its limit. Throws when the answer cannot be read: an unreadable
  * space is not an empty one.
  */
 export async function storageSpaceUsage(
   db: Db,
   space: StorageSpace,
-  config: QuotaConfiguration = storageQuotaConfiguration(),
+  config: UsageConfiguration = storageQuotaConfiguration(),
 ): Promise<StorageSpaceUsage> {
   const { data, error } = await db.rpc("storage_space_usage", {
     p_org_id: space.orgId,
@@ -59,6 +60,9 @@ export function quotaRpcArgs(space: StorageSpace, config: QuotaConfiguration) {
     target_quota_user_id: space.userId,
     target_quota_bytes_per_member: config.bytesPerMember,
     target_quota_personal_bytes: config.personalBytes,
+    // Only a session that adds a version to an existing document uses it
+    // (create_upload_session decides by the session's purpose).
+    target_quota_version_margin_percent: config.versionMarginPercent,
   };
 }
 

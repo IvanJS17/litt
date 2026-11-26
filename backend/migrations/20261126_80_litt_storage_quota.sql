@@ -60,7 +60,13 @@ begin
       and s.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
       and (s.status <> 'pending_upload' or s.expires_at > now())
       and (s.status <> 'verifying' or s.updated_at > now() - interval '5 minutes')
-      and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing');
+      and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
+      -- the version is written (and counted as stored) before the file is
+      -- marked completed: do not count its bytes twice
+      and not exists (
+        select 1 from public.document_versions sv
+        where sv.id in (f.id, f.resource_id) and sv.storage_path is not null
+      );
 
     return query
       select stored_bytes + promised_bytes,
@@ -86,7 +92,13 @@ begin
       and s.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
       and (s.status <> 'pending_upload' or s.expires_at > now())
       and (s.status <> 'verifying' or s.updated_at > now() - interval '5 minutes')
-      and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing');
+      and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
+      -- the version is written (and counted as stored) before the file is
+      -- marked completed: do not count its bytes twice
+      and not exists (
+        select 1 from public.document_versions sv
+        where sv.id in (f.id, f.resource_id) and sv.storage_path is not null
+      );
 
     return query select stored_bytes + promised_bytes, p_personal_bytes;
   end if;
@@ -113,7 +125,8 @@ create or replace function public.create_upload_session(
   target_quota_org_id uuid default null,
   target_quota_user_id uuid default null,
   target_quota_bytes_per_member bigint default null,
-  target_quota_personal_bytes bigint default null
+  target_quota_personal_bytes bigint default null,
+  target_quota_version_margin_percent integer default 0
 )
 returns void
 language plpgsql
@@ -258,7 +271,8 @@ begin
   -- names the space; it passes neither id when no limit applies.
   if target_quota_org_id is not null or target_quota_user_id is not null then
     if (target_quota_org_id is not null and target_quota_bytes_per_member is null)
-       or (target_quota_org_id is null and target_quota_personal_bytes is null) then
+       or (target_quota_org_id is null and target_quota_personal_bytes is null)
+       or target_quota_version_margin_percent not between 0 and 100 then
       raise exception using errcode = '22023', message = 'invalid_storage_quota_limits';
     end if;
     -- What one uploader may hold promised-but-not-stored in a space is bounded,
@@ -282,7 +296,13 @@ begin
         and s.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
         and (s.status <> 'pending_upload' or s.expires_at > now())
         and (s.status <> 'verifying' or s.updated_at > now() - interval '5 minutes')
-        and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing');
+        and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
+      -- the version is written (and counted as stored) before the file is
+      -- marked completed: do not count its bytes twice
+      and not exists (
+        select 1 from public.document_versions sv
+        where sv.id in (f.id, f.resource_id) and sv.storage_path is not null
+      );
       if own_promised_bytes + manifest_total_bytes > holding_cap then
         raise exception using errcode = 'P0001', message = 'uploads_in_progress_limit';
       end if;
@@ -301,6 +321,14 @@ begin
       target_quota_bytes_per_member,
       target_quota_personal_bytes
     ) as usage;
+    -- A session that adds a new version to an EXISTING document (its purpose
+    -- names the document; it can create none) may go over the limit by the
+    -- margin, so saving an edit keeps working when the space is full. A session
+    -- that creates documents is checked against the limit itself.
+    if target_purpose in ('document_version_create', 'document_version_replace') then
+      space_limit_bytes := space_limit_bytes
+        + space_limit_bytes * target_quota_version_margin_percent / 100;
+    end if;
     -- Exactly at the limit is accepted; one byte over is refused.
     if space_used_bytes + manifest_total_bytes > space_limit_bytes then
       raise exception using errcode = 'P0001', message = 'storage_quota_exceeded';
@@ -369,8 +397,8 @@ begin
 end;
 $$;
 
-revoke all on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer, uuid, uuid, bigint, bigint)
+revoke all on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer, uuid, uuid, bigint, bigint, integer)
   from public, anon, authenticated;
 grant execute
-  on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer, uuid, uuid, bigint, bigint)
+  on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer, uuid, uuid, bigint, bigint, integer)
   to service_role;

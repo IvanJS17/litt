@@ -17,18 +17,29 @@ create function pg_temp.one_file(size bigint) returns jsonb language sql as $$
 $$;
 
 -- Opens a session the way the backend does; the reason of a refusal is returned.
+-- The margin for a new version of an existing document is 10 %.
 create function pg_temp.open_session(
-  sid uuid, uid uuid, size bigint, space_org uuid, space_user uuid
+  sid uuid, uid uuid, size bigint, space_org uuid, space_user uuid,
+  purpose text default 'document_create',
+  destination jsonb default '{"scope":"standalone"}'
 ) returns text language plpgsql as $$
 begin
   perform public.create_upload_session(
-    sid, uid, 'document_create', '{"scope":"standalone"}'::jsonb,
+    sid, uid, purpose, destination,
     now() + interval '30 minutes', pg_temp.one_file(size), 50,
-    space_org, space_user, 1000, 500);
+    space_org, space_user, 1000, 500, 10);
   return 'opened';
 exception when others then
   return sqlerrm;
 end;
+$$;
+
+-- The shape the web editor opens when it saves an edit of a Word document.
+create function pg_temp.save_edit(uid uuid, size bigint, space_org uuid, space_user uuid)
+returns text language sql as $$
+  select pg_temp.open_session(gen_random_uuid(), uid, size, space_org, space_user,
+    'document_version_create',
+    jsonb_build_object('document_id', gen_random_uuid(), 'base_version_id', gen_random_uuid(), 'generate_pdf', false))
 $$;
 
 -- The same with the real default limits (10 GiB per member, 2 GiB personal).
@@ -39,7 +50,7 @@ begin
   perform public.create_upload_session(
     gen_random_uuid(), uid, 'document_create', '{"scope":"standalone"}'::jsonb,
     now() + interval '30 minutes', pg_temp.one_file(size), 50,
-    space_org, space_user, 10737418240, 2147483648);
+    space_org, space_user, 10737418240, 2147483648, 10);
   return 'opened';
 exception when others then
   return sqlerrm;
@@ -146,6 +157,15 @@ begin
   assert pg_temp.open_session(s, u1, 1000 * members - 650, firm, null) = 'opened', 'exactly at the limit is accepted';
   assert pg_temp.used(firm, null) = 1000 * members, 'an open session counts as used';
   assert pg_temp.open_session(gen_random_uuid(), u2, 1, firm, null) = 'storage_quota_exceeded', 'a full firm refuses another session';
+  -- Saving an edit (a new version of an existing document) keeps working at the
+  -- limit, up to 10 % of the limit over it; a new document is refused at the limit.
+  assert pg_temp.save_edit(u2, 1, firm, null) = 'opened', 'a version save at exactly the limit is accepted';
+  assert pg_temp.open_session(gen_random_uuid(), u2, 1, firm, null) = 'storage_quota_exceeded', 'a new document is still refused at the limit';
+  assert pg_temp.open_session(gen_random_uuid(), u2, 1, firm, null, 'workflow_reference_create', jsonb_build_object('workflow_id', gen_random_uuid())) = 'storage_quota_exceeded', 'the older workflow-file purpose creates documents and gets no margin';
+  assert pg_temp.save_edit(u2, 1000 * members / 10 - 1, firm, null) = 'opened', 'a version save up to the margin is accepted';
+  assert pg_temp.save_edit(u2, 1, firm, null) = 'storage_quota_exceeded', 'a version save beyond the margin is refused';
+  assert pg_temp.used(firm, null) = 1000 * members + 1000 * members / 10, 'the margin is a tenth of the limit';
+  update public.upload_sessions set status = 'cancelled' where user_id = u2 and quota_org_id = firm;
   -- Another space is not affected.
   assert pg_temp.used(null, u1) = 120, 'a firm session does not count for the person';
   assert pg_temp.open_session(gen_random_uuid(), u1, 380, null, u1) = 'opened', 'personal space accepts up to its limit';
@@ -215,6 +235,18 @@ begin
   for i in 1..15 loop
     assert pg_temp.open_real(u2, 104857600, null, u2) = 'opened', 'the owner is bounded only by the space (' || i || ')';
   end loop;
+
+  -- A file whose version is already stored is not also counted as promised.
+  s := gen_random_uuid();
+  assert pg_temp.open_session(s, u3, 200, null, u3) = 'opened', 'personal session for the double count test';
+  assert pg_temp.used(null, u3) = 200, 'the promised file counts';
+  insert into public.documents(id, org_id, user_id)
+    select resource_id, null, u3 from public.upload_session_files where session_id = s;
+  insert into public.document_versions(id, document_id, version_number, storage_path, size_bytes, filename)
+    select id, resource_id, 1, 'q/w1.pdf', 200, 'stored before the file is marked completed'
+    from public.upload_session_files where session_id = s;
+  assert pg_temp.used(null, u3) = 200, 'a file whose version is stored counts once: ' || pg_temp.used(null, u3);
+  update public.upload_sessions set status = 'completed' where id = s;
 
   -- Without a space named, the session opens as before (compatibility with a
   -- caller that does not pass one).

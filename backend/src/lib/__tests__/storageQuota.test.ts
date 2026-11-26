@@ -22,20 +22,41 @@ describe("storage quota configuration", () => {
     expect(storageQuotaConfiguration({})).toEqual({
       bytesPerMember: 10 * GIB,
       personalBytes: 2 * GIB,
+      versionMarginPercent: 10,
     });
     expect(
       storageQuotaConfiguration({
         STORAGE_QUOTA_BYTES_PER_MEMBER: "5000",
         STORAGE_QUOTA_PERSONAL_BYTES: "700",
+        STORAGE_QUOTA_VERSION_MARGIN_PERCENT: "25",
       }),
-    ).toEqual({ bytesPerMember: 5000, personalBytes: 700 });
+    ).toEqual({ bytesPerMember: 5000, personalBytes: 700, versionMarginPercent: 25 });
+    expect(
+      storageQuotaConfiguration({ STORAGE_QUOTA_VERSION_MARGIN_PERCENT: "0" }).versionMarginPercent,
+    ).toBe(0);
     // A value that is not a positive number is ignored, never "no limit".
     expect(
       storageQuotaConfiguration({
         STORAGE_QUOTA_BYTES_PER_MEMBER: "0",
         STORAGE_QUOTA_PERSONAL_BYTES: "lots",
       }),
-    ).toEqual({ bytesPerMember: 10 * GIB, personalBytes: 2 * GIB });
+    ).toEqual({ bytesPerMember: 10 * GIB, personalBytes: 2 * GIB, versionMarginPercent: 10 });
+  });
+
+  it("reads only a whole number as a number: \"5000abc\" is not 5000", () => {
+    for (const bad of ["5000abc", "12.5", "1e3", "-5", " ", "0x10"]) {
+      expect(
+        storageQuotaConfiguration({
+          STORAGE_QUOTA_BYTES_PER_MEMBER: bad,
+          STORAGE_QUOTA_PERSONAL_BYTES: bad,
+          STORAGE_QUOTA_VERSION_MARGIN_PERCENT: bad,
+        }),
+      ).toEqual({ bytesPerMember: 10 * GIB, personalBytes: 2 * GIB, versionMarginPercent: 10 });
+    }
+    // The margin is a percentage: above 100 is not one.
+    expect(
+      storageQuotaConfiguration({ STORAGE_QUOTA_VERSION_MARGIN_PERCENT: "101" }).versionMarginPercent,
+    ).toBe(10);
   });
 });
 
@@ -169,12 +190,13 @@ describe("one answer to how much a space uses", () => {
 
   it("gives the session-opening function the same space and limits", () => {
     expect(
-      quotaRpcArgs({ orgId: FIRM, userId: null }, { bytesPerMember: 7, personalBytes: 3 }),
+      quotaRpcArgs({ orgId: FIRM, userId: null }, { bytesPerMember: 7, personalBytes: 3, versionMarginPercent: 10 }),
     ).toEqual({
       target_quota_org_id: FIRM,
       target_quota_user_id: null,
       target_quota_bytes_per_member: 7,
       target_quota_personal_bytes: 3,
+      target_quota_version_margin_percent: 10,
     });
   });
 });
