@@ -11,6 +11,7 @@
 // database function (`storage_space_usage`), under a lock on the space, inside
 // `create_upload_session`; anything that shows usage calls this function.
 
+import { teamOrgIdOf } from "./personalOrgs";
 import { storageQuotaConfiguration } from "./runtimeConfig";
 import type { Db } from "./supabase";
 
@@ -74,6 +75,29 @@ const firm = (orgId: string): Resolved => ({
   space: { orgId, userId: null },
 });
 
+/**
+ * A row filed under an organization is a firm's, unless the organization is a
+ * person's own personal one (`teamOrgIdOf`, the rule the access code uses):
+ * that is the person's personal space. No current path files documents,
+ * projects or workflows under a personal organization; this keeps the quota
+ * right if one ever does.
+ */
+async function spaceOfOrg(
+  db: Db,
+  orgId: string,
+  fallbackUserId: string,
+): Promise<Resolved> {
+  if (await teamOrgIdOf(db, orgId)) return firm(orgId);
+  const { data, error } = await db
+    .from("organizations")
+    .select("personal_user_id")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (error) throw new Error("Failed to read the personal organization");
+  const owner = (data as { personal_user_id?: string | null } | null)?.personal_user_id;
+  return personal(owner ?? fallbackUserId);
+}
+
 async function readRow(
   db: Db,
   table: "projects" | "workflows" | "documents",
@@ -102,6 +126,18 @@ export async function resolveUploadSpace(
   db: Db,
   args: { purpose: string; destination: Record<string, unknown>; userId: string },
 ): Promise<Resolved> {
+  try {
+    return await resolveSpace(db, args);
+  } catch {
+    // A failed read is never answered with a guess.
+    return { ok: false, detail: "Failed to resolve the storage space of the upload" };
+  }
+}
+
+async function resolveSpace(
+  db: Db,
+  args: { purpose: string; destination: Record<string, unknown>; userId: string },
+): Promise<Resolved> {
   const { purpose, destination, userId } = args;
   const unreadable: Resolved = {
     ok: false,
@@ -111,8 +147,9 @@ export async function resolveUploadSpace(
   if (purpose === "document_version_create" || purpose === "document_version_replace") {
     const { row, failed } = await readRow(db, "documents", destination.document_id, "org_id, user_id");
     if (failed || !row) return unreadable;
-    if (typeof row.org_id === "string") return firm(row.org_id);
-    return personal(typeof row.user_id === "string" ? row.user_id : userId);
+    const owner = typeof row.user_id === "string" ? row.user_id : userId;
+    if (typeof row.org_id === "string") return spaceOfOrg(db, row.org_id, owner);
+    return personal(owner);
   }
 
   let table: "projects" | "workflows" | null = null;
@@ -122,7 +159,7 @@ export async function resolveUploadSpace(
     else if (destination.scope === "workflow") [table, id] = ["workflows", destination.workflow_id];
     else
       return typeof destination.org_id === "string" && destination.org_id
-        ? firm(destination.org_id)
+        ? spaceOfOrg(db, destination.org_id, userId)
         : personal(userId);
   } else {
     // The two workflow-reference purposes kept for sessions of the previous release.
@@ -130,5 +167,7 @@ export async function resolveUploadSpace(
   }
   const { row, failed } = await readRow(db, table, id, "org_id");
   if (failed || !row) return unreadable;
-  return typeof row.org_id === "string" ? firm(row.org_id) : personal(userId);
+  return typeof row.org_id === "string"
+    ? spaceOfOrg(db, row.org_id, userId)
+    : personal(userId);
 }

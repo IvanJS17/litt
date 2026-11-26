@@ -642,11 +642,20 @@ Storage quota. Opening an upload session is refused (HTTP 413, code
 limit: a firm's space is `STORAGE_QUOTA_BYTES_PER_MEMBER` (default 10 GiB) for
 each member who has accepted, shared by the whole firm (pending invitations add
 nothing), and a personal space is `STORAGE_QUOTA_PERSONAL_BYTES` (default 2 GiB).
-A total exactly equal to what is left is accepted. What counts is the stored file
-of every document version, previous versions and documents in the trash included
-(they count until they are really purged); PDF copies and exports do not.
+A total exactly equal to what is left is accepted.
+What counts is the stored file of every document version that still has one,
+previous versions included. LiTT has no trash for documents: deleting a document
+removes its rows and queues the removal of its files, and deleting a version
+clears its stored file and queues its removal, so neither counts any more; PDF
+copies and exports do not count. A document archived when its author left the
+firm keeps its files and still counts for the firm. A row filed under a
+person's personal organization counts in that person's personal space.
 Bytes promised by sessions that are still open count until those sessions
-finish, are cancelled or expire. The check and the creation of the session run
+finish, are cancelled or expire. One person cannot hold a space for everybody:
+what they hold promised and not yet stored is bounded to 2 GiB (one session's
+cap) in a firm's space and to a quarter of the personal limit in somebody else's
+personal space (HTTP 409, code `uploads_in_progress_limit`: wait for the uploads
+in progress or cancel them); in their own personal space only the limit applies. The check and the creation of the session run
 in one transaction under a lock on the space, so two sessions opened at the same
 moment cannot both pass when together they exceed it. Only a new upload is
 refused: opening, downloading, editing, saving a version by editing, documents

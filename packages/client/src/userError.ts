@@ -175,6 +175,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // refused. The person frees space or asks the firm's administrator;
     // trying the same upload again cannot help.
     storage_quota_exceeded: "validation",
+    // One person already holds as much as they may in that space with uploads
+    // still in progress: waiting for them, or cancelling them, and trying again helps.
+    uploads_in_progress_limit: "conflict",
     // Input the user can correct
     validation_failed: "validation",
     invalid_request: "validation",

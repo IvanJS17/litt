@@ -31,6 +31,21 @@ exception when others then
 end;
 $$;
 
+-- The same with the real default limits (10 GiB per member, 2 GiB personal).
+create function pg_temp.open_real(
+  uid uuid, size bigint, space_org uuid, space_user uuid
+) returns text language plpgsql as $$
+begin
+  perform public.create_upload_session(
+    gen_random_uuid(), uid, 'document_create', '{"scope":"standalone"}'::jsonb,
+    now() + interval '30 minutes', pg_temp.one_file(size), 50,
+    space_org, space_user, 10737418240, 2147483648);
+  return 'opened';
+exception when others then
+  return sqlerrm;
+end;
+$$;
+
 create function pg_temp.used(org uuid, usr uuid) returns bigint language sql as $$
   select used_bytes from public.storage_space_usage(org, usr, 1000, 500)
 $$;
@@ -49,6 +64,12 @@ declare
   d_other uuid := gen_random_uuid();
   d_personal1 uuid := gen_random_uuid();
   d_personal2 uuid := gen_random_uuid();
+  v4 uuid := gen_random_uuid();
+  d_pers_org uuid := gen_random_uuid();
+  pers_org uuid;
+  firm2 uuid := gen_random_uuid();
+  i integer;
+  r text;
   s uuid;
   members integer;
   usage_row record;
@@ -91,9 +112,20 @@ begin
     (d_trash, 1, 'q/dt.docx', null, 100, 'in the trash'),
     (d_other, 1, 'q/do.docx', null, 7777, 'another firm');
   update public.documents set archived_at = now() where id = d_trash;
-  insert into public.document_versions(document_id, version_number, storage_path, size_bytes, filename, deleted_at)
-    values (d1, 4, 'q/d1v4.docx', 50, 'deleted version still stored', now());
-  assert pg_temp.used(firm, null) = 650, 'versions, previous ones, trash and soft-deleted count: ' || pg_temp.used(firm, null);
+  insert into public.document_versions(id, document_id, version_number, storage_path, size_bytes, filename)
+    values (v4, d1, 4, 'q/d1v4.docx', 50, 'a version that is about to be deleted');
+  assert pg_temp.used(firm, null) = 650, 'every stored version counts, previous ones and archived documents included: ' || pg_temp.used(firm, null);
+  -- Deleting a version clears its stored file and queues its removal; deleting a
+  -- document removes its rows. Neither counts any more.
+  perform public.delete_document_version(d1, v4, u1);
+  assert pg_temp.used(firm, null) = 600, 'a deleted version no longer counts: ' || pg_temp.used(firm, null);
+  delete from public.documents where id = d_trash;
+  assert pg_temp.used(firm, null) = 500, 'a deleted document no longer counts: ' || pg_temp.used(firm, null);
+  insert into public.documents(id, project_id, org_id, user_id) values (d_trash, project, firm, u2);
+  insert into public.document_versions(document_id, version_number, storage_path, size_bytes, filename)
+    values (d_trash, 1, 'q/dt.docx', 150, 'archived, files still stored');
+  update public.documents set archived_at = now() where id = d_trash;
+  assert pg_temp.used(firm, null) = 650, 'an archived document whose files are stored counts';
   assert pg_temp.used(other_firm, null) = 7777, 'another firm is counted apart';
 
   -- A person's personal space and a firm's space do not mix.
@@ -128,6 +160,18 @@ begin
     'filename', 'generated.docx', 'source', 'generated', 'storage_path', 'q/gen.docx', 'size_bytes', 500));
   assert pg_temp.used(firm, null) = 1000 * members + 1400, 'versions made by editing and generating are stored over the limit';
 
+  -- A row carrying a person's personal organization is that person's personal
+  -- space (no current path writes such rows; the shape is defended anyway).
+  select id into pers_org from public.organizations where personal_user_id = u1;
+  if pers_org is null then
+    pers_org := gen_random_uuid();
+    insert into public.organizations(id, name, kind, personal_user_id) values (pers_org, 'Personal', 'personal', u1);
+  end if;
+  insert into public.documents(id, org_id, user_id) values (d_pers_org, pers_org, u1);
+  insert into public.document_versions(document_id, version_number, storage_path, size_bytes, filename)
+    values (d_pers_org, 1, 'q/po.docx', 40, 'filed under the personal organization');
+  assert pg_temp.used(null, u1) = 540, 'a personal organization''s row is charged to the personal space: ' || pg_temp.used(null, u1);
+
   -- Sessions stop counting when they end.
   update public.upload_sessions set status = 'cancelled' where id = s;
   assert pg_temp.used(firm, null) = 2050, 'a cancelled session no longer counts: ' || pg_temp.used(firm, null);
@@ -145,6 +189,32 @@ begin
   assert pg_temp.used(firm, null) = 2050, 'a completed session no longer counts';
   update public.upload_sessions set status = 'expired' where id = s;
   assert pg_temp.used(firm, null) = 2050, 'an expired session no longer counts';
+
+  -- One uploader cannot hold a space for everybody: what they hold promised in a
+  -- firm's space is bounded by one session's cap (2 GiB), in somebody else's
+  -- personal space by a quarter of its limit; in their own personal space only
+  -- the space's limit applies. Real default limits from here.
+  insert into public.organizations(id, name) values (firm2, 'Holding firm');
+  insert into public.org_members(org_id, user_id, role) values (firm2, u1, 'owner'), (firm2, u2, 'member');
+  for i in 1..20 loop
+    assert pg_temp.open_real(u1, 104857600, firm2, null) = 'opened', 'a member holds up to 2 GiB in a firm: ' || i;
+  end loop;
+  assert pg_temp.open_real(u1, 104857600, firm2, null) = 'uploads_in_progress_limit', 'a member cannot hold more than one session''s cap';
+  assert pg_temp.open_real(u1, 48 * 1048576, firm2, null) = 'opened', 'exactly at the cap is accepted';
+  assert pg_temp.open_real(u1, 1, firm2, null) = 'uploads_in_progress_limit', 'one byte over the cap is refused';
+  assert pg_temp.open_real(u2, 104857600, firm2, null) = 'opened', 'another member still can upload';
+  assert pg_temp.open_real(u1, 100, null, u1) = 'opened', 'what is held in a firm does not count in the own personal space';
+  update public.upload_sessions set status = 'cancelled' where user_id = u1 and quota_org_id = firm2;
+  assert pg_temp.open_real(u1, 104857600, firm2, null) = 'opened', 'finished or cancelled sessions free the hold';
+  -- somebody else's personal space: a quarter of 2 GiB = 512 MiB
+  for i in 1..5 loop
+    assert pg_temp.open_real(u3, 104857600, null, u2) = 'opened', 'an editor holds up to a quarter of another person''s space: ' || i;
+  end loop;
+  assert pg_temp.open_real(u3, 104857600, null, u2) = 'uploads_in_progress_limit', 'an editor cannot hold more than a quarter';
+  -- the owner of the personal space: no extra bound
+  for i in 1..15 loop
+    assert pg_temp.open_real(u2, 104857600, null, u2) = 'opened', 'the owner is bounded only by the space (' || i || ')';
+  end loop;
 
   -- Without a space named, the session opens as before (compatibility with a
   -- caller that does not pass one).

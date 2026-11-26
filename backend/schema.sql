@@ -3907,14 +3907,17 @@ grant execute on function public.resolve_library_folder_path(uuid, text, uuid, t
 -- A firm's space is the documents filed under the organization; its limit is
 -- the per-member value times the rows of org_members (pending invitations are
 -- not rows). A personal space is the documents with no organization that the
--- person owns, with the personal value as its limit. What counts is the stored
--- file of every document version, previous versions and documents in the trash
--- included (they count until their rows are purged); PDF copies and exports do
--- not. A version with no recorded size counts as zero. Bytes promised by
--- upload sessions that are still open count as used until the session ends or
--- expires: a pending session until its expires_at, a verifying one until its
--- five-minute lease lapses, an uploaded or processing one until it ends; only
--- the files of such a session that have not finished count.
+-- person owns (and any row carrying the person's personal organization, which
+-- is the same space), with the personal value as its limit. What counts is the
+-- stored file of every document version that still has one, previous versions
+-- included: deleting a document removes its rows, and deleting a version clears
+-- its storage_path and queues the removal of its file, so neither counts any
+-- more. PDF copies and exports do not count. A version with no recorded size
+-- counts as zero. Bytes promised by upload sessions that are still open count
+-- as used until the session ends or expires: a pending session until its
+-- expires_at, a verifying one until its five-minute lease lapses, an uploaded
+-- or processing one until it ends; only the files of such a session that have
+-- not finished count.
 create or replace function public.storage_space_usage(
   p_org_id uuid,
   p_user_id uuid,
@@ -3935,7 +3938,8 @@ begin
     select coalesce(sum(coalesce(v.size_bytes, 0)), 0)::bigint into stored_bytes
     from public.documents d
     join public.document_versions v on v.document_id = d.id
-    where d.org_id = p_org_id;
+    where d.org_id = p_org_id
+      and v.storage_path is not null;
 
     select coalesce(sum(f.expected_size_bytes), 0)::bigint into promised_bytes
     from public.upload_sessions s
@@ -3953,7 +3957,14 @@ begin
     select coalesce(sum(coalesce(v.size_bytes, 0)), 0)::bigint into stored_bytes
     from public.documents d
     join public.document_versions v on v.document_id = d.id
-    where d.org_id is null and d.user_id = p_user_id;
+    where v.storage_path is not null
+      and (
+        (d.org_id is null and d.user_id = p_user_id)
+        or d.org_id = any (
+          array(select o.id from public.organizations o
+                where o.kind = 'personal' and o.personal_user_id = p_user_id)
+        )
+      );
 
     select coalesce(sum(f.expected_size_bytes), 0)::bigint into promised_bytes
     from public.upload_sessions s
@@ -3999,6 +4010,8 @@ declare
   recent_session_count integer;
   space_used_bytes bigint;
   space_limit_bytes bigint;
+  holding_cap bigint;
+  own_promised_bytes bigint;
 begin
   if jsonb_typeof(target_files) <> 'array' then
     raise exception using errcode = '22023', message = 'invalid_upload_manifest';
@@ -4131,6 +4144,32 @@ begin
     if (target_quota_org_id is not null and target_quota_bytes_per_member is null)
        or (target_quota_org_id is null and target_quota_personal_bytes is null) then
       raise exception using errcode = '22023', message = 'invalid_storage_quota_limits';
+    end if;
+    -- What one uploader may hold promised-but-not-stored in a space is bounded,
+    -- so nobody can reserve a space for everybody else without uploading: in a
+    -- firm's space, one session's cap; in somebody else's personal space, a
+    -- quarter of its limit; in one's own personal space, only the space's limit.
+    -- The caller's own sessions are serialized by the user lock taken above.
+    if target_quota_org_id is not null then
+      holding_cap := 2147483648;
+    elsif target_quota_user_id is distinct from target_user_id then
+      holding_cap := target_quota_personal_bytes / 4;
+    end if;
+    if holding_cap is not null then
+      select coalesce(sum(f.expected_size_bytes), 0)::bigint
+        into own_promised_bytes
+      from public.upload_sessions s
+      join public.upload_session_files f on f.session_id = s.id
+      where s.user_id = target_user_id
+        and s.quota_org_id is not distinct from target_quota_org_id
+        and s.quota_user_id is not distinct from target_quota_user_id
+        and s.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
+        and (s.status <> 'pending_upload' or s.expires_at > now())
+        and (s.status <> 'verifying' or s.updated_at > now() - interval '5 minutes')
+        and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing');
+      if own_promised_bytes + manifest_total_bytes > holding_cap then
+        raise exception using errcode = 'P0001', message = 'uploads_in_progress_limit';
+      end if;
     end if;
     perform pg_advisory_xact_lock(
       hashtextextended(

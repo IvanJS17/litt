@@ -401,6 +401,13 @@ export async function createUploadSession(
     ...quotaRpcArgs(args.space, storageQuotaConfiguration()),
   });
   if (error) {
+    if (error.message?.includes("uploads_in_progress_limit")) {
+      return failure(409, {
+        code: "uploads_in_progress_limit",
+        detail:
+          "You already have uploads in progress here. Wait for them to finish or cancel them, then try again.",
+      });
+    }
     if (error.message?.includes("storage_quota_exceeded")) {
       return failure(413, {
         code: "storage_quota_exceeded",

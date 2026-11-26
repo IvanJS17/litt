@@ -180,6 +180,9 @@ jobs:
       - name: Document text search and backfill transactions
         run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/src/modules/documents/__tests__/documents.textSearch.sql
 
+      - name: Storage quota accounting and refusal
+        run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/src/modules/uploads/__tests__/uploads.storageQuota.sql
+
       - name: Chat list timeout reproduction and fix confirmation (MIKE-BACKEND-F)
         run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/src/modules/chat/__tests__/chat.overview.repro.sql
 
@@ -188,6 +191,9 @@ jobs:
 
       - name: Concurrent document lifecycle operations
         run: node backend/scripts/test-document-lifecycle-concurrency.mjs
+
+      - name: Concurrent storage quota reservations
+        run: node backend/src/modules/uploads/__tests__/uploads.storageQuota.concurrency.mjs
 
       - name: Algorithmic performance and authorization regressions
         run: |

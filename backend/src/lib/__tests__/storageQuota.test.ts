@@ -15,6 +15,7 @@ const FIRM = "33333333-3333-4333-8333-333333333333";
 const PROJECT = "44444444-4444-4444-8444-444444444444";
 const WORKFLOW = "55555555-5555-4555-8555-555555555555";
 const DOCUMENT = "66666666-6666-4666-8666-666666666666";
+const PERSONAL_ORG = "77777777-7777-4777-8777-777777777777";
 
 describe("storage quota configuration", () => {
   it("is 10 GB per accepted member and 2 GB personal unless configured", () => {
@@ -98,6 +99,29 @@ describe("the space an upload session fills", () => {
     await expect(
       resolve("document_version_replace", { document_id: "personal-document", version_id: "v" }),
     ).resolves.toEqual({ ok: true, space: { orgId: null, userId: OWNER } });
+  });
+
+  it("charges a row carrying a personal organization to that person's personal space, not to a firm", async () => {
+    const { db } = tableDb({
+      ...tables(),
+      organizations: [
+        { id: FIRM, kind: "team", personal_user_id: null },
+        { id: PERSONAL_ORG, kind: "personal", personal_user_id: OWNER },
+      ],
+      projects: [{ id: PROJECT, org_id: PERSONAL_ORG, user_id: OWNER }],
+      documents: [{ id: DOCUMENT, org_id: PERSONAL_ORG, user_id: OWNER }],
+    });
+    const personalOf = { ok: true, space: { orgId: null, userId: OWNER } };
+    await expect(
+      resolveUploadSpace(db, { purpose: "document_create", destination: { scope: "project", project_id: PROJECT }, userId: USER }),
+    ).resolves.toEqual(personalOf);
+    await expect(
+      resolveUploadSpace(db, { purpose: "document_version_create", destination: { document_id: DOCUMENT }, userId: USER }),
+    ).resolves.toEqual(personalOf);
+    // a team organization is still a firm
+    await expect(
+      resolveUploadSpace(db, { purpose: "document_create", destination: { scope: "standalone", org_id: FIRM }, userId: USER }),
+    ).resolves.toEqual({ ok: true, space: { orgId: FIRM, userId: null } });
   });
 
   it("refuses to guess when the space cannot be read", async () => {

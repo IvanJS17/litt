@@ -213,6 +213,21 @@ describe("upload session routes", () => {
     expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
   });
 
+  it("refuses a person who already holds as much as they may in the space, with its own code", async () => {
+    mocks.rpc.mockResolvedValue({
+      error: { message: "uploads_in_progress_limit" },
+    });
+
+    const response = await request(app)
+      .post("/upload-sessions")
+      .send(manifest());
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("uploads_in_progress_limit");
+    expect(response.body.detail).toMatch(/uploads in progress/i);
+    expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
+  });
+
   it("applies the upload rate limit to sessions instead of individual files", async () => {
     mocks.rpc.mockResolvedValue({
       error: { message: "upload_session_rate_limit_exceeded" },

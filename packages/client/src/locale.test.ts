@@ -24,6 +24,15 @@ describe("failure text in es-MX", () => {
         configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
     });
 
+    it("says in Spanish to wait for uploads in progress", () => {
+        expect(
+            describeError(apiError(409, "uploads_in_progress_limit", "API error: 409")),
+        ).toMatchObject({
+            kind: "conflict",
+            message: expect.stringMatching(/Ya tienes subidas en curso/),
+        });
+    });
+
     it("says in Spanish that the space is full", () => {
         expect(
             describeError(apiError(413, "storage_quota_exceeded", "API error: 413")),
