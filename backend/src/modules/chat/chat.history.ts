@@ -12,7 +12,7 @@ import { type Db } from "../../lib/supabase";
 import { getChatMessages, getMessagesOfChats } from "./chat.messages";
 import type { ChatMessage } from "./engine/index";
 
-type StoredEvent = { type?: unknown; text?: unknown; message?: unknown; code?: unknown };
+type StoredEvent = { type?: unknown; title?: unknown; text?: unknown; message?: unknown; code?: unknown };
 type StoredMessage = Record<string, unknown>;
 
 const eventsOf = (message: StoredMessage): StoredEvent[] =>
@@ -29,11 +29,31 @@ export function assistantText(message: StoredMessage): string {
         .join("");
 }
 
+/** An answer as the web client replays it: its words, with the text cards among them in place. */
+function assistantTextWithCards(message: StoredMessage): string {
+    const events = eventsOf(message);
+    if (!events.some((event) => event.type === "text_card")) return assistantText(message);
+    return events
+        .flatMap((event) => {
+            if (event.type === "content" && typeof event.text === "string") return [event.text];
+            if (event.type === "text_card") return [`${String(event.title)}\n${String(event.text)}`];
+            return [];
+        })
+        .join("\n\n");
+}
+
 /**
  * The messages of a chat as the web would send them with a new one: those the
- * reader can open now, as a transcript they read is.
+ * reader can open now, as a transcript they read is. With `exactlyAsTheWebSends`
+ * every answer keeps its place (empty when it has no words) and carries its
+ * text cards, as the web's own transcript does.
  */
-export async function loadChatHistory(db: Db, chatId: string, reader: DerivedReader): Promise<ChatMessage[]> {
+export async function loadChatHistory(
+    db: Db,
+    chatId: string,
+    reader: DerivedReader,
+    options: { exactlyAsTheWebSends?: boolean } = {},
+): Promise<ChatMessage[]> {
     // An answer the reader cannot open now comes back emptied, so it has no text to replay.
     const stored = await getChatMessages(db, chatId, reader);
     const history: ChatMessage[] = [];
@@ -47,6 +67,10 @@ export async function loadChatHistory(db: Db, chatId: string, reader: DerivedRea
                 ...(message.playbook && typeof message.playbook === "object" ? { playbook: message.playbook } : {}),
             } as ChatMessage);
         } else if (message.role === "assistant") {
+            if (options.exactlyAsTheWebSends) {
+                history.push({ role: "assistant", content: assistantTextWithCards(message) });
+                continue;
+            }
             const text = assistantText(message);
             if (text) history.push({ role: "assistant", content: text });
         }

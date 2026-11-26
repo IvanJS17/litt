@@ -2319,6 +2319,27 @@ describe("tabular.routes", () => {
             expect(after.body.active_generation).toBeNull();
         });
 
+        it("sends a run's frames only to a reader who can read the documents it is built from", async () => {
+            const held = heldExtraction();
+            const first = startGeneration();
+            const firstDone = first.then((res) => res);
+            await held.started;
+
+            // The colleague attaching cannot read the row's document.
+            filterAccessibleDocumentIds.mockImplementation(async (ids: string[]) =>
+                ids.filter((id) => id !== "d1"),
+            );
+            const loaded = await request(app).get("/tabular-review/r1").set(...AUTH);
+            expect(loaded.body.active_generation).toBeNull();
+            const tail = request(app)
+                .get("/tabular-review/r1/generate/stream?from=1")
+                .set(...AUTH);
+            setTimeout(() => held.release(), 30);
+            const watched = await tail;
+            expect(watched.text).not.toContain('"row_id":"row-1"');
+            await firstDone;
+        });
+
         it("replays only from the requested sequence number", async () => {
             const held = heldExtraction();
             const first = startGeneration();
@@ -2905,6 +2926,55 @@ describe("tabular.routes", () => {
                 .get("/tabular-review/r1/chats")
                 .set(...AUTH);
             expect(after.body[0].active_turn).toBeNull();
+        });
+
+        it("shows a running turn only to a reader who can read every document behind it", async () => {
+            supabaseState.tables.tabular_review_rows = {
+                data: [
+                    {
+                        id: "row-x",
+                        review_id: "r1",
+                        label: "Other project.pdf",
+                        row_type: "document",
+                        folder_id: null,
+                        library_folder_id: null,
+                        document_id: "x1",
+                        sort_index: 0,
+                    },
+                ],
+                error: null,
+            };
+            const held = heldGeneration();
+            const first = send();
+            const firstDone = first.then((res) => res);
+            await held.started;
+            const turnId = await activeTurnId();
+
+            // The colleague opening the review cannot read the document.
+            filterAccessibleDocumentIds.mockImplementation(async (ids: string[]) =>
+                ids.filter((id) => id !== "x1"),
+            );
+            supabaseState.tables.tabular_review_chats = { data: [CHAT_ROW], error: null };
+            const listed = await request(app).get("/tabular-review/r1/chats").set(...AUTH);
+            expect(listed.body[0].active_turn).toBeNull();
+            supabaseState.tables.tabular_review_chats = { data: CHAT_ROW, error: null };
+            const refused = await request(app)
+                .get(`/tabular-review/r1/chats/review-chat-1/turn/${turnId}/stream`)
+                .set(...AUTH);
+            expect(refused.status).toBe(404);
+            expect(refused.body).toMatchObject({ code: "turn_not_found" });
+            expect(refused.text).not.toContain("First");
+
+            // A reader who can read it still attaches.
+            filterAccessibleDocumentIds.mockImplementation(async (ids: string[]) => ids);
+            const tail = request(app)
+                .get(`/tabular-review/r1/chats/review-chat-1/turn/${turnId}/stream`)
+                .set(...AUTH);
+            setTimeout(() => held.release(), 30);
+            const resumed = await tail;
+            expect(resumed.status).toBe(200);
+            expect(resumed.text).toContain("First");
+            await firstDone;
         });
 
         it("refuses a second turn while one is generating into the chat", async () => {

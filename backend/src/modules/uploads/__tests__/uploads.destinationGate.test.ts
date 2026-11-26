@@ -137,7 +137,24 @@ function world() {
     if (name === "queue_upload_session_file_processing") return { data: "job-1", error: null };
     return ownerlessRpcResult(tables, name, args) ?? { data: null, error: null };
   };
-  return { tables, calls, rpcCalls, db: { from: db.from, rpc } as unknown as Db };
+  // The address the account has now, as the auth service would answer it.
+  const account: { email: string | null; confirmed: boolean; error: unknown } = {
+    email: "alice@example.test", confirmed: true, error: null,
+  };
+  const auth = {
+    admin: {
+      getUserById: async () => ({
+        data: {
+          user: {
+            email: account.email,
+            email_confirmed_at: account.confirmed ? "2026-01-01T00:00:00Z" : null,
+          },
+        },
+        error: account.error,
+      }),
+    },
+  };
+  return { tables, calls, rpcCalls, account, db: { from: db.from, rpc, auth } as unknown as Db };
 }
 
 /** What can be taken from the owner after the session was opened. */
@@ -393,4 +410,173 @@ describe("an upload session checks its destination each time it is used", () => 
       expect(mocks.updateDocumentVersion).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("an upload for an account that is being erased", () => {
+  const requested = { user_id: ALICE, account_deletion_requested_at: "2026-11-25T10:00:00Z" };
+
+  it.each(KINDS)("writes nothing, however the session began: $name", async (kind) => {
+    const w = world();
+    openSession(w, kind, "uploaded");
+    w.tables.user_profiles = [requested];
+    const documentsBefore = JSON.stringify(w.tables.documents);
+
+    await expect(
+      processUploadFile(w.db, workerSession(kind), workerFile(kind)),
+    ).rejects.toMatchObject({ message: "upload_destination_unavailable" });
+
+    expect(JSON.stringify(w.tables.documents)).toBe(documentsBefore);
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(mocks.createDocumentVersion).not.toHaveBeenCalled();
+    expect(mocks.updateDocumentVersion).not.toHaveBeenCalled();
+  });
+
+  it("removes the document row it created when the erasure was requested while it wrote it", async () => {
+    const w = world();
+    openSession(w, KINDS[0], "uploaded");
+    w.tables.user_profiles = [{ user_id: ALICE, account_deletion_requested_at: null }];
+    const from = w.db.from.bind(w.db);
+    // The request lands between the check that opened the job and the row.
+    (w.db as { from: unknown }).from = (table: string) => {
+      const query = from(table) as { upsert: (...args: unknown[]) => unknown };
+      if (table !== "documents") return query;
+      const upsert = query.upsert.bind(query);
+      query.upsert = (...args: unknown[]) => {
+        const result = upsert(...args);
+        w.tables.user_profiles = [requested];
+        return result;
+      };
+      return query;
+    };
+
+    await expect(
+      processUploadFile(w.db, workerSession(KINDS[0]), workerFile(KINDS[0])),
+    ).rejects.toMatchObject({ message: "upload_destination_unavailable" });
+
+    expect(w.tables.documents.some((row) => row.id === RESOURCE)).toBe(false);
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("a retry of an upload whose earlier attempt finished the document", () => {
+  const requested = { user_id: ALICE, account_deletion_requested_at: "2026-11-25T10:00:00Z" };
+  const FINISHED_VERSION = id(777);
+  const landsAtTheUpsert = (w: ReturnType<typeof world>) => {
+    w.tables.user_profiles = [{ user_id: ALICE, account_deletion_requested_at: null }];
+    const from = w.db.from.bind(w.db);
+    (w.db as { from: unknown }).from = (table: string) => {
+      const query = from(table) as { upsert: (...args: unknown[]) => unknown };
+      if (table !== "documents") return query;
+      const upsert = query.upsert.bind(query);
+      query.upsert = (...args: unknown[]) => {
+        const result = upsert(...args);
+        w.tables.user_profiles = [requested];
+        return result;
+      };
+      return query;
+    };
+  };
+
+  it.each([KINDS[0], KINDS[1]])(
+    "leaves the finished document, its version and its objects alone: $name",
+    async (kind) => {
+      const w = world();
+      openSession(w, kind, "processing");
+      w.tables.documents.push({
+        id: RESOURCE, user_id: ALICE, project_id: kind.containerId, org_id: ORG, workflow_id: null,
+        status: "ready", current_version_id: FINISHED_VERSION, archived_at: null,
+      });
+      w.tables.document_versions.push({
+        id: FINISHED_VERSION, document_id: RESOURCE, file_type: "pdf", deleted_at: null,
+        storage_path: `documents/${ALICE}/${RESOURCE}/contract.pdf`, pdf_storage_path: null,
+        content_sha256: null,
+      });
+      landsAtTheUpsert(w);
+      const file = {
+        ...workerFile(kind), status: "processing", document_created_at: "2026-11-25T09:59:00Z",
+      };
+
+      await expect(processUploadFile(w.db, workerSession(kind), file)).rejects.toMatchObject({
+        message: "upload_destination_unavailable",
+        orphanedKeys: [],
+      });
+
+      expect(w.tables.documents.find((row) => row.id === RESOURCE)).toMatchObject({
+        status: "ready", current_version_id: FINISHED_VERSION,
+      });
+      expect(w.tables.document_versions.some((row) => row.id === FINISHED_VERSION)).toBe(true);
+      expect(mocks.deleteFile).not.toHaveBeenCalled();
+      expect(mocks.copyFile).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still removes a row this attempt created, and hands its keys to the cleanup", async () => {
+    const w = world();
+    openSession(w, KINDS[0], "processing");
+    landsAtTheUpsert(w);
+
+    await expect(
+      processUploadFile(w.db, workerSession(KINDS[0]), workerFile(KINDS[0])),
+    ).rejects.toMatchObject({
+      message: "upload_destination_unavailable",
+      orphanedKeys: [
+        `documents/${ALICE}/${RESOURCE}/source.pdf`,
+        `converted-pdfs/${ALICE}/${RESOURCE}.pdf`,
+      ],
+    });
+    expect(w.tables.documents.some((row) => row.id === RESOURCE)).toBe(false);
+  });
+});
+
+describe("the address the upload worker asks with", () => {
+  const SHARED_PROJECT = id(102);
+  const sharedKind: Kind = {
+    name: "project shared by address", purpose: "document_create", container: "project",
+    containerId: SHARED_PROJECT,
+    destination: { scope: "project", project_id: SHARED_PROJECT },
+    losses: [],
+  };
+  const sharedWorld = () => {
+    const w = world();
+    w.tables.projects.push({
+      id: SHARED_PROJECT, user_id: COLLEAGUE, org_id: null, visibility: "private", archived_at: null,
+    });
+    w.tables.project_access_grants = [
+      { project_id: SHARED_PROJECT, email: "alice@example.test", role: "editor" },
+    ];
+    openSession(w, sharedKind, "uploaded");
+    return w;
+  };
+
+  it("writes when the account still has the shared address, confirmed", async () => {
+    const w = sharedWorld();
+    await expect(
+      processUploadFile(w.db, workerSession(sharedKind), workerFile(sharedKind)),
+    ).resolves.toBeDefined();
+    expect(w.tables.documents.some((row) => row.id === RESOURCE)).toBe(true);
+  });
+
+  it.each([
+    ["the address changed", { email: "someone-else@example.test", confirmed: true }],
+    ["the address is not confirmed", { email: "alice@example.test", confirmed: false }],
+  ])("refuses when %s since the session was opened", async (_name, now) => {
+    const w = sharedWorld();
+    Object.assign(w.account, now);
+    const documentsBefore = JSON.stringify(w.tables.documents);
+
+    await expect(
+      processUploadFile(w.db, workerSession(sharedKind), workerFile(sharedKind)),
+    ).rejects.toMatchObject({ message: "upload_destination_unavailable" });
+
+    expect(JSON.stringify(w.tables.documents)).toBe(documentsBefore);
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+  });
+
+  it("retries when the account cannot be read", async () => {
+    const w = sharedWorld();
+    w.account.error = { message: "unavailable" };
+    await expect(
+      processUploadFile(w.db, workerSession(sharedKind), workerFile(sharedKind)),
+    ).rejects.not.toMatchObject({ message: "upload_destination_unavailable" });
+  });
 });

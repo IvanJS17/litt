@@ -25,6 +25,7 @@ import {
     getAssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
 import { openAssistantSse } from "../../lib/assistantSse";
+import { mayWatchRun } from "../../lib/tabularReadAccess";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
 import { recordAudit } from "../../lib/audit";
@@ -267,21 +268,25 @@ tabularRouter.post("/prompt", requireAuth, asyncRoute(async (req, res) => {
 // GET /tabular-review/:reviewId
 tabularRouter.get("/:reviewId", requireAuth, asyncRoute(async (req, res) => {
     const { reviewId } = req.params;
-    const result = await getTabularReviewDetail(createServerSupabase(), {
-        reviewId,
+    const db = createServerSupabase();
+    const reader = {
         userId: res.locals.userId as string,
         userEmail: res.locals.userEmail as string | undefined,
-    });
+    };
+    const result = await getTabularReviewDetail(db, { reviewId, ...reader });
     if (!result.ok) return void sendTabularFailure(res, result);
     // A generation this process is running, so a client that has just loaded
     // (a refresh, a second tab) knows to attach to it — and that it may stop
     // it. `review.is_running` is the lease, which an async or another
     // replica's run also holds; this is the stronger, stoppable statement.
+    // Only a reader who may watch the run is told about it.
     const run = getActiveStreamRun(reviewRunKey(reviewId));
     res.json({
         ...result.data,
         active_generation:
-            run && !run.finished ? { id: run.id, seq: run.seq } : null,
+            run && !run.finished && (await mayWatchRun(db, run, reader))
+                ? { id: run.id, seq: run.seq }
+                : null,
     });
 }));
 
@@ -644,14 +649,22 @@ tabularRouter.get(
         // sequence number it last saw and then tails the live ones. Replaying
         // `cell_update` frames is idempotent, so `from` defaults to the start.
         const run = getActiveStreamRun(reviewRunKey(reviewId));
-        if (run) {
+        if (
+            run &&
+            (await mayWatchRun(db, run, {
+                userId: res.locals.userId as string,
+                userEmail: res.locals.userEmail as string | undefined,
+            }))
+        ) {
             const rawFrom = Number.parseInt(String(req.query.from ?? "1"), 10);
             const from = Number.isFinite(rawFrom) && rawFrom > 0 ? rawFrom : 1;
             return void attachStreamRunSse(res, run, from);
         }
 
         // No run here: the async path (the work is the queue's), another
-        // replica, or a lease with nothing attached. Tail the DB instead.
+        // replica, a lease with nothing attached, or a run this reader may
+        // not watch (it is built from documents they cannot read). Tail the
+        // DB instead, which shows them only their own view of the rows.
         await streamTabularRunView({
             res,
             db,
@@ -666,10 +679,14 @@ tabularRouter.get(
 
 // GET /tabular-review/:reviewId/chats — list chats (metadata only, no messages)
 tabularRouter.get("/:reviewId/chats", requireAuth, asyncRoute(async (req, res) => {
-    const result = await listTabularReviewChats(createServerSupabase(), {
-        reviewId: req.params.reviewId,
+    const db = createServerSupabase();
+    const reader = {
         userId: res.locals.userId as string,
         userEmail: res.locals.userEmail as string | undefined,
+    };
+    const result = await listTabularReviewChats(db, {
+        reviewId: req.params.reviewId,
+        ...reader,
     });
     if (!result.ok) return void sendTabularFailure(res, result);
     // Each row carries the turn this process is still generating into it, if
@@ -678,11 +695,19 @@ tabularRouter.get("/:reviewId/chats", requireAuth, asyncRoute(async (req, res) =
     // of showing a finished-looking transcript with the answer missing. The
     // messages endpoint keeps its bare array shape: it is the transcript, and
     // the transcript does not have the running turn in it yet.
+    // Only a reader who may watch the turn is told about it.
     res.json(
-        result.data.map((chat) => ({
-            ...chat,
-            active_turn: getActiveAssistantTurn(chat.id, "tabular"),
-        })),
+        await Promise.all(
+            result.data.map(async (chat) => {
+                const active = getActiveAssistantTurn(chat.id, "tabular");
+                const run = active && getAssistantTurnRun(active.id, "tabular");
+                return {
+                    ...chat,
+                    active_turn:
+                        run && (await mayWatchRun(db, run, reader)) ? active : null,
+                };
+            }),
+        ),
     );
 }));
 
@@ -697,17 +722,23 @@ tabularRouter.get(
     asyncRoute(async (req, res) => {
         setOperation("tabular.chat");
         const { reviewId, chatId, turnId } = req.params;
+        const db = createServerSupabase();
+        const reader = {
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        };
         const gate = await ensureReviewChatReadAccess(
-            createServerSupabase(),
+            db,
             reviewId,
             chatId,
-            res.locals.userId as string,
-            res.locals.userEmail as string | undefined,
+            reader.userId,
+            reader.userEmail,
         );
         if (!gate.ok) return void sendTabularFailure(res, gate);
 
         const run = getAssistantTurnRun(turnId, "tabular");
-        if (!run || run.chatId !== chatId) {
+        // A turn the reader may not watch answers like one that is gone.
+        if (!run || run.chatId !== chatId || !(await mayWatchRun(db, run, reader))) {
             return void res.status(404).json({
                 code: "turn_not_found",
                 detail: "This response is no longer being generated.",

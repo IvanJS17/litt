@@ -218,6 +218,7 @@ export async function startTabularChatTurn(
                   userId,
                   assistantMessageId,
                   surface: "tabular",
+                  sourceDocumentIds: prepared.sourceDocumentIds,
               })
             : null;
     } catch (error) {

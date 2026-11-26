@@ -53,6 +53,11 @@ export type AssistantTurnSurface = "chat" | "tabular" | "word";
 type TurnMeta = {
     chatId: string;
     assistantMessageId: string;
+    /**
+     * The documents what the turn streams is derived from (null: unknown).
+     * Only a reader who can read all of them may watch the turn.
+     */
+    sourceDocumentIds?: string[] | null;
     /** Word only: the embedded document the pane is attached to. */
     clientDocumentId?: string;
     /** Word only: false for a local (never-persisted) chat. */
@@ -100,6 +105,8 @@ export function startAssistantTurnRun(args: {
     userId: string;
     assistantMessageId: string;
     surface?: AssistantTurnSurface;
+    /** The documents the turn's output is derived from; see TurnMeta. */
+    sourceDocumentIds?: string[] | null;
     /** Word only: what its resume endpoints authorise against. */
     clientDocumentId?: string;
     /** Word only: false for a local (never-persisted) chat. */
@@ -112,6 +119,9 @@ export function startAssistantTurnRun(args: {
         meta: {
             chatId: args.chatId,
             assistantMessageId: args.assistantMessageId,
+            ...(args.sourceDocumentIds !== undefined
+                ? { sourceDocumentIds: args.sourceDocumentIds }
+                : {}),
             ...(args.clientDocumentId !== undefined
                 ? { clientDocumentId: args.clientDocumentId }
                 : {}),

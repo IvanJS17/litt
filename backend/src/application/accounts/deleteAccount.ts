@@ -12,6 +12,7 @@ import {
 } from "./dataCleanup";
 import { eraseAccount } from "../jobs/accountDelete";
 import { withKind, type ErrorKind } from "../../lib/appError";
+import { stopRunsOfUser } from "../../lib/streamRuns";
 import { reportError } from "../../lib/observability/report";
 import type { Db } from "../../lib/supabase";
 import { errorMessage } from "../../modules/user/user.service";
@@ -117,6 +118,10 @@ export async function deleteUserAccount(
                 });
             }
         }
+
+        // Turns the server is still running for this person stop now; their
+        // writes are also refused while the erasure is requested.
+        stopRunsOfUser(userId);
 
         if (!dbJobsEnabled()) {
             // No runner will drain the queue: erase now, as the job would.

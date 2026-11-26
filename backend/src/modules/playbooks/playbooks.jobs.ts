@@ -9,6 +9,7 @@
 // compilePlaybookImport), so two claims of one job cannot both record one.
 
 import { deleteFile, downloadFile } from "../../lib/storage";
+import { currentConfirmedEmail } from "../../lib/confirmedEmail";
 import { safeError } from "../../lib/safeError";
 import { AppError } from "../../lib/appError";
 import { reportError, setOperation } from "../../lib/observability/report";
@@ -226,11 +227,21 @@ async function markFailed(
   return ((data as Record<string, unknown>[] | null) ?? [])[0] ?? null;
 }
 
+/**
+ * The job's payload with the address of the account as it is now. The one
+ * copied into the payload when the work was requested decides nothing: shares
+ * and grants are matched against the address the account has when it runs.
+ */
+async function actingNow<T extends { userId: string }>(db: Db, payload: T): Promise<T> {
+  return { ...payload, userEmail: await currentConfirmedEmail(db, payload.userId) };
+}
+
 export async function handlePlaybookReview(db: Db, job: DbJob): Promise<void> {
   setOperation("playbooks.review");
-  const input = job.payload as unknown as PlaybookReviewInput;
-  const row = await claimRow(db, "playbook_runs", input.runId, job);
+  const queued = job.payload as unknown as PlaybookReviewInput & { userId: string };
+  const row = await claimRow(db, "playbook_runs", queued.runId, job);
   if (!row) return;
+  const input = await actingNow(db, { ...queued, userId: String(row.user_id) });
   // Re-run from the row: the rules snapshot (content_json), model, mode, and
   // scope were fixed when the review was requested.
   await untilRecorded(db, "playbook_runs", input.runId, () =>
@@ -321,8 +332,9 @@ async function readImportFile(
 
 export async function handlePlaybookImport(db: Db, job: DbJob): Promise<void> {
   setOperation("playbooks.import");
-  const payload = job.payload as unknown as PlaybookImportJobPayload;
-  const row = await claimRow(db, "playbook_imports", payload.attemptId, job);
+  const queued = job.payload as unknown as PlaybookImportJobPayload;
+  const row = await claimRow(db, "playbook_imports", queued.attemptId, job);
+  const payload = row ? await actingNow(db, queued) : queued;
   if (row)
     await untilRecorded(db, "playbook_imports", payload.attemptId, () =>
       compilePlaybookImport(db, payload, () => readImportFile(db, payload)),
@@ -352,8 +364,9 @@ export async function markPlaybookImportJobFailed(
 
 export async function handlePlaybookDraft(db: Db, job: DbJob): Promise<void> {
   setOperation("playbooks.draft");
-  const payload = job.payload as unknown as PlaybookDraftJobPayload;
-  const row = await claimRow(db, "playbook_imports", payload.attemptId, job);
+  const queued = job.payload as unknown as PlaybookDraftJobPayload;
+  const row = await claimRow(db, "playbook_imports", queued.attemptId, job);
+  const payload = row ? await actingNow(db, queued) : queued;
   // The answers are read from the row, never from the job's payload. A row
   // and a payload that disagree on what they are run nothing.
   if (row && (row.kind ?? "draft") === draftJobKind(payload))

@@ -653,6 +653,7 @@ describe("deciding each change", () => {
         return again.db.from(table as never);
       },
       rpc: again.db.rpc,
+      auth: again.db.auth,
     } as unknown as Db;
     await expect(
       setPlaybookState(LAWYER.id, again.copy.id, { status: "ready" }, acceptInside, LAWYER.email),
@@ -723,6 +724,7 @@ describe("a proposal's guards", () => {
         return query;
       },
       rpc: db.rpc,
+      auth: db.auth,
     } as unknown as Db;
 
     await expect(ask(racing, copy.id)).rejects.toMatchObject({
@@ -820,6 +822,7 @@ describe("a proposal's guards", () => {
         return query;
       },
       rpc: db.rpc,
+      auth: db.auth,
     } as unknown as Db;
 
     await handlePlaybookDraft(failing, job(work));
@@ -858,6 +861,7 @@ describe("a proposal's guards", () => {
         return query;
       },
       rpc: db.rpc,
+      auth: db.auth,
     } as unknown as Db;
 
     await handlePlaybookDraft(losingIntake, job(work));

@@ -34,6 +34,7 @@ function fakeDb(tables: Record<string, Row[]>) {
                     return builder;
                 },
                 is: () => builder,
+                order: () => builder,
                 insert: async (payload: Row) => {
                     (tables[table] ??= []).push({ ...payload });
                     return { error: null };
@@ -260,6 +261,26 @@ describe("loadPinnedChatRoute", () => {
         await expect(
             loadPinnedChatRoute(db, { userId: "u1", orgId: "o1", route: orgRoute }),
         ).resolves.toMatchObject({ code: "chat_route_credential_unavailable" });
+    });
+
+    it("refuses a stored router model once the firm's list no longer has it", async () => {
+        const model = "openrouter/openai/gpt-4.1";
+        const orgRoute = { provider: "openrouter" as const, model, credentialRef: "org:o1:openrouter:v1" };
+        const world = async (listed: string[]) =>
+            fakeDb({
+                org_members: [{ org_id: "o1", user_id: "u1" }],
+                organizations: [{ id: "o1", allow_personal_ai_keys: true }],
+                org_api_keys: [
+                    await keyRow({ kind: "org", id: "o1" }, "openrouter", "sk-or-firm"),
+                ],
+                org_router_models: listed.map((id) => ({ org_id: "o1", router: "openrouter", model_id: id })),
+            }).db;
+        await expect(
+            loadPinnedChatRoute(await world(["openai/gpt-4.1"]), { userId: "u1", orgId: "o1", route: orgRoute }),
+        ).resolves.toMatchObject({ ok: true });
+        await expect(
+            loadPinnedChatRoute(await world(["openai/gpt-5"]), { userId: "u1", orgId: "o1", route: orgRoute }),
+        ).resolves.toMatchObject({ ok: false, status: 409, code: "chat_route_credential_unavailable" });
     });
 
     it("loads the same version and hands over only that key", async () => {

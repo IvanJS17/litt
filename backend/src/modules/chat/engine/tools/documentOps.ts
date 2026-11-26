@@ -17,7 +17,7 @@ import { enqueueConversion } from "../../../../lib/queue/conversionQueue";
 import { enqueueDbJob } from "../../../../lib/dbq/enqueue";
 import type { Db } from "../../../../lib/supabase";
 import { AppError } from "../../../../lib/appError";
-import { mayAddDocumentNow } from "../../../../lib/access";
+import { accountErasureRequested, mayAddDocumentNow } from "../../../../lib/access";
 import { reportError } from "../../../../lib/observability/report";
 import { buildDownloadUrl } from "../../../../lib/downloadTokens";
 import { isVersionHeld } from "../../../../lib/trainingRelease";
@@ -984,6 +984,8 @@ export async function mayReadDocumentNow(
 /** May this person add a document to this destination now? Fails closed. */
 export async function mayAddDocumentHere(db: Db, destination: Parameters<typeof mayAddDocumentNow>[1]): Promise<boolean> {
   try {
+    // A person whose account is being erased gets nothing new written.
+    if (await accountErasureRequested(db, destination.userId)) return false;
     return await mayAddDocumentNow(db, destination);
   } catch (error) {
     reportAccessCheckFailure(error);

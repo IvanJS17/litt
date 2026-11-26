@@ -68,7 +68,15 @@ function database(documents: Row[]) {
         : upsert(value, options);
     return builder;
   };
-  return { tables, db: { from, rpc: vi.fn() } as unknown as Db };
+  const auth = {
+    admin: {
+      getUserById: async () => ({
+        data: { user: { email: "uploader@example.test", email_confirmed_at: "2026-01-01T00:00:00Z" } },
+        error: null,
+      }),
+    },
+  };
+  return { tables, db: { from, rpc: vi.fn(), auth } as unknown as Db };
 }
 
 const session = {

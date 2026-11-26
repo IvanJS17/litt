@@ -555,6 +555,26 @@ export async function mayAddDocumentNow(
     }
 }
 
+/**
+ * Has this person asked for their account to be erased? Work that runs on
+ * after the request (a running turn, an upload being processed, an export
+ * being built) asks this before it writes anything for them. Throws when the
+ * state cannot be read; the caller must not write then.
+ */
+export async function accountErasureRequested(
+    db: Db,
+    userId: string,
+): Promise<boolean> {
+    const { data, error } = await db
+        .from("user_profiles")
+        .select("account_deletion_requested_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+    if (error) throw new Error("Failed to read account deletion state");
+    return !!(data as { account_deletion_requested_at?: string | null } | null)
+        ?.account_deletion_requested_at;
+}
+
 /** A personal project is private only while it has no direct grants. */
 export async function projectHasSharedAudience(
     db: Db,

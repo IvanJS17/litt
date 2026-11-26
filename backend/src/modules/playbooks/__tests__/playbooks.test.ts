@@ -169,6 +169,28 @@ describe("playbook compilation", () => {
     expect(normalizeFindings(parsed, "", [])).toHaveLength(4);
   });
 
+  it("keeps no origin or legal references the model wrote on an imported rule", async () => {
+    const rule = {
+      ...content().topics[0].rules[0],
+      sourceRefs: ["P1"],
+      origin: { kind: "correction", attributedTo: "A. Person", unbacked: false },
+      legalRefs: [{ text: "Art. 1", verified: true }],
+    };
+    const parsed = await validatePlaybookCompilationWithRetry({
+      raw: JSON.stringify({
+        ...content(),
+        rules: [rule],
+        topics: [{ id: "group", name: "Group", rules: [rule] }],
+      }),
+      structure: oneParagraph,
+      retry: async () => { throw new Error("Valid content should not need repair"); },
+    });
+    for (const kept of [parsed.rules[0], parsed.topics[0].rules[0]]) {
+      expect(kept).not.toHaveProperty("origin");
+      expect(kept).not.toHaveProperty("legalRefs");
+    }
+  });
+
   it("normalizes and validates imported rules without requiring topics", async () => {
     const source = content();
     const rule = source.topics[0].rules[0];

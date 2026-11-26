@@ -8,7 +8,8 @@ import {
     userExportFilename,
 } from "./buildJsonExport";
 import { AUDIT_CSV_FILENAME, buildAuditCsv, type AuditQuery } from "../../lib/auditExport";
-import { createDocumentAccessChecker } from "../../lib/access";
+import { accountErasureRequested, createDocumentAccessChecker } from "../../lib/access";
+import { currentConfirmedEmail } from "../../lib/confirmedEmail";
 import { selectInBatches } from "../../lib/batchedQuery";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { attachActiveVersionPaths, downloadFilenameForVersion } from "../../lib/documentVersions";
@@ -18,7 +19,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { headFile, openFileStream, uploadFile, uploadFileFromPath } from "../../lib/storage";
+import { deleteFile, headFile, openFileStream, uploadFile, uploadFileFromPath } from "../../lib/storage";
 import { ARCHIVE_FILENAME, EXPORT_TEMP_PREFIX } from "./exportTempFiles";
 import { assertVersionReleasable, type SealStage } from "../../lib/trainingRelease";
 import type { Db } from "../../lib/supabase";
@@ -274,7 +275,14 @@ export async function buildExport(db: Db, job: ExportBuildRequest): Promise<Reco
     if (!userId || !type || !EXPORT_TYPES.includes(type)) {
         throw new Error(`[export.build] malformed payload on job ${job.id}`);
     }
-    const userEmail = (job.payload.userEmail as string | undefined) ?? null;
+    // An export is built for the account as it is now: for a person whose
+    // erasure was requested nothing is built, and the address that decides
+    // what they may read is the one the account has now, not the one copied
+    // into the job when it was asked for.
+    if (await accountErasureRequested(db, userId)) {
+        throw new NonRetryableJobError("[export.build] the account is being erased");
+    }
+    const userEmail = await currentConfirmedEmail(db, userId);
     // The workspace a Settings export covers. A job queued before exports
     // had one carries none and is built as Personal, never as every
     // workspace.
@@ -305,6 +313,13 @@ export async function buildExport(db: Db, job: ExportBuildRequest): Promise<Reco
         } finally {
             await body.remove();
         }
+    }
+    // The erasure request commits before its sweep of this person's exports
+    // starts. Asked again now that the copy is stored: when it was requested
+    // meanwhile, the sweep may already have passed, so the copy goes here.
+    if (await accountErasureRequested(db, userId)) {
+        await deleteFile(storagePath);
+        throw new NonRetryableJobError("[export.build] the account is being erased");
     }
     // The completion audit row replaces the one the old sync route wrote.
     // The filtered exports have no such row: neither of their sync routes

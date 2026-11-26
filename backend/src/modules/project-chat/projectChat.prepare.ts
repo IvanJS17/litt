@@ -62,6 +62,8 @@ import {
     resolveCriteriaDelegation,
     unreadableSubagentRoutes,
     recordTrainingNote,
+    continuationMessages,
+    storedFilesOnly,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
 import type { CreatedTurnNote } from "../../lib/trainingNotes";
@@ -86,6 +88,7 @@ import {
 // the route imports everything it needs from its own service.
 import {
     chatOriginColumns,
+    loadChatHistory,
     updateChatTitle,
     type ChatOrigin,
     type ChatWriteResult,
@@ -235,10 +238,12 @@ export async function prepareProjectChatStream(
         userId,
         userEmail,
         projectId,
-        messages,
         displayed_doc,
         attached_documents,
     } = args;
+    let messages = args.messages;
+    // A person in training answering a paused turn: document names come from stored documents.
+    let trainingContinuation = false;
 
     // Verify the caller can reach the project at all. Whether they may WRITE
     // is decided below, once we know whether this is their own chat.
@@ -401,6 +406,18 @@ export async function prepareProjectChatStream(
         }
         if (!begun.ok) return begun;
         trainingPlan = begun.plan;
+    } else if (args.askInputsResponse) {
+        try {
+            ({ messages, inTraining: trainingContinuation } = await continuationMessages(
+                db,
+                userId,
+                { orgId: projectAccess.project.org_id ?? null, projectId },
+                messages,
+                async () => (chatId ? loadChatHistory(db, chatId, { userId, userEmail }, { exactlyAsTheWebSends: true }) : []),
+            ));
+        } catch (error) {
+            return { ok: false, internal: true, error };
+        }
     }
 
     const selection = await resolveUserChatSelection(db, {
@@ -628,9 +645,13 @@ export async function prepareProjectChatStream(
             };
         };
 
-        const historyMessages = replaysReasoning(selectedModel)
+        const historyWithFiles = replaysReasoning(selectedModel)
             ? await attachPriorReasoning(messages, chatId, db, "chat_messages", undefined, { userId, userEmail })
             : messages;
+        const historyMessages = trainingContinuation ? storedFilesOnly(historyWithFiles, docIndex) : historyWithFiles;
+        // Names the turn cannot resolve to a project document are not passed on.
+        const shownDocument = trainingContinuation && displayed_doc && !documentsById.has(displayed_doc.document_id) ? undefined : displayed_doc;
+        const attachedDocuments = trainingContinuation ? attached_documents?.filter((d) => documentsById.has(d.document_id)) : attached_documents;
         const timeZone = resolveRequestTimeZone(args.requestedTimeZone);
         const enrichedMessages = await enrichWithPriorEvents(
             historyMessages,
@@ -642,17 +663,17 @@ export async function prepareProjectChatStream(
             timeZone,
             { userId, userEmail },
         );
-        const messagesForLLM: ChatMessage[] = displayed_doc
+        const messagesForLLM: ChatMessage[] = shownDocument
             ? enrichedMessages.map((m, i) => {
                   if (i !== enrichedMessages.length - 1 || m.role !== "user")
                       return m;
                   const displayedDocument = documentPromptRef(
-                      displayed_doc.document_id,
-                      displayed_doc.filename,
+                      shownDocument.document_id,
+                      shownDocument.filename,
                   );
                   return {
                       ...m,
-                      content: `${m.content}\n\ndisplayed_doc: ${displayedDocument.filename}, displayed_doc_id: ${displayed_doc.document_id}`,
+                      content: `${m.content}\n\ndisplayed_doc: ${displayedDocument.filename}, displayed_doc_id: ${shownDocument.document_id}`,
                   };
               })
             : enrichedMessages;
@@ -663,8 +684,8 @@ export async function prepareProjectChatStream(
         // knows which docs the user is highlighting *now*, distinct from
         // the broader project doc list.
         let systemPromptExtra = PROJECT_SYSTEM_PROMPT_EXTRA;
-        if (attached_documents?.length) {
-            const lines = attached_documents.map((d) => {
+        if (attachedDocuments?.length) {
+            const lines = attachedDocuments.map((d) => {
                 const document = documentPromptRef(d.document_id, d.filename);
                 return document.slug
                     ? `- ${document.slug}: ${document.filename}`

@@ -450,6 +450,20 @@ export function getActiveStreamRun<Meta = Record<string, unknown>>(
 }
 
 /**
+ * Stop every run of one person that is still generating (their account is
+ * being erased). Returns how many were stopped.
+ */
+export function stopRunsOfUser(userId: string): number {
+    let stopped = 0;
+    for (const run of [...runs.values()]) {
+        if (run.userId !== userId || run.finished || run.stopped) continue;
+        run.stop();
+        stopped += 1;
+    }
+    return stopped;
+}
+
+/**
  * Stream a run into an Express response as SSE, from `from` onwards, and end
  * the response when the run finishes. Closing the response only detaches.
  *
