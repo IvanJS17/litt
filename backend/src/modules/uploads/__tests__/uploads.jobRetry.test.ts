@@ -135,7 +135,16 @@ function world() {
     };
     return builder;
   };
-  return { tables, db: { from, rpc } as unknown as Db };
+  // The address the account has now, as the auth service answers it.
+  const auth = {
+    admin: {
+      getUserById: async () => ({
+        data: { user: { email: "alice@example.test", email_confirmed_at: "2026-01-01T00:00:00Z" } },
+        error: null,
+      }),
+    },
+  };
+  return { tables, db: { from, rpc, auth } as unknown as Db };
 }
 type World = ReturnType<typeof world>;
 

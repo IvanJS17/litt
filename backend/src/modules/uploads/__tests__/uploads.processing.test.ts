@@ -84,6 +84,9 @@ vi.mock("../../../lib/access", async (original) => ({
   ...(await original<typeof import("../../../lib/access")>()),
   accountErasureRequested: async () => false,
 }));
+vi.mock("../../../lib/confirmedEmail", () => ({
+  currentConfirmedEmail: async () => "owner@example.com",
+}));
 vi.mock("../uploads.access", () => ({
   sessionDestinationWritable: mocks.sessionDestinationWritable,
 }));

@@ -26,6 +26,7 @@ import { accountErasureRequested, resolveContentOrgId } from "../../lib/access";
 import { AppError } from "../../lib/appError";
 import { recordAudit } from "../../lib/audit";
 import { enqueueStorageCleanup } from "../../lib/dbq/enqueue";
+import { currentConfirmedEmail } from "../../lib/confirmedEmail";
 import { runIsolated } from "../../lib/dbq/jobScope";
 import { convertedPdfKey, officeFileToPdf } from "../../lib/convert";
 import {
@@ -196,7 +197,13 @@ async function requireWritableDestination(
     throw new DestinationUnavailableError(keys);
   let writable;
   try {
-    writable = await sessionDestinationWritable(db, session, [file]);
+    // Direct shares are matched by address: ask with the one the account has
+    // now, not the one copied when the session was opened.
+    writable = await sessionDestinationWritable(
+      db,
+      { ...session, user_email: (await currentConfirmedEmail(db, session.user_id)) || null },
+      [file],
+    );
   } catch (error) {
     // A personal workspace closed by the person's firm is a refusal, not a
     // fault to retry.
@@ -594,16 +601,31 @@ async function processCreatedDocument(
   // request is committed before the sweep starts, so asking again now closes
   // that window: the row goes, and nothing else is written.
   if (await accountErasureRequested(db, session.user_id)) {
-    const { error: removeError } = await db
-      .from("documents")
-      .delete()
-      .eq("id", documentId)
-      .eq("user_id", session.user_id);
-    if (removeError) throw removeError;
-    throw new DestinationUnavailableError([
-      storageKey(session.user_id, documentId, file.filename),
-      convertedPdfKey(session.user_id, documentId),
-    ]);
+    // Only a row this attempt inserted and that holds nothing yet goes. A
+    // document an earlier attempt finished (or that existed before) is left
+    // for the erasure's own sweep to classify, and its objects stay.
+    let removed: { id: string } | null = null;
+    if (!file.document_created_at) {
+      const { data, error: removeError } = await db
+        .from("documents")
+        .delete()
+        .eq("id", documentId)
+        .eq("user_id", session.user_id)
+        .eq("status", "processing")
+        .is("current_version_id", null)
+        .select("id")
+        .maybeSingle();
+      if (removeError) throw removeError;
+      removed = data as { id: string } | null;
+    }
+    throw new DestinationUnavailableError(
+      removed
+        ? [
+            storageKey(session.user_id, documentId, file.filename),
+            convertedPdfKey(session.user_id, documentId),
+          ]
+        : [],
+    );
   }
   if (file.document_created_at) {
     // A retry finds the row the way an earlier failure left it. Put it back to

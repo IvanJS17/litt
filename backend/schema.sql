@@ -19473,7 +19473,8 @@ begin
   if new.visibility = 'private' and new.project_id is not null then
     update public.projects
     set visibility = 'private'
-    where id = new.project_id and visibility is distinct from 'private';
+    where id = new.project_id and visibility is distinct from 'private'
+      and org_id = (select w.organization_id from public.workspaces w where w.id = new.workspace_id);
   end if;
   return new;
 end;
