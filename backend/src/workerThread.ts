@@ -6,6 +6,8 @@
 // export serialization, pdf parsing), and the seam to a fully separate
 // worker process/machine (src/worker.ts) stays identical.
 
+// Before anything can log: provider errors carry the prompt and the reply.
+import "./logRedaction";
 import "dotenv/config";
 import { parentPort, workerData } from "node:worker_threads";
 import { startAllWorkers, stopAllWorkers, WORKER_ROLES, type WorkerRole } from "./workerRuntime";

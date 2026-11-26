@@ -1,0 +1,158 @@
+// What provider errors write to the server log. Each process installs the
+// redaction as its first import (src/logRedaction.ts); the tests below load it
+// the same way the entry points do.
+import "../logRedaction";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { formatWithOptions } from "node:util";
+import type { APICallError as ApiCallErrorClass } from "ai" with {
+  "resolution-mode": "import",
+};
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { AppError } from "./appError";
+import { jobErrorMessage } from "./dbq/jobError";
+import { logError, redactedProviderError } from "./log";
+
+// What a client's prompt looks like on the way to a provider: document text
+// inside the request body, echoed back in the provider's response body.
+const SENTINEL = "PRIVILEGED-DOC-TEXT-7f3a";
+
+// The AI SDK is ESM-only; this CommonJS test loads it the way the backend does.
+let APICallError: typeof ApiCallErrorClass;
+beforeAll(async () => {
+  ({ APICallError } = await import("ai"));
+});
+
+function providerError() {
+  const body = {
+    type: "error",
+    error: { type: "invalid_request_error", message: `bad ${SENTINEL}-response` },
+  };
+  return new APICallError({
+    message: `Bad request: ${SENTINEL}-message`,
+    url: `https://api.example.com/v1/messages?key=${SENTINEL}-url`,
+    requestBodyValues: {
+      model: "claude",
+      input: `${SENTINEL}-input`,
+      messages: [{ role: "user", content: `Summarise: ${SENTINEL}-request` }],
+    },
+    statusCode: 400,
+    responseHeaders: { "x-request-id": `${SENTINEL}-header` },
+    responseBody: JSON.stringify(body),
+    isRetryable: false,
+    // The provider adapter's parse of the response body.
+    data: body,
+  });
+}
+
+/** Exactly the text Node's console would write for the captured calls. */
+function captured(spy: { mock: { calls: unknown[][] } }): string {
+  return spy.mock.calls
+    .map((args) => formatWithOptions({ colors: false }, ...args))
+    .join("\n");
+}
+
+describe("error logging", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("never writes a provider error's request, response, headers or URL", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    logError("chat", providerError());
+    const out = captured(spy);
+    expect(out).not.toContain(SENTINEL);
+    expect(out).toContain("AI_APICallError");
+    expect(out).toContain("400");
+    expect(out).toContain("invalid_request_error");
+    expect(out).toContain("log.test.ts");
+  });
+
+  it("redacts an ordinary cause inside an SDK error", async () => {
+    const { JSONParseError } = await import("ai");
+    const failure = new JSONParseError({
+      text: "malformed output",
+      cause: new SyntaxError(SENTINEL),
+    });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    logError("chat", failure);
+    const out = captured(spy);
+    expect(out).toContain("AI_JSONParseError");
+    expect(out).not.toContain(SENTINEL);
+  });
+
+  it("names the SDK class but never a name that is not a class name", () => {
+    const failure = providerError();
+    expect(redactedProviderError(failure)).toMatch(/^AI provider error AI_APICallError /);
+    failure.name = `${SENTINEL} prompt text`;
+    const out = redactedProviderError(failure);
+    expect(out).toMatch(/^AI provider error \{/);
+    expect(out).not.toContain(SENTINEL);
+  });
+
+  it("leaves values that are not provider errors to normal formatting", () => {
+    expect(redactedProviderError(new Error("plain"))).toBeUndefined();
+    expect(redactedProviderError({ message: "plain" })).toBeUndefined();
+    expect(redactedProviderError(null)).toBeUndefined();
+    expect(redactedProviderError("text")).toBeUndefined();
+  });
+
+  it("never prints the message when it was edited after the stack was captured", () => {
+    const failure = providerError();
+    failure.message = `edited\n    at ${SENTINEL}`;
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    logError("chat", failure);
+    expect(captured(spy)).not.toContain(SENTINEL);
+  });
+
+  it("never writes a provider error nested as the cause of an AppError", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new AppError("provider-rejected", "Model stream failed", {
+      cause: providerError(),
+    });
+    logError("chat", failure);
+    const out = captured(spy);
+    expect(out).not.toContain(SENTINEL);
+    // Still debuggable: both classes in the chain, the kind, and the stack.
+    expect(out).toContain("AppError");
+    expect(out).toContain("provider-rejected");
+    expect(out).toContain("AI_APICallError");
+    expect(out).toContain("log.test.ts");
+  });
+
+  it("keeps an ordinary error's message and stack", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    logError("jobs", new Error("queue row 42 missing"), { jobId: "j1" });
+    const out = captured(spy);
+    expect(out).toContain("[jobs]");
+    expect(out).toContain("queue row 42 missing");
+    expect(out).toContain("log.test.ts");
+    expect(out).toContain("j1");
+  });
+});
+
+describe("job error messages", () => {
+  it("never records a provider error's text as a job's last_error", () => {
+    const message = jobErrorMessage(providerError());
+    expect(message).not.toContain(SENTINEL);
+    expect(message).toContain("AI_APICallError");
+    expect(message).toContain("invalid_request_error");
+  });
+
+  it("keeps the reason for every other failure", () => {
+    expect(jobErrorMessage(new Error("queue row 42 missing"))).toBe("queue row 42 missing");
+    expect(jobErrorMessage({ message: "permission denied", code: "42501" })).toBe("permission denied");
+    expect(jobErrorMessage(undefined, "cleanup_failed")).toBe("cleanup_failed");
+  });
+});
+
+describe("process entry points", () => {
+  // Each process has its own Error.prototype, so each entry installs the hook
+  // before any other module can log.
+  it.each(["index.ts", "worker.ts", "workerThread.ts"])(
+    "%s imports the redaction first",
+    (file) => {
+      const source = readFileSync(path.join(__dirname, "..", file), "utf8");
+      const firstImport = source.split("\n").find((line) => /^import\b/.test(line));
+      expect(firstImport).toBe('import "./logRedaction";');
+    },
+  );
+});

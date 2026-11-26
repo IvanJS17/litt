@@ -1,3 +1,5 @@
+// Before anything can log: provider errors carry the prompt and the reply.
+import "./logRedaction";
 // backend/.env before anything else: configuration is read at import time.
 import "dotenv/config";
 import type { Server } from "node:http";

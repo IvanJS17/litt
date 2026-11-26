@@ -15,6 +15,8 @@
 // container's environment block — dies at boot on the Supabase client's
 // "SUPABASE_URL and SUPABASE_SECRET_KEY must be set" check. Compose deployments
 // never noticed because compose injects real environment variables.
+// Before anything can log: provider errors carry the prompt and the reply.
+import "./logRedaction";
 import "dotenv/config";
 
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
