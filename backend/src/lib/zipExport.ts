@@ -64,7 +64,11 @@ export function uniqueArchiveFilename(
   const extension = dot > 0 ? requestedName.slice(dot) : "";
   const counters = nextCopyNumber.get(usedNames) ?? new Map<string, number>();
   nextCopyNumber.set(usedNames, counters);
-  const counterKey = `${stem}\u0000${extension}`;
+  // Spellings that fold to one name (case, Unicode form) share one counter:
+  // their candidates are the same names, so a counter of their own would
+  // count past every number the others took.
+  const fold = (text: string) => text.normalize("NFC").toLowerCase();
+  const counterKey = `${fold(stem)}\u0000${fold(extension)}`;
   let copyNumber = counters.get(counterKey) ?? 2;
   let candidate = `${stem} (${copyNumber})${extension}`;
   while (taken(candidate)) {

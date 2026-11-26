@@ -49,6 +49,8 @@ export function tableDb(
     let op: TableDbCall["op"] = "select";
     let payload: unknown;
     let ignoreDuplicates = false;
+    let onConflict = ["id"];
+    let returning = false;
     let tooLong = false;
     const inSizes: number[] = [];
     const settle = (one: boolean) => {
@@ -59,12 +61,14 @@ export function tableDb(
         return Promise.resolve({ data: null, error: { message: "Request-URI Too Large", code: "414" } });
       }
       if (op === "insert" || op === "upsert") {
-        const inserted = ((Array.isArray(payload) ? payload : [payload]) as Row[])
+        const inserted: Row[] = ((Array.isArray(payload) ? payload : [payload]) as Row[])
           .map((row) => ({ id: randomUUID(), ...row }));
-        for (const row of inserted) {
-          const existing = op === "upsert" ? rows.find((r) => r.id === row.id) : undefined;
+        for (const [at, row] of inserted.entries()) {
+          const existing =
+            op === "upsert" ? rows.find((r) => onConflict.every((column) => r[column] === row[column])) : undefined;
           if (existing && ignoreDuplicates) continue;
-          if (existing) Object.assign(existing, row);
+          // The row that was there keeps its id unless the caller sent one.
+          if (existing) Object.assign(existing, (Array.isArray(payload) ? payload : [payload])[at]);
           else rows.push({ ...row });
         }
         return Promise.resolve({ data: inserted, error: null });
@@ -76,7 +80,8 @@ export function tableDb(
         for (const [child, column] of cascade[table] ?? [])
           tables[child] = (tables[child] ?? []).filter((row) => !removed.has(row[column]));
         return Promise.resolve({
-          data: one && matched[0] ? { ...matched[0] } : null,
+          // A delete answers with the rows only when it asked for them (`.select()`).
+          data: !returning ? null : one ? (matched[0] ? { ...matched[0] } : null) : matched.map((row) => ({ ...row })),
           error: null,
         });
       }
@@ -102,7 +107,7 @@ export function tableDb(
       return Promise.resolve({ data: one ? (data[0] ?? null) : data, error: null });
     };
     const builder: Record<string, unknown> = {
-      select: () => builder,
+      select: () => ((returning = true), builder),
       eq: (c: string, v: unknown) => (preds.push((r) => r[c] === v), builder),
       neq: (c: string, v: unknown) => (preds.push((r) => r[c] !== v), builder),
       gt: (c: string, v: never) => (preds.push((r) => (r[c] as never) > v), builder),
@@ -125,8 +130,12 @@ export function tableDb(
         settle(false).then(resolve, reject),
     };
     for (const name of ["update", "delete", "insert", "upsert"] as const) {
-      builder[name] = (value?: unknown, options?: { ignoreDuplicates?: boolean }) => (
-        (op = name), (payload = value), (ignoreDuplicates = !!options?.ignoreDuplicates), builder
+      builder[name] = (value?: unknown, options?: { ignoreDuplicates?: boolean; onConflict?: string }) => (
+        (op = name),
+        (payload = value),
+        (ignoreDuplicates = !!options?.ignoreDuplicates),
+        (onConflict = options?.onConflict?.split(",").map((column) => column.trim()) ?? ["id"]),
+        builder
       );
     }
     return builder;

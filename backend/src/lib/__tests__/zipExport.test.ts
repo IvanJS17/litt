@@ -57,6 +57,43 @@ describe("ZIP export limits", () => {
     expect(large).toBeLessThanOrEqual(small * 4 + 8);
   });
 
+  describe("work grows linearly with the entries of one listing", () => {
+    // Counting lookups, not timing them: a listing of N entries against one of 4N.
+    const lookups = (names: string[]) => {
+      let count = 0;
+      const used = new Set<string>();
+      const has = used.has.bind(used);
+      used.has = (value: string) => {
+        count += 1;
+        return has(value);
+      };
+      const out = names.map((name) => uniqueArchiveFilename(name, used));
+      expect(new Set(out.map((name) => name.toLowerCase())).size).toBe(names.length);
+      return count;
+    };
+    const SMALL = 1000;
+    const LARGE = 4000;
+    const listing = (size: number, name: (index: number) => string) =>
+      Array.from({ length: size }, (_, index) => name(index));
+
+    it.each([
+      ["one name", () => "Contract.pdf"],
+      ["a name made of dots and spaces", () => " . . . "],
+      ["dots and spaces after a stem", () => "Contract . . "],
+      ["dots and spaces before an extension", () => "Contract. .pdf"],
+      ["names that differ only by trailing dots and spaces", (i: number) => `Contract${". ".repeat(i % 7)}`],
+      ["names that differ only by case", (i: number) => (i % 2 ? "CONTRACT.pdf" : "contract.pdf")],
+      [
+        "many spellings of one name that differ by case",
+        (i: number) => [..."contractabc"].map((letter, bit) => ((i >> bit) & 1 ? letter.toUpperCase() : letter)).join("") + ".pdf",
+      ],
+    ])("%s", (_, name) => {
+      const small = lookups(listing(SMALL, name));
+      const large = lookups(listing(LARGE, name));
+      expect(large).toBeLessThanOrEqual(small * 4 + 16);
+    });
+  });
+
   it("preserves path-like and normalized-collision document names as distinct leaf entries", async () => {
     const requested = [
       "Agreement.pdf", "../Agreement.pdf", "./Agreement.pdf",

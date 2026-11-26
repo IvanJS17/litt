@@ -1,6 +1,11 @@
 -- A claim that is given no free parser slot claims no parser-bound row and
 -- still claims every other kind; a claim given one slot claims one.
+-- Rows that were already in the table (pending, failed and revived, or stale
+-- running ones) are set aside inside this transaction, so the claims below can
+-- only see the rows this test inserts; the rollback restores them.
 begin;
+update public.db_jobs set run_at = now() + interval '1 day' where status in ('pending', 'failed');
+update public.db_jobs set claimed_at = now() where status = 'running';
 do $$
 declare claimed text[];
 begin
