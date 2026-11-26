@@ -17,6 +17,7 @@ import type {
     TrainingPupilCriteriaContrast,
     TrainingPupilCriteriaContrasts,
 } from "@mike/contracts";
+import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { internalFailure, failure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
@@ -63,23 +64,25 @@ function briefsOf(value: unknown): string[] | null {
     return Array.isArray(value) ? value.filter((brief): brief is string => typeof brief === "string") : null;
 }
 
-const presentMine = (row: Row, projectId: string | null): TrainingCriteriaContrast => ({
+const presentMine = (row: Row, projectId: string | null, readable: boolean): TrainingCriteriaContrast => ({
     id: row.id,
     org_id: row.org_id,
     chat_id: row.chat_id,
     project_id: projectId,
     status: row.status,
     routes: routesOf(row.routes),
-    briefs: briefsOf(row.briefs),
+    // The briefs and the comparison are computed from the matter's documents;
+    // the person's own explanation is theirs.
+    briefs: readable ? briefsOf(row.briefs) : null,
     person_explanation: row.person_explanation,
-    comparison: row.comparison,
+    comparison: readable ? row.comparison : null,
     created_at: row.created_at,
 });
 
 /** The person's own contrasts, newest first, optionally one conversation's or one organization's. */
 export async function getMyCriteriaContrasts(
     db: Db,
-    args: { userId: string; chatId?: unknown; orgId?: unknown },
+    args: { userId: string; userEmail?: string | null; chatId?: unknown; orgId?: unknown },
 ): Promise<ServiceResult<TrainingMyCriteriaContrasts>> {
     const id = (value: unknown): string | null | undefined =>
         value == null || value === "" ? null : typeof value === "string" && isUuid(value) ? value : undefined;
@@ -98,12 +101,28 @@ export async function getMyCriteriaContrasts(
     }
     // The project of each conversation, to link to the right chat route (a project's chat lives under it).
     const projects = new Map<string, string | null>();
+    const gone = new Set<string>();
     for (const chatId of new Set(rows.map((row) => row.chat_id))) {
         const place = await workPlace(db, "chat", chatId);
         if (!place.ok) return internalFailure(place.error);
         projects.set(chatId, place.place?.projectId ?? null);
+        // A chat that cannot be found has no matter to open: what was computed
+        // from it is not shown.
+        if (!place.place) gone.add(chatId);
     }
-    return ok({ contrasts: rows.map((row) => presentMine(row, projects.get(row.chat_id) ?? null)) });
+    // The comparison is read only while the person can open the matter now.
+    const openable = new Set<string>();
+    try {
+        for (const projectId of new Set([...projects.values()].filter((value): value is string => !!value)))
+            if (await mayOpenWorkMatter(db, { projectId, actorId: args.userId, actorEmail: args.userEmail ?? null })) openable.add(projectId);
+    } catch (error) {
+        return internalFailure(error);
+    }
+    const readable = (chatId: string) => {
+        const projectId = projects.get(chatId) ?? null;
+        return !gone.has(chatId) && (!projectId || openable.has(projectId));
+    };
+    return ok({ contrasts: rows.map((row) => presentMine(row, projects.get(row.chat_id) ?? null, readable(row.chat_id))) });
 }
 
 /**
@@ -150,5 +169,17 @@ export async function getPupilCriteriaContrasts(
             created_at: row.created_at,
         });
     }
-    return ok({ org_id: orgId, trainee_user_id: traineeId, contrasts: visible, contrasts_without_access: hidden });
+    // A title is written from the files attached to the chat: shown only while the mentor can open them all.
+    let titled: { id?: unknown; title?: unknown }[];
+    try {
+        titled = await withReadableChatTitles(db, { userId: actor.actorId, userEmail: actor.actorEmail }, visible.map((item) => ({ id: item.chat_id, title: item.title })));
+    } catch (error) {
+        return internalFailure(error);
+    }
+    return ok({
+        org_id: orgId,
+        trainee_user_id: traineeId,
+        contrasts: visible.map((item, index) => ({ ...item, title: (titled[index].title as string | null) ?? null })),
+        contrasts_without_access: hidden,
+    });
 }

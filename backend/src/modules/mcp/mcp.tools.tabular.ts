@@ -16,6 +16,7 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { getActiveStreamRun } from "../../lib/streamRuns";
+import { mayWatchRun } from "../../lib/tabularReadAccess";
 import { heldSince } from "../../lib/trainingRelease";
 import {
     createTabularReview,
@@ -409,7 +410,12 @@ export const getTabularReviewTool = defineMcpTool({
         const offset = decodeCursor(args.cursor);
         const limit = args.limit ?? DEFAULT_PAGE;
         const rows = [...detail.rows].sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0));
-        const active = getActiveStreamRun(reviewRunKey(args.review_id));
+        const run = getActiveStreamRun(reviewRunKey(args.review_id));
+        // A running generation is named only to a reader who may watch it, as the web's review detail does.
+        const active =
+            run && !run.finished && (await mayWatchRun(call.db, run, { userId: call.principal.userId, userEmail: (await call.userEmail()) || undefined }))
+                ? run
+                : null;
         return mcpText({
             review_id: detail.review.id,
             title: detail.review.title ?? null,
@@ -433,7 +439,7 @@ export const getTabularReviewTool = defineMcpTool({
             next_cursor: rows.length > offset + limit ? encodeCursor(offset + limit) : null,
             progress: progressOf(detail),
             is_running: detail.review.is_running === true,
-            active_generation: active && !active.finished ? { id: active.id } : null,
+            active_generation: active ? { id: active.id } : null,
             updated_at: detail.review.updated_at ?? null,
         });
     },

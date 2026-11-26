@@ -248,17 +248,26 @@ export async function filterReadableChatMessages<T extends ProvenancedMessage>(
  * derived from them. It records those documents in `meta.sourceDocumentIds`,
  * and the reader sees the run only while they can read every one of them
  * (the rule `filterReadableChatMessages` applies to a stored message). A run
- * that records none is of unknown provenance and is shown to nobody.
+ * that records none is of unknown provenance and is shown to nobody. A run
+ * whose list is empty has no sources and is shown to everyone who may see it.
+ * Chat turns (web, project, Word) are watched under the same rule.
  */
 export async function mayWatchRun(
     db: Db,
-    run: { meta: unknown },
+    run: { meta: unknown; documentIds?: ReadonlySet<string> },
     reader: { userId: string; userEmail: string | null | undefined },
 ): Promise<boolean> {
     const recorded = (run.meta as { sourceDocumentIds?: unknown } | null)
         ?.sourceDocumentIds;
+    // The documents the run was started on, and any its frames have named
+    // since (a chat turn reads documents as it goes).
     const sources = Array.isArray(recorded)
-        ? recorded.filter((id): id is string => typeof id === "string")
+        ? [
+              ...new Set([
+                  ...recorded.filter((id): id is string => typeof id === "string"),
+                  ...(run.documentIds ?? []),
+              ]),
+          ]
         : null;
     return (await keepReadableDerived(db, reader, [run], () => sources)).length === 1;
 }

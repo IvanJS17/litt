@@ -865,6 +865,26 @@ describe("tabular: reading", () => {
         expect(out.data.rows).toEqual([expect.objectContaining({ row_id: ROW_PUBLIC, label: "contrato.docx", document_id: DOC_PUBLIC, cells_done: 1 })]);
     });
 
+    it("get_tabular_review names a running generation only to a reader who may watch it", async () => {
+        const { startStreamRun, resetStreamRunsForTests } = await import("../../lib/streamRuns.js");
+        const start = (sourceDocumentIds: string[]) =>
+            startStreamRun({ id: randomUUID(), key: `review:${REVIEW_PUBLIC}`, userId: PEOPLE.owner.id, meta: { sourceDocumentIds }, forcedStopFrames: [] })!;
+        const activeFor = async (person: Parameters<typeof as>[0]) => {
+            as(person);
+            return (await callTool(await connect(), "get_tabular_review", { review_id: REVIEW_PUBLIC })).data.active_generation;
+        };
+        try {
+            const open = start([DOC_PUBLIC]);
+            expect(await activeFor("editor")).toEqual({ id: open.id });
+            resetStreamRunsForTests();
+            start([DOC_PUBLIC, DOC_PRIVATE]);
+            expect(await activeFor("admin")).toBeNull();
+            expect(await activeFor("owner")).toMatchObject({ id: expect.any(String) });
+        } finally {
+            resetStreamRunsForTests();
+        }
+    });
+
     it("read_tabular_cells returns cells with their citations as untrusted data, pages, and records the egress", async () => {
         as("owner");
         const token = await connect();

@@ -19,6 +19,7 @@ import type {
     TrainingPupilBacking,
 } from "@mike/contracts";
 import { recordAudit } from "../../lib/audit";
+import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import {
@@ -333,12 +334,24 @@ export async function getPupilBacking(
     const presented = await presentAll(db, visible.flatMap((work) => work.rows));
     if (!presented.ok) return presented;
     const byId = new Map(presented.data.map((check) => [check.id, check]));
+    // A chat's title is written from the files attached to it: shown only while the mentor can open them all.
+    let titled: { id?: unknown; title?: unknown }[];
+    try {
+        titled = await withReadableChatTitles(
+            db,
+            { userId: actor.actorId, userEmail: actor.actorEmail },
+            visible.map((work) => ({ id: work.surface === "chat" ? work.chatId : null, title: work.title })),
+        );
+    } catch (error) {
+        return internalFailure(error);
+    }
+    const titleOf = new Map(visible.map((work, index) => [work, (titled[index].title as string | null) ?? null]));
     const result = visible
         .map((work) => ({
             surface: work.surface,
             chat_id: work.chatId,
             project_id: work.projectId,
-            title: work.title,
+            title: titleOf.get(work) ?? null,
             checks: work.rows
                 .map((row) => byId.get(row.id))
                 .filter((check): check is TrainingBackingCheck => !!check && (check.conclusions?.length ?? 0) > 0)

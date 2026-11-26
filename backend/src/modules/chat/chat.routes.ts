@@ -23,7 +23,7 @@ import {
 } from "./engine/index";
 import { setOperation } from "../../lib/observability/report";
 import { mayDeleteChat, normalizeEmail } from "../../lib/access";
-import { withReadableChatTitles } from "../../lib/chatReadAccess";
+import { mayWatchChatTurn, withReadableChatTitles } from "../../lib/chatReadAccess";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { can } from "../../lib/permissions";
 import { sendInternalError } from "../../lib/httpError";
@@ -191,8 +191,8 @@ chatRouter.post("/:chatId/leave", requireAuth, asyncRoute(async (req, res) => {
 // GET /chat/:chatId/turn/:turnId/stream?from=<seq>
 // Attach to a turn that is (or was, within the retention window) generating
 // into this chat. Frames with a sequence number >= `from` are replayed, then
-// the live ones follow until the turn ends. Visibility is enough to watch,
-// as it is for reading the transcript. Project chats use this too: the turn
+// the live ones follow until the turn ends. The reader must be able to open
+// what the turn is built on now, as for reading the transcript. Project chats use this too: the turn
 // is keyed by chat, not by the route that started it.
 chatRouter.get("/:chatId/turn/:turnId/stream", requireAuth, asyncRoute(async (req, res) => {
     setOperation("chat.turn");
@@ -204,7 +204,12 @@ chatRouter.get("/:chatId/turn/:turnId/stream", requireAuth, asyncRoute(async (re
     if (!access.ok)
         return void res.status(404).json({ detail: "Chat not found" });
     const run = getAssistantTurnRun(turnId);
-    if (!run || run.chatId !== chatId) {
+    // A turn the reader may not watch answers like one that is gone.
+    if (
+        !run ||
+        run.chatId !== chatId ||
+        !(await mayWatchChatTurn(db, run, { chatId, table: "chat_messages" }, { userId, userEmail }))
+    ) {
         return void res.status(404).json({
             code: "turn_not_found",
             detail: "This response is no longer being generated.",

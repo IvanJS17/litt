@@ -25,6 +25,7 @@ import { randomUUID } from "node:crypto";
 import { BACKEND_REPORTING_OWNER } from "../../lib/reportedUpstreamCodes";
 import { abortable } from "../../lib/abortable";
 import {
+    documentIdsOf,
     startAssistantTurnRun,
     type AssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
@@ -315,6 +316,7 @@ export async function startChatTurn(
                 chatId,
                 userId,
                 assistantMessageId: turnMessageId,
+                sourceDocumentIds: documentIdsOf(prepared.docIndex),
             });
         } catch (error) {
             if (!(error instanceof StreamRunLimitError)) throw error;

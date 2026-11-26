@@ -313,6 +313,30 @@ describe("stream runs", () => {
         expect(res.chunks).toEqual([]);
     });
 
+    describe("documents named by frames", () => {
+        const D1 = "d0000000-0000-4000-8000-000000000001";
+        const D2 = "d0000000-0000-4000-8000-000000000002";
+        const D3 = "d0000000-0000-4000-8000-000000000003";
+
+        it("keeps every document a frame names, wherever it names it, even after the frame is superseded", () => {
+            const run = start();
+            run.write(`data: ${JSON.stringify({ type: "doc_read", document_id: D1 })}\n\n`, { slot: "s" });
+            run.write(`data: ${JSON.stringify({ type: "doc_find", document_ids: [D2] })}\n\n`, { slot: "s" });
+            run.write(`data: ${JSON.stringify({ type: "citations", citations: [{ document: { document_id: D3 } }] })}\n\n`);
+            expect([...run.documentIds].sort()).toEqual([D1, D2, D3]);
+        });
+
+        it("ignores text, malformed records, ids that are not documents and comments", () => {
+            const run = start();
+            run.write(`data: ${JSON.stringify({ type: "content_delta", text: `document_id ${D1}` })}\n\n`);
+            run.write(`data: {"document_id": "${D1}"\n\n`);
+            run.write(`data: ${JSON.stringify({ document_id: "doc-0" })}\n\n`);
+            run.write(`: "document_id": "${D1}"\n\n`);
+            run.write("data: [DONE]\n\n");
+            expect(run.documentIds.size).toBe(0);
+        });
+    });
+
     describe("buffered output ceiling", () => {
         it("stops a run whose buffered frames pass the ceiling and ends readers with one error then DONE", () => {
             setRunByteLimitForTests(300);

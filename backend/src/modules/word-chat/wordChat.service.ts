@@ -21,6 +21,7 @@ import type { CreatedTurnNote } from "../../lib/trainingNotes";
 
 import { randomUUID } from "node:crypto";
 import { queryFailureCause, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
+import { readableChatMessages } from "../../lib/chatReadAccess";
 import { readReviewRefs, reviewRefsOf } from "../../lib/citationSupport";
 import type { Db } from "../../lib/supabase";
 import { resolveRequestTimeZone } from "../../lib/userTime";
@@ -287,7 +288,7 @@ export async function listWordChats(
 // GET /word-chat/:chatId
 export async function getWordChatWithMessages(
   db: Db,
-  args: { userId: string; clientDocumentId: string; chatId: string },
+  args: { userId: string; userEmail?: string | null; clientDocumentId: string; chatId: string },
 ): Promise<
   | {
       ok: true;
@@ -321,7 +322,28 @@ export async function getWordChatWithMessages(
     .eq("chat_id", args.chatId)
     .order("created_at", { ascending: true });
   if (error) return serviceFailure("db.query_failed", "Word chat messages load failed", error);
-  const visibleMessages = withoutEmptyAssistantReservations(messages ?? []);
+  // The chat was authorised above, not the documents its answers were built
+  // on: an answer the reader cannot open now keeps its place, emptied and
+  // marked `unreadable`. A lookup that fails throws.
+  const stored = withoutEmptyAssistantReservations(messages ?? []);
+  const { messages: readable, reasons } = await readableChatMessages(
+    db,
+    { userId: args.userId, userEmail: args.userEmail },
+    stored,
+    "live",
+  );
+  const readableById = new Map(readable.map((message) => [message.id, message]));
+  const visibleMessages = stored.map(
+    (message) =>
+      readableById.get(message.id) ?? {
+        ...message,
+        content: [],
+        files: null,
+        citations: null,
+        unreadable: true,
+        unreadable_reason: reasons.get(String(message.id)) ?? "no_access",
+      },
+  );
   const assistantMessageIds = visibleMessages.flatMap((message) =>
     message.role === "assistant" && typeof message.id === "string"
       ? [message.id]

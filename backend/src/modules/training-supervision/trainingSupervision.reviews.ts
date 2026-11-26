@@ -169,11 +169,12 @@ async function currentMentor(
  * The pupil's own reviews in one organization (GET /training/me/supervision),
  * which is what their CURRENT mentor sees of them: the mentor's Trabajos tab
  * leaves out the works of matters the mentor cannot open, so this does too,
- * by the same test. With no mentor nobody reads them, so nothing is listed.
+ * by the same test, and the pupil must still be able to open the matter
+ * themselves. With no mentor nobody reads them, so nothing is listed.
  */
 export async function listOwnReviews(
     db: Db,
-    args: { orgId: string; traineeId: string },
+    args: { orgId: string; traineeId: string; traineeEmail?: string | null },
 ): Promise<ServiceResult<TrainingWorkReview[]>> {
     const rows = await loadReviews(db, args.orgId, args.traineeId);
     if (!rows.ok) return rows;
@@ -190,17 +191,19 @@ export async function listOwnReviews(
             if (place.place) placed.push({ row, projectId: place.place.projectId });
         }
         // One set read for every matter the works sit in, not one per work.
+        const projectIds = [...new Set(placed.flatMap((p) => (p.projectId ? [p.projectId] : [])))];
         let openable: Set<string>;
+        let openableByPupil: Set<string>;
         try {
-            openable = await openableWorkMatters(db, {
-                projectIds: [...new Set(placed.flatMap((p) => (p.projectId ? [p.projectId] : [])))],
-                actorId: mentor.data.id,
-                actorEmail: mentor.data.email,
-            });
+            openable = await openableWorkMatters(db, { projectIds, actorId: mentor.data.id, actorEmail: mentor.data.email });
+            // A review is computed from the matter's documents: the pupil reads
+            // it only while they can open the matter themselves.
+            openableByPupil = await openableWorkMatters(db, { projectIds, actorId: args.traineeId, actorEmail: args.traineeEmail ?? null });
         } catch (error) {
             return internalFailure(error);
         }
-        for (const { row, projectId } of placed) if (!projectId || openable.has(projectId)) seen.push(row);
+        for (const { row, projectId } of placed)
+            if (!projectId || (openable.has(projectId) && openableByPupil.has(projectId))) seen.push(row);
     }
     const now = Date.now();
     return ok(

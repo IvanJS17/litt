@@ -77,8 +77,11 @@ export async function getChatTurnNotes(
     // inside a matter the actor can open.
     const foreign = rows.filter((row) => row.trainee_user_id !== actorId);
     const mentored = new Set<string>();
+    // The contrast and the questions of a note are computed from the matter's
+    // documents: a pupil reads them in their own notes only while they can
+    // open the matter now, as a mentor does.
     let matterOpen = true;
-    if (foreign.length > 0 && surface) {
+    if (rows.length > 0 && surface) {
         const place = await workPlace(db, surface, chatId);
         if (!place.ok) return internalFailure(place.error);
         matterOpen =
@@ -115,10 +118,11 @@ export async function getChatTurnNotes(
             chat_id: chatId,
             message_id: row.message_id,
             attempt: row.attempt,
-            contrast: row.contrast_status === "ready" ? row.contrast : null,
+            contrast: matterOpen && row.contrast_status === "ready" ? row.contrast : null,
             contrast_status: effectiveContrastStatus(row.contrast_status, row.created_at, now),
             created_at: row.created_at,
             ...criterionFields(row),
+            ...(matterOpen ? {} : { foundation_question: null, topics: null }),
         }));
     if (notes.length === 0) return failure("not_found", NOT_FOUND);
     return ok({ notes });

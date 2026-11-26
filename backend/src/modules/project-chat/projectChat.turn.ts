@@ -26,6 +26,7 @@ import {
     trainingEnginePlan,
 } from "../../lib/trainingTurn";
 import {
+    documentIdsOf,
     startAssistantTurnRun,
     type AssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
@@ -268,6 +269,7 @@ export async function startProjectChatTurn(
                 chatId,
                 userId,
                 assistantMessageId: turnMessageId,
+                sourceDocumentIds: documentIdsOf(prepared.docIndex),
             });
         } catch (error) {
             if (!(error instanceof StreamRunLimitError)) throw error;

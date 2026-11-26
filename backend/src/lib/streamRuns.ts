@@ -183,6 +183,13 @@ export type StreamRun<Meta = Record<string, unknown>> = {
     /** Why `stop()` was called; null while the run has not been stopped. */
     readonly stopReason: StreamStopReason | null;
     /**
+     * Every document a buffered or live frame has named (`document_id`,
+     * `document_ids`), kept for the life of the run even when a later frame
+     * supersedes the one that named it. What a run streams is derived from
+     * these as well as from the documents it was started on.
+     */
+    readonly documentIds: ReadonlySet<string>;
+    /**
      * Append one SSE record (`data: ...\n\n`) and fan it out. A COMMENT line
      * (one starting with `:`) is fanned out live but neither buffered nor
      * numbered — it is a keep-alive, not content.
@@ -222,6 +229,31 @@ const runs = new Map<string, StoredRun>();
 const runsByKey = new Map<string, StoredRun>();
 
 const alwaysReplay: ReplayPredicate = () => true;
+
+const DOCUMENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The documents one SSE record names, wherever in its payload it names them. */
+function noteDocumentIds(line: string, into: Set<string>) {
+    if (!line.includes('"document_id')) return;
+    const start = line.indexOf("{");
+    if (start < 0) return;
+    let payload: unknown;
+    try {
+        payload = JSON.parse(line.slice(start).trim());
+    } catch {
+        return;
+    }
+    const visit = (value: unknown, depth: number) => {
+        if (depth > 12 || !value || typeof value !== "object") return;
+        for (const [key, item] of Object.entries(value)) {
+            if (key === "document_id" && typeof item === "string" && DOCUMENT_ID.test(item)) into.add(item);
+            else if (key === "document_ids" && Array.isArray(item)) {
+                for (const entry of item) if (typeof entry === "string" && DOCUMENT_ID.test(entry)) into.add(entry);
+            } else visit(item, depth + 1);
+        }
+    };
+    visit(payload, 0);
+}
 
 function frameChunk(frame: Frame): string {
     return `id: ${frame.seq}\n${frame.line}`;
@@ -273,6 +305,7 @@ export function startStreamRun<Meta = Record<string, unknown>>(args: {
     let capped = false;
     let terminating = false;
     const slotFrames = new Map<string, Frame>();
+    const documentIds = new Set<string>();
     const deadlines = streamRunDeadlines();
     const armIdle = () => {
         if (run.idle) clearTimeout(run.idle);
@@ -298,6 +331,7 @@ export function startStreamRun<Meta = Record<string, unknown>>(args: {
         get stopReason() {
             return stopReason;
         },
+        documentIds,
         frames: [],
         subscribers: new Set(),
         controller,
@@ -348,6 +382,7 @@ export function startStreamRun<Meta = Record<string, unknown>>(args: {
                 run.stop("output_limit");
                 return false;
             }
+            noteDocumentIds(line, documentIds);
             seq += 1;
             const frame = { seq, line, replay: opts?.replay ?? alwaysReplay };
             run.frames.push(frame);

@@ -27,6 +27,7 @@ export const myCriteriaContrastRouter = Router();
 myCriteriaContrastRouter.get("/", requireAuth, asyncRoute(async (req, res) => {
     send(res, await getMyCriteriaContrasts(createServerSupabase(), {
         userId: res.locals.userId as string,
+        userEmail: (res.locals.userEmail as string | undefined) ?? null,
         chatId: req.query.chat_id,
         orgId: req.query.org_id,
     }));

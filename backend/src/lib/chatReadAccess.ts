@@ -31,7 +31,7 @@
 
 import { documentIdsInProject, filterAccessibleDocumentIds, keepReadableDerived, type DerivedReader } from "./access";
 import { selectAllByKey, selectInBatches, sortRows } from "./batchedQuery";
-import { withReadableTitles } from "./tabularReadAccess";
+import { mayWatchRun, withReadableTitles } from "./tabularReadAccess";
 import type { Db } from "./supabase";
 import { isUuid } from "./uuid";
 
@@ -427,4 +427,34 @@ export async function withReadableChatTitles<C extends { id?: unknown; title?: u
     );
     const kept = await keepReadableDerived(db, reader, units, (unit) => unit.sources);
     return withReadableTitles(chats, units, kept);
+}
+
+/**
+ * May this reader watch this chat turn (web, project or Word chat)? The turn
+ * itself is judged as any run is (`mayWatchRun`: the documents it was started
+ * on and those its frames have named). A turn is also written over the whole
+ * transcript before it, so it can repeat anything an earlier answer drew on:
+ * the reader must also be able to open what every stored answer of the chat
+ * drew on. An answer withheld only because its source cannot be established,
+ * which the chat's own author is not held back by, does not refuse the turn.
+ * A failed lookup throws.
+ */
+export async function mayWatchChatTurn(
+    db: Db,
+    run: { meta: unknown; documentIds?: ReadonlySet<string> },
+    chat: { chatId: string; table: "chat_messages" | "word_chat_messages" },
+    reader: DerivedReader,
+): Promise<boolean> {
+    if (!(await mayWatchRun(db, run, reader))) return false;
+    const stored = sortRows(
+        await selectAllByKey<Row>("chat turn transcript", () =>
+            db
+                .from(chat.table)
+                .select("id, chat_id, role, content, files, citations, created_at")
+                .eq("chat_id", chat.chatId),
+        ),
+        "created_at",
+    );
+    const { reasons } = await readableChatMessages(db, reader, stored, "live");
+    return ![...reasons.values()].includes("no_access");
 }

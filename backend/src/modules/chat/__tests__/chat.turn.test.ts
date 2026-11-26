@@ -235,6 +235,17 @@ describe("startChatTurn", () => {
         expect(mocks.releaseMemoryConversationTurn).not.toHaveBeenCalled();
     });
 
+    it("records the documents the turn is handed as the sources of its run", async () => {
+        const prepared = await mocks.prepareChatStream();
+        prepared.prepared.docIndex = {
+            "doc-0": { document_id: "d1", filename: "a.docx" },
+            "doc-1": { document_id: "d2", filename: "b.docx" },
+        };
+        mocks.prepareChatStream.mockResolvedValue(prepared);
+        const started = await start();
+        expect(started.run.meta.sourceDocumentIds).toEqual(["d1", "d2"]);
+    });
+
     it("maps a refused preparation to a typed failure without touching memory", async () => {
         mocks.prepareChatStream.mockResolvedValue({
             ok: false,

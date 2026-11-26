@@ -24,6 +24,7 @@
 import { defaultKeyFor, workspaceOrgId } from "./mcp.defaultKey";
 import { z } from "zod";
 import { getActiveAssistantTurn, getAssistantTurnRun } from "../../lib/assistantTurnRuns";
+import { mayWatchRun } from "../../lib/tabularReadAccess";
 import { reportError } from "../../lib/observability/report";
 import { assistantText, type ChatTurnState } from "../chat/chat.service";
 import {
@@ -345,10 +346,18 @@ export const listTabularChatsTool = defineMcpTool({
         const offset = decodeCursor(args.cursor);
         const limit = args.limit ?? DEFAULT_PAGE;
         const page = listed.data.slice(offset, offset + limit);
+        const reader = { userId: call.principal.userId, userEmail: (await call.userEmail()) || undefined };
+        // A running turn is named only to a reader who may watch it, as the web's chat list does.
+        const chats = await Promise.all(
+            page.map(async (chat) => {
+                const live = getActiveAssistantTurn(chat.id, "tabular");
+                const run = live && getAssistantTurnRun(live.id, "tabular");
+                return { chat, active: run && (await mayWatchRun(call.db, run, reader)) ? live : null };
+            }),
+        );
         return mcpText({
             review_id: args.review_id,
-            chats: page.map((chat) => {
-                const active = getActiveAssistantTurn(chat.id, "tabular");
+            chats: chats.map(({ chat, active }) => {
                 return {
                     chat_id: chat.id,
                     // A title is written by a model from the first message: data, not a request.

@@ -167,6 +167,13 @@ describe("the person's routes", () => {
         expect(JSON.stringify(res.body)).not.toMatch(/credential|never-shown|trainee_user_id|mentor/i);
     });
 
+    it("keeps what the person wrote and withholds what was computed in a matter they can no longer open", async () => {
+        const res = await as(PUPIL).get("/training/me/criteria-contrasts");
+        const byId = new Map(res.body.contrasts.map((c: { id: string }) => [c.id, c]));
+        expect(byId.get(OPEN_ROW)).toMatchObject({ briefs: ["Uno", "Dos"], comparison: expect.stringContaining("Coincide") });
+        expect(byId.get(SECRET_ROW)).toMatchObject({ person_explanation: "Mi explicación de la divergencia.", briefs: null, comparison: null });
+    });
+
     it("filters by conversation", async () => {
         const res = await as(PUPIL).get(`/training/me/criteria-contrasts?chat_id=${OPEN_CHAT}`);
         expect(res.body.contrasts.map((c: { id: string }) => c.id)).toEqual([OPEN_ROW]);

@@ -137,7 +137,7 @@ vi.mock("../../modules/tabular/tabular.chatTurn", async (importOriginal) => {
 import { app } from "../../app";
 import { resetGrantBudgets } from "../../modules/mcp/mcp.limits";
 import { resetMcpChatOutcomesForTests } from "../../modules/mcp/mcp.chatSink";
-import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
+import { resetAssistantTurnRunsForTests, startAssistantTurnRun } from "../../lib/assistantTurnRuns";
 import {
     buildWorld,
     DOC_PRIVATE,
@@ -542,6 +542,42 @@ describe("what the reader may see of a thread (provenance)", () => {
         const listed = await callTool(token, "list_tabular_chats", { review_id: REVIEW_PUBLIC });
         expect(listed.data.chats.find((c: { chat_id: string }) => c.chat_id === WEB_THREAD).title).toBeNull();
         expect(chatEgress()).toHaveLength(0);
+    });
+});
+
+describe("list_tabular_chats names a running turn only to a reader who may watch it", () => {
+    const TURN = "f0000000-0000-4000-8000-0000000000b1";
+    const running = (sourceDocumentIds: string[] | null) =>
+        startAssistantTurnRun({
+            id: TURN,
+            chatId: WEB_THREAD,
+            userId: PEOPLE.owner.id,
+            assistantMessageId: TURN,
+            surface: "tabular",
+            ...(sourceDocumentIds ? { sourceDocumentIds } : {}),
+        });
+    const activeOf = async (person: PersonName) => {
+        as(person);
+        const listed = await callTool(await connect(), "list_tabular_chats", { review_id: REVIEW_PUBLIC });
+        expect(listed.ok).toBe(true);
+        return (listed.data.chats as { chat_id: string; active_turn: unknown }[]).find((c) => c.chat_id === WEB_THREAD)!.active_turn;
+    };
+
+    it("names the turn to a reader who can open every document it is built on", async () => {
+        running([DOC_PUBLIC]);
+        expect(await activeOf("editor")).toMatchObject({ turn_id: TURN });
+    });
+
+    it("does not name a turn built on a document the reader cannot open", async () => {
+        running([DOC_PUBLIC, DOC_PRIVATE]);
+        expect(await activeOf("admin")).toBeNull();
+        // The person who can open everything still sees it.
+        expect(await activeOf("owner")).toMatchObject({ turn_id: TURN });
+    });
+
+    it("does not name a turn whose sources are unknown", async () => {
+        running(null);
+        expect(await activeOf("editor")).toBeNull();
     });
 });
 

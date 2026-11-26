@@ -13,7 +13,7 @@ import { listOwnReviews } from "./trainingSupervision.reviews";
 
 export async function getMySupervision(
     db: Db,
-    args: { userId: string; orgId: unknown },
+    args: { userId: string; userEmail?: string | null; orgId: unknown },
 ): Promise<ServiceResult<TrainingSupervision>> {
     const access = await assertLearningAccess(db, {
         actorId: args.userId,
@@ -22,9 +22,10 @@ export async function getMySupervision(
     });
     if (!access.ok) return access;
     const orgId = args.orgId as string;
-    const reviews = await listOwnReviews(db, { orgId, traineeId: args.userId });
+    const traineeEmail = args.userEmail ?? null;
+    const reviews = await listOwnReviews(db, { orgId, traineeId: args.userId, traineeEmail });
     if (!reviews.ok) return reviews;
-    const defenses = await listOwnDefenses(db, { orgId, traineeId: args.userId });
+    const defenses = await listOwnDefenses(db, { orgId, traineeId: args.userId, traineeEmail });
     if (!defenses.ok) return defenses;
     const passes = await readUrgencyPasses(db, orgId, args.userId);
     if (!passes.ok) return passes;

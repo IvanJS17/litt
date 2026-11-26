@@ -8,11 +8,13 @@ import {
 } from "../../lib/trainingTurn";
 import {
   attachAssistantTurnSse,
+  documentIdsOf,
   getActiveAssistantTurn,
   getAssistantTurnRun,
   startAssistantTurnRun,
 } from "../../lib/assistantTurnRuns";
 import { StreamRunLimitError, stopOutcomeFrame } from "../../lib/streamRuns";
+import { mayWatchChatTurn } from "../../lib/chatReadAccess";
 // HTTP layer for the word-chat module — the Word task pane's chat surface.
 //
 // Route handlers parse params/query/body, call the wordChat.service functions,
@@ -310,6 +312,7 @@ wordChatRouter.get("/:chatId", requireAuth, asyncRoute(async (req, res) => {
   const db = createServerSupabase();
   const result = await getWordChatWithMessages(db, {
     userId,
+    userEmail: res.locals.userEmail as string | undefined,
     clientDocumentId: parsedDocumentId.value,
     chatId: req.params.chatId,
   });
@@ -333,7 +336,8 @@ wordChatRouter.get("/:chatId", requireAuth, asyncRoute(async (req, res) => {
 // GET /word-chat/:chatId/turn/:turnId/stream?document_id=<uuid>&from=<seq>
 // Attach to a turn that is (or was, within the retention window) generating
 // into this chat: frames with a sequence number >= `from` are replayed, then
-// the live ones follow until the turn ends.
+// the live ones follow until the turn ends. The reader must also be able to
+// open the documents the turn is built on now.
 //
 // Authorised from the RUN, not from a database row: a `storage: "local"` Word
 // chat is never persisted, so there is no row to check — the run knows whose
@@ -351,7 +355,17 @@ wordChatRouter.get(
       userId: res.locals.userId as string,
       clientDocumentId: parsedDocumentId.value,
     });
-    if (!run) return void turnNotFound(res);
+    // A turn the reader may not watch answers like one that is gone.
+    if (
+      !run ||
+      !(await mayWatchChatTurn(
+        createServerSupabase(),
+        run,
+        { chatId: req.params.chatId, table: "word_chat_messages" },
+        { userId: res.locals.userId as string, userEmail: res.locals.userEmail as string | undefined },
+      ))
+    )
+      return void turnNotFound(res);
     const rawFrom = Number.parseInt(String(req.query.from ?? "1"), 10);
     const from = Number.isFinite(rawFrom) && rawFrom > 0 ? rawFrom : 1;
     attachAssistantTurnSse(res, run, from);
@@ -758,6 +772,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       userId,
       assistantMessageId,
       surface: "word",
+      sourceDocumentIds: documentIdsOf(docIndex),
       // What the resume endpoints authorise against; a local chat has no row.
       clientDocumentId: parsedDocumentId.value,
       persistChat,
