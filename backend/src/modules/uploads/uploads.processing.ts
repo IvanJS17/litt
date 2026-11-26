@@ -176,27 +176,55 @@ class DestinationUnavailableError extends AppError {
 type HoldsJob = () => Promise<void>;
 
 const LEASE_LOST_MESSAGE = "upload_job_lease_lost";
-const isLeaseLost = (error: unknown): boolean =>
-  error instanceof AppError && error.message === LEASE_LOST_MESSAGE;
 
 /**
- * Objects no stored version uses once this attempt is over, handed to the
- * cleanup queue. Whether a version stores them is decided when the cleanup
- * runs, and not before the period after which an attempt that lost its lease
- * would have been replaced and has ended.
+ * The storage keys a file's job writes under, recomputed from the session and
+ * file rows the way the copy builds them (every attempt of the job writes the
+ * same ones), so no attempt has to remember what it copied.
  */
-async function queueUnreferencedObjects(db: Db, keys: (string | null)[]): Promise<void> {
-  const unique = [...new Set(keys.filter((key): key is string => !!key))];
-  if (unique.length === 0) return;
-  await enqueueStorageCleanup(
-    db,
-    unique,
-    [],
-    {
-      unlessUsedByVersion: true,
-      notBefore: new Date(Date.now() + UPLOAD_JOB_LEASE_SECONDS * 1000).toISOString(),
-    },
-  );
+function uploadJobKeys(session: UploadSessionRow, file: UploadFileRow): string[] {
+  const user = session.user_id;
+  switch (session.purpose) {
+    case "document_create":
+    case "workflow_reference_create":
+      return [
+        storageKey(user, file.resource_id, file.filename),
+        convertedPdfKey(user, file.resource_id),
+      ];
+    case "document_version_create":
+    case "document_version_replace":
+    case "workflow_reference_replace": {
+      const documentId = (
+        session.purpose === "workflow_reference_replace"
+          ? session.destination.reference_id
+          : session.destination.document_id
+      ) as string;
+      const slug = file.resource_id.replace(/-/g, "");
+      return [
+        versionStorageKey(user, documentId, slug, file.filename),
+        convertedPdfKey(user, documentId, slug),
+      ];
+    }
+  }
+}
+
+/**
+ * Called only by whoever has just ended the job, so nothing can store under
+ * these keys any more (an attempt that is still running is refused at its
+ * next job check). The cleanup keeps every object a stored version uses, is
+ * decided when it runs, and runs no sooner than the period after which a
+ * running job would have been reclaimed. A job that is still alive never
+ * queues one: its next attempt writes the same keys.
+ */
+async function queueEndedJobObjects(
+  db: Db,
+  session: UploadSessionRow,
+  file: UploadFileRow,
+): Promise<void> {
+  await enqueueStorageCleanup(db, uploadJobKeys(session, file), [], {
+    unlessUsedByVersion: true,
+    notBefore: new Date(Date.now() + UPLOAD_JOB_LEASE_SECONDS * 1000).toISOString(),
+  });
 }
 
 /**
@@ -212,7 +240,8 @@ async function requireWritableDestination(
   holdsJob?: HoldsJob,
 ): Promise<void> {
   // An attempt whose job was taken over writes nothing: the live attempt owns
-  // the same keys. Ending here is not a refusal, so no cleanup is queued.
+  // the same keys. Ending here is not a refusal, so no cleanup is queued; the
+  // attempt that ends the job queues it.
   await holdsJob?.();
   const keys = orphanedKeys.filter((key): key is string => !!key);
   // Nothing is written for an account whose erasure was requested. A failed
@@ -520,7 +549,6 @@ async function processCreatedDocument(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
-  copied: string[] = [],
 ) {
   const destination = session.destination;
   const scope = destination.scope as
@@ -678,7 +706,6 @@ async function processCreatedDocument(
 
   const sourcePath = storageKey(session.user_id, documentId, file.filename);
   await holdsJob?.();
-  copied.push(sourcePath);
   await copyFile(file.sealed_storage_path, sourcePath);
   const pdfPath = await buildPdfRendition({
     sourceFilePath: artifact.filePath,
@@ -688,7 +715,6 @@ async function processCreatedDocument(
     documentId,
     sourceStoragePath: sourcePath,
   });
-  copied.push(pdfPath ?? "");
   const pdfCounts =
     file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
   const pageCount = pdfCounts?.pageCount ?? null;
@@ -774,7 +800,6 @@ async function processNewDocumentVersion(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
-  copied: string[] = [],
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = file.resource_id;
@@ -789,7 +814,6 @@ async function processNewDocumentVersion(
     file.filename,
   );
   await requireWritableDestination(db, session, file, [], holdsJob);
-  copied.push(sourcePath);
   await copyFile(file.sealed_storage_path, sourcePath);
   // An editor save (base_version_id) only persists the source: no eager PDF.
   const baseVersionId = session.destination.base_version_id as
@@ -807,7 +831,6 @@ async function processNewDocumentVersion(
           versionSlug,
           sourceStoragePath: sourcePath,
         });
-  copied.push(pdfPath ?? "");
   const pdfCounts =
     file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
   const pageCount = pdfCounts?.pageCount ?? null;
@@ -879,7 +902,6 @@ async function processReplacementDocumentVersion(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
-  copied: string[] = [],
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = session.destination.version_id as string;
@@ -927,7 +949,6 @@ async function processReplacementDocumentVersion(
     file.filename,
   );
   await holdsJob?.();
-  copied.push(sourcePath);
   await copyFile(file.sealed_storage_path, sourcePath);
   // Editor saves only persist the source. Clearing the previous rendition in
   // the same update prevents serving stale PDF content; lifecycle cleanup
@@ -943,7 +964,6 @@ async function processReplacementDocumentVersion(
         versionSlug,
         sourceStoragePath: sourcePath,
       });
-  copied.push(pdfPath ?? "");
   const pdfCounts =
     file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
   const pageCount = pdfCounts?.pageCount ?? null;
@@ -992,8 +1012,6 @@ export async function processUploadFile(
   holdsJob?: HoldsJob,
 ) {
   const artifact = await requireSealedFile(file);
-  // Every object this attempt copied into place, for the case below.
-  const copied: string[] = [];
   try {
     if (file.file_type === "pdf") await validatePdfFile(artifact.filePath);
     if (isMarkdownDocumentType(file.file_type))
@@ -1001,9 +1019,9 @@ export async function processUploadFile(
     if (file.file_type === "docx") await validateDocxFile(artifact);
     switch (session.purpose) {
       case "document_create":
-        return await processCreatedDocument(db, session, file, artifact, holdsJob, copied);
+        return await processCreatedDocument(db, session, file, artifact, holdsJob);
       case "document_version_create":
-        return await processNewDocumentVersion(db, session, file, artifact, holdsJob, copied);
+        return await processNewDocumentVersion(db, session, file, artifact, holdsJob);
       case "document_version_replace":
         return await processReplacementDocumentVersion(
           db,
@@ -1011,7 +1029,6 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
-          copied,
         );
       case "workflow_reference_create":
         // Complete upload sessions created by the previous release using the
@@ -1029,7 +1046,6 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
-          copied,
         );
       case "workflow_reference_replace":
         // A former replacement is retained as a new version so history is not
@@ -1047,17 +1063,8 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
-          copied,
         );
     }
-  } catch (error) {
-    // An attempt whose job another attempt now holds writes nothing more.
-    // What it copied has no row pointing at it unless the attempt that holds
-    // the job stores its version under the same keys, so the cleanup decides
-    // that when it runs. While the job is still held, its own failure
-    // handling owns the objects instead.
-    if (isLeaseLost(error)) await queueUnreferencedObjects(db, copied);
-    throw error;
   } finally {
     await removeTemporaryArtifact(artifact.directory);
   }
@@ -1336,18 +1343,6 @@ export async function processUploadJob(
           .eq("id", file.id)
           .eq("session_id", typedSession.id);
         if (updateError) throw updateError;
-        if (
-          error instanceof DeletedDocumentError ||
-          error instanceof ChangedDocumentError ||
-          error instanceof DestinationUnavailableError
-        ) {
-          // Durable, best-effort: these objects have no row pointing at them
-          // any more, so this job is the last place that knows their keys.
-          // Whether a version stores these keys is decided when the cleanup
-          // runs, and not before the period after which an attempt that lost
-          // its lease would have been replaced and has ended.
-          await queueUnreferencedObjects(db, error.orphanedKeys);
-        }
         await markCreatedDocumentFailed(db, typedSession, file);
         await heartbeatJob(db, jobId, workerId);
       }
@@ -1450,6 +1445,11 @@ export async function processUploadJob(
   if (finishError || !finished) {
     throw finishError ?? leaseLost();
   }
+  // This attempt ended the job: nothing stores under its keys any more, so
+  // what its attempts copied is handed to the cleanup queue (durable,
+  // best-effort). A job that goes on queues nothing, and neither does an
+  // attempt that lost the job before this point.
+  if (partialFailure) await queueEndedJobObjects(db, typedSession, file);
   await refreshUploadSessionStatus(db, typedSession.id);
 }
 
@@ -1493,7 +1493,21 @@ export async function cleanupUploadSessions(db: Db): Promise<void> {
     .limit(20);
   if (exhaustedError) throw exhaustedError;
   for (const job of exhaustedJobs ?? []) {
-    const { error: jobError } = await db
+    // Read before the job ends: a failed read leaves it for the next sweep.
+    const { data: endedSession, error: endedSessionError } = await db
+      .from("upload_sessions")
+      .select("id, user_id, user_email, purpose, destination, status")
+      .eq("id", job.session_id)
+      .maybeSingle();
+    if (endedSessionError) throw endedSessionError;
+    const { data: endedFile, error: endedFileError } = await db
+      .from("upload_session_files")
+      .select("*")
+      .eq("session_id", job.session_id)
+      .eq("id", job.file_id)
+      .maybeSingle();
+    if (endedFileError) throw endedFileError;
+    const { data: ended, error: jobError } = await db
       .from("upload_processing_jobs")
       .update({
         status: "error",
@@ -1503,8 +1517,13 @@ export async function cleanupUploadSessions(db: Db): Promise<void> {
         updated_at: nowIso,
       })
       .eq("id", job.id)
-      .eq("status", "running");
+      .eq("status", "running")
+      .select("id")
+      .maybeSingle();
     if (jobError) throw jobError;
+    // This sweep ended the job: its attempts' copies go to the cleanup queue.
+    if (ended && endedSession && endedFile)
+      await queueEndedJobObjects(db, endedSession as UploadSessionRow, endedFile as UploadFileRow);
     const { error: fileError } = await db
       .from("upload_session_files")
       .update({

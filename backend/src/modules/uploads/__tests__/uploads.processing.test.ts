@@ -2219,6 +2219,9 @@ describe("upload processing", () => {
         ],
         error: null,
       },
+      // The session and the file of the job it retires.
+      { data: null, error: null },
+      { data: null, error: null },
       { error: null },
       { error: null },
       { data: [{ id: "session-clean" }], error: null },
