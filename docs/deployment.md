@@ -637,6 +637,27 @@ more loosely, per account across clients (`RATE_LIMIT_AUTH_ACCOUNT_GLOBAL_MAX`,
 default 100); only a refused email/password counts. Once the account-wide
 ceiling is reached, sign-in for that account answers 429 from every address
 until the window ends.
+Storage quota. Opening an upload session is refused (HTTP 413, code
+`storage_quota_exceeded`) when its declared total would take the space over its
+limit: a firm's space is `STORAGE_QUOTA_BYTES_PER_MEMBER` (default 10 GiB) for
+each member who has accepted, shared by the whole firm (pending invitations add
+nothing), and a personal space is `STORAGE_QUOTA_PERSONAL_BYTES` (default 2 GiB).
+A total exactly equal to what is left is accepted. What counts is the stored file
+of every document version, previous versions and documents in the trash included
+(they count until they are really purged); PDF copies and exports do not.
+Bytes promised by sessions that are still open count until those sessions
+finish, are cancelled or expire. The check and the creation of the session run
+in one transaction under a lock on the space, so two sessions opened at the same
+moment cannot both pass when together they exceed it. Only a new upload is
+refused: opening, downloading, editing, saving a version by editing, documents
+the assistant generates and deleting keep working, and nothing is deleted.
+Playbook source files and the playbook import are not upload sessions and are
+not counted. Versions with no recorded size count as zero until
+`node dist/jobs/fillVersionSizes.js` has been run by hand at deploy time: it is a
+dry run that only reads each stored file's real size and prints counts (found,
+object missing, could not read); add `--write` to record the sizes. It sets only
+sizes that are empty, deletes nothing and can be run again.
+
 Sessions that update the same mutable document version remain mutually
 exclusive. Sessions
 expire after 30 minutes, extended by a further 30 minutes each time a file

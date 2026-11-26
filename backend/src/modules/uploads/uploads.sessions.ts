@@ -19,6 +19,7 @@
 import { AppError } from "../../lib/appError";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { markStage } from "../../lib/observability/report";
+import { storageQuotaConfiguration } from "../../lib/runtimeConfig";
 import { reportSchemaOutOfDateOnce } from "../../lib/schemaOutOfDate";
 import {
   copyFile,
@@ -29,6 +30,7 @@ import {
   headFile,
   StorageOperationError,
 } from "../../lib/storage";
+import { quotaRpcArgs, type StorageSpace } from "../../lib/storageQuota";
 import type { Db } from "../../lib/supabase";
 import { sessionDestinationWritable } from "./uploads.access";
 import {
@@ -46,6 +48,13 @@ import {
   type UploadSessionFileRow,
   type UploadSessionRow,
 } from "./uploads.shared";
+
+/**
+ * What the person is told when the space is full (the client shows its own
+ * translation of the same sentence for the `storage_quota_exceeded` code).
+ */
+const STORAGE_QUOTA_EXCEEDED_DETAIL =
+  "There is no storage space left here, so new files can't be uploaded. Everything you have is still available. Delete files you no longer need or ask your firm's administrator for more space.";
 
 // ---------------------------------------------------------------------------
 // Row loading
@@ -375,6 +384,8 @@ export async function createUploadSession(
     userId: string;
     manifest: ParsedUploadSessionRequest;
     hourlySessionLimit: number;
+    /** The space whose storage quota the session is checked against. */
+    space: StorageSpace;
   },
 ): Promise<UploadResult<Record<string, unknown>>> {
   const { sessionId, userId, manifest } = args;
@@ -387,8 +398,15 @@ export async function createUploadSession(
     target_expires_at: expiresAt,
     target_files: manifest.files,
     target_hourly_session_limit: args.hourlySessionLimit,
+    ...quotaRpcArgs(args.space, storageQuotaConfiguration()),
   });
   if (error) {
+    if (error.message?.includes("storage_quota_exceeded")) {
+      return failure(413, {
+        code: "storage_quota_exceeded",
+        detail: STORAGE_QUOTA_EXCEEDED_DETAIL,
+      });
+    }
     if (error.message?.includes("upload_session_rate_limit_exceeded")) {
       return failure(429, {
         code: "upload_session_rate_limit_exceeded",

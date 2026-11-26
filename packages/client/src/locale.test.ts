@@ -24,6 +24,15 @@ describe("failure text in es-MX", () => {
         configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
     });
 
+    it("says in Spanish that the space is full", () => {
+        expect(
+            describeError(apiError(413, "storage_quota_exceeded", "API error: 413")),
+        ).toMatchObject({
+            kind: "validation",
+            message: expect.stringMatching(/Ya no hay espacio de almacenamiento/),
+        });
+    });
+
     it("titles and explains a classified failure in Spanish", () => {
         expect(clientLocale()).toBe("es-MX");
         expect(describeError(new TypeError("Failed to fetch"))).toMatchObject({

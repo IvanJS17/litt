@@ -33,6 +33,21 @@ describe("SUPPORT_EMAIL", () => {
 });
 
 describe("describeError", () => {
+
+    it("tells a person that the space is full, and offers no retry", () => {
+        const described = describeError(
+            new FakeApiError({
+                message: "API error: 413",
+                status: 413,
+                code: "storage_quota_exceeded",
+            }),
+        );
+        expect(described.kind).toBe("validation");
+        expect(described.retryable).toBe(false);
+        expect(described.supportable).toBe(false);
+        expect(described.message).toMatch(/no storage space left/i);
+        expect(described.message).toMatch(/administrator/i);
+    });
     beforeEach(() => {
         vi.stubGlobal("navigator", { onLine: true, userAgent: "vitest" });
     });

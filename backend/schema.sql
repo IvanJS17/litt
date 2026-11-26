@@ -1495,6 +1495,11 @@ create table if not exists public.upload_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   user_email text,
+  -- The space (a firm, or a person's personal space) an open session reserves
+  -- its bytes in. No foreign keys: a session is short-lived bookkeeping and
+  -- must never block deleting a firm or an account.
+  quota_org_id uuid,
+  quota_user_id uuid,
   constraint upload_sessions_purpose_check check (
     purpose in (
       'document_create',
@@ -1554,6 +1559,10 @@ create index if not exists upload_sessions_user_created_idx
 drop index if exists public.upload_sessions_active_idx;
 create index upload_sessions_active_idx
   on public.upload_sessions(user_id, expires_at)
+  where status in ('pending_upload', 'verifying', 'uploaded', 'processing');
+
+create index if not exists upload_sessions_quota_open_idx
+  on public.upload_sessions(quota_org_id, quota_user_id)
   where status in ('pending_upload', 'verifying', 'uploaded', 'processing');
 
 create table if not exists public.upload_session_files (
@@ -3892,6 +3901,80 @@ revoke all on function public.resolve_library_folder_path(uuid, text, uuid, text
 grant execute on function public.resolve_library_folder_path(uuid, text, uuid, text[], text, uuid)
   to service_role;
 
+-- Storage quota: how much a space uses and what its limit is. One answer for
+-- the check that opens an upload session and for anything that shows usage.
+--
+-- A firm's space is the documents filed under the organization; its limit is
+-- the per-member value times the rows of org_members (pending invitations are
+-- not rows). A personal space is the documents with no organization that the
+-- person owns, with the personal value as its limit. What counts is the stored
+-- file of every document version, previous versions and documents in the trash
+-- included (they count until their rows are purged); PDF copies and exports do
+-- not. A version with no recorded size counts as zero. Bytes promised by
+-- upload sessions that are still open count as used until the session ends or
+-- expires: a pending session until its expires_at, a verifying one until its
+-- five-minute lease lapses, an uploaded or processing one until it ends; only
+-- the files of such a session that have not finished count.
+create or replace function public.storage_space_usage(
+  p_org_id uuid,
+  p_user_id uuid,
+  p_bytes_per_member bigint,
+  p_personal_bytes bigint
+)
+returns table (used_bytes bigint, limit_bytes bigint)
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  stored_bytes bigint;
+  promised_bytes bigint;
+begin
+  if p_org_id is not null then
+    select coalesce(sum(coalesce(v.size_bytes, 0)), 0)::bigint into stored_bytes
+    from public.documents d
+    join public.document_versions v on v.document_id = d.id
+    where d.org_id = p_org_id;
+
+    select coalesce(sum(f.expected_size_bytes), 0)::bigint into promised_bytes
+    from public.upload_sessions s
+    join public.upload_session_files f on f.session_id = s.id
+    where s.quota_org_id = p_org_id
+      and s.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
+      and (s.status <> 'pending_upload' or s.expires_at > now())
+      and (s.status <> 'verifying' or s.updated_at > now() - interval '5 minutes')
+      and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing');
+
+    return query
+      select stored_bytes + promised_bytes,
+        p_bytes_per_member * (select count(*) from public.org_members m where m.org_id = p_org_id);
+  else
+    select coalesce(sum(coalesce(v.size_bytes, 0)), 0)::bigint into stored_bytes
+    from public.documents d
+    join public.document_versions v on v.document_id = d.id
+    where d.org_id is null and d.user_id = p_user_id;
+
+    select coalesce(sum(f.expected_size_bytes), 0)::bigint into promised_bytes
+    from public.upload_sessions s
+    join public.upload_session_files f on f.session_id = s.id
+    where s.quota_org_id is null
+      and s.quota_user_id = p_user_id
+      and s.status in ('pending_upload', 'verifying', 'uploaded', 'processing')
+      and (s.status <> 'pending_upload' or s.expires_at > now())
+      and (s.status <> 'verifying' or s.updated_at > now() - interval '5 minutes')
+      and f.status in ('pending_upload', 'verifying', 'uploaded', 'processing');
+
+    return query select stored_bytes + promised_bytes, p_personal_bytes;
+  end if;
+end;
+$$;
+
+revoke all on function public.storage_space_usage(uuid, uuid, bigint, bigint)
+  from public, anon, authenticated;
+grant execute on function public.storage_space_usage(uuid, uuid, bigint, bigint)
+  to service_role;
+
 create or replace function public.create_upload_session(
   target_session_id uuid,
   target_user_id uuid,
@@ -3899,7 +3982,11 @@ create or replace function public.create_upload_session(
   target_destination jsonb,
   target_expires_at timestamptz,
   target_files jsonb,
-  target_hourly_session_limit integer default 50
+  target_hourly_session_limit integer default 50,
+  target_quota_org_id uuid default null,
+  target_quota_user_id uuid default null,
+  target_quota_bytes_per_member bigint default null,
+  target_quota_personal_bytes bigint default null
 )
 returns void
 language plpgsql
@@ -3910,6 +3997,8 @@ declare
   manifest_file_count integer;
   manifest_total_bytes bigint;
   recent_session_count integer;
+  space_used_bytes bigint;
+  space_limit_bytes bigint;
 begin
   if jsonb_typeof(target_files) <> 'array' then
     raise exception using errcode = '22023', message = 'invalid_upload_manifest';
@@ -4032,6 +4121,37 @@ begin
     raise exception using errcode = 'P0001', message = 'upload_session_rate_limit_exceeded';
   end if;
 
+  -- Storage quota: a space (a firm, or one person's personal space) may not go
+  -- over its limit by opening a session. The check and the insert below run
+  -- under one lock per space, so two sessions opened at the same moment cannot
+  -- both pass when together they exceed the limit. Bytes promised by sessions
+  -- that are still open count as used (see storage_space_usage). The caller
+  -- names the space; it passes neither id when no limit applies.
+  if target_quota_org_id is not null or target_quota_user_id is not null then
+    if (target_quota_org_id is not null and target_quota_bytes_per_member is null)
+       or (target_quota_org_id is null and target_quota_personal_bytes is null) then
+      raise exception using errcode = '22023', message = 'invalid_storage_quota_limits';
+    end if;
+    perform pg_advisory_xact_lock(
+      hashtextextended(
+        'storage-space:' || coalesce(target_quota_org_id::text, 'user:' || target_quota_user_id::text),
+        0
+      )
+    );
+    select usage.used_bytes, usage.limit_bytes
+      into space_used_bytes, space_limit_bytes
+    from public.storage_space_usage(
+      target_quota_org_id,
+      target_quota_user_id,
+      target_quota_bytes_per_member,
+      target_quota_personal_bytes
+    ) as usage;
+    -- Exactly at the limit is accepted; one byte over is refused.
+    if space_used_bytes + manifest_total_bytes > space_limit_bytes then
+      raise exception using errcode = 'P0001', message = 'storage_quota_exceeded';
+    end if;
+  end if;
+
   insert into public.upload_sessions (
     id,
     user_id,
@@ -4039,7 +4159,9 @@ begin
     destination,
     expected_file_count,
     expected_total_bytes,
-    expires_at
+    expires_at,
+    quota_org_id,
+    quota_user_id
   ) values (
     target_session_id,
     target_user_id,
@@ -4047,7 +4169,9 @@ begin
     target_destination,
     manifest_file_count,
     manifest_total_bytes,
-    target_expires_at
+    target_expires_at,
+    target_quota_org_id,
+    target_quota_user_id
   );
 
   insert into public.upload_session_files (
@@ -7142,7 +7266,7 @@ revoke all on function public.renew_tabular_review_generation(uuid, uuid, intege
   from public, anon, authenticated;
 revoke all on function public.finish_tabular_review_generation(uuid, uuid)
   from public, anon, authenticated;
-revoke all on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer)
+revoke all on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer, uuid, uuid, bigint, bigint)
   from public, anon, authenticated;
 revoke all on function public.extend_upload_session_expiry(uuid, integer, integer)
   from public, anon, authenticated;
@@ -7249,7 +7373,7 @@ grant execute
 grant execute on function public.refresh_memory_file_status(uuid, bigint, uuid, text, text)
   to service_role;
 grant execute
-  on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer)
+  on function public.create_upload_session(uuid, uuid, text, jsonb, timestamptz, jsonb, integer, uuid, uuid, bigint, bigint)
   to service_role;
 grant execute
   on function public.extend_upload_session_expiry(uuid, integer, integer)
@@ -23863,5 +23987,6 @@ insert into public.schema_migrations (filename) values
   ('20261125_01_litt_email_change_invitations_and_playbook_shares.sql'),
   ('20261126_01_litt_private_matter_project_private.sql'),
   ('20261126_20_litt_db_jobs_fair_parser_claim.sql'),
-  ('20261126_30_litt_db_jobs_claim_kind_arm.sql')
+  ('20261126_30_litt_db_jobs_claim_kind_arm.sql'),
+  ('20261126_80_litt_storage_quota.sql')
 on conflict (filename) do nothing;

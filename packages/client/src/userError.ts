@@ -171,6 +171,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     request_too_large: "payload_too_large",
     upload_file_too_large: "payload_too_large",
     upload_batch_too_large: "payload_too_large",
+    // The firm's or the person's storage space is full: only a new upload is
+    // refused. The person frees space or asks the firm's administrator;
+    // trying the same upload again cannot help.
+    storage_quota_exceeded: "validation",
     // Input the user can correct
     validation_failed: "validation",
     invalid_request: "validation",

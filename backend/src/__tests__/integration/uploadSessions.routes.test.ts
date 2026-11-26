@@ -181,6 +181,38 @@ describe("upload session routes", () => {
     expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
   });
 
+  it("names the personal space of the caller for a standalone upload, with the configured limits", async () => {
+    const response = await request(app)
+      .post("/upload-sessions")
+      .send(manifest());
+
+    expect(response.status).toBe(201);
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "create_upload_session",
+      expect.objectContaining({
+        target_quota_org_id: null,
+        target_quota_user_id: "11111111-1111-4111-8111-111111111111",
+        target_quota_bytes_per_member: 10 * 1024 ** 3,
+        target_quota_personal_bytes: 2 * 1024 ** 3,
+      }),
+    );
+  });
+
+  it("refuses to open a session when the space is full, with a stable code and nothing signed", async () => {
+    mocks.rpc.mockResolvedValue({
+      error: { message: "storage_quota_exceeded" },
+    });
+
+    const response = await request(app)
+      .post("/upload-sessions")
+      .send(manifest());
+
+    expect(response.status).toBe(413);
+    expect(response.body.code).toBe("storage_quota_exceeded");
+    expect(response.body.detail).toMatch(/no storage space left/i);
+    expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
+  });
+
   it("applies the upload rate limit to sessions instead of individual files", async () => {
     mocks.rpc.mockResolvedValue({
       error: { message: "upload_session_rate_limit_exceeded" },

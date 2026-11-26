@@ -55,6 +55,22 @@ export function uploadSessionRateLimitConfiguration(
   };
 }
 
+const GIBIBYTE = 1024 ** 3;
+
+/**
+ * The storage quota: bytes a firm may keep for each member who has accepted
+ * (shared by the whole firm) and bytes of one person's personal space. A value
+ * that is not a positive whole number is ignored, never read as "no limit".
+ */
+export function storageQuotaConfiguration(
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  return {
+    bytesPerMember: envInt("STORAGE_QUOTA_BYTES_PER_MEMBER", 10 * GIBIBYTE, env),
+    personalBytes: envInt("STORAGE_QUOTA_PERSONAL_BYTES", 2 * GIBIBYTE, env),
+  };
+}
+
 export function uploadProcessingConfiguration(
   env: NodeJS.ProcessEnv = process.env,
 ) {
