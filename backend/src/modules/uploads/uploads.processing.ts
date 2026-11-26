@@ -175,6 +175,30 @@ class DestinationUnavailableError extends AppError {
 /** Resolves while this attempt still holds its job; throws once it does not. */
 type HoldsJob = () => Promise<void>;
 
+const LEASE_LOST_MESSAGE = "upload_job_lease_lost";
+const isLeaseLost = (error: unknown): boolean =>
+  error instanceof AppError && error.message === LEASE_LOST_MESSAGE;
+
+/**
+ * Objects no stored version uses once this attempt is over, handed to the
+ * cleanup queue. Whether a version stores them is decided when the cleanup
+ * runs, and not before the period after which an attempt that lost its lease
+ * would have been replaced and has ended.
+ */
+async function queueUnreferencedObjects(db: Db, keys: (string | null)[]): Promise<void> {
+  const unique = [...new Set(keys.filter((key): key is string => !!key))];
+  if (unique.length === 0) return;
+  await enqueueStorageCleanup(
+    db,
+    unique,
+    [],
+    {
+      unlessUsedByVersion: true,
+      notBefore: new Date(Date.now() + UPLOAD_JOB_LEASE_SECONDS * 1000).toISOString(),
+    },
+  );
+}
+
 /**
  * The worker acts on the session owner's authority, so it proves that
  * authority again right before it writes: the answer at the opening, or at
@@ -496,6 +520,7 @@ async function processCreatedDocument(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
+  copied: string[] = [],
 ) {
   const destination = session.destination;
   const scope = destination.scope as
@@ -653,6 +678,7 @@ async function processCreatedDocument(
 
   const sourcePath = storageKey(session.user_id, documentId, file.filename);
   await holdsJob?.();
+  copied.push(sourcePath);
   await copyFile(file.sealed_storage_path, sourcePath);
   const pdfPath = await buildPdfRendition({
     sourceFilePath: artifact.filePath,
@@ -662,12 +688,16 @@ async function processCreatedDocument(
     documentId,
     sourceStoragePath: sourcePath,
   });
+  copied.push(pdfPath ?? "");
   const pdfCounts =
     file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
   const pageCount = pdfCounts?.pageCount ?? null;
   const textlessPageCount = pdfCounts?.textlessPageCount ?? null;
 
   await requireWritableDestination(db, session, file, [], holdsJob);
+  // The check above may have waited on the database: the job is proven held
+  // once more immediately before the version is stored.
+  await holdsJob?.();
   const { error: versionError } = await createDocumentVersion(db, {
     authorship: { kind: "author", userId: session.user_id },
     id: versionId,
@@ -744,6 +774,7 @@ async function processNewDocumentVersion(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
+  copied: string[] = [],
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = file.resource_id;
@@ -758,6 +789,7 @@ async function processNewDocumentVersion(
     file.filename,
   );
   await requireWritableDestination(db, session, file, [], holdsJob);
+  copied.push(sourcePath);
   await copyFile(file.sealed_storage_path, sourcePath);
   // An editor save (base_version_id) only persists the source: no eager PDF.
   const baseVersionId = session.destination.base_version_id as
@@ -775,12 +807,14 @@ async function processNewDocumentVersion(
           versionSlug,
           sourceStoragePath: sourcePath,
         });
+  copied.push(pdfPath ?? "");
   const pdfCounts =
     file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
   const pageCount = pdfCounts?.pageCount ?? null;
   const textlessPageCount = pdfCounts?.textlessPageCount ?? null;
 
   await requireWritableDestination(db, session, file, [sourcePath, pdfPath], holdsJob);
+  await holdsJob?.();
   const { data: version, error } = await createDocumentVersion(db, {
     authorship: { kind: "author", userId: session.user_id },
     id: versionId,
@@ -845,6 +879,7 @@ async function processReplacementDocumentVersion(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
+  copied: string[] = [],
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = session.destination.version_id as string;
@@ -892,6 +927,7 @@ async function processReplacementDocumentVersion(
     file.filename,
   );
   await holdsJob?.();
+  copied.push(sourcePath);
   await copyFile(file.sealed_storage_path, sourcePath);
   // Editor saves only persist the source. Clearing the previous rendition in
   // the same update prevents serving stale PDF content; lifecycle cleanup
@@ -907,11 +943,13 @@ async function processReplacementDocumentVersion(
         versionSlug,
         sourceStoragePath: sourcePath,
       });
+  copied.push(pdfPath ?? "");
   const pdfCounts =
     file.file_type === "pdf" ? await readPdfCounts(artifact.filePath) : null;
   const pageCount = pdfCounts?.pageCount ?? null;
   const textlessPageCount = pdfCounts?.textlessPageCount ?? null;
   await requireWritableDestination(db, session, file, [sourcePath, pdfPath], holdsJob);
+  await holdsJob?.();
   const { data: updated, error } = await updateDocumentVersion(
     db,
     documentId,
@@ -954,6 +992,8 @@ export async function processUploadFile(
   holdsJob?: HoldsJob,
 ) {
   const artifact = await requireSealedFile(file);
+  // Every object this attempt copied into place, for the case below.
+  const copied: string[] = [];
   try {
     if (file.file_type === "pdf") await validatePdfFile(artifact.filePath);
     if (isMarkdownDocumentType(file.file_type))
@@ -961,9 +1001,9 @@ export async function processUploadFile(
     if (file.file_type === "docx") await validateDocxFile(artifact);
     switch (session.purpose) {
       case "document_create":
-        return await processCreatedDocument(db, session, file, artifact, holdsJob);
+        return await processCreatedDocument(db, session, file, artifact, holdsJob, copied);
       case "document_version_create":
-        return await processNewDocumentVersion(db, session, file, artifact, holdsJob);
+        return await processNewDocumentVersion(db, session, file, artifact, holdsJob, copied);
       case "document_version_replace":
         return await processReplacementDocumentVersion(
           db,
@@ -971,6 +1011,7 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
+          copied,
         );
       case "workflow_reference_create":
         // Complete upload sessions created by the previous release using the
@@ -988,6 +1029,7 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
+          copied,
         );
       case "workflow_reference_replace":
         // A former replacement is retained as a new version so history is not
@@ -1005,8 +1047,17 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
+          copied,
         );
     }
+  } catch (error) {
+    // An attempt whose job another attempt now holds writes nothing more.
+    // What it copied has no row pointing at it unless the attempt that holds
+    // the job stores its version under the same keys, so the cleanup decides
+    // that when it runs. While the job is still held, its own failure
+    // handling owns the objects instead.
+    if (isLeaseLost(error)) await queueUnreferencedObjects(db, copied);
+    throw error;
   } finally {
     await removeTemporaryArtifact(artifact.directory);
   }
@@ -1034,7 +1085,7 @@ async function heartbeatJob(db: Db, jobId: string, workerId: string) {
  * failure as one anonymous "Failure in upload-worker / iteration").
  */
 function leaseLost(): AppError {
-  return new AppError("upload.lease_lost", "upload_job_lease_lost");
+  return new AppError("upload.lease_lost", LEASE_LOST_MESSAGE);
 }
 
 async function refreshUploadSessionStatus(
@@ -1047,12 +1098,16 @@ async function refreshUploadSessionStatus(
   if (error) throw error;
 }
 
+/** Purposes whose worker writes a documents row (the older one is still accepted). */
+const createsDocument = (session: UploadSessionRow): boolean =>
+  session.purpose === "document_create" || session.purpose === "workflow_reference_create";
+
 async function markCreatedDocumentFailed(
   db: Db,
   session: UploadSessionRow,
   file: UploadFileRow,
 ): Promise<void> {
-  if (session.purpose !== "document_create") return;
+  if (!createsDocument(session)) return;
   const { error } = await db
     .from("documents")
     .update({ status: "error", updated_at: new Date().toISOString() })
@@ -1066,7 +1121,7 @@ async function removeFailedCreatedDocument(
   session: UploadSessionRow,
   file: UploadFileRow,
 ): Promise<void> {
-  if (session.purpose !== "document_create") return;
+  if (!createsDocument(session)) return;
   markStage("failed-document-remove");
   // The row goes first, and the objects only if the row went. An earlier
   // attempt of this job may have committed a version (which sets
@@ -1291,10 +1346,7 @@ export async function processUploadJob(
           // Whether a version stores these keys is decided when the cleanup
           // runs, and not before the period after which an attempt that lost
           // its lease would have been replaced and has ended.
-          await enqueueStorageCleanup(db, error.orphanedKeys, [], {
-            unlessUsedByVersion: true,
-            notBefore: new Date(Date.now() + UPLOAD_JOB_LEASE_SECONDS * 1000).toISOString(),
-          });
+          await queueUnreferencedObjects(db, error.orphanedKeys);
         }
         await markCreatedDocumentFailed(db, typedSession, file);
         await heartbeatJob(db, jobId, workerId);

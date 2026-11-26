@@ -596,13 +596,16 @@ and that, when it runs, skips every object a stored document version points at
 (a retried job that refuses after an earlier attempt stored its version leaves
 that version and its objects alone; if the lookup fails the job deletes nothing
 and is retried). An attempt that no longer holds its job checks this before
-each storage write and before creating the version, and ends without writing
-and without queueing a cleanup. What remains possible: an attempt that
-stalls between its last check and the end of the version-creating call for
-longer than that period can still store a version whose objects a cleanup
-already removed; the database function that creates the version does not check
-the job. Objects an attempt copied before it lost its job stay in storage,
-unreferenced, when no later attempt stores the version; no job removes them. A
+each storage write and before creating the version, and ends without writing.
+Whatever it had copied is queued for the same cleanup job, which skips every
+object a stored version points at, so the attempt that holds the job keeps
+the objects it stores. The job is checked once more immediately before the
+version is created. What remains possible: an attempt that stalls inside the
+version-creating call itself for longer than that period can still store a
+version whose objects a cleanup already removed; the database function that
+creates the version does not check the job. An attempt that loses its job
+and then fails for another reason before its next check leaves its copied
+objects in storage, unreferenced. A
 session nobody completes is swept when it expires. A check whose own database read
 failed is not a refusal: the worker retries the job and the HTTP steps answer a
 server error. A retried job never rewrites the owner or placement of a
