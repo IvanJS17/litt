@@ -349,4 +349,137 @@ describe("createCitation", () => {
         });
     });
 
+    describe("a citation names the document it cites however the model named it", () => {
+        const stored = (filename: string) => ({
+            storage_path: "p",
+            file_type: "pdf",
+            filename,
+        });
+        const index: DocIndex = {
+            "doc-1": {
+                document_id: "uuid-aaa",
+                filename: "contract.pdf",
+                version_id: "ver-1",
+                version_number: 2,
+            },
+            "doc-2": {
+                document_id: "uuid-bbb",
+                filename: "lease.pdf",
+                version_id: "ver-9",
+                version_number: 5,
+            },
+        };
+        const store: DocStore = new Map([
+            ["doc-1", stored("contract.pdf")],
+            ["doc-2", stored("lease.pdf")],
+        ]);
+        const cite = (docId: string, docIndex = index, docStore = store) => {
+            const [parsed] = parseCitations(
+                citationsBlock(
+                    JSON.stringify([{ ref: 1, doc_id: docId, quote: "q" }]),
+                ),
+            );
+            return createCitation(parsed, docIndex, docStore);
+        };
+        const lease = {
+            document_id: "uuid-bbb",
+            version_id: "ver-9",
+            version_number: 5,
+            filename: "lease.pdf",
+            document: {
+                document_id: "uuid-bbb",
+                version_id: "ver-9",
+                version_number: 5,
+            },
+        };
+
+        it("by label, by filename and by document id store the same document", () => {
+            for (const name of ["doc-2", "lease.pdf", "uuid-bbb"]) {
+                expect(cite(name)).toMatchObject({ doc_id: name, ...lease });
+            }
+        });
+
+        it("keeps an unknown name as the model wrote it", () => {
+            expect(cite("missing.pdf")).toMatchObject({
+                doc_id: "missing.pdf",
+                document_id: undefined,
+                version_id: null,
+                filename: "missing.pdf",
+                document: { document_id: "missing.pdf", version_id: null },
+            });
+        });
+
+        it("resolves the first of two documents with the same filename", () => {
+            const twinIndex: DocIndex = {
+                ...index,
+                "doc-3": { ...index["doc-2"], document_id: "uuid-ccc" },
+            };
+            const twinStore: DocStore = new Map([...store, ["doc-3", stored("lease.pdf")]]);
+            expect(cite("lease.pdf", twinIndex, twinStore)).toMatchObject({
+                document_id: "uuid-bbb",
+            });
+        });
+
+        it("keeps the open Word document's handle when the open document is in the store", () => {
+            const wordIndex: DocIndex = {
+                ...index,
+                "active-word-document": {
+                    document_id: "uuid-open",
+                    filename: "Open.docx",
+                    version_id: null,
+                    version_number: null,
+                },
+            };
+            const wordStore: DocStore = new Map([
+                ...store,
+                ["active-word-document", stored("Open.docx")],
+                ["doc-9", stored("active-word-document")],
+            ]);
+            wordIndex["doc-9"] = {
+                document_id: "uuid-file",
+                filename: "active-word-document",
+            };
+            expect(cite("active-word-document", wordIndex, wordStore)).toMatchObject({
+                document_id: "uuid-open",
+                filename: "Open.docx",
+            });
+        });
+
+        it("stores a document that is in the turn but not indexed under its label, by label or by filename", () => {
+            // The document open in Word is offered under a fixed handle and has no stored document.
+            const openStore: DocStore = new Map([
+                ...store,
+                ["active-word-document", { ...stored("Open.docx"), inline_text: "text" }],
+            ]);
+            for (const name of ["active-word-document", "Open.docx"]) {
+                expect(cite(name, index, openStore)).toMatchObject({
+                    doc_id: name,
+                    document_id: undefined,
+                    version_id: null,
+                    filename: "Open.docx",
+                    document: { document_id: "active-word-document", title: "Open.docx", version_id: null },
+                });
+            }
+        });
+
+        it("stores a file that is named like the handle under its own id when no document is open", () => {
+            const fileIndex: DocIndex = {
+                "doc-9": {
+                    document_id: "uuid-file",
+                    filename: "active-word-document",
+                    version_id: "ver-3",
+                    version_number: 1,
+                },
+            };
+            const fileStore: DocStore = new Map([
+                ["doc-9", stored("active-word-document")],
+            ]);
+            expect(cite("active-word-document", fileIndex, fileStore)).toMatchObject({
+                document_id: "uuid-file",
+                version_id: "ver-3",
+                version_number: 1,
+            });
+        });
+    });
+
 });

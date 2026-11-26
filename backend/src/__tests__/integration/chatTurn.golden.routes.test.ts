@@ -370,6 +370,29 @@ describe("POST /chat — golden SSE recording", () => {
         expectGolden("tool-call", res);
     });
 
+    it("a citation by filename is stored under the document it cites", async () => {
+        dbControl.docs = true;
+        const byFilename = CITED_ANSWER.replace('"doc_id":"doc-0"', '"doc_id":"contract.txt"');
+        expect(byFilename).not.toBe(CITED_ANSWER);
+        useModel(
+            await makeModel([
+                callStep("call-1", "read_document", { doc_id: "contract.txt" }),
+                textStep(byFilename),
+            ]),
+        );
+        const res = await post();
+        expect(res.status).toBe(200);
+        const stored = dbRows.find((row) => row.role === "assistant") as {
+            citations: Record<string, unknown>[];
+        };
+        const citation = stored.citations.find((c) => c.ref === 1);
+        expect(citation).toMatchObject({
+            doc_id: "contract.txt",
+            document_id: "doc-id-1",
+            document: { document_id: "doc-id-1" },
+        });
+    });
+
     it("a clarification pause (ask_inputs)", async () => {
         useModel(
             await makeModel([
