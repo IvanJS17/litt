@@ -234,4 +234,34 @@ describe("ZIP export limits", () => {
     expect(uniqueArchiveFilename("Notes.txt", used)).toBe("Notes.txt");
     expect(uniqueArchiveFilename("Notes.txt.", used)).toBe("Notes.txt (2).");
   });
+
+  it.each([
+    ["one stem with different extensions and case spellings",
+      ["a.pdf", "a.docx", "A.PDF", "a.pdf", "a.DOCX", "a.docx"],
+      ["a.pdf", "a.docx", "A (2).PDF", "a (3).pdf", "a (2).DOCX", "a (3).docx"]],
+    ["the same name in four case spellings",
+      ["a.pdf", "A.pdf", "a.PDF", "A.PDF"],
+      ["a.pdf", "A (2).pdf", "a (3).PDF", "A (4).PDF"]],
+    ["a name that already looks like a copy, before the plain name",
+      ["a (2).pdf", "a.pdf", "a.pdf", "a.pdf"],
+      ["a (2).pdf", "a.pdf", "a (3).pdf", "a (4).pdf"]],
+    ["a name that already looks like a copy, after the plain name",
+      ["a.pdf", "a.pdf", "a (2).pdf", "a (2).pdf"],
+      ["a.pdf", "a (2).pdf", "a (2) (2).pdf", "a (2) (3).pdf"]],
+    ["full-width letters, which differ from plain ones until case folds them",
+      ["\uFF21.pdf", "A.pdf", "\uFF41.pdf", "a.pdf"],
+      ["\uFF21.pdf", "A.pdf", "\uFF41 (2).pdf", "a (2).pdf"]],
+    ["a ligature, which differs from its letters",
+      ["\uFB01le.pdf", "file.pdf", "FILE.pdf", "\uFB01le.pdf"],
+      ["\uFB01le.pdf", "file.pdf", "FILE (2).pdf", "\uFB01le (2).pdf"]],
+    ["accented letters in two Unicode forms and in capitals",
+      ["R\u00e9sum\u00e9.pdf", "Re\u0301sume\u0301.pdf", "R\u00c9SUM\u00c9.pdf"],
+      ["R\u00e9sum\u00e9.pdf", "Re\u0301sume\u0301 (2).pdf", "R\u00c9SUM\u00c9 (3).pdf"]],
+    ["a name with and without a trailing dot or space",
+      ["a", "a.", "a ", "A", "a.", "a (2)"],
+      ["a", "a (2).", "a (3)", "A (4)", "a (5).", "a (2) (2)"]],
+  ])("gives these exact names for %s", (_, listing, expected) => {
+    const used = new Set<string>();
+    expect(listing.map((name) => uniqueArchiveFilename(name, used))).toEqual(expected);
+  });
 });

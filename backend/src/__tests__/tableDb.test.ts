@@ -59,4 +59,38 @@ describe("tableDb", () => {
       [1, 2, "new-pair"],
     ]);
   });
+
+  it("answers an upsert with the rows now stored, not with rows it generated", async () => {
+    const { db, tables } = tableDb(seed());
+    const merged = await db.from("items").upsert({ slug: "two", n: 20 }, { onConflict: "slug" }).select();
+    expect(merged.data).toEqual([{ id: "b", slug: "two", n: 20 }]);
+    const added = await db.from("items").upsert({ slug: "three", n: 3 }, { onConflict: "slug" }).select();
+    expect(added.data).toHaveLength(1);
+    expect(tables.items.find((row) => row.slug === "three")).toEqual(added.data![0]);
+    expect(tables.items).toContainEqual(added.data![0]);
+  });
+
+  it("leaves a skipped duplicate out of the answer when duplicates are ignored", async () => {
+    const { db, tables } = tableDb(seed());
+    const answer = await db
+      .from("items")
+      .upsert([{ slug: "one", n: 99 }, { slug: "four", n: 4 }], { onConflict: "slug", ignoreDuplicates: true })
+      .select();
+    expect(answer.data).toHaveLength(1);
+    expect(answer.data![0]).toMatchObject({ slug: "four", n: 4 });
+    expect(tables.items).toContainEqual(answer.data![0]);
+    const none = await db.from("items").upsert({ slug: "one", n: 5 }, { onConflict: "slug", ignoreDuplicates: true }).select();
+    expect(none.data).toEqual([]);
+  });
+
+  it("answers one object when an insert or an upsert asks for a single row", async () => {
+    const { db, tables } = tableDb(seed());
+    const inserted = await db.from("items").insert({ slug: "five", n: 5 }).select().single();
+    expect(inserted.data).toEqual(tables.items.find((row) => row.slug === "five"));
+    const upserted = await db.from("items").upsert({ slug: "one", n: 11 }, { onConflict: "slug" }).select().single();
+    expect(upserted.data).toEqual({ id: "a", slug: "one", n: 11 });
+    const maybe = await db.from("items").insert({ slug: "six", n: 6 }).select().maybeSingle();
+    expect(Array.isArray(maybe.data)).toBe(false);
+    expect(maybe.data).toMatchObject({ slug: "six" });
+  });
 });

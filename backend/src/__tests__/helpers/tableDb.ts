@@ -61,17 +61,21 @@ export function tableDb(
         return Promise.resolve({ data: null, error: { message: "Request-URI Too Large", code: "414" } });
       }
       if (op === "insert" || op === "upsert") {
-        const inserted: Row[] = ((Array.isArray(payload) ? payload : [payload]) as Row[])
-          .map((row) => ({ id: randomUUID(), ...row }));
-        for (const [at, row] of inserted.entries()) {
+        const sent = (Array.isArray(payload) ? payload : [payload]) as Row[];
+        // The rows as stored after the statement; a skipped duplicate is not among them.
+        const stored: Row[] = [];
+        for (const sentRow of sent) {
+          const row: Row = { id: randomUUID(), ...sentRow };
           const existing =
             op === "upsert" ? rows.find((r) => onConflict.every((column) => r[column] === row[column])) : undefined;
           if (existing && ignoreDuplicates) continue;
           // The row that was there keeps its id unless the caller sent one.
-          if (existing) Object.assign(existing, (Array.isArray(payload) ? payload : [payload])[at]);
-          else rows.push({ ...row });
+          if (existing) Object.assign(existing, sentRow);
+          else rows.push(row);
+          stored.push(existing ?? row);
         }
-        return Promise.resolve({ data: inserted, error: null });
+        const copies = stored.map((row) => ({ ...row }));
+        return Promise.resolve({ data: one ? (copies[0] ?? null) : copies, error: null });
       }
       let matched = rows.filter((row) => preds.every((pred) => pred(row)));
       if (op === "delete") {
