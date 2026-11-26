@@ -2,6 +2,9 @@
 // background jobs in a loop over a prepared queue while another session
 // finishes what was claimed. A job must never be handed to two claimers
 // while it runs, and no job may be attempted more often than its limit.
+// Only the rows this run inserted (they carry its tag) are counted and
+// finished: rows that were already in the table, or that another test adds,
+// can be claimed by these sessions but never change the result.
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
@@ -36,7 +39,7 @@ function session() {
 }
 async function query(sql) { const s = session(); s.end(`set statement_timeout='60s';\n${sql}`); return (await s.done).trim(); }
 
-const claimSql = `select 'C|'||id||'|'||attempts||'|'||max_attempts from public.claim_db_jobs(8,600,null,8);`;
+const claimSql = `select 'C|'||id||'|'||attempts||'|'||max_attempts||'|'||coalesce(payload->>'tag','') from public.claim_db_jobs(8,600,null,8);`;
 let stop = false;
 async function claimer() {
   const s = session();
@@ -49,6 +52,7 @@ async function claimer() {
   s.end("");
   return (await s.done).split("\n").filter(line => line.startsWith("C|")).map(line => line.split("|"));
 }
+const ownClaims = claims => claims.filter(claim => claim[4] === tag);
 async function finisher() {
   const s = session();
   let rounds = 0;
@@ -69,13 +73,14 @@ try {
   const finishing = finisher();
   await new Promise(resolve => setTimeout(resolve, RUN_MS));
   stop = true;
-  const claims = (await Promise.all(claimers)).flat();
+  const allClaims = (await Promise.all(claimers)).flat();
+  const claims = ownClaims(allClaims);
   await finishing;
   const ids = new Map();
   for (const [, id] of claims) ids.set(id, (ids.get(id) ?? 0) + 1);
   const twice = [...ids.values()].filter(n => n > 1).length;
   const over = await query(`select count(*) from public.db_jobs where payload->>'tag'='${tag}' and attempts > max_attempts;`);
-  assert.ok(claims.length >= 50, `only ${claims.length} claims were made`);
+  assert.ok(claims.length >= 50, `only ${claims.length} of this run's rows were claimed (${allClaims.length - claims.length} other rows were claimed meanwhile)`);
   assert.equal(twice, 0, `${twice} of ${ids.size} claimed jobs were claimed more than once (${claims.length} claims)`);
   assert.equal(over, "0", "no job is attempted more often than its limit");
   console.log(`Parser job claims: ${claims.length} claims by ${CLAIMERS} sessions, every job claimed once.`);
