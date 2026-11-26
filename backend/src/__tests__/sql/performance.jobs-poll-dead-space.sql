@@ -1,5 +1,7 @@
--- L11b: an ordinary poll (no kind given) reads a number of job rows in
--- proportion to what it claims, whatever dead space the table carries.
+-- L11b: an ordinary poll (no kind given) does not read the pending rows of
+-- other kinds through the kind-scoped arm, whatever dead space the table
+-- carries. (Due parser rows are read by their own arm, which this file does
+-- not measure.)
 --
 -- claim_db_jobs is a LANGUAGE sql function, so its body is planned without its
 -- argument values. A poll must therefore never run the kind-scoped arm:
