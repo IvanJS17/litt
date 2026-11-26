@@ -23464,7 +23464,10 @@ as $$
         order by run_at limit p_limit for update skip locked) pending_any
       union all
       select * from (select id,run_at from public.db_jobs
-        where kind = p_kind and status = 'pending' and run_at <= now()
+        -- Only a kind-scoped claim runs this arm: the body is planned without
+        -- its argument values, and without `p_kind is not null` a poll could
+        -- walk every pending row here to find that none matches.
+        where p_kind is not null and kind = p_kind and status = 'pending' and run_at <= now()
           and kind not in ('document.extract_text', 'document.precompute_text', 'document.ocr')
         order by run_at limit p_limit for update skip locked) pending_kind
       -- Parser-bound rows: the oldest due row of each owner that has none
@@ -23859,5 +23862,6 @@ insert into public.schema_migrations (filename) values
   ('20261124_20_litt_donna_run_reservation.sql'),
   ('20261125_01_litt_email_change_invitations_and_playbook_shares.sql'),
   ('20261126_01_litt_private_matter_project_private.sql'),
-  ('20261126_20_litt_db_jobs_fair_parser_claim.sql')
+  ('20261126_20_litt_db_jobs_fair_parser_claim.sql'),
+  ('20261126_30_litt_db_jobs_claim_kind_arm.sql')
 on conflict (filename) do nothing;
