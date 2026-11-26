@@ -109,6 +109,16 @@ describe("Google Workspace routes", () => {
     expect(response.body).toMatchObject({ requireWriteApproval: true });
     expect(mocks.driveSettings).toHaveBeenCalledWith(PERSONAL, { enabled: undefined, requireWriteApproval: true, readOnly: true }, {});
   });
+  it("turns Drive's and Google's ask-before-writing switch off", async () => {
+    mocks.driveStatus.mockResolvedValue({ writeEnabled: true, requireWriteApproval: false });
+    const drive = await request(app).patch("/user/integrations/google-drive").send({ requireWriteApproval: false });
+    expect(drive.body).toMatchObject({ requireWriteApproval: false });
+    expect(mocks.driveSettings).toHaveBeenCalledWith(PERSONAL, { enabled: undefined, requireWriteApproval: false, readOnly: undefined }, {});
+    mocks.status.mockResolvedValue({ connected: true, requireWriteApproval: false });
+    const gmail = await request(app).patch("/user/integrations/gmail").send({ requireWriteApproval: false });
+    expect(gmail.body).toMatchObject({ requireWriteApproval: false });
+    expect(mocks.settings).toHaveBeenCalledWith({}, PERSONAL, "gmail", expect.objectContaining({ requireWriteApproval: false }));
+  });
   it.each(["gmail", "google-calendar"])(
     "starts %s for the authenticated Mike user; the body cannot change the requested permissions",
     async (provider) => {

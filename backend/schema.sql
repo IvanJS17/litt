@@ -1021,8 +1021,8 @@ create table if not exists public.user_mcp_connectors (
     check (auth_type in ('none', 'bearer', 'oauth')),
   enabled boolean not null default true,
   -- Write tools (user_mcp_connector_tools.requires_confirmation) wait for the
-  -- user's approval in the assistant turn when this is set.
-  require_write_approval boolean not null default false,
+  -- user's approval in the assistant turn when this is set (the default).
+  require_write_approval boolean not null default true,
   read_only boolean not null default false,
   tool_policy jsonb not null default '{}'::jsonb,
   encrypted_auth_config text,
@@ -7815,7 +7815,7 @@ CREATE TABLE IF NOT EXISTS public.user_google_drive_tokens (
   expires_at timestamptz,
   enabled boolean NOT NULL DEFAULT true,
   grant_id uuid NOT NULL DEFAULT gen_random_uuid(),
-  require_write_approval boolean NOT NULL DEFAULT false,
+  require_write_approval boolean NOT NULL DEFAULT true,
   read_only boolean NOT NULL DEFAULT false,
   disabled_tools text[] NOT NULL DEFAULT '{}',
   -- The Google account this connection signed in as; display only.
@@ -7922,7 +7922,7 @@ create table if not exists public.user_google_workspace_tokens (
   scope text not null, expires_at timestamptz not null,
   write_enabled boolean not null default false,
   enabled boolean not null default true,
-  require_write_approval boolean not null default false,
+  require_write_approval boolean not null default true,
   read_only boolean not null default false,
   disabled_tools text[] not null default '{}',
   constraint user_google_workspace_tokens_pkey primary key (id),
@@ -23863,5 +23863,6 @@ insert into public.schema_migrations (filename) values
   ('20261125_01_litt_email_change_invitations_and_playbook_shares.sql'),
   ('20261126_01_litt_private_matter_project_private.sql'),
   ('20261126_20_litt_db_jobs_fair_parser_claim.sql'),
-  ('20261126_30_litt_db_jobs_claim_kind_arm.sql')
+  ('20261126_30_litt_db_jobs_claim_kind_arm.sql'),
+  ('20261126_95_litt_connectors_ask_before_writing.sql')
 on conflict (filename) do nothing;
