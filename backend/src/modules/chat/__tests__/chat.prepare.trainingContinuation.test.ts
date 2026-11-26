@@ -5,7 +5,8 @@ import type { Db } from "../../../lib/supabase";
 // turn. Whatever else the request carries after the paused message is not a
 // new question of theirs, and does not reach the model: the model gets the
 // stored conversation up to the paused message and one fixed line.
-const { selection, governed, stage, stored } = vi.hoisted(() => ({
+const { selection, governed, stage, stored, docs } = vi.hoisted(() => ({
+    docs: { index: {} as Record<string, { document_id: string; filename: string }> },
     stage: { value: "pasante" as string | null },
     stored: {
         loads: 0,
@@ -63,6 +64,7 @@ vi.mock("../../../lib/training", async (importOriginal) => ({
 }));
 vi.mock("../engine/index", async (importOriginal) => ({
     ...(await importOriginal<Record<string, unknown>>()),
+    buildDocContext: vi.fn(async () => ({ docIndex: docs.index, docStore: new Map() })),
     appendAskInputsResponseToAssistantMessage: vi.fn(async () => "appended"),
     runApprovedConnectorActions: vi.fn(async () => []),
 }));
@@ -168,11 +170,36 @@ describe("answering a paused turn's questions as a person in training", () => {
         expect(sent).not.toContain("First question");
     });
 
-    it("keeps the files the answers attached", async () => {
+    // The names that reach the model are the stored names of documents the
+    // turn can already see, never text of the request.
+    const REQUEST_NAME = "Request-given name that is not a stored one";
+    const withFiles = (files: unknown[]) => [...usual.slice(0, 2), { role: "user", content: ANSWERS, files } as never];
+
+    it("keeps a document the answers attach, with its stored name", async () => {
         stage.value = "pasante";
-        const files = [{ filename: "answer.docx", document_id: "d1" }];
-        const sent = sentToModel(await continuation([...usual.slice(0, 2), { role: "user", content: ANSWERS, files } as never]));
-        expect(sent).toContain("answer.docx");
+        docs.index = { "doc-0": { document_id: "d1", filename: "stored.docx" } };
+        const sent = sentToModel(await continuation(withFiles([{ filename: REQUEST_NAME, document_id: "d1" }])));
+        expect(sent).toContain("stored.docx");
+        expect(sent).not.toContain(REQUEST_NAME);
+    });
+
+    it.each([
+        ["no document id", { filename: REQUEST_NAME }],
+        ["an id that is not a document of the turn", { filename: REQUEST_NAME, document_id: "unknown" }],
+    ])("drops an attached file entry with %s", async (_name, entry) => {
+        stage.value = "pasante";
+        docs.index = { "doc-0": { document_id: "d1", filename: "stored.docx" } };
+        const prepared = await continuation(withFiles([entry]));
+        expect(prepared).toMatchObject({ ok: true });
+        expect(sentToModel(prepared)).not.toContain(REQUEST_NAME);
+        expect(sentToModel(prepared)).toContain("Continue from them.");
+    });
+
+    it.each([null, "junior"])("leaves the files of a continuation as sent when the stage is %s", async (value) => {
+        stage.value = value;
+        docs.index = {};
+        const sent = sentToModel(await continuation(withFiles([{ filename: REQUEST_NAME }])));
+        expect(sent).toContain(REQUEST_NAME);
     });
 
     it("leaves the continuation of anyone else as it was sent, without reading the stored history", async () => {

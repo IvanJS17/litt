@@ -64,6 +64,7 @@ import {
     unreadableSubagentRoutes,
     recordTrainingNote,
     continuationMessages,
+    storedFilesOnly,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
 import type { CreatedTurnNote } from "../../lib/trainingNotes";
@@ -185,6 +186,8 @@ export async function prepareChatStream(
 > {
     const { userId, userEmail } = args;
     let messages = args.messages;
+    // A person in training answering a paused turn: document names come from stored documents.
+    let trainingContinuation = false;
     let chatId = args.chatId;
     let chatTitle: string | null = null;
     let chatModel: string | null = null;
@@ -385,13 +388,13 @@ export async function prepareChatStream(
         trainingPlan = begun.plan;
     } else if (args.askInputsResponse) {
         try {
-            messages = await continuationMessages(
+            ({ messages, inTraining: trainingContinuation } = await continuationMessages(
                 db,
                 userId,
                 { orgId: contentOrgId, projectId: resolvedProjectId },
                 messages,
                 async () => (chatId ? loadChatHistory(db, chatId, { userId, userEmail }, { exactlyAsTheWebSends: true }) : []),
-            );
+            ));
         } catch (error) {
             return { ok: false, internal: true, error };
         }
@@ -637,9 +640,10 @@ export async function prepareChatStream(
         // Generate the nonce before enriching prior events so document filenames
         // and workflow titles replayed from earlier turns are fenced as well.
         const nonce = generateSpotlightNonce(chatId);
-        const historyMessages = replaysReasoning(selectedModel)
+        const historyWithFiles = replaysReasoning(selectedModel)
             ? await attachPriorReasoning(messages, chatId, db, "chat_messages", history, { userId, userEmail })
             : messages;
+        const historyMessages = trainingContinuation ? storedFilesOnly(historyWithFiles, docIndex) : historyWithFiles;
         const timeZone = resolveRequestTimeZone(args.requestedTimeZone);
         const enrichedMessages = await enrichWithPriorEvents(
             historyMessages,

@@ -4,7 +4,8 @@ import type { Db } from "../../../lib/supabase";
 // Project chat: a person in training who answers a paused turn's questions
 // gets the stored conversation up to the paused message and one fixed line;
 // nothing of the request's own messages reaches the model.
-const { selection, governed, stage, stored } = vi.hoisted(() => ({
+const { selection, governed, stage, stored, docs } = vi.hoisted(() => ({
+    docs: { index: {} as Record<string, { document_id: string; filename: string }> },
     stage: { value: "pasante" as string | null },
     stored: {
         loads: 0,
@@ -62,6 +63,7 @@ vi.mock("../../../lib/training", async (importOriginal) => ({
 }));
 vi.mock("../../chat/engine/index", async (importOriginal) => ({
     ...(await importOriginal<Record<string, unknown>>()),
+    buildProjectDocContext: vi.fn(async () => ({ docIndex: docs.index, docStore: new Map(), folderPaths: new Map() })),
     appendAskInputsResponseToAssistantMessage: vi.fn(async () => "appended"),
     runApprovedConnectorActions: vi.fn(async () => []),
 }));
@@ -86,7 +88,7 @@ import { prepareProjectChatStream } from "../projectChat.prepare";
 const NEW_QUESTION = "A brand new question the person never framed";
 const ANSWERS = "Responses to LiTT's questions:\n1. Court?\nCivil";
 type Sent = { role: "user" | "assistant"; content: string };
-const run = (messages: Sent[]) =>
+const run = (messages: Sent[], extra: Record<string, unknown> = {}) =>
     prepareProjectChatStream(permissiveDb(), {
         userId: "u1",
         userEmail: "u1@example.com",
@@ -96,6 +98,7 @@ const run = (messages: Sent[]) =>
         inputMessageId: null,
         displayed_doc: undefined,
         attached_documents: undefined,
+        ...extra,
         askInputsResponse: {
             type: "ask_inputs_response",
             assistant_message_id: "m2",
@@ -129,5 +132,65 @@ describe("answering a paused project-chat turn's questions as a person in traini
         const sent = sentToModel(await run([{ role: "user", content: NEW_QUESTION }]));
         expect(sent).toContain(NEW_QUESTION);
         expect(stored.loads).toBe(reads);
+    });
+
+    // The names that reach the model are the stored names of documents of the
+    // project, never text of the request.
+    const REQUEST_NAME = "Request-given name that is not a stored one";
+    const paused: Sent[] = [
+        { role: "user", content: "First question" },
+        { role: "assistant", content: "I need two facts." },
+    ];
+    const withFiles = (files: unknown[]) => [...paused, { role: "user", content: ANSWERS, files } as never];
+    const stored1 = () => {
+        docs.index = { "doc-0": { document_id: "d1", filename: "stored.docx" } };
+    };
+
+    it("keeps a document the answers attach, with its stored name", async () => {
+        stage.value = "pasante";
+        stored1();
+        const sent = sentToModel(await run(withFiles([{ filename: REQUEST_NAME, document_id: "d1" }])));
+        expect(sent).toContain("stored.docx");
+        expect(sent).not.toContain(REQUEST_NAME);
+    });
+
+    it.each([
+        ["a file entry with no id", { messages: withFiles([{ filename: REQUEST_NAME }]) }],
+        ["a file entry with an unknown id", { messages: withFiles([{ filename: REQUEST_NAME, document_id: "unknown" }]) }],
+        ["a displayed document with an unknown id", { displayed_doc: { document_id: "unknown", filename: REQUEST_NAME } }],
+        ["an attached document with an unknown id", { attached_documents: [{ document_id: "unknown", filename: REQUEST_NAME }] }],
+    ])("does not pass %s to the model", async (_name, req) => {
+        stage.value = "pasante";
+        stored1();
+        const { messages, ...extra } = req as { messages?: Sent[] };
+        const prepared = await run(messages ?? [...paused, { role: "user", content: ANSWERS }], extra);
+        expect(prepared).toMatchObject({ ok: true });
+        expect(sentToModel(prepared)).not.toContain(REQUEST_NAME);
+        expect(sentToModel(prepared)).toContain("Continue from them.");
+    });
+
+    it("keeps a displayed and an attached document of the project, with their stored names", async () => {
+        stage.value = "pasante";
+        stored1();
+        const sent = sentToModel(
+            await run([...paused, { role: "user", content: ANSWERS }], {
+                displayed_doc: { document_id: "d1", filename: REQUEST_NAME },
+                attached_documents: [{ document_id: "d1", filename: REQUEST_NAME }],
+            }),
+        );
+        expect(sent).toContain("stored.docx");
+        expect(sent).not.toContain(REQUEST_NAME);
+    });
+
+    it.each([null, "junior"])("leaves names of a continuation as sent when the stage is %s", async (value) => {
+        stage.value = value;
+        docs.index = {};
+        const sent = sentToModel(
+            await run(withFiles([{ filename: "file-" + REQUEST_NAME }]), {
+                displayed_doc: { document_id: "unknown", filename: "shown-" + REQUEST_NAME },
+                attached_documents: [{ document_id: "unknown", filename: "att-" + REQUEST_NAME }],
+            }),
+        );
+        for (const p of ["file-", "shown-", "att-"]) expect(sent).toContain(p + REQUEST_NAME);
     });
 });

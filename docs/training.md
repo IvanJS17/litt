@@ -469,7 +469,7 @@ surfaces are the web chat (`POST /chat`), the project chat
 review chat (`POST /tabular-review/:reviewId/chat`, which resolves the stage in
 the review's organization and project). Answering an ask-inputs question
 continues a turn and is not a new one (for a pasante, the model gets the conversation as the server stored it, up to the paused
-assistant message, and one fixed line; nothing of the request's own messages reaches it, so a new question cannot ride with the answers); a turn paused by ask-inputs gets its
+assistant message, one fixed line, and the stored documents the answers attach, named as stored; of the request, only the answers themselves reach it, matched to the questions the paused turn asked); a turn paused by ask-inputs gets its
 contrast from the answer so far. A Word chat with `storage: "local"` has no
 server-side transcript: the attempt is still required but no note is kept.
 

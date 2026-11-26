@@ -40,7 +40,7 @@ import type {
 } from "./types";
 
 export { readTrainingBody } from "./body";
-export { continuationMessages } from "./continuation";
+export { continuationMessages, storedFilesOnly } from "./continuation";
 export { TRAINING_CONFIDENCE_REQUIRED_CODE } from "./confidence";
 export {
     availableModes,
