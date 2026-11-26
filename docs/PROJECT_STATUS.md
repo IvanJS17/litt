@@ -1,48 +1,88 @@
 # LiTT Project Status
 
 > Canonical operational status for this fork. Kanban cards are execution receipts,
-> not the project roadmap or source of truth. Dated history up to 2026-11-17 (deploy `20261117i`) is in
+> not the project roadmap or source of truth. Dated history up to 2026-11-19 (deploy `20261119c`) is in
 > [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md).
 
-**Last reconciled:** 2026-11-19<br>
+**Last reconciled:** 2026-11-26<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike` (fetch-only; pin and intake in [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md))
 
 ## In production
 
 - **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
-- **Deploy:** `20261119c`, tag `prod-20261119c`, `RELEASE_SHA` `824a756d4` (full SHA
-  `824a756d4d702ab0e6841cb92688b6cbeef4dad7`, the merge of #259). Previous deploy: `20261119b`
-  (`fbcba5b3a`). Earlier deploys: `prod-20261119a`, `prod-20261118a` to `prod-20261118e`, and
-  `prod-20261117a` to `prod-20261117i` (see [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)).
-  Each deploy is tagged `prod-YYYYMMDDx`.
-- **Contents:** every merged pull request up to #256, plus #258 and #259. Shipped since `20261117i`:
-  - `20261118a` (`0112c4a60`): #247, the password recovery link works in any browser.
-  - `20261118b` (`59f30a854`): #248, a guide in Settings to connect LiTT from Claude and ChatGPT.
-  - `20261118c` (`448bae645`): #249, the sign-up confirmation and e-mail change links work in any
-    browser; #250, MCP tools `create_matter` and `create_note_document`, and the LiTT server icon in
-    the MCP `initialize` result; #251, batch review of proposed facts in the client profile
-    (`POST /facts/batch`; each item still records its own decision).
-  - `20261118d` (`6a33f21dc`): #252, redesign of the connected apps settings.
-  - `20261118e` (`51aa6997c`): #253, the landing presents Formación (layers 1 to 4, including the
-    gym) and the guides inside the app; #254, review notes for the connected apps settings.
-  - `20261119a` (`87a236340`): #255, status documents; #256, four read-only Donna tools over MCP
-    (retainer requests, confirmed client profile, deadline radar, retainer report).
-  - `20261119b` (`fbcba5b3a`): #258, Donna S8a: the AI suggests which verified catalog rules apply
-    to a client from one of its documents ([`obligation-rules.md`](obligation-rules.md)).
-  - `20261119c` (`824a756d4`): #259, MCP layer 2a: workflows, quick actions, compare and convert.
-- **Merged, not deployed:** #257 (review notes; migration `20261119_10`), #260 (model guide in the
-  Word add-in), #261 (Donna S8b, new-rule proposals from a law text; migration `20261119_30`), #262
-  (MCP layer 2b: scanned reading and case-file split with cost confirmation),
-  #263 (review notes),
-  #264 (MCP layer 2c: prompts/resources, matter and tabular-review chats) and #266 (MCP heavy-job cap).
-  The deploy of `ab318a949` on 2026-11-19 stopped before loading anything because the server's free
-  disk (10.11 GB) was under the deploy's required margin (10.22 GB: twice the image plus 5 GB);
-  production was not touched. Deploys wait for more free disk on the shared server.
-- **Health:** `verify.txt` of `20261119c` (`artifacts/deploy-20261119c`): `litt / 200`, the seven
-  LiTT containers healthy, other domains unchanged, MCP on (`mcp=401` without a token).
-- **Migrations:** applied in production through `20261119_20_litt_rule_suggestions.sql` (applied by
-  `20261119b`). `20261119_10` and `20261119_30` ship with the next deploy; the runner applies every
+- **Deploy:** `20261126b`, tag `prod-20261126b`, `RELEASE_SHA` `18d9a8871` (full SHA
+  `18d9a8871fa6224c04cc3aabcb9295fb124c7052`, the merge of #333). Previous deploy:
+  `20261126a` (`159454459`). Earlier deploys: `prod-20261119a` and `prod-20261119b`,
+  `prod-20261118a` to `prod-20261118e`, and `prod-20261117a` to `prod-20261117i` (see
+  [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)). Each deploy is tagged
+  `prod-YYYYMMDDx`.
+- **Contents:** every merged pull request up to #335 is in a deploy. #258 and #259 shipped in
+  `20261119b` and `20261119c`. Shipped since `20261119c`:
+  - `20261119e` (`27b776f7b`): #257, review notes for #249 to #253; #260, the Word add-in
+    chooses a model before a chat, with a guide; #261, AI proposals of new obligation rules
+    from a law text ([`obligation-rules.md`](obligation-rules.md)); #262, MCP tools for scanned
+    reading and case-file split; #263, review notes for #258, #259 and #262; #264, MCP prompts,
+    resources and matter and review chats; #265, status documents and an export escaping note;
+    #266, a cap on heavy MCP jobs (2 per person, 4 overall); #267, review notes and rollback
+    documentation.
+  - `20261119f` (`2be682e76`): #268, the deploy keeps the previous image, the space check uses
+    the real footprint, LibreOffice runs without a GUI; #269, trainees do not request or decide
+    AI rule suggestions and proposals.
+  - `20261119g` (`1c796cce0`): #270, ready playbooks linked to request types; #271, rule
+    suggestions from all documents, with yes/no questions.
+  - `20261119h` (`1e266ac75`): #272, review notes for #269 to #271; #273, AI tokens, engine and
+    cost per call; #274, Terms and Notice of 2026-11-20 (Donna classifies with Jev); #275, every
+    new request is classified by Jev and the firm's AI drafts ([`request-triage.md`](request-triage.md)).
+  - `20261124a` (`462972364`): #276 and #277, the home, privacy and terms pages are indexable
+    and the render assets of public pages can be fetched; #278, one trusted source for the
+    client address used by rate limits; #279, the managed-account restriction holds regardless
+    of the accepted legal version; #280, organization changes require the second factor; #281,
+    what is read and counted before sign-in is bounded; #282, the identity service's longest
+    e-mail code; #285, signing out everywhere ends connected applications; #286, a connection's
+    chat turns use only what the connection holds; #287, a connector's credentials and OAuth
+    sign-in are bound to its server; #288, derived copies are judged by the documents they were
+    built from; #290, a tool call's audit entry names only what the call may act on; #293, model
+    answers and stored text are read in linear time behind size caps; #294, integration of the
+    reviewed fixes #278 to #293; #295, dependencies updated where advisories were open; #303,
+    the reader's access is re-checked when stored answers, runs and training views are read;
+    #304, the end of the last answer is clear of the fade above the message box; #305, playbook
+    work runs on the key the person chose.
+  - `20261124b` (`da2af74e0`): #306, a playbook dialog waits for the key list before it
+    submits; #307, images from other sites are drawn as links in every Markdown renderer; #308,
+    the assistant's playbook review runs on the conversation's key; #309, sign-in, invitation and
+    confirmation flows are consistent; #310, work a connected app starts runs on the workspace's key.
+  - `20261124c` (`3c056c1e2`): #312, workflow actions are pinned by commit and the load-test
+    workflow's token is limited; #313, the document viewers compile WebAssembly under the page policy.
+  - `20261124d` (`bc808726a`): #314, tests and written rules keep the corrections in place; #315,
+    the PDF viewer reads its standard fonts from the app.
+  - `20261124e` (`8a11028c1`): #316, scanned PDF pages are drawn; decoders, character maps and
+    colour profile are served by the app.
+  - `20261125a` (`adc92a4bb`): #311, one request has bounded memory and work in the shared
+    process; #319, a Donna run takes its place before anything is sent, with a daily cap per
+    person and an audit record for the switch.
+  - `20261125b` (`4c3103bf4`): #317, child processes receive an allowlisted environment; #318,
+    uploaded PDFs, playbook sources and web PDFs are read in the parser process; #320,
+    invitations and playbook shares follow or end when an account changes its address; #321,
+    closed-client follow-ups.
+  - `20261125c` (`db836c373`): #323, in a firm's workspace, «delete all» removes only what the
+    person could delete one item at a time.
+  - `20261125d` (`f924d7baa`): #322, a running turn asks again, at each document it reads or
+    creates, whether the person may; #324, Office XML is read once, forward only.
+  - `20261125e` (`046c6488e`): #325, the training approach block folds while the answer is read.
+  - `20261125f` (`d36871158`): #326, the firm's rules on keys, models and playbooks hold where
+    the work runs; #327, work that runs on stops for an erased account, and readers are checked
+    when they read; #328, one request does not hold the shared API process or the shared job queue.
+  - `20261126a` (`159454459`): #330, a workflow or playbook shared by another account is
+    delivered as shared.
+  - `20261126b` (`18d9a8871`): #333, a poll of the job queue does not run its kind-scoped arm; #334,
+    queue tests count only their own rows; #335, a citation is stored under the document it cites.
+- **Merged, not deployed:** nothing.
+- **Health:** production verified after `20261126b`: the health endpoint reports that commit, the
+  LiTT containers are healthy, the other domains are unchanged, and MCP is on (`mcp=401` without
+  a token). A backup was taken before the deploy.
+- **Migrations:** 297 in the ledger, applied in production through
+  `20261126_30_litt_db_jobs_claim_kind_arm.sql` (applied by `20261126b`). The runner applies every
   file the ledger does not list, in name order.
 - **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
   Beta statistics are for platform administrators only, counts only, audited
@@ -54,19 +94,20 @@
 | Capability | Production state | Notes |
 | --- | --- | --- |
 | Firm tenancy, matters, training, playbooks, document conversion and comparison | on | Layers 1 to 4. See [`training.md`](training.md), [`playbooks.md`](playbooks.md), [`document-conversion.md`](document-conversion.md), [`document-compare.md`](document-compare.md). |
-| Scan reading (OCR) | on, optional | LandingAI with the person's or the firm's own key; no platform key. [`document-ocr.md`](document-ocr.md) |
-| Split a case file | on | Layer 7. A browser run with a real case file is not done. [`document-split.md`](document-split.md) |
+| Scan reading (OCR) | on, optional | LandingAI with the person's or the firm's own key; no platform key. Also an MCP tool, `read_scanned_document`, since `20261119e` (#262). [`document-ocr.md`](document-ocr.md), [`mcp-server.md`](mcp-server.md) |
+| Split a case file | on | Layer 7. A browser run with a real case file is not done. Also MCP tools `propose_case_file_split` and `create_split_documents` since `20261119e` (#262). [`document-split.md`](document-split.md), [`mcp-server.md`](mcp-server.md) |
 | Citation support check (TypeSafe Jev, silent) | on (`LITT_CITATION_CHECK=enabled`) | Web chat, project chats, Word cloud chat, tabular cells and tabular chat, playbook drafts. Each person can opt out. The lawyer sees no result. Legal wording for cells and drafts is not yet confirmed (TD-047). [`citation-support-check.md`](citation-support-check.md) |
-| Client profile (with assisted extraction and batch review), matter requests, deadline radar, obligation rules, retainer report | on (no flag) | Client profile and radar since the 2026-11-16 release; assisted extraction, obligation rules and retainer report in `20261117d`; batch review of proposed facts in `20261118c` (#251). [`client-profile.md`](client-profile.md), [`matter-requests.md`](matter-requests.md), [`deadline-radar.md`](deadline-radar.md), [`obligation-rules.md`](obligation-rules.md), [`retainer-report.md`](retainer-report.md) |
-| Model choice before a chat; model and reasoning guide in the selector | on (no flag) | Since `20261117g` (#240). The guide is checked against the providers' official model pages. Anthropic liveness, the previous-model notice and GLM reasoning levels since `20261117h` (#242). The Fable 5.2 entry is under owner review (see open items). |
+| Client profile (with assisted extraction and batch review), matter requests, deadline radar, obligation rules, retainer report | on (no flag) | Client profile and radar since the 2026-11-16 release; assisted extraction, obligation rules and retainer report in `20261117d`; batch review of proposed facts in `20261118c` (#251). AI rule suggestions since `20261119b` (#258), new-rule proposals from a law text since `20261119e` (#261), and suggestions from all documents with yes/no questions since `20261119g` (#271). [`client-profile.md`](client-profile.md), [`matter-requests.md`](matter-requests.md), [`deadline-radar.md`](deadline-radar.md), [`obligation-rules.md`](obligation-rules.md), [`retainer-report.md`](retainer-report.md) |
+| Request triage (Donna triage) | on (no flag) | Jev classifies each new request and the firm's AI drafts, since `20261119h` (#275); playbooks linked to request types since `20261119g` (#270); a daily cap per person and the run reservation since `20261125a` (#319). Per-project switch `donna_enabled`, on by default. [`request-triage.md`](request-triage.md) |
+| Model choice before a chat; model and reasoning guide in the selector | on (no flag) | Since `20261117g` (#240). The guide is checked against the providers' official model pages. Anthropic liveness, the previous-model notice and GLM reasoning levels since `20261117h` (#242). The Word add-in chooses a model before a chat since `20261119e` (#260). The Fable 5.2 entry is under owner review (see open items). |
 | OpenRouter streams with long pauses | on | `STREAM_CHUNK_TIMEOUT_MS=180000` in production since `20261117f` (#238). |
 | Firm profile, settings map, managed accounts, text size, Light/Dark/Auto theme | on | [`firm-profile.md`](firm-profile.md), [`settings-map.md`](settings-map.md), [`managed-accounts.md`](managed-accounts.md), [`design-system.md`](design-system.md) |
 | Notion and Airtable connectors (per person and per workspace) | on | Suggested one-click MCP presets. No firm-shared connector. [`connectors.md`](connectors.md) |
-| LiTT MCP server (`/mcp`, OAuth) | **on** (`LITT_MCP_SERVER=enabled`, since 2026-11-17, release `20261117c`) | Host `https://mcp.litt.asteroitt.com`. Tools `create_matter` and `create_note_document` since `20261118c` (#250); the server icon is in `initialize`. Live checks pass: AS metadata (PKCE S256, CIMD), protected resource metadata, `401` with `resource_metadata` without a token, dynamic registration `201`, authorize `302` to the consent page, bad token `400`, other paths `404`. Registration first failed with `42501` (missing `service_role` grants), fixed by PR #229. **Real Claude/ChatGPT test pending** (owner account, login and a tool call not yet run). [`mcp-server.md`](mcp-server.md) |
+| LiTT MCP server (`/mcp`, OAuth) | **on** (`LITT_MCP_SERVER=enabled`, since 2026-11-17, release `20261117c`) | Host `https://mcp.litt.asteroitt.com`. Tools `create_matter` and `create_note_document` since `20261118c` (#250); the server icon is in `initialize`. Layer 2a (workflows, quick actions, compare, convert) since `20261119c` (#259); layer 2b (scanned reading and case-file split) and layer 2c (prompts, resources, matter and review chats) since `20261119e` (#262, #264); the cap on heavy jobs since `20261119e` (#266). Live checks pass: AS metadata (PKCE S256, CIMD), protected resource metadata, `401` with `resource_metadata` without a token, dynamic registration `201`, authorize `302` to the consent page, bad token `400`, other paths `404`. Registration first failed with `42501` (missing `service_role` grants), fixed by PR #229. **Real Claude/ChatGPT test pending** (owner account, login and a tool call not yet run). [`mcp-server.md`](mcp-server.md) |
 | Chat subagents, web search | on (compose default `enabled`) | [`subagents.md`](subagents.md), [`web-search.md`](web-search.md) |
 | Account links (sign-up confirmation, e-mail change, password recovery) | on | Work in any browser since `20261118a` (#247) and `20261118c` (#249). |
 | Connected apps (Settings) | on | Redesigned in `20261118d` (#252); review notes in `20261118e` (#254). |
-| Public landing | on | Formación (layers 1 to 4, including the gym) and the guides inside the app since `20261118e` (#253). |
+| Public landing | on | Formación (layers 1 to 4, including the gym) and the guides inside the app since `20261118e` (#253). The home, privacy and terms pages are indexable and the other pages are noindex since `20261124a` (#276, #277). |
 | Google Drive, Gmail, Calendar | **off** | No Google OAuth client exists; the owner postponed Google work. [`google-workspace.md`](google-workspace.md) |
 | Microsoft 365 and Dropbox connectors | not built | Announced as in design. No code. |
 
@@ -97,7 +138,11 @@ matter now:
   by 2026-12-17; remove when a picomatch release above 4.0.7 resolves the chains.
 - Flaky backend and frontend tests seen in CI on 2026-11-14 (TD-050): the root fixes are in
   #245; the ledger row stays open until the CI runs confirm them.
-- Dependabot pull requests open and not merged: #235, #236, #237 and #207.
+- Dependabot pull requests open and not merged: #296 to #302. #207, #235, #236 and #237 are
+  closed without a merge.
+- Open pull requests that passed review and wait for the owner: #329, "a component's timers
+  end with it"; #331, "a turn in progress and the training screens are read only by who can
+  open the sources"; #332, "only the attempt that ends an upload job queues the cleanup of its objects".
 - Connector icon in Claude's connector list: it comes from the root domain's favicon, and
   `asteroitt.com` has none there, so a letter is shown. Open.
 - Google: create the OAuth client and verify scopes before enabling any Google service.
