@@ -124,3 +124,82 @@ begin
 end;
 $$;
 rollback;
+
+-- A stored text leaves the database in bounded slices only, and a search scans in bounded pieces under a time budget.
+begin;
+create function pg_temp.assert_true(value boolean, message text) returns void language plpgsql as $$
+begin if value is distinct from true then raise exception '%',message; end if; end; $$;
+do $$
+declare actor uuid:=gen_random_uuid(); other uuid:=gen_random_uuid(); doc uuid:=gen_random_uuid(); v uuid; revision uuid;
+  r jsonb; part jsonb; whole text:=''; chunk text; k int; filler text; txt text; t0 timestamptz; piece int:=65536;
+begin
+  insert into auth.users(id,email) values(actor,actor||'@example.test'),(other,other||'@example.test');
+  insert into documents(id,user_id,status,library_kind) values(doc,actor,'ready','file');
+  v:=(public.create_document_version(doc,'{"filename":"long.docx","storage_path":"long.docx","file_type":"docx"}',true)->>'id')::uuid;
+  select text_revision into revision from document_versions where id=v;
+  txt:=repeat('é',700000)||'😀'||repeat('z',500001);
+  perform public.publish_document_text(v,revision,txt,'hash',1);
+  update documents set current_version_id=v where id=doc;
+
+  -- Whatever the caller asks, one answer carries at most 500,000 characters.
+  r:=public.read_document_text(actor::text,'',doc,v);
+  perform pg_temp.assert_true(char_length(r->>'text')<=500000,'default read is one bounded slice');
+  perform pg_temp.assert_true((r->>'text_length')::int=char_length(txt),'the answer states the whole length');
+  perform pg_temp.assert_true(r->>'status'='ready' and (r->>'textless_page_count')::int=1 and r->>'revision'=revision::text,'status, revision and scan count are unchanged');
+  r:=public.read_document_text(actor::text,'',doc,v,0,2000000000);
+  perform pg_temp.assert_true(char_length(r->>'text')=500000,'a huge request is cut to the bound');
+  r:=public.read_document_text(actor::text,'',doc,v,-5,10);
+  perform pg_temp.assert_true(r->>'text'=repeat('é',10),'a negative offset reads from the start');
+  r:=public.read_document_text(actor::text,'',doc,v,char_length(txt)+10,100);
+  perform pg_temp.assert_true(r->>'text'='' and (r->>'text_length')::int=char_length(txt),'past the end reads nothing');
+  -- slices put back together are the stored text, multi-byte characters included at the boundary
+  k:=0;
+  while k<char_length(txt) loop
+    part:=public.read_document_text(actor::text,'',doc,v,k,500000);
+    whole:=whole||(part->>'text'); k:=k+500000;
+  end loop;
+  perform pg_temp.assert_true(whole=txt,'slices reassemble to the stored text');
+  perform pg_temp.assert_true(public.read_document_text(other::text,'',doc,v) is null,'access is still checked first');
+  -- the trusted slice (no actor) is bounded the same way and is for the server role only
+  perform pg_temp.assert_true(char_length(public.document_text_slice(v,revision,0,2000000000)->>'text')=500000,'trusted slice is bounded');
+  perform pg_temp.assert_true(public.document_text_slice(v,gen_random_uuid(),0,10)->>'text' is null,'trusted slice is keyed to the revision');
+  perform pg_temp.assert_true(not has_function_privilege('authenticated','public.document_text_slice(uuid,uuid,integer,integer)','execute')
+    and has_function_privilege('service_role','public.document_text_slice(uuid,uuid,integer,integer)','execute'),'trusted slice is server-only');
+  perform pg_temp.assert_true(not has_function_privilege('authenticated','public.read_document_text(text,text,uuid,uuid,integer,integer)','execute'),'read is server-only');
+
+  -- A match that straddles two scanned pieces is found, with the same offsets, whatever the character width.
+  foreach filler in array array['a','é','😀'] loop
+    for k in 0..12 loop
+      txt:=repeat(filler,piece-6+k)||'Clause Target'||repeat(filler,20);
+      perform public.publish_document_text(v,revision,txt,'hash',0);
+      r:=public.find_document_text(actor::text,'','personal','library','cLAUSE tARGET');
+      perform pg_temp.assert_true(jsonb_array_length(r->'matches')=1 and (r#>>'{matches,0,start_char}')::int=piece-6+k
+        and (r#>>'{matches,0,end_char}')::int=piece-6+k+13
+        and (r#>>'{matches,0,excerpt_start_char}')::int=greatest(piece-6+k-160,0)
+        and substring(txt from (r#>>'{matches,0,excerpt_start_char}')::int+1 for 5000) like r#>>'{matches,0,excerpt}'||'%'
+        and r#>>'{matches,0,excerpt}' like '%Clause Target%',format('straddling match with %s at %s',filler,k));
+      perform pg_temp.assert_true((r#>>'{coverage,search_incomplete}')='false','a finished search says so');
+    end loop;
+  end loop;
+  -- exactly at the end of a piece, a text of exactly one piece, empty text, and no match
+  txt:=repeat('a',piece-6)||'needle'; perform public.publish_document_text(v,revision,txt,'hash',0);
+  r:=public.find_document_text(actor::text,'','personal','library','needle');
+  perform pg_temp.assert_true((r#>>'{matches,0,start_char}')::int=piece-6,'match ending at the end of a piece');
+  txt:=''; perform public.publish_document_text(v,revision,txt,'hash',0);
+  r:=public.find_document_text(actor::text,'','personal','library','needle');
+  perform pg_temp.assert_true(jsonb_array_length(r->'matches')=0 and (r#>>'{coverage,indexed_versions}')::int=1 and (r#>>'{coverage,search_incomplete}')='false','empty text: no match, not incomplete');
+  txt:=repeat('ab',3*piece); perform public.publish_document_text(v,revision,txt,'hash',0);
+  r:=public.find_document_text(actor::text,'','personal','library','abba');
+  perform pg_temp.assert_true(jsonb_array_length(r->'matches')=0,'no match when there is none');
+
+  -- A time budget stops a search INSIDE a large text, and says the answer is incomplete.
+  txt:='b'||repeat('a',6*1048576); perform public.publish_document_text(v,revision,txt,'hash',0);
+  perform set_config('litt.text_search_budget_ms','50',true);
+  t0:=clock_timestamp();
+  r:=public.find_document_text(actor::text,'','personal','library',repeat('a',499)||'b');
+  perform pg_temp.assert_true((r#>>'{coverage,search_incomplete}')='true' and jsonb_array_length(r->'matches')=0 and r->'next_offset'='null'::jsonb,'a stopped search is reported incomplete');
+  perform pg_temp.assert_true(clock_timestamp()-t0<interval '1500 milliseconds','the budget stops the scan inside one text');
+  perform set_config('litt.text_search_budget_ms','','true');
+end;
+$$;
+rollback;

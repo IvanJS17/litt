@@ -75,6 +75,7 @@ import {
     PROJECT_PRIVATE,
     PROJECT_PUBLIC,
     SECRET_TEXT,
+    textReads,
     VERSION_HELD,
     VERSION_PRIVATE,
     VERSION_PUBLIC,
@@ -443,6 +444,18 @@ describe("documents", () => {
         // The marker is different on every call, so text inside cannot forge it.
         const again = await callTool(token, "read_document", { document_id: DOC_PUBLIC, limit_chars: 30 });
         expect(/<<<LITT_UNTRUSTED_DOCUMENT_TEXT (\S+)>>>/.exec(again.data.content)![1]).not.toBe(token1);
+    });
+
+    it("read_document asks the database for the window it returns, never for the whole text", async () => {
+        as("owner");
+        tables().document_version_texts.find((t) => t.version_id === VERSION_PUBLIC)!.text_content = `${"línea de prueba\n".repeat(5000)}FIN`;
+        const token = await connect();
+        textReads.length = 0;
+        const page = await callTool(token, "read_document", { document_id: DOC_PUBLIC, offset: 100, limit_chars: 200 });
+        expect(page.data).toMatchObject({ offset: 100, total_chars: 5000 * 16 + 3 });
+        expect(textReads).toEqual([{ offset: 100, length: 200 }]);
+        expect(page.data.end_offset - page.data.offset).toBeLessThanOrEqual(200);
+        expect(page.data.next_offset).toBe(page.data.end_offset);
     });
 
     it("counts offsets in Unicode characters, so a citation matches search", async () => {

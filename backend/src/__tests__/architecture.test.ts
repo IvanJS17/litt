@@ -301,4 +301,19 @@ describe("backend architecture", () => {
     for (const sample of named) expect(namesRepairLibrary(sample), sample).toBe(true);
     for (const sample of notNamed) expect(namesRepairLibrary(sample), sample).toBe(false);
   });
+
+  it("rule 11: a stored document text is read only through the bounded-slice readers", () => {
+    // No response from the database may carry a whole text: the column is read by the two slice
+    // functions only, and a text is assembled from slices in one place (lib/documentTextSlices.ts).
+    const code = (file: string) => read(file).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const only = (pattern: RegExp, allowed: string[]) =>
+      PRODUCTION_FILES.filter((file) => !allowed.includes(file) && pattern.test(code(file)));
+    expect(only(/\btext_content\b/, ["modules/documents/documents.indexing.ts"])).toEqual([]);
+    expect(code("modules/documents/documents.indexing.ts").match(/text_content[^\n]*/g)).toEqual(["text_content: null, error_code: errorCode, updated_at: new Date().toISOString() })"]);
+    expect(only(/["'`]read_document_text["'`]/, ["modules/documents/documents.textSearch.ts"])).toEqual([]);
+    expect(only(/["'`]document_text_slice["'`]/, ["lib/documentTextCache.ts"])).toEqual([]);
+    expect(only(/from\(\s*["'`]document_version_texts["'`]/, ["modules/documents/documents.indexing.ts"])).toEqual([]);
+    expect(only(/document_version_texts\s*\(/, ["lib/documentTextCache.ts"])).toEqual([]);
+    expect(only(/\bfrom\s+["']\S*documentTextSlices["']/, ["lib/documentTextCache.ts", "modules/documents/documents.textSearch.ts"])).toEqual([]);
+  });
 });

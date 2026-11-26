@@ -259,6 +259,7 @@ import {
     RULE_TERM,
     VERSION_HELD,
     VERSION_PUBLIC,
+    textReads,
     type PersonName,
 } from "../helpers/mcpToolsWorld";
 
@@ -717,7 +718,9 @@ describe("playbooks: mode B (the client's AI reviews)", () => {
         const token = await connect();
         const first = await prepare(token, { limit_chars: 1000 });
         expect(first.data.document.next_offset).toEqual(expect.any(Number));
+        textReads.length = 0;
         const last = await prepare(token, { offset: 3000, limit_chars: 5000 });
+        expect(textReads).toEqual([{ offset: 3000, length: 5000 }]);
         expect(last.data.document.next_offset).toBeNull();
         expect(last.data.document.content).toContain("FIN");
         tables().document_version_texts.find((t) => t.version_id === VERSION_PUBLIC)!.text_content = "x ".repeat(100_000);
