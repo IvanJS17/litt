@@ -87,6 +87,7 @@ import {
 // the route imports everything it needs from its own service.
 import {
     chatOriginColumns,
+    loadChatHistory,
     updateChatTitle,
     type ChatOrigin,
     type ChatWriteResult,
@@ -409,6 +410,7 @@ export async function prepareProjectChatStream(
                 userId,
                 { orgId: projectAccess.project.org_id ?? null, projectId },
                 messages,
+                async () => (chatId ? loadChatHistory(db, chatId, { userId, userEmail }, { exactlyAsTheWebSends: true }) : []),
             );
         } catch (error) {
             return { ok: false, internal: true, error };

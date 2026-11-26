@@ -1,10 +1,12 @@
 // Answering a paused turn's questions continues that turn; it is not a new one.
-// For a person in training, whatever the request carries after the paused
-// assistant message is therefore not taken as what they say: the model gets
-// one fixed line there (with the files the answers attached), since a new
-// question would otherwise reach it with no approach and no note.
+// For a person in training the model therefore gets the conversation as it is
+// stored, up to the paused assistant message (the chat's latest one), and one
+// fixed line after it (with the files the answers attached). Nothing else the
+// request carries reaches it: a new question would otherwise be answered with
+// no approach and no note.
 //
-// Layering: this is `lib/`, so it imports nothing from `modules/`.
+// Layering: this is `lib/`, so it imports nothing from `modules/`; the caller
+// hands over the loader of the stored conversation, called only when it is needed.
 
 import type { Db } from "../supabase";
 import { resolveTurnTraining } from "../trainingPass";
@@ -17,21 +19,14 @@ export async function continuationMessages<M extends { role: string; content: st
     userId: string,
     scope: TrainingScope,
     messages: M[],
+    loadStored: () => Promise<M[]>,
 ): Promise<M[]> {
-    // The paused message is the last assistant one that a user message follows
-    // (the answers). With none, the request carries no history to continue
-    // from, and the model gets the fixed line alone.
-    let paused = -1;
-    for (let i = messages.length - 2; i >= 0; i--) {
-        if (messages[i]!.role === "assistant" && messages.slice(i + 1).some((m) => m.role === "user")) {
-            paused = i;
-            break;
-        }
-    }
     if ((await resolveTurnTraining(db, userId, scope)).stage !== "pasante") return messages;
-    const files = [...messages.slice(paused + 1)].reverse().find((m) => m.role === "user")?.files;
+    const stored = await loadStored();
+    const paused = stored.map((m) => m.role).lastIndexOf("assistant");
+    const files = [...messages].reverse().find((m) => m.role === "user")?.files;
     return [
-        ...messages.slice(0, paused + 1),
+        ...stored.slice(0, paused + 1),
         { role: "user", content: CONTINUATION_TEXT, ...(files ? { files } : {}) } as M,
     ];
 }

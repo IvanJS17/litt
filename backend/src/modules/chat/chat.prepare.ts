@@ -57,6 +57,7 @@ import { resolveEffectiveReasoningLevel } from "../../lib/modelSelection";
 import { replaysReasoning } from "../../lib/llm/registry";
 import { beginMemoryConversationTurn, releaseMemoryConversationTurn, type MemoryConversationTurn } from "../../lib/memory/schedule";
 import { getAccessibleChat, validateAccessibleProjectId } from "./chat.access";
+import { loadChatHistory } from "./chat.history";
 import {
     beginTrainingTurn,
     resolveCriteriaDelegation,
@@ -384,7 +385,13 @@ export async function prepareChatStream(
         trainingPlan = begun.plan;
     } else if (args.askInputsResponse) {
         try {
-            messages = await continuationMessages(db, userId, { orgId: contentOrgId, projectId: resolvedProjectId }, messages);
+            messages = await continuationMessages(
+                db,
+                userId,
+                { orgId: contentOrgId, projectId: resolvedProjectId },
+                messages,
+                async () => (chatId ? loadChatHistory(db, chatId, { userId, userEmail }, { exactlyAsTheWebSends: true }) : []),
+            );
         } catch (error) {
             return { ok: false, internal: true, error };
         }

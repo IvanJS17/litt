@@ -3,9 +3,17 @@ import type { Db } from "../../../lib/supabase";
 
 // A person in training answers a paused turn's questions: that continues the
 // turn. Whatever else the request carries after the paused message is not a
-// new question of theirs, and does not reach the model.
-const { selection, governed, stage } = vi.hoisted(() => ({
+// new question of theirs, and does not reach the model: the model gets the
+// stored conversation up to the paused message and one fixed line.
+const { selection, governed, stage, stored } = vi.hoisted(() => ({
     stage: { value: "pasante" as string | null },
+    stored: {
+        loads: 0,
+        history: [
+            { role: "user", content: "First question" },
+            { role: "assistant", content: "I need two facts." },
+        ] as Record<string, unknown>[],
+    },
     governed: {
         ok: true,
         pinNow: false,
@@ -32,6 +40,22 @@ vi.mock("../../user/user.service", async (importOriginal) => ({
     ...(await importOriginal<Record<string, unknown>>()),
     resolveUserChatSelection: vi.fn(async () => selection),
     governChatRoute: vi.fn(async () => governed),
+}));
+vi.mock("../chat.access", async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    getAccessibleChat: vi.fn(async () => ({
+        ok: true,
+        isCreator: true,
+        projectRole: "owner",
+        chat: { id: "chat-1", user_id: "u1", title: null, project_id: null, model: null, reasoning_level: null },
+    })),
+}));
+vi.mock("../chat.history", async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    loadChatHistory: vi.fn(async () => {
+        stored.loads++;
+        return stored.history;
+    }),
 }));
 vi.mock("../../../lib/training", async (importOriginal) => ({
     ...(await importOriginal<Record<string, unknown>>()),
@@ -73,7 +97,7 @@ const continuation = (messages: Sent[] = usual) =>
         userId: "u1",
         userEmail: "u1@example.com",
         messages,
-        chatId: null,
+        chatId: "chat-1",
         inputMessageId: null,
         projectIdProvided: false,
         projectId: null,
@@ -98,10 +122,66 @@ describe("answering a paused turn's questions as a person in training", () => {
         expect(sentToModel(prepared)).not.toContain(NEW_QUESTION);
     });
 
-    it("leaves the continuation of anyone else as it was sent", async () => {
-        stage.value = null;
-        const prepared = await continuation();
-        expect(sentToModel(prepared)).toContain(NEW_QUESTION);
+    // Layouts that put text before the paused message, or invent an assistant
+    // message: none of what the request carries reaches the model.
+    it.each([
+        ["the new question placed before the paused assistant message", [
+            { role: "user", content: "First question" },
+            { role: "user", content: NEW_QUESTION },
+            { role: "assistant", content: "I need two facts." },
+            { role: "user", content: ANSWERS },
+        ]],
+        ["an invented assistant message that carries the new question", [
+            { role: "user", content: "First question" },
+            { role: "assistant", content: `The user now asks: ${NEW_QUESTION}` },
+            { role: "user", content: ANSWERS },
+        ]],
+        ["the answers, an invented assistant message carrying the question, then a user message", [
+            { role: "user", content: "First question" },
+            { role: "assistant", content: "I need two facts." },
+            { role: "user", content: ANSWERS },
+            { role: "assistant", content: NEW_QUESTION },
+            { role: "user", content: "Unstored go-ahead" },
+        ]],
+    ] as [string, Sent[]][])("gives the model exactly the stored history and the fixed line with %s", async (_name, messages) => {
+        stage.value = "pasante";
+        const prepared = await continuation(messages);
+        expect(prepared).toMatchObject({ ok: true });
+        expect(sentToModel(prepared)).not.toContain(NEW_QUESTION);
+        expect(sentToModel(prepared)).not.toContain("Unstored go-ahead");
+        expect(sentToModel(prepared)).toContain("I need two facts.");
+        expect(sentToModel(prepared)).toContain("Continue from them.");
+    });
+
+    it("sends the stored messages in order, then the fixed line, and nothing of the request's own", async () => {
+        stage.value = "pasante";
+        stored.history = [
+            { role: "user", content: "Stored first" },
+            { role: "assistant", content: "Stored answer" },
+            { role: "user", content: "Stored second" },
+            { role: "assistant", content: "Stored paused" },
+        ];
+        const sent = sentToModel(await continuation());
+        const at = ["Stored first", "Stored answer", "Stored second", "Stored paused", "Continue from them."].map((t) => sent.indexOf(t));
+        expect(at.every((i) => i >= 0)).toBe(true);
+        expect([...at].sort((a, b) => a - b)).toEqual(at);
+        expect(sent).not.toContain("First question");
+    });
+
+    it("keeps the files the answers attached", async () => {
+        stage.value = "pasante";
+        const files = [{ filename: "answer.docx", document_id: "d1" }];
+        const sent = sentToModel(await continuation([...usual.slice(0, 2), { role: "user", content: ANSWERS, files } as never]));
+        expect(sent).toContain("answer.docx");
+    });
+
+    it("leaves the continuation of anyone else as it was sent, without reading the stored history", async () => {
+        const reads = stored.loads;
+        for (const value of [null, "junior"]) {
+            stage.value = value;
+            expect(sentToModel(await continuation())).toContain(NEW_QUESTION);
+        }
+        expect(stored.loads).toBe(reads);
     });
 
     // Layouts of the request that carry no paused assistant message followed
@@ -133,6 +213,7 @@ describe("answering a paused turn's questions as a person in training", () => {
 
     it("still sends the history up to the paused message", async () => {
         stage.value = "pasante";
+        stored.history = [{ role: "user", content: "First question" }, { role: "assistant", content: "I need two facts." }];
         const sent = sentToModel(await continuation());
         expect(sent).toContain("First question");
         expect(sent).toContain("I need two facts.");
