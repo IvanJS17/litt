@@ -195,6 +195,19 @@ describe("resolving a tracked edit", () => {
     fake.done();
   });
 
+  it("tells the person a body that is too large to rewrite here, and writes nothing", async () => {
+    arrange();
+    docx.resolveTrackedChange.mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), found: false, tooLarge: true });
+    const fake = scriptedDb([
+      { table: "document_edits", data: PENDING_EDIT },
+      { table: "documents", data: DOC },
+    ]);
+    expect(await run(fake.db)).toEqual({ ok: false, status: 413, detail: "The document is too large to edit here." });
+    expect(storage.uploadFile).not.toHaveBeenCalled();
+    expect(fake.calls.some(call => call.op === "update")).toBe(false);
+    fake.done();
+  });
+
   it("keeps the original bytes intact on a database failure without deleting a possibly committed upload", async () => {
     arrange();
     const fake = scriptedDb([

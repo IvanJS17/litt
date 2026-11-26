@@ -113,6 +113,15 @@ describe("the work a cell or an answer can cause", () => {
         expect(cellCitationInputs({ result: result(`${misses.split(" ").slice(0, 20).join(" ")} ${hit}`), markdown, sourceDocumentIds: [DOC] }).length).toBeLessThanOrEqual(1);
     });
 
+    it("counts a marker toward the cap even when its document is not among the sources", () => {
+        const stranger = "33333333-3333-4333-8333-333333333333";
+        const strangers = Array.from({ length: MAX_CHECKED_CITATIONS }, (_, n) => `Dato ${n}. [[document:${stranger}||page:1||quote:${CLAUSE}]]`).join(" ");
+        const hit = `Plazo. [[document:${DOC}||page:1||quote:${CLAUSE}]]`;
+        const result = (summary: string) => ({ summary, flag: "grey" as const, reasoning: "" });
+        expect(cellCitationInputs({ result: result(`${strangers} ${hit}`), markdown, sourceDocumentIds: [DOC] })).toEqual([]);
+        expect(cellCitationInputs({ result: result(hit), markdown, sourceDocumentIds: [DOC] })).toHaveLength(1);
+    });
+
     it("indexes a cited cell a bounded number of times however many annotations miss", async () => {
         const text = "Texto de relleno sin la frase. ".repeat(100);
         const store = {

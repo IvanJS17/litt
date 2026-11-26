@@ -363,6 +363,19 @@ describe("the Word file", () => {
         expect(text).toContain("Solicitudes atendidas");
     });
 
+    it("still makes the Word file when the matter holds as many requests as are ever listed, all of them closed", async () => {
+        as(OWNER);
+        for (let n = 0; n < 1_500; n++)
+            tables().matter_requests.push({
+                id: id(10_000 + n), matter_id: MATTER, type_id: TYPE_A, title: `Solicitud masiva ${n}`, complexity: "routine",
+                status: "closed", assignee_user_id: null, assignee_level: null, received_on: "2026-10-01", closed_on: "2026-10-11",
+                version: 1, created_at: stamp(), updated_at: stamp(),
+            });
+        const res = await download(`${base}/90d/docx`);
+        expect(res.status).toBe(200);
+        expect(await validateDocxPackage(Uint8Array.from(res.body as Buffer).buffer)).toBe(true);
+    });
+
     it("carries the English planning-aid text and scope note in the English file", async () => {
         as(OWNER);
         const res = await download(`${base}/90d/docx?locale=en-US`);

@@ -756,7 +756,8 @@ export async function extractTrackedChangeIds(
     const zip = await JSZip.loadAsync(bytes);
     const docXmlFile = getZipEntry(zip, "word/document.xml");
     if (!docXmlFile) return [];
-    const docXmlRaw = await docXmlFile.async("string");
+    const docXmlRaw = await readZipTextBounded(docXmlFile, MAX_EDITABLE_DOCUMENT_XML_BYTES);
+    if (docXmlRaw === null) throw new Error(DOCUMENT_TOO_LARGE_TO_EDIT);
     const parser = createParser();
     const tree = parser.parse(docXmlRaw) as XNode[];
     const out: { kind: "ins" | "del"; w_id: string }[] = [];
@@ -785,6 +786,9 @@ export async function extractTrackedChangeIds(
  * with the inflated size, which a small compressed file does not limit.
  */
 const MAX_EDITABLE_DOCUMENT_XML_BYTES = 8 * 1024 * 1024;
+
+/** What a person is told when a body past that size is not edited, accepted, rejected or listed here. */
+const DOCUMENT_TOO_LARGE_TO_EDIT = "The document is too large to edit here.";
 
 /** The part as text, or null when it inflates past `maxBytes`; stops reading at the limit. */
 async function readZipTextBounded(entry: JSZip.JSZipObject, maxBytes: number): Promise<string | null> {
@@ -840,7 +844,7 @@ export async function applyTrackedEdits(
     if (!docXmlFile) throw new Error("document.xml missing from docx");
     const docXmlRaw = await readZipTextBounded(docXmlFile, MAX_EDITABLE_DOCUMENT_XML_BYTES);
     if (docXmlRaw === null) {
-        const reason = "The document is too large to edit here.";
+        const reason = DOCUMENT_TOO_LARGE_TO_EDIT;
         return { bytes, changes: [], errors: edits.map((_, index) => ({ index, reason })) };
     }
 
@@ -1174,11 +1178,12 @@ export async function resolveTrackedChange(
     bytes: Buffer,
     changeIds: string[],
     mode: "accept" | "reject",
-): Promise<{ bytes: Buffer; found: boolean }> {
+): Promise<{ bytes: Buffer; found: boolean; tooLarge?: true }> {
     const zip = await JSZip.loadAsync(bytes);
     const docXmlFile = getZipEntry(zip, "word/document.xml");
     if (!docXmlFile) throw new Error("document.xml missing from docx");
-    const docXmlRaw = await docXmlFile.async("string");
+    const docXmlRaw = await readZipTextBounded(docXmlFile, MAX_EDITABLE_DOCUMENT_XML_BYTES);
+    if (docXmlRaw === null) return { bytes, found: false, tooLarge: true };
 
     const parser = createParser();
     const tree = parser.parse(docXmlRaw) as XNode[];

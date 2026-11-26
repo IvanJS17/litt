@@ -23403,6 +23403,11 @@ as $$
           ) nulls first, first_rows.run_at, first_rows.id
           limit greatest(0, least(p_limit, coalesce(p_parser_limit, p_limit)))
         )
+          -- Repeated at the locking level: a row another session claimed
+          -- after this statement began is re-checked against these.
+          and status = 'pending' and run_at <= now()
+          and kind in ('document.extract_text', 'document.precompute_text', 'document.ocr')
+          and (p_kind is null or kind = p_kind)
         order by run_at for update skip locked) parser_pending
       -- Cleanup intents are retried forever, but politely: a revived
       -- `failed` row waits for its own run_at like everything else.

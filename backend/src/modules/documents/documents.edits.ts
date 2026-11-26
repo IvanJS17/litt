@@ -164,11 +164,13 @@ async function resolveEditOnce(
     const wIds = [edit.del_w_id, edit.ins_w_id].filter(
         (v): v is string => typeof v === "string" && v.length > 0,
     );
-    const { bytes: resolvedBytes, found } = await resolveTrackedChange(
+    const { bytes: resolvedBytes, found, tooLarge } = await resolveTrackedChange(
         Buffer.from(raw),
         wIds,
         mode,
     );
+    if (tooLarge)
+        return { ok: false, status: 413, detail: "The document is too large to edit here." };
     devLog(`[edit-resolution] resolveTrackedChange result`, {
         mode,
         change_id: edit.change_id,

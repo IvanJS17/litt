@@ -1607,6 +1607,9 @@ export type NormalizeOptions = {
   joinLineEndHyphens?: "keep" | "drop";
 };
 
+/** Code units gathered before they become a string. */
+const CHUNK_UNITS = 8192;
+
 /**
  * Build a whitespace-collapsed, lowercased copy of `text`, plus a map from
  * each character index in the normalized form back to the corresponding
@@ -1632,19 +1635,23 @@ export function normalizeWithMap(
   const join = opts.joinLineEndHyphens;
   // A stripped hyphen disappears even in "keep" mode, so it joins only letters.
   const hyphenVanishes = join === "drop" || stripPunctuation;
-  // Four bytes per source character, and the text is built in chunks, instead
-  // of one array element per character.
+  // Four bytes per source character, and the text is built from code units
+  // gathered in a small buffer and turned into strings a chunk at a time,
+  // instead of one array element or string append per character.
   const origIdx = new Uint32Array(text.length);
+  const units = new Uint16Array(CHUNK_UNITS + 2);
   const parts: string[] = [];
-  let chunk = "";
+  let u = 0;
   let n = 0;
   let prevSpace = false;
   const emit = (c: string, i: number) => {
-    chunk += c;
+    units[u++] = c.charCodeAt(0);
+    // Lowercasing can lengthen one code unit (a capital dotted I).
+    if (c.length > 1) units[u++] = c.charCodeAt(1);
     origIdx[n++] = i;
-    if (chunk.length >= 8192) {
-      parts.push(chunk);
-      chunk = "";
+    if (u >= CHUNK_UNITS) {
+      parts.push(String.fromCharCode.apply(null, units.subarray(0, u) as unknown as number[]));
+      u = 0;
     }
   };
   for (let i = 0; i < text.length; i++) {
@@ -1676,7 +1683,7 @@ export function normalizeWithMap(
       prevSpace = false;
     }
   }
-  parts.push(chunk);
+  parts.push(String.fromCharCode.apply(null, units.subarray(0, u) as unknown as number[]));
   return { norm: parts.join(""), origIdx: origIdx.subarray(0, n) };
 }
 
