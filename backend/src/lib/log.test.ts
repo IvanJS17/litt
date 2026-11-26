@@ -12,6 +12,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppError } from "./appError";
 import { jobErrorMessage } from "./dbq/jobError";
 import { logError, redactedProviderError } from "./log";
+import { diagnosticErrorTags } from "./observability/diagnostics";
+import { toProviderStreamError } from "./llm/providerErrors";
 
 // What a client's prompt looks like on the way to a provider: document text
 // inside the request body, echoed back in the provider's response body.
@@ -116,6 +118,26 @@ describe("error logging", () => {
     expect(out).toContain("provider-rejected");
     expect(out).toContain("AI_APICallError");
     expect(out).toContain("log.test.ts");
+  });
+
+  it("never writes the fields of a provider's stream error that is a plain object", () => {
+    // A stream error part is whatever the provider sent: an object, not an Error.
+    const streamError = {
+      type: "error",
+      status: 503,
+      code: "ECONNRESET",
+      error: { type: "invalid_request_error", message: `bad ${SENTINEL}-reply` },
+      request: { input: `${SENTINEL}-prompt` },
+    };
+    const failure = toProviderStreamError(streamError, { label: "Gemini", modelId: "m" });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    logError("chat", failure);
+    const out = captured(spy);
+    expect(out).not.toContain(SENTINEL);
+    expect(out).toContain("Gemini stream failed.");
+    // What the report line reads from the cause is unchanged.
+    expect(diagnosticErrorTags(streamError)).toMatchObject({ dependency_status: 503 });
+    expect(diagnosticErrorTags(failure)).toEqual(diagnosticErrorTags(streamError));
   });
 
   it("keeps an ordinary error's message and stack", () => {
