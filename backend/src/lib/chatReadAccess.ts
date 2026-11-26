@@ -72,10 +72,13 @@ const CHAT_TABLE: Record<MessageTable, "chats" | "word_chats"> = { chat_messages
  * snapshot, which names no document and carries the version fields as null.
  * Only a Word chat writes it; it is read by the person who owns the chat.
  */
-const readsOpenWordDocument = (event: Row): boolean =>
+const readsOpenWordDocument = (event: Row, appliedWorkflow: boolean): boolean =>
     event.type === "doc_read" &&
     !event.document_id &&
-    (event.filename === ACTIVE_WORD_DOCUMENT_LIVE_FILENAME || (event.version_id === null && event.version_number === null));
+    (event.filename === ACTIVE_WORD_DOCUMENT_LIVE_FILENAME ||
+        // The snapshot form is also how a workflow's file read was stored before documents were recorded:
+        // in an answer that applied a workflow, it is judged as that workflow's.
+        (!appliedWorkflow && event.version_id === null && event.version_number === null));
 
 const WORKFLOW_ASSET_ID = /^workflow-asset-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-\d+$/i;
 const WORKFLOW = "workflow:";
@@ -134,7 +137,7 @@ function scan(message: Row, gate?: Gate, wordChat = false) {
     );
     for (const event of events) {
         if (typeof event.type !== "string") continue;
-        if (wordChat && readsOpenWordDocument(event)) continue;
+        if (wordChat && readsOpenWordDocument(event, applied.length > 0)) continue;
         if (gate && (event.type === "doc_read" || event.type === "doc_find") && !event.document_id && applied.length) {
             // A workflow's file read before its document was recorded: one of the workflows this answer applied.
             for (const id of applied) workflows.add(id);

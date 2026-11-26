@@ -366,6 +366,78 @@ describe("a Word chat of its owner, answers that read the open Word document", (
     });
 });
 
+describe("a Word chat that applied a workflow", () => {
+    const THEIR_WF = id("9", 1); // the colleague's workflow, not shared with the reader
+    const THEIR_WF_FILE = id("9", 2);
+    const MY_WF = id("9", 3);
+    const MY_WF_FILE = id("9", 4);
+    const message = (n: number, over: Row): Row => ({
+        id: id("f", n),
+        chat_id: WCHAT,
+        role: "assistant",
+        content: null,
+        files: null,
+        citations: null,
+        created_at: `2026-11-10T10:00:0${n}Z`,
+        ...over,
+    });
+    const workflowWorld = (workflowId: string) => {
+        const wordMessages = (content: Row[]): Row[] => [
+            message(1, { role: "user", content: "apply the playbook" }),
+            message(2, { content: [{ type: "workflow_applied", workflow_id: workflowId, title: "playbook" }, ...content, { type: "content", text: "ANSWER_ONE" }] }),
+            message(3, { role: "user", content: "and now?" }),
+            message(4, { content: [{ type: "content", text: "ANSWER_TWO" }] }),
+        ];
+        return (content: Row[]) => {
+            const state = world({ word_chat_messages: wordMessages(content) });
+            state.tables.documents.push(
+                { id: THEIR_WF_FILE, user_id: COLLEAGUE, project_id: null, org_id: null, workflow_id: THEIR_WF },
+                { id: MY_WF_FILE, user_id: READER, project_id: null, org_id: null, workflow_id: MY_WF },
+            );
+            state.tables.workflows = [
+                { id: THEIR_WF, user_id: COLLEAGUE, org_id: null, visibility: "private", archived_at: null, title: "Their playbook" },
+                { id: MY_WF, user_id: READER, org_id: null, visibility: "private", archived_at: null, title: "My playbook" },
+            ];
+            state.tables.workflow_shares = [];
+        };
+    };
+    // What a workflow's file read was stored as before documents were recorded on the event.
+    const oldFileRead = { type: "doc_read", filename: "playbook.docx", version_id: null, version_number: null };
+    const snapshotRead = { type: "doc_read", filename: "Contract.docx", version_id: null, version_number: null };
+    const liveRead = { type: "doc_read", filename: ACTIVE_WORD_DOCUMENT_LIVE_FILENAME };
+
+    it("judges a workflow's file read by access to that workflow: withholds both answers and refuses reattaching", async () => {
+        workflowWorld(THEIR_WF)([oldFileRead]);
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
+        const messages = res.body.messages as Row[];
+        expect(messages[1]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "no_access" });
+        expect(messages[3]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "no_access" });
+        startRun(SURFACES[1], [OPEN_DOC]);
+        expect((await watch(SURFACES[1].url)).status).toBe(404);
+    });
+
+    it("keeps everything for the owner of the workflow, and lets them reattach", async () => {
+        workflowWorld(MY_WF)([oldFileRead]);
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
+        const messages = res.body.messages as Row[];
+        expect(messages.some((m) => m.unreadable)).toBe(false);
+        expect(JSON.stringify(res.body)).toContain("ANSWER_ONE");
+        startRun(SURFACES[1], [OPEN_DOC]);
+        expect((await watch(SURFACES[1].url)).status).toBe(200);
+    });
+
+    it.each([
+        ["a live read", liveRead],
+        ["a read of the snapshot", snapshotRead],
+    ])("withholds nothing from the owner of the workflow who also read the open document (%s)", async (_name, read) => {
+        workflowWorld(MY_WF)([read]);
+        const res = await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`);
+        expect((res.body.messages as Row[]).some((m) => m.unreadable)).toBe(false);
+        startRun(SURFACES[1], [OPEN_DOC]);
+        expect((await watch(SURFACES[1].url)).status).toBe(200);
+    });
+});
+
 describe("a Word chat transcript", () => {
     const message = (n: number, over: Row): Row => ({
         id: id("f", n),
