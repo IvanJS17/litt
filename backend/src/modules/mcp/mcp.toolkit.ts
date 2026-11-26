@@ -96,17 +96,34 @@ export async function matterWorkspace(call: McpCall, matterId: string): Promise<
 export type TextOrigin = "own" | "firm" | "shared";
 
 /**
+ * The name of the account that shared a text, as one short plain line: line
+ * breaks become spaces; control characters, zero-width and joiner characters,
+ * bidirectional controls and Unicode tag characters are removed; cut at 80
+ * whole code points. A result with no letter or digit is null ("another
+ * account"). It is data, handed over inside the fenced block of a prompt and
+ * as a field of the tools and resources, never as a word of the server's own.
+ */
+const SHARER_NAME_MAX = 80;
+export function sharerNameOf(name: string | null | undefined): string | null {
+    const line = (name ?? "")
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\u{E0000}-\u{E007F}]/gu, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    if (!/[\p{L}\p{N}]/u.test(line)) return null;
+    const points = Array.from(line);
+    return points.length > SHARER_NAME_MAX ? `${points.slice(0, SHARER_NAME_MAX - 1).join("")}…` : line;
+}
+
+/**
  * The origin of a workflow or playbook: the person's own when they made it,
  * the firm's when it lives in a firm's workspace, and otherwise another
- * account's, shared with them. Another account's display name is a line of
- * plain text of at most 80 characters (null when it has none).
+ * account's, shared with them (`shared_by`: see `sharerNameOf`).
  */
 export function originOf(item: { isCreator: boolean; orgId: string | null }, sharerName: string | null | undefined): { origin: TextOrigin; shared_by: string | null } {
     if (item.isCreator) return { origin: "own", shared_by: null };
     if (item.orgId) return { origin: "firm", shared_by: null };
-    // eslint-disable-next-line no-control-regex
-    const line = (sharerName ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029\s]+/g, " ").trim();
-    return { origin: "shared", shared_by: line ? (line.length > 80 ? `${line.slice(0, 79)}…` : line) : null };
+    return { origin: "shared", shared_by: sharerNameOf(sharerName) };
 }
 
 export const UNTRUSTED_NOTICE =
@@ -122,6 +139,12 @@ export const UNTRUSTED_NOTICE =
 export function untrusted(text: string, token = randomBytes(9).toString("base64url")): string {
     const safe = text.split(token).join(token.split("").join("\u200b"));
     return `<<<LITT_UNTRUSTED_DOCUMENT_TEXT ${token}>>>\n${safe}\n<<<END_LITT_UNTRUSTED_DOCUMENT_TEXT ${token}>>>`;
+}
+
+/** The text inside a block made by `untrusted` (so one prompt can carry it in a single block of its own); anything else comes back as it is. */
+export function unwrapUntrusted(block: string): string {
+    const match = /^<<<LITT_UNTRUSTED_DOCUMENT_TEXT (\S+)>>>\n([\s\S]*)\n<<<END_LITT_UNTRUSTED_DOCUMENT_TEXT \1>>>$/.exec(block);
+    return match ? match[2] : block;
 }
 
 /**

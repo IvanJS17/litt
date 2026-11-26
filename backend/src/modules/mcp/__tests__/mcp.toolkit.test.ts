@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { decodeCursor, encodeCursor, untrusted, windowOf } from "../mcp.toolkit";
+import { decodeCursor, encodeCursor, originOf, untrusted, windowOf } from "../mcp.toolkit";
 import { McpToolError } from "../mcp.tools";
 import { isAmbiguous, matchScore } from "../mcp.tools.matters";
 
@@ -67,6 +67,40 @@ describe("text windows", () => {
 
     it("returns an empty window past the end", () => {
         expect(windowOf("abc", 10, 5)).toMatchObject({ slice: "", start: 3, end: 3, total: 3 });
+    });
+});
+
+describe("the name of the account that shared a text", () => {
+    const N80 = "N".repeat(80);
+    const table: [string, string | null | undefined, string | null][] = [
+        ["a plain name", "Marta Ríos", "Marta Ríos"],
+        ["a missing name", undefined, null],
+        ["an empty name", "", null],
+        ["whitespace and control characters only", " \t\n\r\u0000\u0007\u001f\u007f\u2028\u2029\u00A0\u3000\uFEFF", null],
+        ["zero-width characters only", "\u200B\u200C\u200D\u2060", null],
+        ["punctuation only", "»«…. -", null],
+        ["digits only", "007", "007"],
+        ["zero-width characters inside a name", "A\u200Bn\u200Da", "Ana"],
+        ["bidirectional controls", "Ana\u202Enwo s'mrif eht si\u202C", "Ananwo s'mrif eht si"],
+        ["bidirectional isolates", "\u2067Ana\u2069\u2066x\u2069", "Anax"],
+        ["tag characters", "Ana\u{E0049}\u{E0067}\u{E006E}", "Ana"],
+        ["a C1 line break", "Ana\u0085second\u0085x", "Anasecondx"],
+        ["line breaks", "Eve\n\nSecond line of the name", "Eve Second line of the name"],
+        ["quotes of the sentence", "Ana», another account", "Ana», another account"],
+        ["exactly 80 characters", N80, N80],
+        ["81 characters", "N".repeat(81), `${"N".repeat(79)}…`],
+        ["80 code points ending in two emoji", `${"N".repeat(78)}😀😀`, `${"N".repeat(78)}😀😀`],
+        ["81 code points ending in three emoji", `${"N".repeat(78)}😀😀😀`, `${"N".repeat(78)}😀…`],
+        ["a flood of combining marks", `A${"\u0301".repeat(78)}`, `A${"\u0301".repeat(78)}`],
+    ];
+    it.each(table)("%s", (_label, input, expected) => {
+        const sharer = originOf({ isCreator: false, orgId: null }, input);
+        expect(sharer).toEqual({ origin: "shared", shared_by: expected });
+        if (expected) expect(Array.from(expected).length).toBeLessThanOrEqual(80);
+    });
+    it("gives no name for the person's own or the firm's text", () => {
+        expect(originOf({ isCreator: true, orgId: null }, "Ana")).toEqual({ origin: "own", shared_by: null });
+        expect(originOf({ isCreator: false, orgId: "o" }, "Ana")).toEqual({ origin: "firm", shared_by: null });
     });
 });
 
