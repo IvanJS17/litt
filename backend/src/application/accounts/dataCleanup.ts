@@ -506,6 +506,9 @@ async function deleteOrphanedUserStorage(db: Db, userId: string) {
                 // Staged and sealed objects of uploads that never finished;
                 // their session rows go with the account.
                 ...(await listFiles(`upload-sessions/${userId}/`)),
+                // A converted copy written for an upload that never got its
+                // version row; one a version still points at is claimed.
+                ...(await listFiles(`converted-pdfs/${userId}/`)),
             ]),
         ];
         if (paths.length === 0) return;
