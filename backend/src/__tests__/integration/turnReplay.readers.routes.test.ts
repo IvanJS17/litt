@@ -493,3 +493,113 @@ describe("a Word chat transcript", () => {
         expect((res.body.messages as Row[])[1]).toMatchObject({ content: [{ type: "content", text: "an answer from the open Word document" }] });
     });
 });
+
+describe("a Word chat that applied a workflow, read as the snapshot of the open document or inside a delegation", () => {
+    const THEIR_WF = id("9", 1);
+    const THEIR_WF_FILE = id("9", 2);
+    const MY_WF = id("9", 3);
+    const MY_WF_FILE = id("9", 4);
+    const NO_FILE_WF = id("9", 5); // the reader's own workflow, with no stored file
+    const NO_FILE_WF_TWO = id("9", 6);
+    const THEIR_NO_FILE_WF = id("9", 7); // the colleague's workflow with no stored file, not shared with the reader
+    const message = (chatId: string, n: number, over: Row): Row => ({
+        id: id("f", n),
+        chat_id: chatId,
+        role: "assistant",
+        content: null,
+        files: null,
+        citations: null,
+        created_at: `2026-11-10T10:00:0${n}Z`,
+        ...over,
+    });
+    const transcript = (chatId: string, content: Row[]): Row[] => [
+        message(chatId, 1, { role: "user", content: "apply the playbook" }),
+        message(chatId, 2, { content: [...content, { type: "content", text: "ANSWER_ONE" }] }),
+        message(chatId, 3, { role: "user", content: "and now?" }),
+        message(chatId, 4, { content: [{ type: "content", text: "ANSWER_TWO" }] }),
+    ];
+    const applied = (workflowId: string) => ({ type: "workflow_applied", workflow_id: workflowId, title: "playbook" });
+    const delegation = (events: Row[]) => ({ type: "delegation", delegation_id: "d1", status: "done", events });
+    const oldFileRead = { type: "doc_read", filename: "playbook.docx", version_id: null, version_number: null };
+    const snapshotRead = { type: "doc_read", filename: "Contract.docx", version_id: null, version_number: null };
+    const build = (rows: Row[], table: "word_chat_messages" | "chat_messages") => {
+        const state = world({ [table]: rows });
+        state.tables.documents.push(
+            { id: THEIR_WF_FILE, user_id: COLLEAGUE, project_id: null, org_id: null, workflow_id: THEIR_WF },
+            { id: MY_WF_FILE, user_id: READER, project_id: null, org_id: null, workflow_id: MY_WF },
+        );
+        const workflow = (workflowId: string, user: string) => ({ id: workflowId, user_id: user, org_id: null, visibility: "private", archived_at: null, title: "A playbook" });
+        state.tables.workflows = [workflow(THEIR_WF, COLLEAGUE), workflow(MY_WF, READER), workflow(NO_FILE_WF, READER), workflow(NO_FILE_WF_TWO, READER), workflow(THEIR_NO_FILE_WF, COLLEAGUE)];
+        state.tables.workflow_shares = [];
+    };
+    const wordWorld = (content: Row[]) => build(transcript(WCHAT, content), "word_chat_messages");
+    const readWord = async () => (await request(app).get(`/word-chat/${WCHAT}?document_id=${WORD_DOC}`)).body.messages as Row[];
+    const reattaches = async () => {
+        startRun(SURFACES[1], [OPEN_DOC]);
+        return (await watch(SURFACES[1].url)).status;
+    };
+
+    const shown = async (content: Row[]) => {
+        wordWorld(content);
+        const messages = await readWord();
+        expect(messages.some((m) => m.unreadable)).toBe(false);
+        expect(messages.map((m) => m.content)).toEqual([
+            "apply the playbook",
+            [...content, { type: "content", text: "ANSWER_ONE" }],
+            "and now?",
+            [{ type: "content", text: "ANSWER_TWO" }],
+        ]);
+        expect(await reattaches()).toBe(200);
+    };
+    const withheld = async (content: Row[]) => {
+        wordWorld(content);
+        const messages = await readWord();
+        expect(messages[1]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "no_access" });
+        expect(messages[3]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "no_access" });
+        expect(await reattaches()).toBe(404);
+    };
+
+    it("shows the owner an answer that applied their workflow with no stored file and read the open document", async () => {
+        await shown([applied(NO_FILE_WF), snapshotRead]);
+    });
+
+    it("shows the owner the same answer when two workflows with no stored file were applied", async () => {
+        await shown([applied(NO_FILE_WF), applied(NO_FILE_WF_TWO), snapshotRead]);
+    });
+
+    it("still judges the snapshot read by the applied workflows when one of them has a stored file", async () => {
+        await withheld([applied(THEIR_WF), applied(NO_FILE_WF), snapshotRead]);
+    });
+
+    it("shows the owner an answer that applied two of their workflows, one with a stored file and one without, and read the open document", async () => {
+        await shown([applied(MY_WF), applied(NO_FILE_WF), snapshotRead]);
+    });
+
+    it("withholds that answer when the applied workflow with the stored file is one the owner can no longer use", async () => {
+        await withheld([applied(THEIR_WF), applied(NO_FILE_WF), snapshotRead]);
+    });
+
+    it("shows that answer when only the applied workflow without a stored file is one the owner cannot use: it cannot have had its file read", async () => {
+        await shown([applied(MY_WF), applied(THEIR_NO_FILE_WF), snapshotRead]);
+    });
+
+    it("leaves a web chat row of the same shape as it was: its read is a workflow's file", async () => {
+        build(transcript(CHAT, [applied(NO_FILE_WF), snapshotRead]), "chat_messages");
+        const res = await request(app).get(`/chat/${CHAT}`);
+        expect((res.body.messages as Row[])[1]).toMatchObject({ content: [], unreadable: true, unreadable_reason: "source_unknown" });
+    });
+
+    describe.each([
+        ["the workflow applied at the top level and the file read inside a delegation", (wf: string) => [applied(wf), delegation([oldFileRead])]],
+        ["the workflow applied inside a delegation and the file read at the top level", (wf: string) => [delegation([applied(wf)]), oldFileRead]],
+        ["both inside a delegation", (wf: string) => [delegation([applied(wf), oldFileRead])]],
+    ])("with %s", (_name, content) => {
+        it("withholds both answers and refuses reattaching for an owner who lost the workflow", async () => {
+            await withheld(content(THEIR_WF));
+        });
+
+        it("shows everything to the owner of the workflow", async () => {
+            await shown(content(MY_WF));
+        });
+    });
+});

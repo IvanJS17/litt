@@ -72,16 +72,21 @@ const CHAT_TABLE: Record<MessageTable, "chats" | "word_chats"> = { chat_messages
  * snapshot, which names no document and carries the version fields as null.
  * Only a Word chat writes it; it is read by the person who owns the chat.
  */
-const readsOpenWordDocument = (event: Row, appliedWorkflow: boolean): boolean =>
-    event.type === "doc_read" &&
-    !event.document_id &&
-    (event.filename === ACTIVE_WORD_DOCUMENT_LIVE_FILENAME ||
-        // The snapshot form is also how a workflow's file read was stored before documents were recorded:
-        // in an answer that applied a workflow, it is judged as that workflow's.
-        (!appliedWorkflow && event.version_id === null && event.version_number === null));
+const readsOpenWordDocument = (event: Row): boolean =>
+    event.type === "doc_read" && !event.document_id && event.filename === ACTIVE_WORD_DOCUMENT_LIVE_FILENAME;
+
+/**
+ * The snapshot form of that read. It is also how a workflow's file read was
+ * stored before documents were recorded: in an answer that applied workflows
+ * it is the open document unless one of them has a stored file (`ifFile`).
+ */
+const readsSnapshot = (event: Row): boolean =>
+    event.type === "doc_read" && !event.document_id && event.version_id === null && event.version_number === null;
 
 const WORKFLOW_ASSET_ID = /^workflow-asset-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-\d+$/i;
 const WORKFLOW = "workflow:";
+/** `workflows-if-file:<id>,<id>`: the open document, unless one of these workflows has a stored file, then those that have one. */
+const IF_FILE = "workflows-if-file:";
 
 /** A search stored without its documents: does it name something, and where from? */
 function searchWithoutIds(event: Row, gate: Gate | undefined): boolean {
@@ -105,6 +110,7 @@ function searchWithoutIds(event: Row, gate: Gate | undefined): boolean {
 function scan(message: Row, gate?: Gate, wordChat = false) {
     const refs = new Map<string, ChatSourceRef>();
     const workflows = new Set<string>();
+    const ifFile = new Set<string>();
     let unknown = false;
     const take = (value: unknown, version: Row = {}) => {
         const documentId = documentIdOf(value);
@@ -137,7 +143,12 @@ function scan(message: Row, gate?: Gate, wordChat = false) {
     );
     for (const event of events) {
         if (typeof event.type !== "string") continue;
-        if (wordChat && readsOpenWordDocument(event, applied.length > 0)) continue;
+        if (wordChat && readsOpenWordDocument(event)) continue;
+        if (wordChat && applied.length && readsSnapshot(event)) {
+            ifFile.add(IF_FILE + [...new Set(applied)].sort().join(","));
+            continue;
+        }
+        if (wordChat && readsSnapshot(event)) continue;
         if (gate && (event.type === "doc_read" || event.type === "doc_find") && !event.document_id && applied.length) {
             // A workflow's file read before its document was recorded: one of the workflows this answer applied.
             for (const id of applied) workflows.add(id);
@@ -149,14 +160,14 @@ function scan(message: Row, gate?: Gate, wordChat = false) {
             else if (searchWithoutIds(event, gate)) unknown = true;
         }
     }
-    return { refs, workflows, unknown };
+    return { refs, workflows, ifFile, unknown };
 }
 
 /** The sources the gate judges: document ids, and `workflow:<id>` for the files of a workflow. */
 function gateSources(message: Row, gate: Gate, wordChat = false): readonly string[] | null {
-    const { refs, workflows, unknown } = scan(message, gate, wordChat);
+    const { refs, workflows, ifFile, unknown } = scan(message, gate, wordChat);
     if (unknown) return null;
-    return [...new Set([...refs.values()].map((ref) => ref.documentId)), ...[...workflows].map((id) => WORKFLOW + id)];
+    return [...new Set([...refs.values()].map((ref) => ref.documentId)), ...[...workflows].map((id) => WORKFLOW + id), ...ifFile];
 }
 
 /** Of `documentIds`, the stored files of a workflow. */
@@ -168,27 +179,44 @@ async function filesOfWorkflows(db: Db, documentIds: readonly string[]): Promise
     return new Set(found.filter((row) => row.workflow_id).map((row) => row.id));
 }
 
-/**
- * Replace each `workflow:<id>` by one stored file of that workflow: every file
- * of a workflow is judged by the workflow's access, so one stands for all. A
- * list naming a workflow with no file left is unknown (null).
- */
-async function withWorkflowFiles(db: Db, lists: readonly (readonly string[] | null)[]): Promise<(string[] | null)[]> {
-    const wanted = lists.flatMap((list) => (list ?? []).filter((id) => id.startsWith(WORKFLOW)).map((id) => id.slice(WORKFLOW.length)));
+/** The workflow ids a `workflow:<id>` or `workflows-if-file:<ids>` key names. */
+const workflowIdsOf = (key: string): string[] =>
+    key.startsWith(WORKFLOW) ? [key.slice(WORKFLOW.length)] : key.startsWith(IF_FILE) ? key.slice(IF_FILE.length).split(",") : [];
+
+/** One stored file of each of `workflowIds` that has any, in one batched lookup. */
+async function workflowFileMap(db: Db, workflowIds: readonly string[]): Promise<Map<string, string>> {
     const fileOf = new Map<string, string>();
-    if (wanted.length) {
+    if (workflowIds.length) {
         type FileRow = { id: string; workflow_id: string };
-        const found = await selectInBatches<FileRow>("workflow file lookup", wanted, (batch) =>
+        const found = await selectInBatches<FileRow>("workflow file lookup", workflowIds, (batch) =>
             selectAllByKey<FileRow>("workflow file lookup", () =>
                 db.from("documents").select("id, workflow_id").in("workflow_id", batch),
             ),
         );
         for (const file of found) if (!fileOf.has(file.workflow_id)) fileOf.set(file.workflow_id, file.id);
     }
+    return fileOf;
+}
+
+/** The keys a list stands for once the files are known: an `if-file` key is the `workflow:` keys of those of its workflows that have a file (a workflow with none cannot have had its file read), else nothing. */
+const settleIfFile = (keys: readonly string[], fileOf: ReadonlyMap<string, string>): string[] =>
+    keys.flatMap((key) => {
+        if (!key.startsWith(IF_FILE)) return [key];
+        const ids = workflowIdsOf(key);
+        return ids.filter((id) => fileOf.has(id)).map((id) => WORKFLOW + id);
+    });
+
+/**
+ * Replace each `workflow:<id>` by one stored file of that workflow: every file
+ * of a workflow is judged by the workflow's access, so one stands for all. A
+ * list naming a workflow with no file left is unknown (null).
+ */
+async function withWorkflowFiles(db: Db, lists: readonly (readonly string[] | null)[]): Promise<(string[] | null)[]> {
+    const fileOf = await workflowFileMap(db, lists.flatMap((list) => (list ?? []).flatMap(workflowIdsOf)));
     return lists.map((list) => {
         if (!list) return null;
         const out: string[] = [];
-        for (const id of list) {
+        for (const id of settleIfFile(list, fileOf)) {
             const file = id.startsWith(WORKFLOW) ? fileOf.get(id.slice(WORKFLOW.length)) : id;
             if (!file) return null;
             out.push(file);
@@ -267,12 +295,14 @@ async function liveReasons(db: Db, reader: DerivedReader, messages: readonly Row
     // A person's own message names its attachments only; one that cannot be
     // identified holds the later answers back from a reader who is not the owner.
     const named = messages.map((message) => {
-        const { refs, workflows, unknown } = scan(message, "live", table === "word_chat_messages");
-        return { keys: [...new Set([...[...refs.values()].map((ref) => ref.documentId), ...[...workflows].map((id) => WORKFLOW + id)])], unknown };
+        const { refs, workflows, ifFile, unknown } = scan(message, "live", table === "word_chat_messages");
+        return { keys: [...new Set([...[...refs.values()].map((ref) => ref.documentId), ...[...workflows].map((id) => WORKFLOW + id)])], ifFile: [...ifFile], unknown };
     });
+    // A snapshot read in an answer that applied workflows names them only if one of them has a stored file.
+    const workflowFiles = await workflowFileMap(db, named.flatMap((entry) => [...entry.keys, ...entry.ifFile].flatMap(workflowIdsOf)));
+    for (const entry of named) entry.keys = [...new Set(settleIfFile([...entry.keys, ...entry.ifFile], workflowFiles))];
     const keys = [...new Set(named.flatMap((entry) => entry.keys))];
-    const files = await withWorkflowFiles(db, keys.map((key) => [key]));
-    const fileOf = new Map(keys.map((key, index) => [key, files[index]?.[0] ?? null]));
+    const fileOf = new Map(keys.map((key) => [key, key.startsWith(WORKFLOW) ? workflowFiles.get(key.slice(WORKFLOW.length)) ?? null : key]));
     const fileIds = [...new Set([...fileOf.values()].filter((id): id is string => id !== null))];
     const open = new Set(await filterAccessibleDocumentIds(fileIds, reader.userId, reader.userEmail, db));
     const closedIds = fileIds.filter((id) => !open.has(id));
