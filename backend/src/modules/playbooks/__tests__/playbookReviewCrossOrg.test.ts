@@ -5,9 +5,14 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../../lib/supabase";
 
 const docs = vi.hoisted(() => ({
+  completeText: vi.fn(),
   loadActiveVersion: vi.fn(),
   loadCurrentVersionBytes: vi.fn(),
   extractDocxBodyText: vi.fn(),
+}));
+vi.mock("../../../lib/llm", async (original) => ({
+  ...(await original<typeof import("../../../lib/llm")>()),
+  completeText: docs.completeText,
 }));
 vi.mock("../../documents/documents.service", async (original) => ({
   ...(await original<typeof import("../../documents/documents.service")>()),
@@ -22,11 +27,13 @@ vi.mock("../../../lib/docxTrackedChanges", async (original) => ({
   extractDocxBodyText: docs.extractDocxBodyText,
 }));
 
-import { blankPlaybookContent, beginPlaybookReview } from "../playbooks.operations";
+import { blankPlaybookContent, beginPlaybookReview, runPlaybookReview } from "../playbooks.operations";
 import { EXTRACTION_OPS } from "../../../lib/extraction/ops";
 import { ExtractionBusyError, ExtractionLimitError } from "../../../lib/extraction/isolated";
 import { keyRow } from "./playbookTestKeys";
 import { database, ORG as FIRM_A, OTHER as FIRM_B } from "./playbookTestDb";
+
+let lastTables: Record<string, Record<string, unknown>[]> = {};
 
 async function world(documentOrg: string | null, playbookOrg: string | null = FIRM_A) {
   const { db, tables } = database(
@@ -48,6 +55,7 @@ async function world(documentOrg: string | null, playbookOrg: string | null = FI
       { user_id: "u1", org_id: FIRM_B, role: "member" },
     ],
   );
+  lastTables = tables;
   tables.organizations!.forEach((row) => {
     row.allow_personal_ai_keys = true;
     row.authorization_epoch = 1;
@@ -178,5 +186,43 @@ describe("the text of the document under review is read by the parser process", 
     try {
       await expect(review(await world(FIRM_A))).rejects.toMatchObject({ status: 400 });
     } finally { parse.mockRestore(); }
+  });
+});
+
+describe("a firm that forbids personal keys for the document under review", () => {
+  const forbid = (org: string) => {
+    lastTables.organizations!.find((row) => row.id === org)!.allow_personal_ai_keys = false;
+  };
+
+  it.each([
+    ["a personal playbook", null],
+    ["a playbook of another firm that allows personal keys", FIRM_A],
+  ])("does not pin the member's own key for %s", async (_name, playbookOrg) => {
+    const db = await world(FIRM_B, playbookOrg);
+    forbid(FIRM_B);
+    await expect(review(db)).rejects.toMatchObject({ status: 409, code: "chat_route_credential_required" });
+  });
+
+  it("refuses a personal key named for it", async () => {
+    const db = await world(FIRM_B, null);
+    forbid(FIRM_B);
+    await expect(review(db, "user:u1:claude:v1")).rejects.toMatchObject({
+      status: 409,
+      code: "chat_route_credential_unavailable",
+    });
+  });
+
+  it("still pins the member's own key for a firm that allows them", async () => {
+    const started = await review(await world(FIRM_B, null));
+    expect(started.resolved.route.credentialRef).toBe("user:u1:claude:v1");
+  });
+
+  it("does not run a recorded review on a personal key once the firm forbids them", async () => {
+    const db = await world(FIRM_B, null);
+    const started = await review(db, "user:u1:claude:v1");
+    forbid(FIRM_B);
+    docs.completeText.mockResolvedValue("{}");
+    await runPlaybookReview(db, started.work).catch(() => undefined);
+    expect(docs.completeText).not.toHaveBeenCalled();
   });
 });

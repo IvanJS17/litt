@@ -35,6 +35,8 @@ import { providerForModel, resolveModel } from "../../lib/llm/models";
 import { getConfiguredModel } from "../../lib/llm/registry";
 import { insertAuditEvent, recordAudit, type AuditEventInput } from "../../lib/audit";
 import { resolveEffectiveChatModel } from "../../lib/modelSelection";
+import { resolveRequestedModel } from "../../lib/routerModels";
+import { ProviderConfigurationError } from "../../lib/llm/providerErrors";
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import {
@@ -426,6 +428,16 @@ export async function loadPinnedChatRoute(
         return unavailable();
     }
     if (provider !== route.provider) return unavailable();
+    // A router model stays usable only while the list that governs its key
+    // still has it, as chat checks it on every turn: delisting a model ends
+    // the stored routes that use it too.
+    try {
+        await resolveRequestedModel(route.model, route.model, args.userId, db, "throw", args.orgId);
+    } catch (error) {
+        if (error instanceof ProviderConfigurationError)
+            return { ...unavailable(), detail: error.message };
+        throw error;
+    }
     const keyProvider = keyProviderFor(provider, route.model);
     const parts = route.credentialRef.split(":");
 

@@ -383,10 +383,14 @@ function validateCompiledPlaybookOutput(
   raw: string,
   structure: PlaybookWordStructure,
 ): PlaybookContent {
+  // Provenance belongs to the server: a rule read from a file carries none,
+  // whatever the model wrote.
   return validateImportedSources(
     stableIds(
-      playbookContentSchema.parse(
-        normalizeCompiledPlaybookOutput(parseModelJson(raw)),
+      stripProvenance(
+        playbookContentSchema.parse(
+          normalizeCompiledPlaybookOutput(parseModelJson(raw)),
+        ),
       ),
     ),
     structure,
@@ -2195,23 +2199,92 @@ ${documentText.slice(0, 180_000)}`;
 type PlaybookPosition =
   PlaybookContent["topics"][number]["rules"][number]["fallbacks"][number];
 
-function actualDocumentQuote(
-  documentText: string,
-  proposed: string | undefined,
-): string {
-  const quote = (proposed ?? "").trim();
-  if (!quote) return "";
-  if (documentText.includes(quote)) return quote;
-  const parts = quote.split(/\s+/).filter(Boolean);
-  if (!parts.length) return "";
-  const pattern = parts
-    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("\\s+");
-  try {
-    return documentText.match(new RegExp(pattern, "i"))?.[0] ?? "";
-  } catch {
-    return "";
+const IS_SPACE = /^\s$/;
+
+/**
+ * The code unit a case-insensitive expression without the `u` flag would
+ * compare for `code`.
+ */
+function foldedUnit(code: number): number {
+  const upper = String.fromCharCode(code).toUpperCase();
+  if (upper.length !== 1) return code;
+  const folded = upper.charCodeAt(0);
+  return code >= 128 && folded < 128 ? code : folded;
+}
+
+/** The first index of `needle` in `haystack` (KMP): O(haystack + needle), whatever their shape. */
+function linearIndexOf(haystack: ArrayLike<number>, length: number, needle: ArrayLike<number>): number {
+  const size = needle.length;
+  if (size === 0) return 0;
+  if (size > length) return -1;
+  const fallback = new Int32Array(size);
+  for (let i = 1, k = 0; i < size; i++) {
+    while (k > 0 && needle[i] !== needle[k]) k = fallback[k - 1]!;
+    if (needle[i] === needle[k]) k++;
+    fallback[i] = k;
   }
+  for (let i = 0, k = 0; i < length; i++) {
+    while (k > 0 && haystack[i] !== needle[k]) k = fallback[k - 1]!;
+    if (haystack[i] === needle[k]) k++;
+    if (k === size) return i - size + 1;
+  }
+  return -1;
+}
+
+/**
+ * Finds the text a finding quotes in the document: exactly as given, or else
+ * ignoring case and the amount of whitespace between words, answering with
+ * the document's own words. The text is indexed once and each quote is one
+ * linear scan (no expression is built from the quote, whose cost would grow
+ * with text length times quote length), and a quote asked twice is scanned
+ * once.
+ */
+function documentQuoteLocator(documentText: string) {
+  let raw: Uint16Array | null = null;
+  let folded: { codes: Uint16Array; starts: Int32Array; ends: Int32Array; length: number } | null = null;
+  const answers = new Map<string, string>();
+  const index = () => {
+    raw = new Uint16Array(documentText.length);
+    const codes = new Uint16Array(documentText.length);
+    const starts = new Int32Array(documentText.length);
+    const ends = new Int32Array(documentText.length);
+    let length = 0;
+    for (let i = 0; i < documentText.length; ) {
+      raw[i] = documentText.charCodeAt(i);
+      if (IS_SPACE.test(documentText[i]!)) {
+        let j = i;
+        while (j < documentText.length && IS_SPACE.test(documentText[j]!)) raw[j] = documentText.charCodeAt(j++);
+        codes[length] = 32;
+        starts[length] = i;
+        ends[length++] = j;
+        i = j;
+      } else {
+        codes[length] = foldedUnit(raw[i]!);
+        starts[length] = i;
+        ends[length++] = ++i;
+      }
+    }
+    folded = { codes, starts, ends, length };
+  };
+  return (proposed: string | undefined): string => {
+    const quote = (proposed ?? "").trim();
+    if (!quote) return "";
+    const known = answers.get(quote);
+    if (known !== undefined) return known;
+    if (!folded) index();
+    const exact = Uint16Array.from(quote, (character) => character.charCodeAt(0));
+    let answer = "";
+    if (linearIndexOf(raw!, documentText.length, exact) >= 0) answer = quote;
+    else {
+      const words = quote.split(/\s+/).filter(Boolean);
+      const wanted = Uint16Array.from(words.join(" "), (character) => foldedUnit(character.charCodeAt(0)));
+      const at = linearIndexOf(folded!.codes, folded!.length, wanted);
+      if (at >= 0)
+        answer = documentText.slice(folded!.starts[at], folded!.ends[at + wanted.length - 1]);
+    }
+    answers.set(quote, answer);
+    return answer;
+  };
 }
 
 export function normalizeFindings(
@@ -2240,6 +2313,7 @@ export function normalizeFindings(
   }
   const seen = new Set<string>();
   const normalized: PlaybookFinding[] = [];
+  const actualDocumentQuote = documentQuoteLocator(documentText);
   for (const finding of findings) {
     if (finding.status === "outside_scope") {
       normalized.push({
@@ -2247,8 +2321,8 @@ export function normalizeFindings(
         id: crypto.randomUUID(),
         topicId: null,
         ruleId: null,
-        quote: actualDocumentQuote(documentText, finding.quote),
-        insertAfter: actualDocumentQuote(documentText, finding.insertAfter),
+        quote: actualDocumentQuote(finding.quote),
+        insertAfter: actualDocumentQuote(finding.insertAfter),
       });
       continue;
     }
@@ -2265,8 +2339,8 @@ export function normalizeFindings(
       topicId: rule.topicId,
       ruleId,
       ruleName: rule.name,
-      quote: actualDocumentQuote(documentText, finding.quote),
-      insertAfter: actualDocumentQuote(documentText, finding.insertAfter),
+      quote: actualDocumentQuote(finding.quote),
+      insertAfter: actualDocumentQuote(finding.insertAfter),
     });
   }
   for (const [ruleId, rule] of rules) {
@@ -2474,17 +2548,19 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
       "Complete the playbook name, rules, and positions before running a review.",
     );
   const content = stableIds(parsedContent.data);
-  const pinned = await pinPlaybookRoute(
-    db,
-    args.userId,
-    model,
-    playbook.orgId,
-    args.credentialRef,
-  );
   if (stored)
     assertFirmKeyForContent(args.credentialRef, playbook.orgId, [
       stored.orgId,
     ]);
+  // The firm whose document is sent to the model decides which keys may run
+  // the review (a personal key only where it allows them), as in chat.
+  const pinned = await pinPlaybookRoute(
+    db,
+    args.userId,
+    model,
+    stored?.orgId ?? playbook.orgId,
+    args.credentialRef,
+  );
   const authorization = await readAuthorizationStamp(
     db,
     stored ? stored.orgId : playbook.orgId,
@@ -2612,7 +2688,7 @@ export async function runPlaybookReview(
     // The route fixed when the review was requested; never re-resolved.
     const resolved =
       resolvedRoute ??
-      (await loadPlaybookRoute(db, work.userId, keyScope, work.route));
+      (await loadPlaybookRoute(db, work.userId, contentOrg ?? keyScope, work.route));
     const keys = resolved.apiKeys;
     await recordChatEgress(db, {
       userId: work.userId,

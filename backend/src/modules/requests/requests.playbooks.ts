@@ -14,9 +14,11 @@ import type {
   RequestTypePlaybookUnlinked,
 } from "@mike/contracts";
 import { recordAudit } from "../../lib/audit";
+import { getOrgRole } from "../../lib/access";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { isUuid } from "../../lib/uuid";
+import { resolvePlaybookRoles } from "../playbooks/playbooks.service";
 import { isRecord, INVALID_REQUEST_CODE } from "./requests.shared";
 import { manager, teamMember } from "./requests.types";
 
@@ -36,14 +38,26 @@ function pgCode(error: unknown): string | undefined {
 
 type LinkRow = { type_id: string; playbook_id: string; linked_at: string };
 type PlaybookRow = { id: string; name: string };
+type AccessRow = PlaybookRow & { user_id: string; org_id: string | null; visibility: string | null };
 
 const LINK_COLUMNS = "type_id, playbook_id, linked_at";
 
-/** The ready playbooks shared with the firm: what can be linked, by name. */
-async function readyPlaybooks(db: Db, orgId: string, ids?: string[]): Promise<ServiceResult<PlaybookRow[]>> {
+/**
+ * The playbooks of `rows` the person may open, by the playbooks module's own
+ * rule: a member on a playbook's deny list does not see it.
+ */
+async function openableBy(db: Db, userId: string, orgId: string, rows: AccessRow[]): Promise<PlaybookRow[]> {
+  const role = await getOrgRole(userId, orgId, db);
+  if (!role) return [];
+  const roles = await resolvePlaybookRoles(db, rows, userId, null, new Map([[orgId, role]]));
+  return rows.filter((row) => roles.has(row.id)).map((row) => ({ id: row.id, name: row.name }));
+}
+
+/** The ready playbooks shared with the firm the person may open: what can be linked, by name. */
+async function readyPlaybooks(db: Db, userId: string, orgId: string, ids?: string[]): Promise<ServiceResult<PlaybookRow[]>> {
   let query = db
     .from("playbooks")
-    .select("id, name")
+    .select("id, name, user_id, org_id, visibility")
     .eq("org_id", orgId)
     .eq("visibility", "organization")
     .eq("status", "ready");
@@ -53,7 +67,11 @@ async function readyPlaybooks(db: Db, orgId: string, ids?: string[]): Promise<Se
     .order("id", { ascending: true })
     .limit(MAX_OPTIONS);
   if (error) return internalFailure(error);
-  return ok((data ?? []) as unknown as PlaybookRow[]);
+  try {
+    return ok(await openableBy(db, userId, orgId, (data ?? []) as unknown as AccessRow[]));
+  } catch (caught) {
+    return internalFailure(caught);
+  }
 }
 
 async function typeInOrg(db: Db, orgId: string, typeId: unknown, openOnly = false): Promise<ServiceResult<string>> {
@@ -70,6 +88,7 @@ async function typeInOrg(db: Db, orgId: string, typeId: unknown, openOnly = fals
 /** Open links of the firm (of one type when given), with the playbooks still linkable. */
 async function readLinks(
   db: Db,
+  userId: string,
   orgId: string,
   typeId: string | null,
   admin: boolean,
@@ -84,12 +103,12 @@ async function readLinks(
   if (typeId) query = query.eq("type_id", typeId);
   const { data, error } = await query;
   if (error) return internalFailure(error);
-  const playbooks = await readyPlaybooks(db, orgId);
+  const playbooks = await readyPlaybooks(db, userId, orgId);
   if (!playbooks.ok) return playbooks;
   // Names come from the links' own ids, not from the capped option list: a
   // firm with more than MAX_OPTIONS ready playbooks must not lose a link.
   const linkedIds = [...new Set(((data ?? []) as unknown as LinkRow[]).map((row) => row.playbook_id))];
-  const linked = linkedIds.length ? await readyPlaybooks(db, orgId, linkedIds) : ok([] as PlaybookRow[]);
+  const linked = linkedIds.length ? await readyPlaybooks(db, userId, orgId, linkedIds) : ok([] as PlaybookRow[]);
   if (!linked.ok) return linked;
   const names = new Map(linked.data.map((row) => [row.id, row.name]));
   // A link to a playbook that is gone, private or not ready reads as absent.
@@ -115,7 +134,7 @@ export async function listTypePlaybooks(
     if (!type.ok) return type;
     typeId = type.data;
   }
-  return readLinks(db, who.data.orgId, typeId, who.data.admin);
+  return readLinks(db, actor.userId, who.data.orgId, typeId, who.data.admin);
 }
 
 function audit(db: Db, actor: Actor, orgId: string, action: string, typeId: string, playbookId: string) {
@@ -143,14 +162,20 @@ export async function linkTypePlaybook(
   // Another firm's playbook, a private one and a missing one are the same 404.
   const { data, error } = await db
     .from("playbooks")
-    .select("id, name, status")
+    .select("id, name, status, user_id, org_id, visibility")
     .eq("id", playbookId)
     .eq("org_id", who.data.orgId)
     .eq("visibility", "organization")
     .maybeSingle();
   if (error) return internalFailure(error);
   if (!data) return failure("not_found", NOT_FOUND);
-  const playbook = data as unknown as PlaybookRow & { status: string };
+  const playbook = data as unknown as AccessRow & { status: string };
+  // A playbook the person may not open reads as unknown, as a private one does.
+  try {
+    if (!(await openableBy(db, actor.userId, who.data.orgId, [playbook])).length) return failure("not_found", NOT_FOUND);
+  } catch (caught) {
+    return internalFailure(caught);
+  }
   if (playbook.status !== "ready")
     return failure("conflict", "Only a ready playbook can be linked.", PLAYBOOK_NOT_READY_CODE);
   const { data: row, error: insertError } = await db

@@ -62,6 +62,7 @@ import {
     resolveCriteriaDelegation,
     unreadableSubagentRoutes,
     recordTrainingNote,
+    continuationMessages,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
 import type { CreatedTurnNote } from "../../lib/trainingNotes";
@@ -181,7 +182,8 @@ export async function prepareChatStream(
     // [http/internal-error] correlation log.
     | { ok: false; internal: true; error: unknown }
 > {
-    const { userId, userEmail, messages } = args;
+    const { userId, userEmail } = args;
+    let messages = args.messages;
     let chatId = args.chatId;
     let chatTitle: string | null = null;
     let chatModel: string | null = null;
@@ -380,6 +382,12 @@ export async function prepareChatStream(
         }
         if (!begun.ok) return begun;
         trainingPlan = begun.plan;
+    } else if (args.askInputsResponse) {
+        try {
+            messages = await continuationMessages(db, userId, { orgId: contentOrgId, projectId: resolvedProjectId }, messages);
+        } catch (error) {
+            return { ok: false, internal: true, error };
+        }
     }
 
     const selection = await resolveUserChatSelection(db, {

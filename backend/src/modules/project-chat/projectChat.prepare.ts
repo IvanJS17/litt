@@ -62,6 +62,7 @@ import {
     resolveCriteriaDelegation,
     unreadableSubagentRoutes,
     recordTrainingNote,
+    continuationMessages,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
 import type { CreatedTurnNote } from "../../lib/trainingNotes";
@@ -235,10 +236,10 @@ export async function prepareProjectChatStream(
         userId,
         userEmail,
         projectId,
-        messages,
         displayed_doc,
         attached_documents,
     } = args;
+    let messages = args.messages;
 
     // Verify the caller can reach the project at all. Whether they may WRITE
     // is decided below, once we know whether this is their own chat.
@@ -401,6 +402,17 @@ export async function prepareProjectChatStream(
         }
         if (!begun.ok) return begun;
         trainingPlan = begun.plan;
+    } else if (args.askInputsResponse) {
+        try {
+            messages = await continuationMessages(
+                db,
+                userId,
+                { orgId: projectAccess.project.org_id ?? null, projectId },
+                messages,
+            );
+        } catch (error) {
+            return { ok: false, internal: true, error };
+        }
     }
 
     const selection = await resolveUserChatSelection(db, {
