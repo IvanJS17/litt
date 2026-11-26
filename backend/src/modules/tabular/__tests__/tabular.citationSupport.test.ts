@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectLinearCost, expectLinearCostAsync } from "../../../__tests__/helpers/linearCost";
 import { MODEL_TEXT_MAX_CHARS } from "../../../lib/modelJsonFence";
+import { MAX_CHECKED_CITATIONS } from "../../../lib/citationSupport";
 import {
     cellCitationInputs,
     chatCitationInputs,
@@ -77,6 +78,63 @@ describe("cellCitationInputs", () => {
     it("caps the citations of one cell", () => {
         const many = Array.from({ length: 40 }, () => `Plazo. [[document:${DOC}||page:1||quote:${CLAUSE}]]`).join(" ");
         expect(cellCitationInputs({ result: { summary: many, flag: "grey", reasoning: "" }, markdown, sourceDocumentIds: [DOC] })).toHaveLength(25);
+    });
+});
+
+describe("the work a cell or an answer can cause", () => {
+    const section = (text: string) => `## Source document: a.pdf\nSource document ID: ${DOC}\n\n${text}`;
+    const miss = (n: number) => `Dato ${n}. [[document:${DOC}||page:1||quote:frase que no está en el texto ${n}]]`;
+    const indexBuilds = async (run: () => unknown, text: string) => {
+        const operations = await import("../../chat/engine/tools/documentOps.js");
+        const normalize = vi.spyOn(operations, "normalizeWithMap");
+        try {
+            await run();
+            return normalize.mock.calls.filter(([source]) => source === text).length;
+        } finally {
+            normalize.mockRestore();
+        }
+    };
+
+    it("indexes the cited section a bounded number of times however many markers miss", async () => {
+        const text = "Texto de relleno sin la frase. ".repeat(200) + "indem-\nnización.";
+        const summary = Array.from({ length: 200 }, (_, n) => miss(n)).join(" ");
+        const builds = await indexBuilds(
+            () => cellCitationInputs({ result: { summary, flag: "grey", reasoning: "" }, markdown: section(text), sourceDocumentIds: [DOC] }),
+            text,
+        );
+        expect(builds).toBeLessThanOrEqual(5);
+    });
+
+    it("examines at most the checked number of markers, found or not", () => {
+        const misses = Array.from({ length: MAX_CHECKED_CITATIONS }, (_, n) => miss(n)).join(" ");
+        const hit = `Plazo. [[document:${DOC}||page:1||quote:${CLAUSE}]]`;
+        const result = (summary: string) => ({ summary, flag: "grey" as const, reasoning: "" });
+        expect(cellCitationInputs({ result: result(`${misses} ${hit}`), markdown, sourceDocumentIds: [DOC] })).toEqual([]);
+        expect(cellCitationInputs({ result: result(`${misses.split(" ").slice(0, 20).join(" ")} ${hit}`), markdown, sourceDocumentIds: [DOC] }).length).toBeLessThanOrEqual(1);
+    });
+
+    it("indexes a cited cell a bounded number of times however many annotations miss", async () => {
+        const text = "Texto de relleno sin la frase. ".repeat(100);
+        const store = {
+            columns: [{ index: 0 }],
+            documents: [{ id: DOC }],
+            cells: new Map([[`0:${DOC}`, { summary: text, reasoning: "" }]]),
+        } as never;
+        const annotations = Array.from({ length: 64 }, (_, i) => ({ ref: i + 1, col_index: 0, row_index: 0, quote: `no está ${i}` }));
+        const fullText = `${annotations.map((a) => `Dato [${a.ref}].`).join(" ")}\n<CITATIONS>[]</CITATIONS>`;
+        const builds = await indexBuilds(() => chatCitationInputs({ fullText, annotations, store }), text);
+        expect(builds).toBeLessThanOrEqual(5);
+    });
+
+    it("still returns the capped inputs when every annotation matches", async () => {
+        const store = {
+            columns: [{ index: 0 }],
+            documents: [{ id: DOC }],
+            cells: new Map([[`0:${DOC}`, { summary: "Doce meses forzosos.", reasoning: "" }]]),
+        } as never;
+        const annotations = Array.from({ length: 40 }, (_, i) => ({ ref: i + 1, col_index: 0, row_index: 0, quote: "Doce meses forzosos." }));
+        const fullText = `${annotations.map((a) => `Plazo [${a.ref}].`).join(" ")}\n<CITATIONS>[]</CITATIONS>`;
+        expect(await chatCitationInputs({ fullText, annotations, store })).toHaveLength(25);
     });
 });
 

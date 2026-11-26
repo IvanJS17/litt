@@ -75,6 +75,13 @@ function verifierCache() {
 }
 
 /**
+ * Above this length only an exact match is tried: the tolerant tiers index the
+ * whole source synchronously, so one miss on a very large text would hold the
+ * process for seconds. Larger sources fail closed (not verified).
+ */
+const MAX_TOLERANT_SOURCE_CHARS = 1_000_000;
+
+/**
  * Locate `quote` inside `source`, returning the exact original substring
  * (`excerpt`) plus its char offsets into `source`. Tries progressively more
  * tolerant matchers and returns the first hit:
@@ -96,6 +103,7 @@ export function locateQuote(
   if (exactIdx >= 0) {
     return { start: exactIdx, end: exactIdx + quote.length, excerpt: quote };
   }
+  if (source.length > MAX_TOLERANT_SOURCE_CHARS) return null;
 
   for (const opts of [...CHEAP_TIERS, ...lineEndHyphenTiers(prepared)]) {
     const location = locateNormalized(prepared, quote, opts);
@@ -119,6 +127,7 @@ function locateQuoteFrom(
   const offset = Math.max(0, from);
   const exactIndex = source.indexOf(quote, offset);
   const exact = exactIndex >= 0 ? { start: exactIndex, end: exactIndex + quote.length, excerpt: quote } : null;
+  if (source.length > MAX_TOLERANT_SOURCE_CHARS) return exact;
   const at = (opts: NormalizeOptions) => locateNormalized(prepared, quote, opts, offset);
   // Line-end hyphen indexes are built only when no cheap tier matches.
   return earliest([exact, ...CHEAP_TIERS.map(at)]) ?? earliest(lineEndHyphenTiers(prepared).map(at));

@@ -34,6 +34,32 @@ async function readDocumentXml(bytes: Buffer): Promise<string> {
     return zip.file("word/document.xml")!.async("string");
 }
 
+describe("applyTrackedEdits on a very large document body", () => {
+    const edit = { find: "applies", replace: "governs", context_before: " ", context_after: "." };
+    const compressed = async (bodyXml: string) => {
+        const zip = await JSZip.loadAsync(await makeDocx(bodyXml));
+        return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    };
+    const filler = para("Filler text that repeats and therefore compresses to almost nothing. ".repeat(40));
+
+    it("leaves a body above the size budget unedited and says why, without reading it whole", async () => {
+        const bytes = await compressed(para("12.10 applies.") + filler.repeat(Math.ceil((9 * 1024 * 1024) / filler.length)));
+        expect(bytes.length).toBeLessThan(1024 * 1024);
+        const result = await applyTrackedEdits(bytes, [edit, edit]);
+        expect(result.changes).toEqual([]);
+        expect(result.errors.map((error) => error.index)).toEqual([0, 1]);
+        expect(result.errors[0].reason).toMatch(/too large/i);
+        expect(result.bytes).toBe(bytes);
+    });
+
+    it("still edits a long document under the budget", async () => {
+        const bytes = await compressed(para("12.10 applies.") + filler.repeat(Math.ceil((2 * 1024 * 1024) / filler.length)));
+        const result = await applyTrackedEdits(bytes, [edit]);
+        expect(result.errors).toEqual([]);
+        expect(result.changes).toHaveLength(1);
+    });
+});
+
 describe("extractDocxBodyText", () => {
     it("joins paragraph texts with newlines", async () => {
         const bytes = await makeDocx(para("First paragraph.") + para("Second."));

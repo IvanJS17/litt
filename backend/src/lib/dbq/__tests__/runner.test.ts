@@ -375,6 +375,23 @@ describe("job pool claim and run", () => {
         await expect(claimAndRun(db, {})).resolves.toBeUndefined();
     });
 
+    it("tells the claim how many background parser slots are free", async () => {
+        const rpc = vi.fn(async (_name: string, _args: Record<string, unknown>) => ({ data: [], error: null }));
+        const db = makeDb({ rpc: rpc as never });
+        for (const free of [0, 1]) {
+            const pool = createDbJobPool(db as never, {}, {}, {
+                claimGate: createDbJobClaimGate(),
+                parserSlotsFree: () => free,
+            });
+            await pool.fill();
+            await pool.drain();
+        }
+        expect(rpc.mock.calls.map(([name, args]) => [name, args.p_parser_limit])).toEqual([
+            ["claim_db_jobs", 0],
+            ["claim_db_jobs", 1],
+        ]);
+    });
+
     it("processes every claimed job even when one handler rejects unexpectedly", async () => {
         const jobs = [JOB({ id: "a" }), JOB({ id: "b" })];
         const db = makeDb({ rpc: async () => ({ data: jobs, error: null }) });

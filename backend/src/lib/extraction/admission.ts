@@ -9,7 +9,7 @@ export type AdmissionOptions = { waitMs?: number; interactive?: boolean; signal?
 export function admission(limit: number, maxWaiters = MAX_WAITERS) {
   const queue: Array<{ grant: () => void; interactive?: boolean }> = [];
   let active = 0;
-  return async <T>(options: AdmissionOptions, work: () => Promise<T>): Promise<T> => {
+  const run = async <T>(options: AdmissionOptions, work: () => Promise<T>): Promise<T> => {
     if (active >= limit) {
       if (options.waitMs === 0 || queue.length >= maxWaiters) throw new ExtractionBusyError();
       if (options.signal?.aborted) throw options.signal.reason;
@@ -35,4 +35,6 @@ export function admission(limit: number, maxWaiters = MAX_WAITERS) {
       else active--;
     }
   };
+  /** Slots nobody holds and nobody is waiting for. */
+  return Object.assign(run, { free: () => (queue.length > 0 ? 0 : Math.max(0, limit - active)) });
 }

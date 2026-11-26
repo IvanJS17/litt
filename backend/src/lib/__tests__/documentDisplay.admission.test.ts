@@ -5,20 +5,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // under it the converter's own admission (two running, the rest wait or are
 // refused) is what limits the work.
 const converter = vi.hoisted(() => ({ started: 0, finishes: false }));
-vi.mock("libreoffice-convert", () => ({
-  default: {
-    convertWithOptions: (
-      _buf: Buffer,
-      _ext: string,
-      _filter: undefined,
-      _options: unknown,
-      callback: (error: Error | null, result: Buffer) => void,
-    ) => {
+// The converter is a LibreOffice process: this one starts and, unless `finishes`, never ends.
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  const { EventEmitter } = await import("node:events");
+  const { writeFileSync } = await import("node:fs");
+  const nodePath = await import("node:path");
+  return {
+    ...actual,
+    spawn: (_binary: string, args: string[]) => {
+      const child = Object.assign(new EventEmitter(), { stderr: new EventEmitter(), pid: undefined, kill: () => true });
       converter.started += 1;
-      if (converter.finishes) callback(null, Buffer.from("%PDF-converted"));
+      if (converter.finishes) {
+        setImmediate(() => {
+          const outdir = args[args.indexOf("--outdir") + 1];
+          writeFileSync(nodePath.join(outdir, `${nodePath.parse(args[args.length - 1]).name}.pdf`), "%PDF-converted");
+          child.emit("close", 0);
+        });
+      }
+      return child;
     },
-  },
-}));
+  };
+});
 
 const storage = vi.hoisted(() => ({ size: 0, downloads: 0, onDownload: null as (() => void) | null }));
 vi.mock("../storage", async (importOriginal) => ({
@@ -51,7 +59,8 @@ afterEach(() => {
 });
 
 const word = { filename: "Big.docx", fileType: "docx", storagePath: "big.docx" };
-const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+// Each conversion first writes its input to disk, so give real I/O time to reach the process.
+const tick = () => new Promise((resolve) => setTimeout(resolve, 100));
 
 describe("concurrent displays of a Word file with no stored rendition", () => {
   it("reads nothing and starts no conversion when the source is over the bound", async () => {

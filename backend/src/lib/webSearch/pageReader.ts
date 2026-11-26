@@ -24,8 +24,8 @@ const REQUEST_HEADERS = {
     accept: "text/html,application/xhtml+xml,application/pdf,text/plain;q=0.9,*/*;q=0.5",
 };
 
-// Pages are parsed on the main thread, so keep them small. Anything that is
-// not text may still be a PDF, which needs more room.
+// Keep pages small: they are fetched into memory before the parser reads them.
+// Anything that is not text may still be a PDF, which needs more room.
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -66,19 +66,29 @@ async function readCapped(
     return new Blob(chunks).arrayBuffer();
 }
 
+// The page is untrusted markup, so it is parsed in the parser process, which
+// bounds its time and memory; the API process only hands it the text.
 async function htmlToMarkdown(
     html: string,
     url: string,
 ): Promise<{ title: string | null; text: string }> {
-    const [{ parseHTML }, { Defuddle }] = await Promise.all([
-        import("linkedom"),
-        import("defuddle/node"),
-    ]);
-    const { document } = parseHTML(html);
-    const page = await Defuddle(document as unknown as Document, url, {
-        markdown: true,
-    });
-    return { title: page.title?.trim() || null, text: page.content ?? "" };
+    try {
+        const page = await withExtractionRequest((extract) =>
+            extract("webPageMarkdown", new TextEncoder().encode(html).buffer as ArrayBuffer, { args: { url } }),
+        );
+        return { title: page.title?.trim() || null, text: page.text };
+    } catch (error) {
+        if (error instanceof ExtractionLimitError) throw tooLarge();
+        if (error instanceof ExtractionBusyError) {
+            throw new WebPageUnreadableError(
+                "Reading documents is busy. Try again shortly.",
+                { cause: error },
+            );
+        }
+        throw new WebPageUnreadableError("The page could not be read.", {
+            cause: error,
+        });
+    }
 }
 
 // Many HTML pages declare their encoding only in a <meta> tag. Browsers look

@@ -18,7 +18,7 @@ import {
 } from "../../lib/citationSupport";
 import { citationCheckApiKey } from "../../lib/chatFeatureGates";
 import { BoundedTextError, replaceInlineCitations } from "../../lib/modelJsonFence";
-import { verifyQuoteAgainstSource } from "../chat/chat.service";
+import { createQuoteVerifier } from "../chat/chat.service";
 import type { TabularCellStore } from "../chat/chat.service";
 import { LEGAL_VERSION } from "../user/user.service";
 import type { CellResult, Db } from "./tabular.shared";
@@ -66,6 +66,17 @@ export function cellCitationInputs(args: {
 }): CitationSupportInput[] {
     const inputs: CitationSupportInput[] = [];
     let ref = 0;
+    // Markers examined, found or not: an unverified one costs as much as a verified one.
+    let examined = 0;
+    // Each source section is cut out and indexed at most once per cell.
+    const sections = new Map<string, { source: string; verify: ReturnType<typeof createQuoteVerifier> } | null>();
+    const sectionFor = (documentId: string) => {
+        if (!sections.has(documentId)) {
+            const source = sourceSection(args.markdown, documentId);
+            sections.set(documentId, source ? { source, verify: createQuoteVerifier(source) } : null);
+        }
+        return sections.get(documentId) ?? null;
+    };
     for (const field of [args.result.summary, args.result.reasoning]) {
         if (!field) continue;
         const found = new Map<number, InlineCitation>();
@@ -85,14 +96,17 @@ export function cellCitationInputs(args: {
             throw error;
         }
         for (const [n, citation] of found) {
-            if (inputs.length >= MAX_CHECKED_CITATIONS) return inputs;
+            if (examined >= MAX_CHECKED_CITATIONS) return inputs;
+            examined += 1;
             const documentId =
                 citation.documentId ??
                 (args.sourceDocumentIds.length === 1 ? args.sourceDocumentIds[0] : null);
+            const section = documentId ? sectionFor(documentId) : null;
+            if (!documentId || !section) continue;
             const claim = claimForRef(prose, n);
-            const source = documentId ? sourceSection(args.markdown, documentId) : null;
-            if (!documentId || !claim || !source) continue;
-            const verification = verifyQuoteAgainstSource(source, citation.quote);
+            if (!claim) continue;
+            const { source } = section;
+            const verification = section.verify(citation.quote);
             if (
                 !verification.verified ||
                 typeof verification.start_char !== "number" ||
@@ -162,18 +176,23 @@ export async function chatCitationInputs(args: {
         }
         return text;
     };
-    const citations = args.annotations.flatMap((annotation) => {
-        if (!annotation || typeof annotation.ref !== "number" || typeof annotation.quote !== "string") return [];
+    // At most the checked number of annotations are verified, found or not,
+    // and each cited cell is indexed once however many annotations cite it.
+    const verifiers = new Map<string, ReturnType<typeof createQuoteVerifier>>();
+    const citations: { ref: number; doc_id: string; quotes: { quote: string; verification: ReturnType<ReturnType<typeof createQuoteVerifier>> }[] }[] = [];
+    for (const annotation of args.annotations) {
+        if (citations.length >= MAX_CHECKED_CITATIONS) break;
+        if (!annotation || typeof annotation.ref !== "number" || typeof annotation.quote !== "string") continue;
         const text = cellText(annotation);
-        if (!text) return [];
-        return [
-            {
-                ref: annotation.ref,
-                doc_id: `${annotation.col_index}:${annotation.row_index}`,
-                quotes: [{ quote: annotation.quote, verification: verifyQuoteAgainstSource(text, annotation.quote) }],
-            },
-        ];
-    });
+        if (!text) continue;
+        const key = `${annotation.col_index}:${annotation.row_index}`;
+        let verify = verifiers.get(key);
+        if (!verify) {
+            verify = createQuoteVerifier(text);
+            verifiers.set(key, verify);
+        }
+        citations.push({ ref: annotation.ref, doc_id: key, quotes: [{ quote: annotation.quote, verification: verify(annotation.quote) }] });
+    }
     return buildCitationSupportInputs({
         prose: answerProse(args.fullText, "<CITATIONS>"),
         citations,

@@ -779,6 +779,54 @@ export async function extractTrackedChangeIds(
     return out;
 }
 
+/**
+ * Largest word/document.xml an edit rewrites in the API process. Rewriting
+ * reads, parses and rebuilds the whole part synchronously, so its cost grows
+ * with the inflated size, which a small compressed file does not limit.
+ */
+const MAX_EDITABLE_DOCUMENT_XML_BYTES = 8 * 1024 * 1024;
+
+/** The part as text, or null when it inflates past `maxBytes`; stops reading at the limit. */
+async function readZipTextBounded(entry: JSZip.JSZipObject, maxBytes: number): Promise<string | null> {
+    const declared = (entry as JSZip.JSZipObject & { _data?: { uncompressedSize?: unknown } })._data?.uncompressedSize;
+    if (typeof declared === "number" && declared > maxBytes) return null;
+    const stream = (entry as JSZip.JSZipObject & {
+        internalStream(type: "nodebuffer"): {
+            on(event: string, listener: (value?: never) => void): unknown;
+            pause(): void;
+        };
+    }).internalStream("nodebuffer");
+    const chunks: Buffer[] = [];
+    let size = 0;
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        stream.on("data", ((chunk: Buffer) => {
+            if (settled) return;
+            size += chunk.byteLength;
+            if (size > maxBytes) {
+                settled = true;
+                stream.pause();
+                resolve(null);
+                return;
+            }
+            chunks.push(chunk);
+        }) as never);
+        stream.on("error", ((error: unknown) => {
+            if (!settled) {
+                settled = true;
+                reject(error);
+            }
+        }) as never);
+        stream.on("end", (() => {
+            if (!settled) {
+                settled = true;
+                resolve(Buffer.concat(chunks).toString("utf8"));
+            }
+        }) as never);
+        (stream as unknown as { resume(): void }).resume();
+    });
+}
+
 export async function applyTrackedEdits(
     bytes: Buffer,
     edits: EditInput[],
@@ -790,7 +838,11 @@ export async function applyTrackedEdits(
     const zip = await JSZip.loadAsync(bytes);
     const docXmlFile = getZipEntry(zip, "word/document.xml");
     if (!docXmlFile) throw new Error("document.xml missing from docx");
-    const docXmlRaw = await docXmlFile.async("string");
+    const docXmlRaw = await readZipTextBounded(docXmlFile, MAX_EDITABLE_DOCUMENT_XML_BYTES);
+    if (docXmlRaw === null) {
+        const reason = "The document is too large to edit here.";
+        return { bytes, changes: [], errors: edits.map((_, index) => ({ index, reason })) };
+    }
 
     const parser = createParser();
     const tree = parser.parse(docXmlRaw) as XNode[];

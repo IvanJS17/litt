@@ -1,36 +1,30 @@
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-// A fake converter that only finishes when told to, so the test can hold
-// conversions open and count how many run at once.
-const converter = vi.hoisted(() => ({
-  started: 0,
-  finish: [] as Array<() => void>,
-}));
-vi.mock("libreoffice-convert", () => ({
-  default: {
-    convertWithOptions: (
-      _buf: Buffer,
-      _ext: string,
-      _filter: undefined,
-      _options: unknown,
-      callback: (err: Error | null, result: Buffer) => void,
-    ) => {
-      converter.started += 1;
-      converter.finish.push(() => callback(null, Buffer.from("%PDF-")));
-    },
-  },
-}));
 
 // A fake LibreOffice process for the file-based conversion: it stays open
 // until the test closes it, so the test can count how many are alive at once.
 const processes = vi.hoisted(() => ({ alive: 0, peak: 0, close: [] as Array<() => void> }));
+// docxToPdf runs LibreOffice as a process too: `finish` ends one successfully, leaving its PDF behind.
+const converter = vi.hoisted(() => ({ started: 0, finish: [] as Array<() => void> }));
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
   const { EventEmitter } = await import("node:events");
   return {
     ...actual,
-    spawn: () => {
+    spawn: (_binary: string, args: string[]) => {
       const child = Object.assign(new EventEmitter(), { stderr: new EventEmitter(), pid: undefined, kill: () => true });
+      converter.started += 1;
+      let finished = false;
+      converter.finish.push(() => {
+        if (finished) return;
+        finished = true;
+        const outdir = args[args.indexOf("--outdir") + 1];
+        const input = args[args.length - 1];
+        writeFileSync(path.join(outdir, `${path.parse(input).name}.pdf`), "%PDF-");
+        processes.alive -= 1;
+        child.emit("close", 0);
+      });
       processes.alive += 1;
       processes.peak = Math.max(processes.peak, processes.alive);
       processes.close.push(() => {
@@ -64,7 +58,8 @@ afterEach(() => {
   delete process.env.SOFFICE_BINARY_PATH;
 });
 
-const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
+// Each conversion first writes its input to disk, so give real I/O time to reach the process.
+const tick = () => new Promise((resolve) => setTimeout(resolve, 80));
 
 describe("conversion admission", () => {
   it("runs a few conversions at once, queues some, and refuses the rest instead of starting more", async () => {
@@ -116,9 +111,9 @@ describe("conversion admission", () => {
   });
 
   it("refuses a queued conversion that has waited its fixed time without a place", async () => {
-    vi.useFakeTimers();
     const running = [docxToPdf(Buffer.from("x")), docxToPdf(Buffer.from("x"))];
-    await vi.advanceTimersByTimeAsync(10);
+    await vi.waitFor(() => expect(converter.started).toBe(2));
+    vi.useFakeTimers();
     const waiting = docxToPdf(Buffer.from("x")).then(
       () => "done",
       (error: unknown) => error,

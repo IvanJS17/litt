@@ -73,6 +73,23 @@ maybeDescribe("db_jobs claim SQL", () => {
         expect(again.some((j) => j.id === job.id)).toBe(false);
     });
 
+    it("claims parser-bound jobs fairly per owner and only for free parser slots", async () => {
+        const tag = `fair-${Date.now()}`;
+        const parserKind = "document.extract_text";
+        const hourAgo = (s: number) => new Date(Date.now() - 3_600_000 + s * 1000).toISOString();
+        await insertJob({ kind: parserKind, owner_key: `${tag}-a`, status: "running", claimed_at: new Date().toISOString(), run_at: hourAgo(0) });
+        for (let i = 1; i <= 8; i++) await insertJob({ kind: parserKind, owner_key: `${tag}-a`, run_at: hourAgo(i) });
+        const other = await insertJob({ kind: parserKind, owner_key: `${tag}-b`, run_at: new Date().toISOString() });
+        const plain = await insertJob({ kind: "export.build", run_at: new Date().toISOString() });
+        const none = await db.rpc("claim_db_jobs", { p_limit: 5, p_stale_seconds: STALE, p_kind: parserKind, p_parser_limit: 0 });
+        expect((none.data as { kind: string }[]).some((j) => j.kind === parserKind)).toBe(false);
+        const claimed = await claimBatch(20);
+        const ids = claimed.map((j) => j.id);
+        expect(ids).toContain(other.id);
+        expect(ids).toContain(plain.id);
+        expect(claimed.filter((j) => j.owner_key === `${tag}-a`)).toHaveLength(0);
+    });
+
     it("reclaims a stale running job while attempts remain", async () => {
         const job = await insertJob({
             status: "running",

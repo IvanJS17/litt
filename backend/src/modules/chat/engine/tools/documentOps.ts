@@ -1627,28 +1627,36 @@ export type NormalizeOptions = {
 export function normalizeWithMap(
   text: string,
   opts: NormalizeOptions = {},
-): { norm: string; origIdx: number[] } {
+): { norm: string; origIdx: Uint32Array } {
   const stripPunctuation = opts.stripPunctuation ?? false;
   const join = opts.joinLineEndHyphens;
   // A stripped hyphen disappears even in "keep" mode, so it joins only letters.
   const hyphenVanishes = join === "drop" || stripPunctuation;
-  const norm: string[] = [];
-  const origIdx: number[] = [];
+  // Four bytes per source character, and the text is built in chunks, instead
+  // of one array element per character.
+  const origIdx = new Uint32Array(text.length);
+  const parts: string[] = [];
+  let chunk = "";
+  let n = 0;
   let prevSpace = false;
+  const emit = (c: string, i: number) => {
+    chunk += c;
+    origIdx[n++] = i;
+    if (chunk.length >= 8192) {
+      parts.push(chunk);
+      chunk = "";
+    }
+  };
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const joinTo = join ? lineEndHyphenJoin(text, i, hyphenVanishes) : null;
     if (joinTo !== null) {
-      if (!hyphenVanishes) {
-        norm.push(ch);
-        origIdx.push(i);
-      }
+      if (!hyphenVanishes) emit(ch, i);
       // Skip the line break and indentation; the next word continues here.
       i = joinTo - 1;
     } else if (/\s/.test(ch)) {
       if (!prevSpace) {
-        norm.push(" ");
-        origIdx.push(i);
+        emit(" ", i);
         prevSpace = true;
       }
     } else if (stripPunctuation && isPunctuation(ch)) {
@@ -1657,20 +1665,19 @@ export function normalizeWithMap(
       // "pp. 37". Keep one canonical hyphen there instead, so "3-7" still
       // matches "3–7" but never "37".
       if (isDashBetweenDigits(text, i)) {
-        norm.push("-");
-        origIdx.push(i);
+        emit("-", i);
         prevSpace = false;
       }
       // Drop other punctuation without disturbing the space-collapsing state
       // so "foo, bar" -> "foo bar" but "U.S." -> "us".
       continue;
     } else {
-      norm.push(ch.toLowerCase());
-      origIdx.push(i);
+      emit(ch.toLowerCase(), i);
       prevSpace = false;
     }
   }
-  return { norm: norm.join(""), origIdx };
+  parts.push(chunk);
+  return { norm: parts.join(""), origIdx: origIdx.subarray(0, n) };
 }
 
 // "-", Unicode hyphen, non-breaking hyphen, soft hyphen.

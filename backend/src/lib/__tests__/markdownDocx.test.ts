@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import mammoth from "mammoth";
 import { markdownToDocx } from "../markdownDocx";
 import { docxToMarkdown } from "../docxMarkdown";
+import { ExtractionLimitError } from "../extraction/limits";
 
 const SOURCE = `# Contrato de niños
 
@@ -121,5 +122,33 @@ describe("markdownToDocx", () => {
         const text = await rawText(await markdownToDocx("línea uno  \nlínea dos y ***ambas***"));
         expect(text).toContain("línea uno");
         expect(text).toContain("línea dos y ambas");
+    });
+});
+
+describe("tables are bounded by their cells, not by their bytes", () => {
+    // Short rows are padded to the header's width, so the number of cells is
+    // columns x rows even when the text itself is small.
+    const table = (columns: number, rows: number, prefix = "") =>
+        [
+            `${prefix}${Array.from({ length: columns }, (_, i) => `h${i}`).join(" | ")}`,
+            `${prefix}${Array.from({ length: columns }, () => "---").join(" | ")}`,
+            ...Array.from({ length: rows }, () => `${prefix}x`),
+        ].join("\n");
+
+    it("refuses a table whose padded cells exceed the budget, however small its text", async () => {
+        const markdown = table(150, 150);
+        expect(markdown.length).toBeLessThan(3_000);
+        await expect(markdownToDocx(markdown)).rejects.toBeInstanceOf(ExtractionLimitError);
+    });
+
+    it("counts a table inside a quote or a list too, and every table of the document together", async () => {
+        await expect(markdownToDocx(table(150, 150, "> "))).rejects.toBeInstanceOf(ExtractionLimitError);
+        const two = `${table(100, 60)}\n\ntext\n\n${table(100, 60)}`;
+        await expect(markdownToDocx(two)).rejects.toBeInstanceOf(ExtractionLimitError);
+    });
+
+    it("still converts an ordinary wide table", async () => {
+        const bytes = await markdownToDocx(table(12, 200));
+        expect(bytes.length).toBeGreaterThan(1_000);
     });
 });

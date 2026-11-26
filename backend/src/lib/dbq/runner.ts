@@ -20,6 +20,7 @@ import { runIsolated } from "./jobScope";
 import { deleteFile } from "../storage";
 import { mapWithConcurrency } from "../concurrency";
 import { mutateInBatches } from "../batchedQuery";
+import { backgroundExtractionSlotsFree } from "../extraction/isolated";
 
 /** Object deletes in flight at once, per sweep or cleanup. */
 const STORAGE_DELETE_CONCURRENCY = 8;
@@ -368,10 +369,14 @@ async function claimDbJobs(
     db: Db,
     limit: number,
     claimGate: PollFailureGate,
+    parserSlotsFree: number,
 ): Promise<DbJob[]> {
     const { data, error, status } = await db.rpc("claim_db_jobs", {
         p_limit: limit,
         p_stale_seconds: STALE_SECONDS,
+        // Jobs that need the shared parser are claimed only for idle slots, and
+        // fairly per account in SQL, so a backlog cannot park the claim slots.
+        p_parser_limit: parserSlotsFree,
     });
     if (error) {
         // Table/function missing (migration not applied yet) or transient DB
@@ -417,10 +422,11 @@ export function createDbJobPool(
     db: Db,
     handlers: DbJobHandlers,
     failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
-    opts: { capacity?: number; claimGate?: PollFailureGate } = {},
+    opts: { capacity?: number; claimGate?: PollFailureGate; parserSlotsFree?: () => number } = {},
 ): DbJobPool {
     const capacity = opts.capacity ?? CLAIM_BATCH;
     const claimGate = opts.claimGate ?? defaultClaimGate;
+    const parserSlotsFree = opts.parserSlotsFree ?? backgroundExtractionSlotsFree;
     const running = new Set<Promise<void>>();
     let claiming: Promise<void> | null = null;
     let stopped = false;
@@ -432,7 +438,7 @@ export function createDbJobPool(
         claiming = (async () => {
             let jobs: DbJob[];
             try {
-                jobs = await claimDbJobs(db, free, claimGate);
+                jobs = await claimDbJobs(db, free, claimGate, parserSlotsFree());
             } catch (err) {
                 // fill() is also called fire-and-forget from a finishing
                 // job, so it must never reject.

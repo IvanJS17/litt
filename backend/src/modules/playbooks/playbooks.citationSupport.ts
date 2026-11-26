@@ -100,11 +100,14 @@ export function playbookCitationInputs(args: {
 }): CitationSupportInput[] {
     const inputs: CitationSupportInput[] = [];
     let ref = 0;
+    // Quotes placed in their source, found or not: a missed one costs as much as a found one.
+    let examined = 0;
     const add = (claim: string, sourceLabel: string | undefined, quote: string | undefined) => {
-        if (!claim || !sourceLabel || !quote || inputs.length >= MAX_CHECKED_CITATIONS) return;
+        if (!claim || !sourceLabel || !quote || examined >= MAX_CHECKED_CITATIONS) return;
         const index = args.sources.findIndex((source) => source.label === sourceLabel);
         if (index < 0) return;
         const text = args.sources[index].text;
+        examined += 1;
         const located = args.locate(text, quote);
         ref += 1;
         if (!located) return;
