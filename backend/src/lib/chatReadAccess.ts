@@ -31,7 +31,7 @@
 
 import { documentIdsInProject, filterAccessibleDocumentIds, keepReadableDerived, type DerivedReader } from "./access";
 import { BatchedQueryError, selectAllByKey, selectInBatches, sortRows } from "./batchedQuery";
-import { ACTIVE_WORD_DOCUMENT_LIVE_FILENAME } from "./activeWordDocument";
+import { ACTIVE_WORD_DOCUMENT_ID, ACTIVE_WORD_DOCUMENT_LIVE_FILENAME } from "./activeWordDocument";
 import { mayWatchRun, withReadableTitles } from "./tabularReadAccess";
 import type { Db } from "./supabase";
 import { isUuid } from "./uuid";
@@ -66,22 +66,32 @@ export type MessageTable = "chat_messages" | "word_chat_messages";
 const CHAT_TABLE: Record<MessageTable, "chats" | "word_chats"> = { chat_messages: "chats", word_chat_messages: "word_chats" };
 
 /**
- * A read in a Word chat of the document the person has open in Word: the
- * add-in's own text, sent in that chat, not a stored document. The engine
- * writes it either as the live read (a fixed label) or as the read of the
- * snapshot, which names no document and carries the version fields as null.
- * Only a Word chat writes it; it is read by the person who owns the chat.
+ * The document the person has open in Word is the add-in's own text, sent in
+ * that chat by the person who owns it: it is no stored document and names
+ * nothing to judge. In a Word chat row the engine writes it as a read (the
+ * live read, with a fixed label, or a read of the snapshot) and as a citation
+ * by its fixed handle. A search stored in the snapshot's shape is treated as
+ * the snapshot read is. These rules apply to Word chat rows only; any other
+ * reference without a stored document's id stays an unknown source.
  */
 const readsOpenWordDocument = (event: Row): boolean =>
     event.type === "doc_read" && !event.document_id && event.filename === ACTIVE_WORD_DOCUMENT_LIVE_FILENAME;
 
+/** A citation of the open document: its fixed handle, nested in the citation (and, if kept, at its top). */
+const citesOpenWordDocument = (citation: Row): boolean => {
+    const nested = citation.document as Row | undefined;
+    const id = citation.document_id ?? nested?.document_id;
+    return id === ACTIVE_WORD_DOCUMENT_ID;
+};
+
 /**
- * The snapshot form of that read. It is also how a workflow's file read was
- * stored before documents were recorded: in an answer that applied workflows
- * it is the open document unless one of them has a stored file (`ifFile`).
+ * The snapshot form of a read or a search: it names no document and carries
+ * the version fields as null. It is also how a workflow's file read was stored
+ * before documents were recorded: in an answer that applied workflows it is the
+ * open document unless one of them has a stored file (`ifFile`).
  */
 const readsSnapshot = (event: Row): boolean =>
-    event.type === "doc_read" && !event.document_id && event.version_id === null && event.version_number === null;
+    (event.type === "doc_read" || event.type === "doc_find") && !event.document_id && event.version_id === null && event.version_number === null;
 
 const WORKFLOW_ASSET_ID = /^workflow-asset-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-\d+$/i;
 const WORKFLOW = "workflow:";
@@ -130,6 +140,7 @@ function scan(message: Row, gate?: Gate, wordChat = false) {
     // The assistant takes nothing from an attachment that names no document.
     for (const file of rows(message.files)) if (!gate || file.document_id) take(file.document_id, file);
     for (const citation of rows(message.citations)) {
+        if (wordChat && citesOpenWordDocument(citation)) continue;
         const nested = citation.document as Row | undefined;
         take(citation.document_id ?? nested?.document_id, citation.version_id || citation.version_number ? citation : nested);
     }

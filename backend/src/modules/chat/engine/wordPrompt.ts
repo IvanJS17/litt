@@ -5,9 +5,9 @@ const WORD_EDITS_PROTOCOL = `<EDITS>
 ]
 </EDITS>`;
 
-export const ACTIVE_WORD_DOCUMENT_ID = "active-word-document";
+import { ACTIVE_WORD_DOCUMENT_ID } from "../../../lib/activeWordDocument";
 
-export { ACTIVE_WORD_DOCUMENT_LIVE_FILENAME } from "../../../lib/activeWordDocument";
+export { ACTIVE_WORD_DOCUMENT_ID, ACTIVE_WORD_DOCUMENT_LIVE_FILENAME } from "../../../lib/activeWordDocument";
 
 /**
  * Everything both protocol generations say, up to but excluding the bullet

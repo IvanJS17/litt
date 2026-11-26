@@ -1,3 +1,6 @@
+/** The fixed handle under which the document open in Word is offered to the model, cited and read. It names no stored document. */
+export const ACTIVE_WORD_DOCUMENT_ID = "active-word-document";
+
 /**
  * Label for read_active_document (live) reads. Distinct from the snapshot's
  * document name on purpose: the pane keys document-read activity rows by
