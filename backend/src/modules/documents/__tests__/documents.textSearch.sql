@@ -252,3 +252,29 @@ begin
 end;
 $$;
 rollback;
+
+-- The state of a scan reading comes with the number of pages read, never their text.
+begin;
+create function pg_temp.assert_true(value boolean, message text) returns void language plpgsql as $$
+begin if value is distinct from true then raise exception '%',message; end if; end; $$;
+do $$
+declare actor uuid:=gen_random_uuid(); doc uuid:=gen_random_uuid(); v uuid; revision uuid; r jsonb;
+begin
+  insert into auth.users(id,email) values(actor,actor||'@example.test');
+  insert into documents(id,user_id,status,library_kind) values(doc,actor,'ready','file');
+  v:=(public.create_document_version(doc,'{"filename":"scan.pdf","storage_path":"scan.pdf","file_type":"pdf"}',true)->>'id')::uuid;
+  select text_revision into revision from document_versions where id=v;
+  perform pg_temp.assert_true(public.document_ocr_state(v) is null,'no reading, no state');
+  insert into document_version_ocr(version_id,source_revision,status,pages,model,credits,page_count,failed_pages,error_code)
+    values(v,revision,'ready',(select jsonb_agg(jsonb_build_object('page',g,'text',repeat('texto leído ',1000))) from generate_series(1,7) g),'m',1.5,10,'{2,5,9}',null);
+  r:=public.document_ocr_state(v);
+  perform pg_temp.assert_true((r->>'pages_read')::int=7 and (r->>'page_count')::int=10 and r->'failed_pages'='[2,5,9]'::jsonb
+    and r->>'status'='ready' and (r->>'credits')::numeric=1.5 and r->>'source_revision'=revision::text and r->>'model'='m','state columns and pages read');
+  perform pg_temp.assert_true(not r?'pages' and octet_length(r::text)<500,'the text of the pages is not in the answer');
+  update document_version_ocr set pages=null,status='processing' where version_id=v;
+  perform pg_temp.assert_true(public.document_ocr_state(v)->'pages_read'='null'::jsonb,'a reading with no pages yet has no count');
+  perform pg_temp.assert_true(not has_function_privilege('authenticated','public.document_ocr_state(uuid)','execute')
+    and has_function_privilege('service_role','public.document_ocr_state(uuid)','execute'),'state is server-only');
+end;
+$$;
+rollback;

@@ -15,6 +15,20 @@ export type ScanRow = {
   model?: string | null;
 };
 
+/** A reading's state as shown to a person: the row without the text of its pages, and how many pages were read. */
+export type ScanState = Omit<ScanRow, "pages"> & { pages_read: number | null };
+
+/**
+ * The state of the reading of this version, without the text that was read (the database answers with the
+ * count of pages read). Use it for everything that only needs the state; loadScanRow is for the callers
+ * that need the text.
+ */
+export async function loadScanState(db: Db, versionId: string): Promise<ScanState | null> {
+  const { data, error } = await db.rpc("document_ocr_state", { p_version_id: versionId });
+  if (error) throw error;
+  return (data as ScanState | null) ?? null;
+}
+
 export async function loadScanRow(db: Db, versionId: string): Promise<ScanRow | null> {
   const { data, error } = await db.from("document_version_ocr")
     .select("version_id,source_revision,status,pages,failed_pages,credits,page_count,error_code,model")

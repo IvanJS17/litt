@@ -122,11 +122,25 @@ const code = (file: string) => stripComments(read(file));
 function textReadsOutsideTheReaders(file: string, source: string): boolean {
   const text = stripComments(source);
   const mentions = (re: RegExp) => re.test(text);
-  if (file === "modules/documents/documents.indexing.ts") return mentions(/\bread_document_text\b|\bdocument_text_slice\b/);
-  if (file === "lib/documentTextCache.ts") return mentions(/\bread_document_text\b|\btext_content\b/);
+  // `*` or text_content in the column list of an embed of the table, in any spelling (`(status,*)`, `!inner(*)`).
+  const embedsTheText = () => [...text.matchAll(/document_version_texts\s*(?:![\w.]+\s*)?\(([^)]*)\)/g)].some((m) => /\*|text_content/.test(m[1]));
+  const selectsEverything = () => /\.select\(\s*["'`]\s*\*/.test(text);
+  // a select of everything, or of text_content, chained from the table itself
+  const selectsTheTextOfTheTable = () => /from\(\s*["'`]document_version_texts["'`]\s*\)[^;]*?\.select\(\s*["'`][^"'`]*(\*|text_content)/.test(text);
+  if (file === "modules/documents/documents.indexing.ts") return mentions(/\bread_document_text\b|\bdocument_text_slice\b/) || selectsTheTextOfTheTable() || embedsTheText();
+  // The cache names the table only in an embed of explicit columns; the text comes from the one bounded reader.
+  if (file === "lib/documentTextCache.ts") return mentions(/\bread_document_text\b|\btext_content\b|from\(\s*["'`]document_version_texts/) || embedsTheText() || selectsEverything();
   if (file === "modules/documents/documents.textSearch.ts") return mentions(/\bdocument_text_slice\b|\bdocument_version_texts\b|\btext_content\b/);
   return mentions(/\bdocument_version_texts\b|\btext_content\b|\bread_document_text\b|\bdocument_text_slice\b/)
     || mentions(/["'`]document["'`]\s*,\s*["'`]version["'`]\s*,\s*["'`]texts["'`]/);
+}
+
+/** True when a file other than the one that owns the scan-reading table selects its text (`pages`) or everything. */
+function readsScanTextOutsideItsOwner(file: string, source: string): boolean {
+  if (file === "modules/documents/documents.ocr.state.ts") return false;
+  const text = stripComments(source);
+  return [...text.matchAll(/document_version_ocr/g)].some((m) =>
+    /^[\s\S]{0,300}?\.select\(\s*["'`][^"'`]*(\bpages\b|\*)/.test(text.slice(m.index!)));
 }
 
 describe("backend architecture", () => {
@@ -339,7 +353,8 @@ describe("backend architecture", () => {
     expect(code("lib/documentTextCache.ts")).not.toMatch(/text_content/);
   });
 
-  it("rule 11: the check sees every form of a whole-text read", () => {
+  it("rule 11: the check refuses the spellings of a whole-text read that name the table in the source", () => {
+    // A text rule catches a table named in the source, not one computed at run time.
     const forms: Array<[string, string]> = [
       ["modules/documents/documents.sneaky.ts", 'db.from("document_versions").select("id,document_version_texts!inner(*)")'],
       ["modules/documents/documents.sneaky.ts", 'const TEXTS = "document_version_texts"; db.from(TEXTS).select("*")'],
@@ -350,10 +365,30 @@ describe("backend architecture", () => {
       ["modules/documents/documents.sneaky.ts", 'const c = "text_" + "content"; db.from(["document", "version", "texts"].join("_"))'],
     ];
     for (const [file, text] of forms) expect(textReadsOutsideTheReaders(file, text), text).toBe(true);
+    // inside the files that may touch the table: `*` or text_content in any embed or select
+    const cache = "lib/documentTextCache.ts";
+    expect(textReadsOutsideTheReaders(cache, 'select("id,document_version_texts(status,*)")')).toBe(true);
+    expect(textReadsOutsideTheReaders(cache, 'db.from("document_version_texts").select("*")')).toBe(true);
+    expect(textReadsOutsideTheReaders(cache, 'select("text_revision,document_version_texts!inner(*)")')).toBe(true);
+    expect(textReadsOutsideTheReaders("modules/documents/documents.indexing.ts", 'db.from("document_version_texts").select("*")')).toBe(true);
     // the allowed places and plain comments are not flagged
     expect(textReadsOutsideTheReaders("modules/documents/documents.indexing.ts", 'db.from("document_version_texts").update({ text_content: null })')).toBe(false);
     expect(textReadsOutsideTheReaders("lib/documentTextCache.ts", 'select("document_version_texts(status)"); db.rpc("document_text_slice", {})')).toBe(false);
     expect(textReadsOutsideTheReaders("modules/documents/documents.textSearch.ts", 'db.rpc("read_document_text", {})')).toBe(false);
     expect(textReadsOutsideTheReaders("modules/documents/documents.other.ts", "// the table document_version_texts is server-only\nconst x = 1;")).toBe(false);
+  });
+
+  it("rule 12: the pages read from a scan are selected only by the function meant for the text", () => {
+    expect(PRODUCTION_FILES.filter((file) => readsScanTextOutsideItsOwner(file, read(file)))).toEqual([]);
+    // inside its own file, `pages` is in the column list of loadScanRow only
+    const owner = code("modules/documents/documents.ocr.state.ts");
+    const selects = [...owner.matchAll(/\.select\(\s*["'`]([^"'`]*)["'`]/g)].filter((m) => /\bpages\b|\*/.test(m[1]));
+    expect(selects).toHaveLength(1);
+    expect(owner.slice(owner.indexOf("export async function loadScanRow"), owner.indexOf("export async function loadScanRow") + 400)).toContain(selects[0][0]);
+    // the rule sees the forms
+    expect(readsScanTextOutsideItsOwner("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
+    expect(readsScanTextOutsideItsOwner("modules/documents/documents.sneaky.ts", "db.from('document_version_ocr').select('*')")).toBe(true);
+    expect(readsScanTextOutsideItsOwner("modules/platform/platform.stats.ts", '"document_version_ocr", "version_id,requested_by,created_at"')).toBe(false);
+    expect(readsScanTextOutsideItsOwner("modules/documents/documents.ocr.ts", 'db.from("document_version_ocr").update({}).select("version_id")')).toBe(false);
   });
 });

@@ -34,6 +34,8 @@ const scanned = { id: "v1", file_type: "pdf", text_revision: "r1", textless_page
 const okResult = { ok: true as const, data: undefined };
 const allowed = { ok: true, doc: { id: "d1", org_id: "o1" }, isCreator: true, projectRole: "owner" };
 const row = (patch: Record<string, unknown> = {}) => ({ version_id: "v1", source_revision: "r1", status: "processing", pages: null, failed_pages: [], credits: null, page_count: null, error_code: null, ...patch });
+// What the database function gives for a reading's state: the columns, and how many pages were read, never their text.
+const asState = (r: ReturnType<typeof row>) => { const { pages, ...rest } = r as { pages: unknown[] | null } & Record<string, unknown>; return { ...rest, pages_read: Array.isArray(pages) ? pages.length : null }; };
 const job = { id: "j", kind: "document.ocr", status: "running", attempts: 1, max_attempts: 2, payload: { documentId: "d1", versionId: "v1", revision: "r1", userId: "u1", userEmail: "a@example.test", authorization: { orgId: "o1", epoch: 3 } } } as unknown as DbJob;
 
 beforeEach(() => {
@@ -51,7 +53,7 @@ beforeEach(() => {
 
 describe("scan reading state", () => {
   it("offers the reading when pages lack text and a key is available, with the cost of the scanned pages only", async () => {
-    const fake = scriptedDb([{ table: "document_version_ocr", data: null }]);
+    const fake = scriptedDb([{ rpc: "document_ocr_state", data: null }]);
     const result = await getScanReadingState(fake.db, args);
     expect(result).toMatchObject({ ok: true, data: { applicable: true, status: "none", key_available: true, needs_reading: true, estimated_cost_usd: 0.03, auto_max_pages: 50, can_edit: true } });
     fake.done();
@@ -59,20 +61,28 @@ describe("scan reading state", () => {
   it("after a partial reading estimates every scanned page that is sent again, not only the unread ones", async () => {
     // 3 pages still unread, 7 already read: reading again sends 10.
     const read = Array.from({ length: 7 }, (_, i) => ({ page: i + 1, text: "x" }));
-    const fake = scriptedDb([{ table: "document_version_ocr", data: row({ status: "ready", pages: read, failed_pages: [2, 5, 9] }) }]);
+    const fake = scriptedDb([{ rpc: "document_ocr_state", data: asState(row({ status: "ready", pages: read, failed_pages: [2, 5, 9] })) }]);
     const result = await getScanReadingState(fake.db, args);
     expect(result).toMatchObject({ ok: true, data: { textless_page_count: 3, needs_reading: true, estimated_cost_usd: estimateOcrCostUsd(10) } });
     fake.done();
   });
+  it("asks the database for the state without the text of the pages that were read", async () => {
+    const read = Array.from({ length: 7 }, (_, i) => ({ page: i + 1, text: "x" }));
+    const fake = scriptedDb([{ rpc: "document_ocr_state", data: asState(row({ status: "ready", pages: read, failed_pages: [2, 5, 9] })) }]);
+    await getScanReadingState(fake.db, args);
+    expect(fake.calls[0]).toMatchObject({ table: "document_ocr_state", op: "rpc", args: { p_version_id: "v1" } });
+    expect(fake.calls.filter((c) => c.table === "document_version_ocr")).toEqual([]);
+    fake.done();
+  });
   it("reports a running reading and hides the button; a reading of other bytes counts as none", async () => {
-    let fake = scriptedDb([{ table: "document_version_ocr", data: row() }]);
+    let fake = scriptedDb([{ rpc: "document_ocr_state", data: asState(row()) }]);
     expect(await getScanReadingState(fake.db, args)).toMatchObject({ data: { status: "processing", needs_reading: false } });
-    fake = scriptedDb([{ table: "document_version_ocr", data: row({ source_revision: "old", status: "ready", pages: [{ page: 1, text: "x" }] }) }]);
+    fake = scriptedDb([{ rpc: "document_ocr_state", data: asState(row({ source_revision: "old", status: "ready", pages: [{ page: 1, text: "x" }] })) }]);
     expect(await getScanReadingState(fake.db, args)).toMatchObject({ data: { status: "none" } });
   });
   it("shows a failure code and says no key when none is saved", async () => {
     mocks.key.mockResolvedValue(null);
-    const fake = scriptedDb([{ table: "document_version_ocr", data: row({ status: "failed", error_code: "ocr_no_credits" }) }]);
+    const fake = scriptedDb([{ rpc: "document_ocr_state", data: asState(row({ status: "failed", error_code: "ocr_no_credits" })) }]);
     expect(await getScanReadingState(fake.db, args)).toMatchObject({ data: { status: "failed", error_code: "ocr_no_credits", key_available: false } });
   });
   it("is not applicable to a Word file and never looks for a key", async () => {
@@ -90,9 +100,9 @@ describe("scan reading state", () => {
 describe("requesting a reading", () => {
   it("marks the version as being read and queues a job without the key", async () => {
     const fake = scriptedDb([
-      { table: "document_version_ocr", data: null },
+      { rpc: "document_ocr_state", data: null },
       { table: "document_version_ocr", op: "upsert" },
-      { table: "document_version_ocr", data: row() },
+      { rpc: "document_ocr_state", data: asState(row()) },
     ]);
     const result = await requestScanReading(fake.db, args);
     expect(result).toMatchObject({ ok: true, data: { status: "processing" } });
@@ -103,16 +113,16 @@ describe("requesting a reading", () => {
     fake.done();
   });
   it("does not queue twice while one is running", async () => {
-    const fake = scriptedDb([{ table: "document_version_ocr", data: row() }, { table: "document_version_ocr", data: row() }]);
+    const fake = scriptedDb([{ rpc: "document_ocr_state", data: asState(row()) }, { rpc: "document_ocr_state", data: asState(row()) }]);
     expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: true });
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
   it("reading again keeps the previous reading until the new one finishes", async () => {
     const previous = row({ status: "ready", pages: [{ page: 2, text: "viejo" }], credits: 1, page_count: 10, failed_pages: [5] });
     const fake = scriptedDb([
-      { table: "document_version_ocr", data: previous },
+      { rpc: "document_ocr_state", data: asState(previous) },
       { table: "document_version_ocr", op: "update" },
-      { table: "document_version_ocr", data: row({ ...previous, status: "processing" }) },
+      { rpc: "document_ocr_state", data: asState(row({ ...previous, status: "processing" })) },
     ]);
     expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: true, data: { status: "processing" } });
     expect(fake.calls[1].payload).toMatchObject({ status: "processing", error_code: null });
@@ -123,7 +133,7 @@ describe("requesting a reading", () => {
   it("does not leave the version processing when the job cannot be queued", async () => {
     mocks.enqueue.mockRejectedValue(new Error("queue down"));
     const fake = scriptedDb([
-      { table: "document_version_ocr", data: null },
+      { rpc: "document_ocr_state", data: null },
       { table: "document_version_ocr", op: "upsert" },
       { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] },
     ]);
@@ -150,7 +160,7 @@ describe("reading on upload", () => {
   const upload = { documentId: "d1", versionId: "v1", userId: "u1", userEmail: undefined };
   const steps = () => [
     { table: "documents", data: { id: "d1", org_id: null } },
-    { table: "document_version_ocr", data: null },
+    { rpc: "document_ocr_state", data: null },
     { table: "document_version_ocr", op: "upsert" },
   ];
   it("starts by itself for 50 pages or fewer when a key is available", async () => {

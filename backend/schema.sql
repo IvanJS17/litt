@@ -23736,6 +23736,20 @@ grant execute on function public.read_document_text(text,text,uuid,uuid,integer,
   public.document_text_slice(uuid,uuid,integer,integer),
   public.find_document_text(text,text,text,text,text,uuid,uuid,uuid,integer,integer) to service_role;
 
+-- The state of a scan reading (docs/document-ocr.md) for what is shown to a person:
+-- the row's columns and HOW MANY pages were read, never the text of those pages
+-- (document_version_ocr.pages is read whole only by the jobs that merge or copy it).
+create or replace function public.document_ocr_state(p_version_id uuid)
+returns jsonb language sql stable security invoker set search_path=public,pg_temp as $$
+  select jsonb_build_object('version_id',o.version_id,'source_revision',o.source_revision,'status',o.status,
+    'failed_pages',to_jsonb(o.failed_pages),'credits',o.credits,'page_count',o.page_count,
+    'error_code',o.error_code,'model',o.model,
+    'pages_read',case when jsonb_typeof(o.pages)='array' then jsonb_array_length(o.pages) end)
+  from public.document_version_ocr o where o.version_id=p_version_id;
+$$;
+revoke all on function public.document_ocr_state(uuid) from public,anon,authenticated;
+grant execute on function public.document_ocr_state(uuid) to service_role;
+
 insert into public.schema_migrations (filename) values
   ('20260419_tabular_chat_jsonb.sql'),
   ('20260421_01_docx_editing.sql'),
