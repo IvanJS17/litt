@@ -398,7 +398,11 @@ function ChatInputForChatImpl(
         !modeError;
     const trainingFolded = laterTurn && !trainingOpened && trainingEmpty;
     const openTraining = () => setTrainingOpened(true);
-    useTrainingStageStale(openTraining, needsAttempt && trainingTurns);
+    // Listened for whether or not the stage asks for an approach yet: the
+    // block is drawn only when one is needed, and a refusal that arrives
+    // before (or because) the stage was stale must find it open once the
+    // stage is read again.
+    useTrainingStageStale(openTraining, trainingTurns);
     // «Responder» on a basis question brings it, quoted, to the approach.
     useTrainingReply({
         enabled: needsAttempt && trainingTurns,

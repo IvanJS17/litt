@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
     deleteWorkflow,
@@ -353,6 +353,35 @@ describe("WorkflowDetailPage failures", () => {
             await new Promise((resolve) => setTimeout(resolve, 2200));
         });
         expect(screen.getByText("Couldn't save")).toBeVisible();
+    });
+
+    it("starts no \"Saved\" timer when a save finishes after the page was left", async () => {
+        // The debounced autosave is not cancelled by leaving the page; its
+        // \"Saved\" fade is, so it must not be scheduled once the page is gone.
+        let finish!: () => void;
+        vi.mocked(updateWorkflow).mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finish = () => resolve(assistantWorkflow());
+                }),
+        );
+        const { unmount } = render(
+            <WorkflowDetailPage id="wf-1" workflowType="assistant" />,
+        );
+        const editor = await screen.findByLabelText("Workflow prompt");
+        fireEvent.change(editor, { target: { value: "Ask the witness again" } });
+        await waitFor(() => expect(updateWorkflow).toHaveBeenCalledTimes(1), {
+            timeout: 3000,
+        });
+        unmount();
+        const spy = vi.spyOn(globalThis, "setTimeout");
+        await act(async () => {
+            finish();
+            await Promise.resolve();
+        });
+        const fades = spy.mock.calls.filter(([, ms]) => ms === 2000);
+        spy.mockRestore();
+        expect(fades).toHaveLength(0);
     });
 
     it("does not let an older failed column save undo a newer one that succeeded", async () => {

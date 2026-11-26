@@ -219,10 +219,8 @@ async function openedChat() {
     render(<Panel chatId="chat-1" />);
     await screen.findByText(QUESTION);
     await waitFor(() => expect(privateNote()).not.toBeNull());
-    // The notes and the stage are two reads. The folded line comes from the
-    // stage, and the composer listens for the server's refusal (and for a
-    // «Responder») only once the stage has said an approach is asked for: wait
-    // for the line, or the event can be sent before anyone is listening.
+    // The notes and the stage are two reads: wait for the folded line, which
+    // the stage draws, before the test acts on the block.
     await waitFor(() => expect(nextLine()).not.toBeNull());
     return nextLine();
 }
@@ -381,7 +379,13 @@ describe("ProjectChatPanel — the training block folds after a message", () => 
 
         await openedChat();
         expect(approachField()).toBeNull();
-        act(() => requestTrainingReply("¿En qué precepto se apoya?", "chat-1"));
+        // A «Responder» is heard only by a composer whose stage asks for an
+        // approach, and that listener is registered in an effect React may
+        // run after the line is painted: ask until the field is there.
+        await waitFor(() => {
+            act(() => requestTrainingReply("¿En qué precepto se apoya?", "chat-1"));
+            expect(approachField()).not.toBeNull();
+        });
         const prefilled = await screen.findByRole("textbox", { name: NEXT_LABEL });
         expect((prefilled as HTMLTextAreaElement).value).toContain("> ¿En qué precepto se apoya?");
     });
@@ -477,6 +481,39 @@ describe("ProjectChatPanel — the training block folds after a message", () => 
         expect(approachField()).toBeNull();
         expect(approachField(FIRST_LABEL)).toBeNull();
         expect(thermometer()).toBeNull();
+        expect(box()).toBeEnabled();
+    });
+
+    it("a stale stage that was read as 'no attempt needed' opens the block once it is read again", async () => {
+        // The browser's stage said nothing is asked; the server then refuses
+        // the send. The stage is read again and the block must come back open.
+        vi.mocked(getTrainingStage).mockResolvedValue(LAWYER);
+        render(<Panel chatId="chat-1" />);
+        await screen.findByText(QUESTION);
+        await waitFor(() => expect(vi.mocked(getTrainingStage)).toHaveBeenCalledTimes(1));
+        await act(async () => {});
+        expect(nextLine()).toBeNull();
+        expect(approachField()).toBeNull();
+        vi.mocked(getTrainingStage).mockResolvedValue(PASANTE);
+        act(() => markTrainingStageStale());
+        const line = await screen.findByRole("button", { name: NEXT_LINE });
+        expect(line).toHaveAttribute("aria-expanded", "true");
+        expect(await screen.findByRole("textbox", { name: NEXT_LABEL })).toBeInTheDocument();
+    });
+
+    it("nothing is drawn when the stage is stale and no attempt is needed", async () => {
+        vi.mocked(getTrainingStage).mockResolvedValue(LAWYER);
+        render(<Panel chatId="chat-1" />);
+        await screen.findByText(QUESTION);
+        await waitFor(() => expect(vi.mocked(getTrainingStage)).toHaveBeenCalledTimes(1));
+        await act(async () => {});
+        act(() => markTrainingStageStale());
+        await waitFor(() => expect(vi.mocked(getTrainingStage)).toHaveBeenCalledTimes(2));
+        await act(async () => {});
+        expect(nextLine()).toBeNull();
+        expect(approachField()).toBeNull();
+        expect(thermometer()).toBeNull();
+        expect(screen.queryByRole("alert")).toBeNull();
         expect(box()).toBeEnabled();
     });
 });

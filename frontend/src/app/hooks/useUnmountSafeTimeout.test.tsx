@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useUnmountSafeTimeout } from "./useUnmountSafeTimeout";
 
@@ -39,5 +40,31 @@ describe("useUnmountSafeTimeout", () => {
         expect(vi.getTimerCount()).toBe(0);
         vi.advanceTimersByTime(5000);
         expect(fn).not.toHaveBeenCalled();
+    });
+
+    it("schedules nothing when called after the component unmounted", () => {
+        // A caller awaits a request and then asks for the timer: the
+        // component may be gone by then.
+        const fn = vi.fn();
+        const { result, unmount } = renderHook(() => useUnmountSafeTimeout());
+        const later = result.current;
+        unmount();
+        later(fn, 2000);
+        expect(vi.getTimerCount()).toBe(0);
+        vi.advanceTimersByTime(5000);
+        expect(fn).not.toHaveBeenCalled();
+    });
+
+    it("still runs a timer scheduled after the second mount of a development double mount", () => {
+        const fn = vi.fn();
+        const { result, unmount } = renderHook(() => useUnmountSafeTimeout(), {
+            wrapper: StrictMode,
+        });
+        act(() => result.current(fn, 2000));
+        expect(vi.getTimerCount()).toBe(1);
+        vi.advanceTimersByTime(2000);
+        expect(fn).toHaveBeenCalledTimes(1);
+        unmount();
+        expect(vi.getTimerCount()).toBe(0);
     });
 });
