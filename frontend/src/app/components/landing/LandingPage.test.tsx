@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import esMX from "../../../../../packages/i18n/messages/es-MX.json";
@@ -438,6 +439,42 @@ describe("the hero's example: the assistant at work", () => {
         // Same session, again: it is all there, nothing plays.
         render(<LandingPage signedIn={false} />);
         expect(document.querySelectorAll("[data-intro]")).toHaveLength(0);
+    });
+
+    it("leaves no timer behind when the page goes away in the middle of the intro", () => {
+        vi.useFakeTimers();
+        mediaQueries(false);
+        window.sessionStorage.clear();
+        const { unmount } = render(<LandingPage signedIn={false} />);
+        act(() => {
+            vi.advanceTimersByTime(250 + 260);
+        });
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+        unmount();
+        // A timer firing after the page is gone would set state on nothing (in
+        // CI: after the test environment itself was gone).
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("still plays the whole intro under React's development double mount", () => {
+        vi.useFakeTimers();
+        mediaQueries(false);
+        window.sessionStorage.clear();
+        render(
+            <StrictMode>
+                <LandingPage signedIn={false} />
+            </StrictMode>,
+        );
+        const items = () => [...document.querySelectorAll<HTMLElement>("[data-intro]")];
+        expect(items()).toHaveLength(7);
+        act(() => {
+            vi.advanceTimersByTime(250);
+        });
+        expect(items().filter((el) => el.dataset.intro === "in").length).toBe(2);
+        act(() => {
+            vi.advanceTimersByTime(260 * 6 + 400);
+        });
+        expect(items()).toHaveLength(0);
     });
 
     it("does not animate with reduced motion: everything is in place from the start", () => {

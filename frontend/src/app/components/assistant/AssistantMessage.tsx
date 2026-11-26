@@ -2,6 +2,7 @@
 
 import { isStoppedEvent } from "@mike/client";
 import { useLatestRef } from "@/app/hooks/useLatestRef";
+import { useUnmountSafeTimeout } from "@/app/hooks/useUnmountSafeTimeout";
 import { useMarkdownCheckpoint } from "./message/markdownCheckpoint";
 import { createCitationPreprocessor } from "./message/citationPreprocessor";
 import { TOUCH_TARGET_CLASS, TextCardUI } from "@mike/ui";
@@ -172,6 +173,7 @@ function AssistantMessageImpl({
     const events = stopped ? allEvents?.filter((event) => !isStoppedEvent(event)) : allEvents;
     const contentDivRef = useRef<HTMLDivElement | null>(null);
     const [isCopied, setIsCopied] = useState(false);
+    const later = useUnmountSafeTimeout();
     // Per-document override of the download URL, set as Accept/Reject resolves
     // each tracked change and produces a new version.
     // The new version's training status rides along: a pasante's unapproved
@@ -341,7 +343,7 @@ function AssistantMessageImpl({
             });
             await navigator.clipboard.write([item]);
             setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
+            later(() => setIsCopied(false), 2000);
         } catch (err) {
             // A clipboard refusal is a browser permission the user controls,
             // so support cannot help and a retry needs a fresh click.

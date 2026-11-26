@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MikeApiError } from "@/app/lib/mikeApi";
 import type { ReactElement } from "react";
 import SettingsPage from "./page";
@@ -195,6 +195,53 @@ describe("SettingsPage Google email changes", () => {
         expect(
             screen.queryByRole("dialog", { name: "Change email" }),
         ).not.toBeInTheDocument();
+    });
+
+    describe("the \"Saved\" acknowledgement timers do not outlive the page", () => {
+        beforeEach(() => {
+            state.passwordSet = true;
+            vi.useFakeTimers();
+        });
+        afterEach(() => vi.useRealTimers());
+
+        it("the e-mail one is cleared on unmount, and still shows then hides Saved after 2 s", async () => {
+            state.updateEmail.mockResolvedValue({ ...state.user, email: "new@example.com", pendingEmail: null });
+            const { unmount } = render(<SettingsPage />);
+            const email = screen.getByPlaceholderText("Enter your email");
+            fireEvent.change(email, { target: { value: "new@example.com" } });
+            const emailSection = screen.getByRole("heading", { name: "Email" }).parentElement!;
+            await act(async () => {
+                fireEvent.click(emailSection.querySelector<HTMLButtonElement>("button")!);
+            });
+            expect(state.updateEmail).toHaveBeenCalledWith("new@example.com");
+            expect(within(emailSection).getByText("Saved")).toBeInTheDocument();
+            act(() => {
+                vi.advanceTimersByTime(2000);
+            });
+            expect(within(emailSection).queryByText("Saved")).not.toBeInTheDocument();
+
+            // Saved again, then the person leaves before the 2 s are up.
+            fireEvent.change(email, { target: { value: "newer@example.com" } });
+            await act(async () => {
+                fireEvent.click(emailSection.querySelector<HTMLButtonElement>("button")!);
+            });
+            expect(vi.getTimerCount()).toBeGreaterThan(0);
+            unmount();
+            expect(vi.getTimerCount()).toBe(0);
+        });
+
+        it("the display-name one is cleared on unmount", async () => {
+            const { unmount } = render(<SettingsPage />);
+            const name = screen.getByPlaceholderText("Enter your name");
+            fireEvent.change(name, { target: { value: "Alex Chen" } });
+            await act(async () => {
+                fireEvent.blur(name);
+            });
+            expect(state.updateDisplayName).toHaveBeenCalledWith("Alex Chen");
+            expect(vi.getTimerCount()).toBeGreaterThan(0);
+            unmount();
+            expect(vi.getTimerCount()).toBe(0);
+        });
     });
 
     it("auto-saves the name when it loses focus", async () => {

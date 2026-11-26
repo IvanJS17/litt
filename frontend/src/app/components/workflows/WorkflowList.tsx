@@ -72,6 +72,7 @@ import {
 import { AccessScopeLabel } from "../shared/AccessScopeLabel";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
 import { useIdSet } from "@/app/hooks/useIdSet";
+import { useUnmountSafeTimeout } from "@/app/hooks/useUnmountSafeTimeout";
 import { useTranslations } from "next-intl";
 
 type WorkflowListTab = "all" | "assistant" | "tabular" | "addons";
@@ -105,6 +106,7 @@ export function WorkflowList({
   packKey?: string | null;
 }) {
   const t = useTranslations();
+  const later = useUnmountSafeTimeout();
   const workflowTabs: { id: WorkflowListTab; label: string }[] = [
     { id: "all", label: t("workflows.all") },
     { id: "assistant", label: t("workflows.assistant") },
@@ -404,7 +406,7 @@ export function WorkflowList({
       setActionError(t("workflows.someSelectedWorkflowsCouldNot"));
     }
     setDeleteStatus("complete");
-    window.setTimeout(() => {
+    later(() => {
       setPendingDeleteWorkflows([]);
       setPendingDeleteIds([]);
       setDeleteStatus("idle");

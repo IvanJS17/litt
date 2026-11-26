@@ -195,6 +195,12 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  useEffect(
+    () => () => {
+      if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    },
+    [],
+  );
   // Every save-status change goes through here, so an earlier save's
   // "Saved" fade cannot clear a later "Saving…" or "Couldn't save".
   const showSaveStatus = useCallback((status: SaveStatus) => {

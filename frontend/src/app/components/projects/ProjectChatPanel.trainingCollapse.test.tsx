@@ -219,6 +219,11 @@ async function openedChat() {
     render(<Panel chatId="chat-1" />);
     await screen.findByText(QUESTION);
     await waitFor(() => expect(privateNote()).not.toBeNull());
+    // The notes and the stage are two reads. The folded line comes from the
+    // stage, and the composer listens for the server's refusal (and for a
+    // «Responder») only once the stage has said an approach is asked for: wait
+    // for the line, or the event can be sent before anyone is listening.
+    await waitFor(() => expect(nextLine()).not.toBeNull());
     return nextLine();
 }
 

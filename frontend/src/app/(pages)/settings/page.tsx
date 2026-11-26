@@ -33,6 +33,7 @@ import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { SourceCodeLink } from "@/app/components/shared/SourceCodeLink";
 import { useTranslations } from "next-intl";
+import { useUnmountSafeTimeout } from "@/app/hooks/useUnmountSafeTimeout";
 
 const isDev = process.env.NODE_ENV !== "production";
 const devLog = (...args: Parameters<typeof console.log>) => {
@@ -65,6 +66,8 @@ const EMAIL_RATE_LIMIT_CODES = new Set([
 export default function SettingsPage() {
   const t = useTranslations();
   const router = useRouter();
+  // The "Saved" acknowledgements go away on a timer that must not outlive the page.
+  const later = useUnmountSafeTimeout();
   const { user, updateEmail } = useAuth();
   const { profile, updateDisplayName } = useUserProfile();
   const [displayName, setDisplayName] = useState("");
@@ -176,7 +179,7 @@ export default function SettingsPage() {
           ? t("settings.home.confirmationSentToBoth", { pendingEmail, email: updatedUser.email })
           : t("settings.home.emailUpdated"),
       );
-      setTimeout(() => setEmailSaved(false), 2000);
+      later(() => setEmailSaved(false), 2000);
     } catch (error: unknown) {
       devLog("[account/mfa] save email failed", { error });
       // The backend passes GoTrue's `code` through, so the outcome is decided
@@ -226,7 +229,7 @@ export default function SettingsPage() {
     // Retry, support); the field shows no second status for it.
     if (success) {
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      later(() => setSaved(false), 2000);
     }
   };
 
