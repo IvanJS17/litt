@@ -3,6 +3,7 @@
 // functions the services call (stood in for by handlers that apply the REAL
 // access rules from lib/access to these tables). Synthetic data only.
 
+import { scanReadingRpc } from "./scanReadingRpc";
 import { randomUUID } from "node:crypto";
 import { checkProjectAccess, ensureChatAccess, ensureDocAccess } from "../../lib/access";
 import type { Db } from "../../lib/supabase";
@@ -229,13 +230,8 @@ export function buildWorld() {
                 text: points ? points.slice(from, from + Math.min(Math.max(Number(p_length ?? 500_000), 0), 500_000)).join("") : null,
                 text_length: points ? points.length : null, textless_page_count: text?.textless_page_count ?? null };
         },
-        // The state of a scan reading: its columns and how many pages were read, never their text.
-        document_ocr_state: async ({ p_version_id }) => {
-            const row = (tables.document_version_ocr ?? []).find((r) => r.version_id === p_version_id);
-            if (!row) return null;
-            const { pages, provider: _provider, requested_by: _by, created_at: _c, updated_at: _u, ...state } = row as Record<string, unknown>;
-            return { ...state, pages_read: Array.isArray(pages) ? pages.length : null };
-        },
+        // A scan reading: its state, and its pages in bounded slices.
+        ...scanReadingRpc(() => tables.document_version_ocr ?? []),
         find_document_text: async (args) => {
             const query = String(args.p_query).toLowerCase();
             const matches: Row[] = [];

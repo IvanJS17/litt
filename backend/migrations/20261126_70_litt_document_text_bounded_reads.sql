@@ -181,3 +181,32 @@ returns jsonb language sql stable security invoker set search_path=public,pg_tem
 $$;
 revoke all on function public.document_ocr_state(uuid) from public,anon,authenticated;
 grant execute on function public.document_ocr_state(uuid) to service_role;
+
+-- The pages read from a scan (document_version_ocr.pages) leave the database in
+-- slices: from page index p_from, whole pages are added until 500,000
+-- characters of text have been reached (a page is never cut, and the first page
+-- always comes back, alone if it is larger than the budget), so one answer is at
+-- most the budget plus one page. `next` is the index to continue from, or null
+-- at the end; source_revision and updated_at identify the reading, so a caller
+-- can tell that a new reading replaced the row between two slices. `pages` is
+-- null for a row with no pages yet. Server-only.
+create or replace function public.document_ocr_pages(p_version_id uuid,p_from integer)
+returns jsonb language plpgsql stable security invoker set search_path=public,pg_temp as $$
+declare rev uuid; upd timestamptz; pg jsonb; total integer; i integer:=greatest(coalesce(p_from,0),0); chars integer:=0; acc jsonb:='[]'::jsonb; e jsonb;
+begin
+  select r.source_revision,r.updated_at,r.pages into rev,upd,pg from public.document_version_ocr r where r.version_id=p_version_id;
+  if not found then return null; end if;
+  if jsonb_typeof(pg) is distinct from 'array' then
+    return jsonb_build_object('source_revision',rev,'updated_at',upd,'pages',null,'next',null);
+  end if;
+  -- one in-memory copy: indexing the stored (compressed) value would decompress all of it for every page
+  pg:=pg||'[]'::jsonb; total:=jsonb_array_length(pg);
+  while i<total and chars<500000 loop
+    e:=pg->i; chars:=chars+coalesce(char_length(e->>'text'),0); acc:=acc||jsonb_build_array(e); i:=i+1;
+  end loop;
+  return jsonb_build_object('source_revision',rev,'updated_at',upd,'pages',acc,
+    'next',case when i<total then i end);
+end;
+$$;
+revoke all on function public.document_ocr_pages(uuid,integer) from public,anon,authenticated;
+grant execute on function public.document_ocr_pages(uuid,integer) to service_role;

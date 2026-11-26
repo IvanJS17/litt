@@ -29,12 +29,48 @@ export async function loadScanState(db: Db, versionId: string): Promise<ScanStat
   return (data as ScanState | null) ?? null;
 }
 
+type PagesSlice = { source_revision: string; updated_at: string; pages: OcrPage[] | null; next: number | null };
+
+/**
+ * The pages read from a scan, put together from the database's bounded slices (whole pages up to a character
+ * budget per answer): no answer carries all the text. Every slice must be of the same reading (same revision and
+ * stamp); if a new reading replaces the row between two slices, the read starts again, and fails after three
+ * tries rather than hand out a mix of two readings. This is the only way the text of a reading is read.
+ */
+async function readReadingPages(db: Db, versionId: string): Promise<{ source_revision: string; pages: OcrPage[] | null } | null> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let first: PagesSlice | null = null;
+    const pages: OcrPage[] = [];
+    let from = 0;
+    let changed = false;
+    for (;;) {
+      const { data, error } = await db.rpc("document_ocr_pages", { p_version_id: versionId, p_from: from });
+      if (error) throw error;
+      const slice = data as PagesSlice | null;
+      if (first === null && slice === null) return null;
+      if (slice === null || (first !== null && (slice.source_revision !== first.source_revision || slice.updated_at !== first.updated_at))) { changed = true; break; }
+      first ??= slice;
+      if (slice.pages === null) return { source_revision: slice.source_revision, pages: null };
+      pages.push(...slice.pages);
+      if (slice.next === null) return { source_revision: slice.source_revision, pages };
+      from = slice.next;
+    }
+    if (changed) continue;
+  }
+  throw new Error("The scan reading changed while it was being read");
+}
+
+/** The reading's state with its pages (read in slices): for the callers that need the text that was read. */
 export async function loadScanRow(db: Db, versionId: string): Promise<ScanRow | null> {
-  const { data, error } = await db.from("document_version_ocr")
-    .select("version_id,source_revision,status,pages,failed_pages,credits,page_count,error_code,model")
-    .eq("version_id", versionId).maybeSingle();
-  if (error) throw error;
-  return (data as ScanRow | null) ?? null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const read = await readReadingPages(db, versionId);
+    const state = read ? await loadScanState(db, versionId) : null;
+    if (!read || !state) return null;
+    if (state.source_revision !== read.source_revision) continue; // replaced between the two reads
+    const { pages_read: _count, ...row } = state;
+    return { ...row, pages: read.pages };
+  }
+  throw new Error("The scan reading changed while it was being read");
 }
 
 /**

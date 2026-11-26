@@ -135,10 +135,14 @@ function textReadsOutsideTheReaders(file: string, source: string): boolean {
     || mentions(/["'`]document["'`]\s*,\s*["'`]version["'`]\s*,\s*["'`]texts["'`]/);
 }
 
-/** True when a file other than the one that owns the scan-reading table selects its text (`pages`) or everything. */
-function readsScanTextOutsideItsOwner(file: string, source: string): boolean {
-  if (file === "modules/documents/documents.ocr.state.ts") return false;
+/**
+ * True when a production file selects the text of a scan reading (`pages`, or `*`) from `document_version_ocr` at
+ * all, or asks for its pages anywhere but in documents.ocr.state.ts: the bounded function `document_ocr_pages`,
+ * called there by the one assembler, is the only way to that text.
+ */
+function readsScanTextOutsideTheAssembler(file: string, source: string): boolean {
   const text = stripComments(source);
+  if (file !== "modules/documents/documents.ocr.state.ts" && /\bdocument_ocr_pages\b/.test(text)) return true;
   return [...text.matchAll(/document_version_ocr/g)].some((m) =>
     /^[\s\S]{0,300}?\.select\(\s*["'`][^"'`]*(\bpages\b|\*)/.test(text.slice(m.index!)));
 }
@@ -378,17 +382,19 @@ describe("backend architecture", () => {
     expect(textReadsOutsideTheReaders("modules/documents/documents.other.ts", "// the table document_version_texts is server-only\nconst x = 1;")).toBe(false);
   });
 
-  it("rule 12: the pages read from a scan are selected only by the function meant for the text", () => {
-    expect(PRODUCTION_FILES.filter((file) => readsScanTextOutsideItsOwner(file, read(file)))).toEqual([]);
-    // inside its own file, `pages` is in the column list of loadScanRow only
-    const owner = code("modules/documents/documents.ocr.state.ts");
-    const selects = [...owner.matchAll(/\.select\(\s*["'`]([^"'`]*)["'`]/g)].filter((m) => /\bpages\b|\*/.test(m[1]));
-    expect(selects).toHaveLength(1);
-    expect(owner.slice(owner.indexOf("export async function loadScanRow"), owner.indexOf("export async function loadScanRow") + 400)).toContain(selects[0][0]);
+  it("rule 12: the pages read from a scan are reached only through the bounded function and its one assembler", () => {
+    expect(PRODUCTION_FILES.filter((file) => readsScanTextOutsideTheAssembler(file, read(file)))).toEqual([]);
+    // no select of `pages` or `*` from the table, not even in documents.ocr.state.ts
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", read("modules/documents/documents.ocr.state.ts"))).toBe(false);
+    expect(code("modules/documents/documents.ocr.state.ts")).toMatch(/rpc\(\s*["']document_ocr_pages["']/);
+    expect(code("modules/documents/documents.ocr.state.ts")).not.toMatch(/from\(\s*["']document_version_ocr["']\s*\)\s*\.select/);
     // the rule sees the forms
-    expect(readsScanTextOutsideItsOwner("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
-    expect(readsScanTextOutsideItsOwner("modules/documents/documents.sneaky.ts", "db.from('document_version_ocr').select('*')")).toBe(true);
-    expect(readsScanTextOutsideItsOwner("modules/platform/platform.stats.ts", '"document_version_ocr", "version_id,requested_by,created_at"')).toBe(false);
-    expect(readsScanTextOutsideItsOwner("modules/documents/documents.ocr.ts", 'db.from("document_version_ocr").update({}).select("version_id")')).toBe(false);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", "db.from('document_version_ocr').select('*')")).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'db.rpc("document_ocr_pages", {})')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", 'db.rpc("document_ocr_pages", {})')).toBe(false);
+    expect(readsScanTextOutsideTheAssembler("modules/platform/platform.stats.ts", '"document_version_ocr", "version_id,requested_by,created_at"')).toBe(false);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.ts", 'db.from("document_version_ocr").update({}).select("version_id")')).toBe(false);
   });
 });

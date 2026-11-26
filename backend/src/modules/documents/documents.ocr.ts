@@ -19,7 +19,7 @@ import { downloadFile } from "../../lib/storage";
 import { assertVersionReleasable } from "../../lib/trainingRelease";
 import { ensureDocumentAccess } from "./documents.access";
 import { extractAndPublishText } from "./documents.indexing";
-import { loadScanRow, loadScanState, type ScanState } from "./documents.ocr.state";
+import { loadScanState, type ScanState } from "./documents.ocr.state";
 import type { Db } from "./documents.shared";
 
 export const OCR_KEY_MISSING_CODE = "ocr_key_missing";
@@ -275,7 +275,7 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
   const releasable = await assertVersionReleasable(db, version as never);
   if (!releasable.ok) throw new NonRetryableJobError("ocr_held_for_training");
 
-  const existing = await loadScanRow(db, versionId);
+  const existing = await loadScanState(db, versionId);
   if (!existing || existing.source_revision !== revision) return;
   // A retry after the reading was saved only has the merge left: never pay twice.
   if (existing.status !== "ready") {

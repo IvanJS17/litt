@@ -205,7 +205,7 @@ describe("the job", () => {
     mocks.publish.mockResolvedValue({ textlessPageCount: 1 });
     const fake = scriptedDb([
       ...head(),
-      { table: "document_version_ocr", data: row() },
+      { rpc: "document_ocr_state", data: asState(row()) },
       { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] },
       { table: "document_versions", op: "update" },
     ]);
@@ -221,19 +221,19 @@ describe("the job", () => {
   it("sends a PDF scanned throughout whole, without a page selection", async () => {
     mocks.extract.mockResolvedValue({ pages: [1, 2, 3], total: 3 });
     mocks.parse.mockResolvedValue(read);
-    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }, { table: "document_versions", op: "update" }]);
+    const fake = scriptedDb([...head(), { rpc: "document_ocr_state", data: asState(row()) }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }, { table: "document_versions", op: "update" }]);
     await handleDocumentOcr(fake.db, job);
     expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything(), {});
   });
   it("does not call LandingAI when no page lacks text", async () => {
     mocks.extract.mockResolvedValue({ pages: [], total: 3 });
-    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }]);
+    const fake = scriptedDb([...head(), { rpc: "document_ocr_state", data: asState(row()) }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }]);
     await handleDocumentOcr(fake.db, job);
     expect(mocks.parse).not.toHaveBeenCalled();
     expect(fake.calls[3].payload).toMatchObject({ status: "failed", error_code: "ocr_not_supported" });
   });
   it("on a retry after the reading was saved, only merges: it never pays twice", async () => {
-    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row({ status: "ready", pages: [{ page: 1, text: "x" }] }) }, { table: "document_versions", op: "update" }]);
+    const fake = scriptedDb([...head(), { rpc: "document_ocr_state", data: asState(row({ status: "ready", pages: [{ page: 1, text: "x" }] })) }, { table: "document_versions", op: "update" }]);
     await handleDocumentOcr(fake.db, job);
     expect(mocks.parse).not.toHaveBeenCalled();
     expect(mocks.publish).toHaveBeenCalled();
@@ -241,7 +241,7 @@ describe("the job", () => {
   });
   it.each(["ocr_key_invalid", "ocr_no_credits", "ocr_too_large", "ocr_not_supported"] as const)("fails %s for good without retrying", async (code) => {
     mocks.parse.mockRejectedValue(new OcrError(code));
-    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }]);
+    const fake = scriptedDb([...head(), { rpc: "document_ocr_state", data: asState(row()) }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }]);
     await expect(handleDocumentOcr(fake.db, job)).resolves.toBeUndefined();
     expect(fake.calls[3].payload).toMatchObject({ status: "failed", error_code: code });
     expect(mocks.publish).not.toHaveBeenCalled();
@@ -249,7 +249,7 @@ describe("the job", () => {
   });
   it("lets the queue retry when LandingAI is unavailable", async () => {
     mocks.parse.mockRejectedValue(new OcrError("ocr_unavailable"));
-    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }]);
+    const fake = scriptedDb([...head(), { rpc: "document_ocr_state", data: asState(row()) }]);
     await expect(handleDocumentOcr(fake.db, job)).rejects.toThrow("ocr_unavailable");
     const done = scriptedDb([{ table: "document_version_ocr", op: "update" }]);
     await markDocumentOcrFailed(done.db, job);
@@ -257,7 +257,7 @@ describe("the job", () => {
   });
   it("fails without a key and when the requester lost edit rights or the epoch moved", async () => {
     mocks.key.mockResolvedValue(null);
-    let fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{}] }]);
+    let fake = scriptedDb([...head(), { rpc: "document_ocr_state", data: asState(row()) }, { table: "document_version_ocr", op: "update", data: [{}] }]);
     await handleDocumentOcr(fake.db, job);
     expect(fake.calls[3].payload).toMatchObject({ status: "failed", error_code: "ocr_key_missing" });
     expect(mocks.parse).not.toHaveBeenCalled();
