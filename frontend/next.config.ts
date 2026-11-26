@@ -56,6 +56,8 @@ const nextConfig: NextConfig = {
         ];
         return config;
     },
+    // Do not announce the framework in every response.
+    poweredByHeader: false,
     // Invitation-only beta: every response asks search engines not to list
     // it, except the public pages in lib/searchIndexing.ts's allowlist.
     async headers() {
