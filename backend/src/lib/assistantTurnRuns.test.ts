@@ -10,6 +10,7 @@ import {
   getAssistantTurnRun,
   resetAssistantTurnRunsForTests,
   startAssistantTurnRun,
+  documentIdsOf,
 } from "./assistantTurnRuns";
 
 /** An Express response reduced to what SSE streaming touches. */
@@ -149,5 +150,18 @@ describe("assistant turn runs", () => {
     run.finish();
     expect(broken.end).not.toHaveBeenCalled();
     expect(healthy.writableEnded).toBe(true);
+  });
+});
+
+describe("documentIdsOf", () => {
+  it("lists each document of a turn's index once", () => {
+    expect(
+      documentIdsOf({
+        "doc-0": { document_id: "d1" },
+        "doc-1": { document_id: "d2" },
+        "doc-2": { document_id: "d1" },
+      }),
+    ).toEqual(["d1", "d2"]);
+    expect(documentIdsOf({})).toEqual([]);
   });
 });

@@ -154,7 +154,7 @@ export async function getChatMessages(
     // emptied and marked `unreadable` with its reason, so nothing disappears silently. A
     // lookup that fails throws.
     const stored = withoutEmptyAssistantReservations(messages ?? []);
-    const { messages: readable, reasons } = await readableChatMessages(db, reader, stored, "live");
+    const { messages: readable, reasons } = await readableChatMessages(db, reader, stored, "chat_messages", "live");
     const readableById = new Map(readable.map((m) => [m.id, m]));
     const visible = stored.map(
         (m) =>

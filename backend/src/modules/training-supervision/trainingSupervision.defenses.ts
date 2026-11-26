@@ -133,12 +133,20 @@ export async function readDefenses(db: Db, orgId: string, traineeId: string): Pr
 /** The pupil's own defenses (GET /training/me/supervision). */
 export async function listOwnDefenses(
     db: Db,
-    args: { orgId: string; traineeId: string },
+    args: { orgId: string; traineeId: string; traineeEmail?: string | null },
 ): Promise<ServiceResult<TrainingDefense[]>> {
     const rows = await readDefenses(db, args.orgId, args.traineeId);
     if (!rows.ok) return rows;
+    // The questions and the note come from the pupil's work: they read them
+    // only while they can open the matters that work was in (as the mentor does).
+    const readable = await readableDefenses(
+        db,
+        { actorId: args.traineeId, actorEmail: args.traineeEmail ?? null, orgId: args.orgId, traineeId: args.traineeId },
+        rows.data,
+    );
+    if (!readable.ok) return readable;
     const now = Date.now();
-    return ok(rows.data.map((row) => serializeDefense(row, true, now)));
+    return ok(readable.data.map((row) => serializeDefense(row, true, now)));
 }
 
 /**

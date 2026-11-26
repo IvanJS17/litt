@@ -70,6 +70,16 @@ export type AssistantTurnRun = StreamRun<TurnMeta> & {
     readonly assistantMessageId: string;
 };
 
+/**
+ * The documents a turn is handed (its document index): what the turn's
+ * output may be derived from, as recorded in `TurnMeta.sourceDocumentIds`.
+ */
+export function documentIdsOf(
+    docIndex: Record<string, { document_id: string }>,
+): string[] {
+    return [...new Set(Object.values(docIndex).map((doc) => doc.document_id))];
+}
+
 const turnKey = (chatId: string, surface: AssistantTurnSurface = "chat") =>
     `${surface}:${chatId}`;
 

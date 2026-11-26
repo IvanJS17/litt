@@ -363,26 +363,35 @@ describe("what the pupil reads is what the mentor sees", () => {
         expect(list.body.works.map((w: { chat_id: string }) => w.chat_id)).toEqual([CHAT]);
     });
 
-    it("asks the mentor's access once for all the works, not once per work (no N+1)", async () => {
+    it("asks the access of the mentor and of the pupil once each for all the works, not once per work (no N+1)", async () => {
         h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
         h.openable.add(`${PROJECT}:${MENTOR}`);
+        h.openable.add(`${PROJECT}:${PUPIL}`);
         const checks = vi.mocked((await import("../../lib/access.js")).checkProjectAccess);
         checks.mockClear();
         h.accessBatches = [];
         expect(await mine()).toEqual([MATTER_CHAT]);
         expect(checks).not.toHaveBeenCalled();
-        expect(h.accessBatches).toEqual([1]);
+        expect(h.accessBatches).toEqual([1, 1]);
     });
 
     it("control: lists it once the mentor can open that matter", async () => {
         h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
         h.openable.add(`${PROJECT}:${MENTOR}`);
+        h.openable.add(`${PROJECT}:${PUPIL}`);
         expect(await mine()).toEqual([MATTER_CHAT]);
+    });
+
+    it("leaves out the review of a matter the pupil can no longer open, though the mentor can", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        h.openable.add(`${PROJECT}:${MENTOR}`);
+        expect(await mine()).toEqual([]);
     });
 
     it("follows the CURRENT mentor, not the one who generated it", async () => {
         h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
         h.openable.add(`${PROJECT}:${MENTOR}`);
+        h.openable.add(`${PROJECT}:${PUPIL}`);
         expect(await mine()).toEqual([MATTER_CHAT]);
         h.state!.tables.training_pupils[0].mentor_user_id = FORMER_MENTOR;
         expect(await mine()).toEqual([]);

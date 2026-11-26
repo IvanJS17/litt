@@ -126,7 +126,7 @@ describe("readableChatMessages", () => {
             user("u2"),
             assistant("a2"),
         ];
-        const out = await readableChatMessages(db, reader, messages);
+        const out = await readableChatMessages(db, reader, messages, "chat_messages");
         // a1 quotes the walled document; a2 follows it in the same chat and
         // can repeat it, so it is withheld too. The person's own words stay.
         expect(ids(out.messages)).toEqual(["u1", "u2"]);
@@ -136,13 +136,28 @@ describe("readableChatMessages", () => {
         expect([...out.withheld]).toEqual(["c1"]);
     });
 
+    it("takes a read of the document open in Word as no stored document only in a Word chat, and only in its two stored forms", async () => {
+        const { db } = documentsDb(docs());
+        const live = { type: "doc_read", filename: "Active Word document (live)" };
+        const snapshot = { type: "doc_read", filename: "Contract.docx", version_id: null, version_number: null };
+        const unidentified = { type: "doc_read", filename: "old.docx" };
+        const read = (event: Row, table: "chat_messages" | "word_chat_messages") =>
+            readableChatMessages(db, reader, [assistant("a1", { content: [event] })], table, "live");
+        for (const event of [live, snapshot]) {
+            expect(ids((await read(event, "word_chat_messages")).messages)).toEqual(["a1"]);
+            expect(ids((await read(event, "chat_messages")).messages)).toEqual([]);
+        }
+        expect(ids((await read(unidentified, "word_chat_messages")).messages)).toEqual([]);
+        expect(ids((await read({ ...live, document_id: DOC_WALLED }, "word_chat_messages")).messages)).toEqual([]);
+    });
+
     it("withholds a message with no recoverable source list, and what follows it", async () => {
         const { db } = documentsDb(docs());
         const out = await readableChatMessages(db, reader, [
             assistant("a0"),
             assistant("a1", { content: [{ type: "doc_read", filename: "old.docx" }] }),
             assistant("a2"),
-        ]);
+        ], "chat_messages");
         expect(ids(out.messages)).toEqual(["a0"]);
     });
 
@@ -152,7 +167,7 @@ describe("readableChatMessages", () => {
             assistant("a1", { chat_id: "c1", citations: [{ document_id: DOC_WALLED }] }),
             assistant("b1", { chat_id: "c2", citations: [{ document_id: DOC_MINE }] }),
             assistant("g1", { chat_id: "c3", citations: [{ document_id: DOC_GONE }] }),
-        ]);
+        ], "chat_messages");
         expect(ids(out.messages)).toEqual(["b1"]);
         expect([...out.withheld].sort()).toEqual(["c1", "c3"]);
         expect(lookups).toHaveLength(1);
@@ -164,7 +179,7 @@ describe("readableChatMessages", () => {
             user("u1", { files: [{ document_id: DOC_MINE }] }),
             assistant("a1", { citations: [{ document_id: DOC_MINE }], content: [{ type: "doc_read", document_id: DOC_MINE }] }),
         ];
-        const out = await readableChatMessages(db, reader, messages);
+        const out = await readableChatMessages(db, reader, messages, "chat_messages");
         expect(out.messages).toEqual(messages);
         expect(out.withheld.size).toBe(0);
     });
@@ -172,7 +187,7 @@ describe("readableChatMessages", () => {
     it("fails closed when the access lookup fails", async () => {
         const { db } = documentsDb(docs(), "unavailable");
         await expect(
-            readableChatMessages(db, reader, [assistant("a1", { citations: [{ document_id: DOC_MINE }] })]),
+            readableChatMessages(db, reader, [assistant("a1", { citations: [{ document_id: DOC_MINE }] })], "chat_messages"),
         ).rejects.toThrow();
     });
 });

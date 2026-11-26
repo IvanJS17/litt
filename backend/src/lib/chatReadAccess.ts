@@ -30,8 +30,9 @@
 // exists, is withheld on its own and does not hold the later ones back.
 
 import { documentIdsInProject, filterAccessibleDocumentIds, keepReadableDerived, type DerivedReader } from "./access";
-import { selectAllByKey, selectInBatches, sortRows } from "./batchedQuery";
-import { withReadableTitles } from "./tabularReadAccess";
+import { BatchedQueryError, selectAllByKey, selectInBatches, sortRows } from "./batchedQuery";
+import { ACTIVE_WORD_DOCUMENT_ID, ACTIVE_WORD_DOCUMENT_LIVE_FILENAME } from "./activeWordDocument";
+import { mayWatchRun, withReadableTitles } from "./tabularReadAccess";
 import type { Db } from "./supabase";
 import { isUuid } from "./uuid";
 
@@ -60,8 +61,42 @@ const refKey = (ref: ChatSourceRef) => `${ref.documentId}|${ref.versionId ?? ""}
  */
 type Gate = "export" | "memory" | "live";
 
+/** The table of stored messages a transcript is read from; it says which table owns the chat. */
+export type MessageTable = "chat_messages" | "word_chat_messages";
+const CHAT_TABLE: Record<MessageTable, "chats" | "word_chats"> = { chat_messages: "chats", word_chat_messages: "word_chats" };
+
+/**
+ * The document the person has open in Word is the add-in's own text, sent in
+ * that chat by the person who owns it: it is no stored document and names
+ * nothing to judge. In a Word chat row the engine writes it as a read (the
+ * live read, with a fixed label, or a read of the snapshot) and as a citation
+ * by its fixed handle. A search stored in the snapshot's shape is treated as
+ * the snapshot read is. These rules apply to Word chat rows only; any other
+ * reference without a stored document's id stays an unknown source.
+ */
+const readsOpenWordDocument = (event: Row): boolean =>
+    event.type === "doc_read" && !event.document_id && event.filename === ACTIVE_WORD_DOCUMENT_LIVE_FILENAME;
+
+/** A citation of the open document: its fixed handle, nested in the citation (and, if kept, at its top). */
+const citesOpenWordDocument = (citation: Row): boolean => {
+    const nested = citation.document as Row | undefined;
+    const id = citation.document_id ?? nested?.document_id;
+    return id === ACTIVE_WORD_DOCUMENT_ID;
+};
+
+/**
+ * The snapshot form of a read or a search: it names no document and carries
+ * the version fields as null. It is also how a workflow's file read was stored
+ * before documents were recorded: in an answer that applied workflows it is the
+ * open document unless one of them has a stored file (`ifFile`).
+ */
+const readsSnapshot = (event: Row): boolean =>
+    (event.type === "doc_read" || event.type === "doc_find") && !event.document_id && event.version_id === null && event.version_number === null;
+
 const WORKFLOW_ASSET_ID = /^workflow-asset-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-\d+$/i;
 const WORKFLOW = "workflow:";
+/** `workflows-if-file:<id>,<id>`: the open document, unless one of these workflows has a stored file, then those that have one. */
+const IF_FILE = "workflows-if-file:";
 
 /** A search stored without its documents: does it name something, and where from? */
 function searchWithoutIds(event: Row, gate: Gate | undefined): boolean {
@@ -82,9 +117,10 @@ function searchWithoutIds(event: Row, gate: Gate | undefined): boolean {
     return gate !== "export" || (event.scope !== "project" && event.scope !== "document");
 }
 
-function scan(message: Row, gate?: Gate) {
+function scan(message: Row, gate?: Gate, wordChat = false) {
     const refs = new Map<string, ChatSourceRef>();
     const workflows = new Set<string>();
+    const ifFile = new Set<string>();
     let unknown = false;
     const take = (value: unknown, version: Row = {}) => {
         const documentId = documentIdOf(value);
@@ -104,6 +140,7 @@ function scan(message: Row, gate?: Gate) {
     // The assistant takes nothing from an attachment that names no document.
     for (const file of rows(message.files)) if (!gate || file.document_id) take(file.document_id, file);
     for (const citation of rows(message.citations)) {
+        if (wordChat && citesOpenWordDocument(citation)) continue;
         const nested = citation.document as Row | undefined;
         take(citation.document_id ?? nested?.document_id, citation.version_id || citation.version_number ? citation : nested);
     }
@@ -117,6 +154,12 @@ function scan(message: Row, gate?: Gate) {
     );
     for (const event of events) {
         if (typeof event.type !== "string") continue;
+        if (wordChat && readsOpenWordDocument(event)) continue;
+        if (wordChat && applied.length && readsSnapshot(event)) {
+            ifFile.add(IF_FILE + [...new Set(applied)].sort().join(","));
+            continue;
+        }
+        if (wordChat && readsSnapshot(event)) continue;
         if (gate && (event.type === "doc_read" || event.type === "doc_find") && !event.document_id && applied.length) {
             // A workflow's file read before its document was recorded: one of the workflows this answer applied.
             for (const id of applied) workflows.add(id);
@@ -128,14 +171,14 @@ function scan(message: Row, gate?: Gate) {
             else if (searchWithoutIds(event, gate)) unknown = true;
         }
     }
-    return { refs, workflows, unknown };
+    return { refs, workflows, ifFile, unknown };
 }
 
 /** The sources the gate judges: document ids, and `workflow:<id>` for the files of a workflow. */
-function gateSources(message: Row, gate: Gate): readonly string[] | null {
-    const { refs, workflows, unknown } = scan(message, gate);
+function gateSources(message: Row, gate: Gate, wordChat = false): readonly string[] | null {
+    const { refs, workflows, ifFile, unknown } = scan(message, gate, wordChat);
     if (unknown) return null;
-    return [...new Set([...refs.values()].map((ref) => ref.documentId)), ...[...workflows].map((id) => WORKFLOW + id)];
+    return [...new Set([...refs.values()].map((ref) => ref.documentId)), ...[...workflows].map((id) => WORKFLOW + id), ...ifFile];
 }
 
 /** Of `documentIds`, the stored files of a workflow. */
@@ -147,27 +190,44 @@ async function filesOfWorkflows(db: Db, documentIds: readonly string[]): Promise
     return new Set(found.filter((row) => row.workflow_id).map((row) => row.id));
 }
 
-/**
- * Replace each `workflow:<id>` by one stored file of that workflow: every file
- * of a workflow is judged by the workflow's access, so one stands for all. A
- * list naming a workflow with no file left is unknown (null).
- */
-async function withWorkflowFiles(db: Db, lists: readonly (readonly string[] | null)[]): Promise<(string[] | null)[]> {
-    const wanted = lists.flatMap((list) => (list ?? []).filter((id) => id.startsWith(WORKFLOW)).map((id) => id.slice(WORKFLOW.length)));
+/** The workflow ids a `workflow:<id>` or `workflows-if-file:<ids>` key names. */
+const workflowIdsOf = (key: string): string[] =>
+    key.startsWith(WORKFLOW) ? [key.slice(WORKFLOW.length)] : key.startsWith(IF_FILE) ? key.slice(IF_FILE.length).split(",") : [];
+
+/** One stored file of each of `workflowIds` that has any, in one batched lookup. */
+async function workflowFileMap(db: Db, workflowIds: readonly string[]): Promise<Map<string, string>> {
     const fileOf = new Map<string, string>();
-    if (wanted.length) {
+    if (workflowIds.length) {
         type FileRow = { id: string; workflow_id: string };
-        const found = await selectInBatches<FileRow>("workflow file lookup", wanted, (batch) =>
+        const found = await selectInBatches<FileRow>("workflow file lookup", workflowIds, (batch) =>
             selectAllByKey<FileRow>("workflow file lookup", () =>
                 db.from("documents").select("id, workflow_id").in("workflow_id", batch),
             ),
         );
         for (const file of found) if (!fileOf.has(file.workflow_id)) fileOf.set(file.workflow_id, file.id);
     }
+    return fileOf;
+}
+
+/** The keys a list stands for once the files are known: an `if-file` key is the `workflow:` keys of those of its workflows that have a file (a workflow with none cannot have had its file read), else nothing. */
+const settleIfFile = (keys: readonly string[], fileOf: ReadonlyMap<string, string>): string[] =>
+    keys.flatMap((key) => {
+        if (!key.startsWith(IF_FILE)) return [key];
+        const ids = workflowIdsOf(key);
+        return ids.filter((id) => fileOf.has(id)).map((id) => WORKFLOW + id);
+    });
+
+/**
+ * Replace each `workflow:<id>` by one stored file of that workflow: every file
+ * of a workflow is judged by the workflow's access, so one stands for all. A
+ * list naming a workflow with no file left is unknown (null).
+ */
+async function withWorkflowFiles(db: Db, lists: readonly (readonly string[] | null)[]): Promise<(string[] | null)[]> {
+    const fileOf = await workflowFileMap(db, lists.flatMap((list) => (list ?? []).flatMap(workflowIdsOf)));
     return lists.map((list) => {
         if (!list) return null;
         const out: string[] = [];
-        for (const id of list) {
+        for (const id of settleIfFile(list, fileOf)) {
             const file = id.startsWith(WORKFLOW) ? fileOf.get(id.slice(WORKFLOW.length)) : id;
             if (!file) return null;
             out.push(file);
@@ -208,8 +268,8 @@ export const cumulativeChatSourceRefs = (messages: readonly Row[]): (ChatSourceR
     );
 
 /** What each message can repeat, as the gate judges it (see `gateSources`). */
-const cumulativeSources = (messages: readonly Row[], gate: Gate): (string[] | null)[] =>
-    cumulative(messages, (message) => gateSources(message, gate), (id) => id);
+const cumulativeSources = (messages: readonly Row[], gate: Gate, wordChat = false): (string[] | null)[] =>
+    cumulative(messages, (message) => gateSources(message, gate, wordChat), (id) => id);
 
 /**
  * Of `rows` (stored answers, in any chats), those whose OWN sources the reader
@@ -235,10 +295,10 @@ export type WithheldReason = "no_access" | "source_unknown";
  * exists and that the reader cannot open is a loss of access from that
  * message on, for every reader.
  */
-async function liveReasons(db: Db, reader: DerivedReader, messages: readonly Row[]): Promise<Map<string, WithheldReason | null>> {
+async function liveReasons(db: Db, reader: DerivedReader, messages: readonly Row[], table: MessageTable): Promise<Map<string, WithheldReason | null>> {
     const chatIds = [...new Set(messages.map((message) => message.chat_id).filter((id): id is string => typeof id === "string"))];
     const owners = await selectInBatches<{ id: string; user_id: string }>("chat owner lookup", chatIds, (batch) =>
-        db.from("chats").select("id, user_id").in("id", batch),
+        db.from(CHAT_TABLE[table]).select("id, user_id").in("id", batch),
     );
     const owned = new Set(owners.filter((chat) => chat.user_id === reader.userId).map((chat) => chat.id));
 
@@ -246,12 +306,14 @@ async function liveReasons(db: Db, reader: DerivedReader, messages: readonly Row
     // A person's own message names its attachments only; one that cannot be
     // identified holds the later answers back from a reader who is not the owner.
     const named = messages.map((message) => {
-        const { refs, workflows, unknown } = scan(message, "live");
-        return { keys: [...new Set([...[...refs.values()].map((ref) => ref.documentId), ...[...workflows].map((id) => WORKFLOW + id)])], unknown };
+        const { refs, workflows, ifFile, unknown } = scan(message, "live", table === "word_chat_messages");
+        return { keys: [...new Set([...[...refs.values()].map((ref) => ref.documentId), ...[...workflows].map((id) => WORKFLOW + id)])], ifFile: [...ifFile], unknown };
     });
+    // A snapshot read in an answer that applied workflows names them only if one of them has a stored file.
+    const workflowFiles = await workflowFileMap(db, named.flatMap((entry) => [...entry.keys, ...entry.ifFile].flatMap(workflowIdsOf)));
+    for (const entry of named) entry.keys = [...new Set(settleIfFile([...entry.keys, ...entry.ifFile], workflowFiles))];
     const keys = [...new Set(named.flatMap((entry) => entry.keys))];
-    const files = await withWorkflowFiles(db, keys.map((key) => [key]));
-    const fileOf = new Map(keys.map((key, index) => [key, files[index]?.[0] ?? null]));
+    const fileOf = new Map(keys.map((key) => [key, key.startsWith(WORKFLOW) ? workflowFiles.get(key.slice(WORKFLOW.length)) ?? null : key]));
     const fileIds = [...new Set([...fileOf.values()].filter((id): id is string => id !== null))];
     const open = new Set(await filterAccessibleDocumentIds(fileIds, reader.userId, reader.userEmail, db));
     const closedIds = fileIds.filter((id) => !open.has(id));
@@ -298,10 +360,12 @@ export async function readableChatMessages<M extends Row>(
     db: Db,
     reader: DerivedReader,
     messages: M[],
+    /** The table `messages` come from: it says which table owns their chats. */
+    table: MessageTable,
     /** "live" for a transcript read now; "export" (the default) for the holder's own data. */
     gate: "export" | "live" = "export",
 ): Promise<{ messages: M[]; withheld: Set<string>; reasons: Map<string, WithheldReason> }> {
-    const cumulative = cumulativeSources(messages, gate);
+    const cumulative = cumulativeSources(messages, gate, table === "word_chat_messages");
     // Per message: the unit of an answer, or the unit of each attachment.
     const unitsOf: Unit[][] = messages.map((message, index) =>
         message.role === "user"
@@ -323,7 +387,7 @@ export async function readableChatMessages<M extends Row>(
     const answerKept = (message: M, index: number) => kept.has(unitsOf[index][0]);
     let verdicts: Map<string, WithheldReason | null> | null = null;
     if (gate === "live" && messages.some((message, index) => message.role !== "user" && !answerKept(message, index)))
-        verdicts = await liveReasons(db, reader, messages);
+        verdicts = await liveReasons(db, reader, messages, table);
     const withheld = new Set<string>();
     const out: M[] = [];
     messages.forEach((message, index) => {
@@ -427,4 +491,54 @@ export async function withReadableChatTitles<C extends { id?: unknown; title?: u
     );
     const kept = await keepReadableDerived(db, reader, units, (unit) => unit.sources);
     return withReadableTitles(chats, units, kept);
+}
+
+/** `run` with the documents it names narrowed to those that exist; a list that is not one stays unknown. */
+async function withExistingSources(
+    db: Db,
+    run: { meta: unknown; documentIds?: ReadonlySet<string> },
+): Promise<{ meta: unknown; documentIds?: ReadonlySet<string> }> {
+    const recorded = (run.meta as { sourceDocumentIds?: unknown } | null)?.sourceDocumentIds;
+    if (!Array.isArray(recorded)) return run;
+    const named = [...new Set([...recorded.filter((id): id is string => typeof id === "string"), ...(run.documentIds ?? [])])];
+    const found = await selectInBatches<{ id: string }>("document existence lookup", named, (batch) =>
+        db.from("documents").select("id").in("id", batch),
+    );
+    return { meta: { sourceDocumentIds: found.map((row) => row.id) } };
+}
+
+/**
+ * May this reader watch this chat turn (web, project or Word chat)? The turn
+ * itself is judged as any run is (`mayWatchRun`: the documents it was started
+ * on and those its frames have named). A turn is also written over the whole
+ * transcript before it, so it can repeat anything an earlier answer drew on:
+ * the reader must also be able to open what every stored answer of the chat
+ * drew on. An answer withheld only because its source cannot be established,
+ * which the chat's own author is not held back by, does not refuse the turn.
+ * A failed lookup throws.
+ */
+export async function mayWatchChatTurn(
+    db: Db,
+    run: { meta: unknown; documentIds?: ReadonlySet<string> },
+    chat: { chatId: string; table: MessageTable },
+    reader: DerivedReader,
+): Promise<boolean> {
+    // Judged as the stored transcript is: for the chat's owner, an id that names
+    // no document that exists (deleted, or never one) refuses nothing; a
+    // document that exists and the reader cannot open refuses for everyone.
+    const { data: owner, error } = await db.from(CHAT_TABLE[chat.table]).select("id, user_id").eq("id", chat.chatId).maybeSingle();
+    if (error) throw new BatchedQueryError("chat owner lookup", error);
+    const isOwner = (owner as { user_id?: unknown } | null)?.user_id === reader.userId;
+    if (!(await mayWatchRun(db, isOwner ? await withExistingSources(db, run) : run, reader))) return false;
+    const stored = sortRows(
+        await selectAllByKey<Row>("chat turn transcript", () =>
+            db
+                .from(chat.table)
+                .select("id, chat_id, role, content, files, citations, created_at")
+                .eq("chat_id", chat.chatId),
+        ),
+        "created_at",
+    );
+    const { reasons } = await readableChatMessages(db, reader, stored, chat.table, "live");
+    return ![...reasons.values()].includes("no_access");
 }

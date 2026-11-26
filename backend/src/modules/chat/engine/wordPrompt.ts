@@ -5,17 +5,9 @@ const WORD_EDITS_PROTOCOL = `<EDITS>
 ]
 </EDITS>`;
 
-export const ACTIVE_WORD_DOCUMENT_ID = "active-word-document";
+import { ACTIVE_WORD_DOCUMENT_ID } from "../../../lib/activeWordDocument";
 
-/**
- * Label for read_active_document (live) reads. Distinct from the snapshot's
- * document name on purpose: the pane keys document-read activity rows by
- * filename, so a live re-read sharing the snapshot's label would merge with
- * (and hide behind) the snapshot read in the live transcript while rendering
- * as two rows after a reload. Lives here (not in wordClientTools) so
- * contextBuilders can label prior-turn activity without an import cycle.
- */
-export const ACTIVE_WORD_DOCUMENT_LIVE_FILENAME = "Active Word document (live)";
+export { ACTIVE_WORD_DOCUMENT_ID, ACTIVE_WORD_DOCUMENT_LIVE_FILENAME } from "../../../lib/activeWordDocument";
 
 /**
  * Everything both protocol generations say, up to but excluding the bullet

@@ -61,6 +61,7 @@ export const trainingSupervisionRouter = Router();
 trainingSupervisionRouter.get("/me/supervision", requireAuth, asyncRoute(async (req, res) => {
     send(res, await getMySupervision(createServerSupabase(), {
         userId: res.locals.userId as string,
+        userEmail: (res.locals.userEmail as string | undefined) ?? null,
         orgId: req.query.org_id,
     }));
 }));
