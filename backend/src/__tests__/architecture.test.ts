@@ -105,6 +105,30 @@ function namesRepairLibrary(text: string): boolean {
   return /["'`\/\\]jsonrepair["'`\/\\]/.test(text);
 }
 
+/** Source without comments. */
+function stripComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+const code = (file: string) => stripComments(read(file));
+
+/**
+ * True when a production file reads or names the stored text where it must not: the table, the column or the
+ * two slice functions appear only in the files that own them (documents.indexing.ts writes the table;
+ * documentTextCache.ts and documents.textSearch.ts hold the two slice readers). Any spelling counts: the
+ * table in an embed (`!inner(*)`), a name in a variable, a template literal. A name built from pieces at run
+ * time is the one thing a text scan cannot see; it needs the pieces "document", "version" and "texts" and is
+ * not how the code base spells table names.
+ */
+function textReadsOutsideTheReaders(file: string, source: string): boolean {
+  const text = stripComments(source);
+  const mentions = (re: RegExp) => re.test(text);
+  if (file === "modules/documents/documents.indexing.ts") return mentions(/\bread_document_text\b|\bdocument_text_slice\b/);
+  if (file === "lib/documentTextCache.ts") return mentions(/\bread_document_text\b|\btext_content\b/);
+  if (file === "modules/documents/documents.textSearch.ts") return mentions(/\bdocument_text_slice\b|\bdocument_version_texts\b|\btext_content\b/);
+  return mentions(/\bdocument_version_texts\b|\btext_content\b|\bread_document_text\b|\bdocument_text_slice\b/)
+    || mentions(/["'`]document["'`]\s*,\s*["'`]version["'`]\s*,\s*["'`]texts["'`]/);
+}
+
 describe("backend architecture", () => {
   it("domain implementations cannot import application workflows or their own facade", () => {
     const offenders: string[] = [];
@@ -305,15 +329,31 @@ describe("backend architecture", () => {
   it("rule 11: a stored document text is read only through the bounded-slice readers", () => {
     // No response from the database may carry a whole text: the column is read by the two slice
     // functions only, and a text is assembled from slices in one place (lib/documentTextSlices.ts).
-    const code = (file: string) => read(file).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
-    const only = (pattern: RegExp, allowed: string[]) =>
-      PRODUCTION_FILES.filter((file) => !allowed.includes(file) && pattern.test(code(file)));
-    expect(only(/\btext_content\b/, ["modules/documents/documents.indexing.ts"])).toEqual([]);
+    // The table is matched by name in any form (embed, `!inner(*)`, a name held in a variable), so a file
+    // outside the two that may touch it never mentions it at all.
+    const offenders = (files: Array<[string, string]>) => files.filter(([file, text]) => textReadsOutsideTheReaders(file, text)).map(([file]) => file);
+    expect(offenders(PRODUCTION_FILES.map((file) => [file, read(file)]))).toEqual([]);
     expect(code("modules/documents/documents.indexing.ts").match(/text_content[^\n]*/g)).toEqual(["text_content: null, error_code: errorCode, updated_at: new Date().toISOString() })"]);
-    expect(only(/["'`]read_document_text["'`]/, ["modules/documents/documents.textSearch.ts"])).toEqual([]);
-    expect(only(/["'`]document_text_slice["'`]/, ["lib/documentTextCache.ts"])).toEqual([]);
-    expect(only(/from\(\s*["'`]document_version_texts["'`]/, ["modules/documents/documents.indexing.ts"])).toEqual([]);
-    expect(only(/document_version_texts\s*\(/, ["lib/documentTextCache.ts"])).toEqual([]);
-    expect(only(/\bfrom\s+["']\S*documentTextSlices["']/, ["lib/documentTextCache.ts", "modules/documents/documents.textSearch.ts"])).toEqual([]);
+    // the cache's embed names its columns: no `*`, no text_content
+    expect(code("lib/documentTextCache.ts")).not.toMatch(/document_version_texts\s*(!\w+\s*)?\(\s*\*/);
+    expect(code("lib/documentTextCache.ts")).not.toMatch(/text_content/);
+  });
+
+  it("rule 11: the check sees every form of a whole-text read", () => {
+    const forms: Array<[string, string]> = [
+      ["modules/documents/documents.sneaky.ts", 'db.from("document_versions").select("id,document_version_texts!inner(*)")'],
+      ["modules/documents/documents.sneaky.ts", 'const TEXTS = "document_version_texts"; db.from(TEXTS).select("*")'],
+      ["modules/documents/documents.sneaky.ts", "db.from('document_version_texts').select('text_content')"],
+      ["modules/documents/documents.sneaky.ts", 'db.from("document_versions").select("document_version_texts(*)")'],
+      ["modules/documents/documents.sneaky.ts", 'db.rpc("read_document_text", {})'],
+      ["modules/documents/documents.sneaky.ts", "db.rpc(`document_text_slice`, {})"],
+      ["modules/documents/documents.sneaky.ts", 'const c = "text_" + "content"; db.from(["document", "version", "texts"].join("_"))'],
+    ];
+    for (const [file, text] of forms) expect(textReadsOutsideTheReaders(file, text), text).toBe(true);
+    // the allowed places and plain comments are not flagged
+    expect(textReadsOutsideTheReaders("modules/documents/documents.indexing.ts", 'db.from("document_version_texts").update({ text_content: null })')).toBe(false);
+    expect(textReadsOutsideTheReaders("lib/documentTextCache.ts", 'select("document_version_texts(status)"); db.rpc("document_text_slice", {})')).toBe(false);
+    expect(textReadsOutsideTheReaders("modules/documents/documents.textSearch.ts", 'db.rpc("read_document_text", {})')).toBe(false);
+    expect(textReadsOutsideTheReaders("modules/documents/documents.other.ts", "// the table document_version_texts is server-only\nconst x = 1;")).toBe(false);
   });
 });

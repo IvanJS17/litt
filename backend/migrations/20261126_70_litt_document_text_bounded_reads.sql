@@ -8,6 +8,13 @@
 -- JSON writes as six bytes), whatever the caller asks, with the length of the
 -- whole text so the caller can ask for the next slice. document_text_slice is
 -- the same slice for the server's own reads that were already authorized.
+-- Both take the offset and the length with no defaults: a caller of the previous
+-- shape (four arguments) gets an error, never a text silently cut at the bound.
+--
+-- The pieces of a search are lowered under the database's default collation
+-- (convert_from gives the "C" one, which lowers only ASCII), so the phrase finds
+-- the same text as lower(text) always did, accented capitals included, at the
+-- offsets of the lowered text.
 --
 -- find_document_text keeps its signature, its eligibility and access rules and
 -- its answer shape. It no longer runs `like` over every whole text. It scans
@@ -17,9 +24,11 @@
 -- an incomplete search is never a silent "no matches". The setting
 -- litt.text_search_budget_ms can only shorten the budget (tests use it).
 drop function if exists public.read_document_text(text,text,uuid,uuid);
+drop function if exists public.read_document_text(text,text,uuid,uuid,integer,integer);
+drop function if exists public.document_text_slice(uuid,uuid,integer,integer);
 
 create or replace function public.read_document_text(p_user_id text,p_user_email text,p_document_id uuid,p_version_id uuid,
-  p_offset integer default 0,p_length integer default 500000)
+  p_offset integer,p_length integer)
 returns jsonb language sql stable security invoker set search_path=public,pg_temp as $$
   select jsonb_build_object('revision',v.text_revision,'status',coalesce(t.status,'pending'),
     'text',substring(t.text_content from greatest(coalesce(p_offset,0),0)+1 for least(greatest(coalesce(p_length,500000),0),500000)),
@@ -33,7 +42,7 @@ $$;
 -- For reads the server has already authorized (the version's own revision and
 -- ready text): the same bounded slice, without the actor.
 create or replace function public.document_text_slice(p_version_id uuid,p_source_revision uuid,
-  p_offset integer default 0,p_length integer default 500000)
+  p_offset integer,p_length integer)
 returns jsonb language sql stable security invoker set search_path=public,pg_temp as $$
   select jsonb_build_object(
     'text',substring(t.text_content from greatest(coalesce(p_offset,0),0)+1 for least(greatest(coalesce(p_length,500000),0),500000)),
@@ -120,10 +129,10 @@ begin
       while b1<nbytes and (get_byte(blob,b1)&192)=128 loop b1:=b1+1; end loop;
       w1:=least(b1+4*needle_len,nbytes);
       while w1<nbytes and (get_byte(blob,w1)&192)=128 loop w1:=w1+1; end loop;
-      hit_at:=strpos(lower(convert_from(substring(blob from b0+1 for w1-b0),'UTF8')),needle);
+      hit_at:=strpos(lower(convert_from(substring(blob from b0+1 for w1-b0),'UTF8') collate "default"),needle);
       if hit_at>0 then hit_at:=chars_before+hit_at; exit; end if;
       hit_at:=null;
-      chars_before:=chars_before+char_length(convert_from(substring(blob from b0+1 for b1-b0),'UTF8'));
+      chars_before:=chars_before+char_length(lower(convert_from(substring(blob from b0+1 for b1-b0),'UTF8') collate "default"));
       b0:=b1;
     end loop;
     if hit_at is not null then

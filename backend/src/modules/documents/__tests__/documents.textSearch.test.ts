@@ -132,3 +132,10 @@ it("tells the caller when a search stopped on its time budget", async () => {
   expect(result.ok && result.data.coverage).toMatchObject({ search_incomplete: true });
   expect(result.ok && JSON.stringify(result.data.coverage)).toMatch(/not conclusive/);
 });
+
+it.each([2_147_483_647, 9_007_199_254_740_991, 3_000_000_000])("never sends a window offset (%i) the database cannot hold: past the end is an empty window", async (offset) => {
+  const { db, calls } = sliceDb("short text");
+  const stored = await readStoredDocumentText(db, { ...who, offset, maxChars: 100 });
+  expect(Number(calls[0].args.p_offset)).toBeLessThanOrEqual(2_000_000_000);
+  expect(stored).toMatchObject({ text: "", text_length: 10 });
+});

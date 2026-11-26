@@ -458,6 +458,17 @@ describe("documents", () => {
         expect(page.data.next_offset).toBe(page.data.end_offset);
     });
 
+    it("read_document answers an offset the database cannot hold as invalid params, and a far offset with an empty window", async () => {
+        as("owner");
+        const token = await connect();
+        const tooFar = await callTool(token, "read_document", { document_id: DOC_PUBLIC, offset: 2_147_483_647 });
+        expect(tooFar.ok).toBe(false);
+        expect(tooFar.code).toBe("invalid_params");
+        const past = await callTool(token, "read_document", { document_id: DOC_PUBLIC, offset: 100_000_000 });
+        expect(past.ok).toBe(true);
+        expect(past.data).toMatchObject({ offset: expect.any(Number), next_offset: null });
+    });
+
     it("counts offsets in Unicode characters, so a citation matches search", async () => {
         as("owner");
         tables().document_version_texts.find((t) => t.version_id === VERSION_PUBLIC)!.text_content = "😀😀😀 renta mensual";

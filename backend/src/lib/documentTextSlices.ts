@@ -9,6 +9,8 @@
  * read_document_text and document_text_slice.
  */
 export const TEXT_SLICE_CHARS = 500_000;
+/** No stored text is anywhere near this long, and the database holds offsets as 32-bit integers: a window starting beyond it is past the end. */
+export const TEXT_MAX_OFFSET = 2_000_000_000;
 
 type Slice = { revision?: string; text: string | null; text_length: number | null };
 
@@ -29,7 +31,7 @@ export async function readTextSlices<T extends Slice>(
   fetchSlice: (offset: number, length: number) => Promise<T | null>,
   window: { offset?: number; maxChars?: number } = {},
 ): Promise<T | null> {
-  const start = Math.max(0, window.offset ?? 0);
+  const start = Math.min(Math.max(0, window.offset ?? 0), TEXT_MAX_OFFSET);
   const want = window.maxChars ?? Number.POSITIVE_INFINITY;
   const first = await fetchSlice(start, Math.min(want, TEXT_SLICE_CHARS));
   if (!first || first.text === null || first.text_length === null) return first;
