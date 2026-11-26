@@ -15,6 +15,7 @@ const {
   decideHumanReviewItem,
   completeHumanReview,
   produceApprovedRedlineBundle,
+  checkProjectAccess,
 } = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
@@ -27,6 +28,14 @@ const {
   decideHumanReviewItem: vi.fn(),
   completeHumanReview: vi.fn(),
   produceApprovedRedlineBundle: vi.fn(),
+  checkProjectAccess: vi.fn(async () => ({ ok: true })),
+}));
+
+// Reading AI records asks the same project question as the matter's other
+// content; each test says what it answers (allowed by default).
+vi.mock("../../../lib/access", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/access")>()),
+  checkProjectAccess,
 }));
 
 vi.mock("../../../middleware/auth", () => ({
@@ -323,6 +332,17 @@ describe("GET /projects/:projectId/ai-executions", () => {
       "execution-1",
     ]);
     expect(evaluateInitialAccess).toHaveBeenCalledTimes(3);
+  });
+
+  it("lists nothing to a caller the project gate refuses, whatever the matter gate says", async () => {
+    checkProjectAccess.mockResolvedValueOnce({ ok: false });
+
+    const response = await request(makeApp())
+      .get(`/projects/${projectId}/ai-executions`)
+      .set("x-test-auth", "yes");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
   });
 
   it("omits malformed persisted rows fail-closed", async () => {
@@ -721,6 +741,18 @@ describe("human review endpoints", () => {
         mutation_port: expect.anything(),
       }),
     );
+  });
+
+  it("GET answers the opaque 404 to a caller the project gate refuses and loads no review", async () => {
+    checkProjectAccess.mockResolvedValueOnce({ ok: false });
+
+    const response = await request(makeApp())
+      .get(`/projects/${projectId}/ai-executions/execution-1/review`)
+      .set("x-test-auth", "yes");
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: "not_found", detail: "Not found." });
+    expect(repository.loadReview).not.toHaveBeenCalled();
   });
 
   it("keeps missing and outsider executions opaque and does not load a review", async () => {

@@ -77,6 +77,7 @@ aiRecoveryRouter.get("/", requireAuth, async (req, res) => {
     await listExecutions(createServerSupabase(), {
       project_id: projectId,
       identity,
+      user_email: res.locals.userEmail,
     }),
   );
 });
@@ -98,6 +99,7 @@ aiRecoveryRouter.get("/:executionId/review", requireAuth, async (req, res) => {
       project_id: projectId,
       execution_id: executionId,
       identity,
+      user_email: res.locals.userEmail,
     }),
   );
 });

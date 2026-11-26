@@ -8,6 +8,7 @@
  */
 
 import type { Db } from "../../lib/supabase";
+import { checkProjectAccess } from "../../lib/access";
 import type { AuthenticatedIdentity } from "../../lib/recovery/identity/authStateMatrix";
 import { evaluateInitialAccess } from "../../lib/recovery/authorization/tenancyReadPort";
 import { createSupabaseTenancyReadPort } from "../../lib/recovery/authorization/supabaseTenancyReadPort";
@@ -114,9 +115,23 @@ function toSummary(row: {
  */
 export async function listExecutions(
   db: Db,
-  input: { project_id: string; identity: AuthenticatedIdentity },
+  input: {
+    project_id: string;
+    identity: AuthenticatedIdentity;
+    user_email?: string | null;
+  },
 ): Promise<ServiceResult<AiExecutionSummary[]>> {
   try {
+    // The matter's other content needs the project gate first; the matter gate
+    // below only narrows it.
+    const project = await checkProjectAccess(
+      input.project_id,
+      input.identity.user_id,
+      input.user_email,
+      db,
+    );
+    if (!project.ok) return ok([]);
+
     const { data, error } = await db
       .from("ai_executions")
       .select(EXECUTION_COLUMNS)
@@ -163,9 +178,19 @@ export async function readReview(
     project_id: string;
     execution_id: string;
     identity: AuthenticatedIdentity;
+    user_email?: string | null;
   },
 ): Promise<ServiceResult<HumanReview>> {
   try {
+    const project = await checkProjectAccess(
+      input.project_id,
+      input.identity.user_id,
+      input.user_email,
+      db,
+    );
+    if (!project.ok)
+      return { ok: false, kind: "not_found", code: "not_found", detail: "Not found." };
+
     const repository = createSupabaseAiReadRepository(db);
     const evidence = await repository.loadExecutionEvidence({
       project_id: input.project_id,
