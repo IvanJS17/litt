@@ -370,7 +370,10 @@ function classifyProviderStreamError(error: unknown, context: ProviderContext): 
 function plainObjectCause(error: unknown): unknown {
   if (error === null || typeof error !== "object" || error instanceof Error) return error;
   const tags = diagnosticErrorTags(error);
+  // The fixed runtime wording of a failed fetch, which isNetworkFailure reads.
+  const { message } = error as { message?: unknown };
   return {
+    ...(message === "fetch failed" ? { message } : {}),
     ...(tags.dependency_status === undefined ? {} : { status: tags.dependency_status }),
     ...(tags.failure_code === undefined ? {} : { code: tags.failure_code }),
   };

@@ -133,7 +133,7 @@ export function diagnosticTags(value: unknown): RecordValue {
 /** Extract application kinds and fixed technical codes from wrapped/AggregateError causes.
  * Never copy error messages, SQL details, storage keys, URLs or SDK metadata.
  */
-export function diagnosticErrorTags(error: unknown): Record<string, string | number> {
+export function diagnosticErrorTags(error: unknown, failureClass?: string): Record<string, string | number> {
   const tags: Record<string, string | number> = {};
   const pending: unknown[] = [error];
   const seen = new Set<object>();
@@ -149,15 +149,17 @@ export function diagnosticErrorTags(error: unknown): Record<string, string | num
         const fields = [...new Set(item.configurationFields.slice(0, 10).filter(field => typeof field === 'string' && CONFIGURATION_FIELDS.has(field)))];
         if (fields.length) tags.configuration_fields = fields.sort().join(',');
       }
-      const providerError = item.name === 'InvalidApiKeyError' ? 'invalid_api_key'
-        : item.name === 'AI_APICallError' ? 'api_call'
-          : item.name === 'AI_RetryError' ? 'retry_exhausted'
-            : item.name === 'AI_StreamProviderError' ? 'stream_provider' : undefined;
+      // A copy of an error that crossed a thread has lost its class name; the caller may pass it back for the error itself.
+      const itemName = candidate === error && failureClass !== undefined ? failureClass : item.name;
+      const providerError = itemName === 'InvalidApiKeyError' ? 'invalid_api_key'
+        : itemName === 'AI_APICallError' ? 'api_call'
+          : itemName === 'AI_RetryError' ? 'retry_exhausted'
+            : itemName === 'AI_StreamProviderError' ? 'stream_provider' : undefined;
       if (providerError && tags.provider_error === undefined) tags.provider_error = providerError;
       // Recorded by withKeySource (backend/src/lib/llm/providerErrors.ts); admitted only as a registry id.
       if (typeof item.keyProvider === 'string' && ENUMS.provider!.has(item.keyProvider) && tags.provider === undefined) tags.provider = item.keyProvider;
       const gateway = (candidate as Record<symbol, unknown>)[GATEWAY_ERROR] === true;
-      if (item.name === 'AI_APICallError' || item.name === 'AI_StreamProviderError' || gateway) {
+      if (itemName === 'AI_APICallError' || itemName === 'AI_StreamProviderError' || gateway) {
         // The SDK's parsed error body (`data.error.type`) or the stream error's own `type`; fixed protocol values only.
         // A gateway error maps every upstream type it does not know to internal_server_error, so the
         // upstream body on its APICallError cause is read first and the class's fixed `type` is the fallback.
@@ -174,7 +176,7 @@ export function diagnosticErrorTags(error: unknown): Record<string, string | num
       // cause names why (breadth-first, so a later visit is never shallower).
       const applicationKind = (candidate as Record<symbol, unknown>)[APPLICATION_KIND];
       if (isDiagnosticLabel(applicationKind)) tags.error_kind = applicationKind;
-      for (const code of [item.code, item.name]) {
+      for (const code of [item.code, itemName]) {
         if (typeof code === 'string' && ENUMS.failure_code!.has(code) && tags.failure_code === undefined) tags.failure_code = code;
       }
       // supabase-js hands a failed network call back as a plain object, not

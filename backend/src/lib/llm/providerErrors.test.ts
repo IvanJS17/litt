@@ -133,6 +133,14 @@ describe("toProviderStreamError", () => {
     expect(error).not.toBeInstanceOf(UserFacingError);
     expect(error.message).toBe("Gemini stream failed.");
   });
+
+  it("keeps a plain-object stream error that says only 'fetch failed' a provider outage", () => {
+    const error = toProviderStreamError({ message: "fetch failed", param: "private-marker" }, gemini);
+
+    expect(providerFailureKind(error)).toBe("chat.provider_unavailable");
+    expect(providerFailureLevel(error)).toBe("warning");
+    expect(JSON.stringify(error.cause)).not.toContain("private-marker");
+  });
 });
 
 describe("asProviderStallError", () => {

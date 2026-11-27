@@ -44,11 +44,7 @@ export function redactedProviderError(error: unknown): string | undefined {
       ? `AI provider error ${name}`
       : "AI provider error";
   // A copy's name is "Error", which the tags read the failure class from.
-  const tagged =
-    copiedClass === undefined
-      ? error
-      : Object.defineProperty(Object.create(error), "name", { value: copiedClass });
-  return `${label} ${inspect(diagnosticErrorTags(tagged))}`;
+  return `${label} ${inspect(diagnosticErrorTags(error, copiedClass))}`;
 }
 
 /** Stack frames of an error, without the header line that repeats its message. */
