@@ -188,6 +188,41 @@ describe("one answer to how much a space uses", () => {
     ).rejects.toThrow();
   });
 
+  it("throws when a number of the answer is not a whole count of bytes, and reads zero as zero", async () => {
+    const answer = (row: Record<string, unknown>) =>
+      storageSpaceUsage(
+        { rpc: vi.fn(async () => ({ data: [row], error: null })) } as unknown as Db,
+        { orgId: null, userId: USER },
+      );
+    const unreadable: Record<string, unknown>[] = [
+      {},
+      { used_bytes: null, limit_bytes: null },
+      { used_bytes: null, limit_bytes: "3000" },
+      { used_bytes: "10", limit_bytes: null },
+      { used_bytes: "abc", limit_bytes: "3000" },
+      { used_bytes: "", limit_bytes: "3000" },
+      { used_bytes: " 10", limit_bytes: "3000" },
+      { used_bytes: "1e3", limit_bytes: "3000" },
+      { used_bytes: "1.5", limit_bytes: "3000" },
+      { used_bytes: 1.5, limit_bytes: 3000 },
+      { used_bytes: "-1", limit_bytes: "3000" },
+      { used_bytes: -1, limit_bytes: 3000 },
+      { used_bytes: "10", limit_bytes: "-3000" },
+      { used_bytes: "9007199254740993", limit_bytes: "3000" },
+      { used_bytes: 2 ** 53, limit_bytes: 3000 },
+      { used_bytes: Number.NaN, limit_bytes: 3000 },
+      { used_bytes: Number.POSITIVE_INFINITY, limit_bytes: 3000 },
+      { used_bytes: true, limit_bytes: 3000 },
+    ];
+    for (const row of unreadable) await expect(answer(row), JSON.stringify(row)).rejects.toThrow();
+    await expect(answer({ used_bytes: 0, limit_bytes: "3000" })).resolves.toEqual({ usedBytes: 0, limitBytes: 3000 });
+    await expect(answer({ used_bytes: "0", limit_bytes: 3000 })).resolves.toEqual({ usedBytes: 0, limitBytes: 3000 });
+    await expect(answer({ used_bytes: "9007199254740991", limit_bytes: "9007199254740991" })).resolves.toEqual({
+      usedBytes: Number.MAX_SAFE_INTEGER,
+      limitBytes: Number.MAX_SAFE_INTEGER,
+    });
+  });
+
   it("gives the session-opening function the same space and limits", () => {
     expect(
       quotaRpcArgs({ orgId: FIRM, userId: null }, { bytesPerMember: 7, personalBytes: 3, versionMarginPercent: 10 }),
