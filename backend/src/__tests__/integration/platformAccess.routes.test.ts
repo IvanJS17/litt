@@ -23,8 +23,7 @@ vi.mock("../../lib/anonymousMailCap", async (importOriginal) => {
     return {
         ...actual,
         anonymousMailCap: {
-            check: (address: string) => h.cap.check(address),
-            admit: (address: string) => h.cap.admit(address),
+            admit: (...args: Parameters<AnonymousMailCap["admit"]>) => h.cap.admit(...args),
             size: () => h.cap.size(),
             keys: () => h.cap.keys(),
         },

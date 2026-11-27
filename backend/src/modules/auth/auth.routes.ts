@@ -24,9 +24,9 @@ import {
   sendInternalError,
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
-import { anonymousMailCap } from "../../lib/anonymousMailCap";
+import { anonymousMailCap, type MailKind } from "../../lib/anonymousMailCap";
 import { betaMode, canSignUp } from "../../lib/platformAccess";
-import { inviteAdmittedSignup } from "../../lib/inviteEmail";
+import { INVITE_COOLDOWN_MS, inviteAdmittedSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
 import { markSessionsEnded } from "../mcp/mcp.service";
 import { authErrorShape, isAuthUpstreamFailure } from "../../lib/authUpstream";
@@ -174,14 +174,20 @@ function setOrdinaryCacheHeaders(res: Response) {
 }
 
 /**
- * Called once by each anonymous route that may ask the auth service to send a
- * mail, after the origin check and the validation of the body, and counting
- * nothing. "send": the route may go on to its own rules. "silent": the address
- * is at its cap, the caller gives its ordinary answer without the request.
+ * Called once by each anonymous route that may have the auth service send a
+ * mail, after the origin check and the validation of the body and before
+ * anything is looked up; it counts the request. "send": the route goes on.
+ * "silent": the address is at its cap (or, with `repeatWithinMs`, was counted
+ * moments ago): the caller gives its ordinary answer and does nothing more.
  * "answered": the instance is at its cap and the 429 has been sent here.
  */
-function askAnonymousMail(res: Response, address: string): "send" | "silent" | "answered" {
-  const admission = anonymousMailCap.check(address);
+function admitAnonymousMail(
+  res: Response,
+  kind: MailKind,
+  address: string,
+  options: { repeatWithinMs?: number } = {},
+): "send" | "silent" | "answered" {
+  const admission = anonymousMailCap.admit(kind, address, options);
   if (admission.kind === "send") return "send";
   if (admission.kind === "overall_full") {
     res.setHeader("Retry-After", String(admission.retryAfterSeconds));
@@ -194,16 +200,6 @@ function askAnonymousMail(res: Response, address: string): "send" | "silent" | "
     return "answered";
   }
   return "silent";
-}
-
-/**
- * Called once by each anonymous route at the moment it asks the auth service to
- * send a mail, and only after the route's own rules decided to send: this is
- * the one place a mail is counted. False when a cap was reached meanwhile; then
- * nothing is requested.
- */
-function spendAnonymousMail(address: string): boolean {
-  return anonymousMailCap.admit(address).kind === "send";
 }
 
 // Beta mode: the same answer whether or not the email exists or is invited.
@@ -227,9 +223,7 @@ async function admitBetaSignupAfterAnswer(email: string): Promise<void> {
   try {
     const db = createServerSupabase();
     if (!(await canSignUp(db, email))) return;
-    const invited = await inviteAdmittedSignup(db, email, {
-      mayMail: () => spendAnonymousMail(email),
-    });
+    const invited = await inviteAdmittedSignup(db, email);
     if (invited.kind === "failed") throw invited.error;
   } catch (error) {
     reportError(
@@ -244,16 +238,25 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res, parsed.error.issues);
 
-  const admission = askAnonymousMail(res, parsed.data.email);
+  // One decision per request, from the route, the mode and the address typed
+  // only. Closed beta: a repeat within the invitation's own span is neither
+  // counted nor carried on.
+  const beta = betaMode();
+  const admission = admitAnonymousMail(
+    res,
+    "signup",
+    parsed.data.email,
+    beta ? { repeatWithinMs: INVITE_COOLDOWN_MS } : {},
+  );
   if (admission === "answered") return;
 
-  if (betaMode()) {
+  if (beta) {
     res.status(201).json({ user: null, requiresEmailConfirmation: true });
     if (admission === "send") await admitBetaSignupAfterAnswer(parsed.data.email);
     return;
   }
 
-  if (admission === "silent" || !spendAnonymousMail(parsed.data.email)) {
+  if (admission === "silent") {
     // Nothing is requested: the same kind of answer as a sign-up that sends
     // nothing new, with the cache headers the ordinary answer carries.
     setOrdinaryCacheHeaders(res);
@@ -589,11 +592,10 @@ authRouter.post("/password-reset", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
   const email = emailSchema.safeParse(req.body?.email);
   if (email.success) {
-    const admission = askAnonymousMail(res, email.data);
+    const admission = admitAnonymousMail(res, "reset", email.data);
     if (admission === "answered") return;
-    const sending = admission === "send" && spendAnonymousMail(email.data);
-    if (!sending) setOrdinaryCacheHeaders(res);
-    if (sending) try {
+    if (admission !== "send") setOrdinaryCacheHeaders(res);
+    if (admission === "send") try {
       const client = createRequestSupabase(req, res);
       const { error } = await sendPasswordReset(
         client,

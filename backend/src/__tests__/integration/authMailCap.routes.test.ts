@@ -14,6 +14,10 @@ vi.mock("../../lib/log", () => ({ devLog: vi.fn(), isDev: false }));
 
 const ORIGIN = "http://app.test";
 const HOUR = 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
+// The host may be loaded: every hook and every wait gets a generous bound.
+const SLOW = 120_000;
+vi.setConfig({ testTimeout: SLOW, hookTimeout: SLOW });
 
 const calls = { recover: 0, signup: 0, invite: 0, replaced: 0 };
 // An identity that exists, unconfirmed and invited long ago, for `lookupFor`; `beforeLookup` runs when it is looked up.
@@ -81,21 +85,23 @@ beforeAll(async () => {
   vi.stubEnv("FRONTEND_URL", ORIGIN);
   vi.stubEnv("NODE_ENV", "development");
   vi.stubEnv("PLATFORM_ADMIN_EMAILS", "");
-});
+}, SLOW);
 afterAll(async () => {
   vi.unstubAllEnvs();
   await new Promise<void>((resolve) => gotrue.close(() => resolve()));
-});
+}, SLOW);
 beforeEach(async () => {
   calls.recover = calls.signup = calls.invite = calls.replaced = 0;
   stored.lookupFor = stored.beforeLookup = null;
   stored.confirmedAccounts = false;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   app = await loadApp({ PLATFORM_ADMIN_EMAILS: "", AUTH_ANONYMOUS_MAIL_HOURLY_CAP: "" });
-});
+}, SLOW);
 afterEach(() => {
   vi.useRealTimers();
-});
+}, SLOW);
+
+const settle = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let nextClient = 0;
 const freshClient = () => `198.51.${100 + Math.floor(nextClient / 250)}.${(nextClient++ % 250) + 1}`;
@@ -170,8 +176,8 @@ describe("password-reset requests are capped for the instance", () => {
     expect(sixteenth.headers["ratelimit-remaining"]).toBe("0");
     expect(calls.recover).toBe(15);
 
-    // An address that already has its mails stays indistinguishable.
-    expect((await reset("already-mailed@example.test")).status).toBe(204);
+    // While the instance is at its cap an address that already has its mails gets the same answer.
+    expect((await reset("already-mailed@example.test")).status).toBe(429);
     expect(calls.recover).toBe(15);
   });
 
@@ -390,17 +396,22 @@ describe("a capped answer looks like the route's own answer", () => {
   });
 
   it("sign-up in closed beta: an admitted address at its cap gets no invitation", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test,second-boss@example.test" });
-    for (let i = 0; i < 3; i++) await reset("boss@example.test");
+    for (let i = 0; i < 3; i++) {
+      expect((await signup("boss@example.test")).status).toBe(201);
+      await vi.waitFor(() => expect(calls.invite).toBe(i + 1), { timeout: SLOW });
+      vi.setSystemTime(Date.now() + 11 * MINUTE);
+    }
     const capped = await signup("boss@example.test");
     expect(capped.status).toBe(201);
     // The invitation is sent after the answer. A second admitted address that
     // is below its cap is asked afterwards; once its invitation has gone out,
     // the work behind the first answer has had its turn.
     expect((await signup("second-boss@example.test")).status).toBe(201);
-    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(1));
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(calls.invite).toBe(1);
+    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(4), { timeout: SLOW });
+    await settle(300);
+    expect(calls.invite).toBe(4);
   });
 
   it("sign-up when open: same status, cache header and body shape", async () => {
@@ -422,76 +433,264 @@ describe("a capped answer looks like the route's own answer", () => {
   });
 });
 
-describe("only a mail actually requested from the auth service is counted", () => {
-  const people = (n: number) => Array.from({ length: n }, (_, i) => `person-${i}@example.test`);
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
+describe("what is counted depends only on the route, the mode and the address typed", () => {
+  const KINDS = [
+    { name: "admitted without an account", admitted: true, confirmed: false },
+    { name: "not admitted", admitted: false, confirmed: false },
+    { name: "admitted with a confirmed account", admitted: true, confirmed: true },
+  ] as const;
+  type Kind = (typeof KINDS)[number];
+  const ADDRESS = "subject@example.test";
+  const BOSS = "boss@example.test";
+  const people = (n: number, prefix = "person") => Array.from({ length: n }, (_, i) => `${prefix}-${i}@example.test`);
 
-  it("sign-ups for addresses that are not admitted spend nothing", async () => {
-    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
-    for (const email of people(16)) expect((await signup(email)).status).toBe(201);
-    await settle();
-    expect(calls.invite).toBe(0);
+  /** Invitation-only mode with a fresh count and a frozen clock; `kind` says who `address` is. */
+  async function invitationOnly(kind: Kind, address = ADDRESS) {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-01T12:00:00Z"));
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: kind.admitted ? address : BOSS });
+    stored.confirmedAccounts = kind.confirmed;
+  }
 
-    expect((await signup("boss@example.test")).status).toBe(201);
-    await vi.waitFor(() => expect(calls.invite).toBe(1), { timeout: 30_000 });
+  /** The whole answer: status, body, every header, and every cookie by name and attributes. */
+  function whole(answer: request.Response) {
+    const headers = { ...answer.headers };
+    delete headers.date;
+    delete headers.etag;
+    delete headers["x-request-id"];
+    delete headers["set-cookie"];
+    const cookies = ((answer.headers["set-cookie"] as unknown as string[] | undefined) ?? []).map((cookie) =>
+      cookie.replace(/^([^=]*)=[^;]*/, "$1=").replace(/-[0-9a-f]{32}-/, "-<flow>-"),
+    );
+    return { status: answer.status, text: answer.text, headers, cookies };
+  }
+
+  const countedResets = async (n: number, prefix: string) => {
+    const statuses: number[] = [];
+    for (let i = 0; i < n; i++) statuses.push((await reset(`${prefix}-${i}@example.test`)).status);
+    return statuses;
+  };
+
+  it("gives the same answer to the instance count whoever the address is", async () => {
+    const finals = [];
+    for (const kind of KINDS) {
+      await invitationOnly(kind);
+      expect(await countedResets(14, "filler")).toEqual(Array(14).fill(204));
+      expect((await signup(ADDRESS)).status).toBe(201);
+      await settle();
+      const last = await reset(ADDRESS);
+      // The sign-up was counted, so the instance count is full.
+      expect(last.status).toBe(429);
+      finals.push(whole(last));
+    }
+    expect(finals[1]).toEqual(finals[0]);
+    expect(finals[2]).toEqual(finals[0]);
   });
 
-  it("sign-ups the route holds back for its own ten-minute rule spend nothing", async () => {
-    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
-    for (let i = 0; i < 10; i++) expect((await signup("boss@example.test")).status).toBe(201);
-    await vi.waitFor(() => expect(calls.invite).toBe(1), { timeout: 30_000 });
+  it("gives the same answer to the address count whoever the address is", async () => {
+    const finals = [];
+    for (const kind of KINDS) {
+      calls.recover = 0;
+      await invitationOnly(kind);
+      for (let i = 0; i < 2; i++) expect((await reset(ADDRESS)).status).toBe(204);
+      expect((await signup(ADDRESS)).status).toBe(201);
+      await settle();
+      const last = await reset(ADDRESS);
+      expect(last.status).toBe(204);
+      // The reset is forwarded: the sign-up did not use up the address's resets.
+      expect(calls.recover).toBe(3);
+      expect(whole(last).cookies.length).toBeGreaterThan(0);
+      finals.push(whole(last));
+    }
+    expect(finals[1]).toEqual(finals[0]);
+    expect(finals[2]).toEqual(finals[0]);
+  });
+
+  it("counts sign-ups and resets for one address apart, when open", async () => {
+    for (let i = 0; i < 3; i++) await reset(ADDRESS);
+    expect(calls.recover).toBe(3);
+    expect((await signup(ADDRESS)).body.user).not.toBeNull();
+    expect(calls.signup).toBe(1);
+
+    app = await loadApp();
+    calls.recover = calls.signup = 0;
+    for (let i = 0; i < 3; i++) await signup(ADDRESS);
+    expect(calls.signup).toBe(3);
+    await signup(ADDRESS);
+    expect(calls.signup).toBe(3);
+    expect((await reset(ADDRESS)).status).toBe(204);
+    expect(calls.recover).toBe(1);
+  });
+
+  it("counts sign-ups and resets for one address apart, in invitation-only mode", async () => {
+    await invitationOnly(KINDS[0]);
+    for (let i = 0; i < 3; i++) await reset(ADDRESS);
+    expect(calls.recover).toBe(3);
+    expect((await signup(ADDRESS)).status).toBe(201);
+    await vi.waitFor(() => expect(calls.invite).toBe(1), { timeout: SLOW });
+
+    await invitationOnly(KINDS[0]);
+    calls.recover = calls.invite = 0;
+    for (let i = 0; i < 3; i++) {
+      await signup(ADDRESS);
+      await vi.waitFor(() => expect(calls.invite).toBe(i + 1), { timeout: SLOW });
+      vi.setSystemTime(Date.now() + 11 * MINUTE);
+    }
+    expect((await reset(ADDRESS)).status).toBe(204);
+    expect(calls.recover).toBe(1);
+  });
+
+  it.each(KINDS)("invitation-only: twenty requests for an address ($name) count one", async (kind) => {
+    await invitationOnly(kind);
+    for (let i = 0; i < 20; i++) expect((await signup(ADDRESS)).status).toBe(201);
+    await settle();
+    // One is counted, so fourteen resets fit and the fifteenth is the instance's 429.
+    expect(await countedResets(14, "other")).toEqual(Array(14).fill(204));
+    expect((await reset("other-last@example.test")).status).toBe(429);
+  });
+
+  it.each(KINDS)("invitation-only: after eleven minutes the next request for an address ($name) counts", async (kind) => {
+    await invitationOnly(kind);
+    for (let i = 0; i < 5; i++) await signup(ADDRESS);
+    await settle();
+    vi.setSystemTime(Date.now() + 11 * MINUTE);
+    expect((await signup(ADDRESS)).status).toBe(201);
+    await settle();
+    if (kind.admitted && !kind.confirmed) {
+      await vi.waitFor(() => expect(calls.invite).toBe(2), { timeout: SLOW });
+    }
+    expect(await countedResets(13, "other")).toEqual(Array(13).fill(204));
+    expect((await reset("other-last@example.test")).status).toBe(429);
+  });
+
+  it("invitation-only: the fourth counted sign-up for an address in an hour gets the fixed answer and no invitation", async () => {
+    await invitationOnly(KINDS[0]);
+    for (let i = 0; i < 3; i++) {
+      await signup(ADDRESS);
+      await vi.waitFor(() => expect(calls.invite).toBe(i + 1), { timeout: SLOW });
+      vi.setSystemTime(Date.now() + 11 * MINUTE);
+    }
+    const fourth = await signup(ADDRESS);
+    expect(fourth.status).toBe(201);
+    expect(fourth.body).toEqual({ user: null, requiresEmailConfirmation: true });
+    await settle(300);
+    expect(calls.invite).toBe(3);
+  });
+
+  it("invitation-only: 100 sign-ups at once for one address count one", async () => {
+    await invitationOnly(KINDS[0]);
+    const answers = await Promise.all(Array.from({ length: 100 }, () => signup(ADDRESS)));
+    expect(answers.every((answer) => answer.status === 201)).toBe(true);
+    await vi.waitFor(() => expect(calls.invite).toBe(1), { timeout: SLOW });
     await settle();
     expect(calls.invite).toBe(1);
-
-    // One mail is counted, so fourteen more fit and the next is the instance's 429.
-    for (let i = 1; i <= 14; i++) expect((await reset(`other-${i}@example.test`)).status).toBe(204);
-    expect(calls.recover).toBe(14);
-    expect((await reset("other-15@example.test")).status).toBe(429);
+    expect(await countedResets(14, "other")).toEqual(Array(14).fill(204));
+    expect((await reset("other-last@example.test")).status).toBe(429);
   });
 
-  it("requests exactly the instance count of invitations for 100 sign-ups at once", async () => {
+  it("invitation-only: 100 sign-ups at once for distinct addresses count exactly up to the instance count", async () => {
     const admitted = people(100);
+    vi.useFakeTimers({ toFake: ["Date"] });
     app = await loadApp({ PLATFORM_ADMIN_EMAILS: admitted.join(",") });
     const answers = await Promise.all(admitted.map((email) => signup(email)));
-    expect(answers.every((answer) => answer.status === 201 || answer.status === 429)).toBe(true);
-    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(15), { timeout: 60_000 });
+    expect(answers.filter((answer) => answer.status === 201)).toHaveLength(15);
+    expect(answers.filter((answer) => answer.status === 429)).toHaveLength(85);
+    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(15), { timeout: SLOW });
     await settle();
     expect(calls.invite).toBe(15);
   });
 
-  it("replaces no password and requests no invitation when the cap is reached after the answer", async () => {
-    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
-    stored.lookupFor = "boss@example.test";
-    stored.beforeLookup = async () => {
-      stored.beforeLookup = null;
-      for (let i = 0; i < 15; i++) await reset(`filler-${i}@example.test`);
-    };
-    expect((await signup("boss@example.test")).status).toBe(201);
-    await vi.waitFor(() => expect(calls.recover).toBe(15), { timeout: 30_000 });
+  it("invitation-only: sixteen sign-ups for distinct addresses that are not admitted fill the instance count", async () => {
+    await invitationOnly(KINDS[1]);
+    const statuses: number[] = [];
+    for (const email of people(16)) statuses.push((await signup(email)).status);
+    expect(statuses.slice(0, 15)).toEqual(Array(15).fill(201));
+    expect(statuses[15]).toBe(429);
     await settle();
-    expect(calls.replaced).toBe(0);
     expect(calls.invite).toBe(0);
   });
 
-  it("sign-ups for admitted addresses that already have an account spend nothing", async () => {
-    const admitted = people(17);
-    app = await loadApp({ PLATFORM_ADMIN_EMAILS: admitted.join(",") });
-    stored.confirmedAccounts = true;
+  describe("while the instance is at its cap, every request gets the same answer", () => {
+    const T0 = Date.parse("2026-06-01T12:00:00Z");
+    const at = (ms: number) => vi.setSystemTime(new Date(T0 + ms));
+    const fill = async (n: number) => {
+      for (const email of people(n, "filler")) expect((await reset(email)).status).toBe(204);
+    };
 
-    // Several sign-ups for one such address, then a reset for it is still forwarded.
-    for (let i = 0; i < 4; i++) expect((await signup(admitted[0])).status).toBe(201);
-    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(1), { timeout: 30_000 });
-    await settle();
-    await settle();
-    expect((await reset(admitted[0])).status).toBe(204);
+    /**
+     * Counts what `setup` leaves, fills the instance, then asks `ask` for the
+     * address with that history and for one never seen: the same whole answer,
+     * and nothing counted (as many fresh requests as slots that free at one
+     * hour from the first counted request, then 429).
+     */
+    async function sameAsNeverSeen(
+      ask: (email: string) => Promise<request.Response>,
+      freed: number,
+      setup: () => Promise<void>,
+    ) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      at(0);
+      await setup();
+      const seen = whole(await ask(ADDRESS));
+      const never = whole(await ask("never-seen@example.test"));
+      expect(seen.status).toBe(429);
+      expect(seen.headers["retry-after"]).toBeDefined();
+      expect(seen).toEqual(never);
+      at(HOUR);
+      for (const email of people(freed, "fresh")) expect((await ask(email)).status).not.toBe(429);
+      expect((await ask("one-more@example.test")).status).toBe(429);
+    }
+
+    it("password reset: an address already at its 3 resets", async () => {
+      await sameAsNeverSeen(reset, 3, async () => {
+        for (let i = 0; i < 3; i++) await reset(ADDRESS);
+        at(MINUTE);
+        await fill(12);
+      });
+      expect(calls.recover).toBe(15 + 3);
+    });
+
+    it("invitation-only sign-up: an address counted two minutes ago", async () => {
+      await invitationOnly(KINDS[1]);
+      await sameAsNeverSeen(signup, 1, async () => {
+        expect((await signup(ADDRESS)).status).toBe(201);
+        at(2 * MINUTE);
+        await fill(14);
+      });
+    });
+
+    it("invitation-only sign-up: an address with 3 counted sign-ups", async () => {
+      await invitationOnly(KINDS[0]);
+      await sameAsNeverSeen(signup, 1, async () => {
+        for (let i = 0; i < 3; i++) {
+          at(i * 11 * MINUTE);
+          expect((await signup(ADDRESS)).status).toBe(201);
+        }
+        await fill(12);
+      });
+      await settle();
+    });
+
+    it("open sign-up: an address at its 3 sign-ups", async () => {
+      await sameAsNeverSeen(signup, 3, async () => {
+        for (let i = 0; i < 3; i++) await signup(ADDRESS);
+        at(MINUTE);
+        await fill(12);
+      });
+    });
+  });
+
+  it("does not forward a reset or a sign-up refused for its origin or body, in invitation-only mode either", async () => {
+    await invitationOnly(KINDS[0]);
+    for (let i = 0; i < 15; i++) {
+      const refused = await request(app)
+        .post("/auth/signup")
+        .set("X-Forwarded-For", freshClient())
+        .set("Origin", "http://other.test")
+        .send({ email: `refused-${i}@example.test`, password: "a-long-enough-password-1" });
+      expect(refused.status).toBe(403);
+    }
+    expect((await reset("legitimate@example.test")).status).toBe(204);
     expect(calls.recover).toBe(1);
-
-    // Sixteen such addresses leave the instance count untouched.
-    const before = calls.invite;
-    for (const email of admitted.slice(1, 17)) expect((await signup(email)).status).toBe(201);
-    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(before + 16), { timeout: 60_000 });
-    await settle();
-    expect((await reset("someone-else@example.test")).status).toBe(204);
-    expect(calls.recover).toBe(2);
   });
 });
