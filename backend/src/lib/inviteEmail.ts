@@ -47,6 +47,36 @@ type InviteResult =
   | { kind: "has_account" }
   | { kind: "failed"; error: unknown };
 
+const isLineEnd = (code: number) => code === 10 || code === 13 || code === 0x2028 || code === 0x2029;
+
+/** Whether `text` holds `word` (lowercase ASCII) at `at`, ignoring ASCII case. */
+function hasWordAt(text: string, at: number, word: string): boolean {
+  if (at + word.length > text.length) return false;
+  for (let i = 0; i < word.length; i++) {
+    const code = text.charCodeAt(at + i);
+    if ((code >= 65 && code <= 90 ? code + 32 : code) !== word.charCodeAt(i)) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether one line of the identity service's message says "already" and later
+ * "registered", in any case. One pass over the message: each line is read once.
+ */
+function saysAlreadyRegistered(message: string): boolean {
+  let sawAlready = false;
+  for (let i = 0; i < message.length; i++) {
+    if (isLineEnd(message.charCodeAt(i))) sawAlready = false;
+    else if (sawAlready) {
+      if (hasWordAt(message, i, "registered")) return true;
+    } else if (hasWordAt(message, i, "already")) {
+      sawAlready = true;
+      i += "already".length - 1;
+    }
+  }
+  return false;
+}
+
 /**
  * Every path that mails an invitation link goes through here. An unconfirmed
  * identity that already exists for the address (an earlier sign-up) may hold
@@ -82,7 +112,7 @@ async function inviteByEmail(
     });
     if (!error) return { kind: "sent", user: data?.user };
     const e = error as { code?: string; message?: string };
-    if (e.code === "email_exists" || /already.*registered/i.test(e.message ?? ""))
+    if (e.code === "email_exists" || saysAlreadyRegistered(e.message ?? ""))
       return { kind: "has_account" };
     console.warn("[invite-email] send failed", safeError(error));
     return { kind: "failed", error };

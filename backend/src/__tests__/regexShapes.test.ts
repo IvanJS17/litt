@@ -110,17 +110,10 @@ const FILES = sourceFiles(SRC).map((f) => relative(SRC, f).split(sep).join("/"))
  * there. The list may only shrink: its length is capped below, an entry whose
  * pattern is gone or no longer flagged fails the test, and so does an entry
  * whose count differs from what the file holds (a new identical expression in
- * a listed file is a new expression). A reason is one of
- *   "pending: file owned by another open change",
+ * a listed file is a new expression). A reason says what bounds the input:
  *   "input bounded by <constant>".
  */
 const RATCHET: { file: string; source: string; count: number; reason: string }[] = [
-    { file: "lib/mcp/client.ts", source: "^_+|_+$", count: 1, reason: "pending: file owned by another open change (the connector OAuth branch)" },
-    { file: "lib/mcp/client.ts", source: "=+$", count: 1, reason: "pending: file owned by another open change (the connector OAuth branch)" },
-    { file: "lib/mcp/oauth.ts", source: "\\/+$", count: 1, reason: "pending: file owned by another open change (the connector OAuth branch)" },
-    { file: "lib/mcp/types.ts", source: "\\.+$", count: 1, reason: "pending: file owned by another open change (the connector OAuth branch)" },
-    { file: "modules/user/user.routes.ts", source: "\\/+$", count: 1, reason: "pending: file owned by another open change (the connector OAuth branch)" },
-    { file: "lib/inviteEmail.ts", source: "already.*registered", count: 1, reason: "pending: file owned by another open change (the invited-address sign-up branch)" },
     { file: "lib/llm/cloudProviders.ts", source: "\\/+$", count: 3, reason: "input bounded: a base URL or endpoint is refused over 300 characters (the literal in normalizeCustomBaseUrl and normalizeAzureEndpoint); azureClientTarget reads an endpoint already normalized" },
     { file: "lib/observability/diagnostics.ts", source: "\\btools?\\.\\d+|input_schema|invalid schema for function|function parameters|tool[^.]*\\bschema\\b", count: 1, reason: "input bounded by PROVIDER_MESSAGE_CHARS (4,096 characters of the provider's message)" },
     { file: "lib/webSearch/pageReader.ts", source: "<meta[^>]+charset\\s*=\\s*[\"']?\\s*([\\w.:-]+)", count: 1, reason: "input bounded by the first 1,024 bytes of a page (metaCharset)" },
@@ -129,7 +122,7 @@ const RATCHET: { file: string; source: string; count: number; reason: string }[]
     { file: "lib/workflowCatalogSource.ts", source: "^---\\n([\\s\\S]*?)\\n---(?:\\n|$)([\\s\\S]*)$", count: 1, reason: "input bounded by MAX_FILE_BYTES (5 MiB), a file of a pinned catalog archive" },
     { file: "modules/radar/radar.rules.ts", source: "^https:\\/\\/[^\\s/]+\\.[^\\s/]+", count: 1, reason: "input bounded: a citation url of the bundled rule catalog, not user text" },
 ];
-const RATCHET_MAX_ENTRIES = 13;
+const RATCHET_MAX_ENTRIES = 7;
 // Patterns built at run time (`new RegExp(variable)`) are not read; their number is fixed here so a new one is a decision.
 const DYNAMIC_PATTERNS = 13;
 
@@ -177,6 +170,12 @@ describe("the shape reader", () => {
         expect(kinds("^a|(?:b|c)|\\s+$")).toEqual(["end-anchored-run"]);
         // The start anchor of another line does not fix the start.
         expect(kinds("^\\s+$", "m")).toContain("end-anchored-run");
+    });
+    it("flags the trimming and matching expressions that are now written as loops", () => {
+        // Each of these was once in RATCHET; put back in its file it is an unlisted offender.
+        for (const source of ["^_+|_+$", "=+$", "\\/+$", "\\.+$", "already.*registered"]) {
+            expect(kinds(source), source).not.toEqual([]);
+        }
     });
     it("leaves a run that is anchored at the start, bounded, or stopped by what comes before it", () => {
         for (const source of ["^\\s+$", "^a*b+$", "^x\\s*$", "^(?:a|b+$)", "^-?\\d+$", "\\s{1,5}$", "a\\s*$", "\\.[a-z]+$", "(?:foo|bar)\\s*$", ",[^,]*$", "\\s+x", "^\\s+"]) {
