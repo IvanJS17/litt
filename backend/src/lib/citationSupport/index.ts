@@ -2,7 +2,6 @@ export {
     createCitationSupportRunner,
     createCitationSupportTurn,
     forgetCitationSupportChecks,
-    runCitationSupportChecks,
     type CitationSupportOutcome,
     type CitationSupportRunner,
     type CitationSupportScope,
@@ -22,7 +21,6 @@ export {
 export { readDraftReviewRefs, readReviewRefs, reviewRefsOf, type ReviewRefsByOwner } from "./review";
 export { citationCheckPermitted, citationCheckWanted, setCitationCheckWanted } from "./preference";
 export {
-    askCitationSupport,
     CitationSupportError,
     JEV_MODEL,
     NOT_SUPPORTED_BELOW,

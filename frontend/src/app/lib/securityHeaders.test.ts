@@ -67,6 +67,10 @@ describe("content security policy", () => {
         expect(csp.get("font-src")).toEqual(expect.arrayContaining(["'self'"]));
     });
 
+    it("lets the page read its own object URLs, which the Word viewer needs to show the images of a document", () => {
+        expect(policy().get("connect-src")).toEqual(expect.arrayContaining(["'self'", "blob:"]));
+    });
+
     it("upgrades insecure requests only on a secure request", () => {
         expect(policy({}, true).has("upgrade-insecure-requests")).toBe(true);
         expect(policy({}, false).has("upgrade-insecure-requests")).toBe(false);

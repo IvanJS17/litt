@@ -5,6 +5,8 @@
 // FIXED by configuration, never derived from the request's Host header: a
 // token is only as good as the audience it names.
 
+import { wholeNumber } from "../../lib/runtimeConfig";
+
 export const MCP_SCOPES = ["litt.read", "litt.run", "litt.write", "litt.chat"] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
 export const MCP_DEFAULT_SCOPE: McpScope = "litt.read";
@@ -45,8 +47,10 @@ export type McpRateLimits = {
 };
 
 function positiveInt(raw: string | undefined, fallback: number): number {
-    const parsed = Number.parseInt(raw ?? "", 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+    // Only a whole number written in plain digits from 1 up (no sign, separator, exponent, decimals or leading zero).
+    const text = raw?.trim();
+    const parsed = text && !text.startsWith("0") ? wholeNumber(text) : null;
+    return parsed !== null && parsed > 0 ? parsed : fallback;
 }
 
 function originOf(value: string | undefined): string | null {

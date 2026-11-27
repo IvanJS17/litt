@@ -33,6 +33,11 @@ route answers: the requests fall through to the normal 404.
 | `RATE_LIMIT_MCP_REGISTER_MAX` / `RATE_LIMIT_MCP_REGISTER_WINDOW_HOURS` | 60 / 1 | Registrations from one address. |
 | `RATE_LIMIT_MCP_AUTHORIZE_MAX` / `RATE_LIMIT_MCP_AUTHORIZE_WINDOW_HOURS` | 120 / 1 | `GET /oauth/authorize` requests from one address. The consent page and the token endpoints are not counted. |
 
+`LITT_MCP_ACCESS_TTL_SECONDS`, `LITT_MCP_REFRESH_TTL_DAYS`, `LITT_MCP_GRANT_MAX_DAYS`,
+`LITT_MCP_UNAPPROVED_CLIENTS_MAX` and the four `RATE_LIMIT_MCP_GRANT_*` settings are taken only when
+written as a whole number in plain digits, from 1 up (`10000`, not `10,000`, `10k` or `1e4`); any
+other value uses the default.
+
 The proxy that makes the backend reachable at the MCP host, its DNS name and
 its Caddy block are infrastructure and are not part of the backend.
 
