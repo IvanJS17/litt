@@ -259,3 +259,18 @@ it("keeps font failures non-fatal and permits dismissing their warning", () => {
     expect(props.onError).toHaveBeenCalledOnce();
     expect(props.onReady).not.toHaveBeenCalled();
 });
+
+it("shows a vector image of the document from a data URL without touching the document bytes", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>';
+    vi.stubGlobal("fetch", vi.fn(async () => ({ blob: async () => new Blob([svg], { type: "image/svg+xml" }) }) as Response));
+    const bytes = new Uint8Array([1, 2, 3]).buffer;
+    const { container } = render(<DocxRenderer bytes={bytes} mode="edit" onReady={vi.fn()} onError={vi.fn()} />);
+    const document = state.props.document as Uint8Array;
+    const img = window.document.createElement("img");
+    img.setAttribute("src", "blob:http://app.test/part");
+    container.querySelector(".docx-paginated-surface")!.append(img);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(img.getAttribute("src")).toBe(`data:image/svg+xml;base64,${btoa(svg)}`);
+    expect(Array.from(document)).toEqual([1, 2, 3]);
+    vi.unstubAllGlobals();
+});
