@@ -13,6 +13,10 @@ const h = vi.hoisted(() => ({
     state: null as null | { db: unknown; tables: Record<string, Row[]>; failNext: (table: string, op: string, error: unknown) => void },
     documents: new Map<string, () => Response>(),
     fetched: [] as string[],
+    /** The database gateway's row limit: answers with rows are silently shortened to it. */
+    maxRows: undefined as number | undefined,
+    /** How the count read of unapproved clients fails, if it does. */
+    countRead: "ok" as "ok" | "error" | "missing",
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -65,7 +69,11 @@ const LOCAL = "http://127.0.0.1:1234/callback";
 
 /** memoryDb does not know PostgREST's embedded filter: `mcp_grants is null` keeps the clients no grant row refers to. */
 function dbWithGrantFilter(rows: Record<string, Row[]>) {
-    const state = memoryDb(rows, { mcp_oauth_purge: () => null });
+    const state = memoryDb(rows, { mcp_oauth_purge: () => null }, {
+        get maxRows() {
+            return h.maxRows;
+        },
+    });
     type Builder = Record<string, (...args: unknown[]) => unknown>;
     const db = state.db as unknown as { from: (table: string) => Builder };
     const realFrom = db.from;
@@ -73,6 +81,18 @@ function dbWithGrantFilter(rows: Record<string, Row[]>) {
         const builder = realFrom(table);
         if (table !== "mcp_oauth_clients") return builder;
         const realIs = builder.is;
+        const realSelect = builder.select;
+        // A read that only counts (`head: true`) can fail, or answer without a number.
+        builder.select = (list?: unknown, options?: unknown) => {
+            const head = (options as { head?: boolean } | undefined)?.head;
+            if (head && h.countRead === "error")
+                state.failNext(table, "select", { message: "count unavailable" });
+            if (head && h.countRead === "missing") {
+                (builder as { then: unknown }).then = (resolve: (v: unknown) => unknown) =>
+                    Promise.resolve({ data: null, error: null, count: null }).then(resolve);
+            }
+            return realSelect(list, options);
+        };
         builder.is = (column: unknown, value: unknown) => {
             if (column !== "mcp_grants") return realIs(column, value);
             let chained: unknown = builder;
@@ -107,6 +127,8 @@ beforeEach(() => {
     h.personalDisabled = false;
     h.documents.clear();
     h.fetched = [];
+    h.maxRows = undefined;
+    h.countRead = "ok";
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", WEB);
@@ -239,4 +261,92 @@ describe("under the cap", () => {
         expect(tables().mcp_oauth_audit.map((r) => r.event)).toEqual(["client_registered", "cimd_fetched", "authorization_requested"]);
         expect(tables().mcp_oauth_requests).toHaveLength(1);
     });
+});
+
+const clientIds = () => tables().mcp_oauth_clients.map((c) => c.client_id);
+const tokenRequest = (fields: Record<string, string>) =>
+    request(app).post("/oauth/token").type("form").send(fields);
+
+describe("the count does not depend on the database gateway's row limit", () => {
+    const NUMBER = 5;
+    beforeEach(() => {
+        h.maxRows = 3; // answers with rows are cut to 3, below the number
+        vi.stubEnv("LITT_MCP_UNAPPROVED_CLIENTS_MAX", String(NUMBER));
+    });
+
+    it("refuses a registration at the number, writing nothing", async () => {
+        seedUnapproved(NUMBER);
+        const before = snapshot();
+        const res = await registerRaw();
+        expect(res.status).toBe(429);
+        expect(res.body.error).toBe("temporarily_unavailable");
+        expect(snapshot()).toBe(before);
+    });
+
+    it("refuses a first-seen metadata-document client at the number, fetching and writing nothing", async () => {
+        h.documents.set(DOC_URL, doc());
+        seedUnapproved(NUMBER);
+        const before = snapshot();
+        const res = await authorize(DOC_URL, LOCAL);
+        expect(res.status).toBe(429);
+        expect(h.fetched).toEqual([]);
+        expect(snapshot()).toBe(before);
+    });
+
+    it("still creates one below the number", async () => {
+        seedUnapproved(NUMBER - 1);
+        expect((await registerRaw()).status).toBe(201);
+        expect((await registerRaw()).status).toBe(429);
+    });
+
+    it.each(["error", "missing"] as const)("refuses the creation when the count answers %s, writing nothing", async (mode) => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        h.documents.set(DOC_URL, doc());
+        seedUnapproved(1);
+        h.countRead = mode;
+        const before = snapshot();
+        const reg = await registerRaw();
+        expect(reg.status).toBeGreaterThanOrEqual(400);
+        expect(reg.status).not.toBe(201);
+        const cimd = await authorize(DOC_URL, LOCAL);
+        expect(cimd.status).not.toBe(302);
+        expect(h.fetched).toEqual([]);
+        expect(snapshot()).toBe(before);
+    });
+});
+
+describe("the token endpoint never creates a client", () => {
+    const code = { grant_type: "authorization_code", client_id: DOC_URL, code: "c".repeat(43), code_verifier: "v".repeat(43), redirect_uri: LOCAL };
+    const refresh = { grant_type: "refresh_token", client_id: DOC_URL, refresh_token: "r".repeat(43) };
+
+    it.each([["authorization code", code], ["refresh", refresh]] as const)(
+        "answers the unknown-client error for a first-seen metadata-document client (%s grant), fetching and writing nothing",
+        async (_name, fields) => {
+            h.documents.set(DOC_URL, doc());
+            const before = snapshot();
+            const res = await tokenRequest({ ...fields });
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe("invalid_client");
+            expect(h.fetched).toEqual([]);
+            expect(clientIds()).toEqual([]);
+            expect(tables().mcp_oauth_audit).toEqual([]);
+            expect(snapshot()).toBe(before);
+        },
+    );
+
+    it.each([["authorization code", code], ["refresh", refresh]] as const)(
+        "still refreshes the expired document of a client that has a row (%s grant)",
+        async (_name, fields) => {
+            h.documents.set(DOC_URL, doc());
+            tables().mcp_oauth_clients.push({
+                client_id: DOC_URL, kind: "cimd", client_name: "Old", redirect_uris: [LOCAL],
+                expires_at: "2000-01-01T00:00:00.000Z", created_at: "2026-11-01T00:00:00.000Z",
+            });
+            const res = await tokenRequest({ ...fields });
+            expect(res.body.error).toBe("invalid_grant");
+            expect(h.fetched).toEqual([DOC_URL]);
+            expect(clientIds()).toEqual([DOC_URL]);
+            expect(tables().mcp_oauth_clients[0]).toMatchObject({ client_name: "Hermes" });
+        },
+    );
 });

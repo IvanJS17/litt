@@ -74,9 +74,12 @@ its Caddy block are infrastructure and are not part of the backend.
   unapproved clients idle for seven days, or when the operator raises the
   number. The refusal is written
   to the server log once per process and kind, without the client or the
-  address. Per address and hour, at the defaults, registration writes at most 60
+  address. The token endpoints never create a client: a first-seen client
+  there is unknown (`invalid_client`), with nothing fetched or written. So per
+  address and hour, at the defaults, registration writes at most 60
   `client_registered` audit rows and `/oauth/authorize` at most 240 audit rows
-  (`cimd_rejected`, or `cimd_fetched` plus `authorization_requested`).
+  (`cimd_rejected`, or `cimd_fetched` plus `authorization_requested`), and
+  those are the only paths that create a client.
 * **Redirect matching.** Exact, except a loopback redirect may use any port
   (RFC 8252 §7.3), with host and path still exact.
 

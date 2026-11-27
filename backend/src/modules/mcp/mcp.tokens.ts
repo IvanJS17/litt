@@ -90,7 +90,7 @@ export async function exchangeAuthorizationCode(
             "invalid_request",
             "client_id, code, code_verifier and redirect_uri are required.",
         );
-    const client = await resolveClient(db, client_id, { touch: true });
+    const client = await resolveClient(db, client_id, { touch: true, mayCreate: false });
     if (!client.ok) return client;
 
     const hash = sha256Hex(code);
@@ -155,7 +155,7 @@ export async function refreshTokens(
     const { client_id, refresh_token, scope, resource } = params;
     if (!client_id || !refresh_token)
         return oauthFail("invalid_request", "client_id and refresh_token are required.");
-    const client = await resolveClient(db, client_id, { touch: true });
+    const client = await resolveClient(db, client_id, { touch: true, mayCreate: false });
     if (!client.ok) return client;
 
     const hash = sha256Hex(refresh_token);

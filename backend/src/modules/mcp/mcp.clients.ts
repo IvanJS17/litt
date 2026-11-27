@@ -42,20 +42,22 @@ const capReported = new Set<string>();
 /**
  * True when the client rows no grant has ever referred to have reached
  * LITT_MCP_UNAPPROVED_CLIENTS_MAX: a request that would create another one is
- * refused. One bounded read (at most `max` rows come back); a client that
- * already has a row never goes through here. Reported once per process and
- * kind, without the client or the caller.
+ * refused. The database is asked for the count, not for rows (it shortens
+ * row answers to its own limit); a count that cannot be read is a failure, so
+ * the request is refused. A client that already has a row never goes through
+ * here. Reported once per process and kind, without the client or the caller.
  */
 async function unapprovedClientCapReached(db: Db, kind: "dcr" | "cimd"): Promise<boolean> {
     const max = mcpConfig().unapprovedClientsMax;
-    const { data, error } = await db
+    const { count, error } = await db
         .from("mcp_oauth_clients")
-        .select("client_id, mcp_grants!left(id)")
+        .select("client_id, mcp_grants!left(id)", { count: "exact", head: true })
         .in("kind", ["dcr", "cimd"])
-        .is("mcp_grants", null)
-        .limit(max);
+        .is("mcp_grants", null);
     if (error) throw dbFailure("client count failed", error);
-    if ((data ?? []).length < max) return false;
+    if (count === null || count === undefined)
+        throw dbFailure("client count failed", new Error("the database gave no count"));
+    if (count < max) return false;
     if (!capReported.has(kind)) {
         capReported.add(kind);
         reportMessage("mcp_unapproved_clients_cap_reached", {
@@ -180,11 +182,14 @@ async function cachedClient(db: Db, clientId: string): Promise<ClientRow | null>
  * Find the client a request names. A URL is a metadata-document client and is
  * fetched (or served from a one-hour cache); anything else must be registered.
  * `touch` marks the client as in use, which is what keeps it from the purge.
+ * `mayCreate: false` (the token endpoints) never creates a client: a first-seen
+ * one is unknown, with no fetch and no write. The refresh of an expired
+ * document of a client that has a row is not affected.
  */
 export async function resolveClient(
     db: Db,
     clientId: string,
-    options: { transport?: CimdTransport; touch?: boolean } = {},
+    options: { transport?: CimdTransport; touch?: boolean; mayCreate?: boolean } = {},
 ): Promise<OAuthResult<McpClient>> {
     if (!clientId || clientId.length > 512)
         return oauthFail("invalid_client", "Unknown client.", 400);
@@ -192,6 +197,7 @@ export async function resolveClient(
     const row = await cachedClient(db, clientId);
 
     if (!row && clientId.startsWith("https://")) {
+        if (options.mayCreate === false) return oauthFail("invalid_client", "Unknown client.", 400);
         if (!mcpConfig().cimdEnabled || !isMetadataDocumentUrl(clientId))
             return oauthFail("invalid_client", "Unknown client.", 400);
         if (await unapprovedClientCapReached(db, "cimd")) return capReachedFailure();
