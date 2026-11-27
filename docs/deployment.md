@@ -356,7 +356,8 @@ Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
 it is not on `PATH`. Where the readers run as their own user (next paragraph), the
 start-up check of that user is launched with the same util-linux tools (`prlimit`,
 `setpriv`), so with `NODE_ENV=production` an image without them refuses to start
-instead of warning.
+instead of warning (`EXTRACTION_ISOLATION=off` turns that check off: no refusal and
+no warning).
 
 On Linux the processes that read uploads for text extraction (the parser), convert
 them with LibreOffice (every path, including the conversion of uploads to PDF) and read
@@ -763,8 +764,9 @@ Password recovery in invitation-only mode. A recovery mail is requested from the
 auth service only for an administrator's address, an address with a current
 invitation (pending and not expired, from a firm or from the platform), and a
 confirmed account that is not an unfinished invitation: one that no invitation
-created, or one that shows it was finished (a password set, the terms accepted,
-onboarding done, or a place in a firm other than its own personal space). Anyone
+created, or one that shows it was finished (a password set in Settings, the terms accepted,
+onboarding done, or a place in a firm other than its own personal space; the
+invitation's own password step leaves no such mark). Anyone
 else, such as a person whose invitation ran out or who opened the invitation
 link and never finished, gets no recovery mail and needs a new invitation. The
 screen says the same as always: the route answers `204` first, with the same

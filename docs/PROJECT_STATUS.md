@@ -4,20 +4,21 @@
 > not the project roadmap or source of truth. Dated history up to 2026-11-19 (deploy `20261119c`) is in
 > [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md).
 
-**Last reconciled:** 2026-11-26<br>
+**Last reconciled:** 2026-11-27<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike` (fetch-only; pin and intake in [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md))
 
 ## In production
 
 - **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
-- **Deploy:** `20261126b`, tag `prod-20261126b`, `RELEASE_SHA` `18d9a8871` (full SHA
-  `18d9a8871fa6224c04cc3aabcb9295fb124c7052`, the merge of #333). Previous deploy:
-  `20261126a` (`159454459`). Earlier deploys: `prod-20261119a` and `prod-20261119b`,
+- **Deploy:** `20261126e`, tag `prod-20261126e`, `RELEASE_SHA` `7fc92edfc` (full SHA
+  `7fc92edfc8e877f38a18b87c62314d3fba9649e1`, the merge of #340). Previous deploy:
+  `20261126d` (`fd197fc5e`). Earlier deploys: `prod-20261126a` to `prod-20261126c`,
+  `prod-20261119a` and `prod-20261119b`,
   `prod-20261118a` to `prod-20261118e`, and `prod-20261117a` to `prod-20261117i` (see
   [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)). Each deploy is tagged
   `prod-YYYYMMDDx`.
-- **Contents:** every merged pull request up to #335 is in a deploy. #258 and #259 shipped in
+- **Contents:** every merged pull request up to #342 is in a deploy. #258 and #259 shipped in
   `20261119b` and `20261119c`. Shipped since `20261119c`:
   - `20261119e` (`27b776f7b`): #257, review notes for #249 to #253; #260, the Word add-in
     chooses a model before a chat, with a guide; #261, AI proposals of new obligation rules
@@ -77,12 +78,33 @@
     delivered as shared.
   - `20261126b` (`18d9a8871`): #333, a poll of the job queue does not run its kind-scoped arm; #334,
     queue tests count only their own rows; #335, a citation is stored under the document it cites.
-- **Merged, not deployed:** nothing.
-- **Health:** production verified after `20261126b`: the health endpoint reports that commit, the
-  LiTT containers are healthy, the other domains are unchanged, and MCP is on (`mcp=401` without
+  - `20261126c` (`e78c241f6`): #329, a component's timers end with it; #331, a turn in progress
+    and the training screens are read only by who can open the sources; #332, only the attempt
+    that ends an upload job queues the cleanup of its objects; #336, status documents.
+  - `20261126d` (`fd197fc5e`): #337, account erasure removes unfinished-upload objects, and AI
+    review records are read behind the project gate; #341, upload claims are fair across
+    accounts; #342, connectors ask the person before they write, by default; #339, a new upload
+    is refused when the storage space is full (storage quota, part 1).
+  - `20261126e` (`7fc92edfc`): #338, stored document text is read in bounded slices and searched
+    within a time budget; #340, provider errors stay out of the log, with four small privacy
+    and verification ports from upstream.
+- **Merged, not deployed** (`main` at `8cc399aeb`, 2026-11-27):
+  - #344, Word chats are judged when read, and one function decides which training works a
+    reader sees. Carries the migration `20261127_01_litt_training_defense_word_chat_sources.sql`.
+  - #343, anonymous password-reset and sign-up mails are capped per address and per hour.
+  - #347, in invitation-only mode a recovery mail goes only to a finished account or a current
+    invitation.
+  - #348, a running table generation asks, for each row, whether its person can still open the
+    documents.
+  - #345 and #346, the processes that open uploaded files run as their own unprivileged user,
+    and a conversion whose PDF could not be written fails. These two change the backend image
+    and `deploy/prod/compose.yaml` and ship together ([`deployment.md`](deployment.md)).
+- **Health:** production verified after `20261126e`: the health endpoint reports that commit, the
+  LiTT containers are healthy, the public pages answer, and MCP is on (`mcp=401` without
   a token). A backup was taken before the deploy.
-- **Migrations:** 297 in the ledger, applied in production through
-  `20261126_30_litt_db_jobs_claim_kind_arm.sql` (applied by `20261126b`). The runner applies every
+- **Migrations:** 302 in the ledger, applied in production through
+  `20261126_95_litt_connectors_ask_before_writing.sql` (`_80`, `_90` and `_95` applied by
+  `20261126d`, `_70` by `20261126e`); `20261127_01` waits for the deploy of #344. The runner applies every
   file the ledger does not list, in name order.
 - **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
   Beta statistics are for platform administrators only, counts only, audited
