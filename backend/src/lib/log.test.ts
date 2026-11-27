@@ -168,13 +168,14 @@ describe("job error messages", () => {
 
 describe("process entry points", () => {
   // Each process has its own Error.prototype, so each entry installs the hook
-  // before any other module can log.
+  // before any other module can log. The environment file is loaded just
+  // before it, because lib/log.ts reads NODE_ENV when it is imported.
   it.each(["index.ts", "worker.ts", "workerThread.ts"])(
-    "%s imports the redaction first",
+    "%s loads the environment, then imports the redaction, before anything else",
     (file) => {
       const source = readFileSync(path.join(__dirname, "..", file), "utf8");
-      const firstImport = source.split("\n").find((line) => /^import\b/.test(line));
-      expect(firstImport).toBe('import "./logRedaction";');
+      const imports = source.split("\n").filter((line) => /^import\b/.test(line));
+      expect(imports.slice(0, 2)).toEqual(['import "dotenv/config";', 'import "./logRedaction";']);
     },
   );
 });

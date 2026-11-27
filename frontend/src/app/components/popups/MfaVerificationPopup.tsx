@@ -79,6 +79,8 @@ export function MfaVerificationPopup({
 
         async function loadFactors() {
             setLoading(true);
+            // A check still running from an earlier opening is not this one.
+            setVerifying(false);
             setError(null);
             setCode("");
             try {
@@ -126,8 +128,8 @@ export function MfaVerificationPopup({
         try {
             await challengeAndVerifyMfa(selectedFactorId, code.trim());
         } catch (verifyError) {
-            setVerifying(false);
             if (dismissed()) return;
+            setVerifying(false);
             devLog("[mfa-popup] verification failed", {
                 error:
                     verifyError instanceof Error
@@ -138,8 +140,8 @@ export function MfaVerificationPopup({
             return;
         }
 
-        setVerifying(false);
         if (dismissed()) return;
+        setVerifying(false);
         devLog("[mfa-popup] verification succeeded");
         setCode("");
         onVerified();
@@ -150,18 +152,14 @@ export function MfaVerificationPopup({
     return (
         <Modal
             open={open}
-            // Escape, the backdrop and the close button wait for a check in
-            // flight, as the Cancel button already does.
-            onClose={() => {
-                if (!verifying) onCancel();
-            }}
+            // Closing is always possible: it also ends the check in flight.
+            onClose={onCancel}
             breadcrumbs={[title]}
             size="sm"
             className="h-auto min-h-[310px] max-h-[min(92vh,400px)]"
             cancelAction={{
                 label: t("popups.cancel"),
                 onClick: onCancel,
-                disabled: verifying,
             }}
             primaryAction={{
                 label: verifying ? (

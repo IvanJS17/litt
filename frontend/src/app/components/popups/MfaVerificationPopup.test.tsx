@@ -58,7 +58,7 @@ describe("MfaVerificationPopup", () => {
         expect(challengeAndVerifyMfa).toHaveBeenCalledWith("factor-1", "123456");
     });
 
-    it("stays open against Escape and the close button while a code is being checked", async () => {
+    it("can be closed while a code is being checked", async () => {
         const check = deferred();
         challengeAndVerifyMfa.mockReturnValue(check.promise);
         const onCancel = vi.fn();
@@ -71,14 +71,35 @@ describe("MfaVerificationPopup", () => {
         await enterCode(user);
         await user.keyboard("{Escape}");
         await user.click(screen.getByRole("button", { name: "Close" }));
-        expect(onCancel).not.toHaveBeenCalled();
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+        expect(onCancel).toHaveBeenCalledTimes(3);
+    });
 
+    it("starts a reopened prompt clean while the earlier check is still running", async () => {
+        const check = deferred();
+        challengeAndVerifyMfa.mockReturnValue(check.promise);
+        const onVerified = vi.fn();
+        const user = userEvent.setup();
+        const { rerender } = render(
+            <MfaVerificationPopup open onCancel={vi.fn()} onVerified={onVerified} />,
+        );
+
+        await enterCode(user);
+        rerender(
+            <MfaVerificationPopup open={false} onCancel={vi.fn()} onVerified={onVerified} />,
+        );
+        rerender(
+            <MfaVerificationPopup open onCancel={vi.fn()} onVerified={onVerified} />,
+        );
+
+        await user.click(await screen.findByLabelText("Verification code digit 1"));
+        await user.paste("654321");
+        expect(screen.getByRole("button", { name: "Verify" })).toBeEnabled();
+        expect(screen.queryByText("Verifying…")).toBeNull();
         check.resolve();
-        await waitFor(() => expect(onVerified).toHaveBeenCalledOnce());
-
-        // Not in flight any more: the same keys dismiss it again.
-        await user.keyboard("{Escape}");
-        expect(onCancel).toHaveBeenCalledOnce();
+        await check.promise;
+        await Promise.resolve();
+        expect(onVerified).not.toHaveBeenCalled();
     });
 
     it("does not run the caller's action for a prompt closed while its code was being checked", async () => {

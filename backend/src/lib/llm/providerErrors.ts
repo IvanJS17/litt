@@ -340,11 +340,10 @@ export function toProviderStreamError(
   error: unknown,
   context: ProviderContext,
 ): Error {
-  return withKeySource(
-    classifyProviderStreamError(error, context),
-    context.keySource,
-    context.provider,
-  );
+  const classified = classifyProviderStreamError(error, context);
+  // Whatever branch classified it, the provider's own object is never attached.
+  if (classified.cause === error) classified.cause = plainObjectCause(error);
+  return withKeySource(classified, context.keySource, context.provider);
 }
 
 function classifyProviderStreamError(error: unknown, context: ProviderContext): Error {
