@@ -57,6 +57,30 @@ exception when others then
 end;
 $$;
 
+-- Opens a session with the limits and the file ids the caller names; a missing
+-- value is passed as NULL. The reason of a refusal is returned.
+create function pg_temp.open_with(
+  uid uuid, size bigint, space_org uuid, space_user uuid, purpose text, destination jsonb,
+  per_member bigint, personal bigint, margin integer,
+  file_id uuid default gen_random_uuid(), resource uuid default gen_random_uuid()
+) returns text language plpgsql as $$
+begin
+  perform public.create_upload_session(
+    gen_random_uuid(), uid, purpose, destination,
+    now() + interval '30 minutes',
+    jsonb_build_array(jsonb_build_object(
+      'id', file_id, 'resource_id', resource, 'client_id', 'c',
+      'filename', 'quota.pdf', 'target_folder_id', null, 'file_type', 'pdf',
+      'content_type', 'application/pdf', 'expected_size_bytes', size,
+      'staging_storage_path', 'staging/' || gen_random_uuid(),
+      'sealed_storage_path', 'sealed/' || gen_random_uuid())),
+    50, space_org, space_user, per_member, personal, margin);
+  return 'opened';
+exception when others then
+  return sqlerrm;
+end;
+$$;
+
 create function pg_temp.used(org uuid, usr uuid) returns bigint language sql as $$
   select used_bytes from public.storage_space_usage(org, usr, 1000, 500)
 $$;
@@ -79,6 +103,14 @@ declare
   d_pers_org uuid := gen_random_uuid();
   pers_org uuid;
   firm2 uuid := gen_random_uuid();
+  firm3 uuid := gen_random_uuid();
+  firm4 uuid := gen_random_uuid();
+  m4 uuid[] := array[]::uuid[];
+  d_stored uuid := gen_random_uuid();
+  d_own uuid := gen_random_uuid();
+  d_foreign uuid := gen_random_uuid();
+  v_foreign uuid := gen_random_uuid();
+  opened_count integer;
   i integer;
   r text;
   s uuid;
@@ -247,6 +279,75 @@ begin
     from public.upload_session_files where session_id = s;
   assert pg_temp.used(null, u3) = 200, 'a file whose version is stored counts once: ' || pg_temp.used(null, u3);
   update public.upload_sessions set status = 'completed' where id = s;
+
+  -- A missing limit is refused, never read as "no limit": a missing value in
+  -- any of the quota arguments is an invalid limit, whatever the purpose.
+  insert into public.organizations(id, name) values (firm3, 'Limits firm');
+  insert into public.org_members(org_id, user_id, role) values (firm3, u1, 'owner');
+  assert pg_temp.open_with(u1, 1000, firm3, null, 'document_create', '{"scope":"standalone"}', 1000, 500, 10) = 'opened',
+    'fill the space of the firm for the missing-limit checks';
+  assert pg_temp.open_with(u1, 100, firm3, null, 'document_version_create', jsonb_build_object('document_id', gen_random_uuid()), 1000, 500, null) = 'invalid_storage_quota_limits',
+    'a missing margin on a version save is refused, not read as no limit';
+  assert pg_temp.open_with(u1, 1, firm3, null, 'document_create', '{"scope":"standalone"}', 1000, 500, null) = 'invalid_storage_quota_limits',
+    'a missing margin on a new document is refused';
+  assert pg_temp.open_with(u1, 1, firm3, null, 'document_create', '{"scope":"standalone"}', null, 500, 10) = 'invalid_storage_quota_limits',
+    'a missing per-member limit is refused';
+  assert pg_temp.open_with(u1, 1, firm3, null, 'document_create', '{"scope":"standalone"}', 1000, null, 10) = 'invalid_storage_quota_limits',
+    'a missing personal limit is refused in a firm space too';
+  assert pg_temp.open_with(u1, 1, null, u1, 'document_create', '{"scope":"standalone"}', 1000, null, 10) = 'invalid_storage_quota_limits',
+    'a missing personal limit is refused in a personal space';
+  assert pg_temp.open_with(u1, 1, null, u1, 'document_create', '{"scope":"standalone"}', null, 500, null) = 'invalid_storage_quota_limits',
+    'a missing margin is refused in a personal space';
+  assert pg_temp.used(firm3, null) = 1000, 'refused sessions leave nothing behind: ' || pg_temp.used(firm3, null);
+
+  -- A file's promised bytes stop counting only when the stored version it
+  -- matches belongs to the session's own destination. A file that names a
+  -- version already stored somewhere else is refused when the session opens.
+  insert into public.organizations(id, name) values (firm4, 'Promise firm');
+  for i in 1..5 loop m4 := m4 || gen_random_uuid(); end loop;
+  insert into auth.users(id, email) select id, id || '@example.invalid' from unnest(m4) id;
+  insert into public.org_members(org_id, user_id, role) select firm4, id, case when id = m4[1] then 'owner' else 'member' end from unnest(m4) id;
+  insert into public.documents(id, user_id, org_id, status) values (d_stored, m4[1], firm4, 'ready');
+  insert into public.document_versions(document_id, version_number, storage_path, filename, size_bytes)
+    values (d_stored, 1, 'q/f4.pdf', 'f4.pdf', 4000);
+  insert into public.documents(id, user_id, status) values (d_foreign, m4[2], 'ready');
+  insert into public.document_versions(id, document_id, version_number, storage_path, filename, size_bytes)
+    values (v_foreign, d_foreign, 1, 'q/foreign.pdf', 'foreign.pdf', 10);
+  opened_count := 0;
+  for i in 1..5 loop
+    if pg_temp.open_with(m4[1], 400, firm4, null, 'document_create', '{"scope":"standalone"}', 1000, 500, 10) = 'opened' then
+      opened_count := opened_count + 1;
+    end if;
+  end loop;
+  assert opened_count = 2, 'two sessions of 400 fit in the 1000 that are left: ' || opened_count;
+  delete from public.upload_session_files where session_id in (select id from public.upload_sessions where quota_org_id = firm4);
+  delete from public.upload_sessions where quota_org_id = firm4;
+  opened_count := 0;
+  for i in 1..5 loop
+    if pg_temp.open_with(m4[1], 400, firm4, null, 'document_create', '{"scope":"standalone"}', 1000, 500, 10,
+         gen_random_uuid(), v_foreign) = 'opened' then
+      opened_count := opened_count + 1;
+    end if;
+  end loop;
+  assert opened_count = 0, 'a file that names a stored version as its resource is refused at open: ' || opened_count;
+  assert pg_temp.open_with(m4[1], 400, firm4, null, 'document_create', '{"scope":"standalone"}', 1000, 500, 10,
+    v_foreign, gen_random_uuid()) = 'invalid_upload_manifest', 'a file whose id is a stored version is refused at open';
+  assert pg_temp.open_with(m4[1], 400, firm4, null, 'document_version_create', jsonb_build_object('document_id', d_stored), 1000, 500, 10,
+    gen_random_uuid(), v_foreign) = 'invalid_upload_manifest', 'a version save naming a stored version of another document is refused at open';
+  assert pg_temp.open_with(m4[1], 400, firm4, null, 'document_version_replace', jsonb_build_object('document_id', d_stored, 'version_id', gen_random_uuid()), 1000, 500, 10,
+    gen_random_uuid(), v_foreign) = 'invalid_upload_manifest', 'a replacement naming a stored version of another document is refused at open';
+  assert pg_temp.used(firm4, null) = 4000, 'refused sessions promise nothing: ' || pg_temp.used(firm4, null);
+  -- A new version of a document counts once when it is stored (the editor's save).
+  insert into public.documents(id, user_id, org_id, status) values (d_own, m4[1], firm4, 'ready');
+  s := gen_random_uuid();
+  assert pg_temp.open_with(m4[1], 200, firm4, null, 'document_version_create', jsonb_build_object('document_id', d_own), 1000, 500, 10) = 'opened',
+    'a version save opens';
+  assert pg_temp.used(firm4, null) = 4200, 'the promised version counts: ' || pg_temp.used(firm4, null);
+  insert into public.document_versions(id, document_id, version_number, storage_path, filename, size_bytes)
+    select f.resource_id, d_own, 1, 'q/own.docx', 'own.docx', 200
+    from public.upload_session_files f join public.upload_sessions x on x.id = f.session_id
+    where x.quota_org_id = firm4 and x.purpose = 'document_version_create';
+  assert pg_temp.used(firm4, null) = 4200, 'a saved version counts once, not twice: ' || pg_temp.used(firm4, null);
 
   -- Without a space named, the session opens as before (compatibility with a
   -- caller that does not pass one).

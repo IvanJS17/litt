@@ -4087,6 +4087,18 @@ begin
     raise exception using errcode = '22023', message = 'invalid_upload_manifest';
   end if;
 
+  -- The ids of a file are new: one that already names a stored version is
+  -- refused, so that a stored version of another document can never be taken
+  -- for the version this session will write (see the counting of promised bytes).
+  if exists (
+    select 1
+    from jsonb_to_recordset(target_files) as file_row(id uuid, resource_id uuid)
+    join public.document_versions existing_version
+      on existing_version.id in (file_row.id, file_row.resource_id)
+  ) then
+    raise exception using errcode = '22023', message = 'invalid_upload_manifest';
+  end if;
+
   -- Namespace the advisory key: hashtextextended(user_id, 0) with no prefix is
   -- already taken by install_missing_default_workflows, and an un-namespaced
   -- key silently serializes unrelated features against each other (see the
@@ -4154,8 +4166,11 @@ begin
   -- that are still open count as used (see storage_space_usage). The caller
   -- names the space; it passes neither id when no limit applies.
   if target_quota_org_id is not null or target_quota_user_id is not null then
-    if (target_quota_org_id is not null and target_quota_bytes_per_member is null)
-       or (target_quota_org_id is null and target_quota_personal_bytes is null)
+    -- A missing value is a refusal, never "no limit": every limit and the
+    -- margin must be given, whichever space is named.
+    if target_quota_bytes_per_member is null
+       or target_quota_personal_bytes is null
+       or target_quota_version_margin_percent is null
        or target_quota_version_margin_percent not between 0 and 100 then
       raise exception using errcode = '22023', message = 'invalid_storage_quota_limits';
     end if;
