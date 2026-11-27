@@ -341,8 +341,11 @@ export function toProviderStreamError(
   context: ProviderContext,
 ): Error {
   const classified = classifyProviderStreamError(error, context);
-  // Whatever branch classified it, the provider's own object is never attached.
-  if (classified.cause === error) classified.cause = plainObjectCause(error);
+  // Whatever branch classified it, a plain provider object is never attached:
+  // the API-call error found inside it (the SDK's own class) keeps the failure
+  // classified as before, otherwise only the reduced form.
+  const reduced = plainObjectCause(error);
+  if (classified.cause === error && reduced !== error) classified.cause = findApiCallError(error) ?? reduced;
   return withKeySource(classified, context.keySource, context.provider);
 }
 

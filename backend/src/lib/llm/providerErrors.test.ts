@@ -11,6 +11,7 @@ import {
   asProviderStallError,
   ProviderConfigurationError,
   isDeterministicProviderQuota,
+  isDeterministicProviderRefusal,
   isUserProviderRefusal,
   providerFailureKind,
   providerFailureResponse,
@@ -184,6 +185,35 @@ describe("toProviderStreamError", () => {
     expect(providerFailureKind(error)).toBe("chat.provider_unavailable");
     expect(providerFailureLevel(error)).toBe("warning");
     expect(JSON.stringify(error.cause)).not.toContain("private-marker");
+  });
+
+  it.each([
+    ["cause", 402],
+    ["lastError", 429],
+  ])("classifies a plain object holding an API-call error as %s like the bare API-call error (%i)", (field, status) => {
+    const inner = apiCallError(status);
+    const holder = {
+      [field]: inner,
+      message: "holder-message-marker",
+      url: "https://host.invalid/holder-url-marker",
+      data: { note: "holder-data-marker" },
+    };
+    const keyed = { ...gemini, keySource: "user" as const };
+    const wrapped = toProviderStreamError(holder, keyed);
+    const bare = toProviderStreamError(inner, keyed);
+
+    expect(wrapped.message).toBe(bare.message);
+    expect(wrapped.constructor).toBe(bare.constructor);
+    expect(providerFailureKind(wrapped)).toBe(providerFailureKind(bare));
+    expect(providerFailureStatus(wrapped)).toBe(status);
+    expect(isDeterministicProviderRefusal(wrapped)).toBe(isDeterministicProviderRefusal(bare));
+    expect(providerFailureLevel(wrapped)).toBe(providerFailureLevel(bare));
+    expect(isUserProviderRefusal(wrapped)).toBe(isUserProviderRefusal(bare));
+    expect(wrapped.cause).toBe(inner);
+    expect(wrapped.cause).not.toBe(holder);
+    const printed = formatWithOptions({ depth: null, showHidden: true }, wrapped);
+    expect(printed).not.toContain("holder-");
+    expect(JSON.stringify(wrapped)).not.toContain("holder-");
   });
 });
 
