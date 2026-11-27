@@ -474,7 +474,9 @@ tabularRouter.post("/:reviewId/generate", requireAuth, asyncRoute(async (req, re
         // Only now does the response become a stream: everything above can
         // still answer with a status code, and attaching earlier would make
         // an internal error unreportable.
-        attachStreamRunSse(res, generation.run);
+        attachStreamRunSse(res, generation.run, 1, () =>
+            mayWatchRun(db, generation.run, { userId, userEmail }),
+        );
         await runTabularGeneration(generation);
         if (!res.writableEnded) res.end();
         return;
@@ -549,6 +551,7 @@ tabularRouter.post("/:reviewId/generate", requireAuth, asyncRoute(async (req, re
             db,
             reviewId,
             userId,
+            userEmail,
             generationId,
             columns,
             rows,
@@ -658,7 +661,13 @@ tabularRouter.get(
         ) {
             const rawFrom = Number.parseInt(String(req.query.from ?? "1"), 10);
             const from = Number.isFinite(rawFrom) && rawFrom > 0 ? rawFrom : 1;
-            return void attachStreamRunSse(res, run, from);
+            const reader = {
+                userId: res.locals.userId as string,
+                userEmail: res.locals.userEmail as string | undefined,
+            };
+            return void attachStreamRunSse(res, run, from, () =>
+                mayWatchRun(db, run, reader),
+            );
         }
 
         // No run here: the async path (the work is the queue's), another
@@ -673,6 +682,8 @@ tabularRouter.get(
             rows: view.data.rows,
             cellMap: view.data.cellMap,
             log: console,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
         });
     }),
 );

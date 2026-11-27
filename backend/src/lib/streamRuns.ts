@@ -499,6 +499,93 @@ export function stopRunsOfUser(userId: string): number {
 }
 
 /**
+ * How old the last answer to "may this reader still receive this?" may be
+ * before it is asked again. Shared by every reader of a run's content
+ * (a table's watchers, and the per-row question a running table asks).
+ */
+export const ACCESS_RECHECK_MS = 5_000;
+
+/**
+ * How long a question "may this reader still receive this?" may stay
+ * unanswered. After it the question counts as "no", like one that fails.
+ */
+export const ACCESS_QUESTION_MAX_MS = 10_000;
+
+/**
+ * The answer to `question`, or a rejection when it is still unanswered after
+ * ACCESS_QUESTION_MAX_MS. An answer that comes later is ignored. The timer
+ * does not keep the process alive and is cleared as soon as the question
+ * answers.
+ */
+export function answeredInTime<T>(question: Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(
+            () => reject(new Error("access question unanswered")),
+            ACCESS_QUESTION_MAX_MS,
+        );
+        timer.unref?.();
+        question.then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (cause: unknown) => {
+                clearTimeout(timer);
+                reject(cause);
+            },
+        );
+    });
+}
+
+/**
+ * Order the deliveries to one watcher and ask `stillAllowed` before a delivery
+ * when the last answer is older than ACCESS_RECHECK_MS. A delivery that needs
+ * no question is made at once; once a question is pending, later deliveries
+ * wait behind it so the frames keep their order. A "no", or a question that
+ * fails or stays unanswered for ACCESS_QUESTION_MAX_MS, calls `onRefused` and
+ * nothing more is delivered.
+ */
+export function createWatcherGate(
+    stillAllowed: () => Promise<boolean>,
+    onRefused: () => void,
+    now: () => number = Date.now,
+): (deliver: () => void) => void {
+    let answeredAt = now();
+    let refused = false;
+    let waiting: Promise<void> | null = null;
+    return (deliver) => {
+        if (refused) return;
+        if (!waiting && now() - answeredAt < ACCESS_RECHECK_MS) return deliver();
+        const step: Promise<void> = (waiting ?? Promise.resolve()).then(async () => {
+            if (refused) return;
+            if (now() - answeredAt >= ACCESS_RECHECK_MS) {
+                let allowed = false;
+                try {
+                    allowed = await answeredInTime(stillAllowed());
+                } catch {
+                    allowed = false;
+                }
+                if (!allowed) {
+                    refused = true;
+                    onRefused();
+                    return;
+                }
+                answeredAt = now();
+            }
+            try {
+                deliver();
+            } catch {
+                /* the response is gone; its close handler detaches it */
+            }
+        });
+        waiting = step;
+        void step.finally(() => {
+            if (waiting === step) waiting = null;
+        });
+    };
+}
+
+/**
  * Stream a run into an Express response as SSE, from `from` onwards, and end
  * the response when the run finishes. Closing the response only detaches.
  *
@@ -511,6 +598,12 @@ export function attachStreamRunSse(
     res: Response,
     run: StreamRun<unknown>,
     from = 1,
+    /**
+     * Asked again, when the last answer is older than ACCESS_RECHECK_MS, before
+     * a frame is written to this response. False (or a failure) ends this
+     * response; the run goes on for everyone else.
+     */
+    stillAllowed?: () => Promise<boolean>,
 ): {
     signal: AbortSignal;
     write: (line: string, opts?: StreamRunWriteOptions) => boolean;
@@ -523,16 +616,26 @@ export function attachStreamRunSse(
     res.flushHeaders();
 
     let ended = false;
-    const detach = run.subscribe(from, {
-        write: (chunk) => {
-            if (ended || res.writableEnded) return;
-            res.write(chunk);
-        },
-        end: () => {
-            if (ended) return;
-            ended = true;
-            res.end();
-        },
+    const refuse = () => {
+        if (ended) return;
+        ended = true;
+        detach();
+        if (!res.writableEnded) res.end();
+    };
+    const gate = stillAllowed ? createWatcherGate(stillAllowed, refuse) : null;
+    const deliver = gate ?? ((send: () => void) => send());
+    const detach: () => void = run.subscribe(from, {
+        write: (chunk) =>
+            deliver(() => {
+                if (ended || res.writableEnded) return;
+                res.write(chunk);
+            }),
+        end: () =>
+            deliver(() => {
+                if (ended) return;
+                ended = true;
+                res.end();
+            }),
     });
     res.on("close", () => {
         ended = true;

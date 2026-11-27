@@ -8,6 +8,13 @@ const { redisEnabled, reportError, redisConnect, redisSubscribe, redisMessages, 
     redisConnect: vi.fn(),
     streamChatWithTools: vi.fn(),
 }));
+// The person can open every document here: these tests are about something
+// else (the row access question has its own tests, over the real access code).
+vi.mock("../../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../lib/access")>()),
+    filterAccessibleDocumentIds: async (ids: string[]) => ids,
+}));
+
 vi.mock("../../../lib/llm", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../../lib/llm")>()),
     streamChatWithTools,
@@ -275,7 +282,7 @@ describe("run-view reconcile poll", () => {
             });
             await streamTabularRunView({
                 res: res as never, db: fake.db, reviewId: "rev", columns: COLUMNS,
-                rows: rows as never, cellMap, log: { error: vi.fn() } as never,
+                rows: rows as never, cellMap, log: { error: vi.fn() } as never, userId: "user-1", userEmail: undefined,
             });
             await vi.advanceTimersByTimeAsync(3_000);
             expect(writes.some((w) => w.includes('"row_id":"row-39"'))).toBe(true);
@@ -303,7 +310,7 @@ describe("run-view for a client that has left", () => {
     }, extra);
     const view = (res: unknown, db: unknown) => streamTabularRunView({
         res: res as never, db: db as never, reviewId: "rev", columns: COLUMNS,
-        rows: REVIEW_ROWS as never, cellMap: new Map(), log: { error: vi.fn() } as never,
+        rows: REVIEW_ROWS as never, cellMap: new Map(), log: { error: vi.fn() } as never, userId: "user-1", userEmail: undefined,
     });
 
     afterEach(() => {
@@ -392,7 +399,7 @@ describe("run-view reconcile poll pacing", () => {
             });
             await streamTabularRunView({
                 res: res as never, db: db as never, reviewId: "rev", columns: COLUMNS,
-                rows: ROWS as never, cellMap: new Map(), log: { error: vi.fn() } as never,
+                rows: ROWS as never, cellMap: new Map(), log: { error: vi.fn() } as never, userId: "user-1", userEmail: undefined,
             });
             await vi.advanceTimersByTimeAsync(3_000 * 4);
             // The first tick's read never returned: the next three ticks wait.

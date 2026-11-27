@@ -29,7 +29,10 @@ import {
     filterAccessibleDocumentIds,
     keepReadableDerived,
 } from "./access";
+import { AppError } from "./appError";
 import { selectAllByKey, selectAllPages, selectInBatches } from "./batchedQuery";
+import { reportError } from "./observability/report";
+import { ACCESS_RECHECK_MS, answeredInTime } from "./streamRuns";
 import type { Db } from "./supabase";
 
 export type ReviewRow = {
@@ -76,6 +79,82 @@ export async function filterReadableReviewRows(
             ),
         ),
         readableDocumentIds,
+    };
+}
+
+/** A row's answer to "can this person open every source document now" is reused for no longer than this. */
+export const ROW_READ_ANSWER_MAX_AGE_MS = ACCESS_RECHECK_MS;
+
+/** Asks whether the person a run works for can open every source document of a row now. */
+export type RowReadCheck = (
+    row: Pick<ReviewRow, "id" | "source_document_ids">,
+) => Promise<boolean>;
+
+/**
+ * The one question a running table generation asks about each row, for the
+ * person it works for: can they open EVERY source document of the row now?
+ * It is answered by `filterAccessibleDocumentIds`, the code every other read
+ * of a document uses. A row without sources has nothing to open and is not
+ * readable. The answer for a row is reused for at most
+ * ROW_READ_ANSWER_MAX_AGE_MS; a question that cannot be answered, or is
+ * still unanswered after ACCESS_QUESTION_MAX_MS (a late answer is ignored),
+ * counts as "no" (and is asked again next time), and is reported once per check, as a
+ * warning that names no document.
+ *
+ * `userEmail` may be a function, for a job that has to ask the account for its
+ * address: it is asked when the question is, and a failure there is a failure
+ * to answer.
+ */
+export function createRowReadCheck(args: {
+    db: Db;
+    userId: string;
+    userEmail:
+        | string
+        | null
+        | undefined
+        | (() => Promise<string | null | undefined>);
+    now?: () => number;
+}): RowReadCheck {
+    const now = args.now ?? Date.now;
+    const answers = new Map<string, { askedAt: number; answer: Promise<boolean> }>();
+    let reported = false;
+    const ask = async (row: Pick<ReviewRow, "source_document_ids">) => {
+        const ids = [...new Set(row.source_document_ids ?? [])];
+        if (ids.length === 0) return false;
+        const email =
+            typeof args.userEmail === "function"
+                ? await args.userEmail()
+                : args.userEmail;
+        const readable = new Set(
+            await filterAccessibleDocumentIds(ids, args.userId, email, args.db),
+        );
+        return ids.every((id) => readable.has(id));
+    };
+    return (row) => {
+        const known = answers.get(row.id);
+        if (known && now() - known.askedAt < ROW_READ_ANSWER_MAX_AGE_MS)
+            return known.answer;
+        const entry = {
+            askedAt: now(),
+            answer: answeredInTime(ask(row)).catch((cause: unknown) => {
+                // Not remembered: the next question is asked afresh.
+                if (answers.get(row.id) === entry) answers.delete(row.id);
+                if (!reported) {
+                    reported = true;
+                    reportError(
+                        new AppError(
+                            "tabular.row_access_unanswered",
+                            "A table row's source documents could not be checked; the row was left out",
+                            { cause },
+                        ),
+                        { level: "warning", tags: { operation: "tabular.row", stage: "row-access" } },
+                    );
+                }
+                return false;
+            }),
+        };
+        answers.set(row.id, entry);
+        return entry.answer;
     };
 }
 

@@ -5,6 +5,13 @@ vi.mock("../tabular.extract", () => ({
     queryTabularAllColumns: (...a: unknown[]) => queryTabularAllColumns(...a),
 }));
 
+// The person can open every document here: these tests are about something
+// else (the row access question has its own tests, over the real access code).
+vi.mock("../../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../lib/access")>()),
+    filterAccessibleDocumentIds: async (ids: string[]) => ids,
+}));
+
 const loadRowDocumentText = vi.fn();
 vi.mock("../tabular.rows", () => ({
     loadRowDocumentText: (...a: unknown[]) => loadRowDocumentText(...a),
@@ -13,8 +20,13 @@ vi.mock("../tabular.rows", () => ({
 import { ExtractionParseError } from "../../../lib/extraction/failure";
 import { ExtractionBusyError, ExtractionLimitError } from "../../../lib/extraction/limits";
 import { streamTabularGenerateSync } from "../tabular.generateStream";
-import { extractRowColumns } from "../tabular.extractRow";
+import { extractRowColumns as extractRow } from "../tabular.extractRow";
 import type { ReviewRow } from "../tabular.rows";
+import type { RowReadCheck } from "../../../lib/tabularReadAccess";
+
+// The person can open the row in every test here but those of their own below.
+const extractRowColumns = (args: Omit<Parameters<typeof extractRow>[0], "mayReadRow"> & Partial<Pick<Parameters<typeof extractRow>[0], "mayReadRow">>) =>
+    extractRow({ mayReadRow: async () => true, ...args });
 
 type Call = {
     table: string;
@@ -493,5 +505,56 @@ describe("extractRowColumns generation isolation", () => {
         });
 
         expect(out.missing).toEqual([1]);
+    });
+});
+
+describe("extractRowColumns and the question about the row", () => {
+    const args = (mayReadRow: RowReadCheck) => ({
+        db: makeDb() as never, reviewId: "rev-1", row: ROW, columns: COLUMNS, existingByColumn: new Map(),
+        model: "m", apiKeys: {}, sink: sinkSpy(), generationId: "gen-1", mayReadRow,
+    });
+
+    it("asks before it loads the row's text, and reads, marks and calls nothing for a row that is refused", async () => {
+        const mayReadRow = vi.fn(async () => false);
+        const input = args(mayReadRow);
+
+        const out = await extractRow(input);
+
+        expect(mayReadRow).toHaveBeenCalledWith(ROW);
+        expect(out).toMatchObject({ unreadable: true, missing: [0, 1] });
+        expect(loadRowDocumentText).not.toHaveBeenCalled();
+        expect(queryTabularAllColumns).not.toHaveBeenCalled();
+        expect((input.db as unknown as ReturnType<typeof makeDb>).calls).toEqual([]);
+    });
+
+    it("treats a question that fails as a refusal", async () => {
+        const out = await extractRow(args(async () => { throw new Error("lookup failed"); }));
+
+        expect(out.unreadable).toBe(true);
+        expect(loadRowDocumentText).not.toHaveBeenCalled();
+    });
+
+    it("asks nothing of a row whose columns are all done", async () => {
+        const mayReadRow = vi.fn(async () => false);
+        const done = new Map(COLUMNS.map((col) => [col.index, { id: `c${col.index}`, status: "done", content: "{}" }]));
+
+        const out = await extractRow({ ...args(mayReadRow), existingByColumn: done });
+
+        expect(mayReadRow).not.toHaveBeenCalled();
+        expect(out.processed).toEqual([]);
+    });
+
+    it("drops the results that come after the person lost access, and hands those columns back", async () => {
+        let answers = [true, true, false];
+        queryTabularAllColumns.mockImplementation(async (_m, _f, _t, cols, onResult) => {
+            for (const col of cols) await onResult(col.index, RESULT(col.index));
+        });
+        const sink = sinkSpy();
+
+        const out = await extractRow({ ...args(async () => answers.shift() ?? false), sink });
+
+        expect(out).toMatchObject({ unreadable: true, missing: [1] });
+        expect([...out.received]).toEqual([0]);
+        expect(sink.done).toHaveBeenCalledTimes(1);
     });
 });
