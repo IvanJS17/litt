@@ -11,6 +11,10 @@ vi.mock("../../lib/access", async (importOriginal) => ({
     checkProjectAccess: vi.fn(async (projectId: string, userId: string) => ({
         ok: openable.has(`${projectId}:${userId}`),
     })),
+    // The matter rule is asked for the whole list: the same answer as checkProjectAccess gives one by one.
+    loadOpenableProjects: vi.fn(async (_db: unknown, userId: string, _email: unknown, ids: readonly string[]) =>
+        new Map(ids.filter((projectId) => openable.has(`${projectId}:${userId}`)).map((projectId) => [projectId, { orgId: null }])),
+    ),
 }));
 
 const ORG = "00000000-0000-4000-8000-000000000010";

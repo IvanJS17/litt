@@ -12,7 +12,7 @@ import type {
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { SUPERVISION_STALE_MS } from "../../lib/trainingSupervisionAi";
-import { openableWorkMatters } from "../../lib/trainingWork";
+import { openMatters } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import { LEARNING_NOT_FOUND } from "../training-supervision/trainingSupervision.service";
 
@@ -93,7 +93,7 @@ export async function serializeOwnReadings(
     let openable = new Set<string>();
     try {
         if (projectIds.length > 0)
-            openable = await openableWorkMatters(db, { projectIds, actorId: person.userId, actorEmail: person.userEmail });
+            openable = await openMatters(db, { actorId: person.userId, actorEmail: person.userEmail }, projectIds);
     } catch (error) {
         return internalFailure(error);
     }

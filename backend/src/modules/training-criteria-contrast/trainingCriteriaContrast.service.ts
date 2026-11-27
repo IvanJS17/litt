@@ -20,7 +20,7 @@ import type {
 import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { internalFailure, failure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
+import { judgeWorks, workKey } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import { assertCurrentMentor, assertLearningAccess, LEARNING_NOT_FOUND } from "../training-supervision/trainingSupervision.service";
 
@@ -100,28 +100,21 @@ export async function getMyCriteriaContrasts(
         if (!access.ok) return access;
     }
     // The project of each conversation, to link to the right chat route (a project's chat lives under it).
-    const projects = new Map<string, string | null>();
-    const gone = new Set<string>();
-    for (const chatId of new Set(rows.map((row) => row.chat_id))) {
-        const place = await workPlace(db, "chat", chatId);
-        if (!place.ok) return internalFailure(place.error);
-        projects.set(chatId, place.place?.projectId ?? null);
-        // A chat that cannot be found has no matter to open: what was computed
-        // from it is not shown.
-        if (!place.place) gone.add(chatId);
-    }
-    // The comparison is read only while the person can open the matter now.
-    const openable = new Set<string>();
+    // The comparison is read only while the person can open the matter now;
+    // a chat that cannot be found has none to open: what was computed from it is not shown.
+    let sights: Awaited<ReturnType<typeof judgeWorks>>;
     try {
-        for (const projectId of new Set([...projects.values()].filter((value): value is string => !!value)))
-            if (await mayOpenWorkMatter(db, { projectId, actorId: args.userId, actorEmail: args.userEmail ?? null })) openable.add(projectId);
+        sights = await judgeWorks(
+            db,
+            rows.map((row) => ({ surface: "chat" as const, chatId: row.chat_id })),
+            { actorId: args.userId, actorEmail: args.userEmail ?? null },
+        );
     } catch (error) {
         return internalFailure(error);
     }
-    const readable = (chatId: string) => {
-        const projectId = projects.get(chatId) ?? null;
-        return !gone.has(chatId) && (!projectId || openable.has(projectId));
-    };
+    const sightOf = (chatId: string) => sights.get(workKey({ surface: "chat", chatId }));
+    const projects = new Map(rows.map((row) => [row.chat_id, sightOf(row.chat_id)?.place?.projectId ?? null]));
+    const readable = (chatId: string) => !!sightOf(chatId)?.open;
     return ok({ contrasts: rows.map((row) => presentMine(row, projects.get(row.chat_id) ?? null, readable(row.chat_id))) });
 }
 
@@ -147,13 +140,16 @@ export async function getPupilCriteriaContrasts(
     if (error) return internalFailure(error);
     const visible: TrainingPupilCriteriaContrast[] = [];
     let hidden = 0;
-    for (const row of (data ?? []) as unknown as Row[]) {
-        const place = await workPlace(db, "chat", row.chat_id);
-        if (!place.ok) return internalFailure(place.error);
-        if (
-            !place.place ||
-            !(await mayOpenWorkMatter(db, { projectId: place.place.projectId, actorId: actor.actorId, actorEmail: actor.actorEmail }))
-        ) {
+    const listed = (data ?? []) as unknown as Row[];
+    let sights: Awaited<ReturnType<typeof judgeWorks>>;
+    try {
+        sights = await judgeWorks(db, listed.map((row) => ({ surface: "chat" as const, chatId: row.chat_id })), actor);
+    } catch (error) {
+        return internalFailure(error);
+    }
+    for (const row of listed) {
+        const place = sights.get(workKey({ surface: "chat", chatId: row.chat_id }));
+        if (!place?.place || !place.open) {
             hidden += 1;
             continue;
         }

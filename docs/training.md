@@ -1344,7 +1344,7 @@ answer 404. No model is involved: the design review and the sample are code
   correction is stored as `mentor_mark` and the person's own mark stays. The
   current mentor may change it again or take it back (`mark: null` removes the
   key); every save leaves the same event, naming ids only. A
-  review is shown only if the mentor can open its matter (`mayOpenWorkMatter`;
+  review is shown only if the mentor can open its matter (`judgeWorks` in `lib/trainingWork.ts`;
   a review outside any matter: if the mentor can open the review itself); the
   rest are counted. Cells whose sources the mentor cannot read are withheld.
   Nothing here blocks anything; it is evidence.
@@ -1612,7 +1612,7 @@ open at a time per person and organization (a partial unique index).
 **Which document.** LiTT proposes one at random from the matters where the
 person worked in the last 60 days (their turn notes in a chat, a project chat or
 a tabular-review chat), that belong to the organization, that they can open
-(`openableWorkMatters`) and where their effective stage is junior
+(`openMatters`) and where their effective stage is junior
 (`resolveTrainingStage`), among the documents of the project with a stored text
 (`document_version_texts`, read with `read_document_text`) of between 200 and
 60 000 characters. That is all the stage does: *it chooses what is proposed, it

@@ -45,7 +45,7 @@ import {
     REVIEW_MAX_NOTES,
 } from "../../lib/trainingSupervisionAi";
 import type { TurnNoteSurface } from "../../lib/trainingNotes";
-import { mayOpenWorkMatter, openableWorkMatters, workPlace } from "../../lib/trainingWork";
+import { judgeWork, judgeWorks, openMatters, workKey, type WorkRef } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import { readPractice } from "../training/training.service";
 import { chatRouteColumns, parseCredentialRef, recordChatEgress } from "../user/user.service";
@@ -150,13 +150,15 @@ export async function listOwnDefenses(
 }
 
 /**
- * The matters a defense's questions and note rest on, or null when they cannot
- * be established: a defense on one work rests on that work's matter as it is
- * now; one over a practice area, on the matters recorded when its questions
- * were written (none recorded: unknown). `[]` is work outside any matter.
+ * What a defense's questions and note rest on, or null when it cannot be
+ * established: a defense on one work rests on that work (its place and what
+ * its answers drew on, as they are now); one over a practice area, on the
+ * matters recorded when its questions were written (none recorded: unknown).
  */
-async function defenseMatters(db: Db, row: DefenseRow): Promise<ServiceResult<string[] | null>> {
-    if (!row.work_review_id) return ok(row.source_project_ids ?? null);
+type Basis = { work: WorkRef } | { matters: string[] } | null;
+
+async function defenseBasis(db: Db, row: DefenseRow): Promise<ServiceResult<Basis>> {
+    if (!row.work_review_id) return ok(row.source_project_ids ? { matters: row.source_project_ids } : null);
     const { data, error } = await db
         .from("training_work_reviews")
         .select("id, chat_id, word_chat_id, tabular_chat_id")
@@ -166,38 +168,41 @@ async function defenseMatters(db: Db, row: DefenseRow): Promise<ServiceResult<st
         .maybeSingle();
     if (error) return internalFailure(error);
     const at = data ? surfaceOf(data as { chat_id?: string | null }) : null;
-    if (!at) return ok(null);
-    const place = await workPlace(db, at.surface, at.chatId);
-    if (!place.ok) return internalFailure(place.error);
-    if (!place.place) return ok(null);
-    return ok(place.place.projectId ? [place.place.projectId] : []);
+    return ok(at ? { work: at } : null);
 }
 
 /**
  * The defenses as the pupil's current mentor reads them: the questions and the
- * note come from the pupil's work, so they stay behind when the mentor cannot
- * open every matter that work was in, or when it cannot be established.
+ * note come from the pupil's work, so they stay behind when the reader cannot
+ * see that work now, or when it cannot be established.
  */
 async function readableDefenses(db: Db, actor: Actor, rows: DefenseRow[]): Promise<ServiceResult<DefenseRow[]>> {
-    const matters = new Map<string, string[] | null>();
+    const bases = new Map<string, Basis>();
     for (const row of rows) {
         if (!(row.questions || row.outcome_note)) continue;
-        const found = await defenseMatters(db, row);
+        const found = await defenseBasis(db, row);
         if (!found.ok) return found;
-        matters.set(row.id, found.data);
+        bases.set(row.id, found.data);
     }
-    let openable = new Set<string>();
+    let sights: Awaited<ReturnType<typeof judgeWorks>>;
+    let openable: Set<string>;
     try {
-        const ids = [...new Set([...matters.values()].flatMap((list) => list ?? []))];
-        if (ids.length > 0) openable = await openableWorkMatters(db, { projectIds: ids, actorId: actor.actorId, actorEmail: actor.actorEmail });
+        const list = [...bases.values()];
+        sights = await judgeWorks(db, list.flatMap((basis) => (basis && "work" in basis ? [basis.work] : [])), actor);
+        openable = await openMatters(db, actor, list.flatMap((basis) => (basis && "matters" in basis ? basis.matters : [])));
     } catch (error) {
         return internalFailure(error);
     }
     return ok(
         rows.map((row) => {
-            if (!matters.has(row.id)) return row;
-            const list = matters.get(row.id);
-            return list && list.every((id) => openable.has(id)) ? row : { ...row, questions: null, outcome_note: null };
+            if (!bases.has(row.id)) return row;
+            const basis = bases.get(row.id);
+            const open = !basis
+                ? false
+                : "work" in basis
+                  ? sights.get(workKey(basis.work))?.open === true
+                  : basis.matters.every((id) => openable.has(id));
+            return open ? row : { ...row, questions: null, outcome_note: null };
         }),
     );
 }
@@ -233,19 +238,14 @@ async function visibleReview(
     if (error) return internalFailure(error);
     const at = data ? surfaceOf(data as { chat_id?: string | null }) : null;
     if (!at) return ok(null);
-    const place = await workPlace(db, at.surface, at.chatId);
-    if (!place.ok) return internalFailure(place.error);
-    if (
-        !place.place ||
-        !(await mayOpenWorkMatter(db, {
-            projectId: place.place.projectId,
-            wordChatId: place.place.wordChatId,
-            actorId: args.actorId,
-            actorEmail: args.actorEmail,
-        }))
-    )
-        return ok(null);
-    return ok({ surface: at, projectId: place.place.projectId });
+    let sight: Awaited<ReturnType<typeof judgeWork>>;
+    try {
+        sight = await judgeWork(db, at, args);
+    } catch (error) {
+        return internalFailure(error);
+    }
+    if (!sight.place || !sight.open) return ok(null);
+    return ok({ surface: at, projectId: sight.place.projectId });
 }
 
 /** POST …/pupils/:userId/defenses: `{ practice?, work_review_id? }`. */
@@ -353,19 +353,16 @@ async function defenseNotes(
     if (!all.ok) return all;
     const picked: NoteRow[] = [];
     const pickedMatters = new Set<string>();
-    for (const work of groupWorks(all.data)) {
-        const place = await workPlace(db, work.surface, work.chatId);
-        if (!place.ok) return internalFailure(place.error);
-        if (!place.place) continue;
-        if (
-            !(await mayOpenWorkMatter(db, {
-                projectId: place.place.projectId,
-                wordChatId: place.place.wordChatId,
-                actorId: args.actorId,
-                actorEmail: args.actorEmail,
-            }))
-        )
-            continue;
+    const grouped = groupWorks(all.data);
+    let sights: Awaited<ReturnType<typeof judgeWorks>>;
+    try {
+        sights = await judgeWorks(db, grouped, args);
+    } catch (error) {
+        return internalFailure(error);
+    }
+    for (const work of grouped) {
+        const place = sights.get(workKey(work));
+        if (!place?.place || !place.open) continue;
         if (defense.practice !== null) {
             let practice: string | null;
             try {

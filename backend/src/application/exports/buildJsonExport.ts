@@ -12,7 +12,7 @@ import { mapWithConcurrency } from "../../lib/concurrency";
 import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import { type Db } from "../../lib/supabase";
 import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "../../lib/trainingNotes";
-import { openableWorkMatters, workPlace } from "../../lib/trainingWork";
+import { judgeWorkMatters, openMatters, workKey } from "../../lib/trainingWork";
 import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents, loadUserRuleSuggestions } from "./matterProfileExport";
 import { loadUserMatterRequests } from "./matterRequestsExport";
 import {
@@ -624,43 +624,45 @@ async function openableTrainingRows(
 ): Promise<Row[]> {
     if (rows.length === 0) return rows;
     const GONE = Symbol("gone");
-    const places = new Map<string, Promise<string | null | typeof GONE>>();
-    const placeOf = (key: string, load: () => Promise<string | null | typeof GONE>) => {
-        let pending = places.get(key);
-        if (!pending) places.set(key, (pending = load()));
-        return pending;
-    };
-    const matterOf = async (row: Row): Promise<string | null | typeof GONE> => {
-        if (typeof row.project_id === "string") return row.project_id;
+    const chatWorkOf = (row: Row): { surface: TurnNoteSurface; chatId: string } | null => {
         for (const [surface, column] of Object.entries(TURN_NOTE_CHAT_COLUMN) as [TurnNoteSurface, string][]) {
             const chatId = row[column];
-            if (typeof chatId !== "string") continue;
-            return placeOf(`${surface}:${chatId}`, async () => {
-                const place = await workPlace(db, surface, chatId);
-                if (!place.ok) throw place.error;
-                return place.place ? place.place.projectId : GONE;
-            });
-        }
-        if (typeof row.tabular_review_id === "string") {
-            const reviewId = row.tabular_review_id;
-            return placeOf(`review:${reviewId}`, async () => {
-                const { data, error } = await (db as any)
-                    .from("tabular_reviews")
-                    .select("id, project_id")
-                    .eq("id", reviewId)
-                    .maybeSingle();
-                if (error) throw error;
-                return data ? ((data.project_id as string | null) ?? null) : GONE;
-            });
+            if (typeof chatId === "string") return { surface, chatId };
         }
         return null;
     };
-    const matters = await mapWithConcurrency(rows, 8, matterOf);
-    const openable = await openableWorkMatters(db, {
-        projectIds: uniqueIds(matters.filter((matter): matter is string => typeof matter === "string")),
-        actorId: userId,
-        actorEmail: userEmail ?? null,
+    // The matter rule only: the export judges what a chat's answers drew on answer by answer, elsewhere.
+    const sights = await judgeWorkMatters(
+        db,
+        rows.flatMap((row) => (typeof row.project_id === "string" ? [] : (chatWorkOf(row) ?? []))),
+        { actorId: userId, actorEmail: userEmail ?? null },
+    );
+    const reviewMatters = new Map<string, Promise<string | null | typeof GONE>>();
+    const reviewMatterOf = (reviewId: string) => {
+        let pending = reviewMatters.get(reviewId);
+        if (!pending)
+            reviewMatters.set(
+                reviewId,
+                (pending = (async () => {
+                    const { data, error } = await (db as any).from("tabular_reviews").select("id, project_id").eq("id", reviewId).maybeSingle();
+                    if (error) throw error;
+                    return data ? ((data.project_id as string | null) ?? null) : GONE;
+                })()),
+            );
+        return pending;
+    };
+    const matters = await mapWithConcurrency(rows, 8, async (row): Promise<string | null | typeof GONE> => {
+        if (typeof row.project_id === "string") return row.project_id;
+        const work = chatWorkOf(row);
+        if (work) return sights.get(workKey(work))?.open ? null : GONE;
+        if (typeof row.tabular_review_id === "string") return reviewMatterOf(row.tabular_review_id);
+        return null;
     });
+    const openable = await openMatters(
+        db,
+        { actorId: userId, actorEmail: userEmail ?? null },
+        uniqueIds(matters.filter((matter): matter is string => typeof matter === "string")),
+    );
     return rows.filter((_, index) => {
         const matter = matters[index];
         return matter === null || (typeof matter === "string" && openable.has(matter));

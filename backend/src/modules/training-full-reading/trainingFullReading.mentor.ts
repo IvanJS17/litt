@@ -8,7 +8,7 @@
 import type { TrainingPupilReadings } from "@mike/contracts";
 import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { openableWorkMatters } from "../../lib/trainingWork";
+import { openMatters } from "../../lib/trainingWork";
 import { assertCurrentMentor } from "../training-supervision/trainingSupervision.service";
 import { readReadings, serializeReadReading } from "./trainingFullReading.rows";
 
@@ -26,7 +26,7 @@ export async function listPupilReadings(
     let openable = new Set<string>();
     try {
         if (projectIds.length > 0)
-            openable = await openableWorkMatters(db, { projectIds, actorId: actor.actorId, actorEmail: actor.actorEmail });
+            openable = await openMatters(db, actor, projectIds);
     } catch (error) {
         return internalFailure(error);
     }

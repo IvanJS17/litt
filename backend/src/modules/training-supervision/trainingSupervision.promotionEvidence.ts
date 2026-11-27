@@ -16,7 +16,6 @@ import { countedTurns } from "../../lib/trainingMap";
 import type { TurnNoteSurface } from "../../lib/trainingNotes";
 import { scoreGymAttempt } from "../../lib/trainingGym";
 import type { PromotionAudit, PromotionGym, PromotionTurn, PromotionWork } from "../../lib/trainingPromotion";
-import { workPlace } from "../../lib/trainingWork";
 import type { projectLens, Viewer } from "./trainingSupervision.lens";
 
 type Lens = ReturnType<typeof projectLens>;
@@ -34,24 +33,20 @@ async function loadTurns(db: Db, viewer: Viewer, lens: Lens): Promise<ServiceRes
     const notes = loaded.data;
     const placeOf = new Map(notes.map((note) => [note.work, { surface: note.surface, chatId: note.chat_id }]));
     const workOf = new Map(notes.map((note) => [note.id, note.work]));
-    const projectOf = new Map<string, string | null | undefined>();
+    const seenOf = new Map<string, Awaited<ReturnType<Lens["work"]>>>();
     const turns: PromotionTurn[] = [];
     let without = 0;
     for (const turn of countedTurns(notes)) {
         const work = workOf.get(turn.id) as string;
-        if (!projectOf.has(work)) {
-            const at = placeOf.get(work) as { surface: TurnNoteSurface; chatId: string };
-            const place = await workPlace(db, at.surface, at.chatId);
-            if (!place.ok) return internalFailure(place.error);
-            // undefined: the work's chat is gone; nothing to count.
-            projectOf.set(work, place.place ? place.place.projectId : undefined);
-        }
-        const projectId = projectOf.get(work);
-        if (projectId === undefined) continue;
-        if (!(await lens.mayOpen(projectId))) {
+        if (!seenOf.has(work)) seenOf.set(work, await lens.work(placeOf.get(work) as { surface: TurnNoteSurface; chatId: string }));
+        const sight = seenOf.get(work) as Awaited<ReturnType<Lens["work"]>>;
+        // No place: the work's chat is gone; nothing to count.
+        if (!sight.place) continue;
+        if (!sight.open) {
             without += 1;
             continue;
         }
+        const projectId = sight.place.projectId;
         turns.push({
             id: turn.id,
             practice: await lens.practice(projectId),
