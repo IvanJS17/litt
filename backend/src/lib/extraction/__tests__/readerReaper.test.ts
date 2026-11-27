@@ -161,11 +161,11 @@ describe.skipIf(process.platform !== "linux")("an identity the start-up check re
   const ownGid = process.getgid!();
   const launches = path.join(work, "launches");
 
-  /** A stand-in setpriv that answers the identity command with `uid`, then (for anything else) logs the launch and runs it. */
-  function standInAnswering(name: string, uid: number): string {
+  /** A stand-in setpriv that answers the identity command with these lines (user id, group id, groups), then (for anything else) logs the launch and runs it. */
+  function standInAnswering(name: string, ...answer: (string | number)[]): string {
     const dir = path.join(work, name);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(path.join(dir, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\nif [ "$1" = sh ] && [ "$2" = -c ]; then printf '%s\\n' ${uid} ${ownGid} ${ownGid}; exit 0; fi\necho launched >> "${launches}"\nexec "$@"\n`);
+    writeFileSync(path.join(dir, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\nif [ "$1" = sh ] && [ "$2" = -c ]; then printf '%s\\n' ${answer.map((line) => `'${line}'`).join(" ")}; exit 0; fi\necho launched >> "${launches}"\nexec "$@"\n`);
     chmodSync(path.join(dir, "setpriv"), 0o755);
     vi.stubEnv("PATH", `${dir}${path.delimiter}${process.env.PATH}`);
     vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
@@ -178,10 +178,20 @@ describe.skipIf(process.platform !== "linux")("an identity the start-up check re
     spawned.spy!.mockClear();
   });
 
-  for (const [label, uid] of [["user id 0", 0], ["the process's own user id", ownUid]] as const) {
+  const otherUid = ownUid + 7_777;
+  const otherGid = ownGid + 7_777;
+  const refusedAnswers: [string, (string | number)[]][] = [
+    ["user id 0", [0, otherGid, otherGid]],
+    ["the process's own user id", [ownUid, otherGid, otherGid]],
+    ["group id 0", [otherUid, 0, 0]],
+    ["the process's own group id", [otherUid, ownGid, ownGid]],
+    ["a supplementary group", [otherUid, otherGid, `${otherGid} ${otherGid + 1}`]],
+    ["something that is not an identity", ["nope"]],
+  ];
+  for (const [index, [label, answer]] of refusedAnswers.entries()) {
     it(`removes nothing and ends no group when the switched process answers ${label}`, async () => {
-      standInAnswering(`bin-refused-${uid}`, uid);
-      const tmp = path.join(work, `tmp-refused-${uid}`);
+      standInAnswering(`bin-refused-${index}`, ...answer);
+      const tmp = path.join(work, `tmp-refused-${index}`);
       mkdirSync(path.join(tmp, "owned"), { recursive: true });
       const result = await removeReaderScratch(me, { directory: tmp, ownUid: -1 });
       expect(result).toMatchObject({ ok: true, removed: 0 });
@@ -199,7 +209,7 @@ describe.skipIf(process.platform !== "linux")("an identity the start-up check re
     const another = beAnotherUserThanTheReaders();
     try {
       const probed = ownUid + 7_777;
-      standInAnswering("bin-probed-uid", probed);
+      standInAnswering("bin-probed-uid", probed, ownGid, ownGid);
       const child = frozenGroup();
       await reapGroup(me, child.pid!);
       const calls = (spawned.spy!.mock.calls as unknown[][]).filter((call) => (call[1] as string[]).some((arg) => String(arg).endsWith("reaper.ts")));
