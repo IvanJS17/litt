@@ -314,10 +314,11 @@ away costs nothing.
   so the synchronous run, the queued row job and the single-cell job all ask
   it (the request-side single-cell regenerate asks it too). The answer for a
   row is reused for at most 5 seconds (`ACCESS_RECHECK_MS`). A row that fails
-  it, or whose question cannot be answered (one warning per run, per row
-  job when the work is queued, or per request for the single-cell regenerate; no document names), is left out like a row the run did not start on: its cells go back
-  to `pending` and the run goes on; a question still unanswered after 10
-  seconds (`ACCESS_QUESTION_MAX_MS`) counts as "no", for a row and for a
+  it, or whose question cannot be answered (one warning per check, no document
+  names; a check is made by each run, each queued row job, each queued
+  single-cell job and each single-cell regenerate request), is left out like
+  a row the run did not start on: its cells go back to `pending` and the run
+  goes on; a question still unanswered after 10 seconds (`ACCESS_QUESTION_MAX_MS`) counts as "no", for a row and for a
   watcher alike, and a late answer is ignored. A queued job takes the person's address
   from their account when it runs, as other jobs that act for a person do.
   Someone watching the run's live cells (the original request, a second tab,

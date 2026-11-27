@@ -122,6 +122,37 @@ describe("a watcher's question that does not answer", () => {
         }
     });
 
+    it("stays refused and raises nothing unhandled when the refusal callback throws", async () => {
+        const refused = vi.fn(() => {
+            throw new Error("refusal callback failed");
+        });
+        const asked = vi.fn(async () => false);
+        const gate = createWatcherGate(asked, refused);
+        const delivered = vi.fn();
+        const unhandled = vi.fn();
+        process.on("unhandledRejection", unhandled);
+        try {
+            vi.setSystemTime(Date.now() + ACCESS_RECHECK_MS + 1);
+            gate(delivered);
+            await vi.advanceTimersByTimeAsync(0);
+            // Let a real turn of the event loop pass so an unhandled rejection would be reported.
+            vi.useRealTimers();
+            await new Promise((resolve) => setImmediate(resolve));
+            vi.useFakeTimers();
+            expect(refused).toHaveBeenCalledTimes(1);
+            expect(delivered).not.toHaveBeenCalled();
+            expect(unhandled).not.toHaveBeenCalled();
+
+            gate(delivered);
+            await vi.advanceTimersByTimeAsync(0);
+            expect(delivered).not.toHaveBeenCalled();
+            expect(refused).toHaveBeenCalledTimes(1);
+            expect(asked).toHaveBeenCalledTimes(1);
+        } finally {
+            process.off("unhandledRejection", unhandled);
+        }
+    });
+
     it("honours a question that answers just inside the bound", async () => {
         const question = openQuestion();
         const refused = vi.fn();

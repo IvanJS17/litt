@@ -567,7 +567,11 @@ export function createWatcherGate(
                 }
                 if (!allowed) {
                     refused = true;
-                    onRefused();
+                    try {
+                        onRefused();
+                    } catch {
+                        /* the gate stays refused whatever the callback does */
+                    }
                     return;
                 }
                 answeredAt = now();
