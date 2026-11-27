@@ -6,40 +6,25 @@
 
 import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import type { TurnNoteSurface } from "../../lib/trainingNotes";
-import { openableWorkMatters, workPlace } from "../../lib/trainingWork";
+import { judgeWorks, type WorkReader } from "../../lib/trainingWork";
 import type { EvidenceRow } from "../../lib/trainingEvidenceNotes";
 
 /**
- * Of `rows`, those of works in matters the actor may open (a Word chat, or a
- * chat outside a project, has no matter), and how many were left out. A
- * mentor reads a work done inside a matter only while they can open it.
+ * Of `rows`, those of works the reader may see now (a matter they can open;
+ * for a Word chat, sources they can open: lib/trainingWork decides), and how
+ * many were left out. It serves the mentor and the person alike.
  */
-export async function visibleToMentor(
+export async function visibleEvidence(
     db: Db,
     rows: readonly EvidenceRow[],
-    actor: { actorId: string; actorEmail: string | null },
+    reader: WorkReader,
 ): Promise<ServiceResult<{ rows: EvidenceRow[]; withoutAccess: number }>> {
-    const works = new Map<string, { surface: TurnNoteSurface; chatId: string }>();
-    for (const row of rows) works.set(row.work, { surface: row.surface, chatId: row.chat_id });
-    const projectOf = new Map<string, string | null | undefined>();
-    for (const [key, work] of works) {
-        const place = await workPlace(db, work.surface, work.chatId);
-        if (!place.ok) return internalFailure(place.error);
-        // undefined: the work's chat is gone; nothing to show.
-        projectOf.set(key, place.place ? place.place.projectId : undefined);
-    }
-    const projectIds = [...new Set([...projectOf.values()].filter((id): id is string => typeof id === "string"))];
-    let openable = new Set<string>();
+    let sights: Awaited<ReturnType<typeof judgeWorks>>;
     try {
-        if (projectIds.length > 0)
-            openable = await openableWorkMatters(db, { projectIds, actorId: actor.actorId, actorEmail: actor.actorEmail });
+        sights = await judgeWorks(db, rows.map((row) => ({ surface: row.surface, chatId: row.chat_id })), reader);
     } catch (error) {
         return internalFailure(error);
     }
-    const visible = rows.filter((row) => {
-        const project = projectOf.get(row.work);
-        return project === null || (typeof project === "string" && openable.has(project));
-    });
+    const visible = rows.filter((row) => sights.get(row.work)?.open === true);
     return ok({ rows: visible, withoutAccess: rows.length - visible.length });
 }

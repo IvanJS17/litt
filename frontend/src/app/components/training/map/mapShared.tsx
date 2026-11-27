@@ -123,6 +123,12 @@ export function useVerdictLabel() {
 export function RetakeEntry({ retake, audience = "person", children }: { retake: TrainingRetake; audience?: "person" | "mentor"; children?: ReactNode }) {
     const t = useTranslations("training.criterion.map.retakes");
     const verdictLabel = useVerdictLabel();
+    if (retake.text_hidden)
+        return (
+            <li className="min-w-0 border-t border-gray-100 pt-3 first:border-t-0 first:pt-0">
+                <p className="text-sm text-gray-500">{t("textHidden")}</p>
+            </li>
+        );
     return (
         <li className="min-w-0 space-y-2 border-t border-gray-100 pt-3 first:border-t-0 first:pt-0">
             <div className="min-w-0 space-y-0.5">

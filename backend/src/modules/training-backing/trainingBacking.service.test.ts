@@ -11,6 +11,11 @@ vi.mock("../../lib/access", async (importOriginal) => ({
         if (matters.failing) throw new Error("access lookup down");
         return { ok: !matters.closed.has(projectId) };
     }),
+    // The matter rule is asked for the whole list: the same answer as checkProjectAccess gives one by one.
+    loadOpenableProjects: vi.fn(async (_db: unknown, _userId: string, _email: unknown, ids: readonly string[]) => {
+        if (matters.failing) throw new Error("access lookup down");
+        return new Map(ids.filter((projectId) => !matters.closed.has(projectId)).map((projectId) => [projectId, { orgId: null }]));
+    }),
 }));
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;

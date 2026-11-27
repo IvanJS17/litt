@@ -45,6 +45,10 @@ vi.mock("../../middleware/auth", async () => {
 vi.mock("../../lib/access", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/access")>()),
     checkProjectAccess: vi.fn(async (projectId: string) => ({ ok: state.openable.has(projectId) })),
+    // The matter rule is asked for the whole list: the same answer as checkProjectAccess gives one by one.
+    loadOpenableProjects: vi.fn(async (_db: unknown, userId: string, _email: unknown, ids: readonly string[]) =>
+        new Map(ids.filter((projectId) => state.openable.has(projectId)).map((projectId) => [projectId, { orgId: null }])),
+    ),
 }));
 
 import { app } from "../../app";

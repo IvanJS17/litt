@@ -7332,6 +7332,7 @@
             "open": "Esperando tu respuesta",
             "pending": "Generando"
           },
+          "textHidden": "El texto de la retoma ya no está disponible porque ya no puedes abrir aquello con lo que se hizo",
           "title": "Retomas",
           "tooShort": "{length}/{min} caracteres. Escribe al menos {min} caracteres.",
           "verdict": "Coincidencia con lo que escribiste antes, según el contraste de la IA: {verdict}"

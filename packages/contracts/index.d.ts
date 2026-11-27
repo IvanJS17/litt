@@ -855,7 +855,12 @@ export interface TrainingRetake {
   verdict: TrainingVerdictValue | null;
   created_at: string;
   answered_at: string | null;
-  /** Always false: a retake the mentor cannot read is not sent at all (`retakes_without_access`). Kept for compatibility. */
+  /**
+   * True only on the person's own map: the retake was made from notes of a work the person can no longer open, so
+   * it is listed without its text or verdict (`question`, `answer`, `contrast` and `verdict` null, `topic_key` and
+   * `topic_label` empty) and holds no slot: `open_retake_id` never names it, and starting a new retake closes it.
+   * False otherwise. The mentor's view never sends such a retake; it counts them in `retakes_without_access`.
+   */
   text_hidden: boolean;
 }
 

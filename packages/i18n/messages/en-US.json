@@ -7332,6 +7332,7 @@
             "open": "Waiting for your answer",
             "pending": "Generating"
           },
+          "textHidden": "The retake's text is no longer available because you can no longer open what it was made from",
           "title": "Retakes",
           "tooShort": "{length}/{min} characters. Write at least {min} characters.",
           "verdict": "Match with what you wrote before, according to the AI contrast: {verdict}"

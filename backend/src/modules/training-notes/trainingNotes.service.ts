@@ -22,7 +22,7 @@ import {
     type TrainingVerdictSource,
 } from "../../lib/trainingVerdict";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
-import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
+import { judgeWork } from "../../lib/trainingWork";
 import type { Db } from "../../lib/supabase";
 import { isUuid } from "../../lib/uuid";
 
@@ -82,15 +82,11 @@ export async function getChatTurnNotes(
     // open the matter now, as a mentor does.
     let matterOpen = true;
     if (rows.length > 0 && surface) {
-        const place = await workPlace(db, surface, chatId);
-        if (!place.ok) return internalFailure(place.error);
-        matterOpen =
-            !!place.place &&
-            (await mayOpenWorkMatter(db, {
-                projectId: place.place.projectId,
-                actorId,
-                actorEmail: args.actorEmail ?? null,
-            }));
+        try {
+            matterOpen = (await judgeWork(db, { surface, chatId }, { actorId, actorEmail: args.actorEmail ?? null })).open;
+        } catch (error) {
+            return internalFailure(error);
+        }
     }
     if (foreign.length > 0 && matterOpen) {
         const { data, error } = await db
