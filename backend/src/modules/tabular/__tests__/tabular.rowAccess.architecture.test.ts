@@ -17,6 +17,10 @@
 // out: tabular.rowAccess.test.ts (the synchronous run),
 // workers/__tests__/extractionWorker.rowAccess.test.ts (the queued row job)
 // and tabular.cells.rowAccess.test.ts (the request-side single cell).
+//
+// It also goes by the NAME `createRowReadCheck`: a file that declared something
+// else under that name would pass here (the same behavioural tests pin that),
+// and the shared function imported under another name is refused.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -99,7 +103,7 @@ const isSharedCall = (expression: string) =>
 
 /** True when every assignment `name = ...` in the code is a call of the shared function (and there is at least one). */
 function assignedOnlyFromSharedCall(code: string, name: string): boolean {
-    const escaped = name.replace(/[.$]/g, "\\$&");
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const assignments = [...code.matchAll(new RegExp(`(?<![\\w$.])${escaped}\\s*(?::[^=;(){}]+)?=(?![=>])\\s*`, "g"))];
     return (
         assignments.length > 0 &&
