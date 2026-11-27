@@ -60,7 +60,7 @@ export async function startAuthorization(
     if (!resolved.ok)
         return {
             kind: "page_error",
-            status: 400,
+            status: resolved.status ?? 400,
             error: resolved.error,
             description: resolved.description,
         };

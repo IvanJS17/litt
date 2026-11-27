@@ -3,6 +3,7 @@
 
 import type { Db } from "../../lib/supabase";
 import { AppError } from "../../lib/appError";
+import { reportMessage } from "../../lib/observability/report";
 import { mcpConfig } from "./mcp.config";
 import { newSecret } from "./mcp.crypto";
 import { tryRecordMcpAudit } from "./mcp.audit";
@@ -31,6 +32,47 @@ const SUPPORTED_GRANTS = ["authorization_code", "refresh_token"];
 function dbFailure(message: string, cause: unknown): AppError {
     return new AppError("mcp.db_failed", `[mcp] ${message}`, { cause });
 }
+
+const CAP_REPORT_OPERATIONS = {
+    dcr: "mcp.client_cap.registration",
+    cimd: "mcp.client_cap.metadata_document",
+} as const;
+const capReported = new Set<string>();
+
+/**
+ * True when the client rows no grant has ever referred to have reached
+ * LITT_MCP_UNAPPROVED_CLIENTS_MAX: a request that would create another one is
+ * refused. One bounded read (at most `max` rows come back); a client that
+ * already has a row never goes through here. Reported once per process and
+ * kind, without the client or the caller.
+ */
+async function unapprovedClientCapReached(db: Db, kind: "dcr" | "cimd"): Promise<boolean> {
+    const max = mcpConfig().unapprovedClientsMax;
+    const { data, error } = await db
+        .from("mcp_oauth_clients")
+        .select("client_id, mcp_grants!left(id)")
+        .in("kind", ["dcr", "cimd"])
+        .is("mcp_grants", null)
+        .limit(max);
+    if (error) throw dbFailure("client count failed", error);
+    if ((data ?? []).length < max) return false;
+    if (!capReported.has(kind)) {
+        capReported.add(kind);
+        reportMessage("mcp_unapproved_clients_cap_reached", {
+            level: "warning",
+            tags: { operation: CAP_REPORT_OPERATIONS[kind] },
+        });
+    }
+    return true;
+}
+
+const capReachedFailure = () =>
+    oauthFail(
+        "temporarily_unavailable",
+        "This server cannot accept new client registrations right now. Please try again later.",
+        // 429, like the registration limiter's refusal: a 5xx body is replaced on its way out.
+        429,
+    );
 
 export type DcrResponse = {
     client_id: string;
@@ -97,6 +139,7 @@ export async function registerDcrClient(
     // without a scheduler (the endpoint is rate limited).
     const purge = await db.rpc("mcp_oauth_purge");
     if (purge.error) throw dbFailure("purge failed", purge.error);
+    if (await unapprovedClientCapReached(db, "dcr")) return capReachedFailure();
 
     const { error } = await db.from("mcp_oauth_clients").insert({
         client_id: clientId,
@@ -151,6 +194,7 @@ export async function resolveClient(
     if (!row && clientId.startsWith("https://")) {
         if (!mcpConfig().cimdEnabled || !isMetadataDocumentUrl(clientId))
             return oauthFail("invalid_client", "Unknown client.", 400);
+        if (await unapprovedClientCapReached(db, "cimd")) return capReachedFailure();
         return fetchCimdClient(db, clientId, options.transport);
     }
     if (!row) return oauthFail("invalid_client", "Unknown client.", 400);
