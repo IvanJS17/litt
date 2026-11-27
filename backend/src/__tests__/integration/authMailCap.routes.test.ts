@@ -15,11 +15,32 @@ vi.mock("../../lib/log", () => ({ devLog: vi.fn(), isDev: false }));
 const ORIGIN = "http://app.test";
 const HOUR = 60 * 60 * 1000;
 
-const calls = { recover: 0, signup: 0, invite: 0 };
+const calls = { recover: 0, signup: 0, invite: 0, replaced: 0 };
+// An identity that exists, unconfirmed and invited long ago, for `lookupFor`; `beforeLookup` runs when it is looked up.
+const stored: { lookupFor: string | null; beforeLookup: (() => Promise<void>) | null; confirmedAccounts: boolean } = {
+  lookupFor: null,
+  beforeLookup: null,
+  confirmedAccounts: false,
+};
 const gotrue = http.createServer((req, res) => {
   req.on("data", () => undefined);
-  req.on("end", () => {
+  req.on("end", async () => {
     res.setHeader("content-type", "application/json");
+    if (req.method === "PUT" && req.url?.startsWith("/auth/v1/admin/users/")) {
+      calls.replaced++;
+      res.end("{}");
+      return;
+    }
+    if (stored.confirmedAccounts && req.url?.startsWith("/auth/v1/admin/users?")) {
+      const filter = new URL(req.url, "http://stand-in.test").searchParams.get("filter") ?? "";
+      res.end(JSON.stringify({ users: [{ id: "7f0c1b52-3a54-4b8e-9d7e-0a1f2b3c4d5e", email: filter, invited_at: null, email_confirmed_at: "2020-01-01T00:00:00Z" }] }));
+      return;
+    }
+    if (stored.lookupFor && req.url?.startsWith("/auth/v1/admin/users?")) {
+      await stored.beforeLookup?.();
+      res.end(JSON.stringify({ users: [{ id: "7f0c1b52-3a54-4b8e-9d7e-0a1f2b3c4d5e", email: stored.lookupFor, invited_at: "2020-01-01T00:00:00Z", email_confirmed_at: null }] }));
+      return;
+    }
     if (req.url?.startsWith("/auth/v1/recover")) {
       calls.recover++;
       res.end("{}");
@@ -28,6 +49,12 @@ const gotrue = http.createServer((req, res) => {
     if (req.url?.startsWith("/auth/v1/signup")) {
       calls.signup++;
       res.end(JSON.stringify({ id: "u-new", aud: "authenticated", email: "x@example.test", app_metadata: {}, user_metadata: {}, created_at: "2026-01-01T00:00:00Z" }));
+      return;
+    }
+    if (stored.confirmedAccounts && req.url?.startsWith("/auth/v1/invite")) {
+      calls.invite++;
+      res.statusCode = 422;
+      res.end(JSON.stringify({ code: "email_exists", msg: "A user with this email address has already been registered" }));
       return;
     }
     if (req.url?.startsWith("/auth/v1/invite")) {
@@ -60,7 +87,9 @@ afterAll(async () => {
   await new Promise<void>((resolve) => gotrue.close(() => resolve()));
 });
 beforeEach(async () => {
-  calls.recover = calls.signup = calls.invite = 0;
+  calls.recover = calls.signup = calls.invite = calls.replaced = 0;
+  stored.lookupFor = stored.beforeLookup = null;
+  stored.confirmedAccounts = false;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   app = await loadApp({ PLATFORM_ADMIN_EMAILS: "", AUTH_ANONYMOUS_MAIL_HOURLY_CAP: "" });
 });
@@ -361,11 +390,17 @@ describe("a capped answer looks like the route's own answer", () => {
   });
 
   it("sign-up in closed beta: an admitted address at its cap gets no invitation", async () => {
-    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test,second-boss@example.test" });
     for (let i = 0; i < 3; i++) await reset("boss@example.test");
     const capped = await signup("boss@example.test");
     expect(capped.status).toBe(201);
-    expect(calls.invite).toBe(0);
+    // The invitation is sent after the answer. A second admitted address that
+    // is below its cap is asked afterwards; once its invitation has gone out,
+    // the work behind the first answer has had its turn.
+    expect((await signup("second-boss@example.test")).status).toBe(201);
+    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(1));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(calls.invite).toBe(1);
   });
 
   it("sign-up when open: same status, cache header and body shape", async () => {
@@ -384,5 +419,79 @@ describe("a capped answer looks like the route's own answer", () => {
     const refused = await reset("full-over@example.test");
     expect(refused.status).toBe(429);
     expect(refused.headers["cache-control"]).toBe("private, no-store");
+  });
+});
+
+describe("only a mail actually requested from the auth service is counted", () => {
+  const people = (n: number) => Array.from({ length: n }, (_, i) => `person-${i}@example.test`);
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
+
+  it("sign-ups for addresses that are not admitted spend nothing", async () => {
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
+    for (const email of people(16)) expect((await signup(email)).status).toBe(201);
+    await settle();
+    expect(calls.invite).toBe(0);
+
+    expect((await signup("boss@example.test")).status).toBe(201);
+    await vi.waitFor(() => expect(calls.invite).toBe(1), { timeout: 30_000 });
+  });
+
+  it("sign-ups the route holds back for its own ten-minute rule spend nothing", async () => {
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
+    for (let i = 0; i < 10; i++) expect((await signup("boss@example.test")).status).toBe(201);
+    await vi.waitFor(() => expect(calls.invite).toBe(1), { timeout: 30_000 });
+    await settle();
+    expect(calls.invite).toBe(1);
+
+    // One mail is counted, so fourteen more fit and the next is the instance's 429.
+    for (let i = 1; i <= 14; i++) expect((await reset(`other-${i}@example.test`)).status).toBe(204);
+    expect(calls.recover).toBe(14);
+    expect((await reset("other-15@example.test")).status).toBe(429);
+  });
+
+  it("requests exactly the instance count of invitations for 100 sign-ups at once", async () => {
+    const admitted = people(100);
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: admitted.join(",") });
+    const answers = await Promise.all(admitted.map((email) => signup(email)));
+    expect(answers.every((answer) => answer.status === 201 || answer.status === 429)).toBe(true);
+    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(15), { timeout: 60_000 });
+    await settle();
+    expect(calls.invite).toBe(15);
+  });
+
+  it("replaces no password and requests no invitation when the cap is reached after the answer", async () => {
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
+    stored.lookupFor = "boss@example.test";
+    stored.beforeLookup = async () => {
+      stored.beforeLookup = null;
+      for (let i = 0; i < 15; i++) await reset(`filler-${i}@example.test`);
+    };
+    expect((await signup("boss@example.test")).status).toBe(201);
+    await vi.waitFor(() => expect(calls.recover).toBe(15), { timeout: 30_000 });
+    await settle();
+    expect(calls.replaced).toBe(0);
+    expect(calls.invite).toBe(0);
+  });
+
+  it("sign-ups for admitted addresses that already have an account spend nothing", async () => {
+    const admitted = people(17);
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: admitted.join(",") });
+    stored.confirmedAccounts = true;
+
+    // Several sign-ups for one such address, then a reset for it is still forwarded.
+    for (let i = 0; i < 4; i++) expect((await signup(admitted[0])).status).toBe(201);
+    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(1), { timeout: 30_000 });
+    await settle();
+    await settle();
+    expect((await reset(admitted[0])).status).toBe(204);
+    expect(calls.recover).toBe(1);
+
+    // Sixteen such addresses leave the instance count untouched.
+    const before = calls.invite;
+    for (const email of admitted.slice(1, 17)) expect((await signup(email)).status).toBe(201);
+    await vi.waitFor(() => expect(calls.invite).toBeGreaterThanOrEqual(before + 16), { timeout: 60_000 });
+    await settle();
+    expect((await reset("someone-else@example.test")).status).toBe(204);
+    expect(calls.recover).toBe(2);
   });
 });

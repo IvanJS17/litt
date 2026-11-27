@@ -12,6 +12,25 @@ describe("anonymous mail cap", () => {
     expect(cap.size()).toBe(1);
   });
 
+  it("answers a check like an admission and counts nothing", () => {
+    const cap = createAnonymousMailCap({ overall: 2, now: () => 0 });
+    for (let i = 0; i < 10; i++) expect(cap.check("a@example.test")).toEqual({ kind: "send" });
+    expect(cap.size()).toBe(0);
+    expect(cap.admit("a@example.test")).toEqual({ kind: "send" });
+    expect(cap.admit("b@example.test")).toEqual({ kind: "send" });
+    expect(cap.check("c@example.test").kind).toBe("overall_full");
+    expect(cap.admit("c@example.test").kind).toBe("overall_full");
+  });
+
+  it("lets the count at the send decide when many checks passed before it", () => {
+    const cap = createAnonymousMailCap({ overall: 15, now: () => 0 });
+    const asked = Array.from({ length: 100 }, (_, i) => cap.check(`p-${i}@example.test`).kind);
+    expect(asked.every((kind) => kind === "send")).toBe(true);
+    let sent = 0;
+    for (let i = 0; i < 100; i++) if (cap.admit(`p-${i}@example.test`).kind === "send") sent++;
+    expect(sent).toBe(15);
+  });
+
   it("does not keep an address in clear", () => {
     const cap = createAnonymousMailCap({ overall: 5 });
     cap.admit("clear@example.test");

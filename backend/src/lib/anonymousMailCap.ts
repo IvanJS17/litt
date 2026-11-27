@@ -12,6 +12,8 @@ import { createHash } from "node:crypto";
  * last hour are kept, overall and per address, and counted. An address is
  * stored as a digest, an entry is created only for a mail that is let through
  * (so at most `overall` entries exist at a time) and leaves with its last time.
+ * A mail is counted when it is requested from the auth service, never for a
+ * request the route drops for its own reasons.
  */
 export const ANONYMOUS_MAIL_WINDOW_MS = 60 * 60 * 1000;
 export const MAIL_PER_ADDRESS_MAX = 3;
@@ -49,37 +51,51 @@ export function createAnonymousMailCap(options: {
     if (gone > 0) times.splice(0, gone);
   }
 
+  function decide(address: string) {
+    const at = now();
+    for (const [key, times] of addresses) {
+      forget(times, at);
+      if (times.length === 0) addresses.delete(key);
+    }
+    forget(overall, at);
+
+    const key = createHash("sha256").update(address.trim().toLowerCase()).digest("hex");
+    const known = addresses.get(key);
+    let admission: MailAdmission = { kind: "send" };
+    if (known && known.length >= perAddress) admission = { kind: "address_full" };
+    else if (overall.length >= options.overall) {
+      admission = {
+        kind: "overall_full",
+        limit: options.overall,
+        retryAfterSeconds: Math.max(1, Math.ceil((overall[0] + windowMs - at) / 1000)),
+      };
+    }
+    return { admission, key, known, at };
+  }
+
   return {
     size: () => addresses.size,
     keys: () => [...addresses.keys()],
     /**
-     * Decides for a mail that is about to be sent to `address` and, when it is
-     * let through, counts it. An address already at its cap is refused first,
-     * and a refusal of either kind counts nothing.
+     * Asks whether a mail to `address` could be requested now, and counts
+     * nothing. For the routes that must answer before they know whether they
+     * will send; the count that decides is `admit`, at the send.
+     */
+    check(address: string): MailAdmission {
+      return decide(address).admission;
+    },
+    /**
+     * Decides for a mail that is being requested from the auth service right
+     * now and, when it is let through, counts it. An address already at its
+     * cap is refused first, and a refusal of either kind counts nothing.
      */
     admit(address: string): MailAdmission {
-      const at = now();
-      for (const [key, times] of addresses) {
-        forget(times, at);
-        if (times.length === 0) addresses.delete(key);
-      }
-      forget(overall, at);
-
-      const key = createHash("sha256").update(address.trim().toLowerCase()).digest("hex");
-      const known = addresses.get(key);
-      if (known && known.length >= perAddress) return { kind: "address_full" };
-      if (overall.length >= options.overall) {
-        return {
-          kind: "overall_full",
-          limit: options.overall,
-          retryAfterSeconds: Math.max(1, Math.ceil((overall[0] + windowMs - at) / 1000)),
-        };
-      }
-
+      const { admission, key, known, at } = decide(address);
+      if (admission.kind !== "send") return admission;
       if (known) known.push(at);
       else addresses.set(key, [at]);
       overall.push(at);
-      return { kind: "send" };
+      return admission;
     },
   };
 }

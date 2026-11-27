@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import type { Row } from "../helpers/memoryDb";
+import type { createAnonymousMailCap } from "../../lib/anonymousMailCap";
+
+type AnonymousMailCap = ReturnType<typeof createAnonymousMailCap>;
 
 // Invite-only beta over HTTP: who may register, who may create an
 // organization, and who may manage platform invitations. Every rule compares
@@ -8,7 +11,25 @@ import type { Row } from "../helpers/memoryDb";
 const h = vi.hoisted(() => ({
     caller: { id: "u1", email: "u1@test.local" },
     state: null as null | { db: unknown; tables: Record<string, Row[]> },
+    // The cap on anonymous mails is one instance for the life of the process;
+    // each test gets a fresh one so that counts never carry over between tests.
+    newCap: null as unknown as () => AnonymousMailCap,
+    cap: null as unknown as AnonymousMailCap,
 }));
+vi.mock("../../lib/anonymousMailCap", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../../lib/anonymousMailCap")>();
+    h.newCap = () => actual.createAnonymousMailCap({ overall: actual.MAIL_OVERALL_DEFAULT });
+    h.cap = h.newCap();
+    return {
+        ...actual,
+        anonymousMailCap: {
+            check: (address: string) => h.cap.check(address),
+            admit: (address: string) => h.cap.admit(address),
+            size: () => h.cap.size(),
+            keys: () => h.cap.keys(),
+        },
+    };
+});
 vi.mock("../../lib/supabase", () => ({
     createServerSupabase: vi.fn(() => h.state!.db),
 }));
@@ -74,6 +95,7 @@ beforeEach(() => {
         audit_events: [],
     };
     h.state = memoryDb(tables);
+    h.cap = h.newCap();
     idp.reset();
     forgetRecentInvitations();
     vi.useFakeTimers({ toFake: ["Date"] });

@@ -648,11 +648,22 @@ from its single hourly budget, which invitations and confirmations also use.
 In any span of 60 minutes they are capped per target address (3, compared
 trimmed and lowercased) and for the whole instance
 (`AUTH_ANONYMOUS_MAIL_HOURLY_CAP`, a whole number from 1 to 1000, default 15).
-The cap is applied inside the auth routes once the origin check and the
-validation of the body have passed, so a request refused earlier, or by the
-per-client lane, counts against neither. An address at its cap gets the usual
-answer of the route and no mail, a sign-up or an invitation-mode request for it
-included. While the instance cap is reached, anonymous resets and sign-ups
+A request counts when a mail is actually requested from the auth service: the
+count is spent at that moment, after the origin check, the validation of the
+body and the route's own rules, so a request refused earlier or by the
+per-client lane, a sign-up for an address that is not admitted in invitation
+mode, an invitation held back by the route's repeat rule, and an invitation
+for an address that already has a confirmed account (no mail follows) count
+against neither. A password reset that is forwarded counts. The instance cap is
+checked, without counting, before anything else is done for the request. For
+an invitation the function that mails it (`inviteAdmittedSignup`) is given
+`mayMail` and calls it once, after its own repeat decision and before anything
+is changed for the address: when the cap has been reached by then, nothing is
+replaced and nothing is requested, so a link the person already holds stays
+valid. A count spent just before a password replacement or a send that then
+fails stays spent; this errs towards fewer mails. An address at its cap gets the
+usual answer of the route and no mail, a sign-up or an invitation-mode request
+for it included. While the instance cap is reached, anonymous resets and sign-ups
 answer 429 `rate_limited` for everyone, with `Retry-After` set to the time until
 the oldest counted mail leaves the span; invitations and signed-in flows
 continue. The counts are kept in memory by the single API process, so a restart

@@ -91,22 +91,29 @@ async function findIdentity(address: string): Promise<Identity | null> {
  * follow it because replacing a password voids the link already sent. A
  * confirmed identity is never touched. With `coolDown`, an identity invited
  * less than INVITE_COOLDOWN_MS ago is left as it is and nothing is sent.
- * Never throws; no mail goes out when the replacement fails.
+ * With `mayMail`, the caller is asked once, after that decision and before
+ * anything is changed for the address; when it says no nothing is replaced
+ * and nothing is requested. It is not asked for a confirmed identity: no
+ * mail follows, so nothing is counted. Never throws; no mail goes out when the
+ * replacement fails.
  */
 async function inviteByEmail(
   db: Db,
   email: string,
-  options: { coolDown?: boolean } = {},
+  options: { coolDown?: boolean; mayMail?: () => boolean } = {},
 ): Promise<InviteResult> {
   try {
     const identity = await findIdentity(email);
     if (identity && !identity.email_confirmed_at) {
       if (options.coolDown && Date.now() - Date.parse(identity.invited_at ?? "") < INVITE_COOLDOWN_MS)
         return { kind: "held" };
+      if (options.mayMail && !options.mayMail()) return { kind: "held" };
       const { error } = await db.auth.admin.updateUserById(identity.id, {
         password: randomBytes(32).toString("base64url"),
       });
       if (error) throw error;
+    } else if (!identity && options.mayMail && !options.mayMail()) {
+      return { kind: "held" };
     }
   } catch (error) {
     console.warn("[invite-email] password not replaced", safeError(error));
@@ -156,9 +163,15 @@ export async function sendSignupInvite(
  * invited moments ago sends nothing, so a caller cannot keep voiding the
  * link the person holds. That holds for any number of callers at once: the
  * process remembers the addresses it is mailing and those it mailed within the
- * cool-down. The caller is told the same in every case. Never throws.
+ * cool-down. The caller is told the same in every case. With `mayMail`, the
+ * caller decides at the last moment whether this mail may be requested (it
+ * counts it); a refusal leaves the address exactly as it was. Never throws.
  */
-export async function inviteAdmittedSignup(db: Db, address: string): Promise<InviteResult> {
+export async function inviteAdmittedSignup(
+  db: Db,
+  address: string,
+  options: { mayMail?: () => boolean } = {},
+): Promise<InviteResult> {
   const email = normalizeEmail(address) ?? address;
   const started = Date.now();
   // Oldest first: the entries still inside the cool-down are the tail.
@@ -169,7 +182,7 @@ export async function inviteAdmittedSignup(db: Db, address: string): Promise<Inv
   if (invitationsInFlight.has(email) || recentInvitations.has(email)) return { kind: "held" };
   invitationsInFlight.add(email);
   try {
-    const result = await inviteByEmail(db, email, { coolDown: true });
+    const result = await inviteByEmail(db, email, { coolDown: true, mayMail: options.mayMail });
     if (result.kind === "sent") {
       recentInvitations.set(email, Date.now());
       await recordCreatingOrgOfSignup(db, result.user, email);
