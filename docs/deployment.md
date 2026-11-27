@@ -355,9 +355,9 @@ Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
 `prlimit` fails extraction; the backend and worker log a warning at startup when
 it is not on `PATH`.
 
-On Linux every process that opens an uploaded or linked file (the parser, LibreOffice
-in every path including the conversion of uploads to PDF, and the Google Drive reader)
-can run as an unprivileged user of their own (`EXTRACTION_READER_USER`, set to `litt-reader` in the backend image),
+On Linux the processes that read uploads for text extraction (the parser), convert
+them with LibreOffice (every path, including the conversion of uploads to PDF) and read
+linked Google Drive files can run as an unprivileged user of their own (`EXTRACTION_READER_USER`, set to `litt-reader` in the backend image),
 started with `setpriv` after `prlimit`. That user has no capabilities, cannot gain
 any, and cannot read the API process's environment or files; it owns only its own
 temporary directory, which the API removes when the process ends (and, at start, the
@@ -415,7 +415,25 @@ switch is not possible (macOS, CI, a container without those two capabilities; t
 entrypoint then says so in one line and exits), the
 parser runs as the API's own user and startup logs a `[extraction]` warning;
 `NODE_ENV=production` on Linux refuses to start instead, unless
-`EXTRACTION_ISOLATION=off`. Defaults:
+`EXTRACTION_ISOLATION=off`, and also refuses when the reader user is the same numeric
+user as the process (the readers would run as the API with no warning). The stand-alone
+worker (`src/worker.ts`) makes the same start-up check with the same message. A worker
+started separately must not share the temporary directory and the reader user with a
+running API: each removes the reader's leftover scratch at its own start.
+
+More known limits. The API process itself still opens document content in a few
+operations, as `litt-api` (not root): applying or rejecting a tracked change in a
+`.docx`, the assistant's document edits and their publication, and the import of a
+playbook from a `.pdf` or `.docx`; these read document content inside the API process.
+A scratch directory whose creation finishes just after its bound can stay, empty, until
+the next start. The number of removals running at once is bounded only by how fast jobs
+end, each for at most 10 s, and what a removal could not delete stays (readable by the
+reader user only) until the next start. The helper that ends a reader's group takes the
+reader's user as its effective user only, so the kernel also lets it signal processes of
+the API's user; the code does not check who owns the group it is given, which is only ever
+the group the API created for a reader. `EXTRACTION_ISOLATION=off` turns off the isolated
+parser (text extraction then runs inside the calling process); it does not turn off
+the conversion with LibreOffice or the Drive reader, which still try the reader user. Defaults:
 
 | Limit | Setting |
 | --- | --- |

@@ -1,9 +1,10 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import path from "node:path";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import {
+  assertReaderUserForProduction,
   extractionLauncherWarnings,
   scanReadingStoreLimits,
   uploadConversionTimeoutMs,
@@ -512,8 +513,42 @@ describe("the document readers' user in production", () => {
     expect(() => validateRuntimeConfiguration(production({ PATH: good, EXTRACTION_READER_USER: "litt-reader" }))).not.toThrow();
   });
 
+  it.skipIf(process.platform !== "linux")("refuses to start when the reader user is the same numeric user as the process", () => {
+    const own = production({ PATH: good, EXTRACTION_READER_USER: userInfo().username });
+    expect(() => validateRuntimeConfiguration(own)).toThrow(/same numeric user as this process/);
+    expect(() => assertReaderUserForProduction(own)).toThrow(/same numeric user as this process/);
+  });
+
+  it.skipIf(process.platform !== "linux")("the stand-alone worker's check refuses in the same cases, with the same message", () => {
+    const messageOf = (env: NodeJS.ProcessEnv) => {
+      try { validateRuntimeConfiguration(env); } catch (error) { return (error as Error).message; }
+      return "";
+    };
+    for (const env of [
+      production({ PATH: good }),
+      production({ PATH: bad, EXTRACTION_READER_USER: "litt-reader" }),
+      production({ PATH: dir, EXTRACTION_READER_USER: "litt-reader" }),
+      production({ PATH: good, EXTRACTION_READER_USER: userInfo().username }),
+    ]) {
+      let worker = "";
+      try { assertReaderUserForProduction(env); } catch (error) { worker = (error as Error).message; }
+      expect(worker).not.toBe("");
+      expect(messageOf(env)).toContain(worker);
+      expect(() => assertReaderUserForProduction(env)).toThrowError(expect.objectContaining({ code: "configuration_invalid" }));
+    }
+    expect(() => assertReaderUserForProduction(production({ PATH: good, EXTRACTION_READER_USER: "litt-reader" }))).not.toThrow();
+    expect(() => assertReaderUserForProduction(production({ PATH: bad, EXTRACTION_ISOLATION: "off" }))).not.toThrow();
+    expect(() => assertReaderUserForProduction({ ...validProduction, NODE_ENV: "development", EXTRACTION_ISOLATION: "on", PATH: bad })).not.toThrow();
+  });
+
   it("starts without a reader user when parser isolation is off", () => {
     expect(() => validateRuntimeConfiguration(production({ PATH: bad, EXTRACTION_ISOLATION: "off" }))).not.toThrow();
+  });
+
+  it.skipIf(process.platform !== "linux")("outside production the reader user may be the process's own user, with the start-up warning", () => {
+    const env = { ...validProduction, NODE_ENV: "development", EXTRACTION_ISOLATION: "on", PATH: good, EXTRACTION_READER_USER: userInfo().username } as NodeJS.ProcessEnv;
+    expect(() => validateRuntimeConfiguration(env)).not.toThrow();
+    expect(() => assertReaderUserForProduction(env)).not.toThrow();
   });
 
   it("does not ask for a reader user outside production", () => {

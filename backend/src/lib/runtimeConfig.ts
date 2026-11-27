@@ -1,7 +1,7 @@
 import { accessSync, constants, statSync } from "node:fs";
 import path from "node:path";
 import { extractionIsolated, extractionLauncher, extractionReaderUser } from "./extraction/limits";
-import { readerSwitchProblem } from "./extraction/readerUser";
+import { readerIsOwnUser, readerSwitchProblem } from "./extraction/readerUser";
 import { trimChars } from "./modelJsonFence";
 import { OCR_PAGE_MAX_BYTES, OCR_READING_MAX_BYTES, OCR_READING_MAX_PAGES } from "./ocr/pages";
 
@@ -356,6 +356,37 @@ export function extractionLauncherWarnings(
   return warnings;
 }
 
+/**
+ * The one start-up check of the document readers' user, shared by the API and
+ * the stand-alone worker: in production (and only there) the readers must be
+ * able to run as an unprivileged user that is not the process's own. Returns
+ * the refusal, or null. Only Linux has the launcher for it; elsewhere
+ * production is not a target.
+ */
+export function readerUserProductionProblem(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string | null {
+  if (env.NODE_ENV !== "production" || !extractionIsolated(env) || platform !== "linux") return null;
+  const problem = readerUserProblem(env, platform);
+  if (problem) return `The document parser must run as its own unprivileged user in production: ${problem}`;
+  const user = extractionReaderUser(env, platform);
+  if (user && readerIsOwnUser(user)) {
+    return `The document parser must run as its own unprivileged user in production: EXTRACTION_READER_USER (${user}) is the same numeric user as this process, so the readers would run as the API`;
+  }
+  return null;
+}
+
+/** The stand-alone worker's start-up form of the same check: throws what the API's start-up would refuse with. */
+export function assertReaderUserForProduction(env: NodeJS.ProcessEnv = process.env): void {
+  const problem = readerUserProductionProblem(env);
+  if (!problem) return;
+  throw Object.assign(new Error(`Backend authentication configuration is invalid:\n- ${problem}`), {
+    code: "configuration_invalid",
+    configurationFields: ["EXTRACTION_READER_USER"],
+  });
+}
+
 /** Why the document parser cannot run as its own unprivileged user, or null when it can. */
 function readerUserProblem(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string | null {
   const user = extractionReaderUser(env, platform);
@@ -526,15 +557,8 @@ export function validateRuntimeConfiguration(
 
     // The readers of uploaded files run as an unprivileged user of their own,
     // so they cannot read this process's environment (docs/deployment.md).
-    // Only Linux has the launcher for it; elsewhere production is not a target.
-    if (extractionIsolated(env) && process.platform === "linux") {
-      const problem = readerUserProblem(env, process.platform);
-      if (problem) {
-        errors.push(
-          `The document parser must run as its own unprivileged user in production: ${problem}`,
-        );
-      }
-    }
+    const readerProblem = readerUserProductionProblem(env);
+    if (readerProblem) errors.push(readerProblem);
 
     const wordAddin = env.WORD_ADDIN_URL?.trim();
     if (wordAddin) {

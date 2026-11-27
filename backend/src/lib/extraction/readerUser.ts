@@ -152,6 +152,12 @@ function readerUid(user: string): number | null {
   return null;
 }
 
+/** True when `user` is the same numeric user as this process (by account database, else by name). */
+export function readerIsOwnUser(user: string, ownUid: number | undefined = process.getuid?.()): boolean {
+  const uid = readerUid(user);
+  return uid === null ? userInfo().username === user : uid === ownUid;
+}
+
 /** The helper's command: only the group id and the reader's user id. Null for a number it must not act on. */
 export function reaperCommand(group: number, uid: number): { command: string; args: string[] } | null {
   if (!Number.isSafeInteger(group) || group <= 1 || !Number.isSafeInteger(uid) || uid <= 0) return null;

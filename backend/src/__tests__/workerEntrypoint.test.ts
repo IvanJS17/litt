@@ -116,4 +116,40 @@ describe("standalone worker entrypoint", () => {
             "the worker exited at boot — .env was not loaded",
         ).toBe(stillRunning);
     }, 20_000);
+
+    // The same start-up check as the API's: in production the worker refuses
+    // to start when the document readers would run as its own user.
+    it("refuses to start in production when the document readers cannot run as their own user", async () => {
+        const child = spawn(
+            process.execPath,
+            [
+                "--import",
+                path.join(backendRoot, "node_modules/tsx/dist/loader.mjs"),
+                path.join(backendRoot, "src/worker.ts"),
+            ],
+            {
+                cwd: backendRoot,
+                stdio: ["ignore", "ignore", "pipe"],
+                env: {
+                    ...process.env,
+                    NODE_ENV: "production",
+                    EXTRACTION_ISOLATION: "on",
+                    EXTRACTION_READER_USER: "",
+                    QUEUE_DRIVER: "postgres",
+                    DB_JOBS_POLL_MS: "60000",
+                    SUPABASE_URL: "http://127.0.0.1:9",
+                    SUPABASE_SECRET_KEY: "not-a-real-key",
+                },
+            },
+        );
+        let stderr = "";
+        child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+        const outcome = await Promise.race([
+            new Promise<number | null>((resolve) => child.on("exit", (code) => resolve(code))),
+            new Promise<string>((resolve) => setTimeout(() => resolve("still running"), 10_000)),
+        ]);
+        child.kill("SIGKILL");
+        expect(outcome, "the worker kept running").toBe(1);
+        expect(stderr).toMatch(/must run as its own unprivileged user in production/);
+    }, 30_000);
 });

@@ -21,7 +21,8 @@ import "./logRedaction";
 
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { removeLeftoverReaderScratch } from "./lib/extraction/readerUser";
-import { extractionLauncherWarnings } from "./lib/runtimeConfig";
+import { failBoot } from "./lib/processLifecycle";
+import { assertReaderUserForProduction, extractionLauncherWarnings } from "./lib/runtimeConfig";
 import { removeStaleExportDirectories } from "./application/exports/exportTempFiles";
 import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
 
@@ -30,6 +31,14 @@ import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
 // only start claiming rows once the answer is in, so no job is touched by a
 // worker the database cannot back.
 async function main(): Promise<void> {
+  // The same start-up check as the API's: in production the document readers
+  // must be able to run as their own user, not as this process's.
+  try {
+    assertReaderUserForProduction();
+  } catch (err) {
+    await failBoot(err, "runtime-config");
+    return;
+  }
   // Extraction jobs run the parser here when the API runs WORKERS_MODE=none.
   for (const warning of extractionLauncherWarnings()) {
     console.warn(`[extraction] ${warning}`);
