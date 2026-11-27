@@ -7,6 +7,7 @@ import { workspaceConnectorStatus, workspaceToolList } from "../../lib/integrati
 // (requireMfaIfEnrolled) is applied here, per route — keep it on every
 // mutating /user route so the service layer never has to know about MFA.
 
+import { trimChars } from "../../lib/modelJsonFence";
 import { safeError } from "../../lib/safeError";
 import { AppError, withKind, type ErrorKind } from "../../lib/appError";
 import { reportError, setOperation } from "../../lib/observability/report";
@@ -159,9 +160,10 @@ function backendPublicUrl(req: {
 }
 
 function frontendUrl(path = "/settings/connectors") {
-    const base = (process.env.FRONTEND_URL ?? "http://localhost:3000").replace(
-        /\/+$/,
+    const base = trimChars(
+        process.env.FRONTEND_URL ?? "http://localhost:3000",
         "",
+        "/",
     );
     return `${base}${path}`;
 }

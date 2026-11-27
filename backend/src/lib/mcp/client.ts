@@ -8,6 +8,7 @@ import {
     BlockedDestinationError,
     isBlockedDestinationError,
 } from "../blockedDestination";
+import { trimChars } from "../modelJsonFence";
 import { reportError } from "../observability/report";
 import { isBlockedIp } from "../privateIp";
 import { configuredApiPublicUrl } from "../runtimeConfig";
@@ -172,12 +173,18 @@ export function decryptAuthConfig(row: ConnectorRow): McpConnectorAuthConfig {
     }
 }
 
+/** The most of a remote tool or connector name that is read. */
+export const TOOL_NAME_PART_INPUT_MAX_CHARS = 512;
+
 function sanitizeToolPart(value: string, fallback: string, maxLength: number) {
-    const sanitized = value
-        .toLowerCase()
-        .replace(/[^a-z0-9_]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .replace(/_+/g, "_");
+    const sanitized = trimChars(
+        value
+            .slice(0, TOOL_NAME_PART_INPUT_MAX_CHARS)
+            .toLowerCase()
+            .replace(/[^a-z0-9_]+/g, "_"),
+        "_",
+        "_",
+    ).replace(/_+/g, "_");
     return (sanitized || fallback).slice(0, maxLength);
 }
 
@@ -751,11 +758,11 @@ async function guardedFetchUnlabelled(
 }
 
 export function base64Url(buffer: Buffer) {
-    return buffer
-        .toString("base64")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/g, "");
+    return trimChars(
+        buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_"),
+        "",
+        "=",
+    );
 }
 
 export function stateHash(state: string) {

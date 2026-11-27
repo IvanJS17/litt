@@ -11,6 +11,7 @@ import type {
     OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { AppError } from "../appError";
+import { trimChars } from "../modelJsonFence";
 import { createServerSupabase } from "../supabase";
 import {
     authConfigPatch,
@@ -183,7 +184,7 @@ async function seedResourceMetadataUrl(
 async function fetchAuthorizationServerMetadata(
     authorizationServer: string,
 ): Promise<Record<string, unknown>> {
-    const trimmed = authorizationServer.replace(/\/+$/, "");
+    const trimmed = trimChars(authorizationServer, "", "/");
     const candidates = authorizationServer.includes("/.well-known/")
         ? [authorizationServer]
         : [

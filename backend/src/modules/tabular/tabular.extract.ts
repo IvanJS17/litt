@@ -9,7 +9,7 @@ import {
     type UserApiKeys,
 } from "../../lib/llm";
 import { AppError } from "../../lib/appError";
-import { stripCodeFence } from "../../lib/modelJsonFence";
+import { MODEL_TEXT_MAX_CHARS, stripCodeFence } from "../../lib/modelJsonFence";
 import { reportModelFailure } from "../../lib/llm/providerFailureReport";
 import { formatPromptSuffix } from "./tabular.prompt";
 import { type CellResult, type Column } from "./tabular.shared";
@@ -154,7 +154,29 @@ Rules:
 
     const USER = `Document: ${filename}\n\n${documentText}\n\n---\nColumns to extract:\n${columnsDesc}`;
 
-    let contentBuffer = "";
+    // The unfinished line is kept as pieces and joined once its newline
+    // arrives, so each piece is copied once. A line past the bound of a model
+    // reply is dropped, up to its newline.
+    let partial: string[] = [];
+    let partialLength = 0;
+    let discarding = false;
+    const addToLine = (piece: string) => {
+        if (discarding || !piece) return;
+        partialLength += piece.length;
+        if (partialLength > MODEL_TEXT_MAX_CHARS) {
+            partial = [];
+            discarding = true;
+            return;
+        }
+        partial.push(piece);
+    };
+    const takeLine = (): string | null => {
+        const line = discarding ? null : partial.join("");
+        partial = [];
+        partialLength = 0;
+        discarding = false;
+        return line;
+    };
     const pending: Promise<unknown>[] = [];
 
     const processLine = async (line: string) => {
@@ -200,16 +222,15 @@ Rules:
             callbacks: {
                 onActivity,
                 onContentDelta: (delta) => {
-                    contentBuffer += delta;
+                    let from = 0;
                     let newlineIdx: number;
-                    while ((newlineIdx = contentBuffer.indexOf("\n")) !== -1) {
-                        const completedLine = contentBuffer.slice(
-                            0,
-                            newlineIdx,
-                        );
-                        contentBuffer = contentBuffer.slice(newlineIdx + 1);
-                        pending.push(processLine(completedLine));
+                    while ((newlineIdx = delta.indexOf("\n", from)) !== -1) {
+                        addToLine(delta.slice(from, newlineIdx));
+                        from = newlineIdx + 1;
+                        const completedLine = takeLine();
+                        if (completedLine !== null) pending.push(processLine(completedLine));
                     }
+                    addToLine(from === 0 ? delta : delta.slice(from));
                 },
             },
         });
@@ -238,7 +259,8 @@ Rules:
         }
     }
 
-    if (contentBuffer.trim()) pending.push(processLine(contentBuffer));
+    const lastLine = takeLine();
+    if (lastLine?.trim()) pending.push(processLine(lastLine));
     await Promise.all(pending);
     if (streamError) throw streamError;
 }

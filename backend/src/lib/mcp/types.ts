@@ -1,3 +1,5 @@
+import { trimChars } from "../modelJsonFence";
+
 export type { Db } from "../supabase";
 
 export type McpTransport = "streamable_http";
@@ -154,7 +156,7 @@ export const BLOCKED_METADATA_HOSTS = new Set([
  * checks below compare names exactly.
  */
 export function canonicalHostname(url: URL): string {
-    return url.hostname.toLowerCase().replace(/\.+$/, "");
+    return trimChars(url.hostname.toLowerCase(), "", ".");
 }
 
 /** Loopback and cloud-metadata names, which no guarded egress may reach. */

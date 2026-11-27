@@ -407,3 +407,64 @@ describe("retiring the account a withdrawn invitation created", () => {
         await expect(retireUnusedInvitationIdentity(db, "guest@firm.example", except)).rejects.toBeTruthy();
     });
 });
+
+describe("telling that an address already has an account from the identity service's message", () => {
+    const OLD = /already.*registered/i;
+    const MESSAGES = [
+        "User already registered",
+        "A user with this email address has already been registered",
+        "ALREADY REGISTERED",
+        "Already  been  Registered",
+        "registered already",
+        "already",
+        "registered",
+        "already\nregistered",
+        "already\rregistered",
+        "already\u2028registered",
+        "already\u2029registered",
+        "first line already\nsecond line registered",
+        "already registered\nnothing more",
+        "x already y\nalready registered",
+        "alreadyregistered",
+        "alreadÿ registered",
+        "",
+        "   ",
+        "rate limit exceeded",
+    ];
+    const kindFor = async (message: string) => {
+        forgetRecentInvitations();
+        const invite = vi.fn().mockResolvedValue({ data: {}, error: { message } });
+        const { db } = world(invite);
+        return (await inviteAdmittedSignup(db, "old@firm.example")).kind;
+    };
+
+    it("answers as the former expression did for ordinary and edge messages", async () => {
+        for (const message of MESSAGES) {
+            expect(await kindFor(message), JSON.stringify(message)).toBe(OLD.test(message) ? "has_account" : "failed");
+        }
+    });
+    it("still goes by the error code when the message is missing", async () => {
+        forgetRecentInvitations();
+        const invite = vi.fn().mockResolvedValue({ data: {}, error: { code: "email_exists" } });
+        expect((await inviteAdmittedSignup(world(invite).db, "old@firm.example")).kind).toBe("has_account");
+    });
+    it("reads a long message in time proportional to its length", async () => {
+        const cases = [
+            (n: number) => "already ".repeat(n),
+            (n: number) => "already".repeat(n) + "\nregistered",
+            (n: number) => "x".repeat(n) + "already registered",
+        ];
+        for (const make of cases) {
+            const timed = async (n: number) => {
+                const text = make(n);
+                const started = performance.now();
+                await kindFor(text);
+                return performance.now() - started;
+            };
+            await timed(1_000);
+            const small = Math.min(await timed(1_000), await timed(1_000), await timed(1_000));
+            const large = Math.min(await timed(16_000), await timed(16_000));
+            expect(large, `small ${small.toFixed(2)} ms, large ${large.toFixed(2)} ms`).toBeLessThan(Math.max(small * 16 * 8, 100));
+        }
+    }, 60_000);
+});
