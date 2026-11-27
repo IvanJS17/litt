@@ -79,7 +79,7 @@ export function uploadSessionRateLimitConfiguration(
 const GIBIBYTE = 1024 ** 3;
 
 /** A value that is only digits (no "5000abc", no sign, no decimals), or null. */
-function wholeNumber(raw: string | undefined): number | null {
+export function wholeNumber(raw: string | undefined): number | null {
   if (!raw || !/^\d{1,15}$/.test(raw)) return null;
   return Number.parseInt(raw, 10);
 }

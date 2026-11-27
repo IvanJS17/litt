@@ -227,10 +227,10 @@ export async function createCitationSupportRunner(args: {
         // Never throws and is never awaited by the work it follows.
         run: async (owner, inputs) => {
             if (!inputs.length) return null;
-            // The person's number for the day: only that many citations are sent, the first ones in order.
-            const granted = takeCitationChecks(args.userId, inputs.length);
-            if (!granted) return null;
             try {
+                // The person's number for the day: only that many citations are sent, the first ones in order.
+                const granted = takeCitationChecks(args.userId, inputs.length);
+                if (!granted) return null;
                 const outcome = await runCitationSupportChecks({
                     db: args.db,
                     apiKey,

@@ -113,6 +113,10 @@ describe("trimming trailing characters of a url or an encoded value", () => {
         const random = Buffer.from(Array.from({ length: 33 }, (_, i) => (i * 37 + 11) % 256));
         expect(base64Url(random)).toBe(oldBase64Url(random));
     });
+    it("encodes the module's own bytes of any size", () => {
+        const big = Buffer.alloc(800_000, 251);
+        expect(base64Url(big)).toBe(big.toString("base64url"));
+    });
     it("takes time proportional to the length of the text", () => {
         expectLinearCost((n) => trimChars("/".repeat(n) + "a", "", "/", Infinity), { small: 1_000, large: 32_000 });
         expectLinearCost((n) => trimChars("a" + "/".repeat(n) + "b", "", "/", Infinity), { small: 1_000, large: 32_000 });

@@ -762,6 +762,7 @@ export function base64Url(buffer: Buffer) {
         buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_"),
         "",
         "=",
+        Infinity,
     );
 }
 
