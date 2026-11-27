@@ -4,14 +4,14 @@
 # Uso, desde la máquina de build (README §1). El script y el árbol del release se dejan en un
 # directorio hecho para ese deploy y privado de la cuenta (mktemp -d, modo 700), no en nombres
 # fijos del directorio temporal compartido; el directorio se borra al terminar:
-#   D=$(ssh staging-apps-dev 'mktemp -d'); B=$(mktemp -d)
+#   D=$(ssh staging-apps-dev 'mktemp -d'); B=$(mktemp -d); [ -n "$D" ] || exit 1
 #   git archive --format=tar.gz "$SHA" > "$B/litt-$SHA.tar.gz"      # el mismo archivo se resume y se envía
 #   TREE_SHA256=$(sha256sum "$B/litt-$SHA.tar.gz" | cut -d' ' -f1)
 #   scp deploy/prod/litt-deploy.sh "staging-apps-dev:$D/litt-deploy.sh"
 #   scp "$B/litt-$SHA.tar.gz" "staging-apps-dev:$D/litt-$SHA.tar.gz"
 #   docker save "litt-backend:$SHA" "litt-frontend:$SHA" "litt-word:$SHA" | gzip -1 | ssh staging-apps-dev \
 #     bash "$D/litt-deploy.sh" "$SHA" "$IMAGE_BYTES" "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID" "$D/litt-$SHA.tar.gz" "$TREE_SHA256"
-#   ssh staging-apps-dev "rm -rf $D"; rm -rf "$B"
+#   ssh staging-apps-dev "rm -rf '$D'"; rm -rf "$B"
 #
 # Antes de cambiar nada en el host el script exige: el árbol es un archivo regular (no un
 # enlace), de la cuenta que corre el script y no escribible por grupo ni otros; su directorio
@@ -62,7 +62,9 @@ owner_mode_ok() { # <ruta> <qué es>
 [ -f "$TREE_TGZ" ] || die "no existe el árbol del release (archivo regular): $TREE_TGZ"
 owner_mode_ok "$TREE_TGZ" "el árbol del release"
 owner_mode_ok "$(dirname -- "$TREE_TGZ")" "el directorio del árbol del release"
-if [ -f "${BASH_SOURCE[0]}" ]; then owner_mode_ok "${BASH_SOURCE[0]}" "el script"; fi
+SELF=${BASH_SOURCE[0]:-}
+[ -n "$SELF" ] && [ -f "$SELF" ] && [ ! -L "$SELF" ] || die "el script se corre desde su archivo (bash <directorio del deploy>/litt-deploy.sh ...), no desde la entrada estándar ni un enlace"
+owner_mode_ok "$SELF" "el script"
 [ "$(sha256sum -- "$TREE_TGZ" | cut -d' ' -f1)" = "$TREE_SHA256" ] || die "el sha256 no coincide con TREE_SHA256: el árbol del release no es el construido"
 
 [ -f "$APP_DIR/.env" ] || die "falta $APP_DIR/.env (primer arranque: README §3)"

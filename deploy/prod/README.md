@@ -95,7 +95,7 @@ echo "BYTES=$BYTES"
 # Deploy (el árbol del release viaja aparte; las imágenes, por stdin y sin copias en disco):
 # El script y el árbol van a un directorio hecho para este deploy, privado de la cuenta
 # (modo 700), no a nombres fijos de /tmp; el árbol se resume con el mismo archivo que se envía.
-D=$(ssh staging-apps-dev 'mktemp -d')
+D=$(ssh staging-apps-dev 'mktemp -d'); [ -n "$D" ] || { echo "no se pudo crear el directorio del deploy"; exit 1; }
 B=$(mktemp -d)
 git archive --format=tar.gz "$SHA" > "$B/litt-$SHA.tar.gz"
 TREE_SHA256=$(sha256sum "$B/litt-$SHA.tar.gz" | cut -d' ' -f1)
@@ -103,13 +103,13 @@ scp deploy/prod/litt-deploy.sh "staging-apps-dev:$D/litt-deploy.sh"
 scp "$B/litt-$SHA.tar.gz" "staging-apps-dev:$D/litt-$SHA.tar.gz"
 docker save "litt-backend:$SHA" "litt-frontend:$SHA" "litt-word:$SHA" | gzip -1 | ssh staging-apps-dev \
   bash "$D/litt-deploy.sh" "$SHA" "$BYTES" "$BID" "$FID" "$WID" "$D/litt-$SHA.tar.gz" "$TREE_SHA256"
-ssh staging-apps-dev "rm -rf $D"; rm -rf "$B"
+ssh staging-apps-dev "rm -rf '$D'"; rm -rf "$B"   # también si el deploy falló
 ```
 
 Antes de cambiar nada en el host, `litt-deploy.sh` exige (siempre; no hay opción para omitirlo):
 el árbol es un archivo regular (no un enlace), de la cuenta que corre el script y no
 escribible por grupo ni otros; el directorio que lo contiene cumple lo mismo (un directorio
-compartido como `/tmp` se rechaza); el propio script cumple dueño y modo; y el sha256 del
+compartido como `/tmp` se rechaza); el propio script se corre desde su archivo y cumple dueño y modo; y el sha256 del
 árbol es el `TREE_SHA256` del séptimo argumento. Si algo falla, termina con error sin tocar
 el host. Los despliegues usan siempre esta invocación de siete argumentos.
 

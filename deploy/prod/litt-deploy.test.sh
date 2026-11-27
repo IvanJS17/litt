@@ -150,6 +150,21 @@ if run $((2 * GIB)); then st=0; else st=$?; fi
 check "rechaza un script escribible por otros" 'refused "el script es escribible"'
 rm -rf "$T"
 
+setup $((20 * GIB)); DIG=$(printf '%s' "$DIG" | tr a-f A-F); snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un digest en mayúsculas" 'refused "sha256 inválido"'
+rm -rf "$T"
+
+setup $((20 * GIB)); mkdir "$T/real"; mv "$T/tree.tgz" "$T/real/"; ln -s "$T/real" "$T/atajo"; TGZ="$T/atajo/tree.tgz"; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un archivo alcanzado a través de un directorio enlazado" 'refused "escribible por grupo u otros"'
+rm -rf "$T"
+
+setup $((20 * GIB)); snap > "$T/snap"
+if echo imagen | gzip | PATH="$T/bin:$PATH" LITT_APP_DIR="$T/app" bash <(cat "$T/litt-deploy.sh") "$NEW" $((2 * GIB)) "$BID" "$FID" "$WID" "$TGZ" "$DIG" > "$T/out" 2>&1; then st=0; else st=$?; fi
+check "rechaza correr el script si no viene de su archivo" 'refused "desde su archivo"'
+rm -rf "$T"
+
 # Otra cuenta no se puede producir sin otro usuario: se prueba la decisión con un `stat` de prueba
 # que informa un dueño distinto.
 setup $((20 * GIB)); snap > "$T/snap"
