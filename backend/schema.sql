@@ -4294,6 +4294,7 @@ set search_path = public, pg_temp
 as $$
 declare
   candidate_ids uuid[];
+  capped_user_ids uuid[];
   candidate record;
   active_user_jobs integer;
   claimed_job_id uuid;
@@ -4311,12 +4312,27 @@ begin
   -- job pays a count on every poll of every worker even when nothing is
   -- claimable — one 50-file batch meant 50 lateral counts x 16 workers x 1/s.
   -- 32 candidates is plenty: a worker claims at most one job per poll.
+  -- Accounts already at their running cap are left out BEFORE the limit, so
+  -- their queue never fills the window and hides another account's job.
+  select coalesce(array_agg(capped.user_id), '{}'::uuid[])
+    into capped_user_ids
+  from (
+    select running_job.user_id
+    from public.upload_processing_jobs as running_job
+    where running_job.status = 'running'
+      and running_job.locked_at >
+        now() - make_interval(secs => target_lease_seconds)
+    group by running_job.user_id
+    having count(*) >= target_max_running_per_user
+  ) as capped;
+
   select array_agg(id)
     into candidate_ids
   from (
     select id
     from public.upload_processing_jobs
     where attempts < 3
+      and user_id <> all(capped_user_ids)
       and ((
         status = 'queued'
         and available_at <= now()
@@ -23863,5 +23879,6 @@ insert into public.schema_migrations (filename) values
   ('20261125_01_litt_email_change_invitations_and_playbook_shares.sql'),
   ('20261126_01_litt_private_matter_project_private.sql'),
   ('20261126_20_litt_db_jobs_fair_parser_claim.sql'),
-  ('20261126_30_litt_db_jobs_claim_kind_arm.sql')
+  ('20261126_30_litt_db_jobs_claim_kind_arm.sql'),
+  ('20261126_90_litt_upload_claim_fairness.sql')
 on conflict (filename) do nothing;
