@@ -159,6 +159,7 @@ async function assertOwnWorkMatter(
         if (!place.place) return notFound();
         const open = await mayOpenWorkMatter(db, {
             projectId: place.place.projectId,
+            wordChatId: place.place.wordChatId,
             actorId: person.userId,
             actorEmail: person.userEmail ?? null,
         });
@@ -324,7 +325,7 @@ export async function getPupilBacking(
         if (!place.ok) return internalFailure(place.error);
         if (
             !place.place ||
-            !(await mayOpenWorkMatter(db, { projectId: place.place.projectId, actorId: actor.actorId, actorEmail: actor.actorEmail }))
+            !(await mayOpenWorkMatter(db, { projectId: place.place.projectId, wordChatId: place.place.wordChatId, actorId: actor.actorId, actorEmail: actor.actorEmail }))
         ) {
             hidden += 1;
             continue;

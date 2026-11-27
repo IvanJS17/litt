@@ -81,6 +81,7 @@ export async function overrideNoteVerdict(
         !place.place ||
         !(await mayOpenWorkMatter(db, {
             projectId: place.place.projectId,
+            wordChatId: place.place.wordChatId,
             actorId: args.actorId,
             actorEmail: args.actorEmail ?? null,
         }))

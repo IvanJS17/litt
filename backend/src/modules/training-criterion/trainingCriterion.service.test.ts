@@ -6,7 +6,8 @@ import { pupilNotesRouter } from "./trainingCriterion.routes";
 
 // Who may open which matter's project: lib/access owns the matter rule.
 const { openable } = vi.hoisted(() => ({ openable: new Set<string>() }));
-vi.mock("../../lib/access", () => ({
+vi.mock("../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/access")>()),
     checkProjectAccess: vi.fn(async (projectId: string, userId: string) => ({
         ok: openable.has(`${projectId}:${userId}`),
     })),

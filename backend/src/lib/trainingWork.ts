@@ -6,6 +6,7 @@
 // question 6). Word has no matter; a chat outside a project has none either.
 
 import { checkProjectAccess, loadOpenableProjects } from "./access";
+import { mayReadWordChat } from "./chatReadAccess";
 import type { Db } from "./supabase";
 import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "./trainingNotes";
 
@@ -15,7 +16,8 @@ export function isWorkSurface(value: unknown): value is TurnNoteSurface {
     return typeof value === "string" && (WORK_SURFACES as string[]).includes(value);
 }
 
-export type WorkPlace = { projectId: string | null; title: string | null };
+/** `wordChatId` is set for a Word chat: it has no matter, its answers are judged by what they drew on. */
+export type WorkPlace = { projectId: string | null; title: string | null; wordChatId?: string };
 
 /** The matter's project and the title of a work's chat; null when the chat is gone. */
 export async function workPlace(
@@ -27,7 +29,7 @@ export async function workPlace(
         const { data, error } = await db.from("word_chats").select("id, title").eq("id", chatId).maybeSingle();
         if (error) return { ok: false, error };
         const row = data as { title?: string | null } | null;
-        return { ok: true, place: row ? { projectId: null, title: row.title ?? null } : null };
+        return { ok: true, place: row ? { projectId: null, title: row.title ?? null, wordChatId: chatId } : null };
     }
     if (surface === "chat") {
         const { data, error } = await db
@@ -60,11 +62,16 @@ export async function workPlace(
     return { ok: true, place: { projectId, title: chat.title ?? null } };
 }
 
-/** Whether the actor may open the matter a work was done in (none: yes). */
+/**
+ * Whether the actor may open the matter a work was done in (none: yes). A Word
+ * chat (`wordChatId`, from its place) has no matter: it is read while the actor
+ * can open what its answers drew on, by the rule every chat transcript follows.
+ */
 export async function mayOpenWorkMatter(
     db: Db,
-    args: { projectId: string | null; actorId: string; actorEmail: string | null },
+    args: { projectId: string | null; actorId: string; actorEmail: string | null; wordChatId?: string },
 ): Promise<boolean> {
+    if (args.wordChatId && !(await mayReadWordChat(db, { userId: args.actorId, userEmail: args.actorEmail }, args.wordChatId))) return false;
     if (!args.projectId) return true;
     const access = await checkProjectAccess(args.projectId, args.actorId, args.actorEmail, db);
     return access.ok;

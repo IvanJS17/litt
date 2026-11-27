@@ -273,6 +273,42 @@ describe("backend architecture", () => {
     expect(namesRepairLibrary(read("lib/boundedJsonRepair.ts"))).toBe(true);
   });
 
+  // Content computed from documents is judged when it is read (AGENTS.md, security rule 2). A Word chat's
+  // answers are such content: every file that reads the Word chat tables is listed here with the
+  // way it judges what it serves, and a new reader is added with its own test.
+  it("security rule 2: the readers of Word chat messages are the known ones", () => {
+    const READERS: Record<string, string> = {
+      "lib/chatReadAccess.ts": "the shared judging code",
+      "modules/word-chat/wordChat.service.ts": "the transcript, judged with readableChatMessages",
+      "modules/word-chat/wordChat.routes.ts": "the running turn, judged with mayWatchChatTurn",
+      "application/exports/buildJsonExport.ts": "the export, judged with readableChatMessages",
+      "modules/chat/engine/priorTurnAccess.ts": "the prior turns given to the model, judged with readableByOwnSources",
+      "lib/trainingTurn/accountability.ts": "names the table of a backing check's citations; its readers pass mayOpenWorkMatter",
+      "modules/training-supervision/trainingSupervision.signals.ts": "citation counts of a work, after mayOpenWorkMatter",
+      "modules/chat/engine/routeStreaming.ts": "writes the reserved answer",
+      "lib/wordWorkspace.ts": "reads attachments to place the chat in a workspace, not content",
+      "modules/memory/memory.curator.ts": "the owner's own memory, not served to a reader",
+    };
+    const readers = PRODUCTION_FILES.filter((file) => /word_chat_messages/.test(read(file)));
+    expect(readers.filter((file) => !(file in READERS))).toEqual([]);
+  });
+
+  it("security rule 2: a training reader of a Word chat's work passes the chat to mayOpenWorkMatter", () => {
+    // These have no Word chat to judge: a matter only, or a chat of the assistant.
+    const NO_WORD_CHAT = new Set([
+      "lib/trainingWork.ts",
+      "modules/training-supervision/trainingSupervision.lens.ts",
+      "modules/training-criteria-contrast/trainingCriteriaContrast.service.ts",
+    ]);
+    const offenders: string[] = [];
+    for (const file of PRODUCTION_FILES.filter((f) => !NO_WORD_CHAT.has(f))) {
+      for (const call of read(file).split("mayOpenWorkMatter(").slice(1)) {
+        if (!call.slice(0, call.indexOf(");")).includes("wordChatId")) offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("rule 10: the text scan sees every spelling of a load of the library", () => {
     const named = [
       'import { jsonrepair } from "jsonrepair";',

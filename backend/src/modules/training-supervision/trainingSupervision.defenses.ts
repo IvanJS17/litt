@@ -239,6 +239,7 @@ async function visibleReview(
         !place.place ||
         !(await mayOpenWorkMatter(db, {
             projectId: place.place.projectId,
+            wordChatId: place.place.wordChatId,
             actorId: args.actorId,
             actorEmail: args.actorEmail,
         }))
@@ -359,6 +360,7 @@ async function defenseNotes(
         if (
             !(await mayOpenWorkMatter(db, {
                 projectId: place.place.projectId,
+                wordChatId: place.place.wordChatId,
                 actorId: args.actorId,
                 actorEmail: args.actorEmail,
             }))

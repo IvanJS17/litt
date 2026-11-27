@@ -259,7 +259,8 @@ async function loadUserChatsJudged(
     };
 }
 
-async function loadUserWordChats(db: Db, userId: string) {
+/** The holder's Word chats as exported, with the verdict on each message that training records follow. */
+async function loadUserWordChatsJudged(db: Db, userId: string, userEmail: string | null | undefined) {
     const documents = await selectAll(db, "word_documents", {
         filter: (query) => query.eq("user_id", userId),
         order: ["created_at"],
@@ -268,13 +269,19 @@ async function loadUserWordChats(db: Db, userId: string) {
         filter: (query) => query.eq("user_id", userId),
         order: ["created_at"],
     });
-    const messages = await selectByIds(
-        db,
-        "word_chat_messages",
-        "chat_id",
-        idsFrom(chats),
-    );
-    return { documents, chats, messages };
+    const all = await selectByIds(db, "word_chat_messages", "chat_id", idsFrom(chats));
+    // Judged as any chat is: an answer drawn from a document the holder can no
+    // longer open stays behind, and so does the title of a chat with anything
+    // withheld.
+    const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all, "word_chat_messages");
+    return {
+        result: {
+            documents,
+            chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
+            messages,
+        },
+        judged: judgeChats(all, messages),
+    };
 }
 
 async function loadUserTabularChats(
@@ -452,7 +459,7 @@ export async function buildUserChatsExport(
         // The Word add-in works in Personal only.
         orgId
             ? Promise.resolve({ documents: [], chats: [], messages: [] })
-            : loadUserWordChats(db, userId),
+            : loadUserWordChatsJudged(db, userId, userEmail).then(({ result }) => result),
         loadUserTabularChats(db, userId, userEmail, orgId),
     ]);
 
@@ -559,9 +566,9 @@ function judgeChats(all: Row[], readable: Row[], into: ChatJudgement = new Map()
  * itself for a backing check or a criteria contrast.
  */
 function madeFromReadableAnswers(judged: ChatJudgement, row: Row): boolean {
-    const chatId = [row.chat_id, row.tabular_chat_id].find((id): id is string => typeof id === "string");
+    const chatId = [row.chat_id, row.word_chat_id, row.tabular_chat_id].find((id): id is string => typeof id === "string");
     const messages = chatId ? judged.get(chatId) : undefined;
-    // Word chats are not yet judged, and a chat with no stored message has no answer to withhold.
+    // A chat with no stored message has no answer to withhold.
     if (!messages) return true;
     const at = messages.findIndex((message) => message.id === row.message_id);
     let answers = messages.filter((message) => message.role === "assistant");
@@ -585,16 +592,20 @@ async function judgeUnlistedChats(
     reader: { userId: string; userEmail: string | null | undefined },
 ) {
     const wanted = (column: string) => uniqueIds(rows.map((row) => row[column]).filter((id): id is string => typeof id === "string" && !judged.has(id)));
-    const [chatIds, tabularIds] = [wanted("chat_id"), wanted("tabular_chat_id")];
+    const [chatIds, wordIds, tabularIds] = [wanted("chat_id"), wanted("word_chat_id"), wanted("tabular_chat_id")];
     if (chatIds.length) {
         const all = await selectByIds(db, "chat_messages", "chat_id", chatIds);
         judgeChats(all, (await readableChatMessages(db, reader, all, "chat_messages")).messages, judged);
+    }
+    if (wordIds.length) {
+        const all = await selectByIds(db, "word_chat_messages", "chat_id", wordIds);
+        judgeChats(all, (await readableChatMessages(db, reader, all, "word_chat_messages")).messages, judged);
     }
     if (tabularIds.length) {
         const all = await selectCompleteChatMessages(db, tabularIds, "*");
         judgeChats(all, await filterReadableChatMessages(db, all, reader.userId, reader.userEmail), judged);
     }
-    for (const id of [...chatIds, ...tabularIds]) if (!judged.has(id)) judged.set(id, []);
+    for (const id of [...chatIds, ...wordIds, ...tabularIds]) if (!judged.has(id)) judged.set(id, []);
 }
 
 /**

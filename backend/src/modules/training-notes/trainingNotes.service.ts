@@ -88,6 +88,7 @@ export async function getChatTurnNotes(
             !!place.place &&
             (await mayOpenWorkMatter(db, {
                 projectId: place.place.projectId,
+                wordChatId: place.place.wordChatId,
                 actorId,
                 actorEmail: args.actorEmail ?? null,
             }));

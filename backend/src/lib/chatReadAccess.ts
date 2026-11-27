@@ -276,8 +276,14 @@ const cumulativeSources = (messages: readonly Row[], gate: Gate, wordChat = fals
  * can open now, judged as a transcript they read is ("live") and with no regard
  * for any other message. A failed lookup throws.
  */
-export async function readableByOwnSources<M extends Row>(db: Db, reader: DerivedReader, rows: M[]): Promise<Set<M>> {
-    const resolved = await withWorkflowFiles(db, rows.map((row) => gateSources(row, "live")));
+export async function readableByOwnSources<M extends Row>(
+    db: Db,
+    reader: DerivedReader,
+    rows: M[],
+    /** The table `rows` come from: a Word chat's open document is no stored source. */
+    table: MessageTable = "chat_messages",
+): Promise<Set<M>> {
+    const resolved = await withWorkflowFiles(db, rows.map((row) => gateSources(row, "live", table === "word_chat_messages")));
     const resolvedOf = new Map(rows.map((row, index) => [row, resolved[index]]));
     return new Set(await keepReadableDerived(db, reader, rows, (row) => resolvedOf.get(row) ?? null));
 }
@@ -541,4 +547,23 @@ export async function mayWatchChatTurn(
     );
     const { reasons } = await readableChatMessages(db, reader, stored, chat.table, "live");
     return ![...reasons.values()].includes("no_access");
+}
+
+/**
+ * May this reader read what was computed from a Word chat's answers? Only if
+ * every stored answer of the chat is one they can open now, judged as the
+ * transcript they read is. A failed lookup throws.
+ */
+export async function mayReadWordChat(db: Db, reader: DerivedReader, chatId: string): Promise<boolean> {
+    const stored = sortRows(
+        await selectAllByKey<Row>("word chat transcript", () =>
+            db
+                .from("word_chat_messages")
+                .select("id, chat_id, role, content, files, citations, created_at")
+                .eq("chat_id", chatId),
+        ),
+        "created_at",
+    );
+    const { withheld } = await readableChatMessages(db, reader, stored, "word_chat_messages", "live");
+    return withheld.size === 0;
 }

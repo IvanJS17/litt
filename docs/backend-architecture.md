@@ -199,7 +199,11 @@ id in `meta`). `attachAssistantTurnSse(res, run)` hands back the same
   what the reader can open; the summary of the previous answer's tool activity
   and its reasoning are judged on that answer's own sources, and, when the
   reader cannot open that answer, only the reader's own answers and decisions
-  are replayed, as they gave them. See
+  are replayed, as they gave them. The Word add-in's chats follow the same rule
+  (the document open in Word is the add-in's own text and names no stored
+  source): its transcript, its running turn, the previous turn a new one
+  continues from, the account export and the training records made from a Word
+  chat are served only while the reader can open what the answers drew on. See
   `docs/document-text-search.md` for the rule and its limits.
 - `POST /chat/:chatId/turn/:turnId/stop` is the one way to cut a generation
   short; it needs the standing that sending does. The route's abort path

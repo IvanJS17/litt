@@ -264,6 +264,7 @@ export async function listPupilWorks(
             !place.place ||
             !(await mayOpenWorkMatter(db, {
                 projectId: place.place.projectId,
+                wordChatId: place.place.wordChatId,
                 actorId: actor.actorId,
                 actorEmail: actor.actorEmail,
             }))
@@ -317,6 +318,7 @@ async function targetWork(
         !place.place ||
         !(await mayOpenWorkMatter(db, {
             projectId: place.place.projectId,
+            wordChatId: place.place.wordChatId,
             actorId: target.actorId,
             actorEmail: target.actorEmail,
         }))
