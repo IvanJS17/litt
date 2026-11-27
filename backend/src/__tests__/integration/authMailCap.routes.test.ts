@@ -497,9 +497,14 @@ describe("what is counted depends only on the route, the mode and the address ty
       await settle();
       const last = await reset(ADDRESS);
       expect(last.status).toBe(204);
-      // The reset is forwarded: the sign-up did not use up the address's resets.
-      expect(calls.recover).toBe(3);
-      expect(whole(last).cookies.length).toBeGreaterThan(0);
+      // The reset is forwarded, after the answer, to an admitted address (the sign-up did not use up
+      // its resets) and to nobody else: the answer is the same either way and carries no cookie.
+      if (kind.admitted) await vi.waitFor(() => expect(calls.recover).toBe(3), { timeout: SLOW });
+      else {
+        await settle();
+        expect(calls.recover).toBe(0);
+      }
+      expect(whole(last).cookies).toEqual([]);
       finals.push(whole(last));
     }
     expect(finals[1]).toEqual(finals[0]);
@@ -525,7 +530,7 @@ describe("what is counted depends only on the route, the mode and the address ty
   it("counts sign-ups and resets for one address apart, in invitation-only mode", async () => {
     await invitationOnly(KINDS[0]);
     for (let i = 0; i < 3; i++) await reset(ADDRESS);
-    expect(calls.recover).toBe(3);
+    await vi.waitFor(() => expect(calls.recover).toBe(3), { timeout: SLOW });
     expect((await signup(ADDRESS)).status).toBe(201);
     await vi.waitFor(() => expect(calls.invite).toBe(1), { timeout: SLOW });
 
@@ -537,7 +542,7 @@ describe("what is counted depends only on the route, the mode and the address ty
       vi.setSystemTime(Date.now() + 11 * MINUTE);
     }
     expect((await reset(ADDRESS)).status).toBe(204);
-    expect(calls.recover).toBe(1);
+    await vi.waitFor(() => expect(calls.recover).toBe(1), { timeout: SLOW });
   });
 
   it.each(KINDS)("invitation-only: twenty requests for an address ($name) count one", async (kind) => {
@@ -690,7 +695,7 @@ describe("what is counted depends only on the route, the mode and the address ty
         .send({ email: `refused-${i}@example.test`, password: "a-long-enough-password-1" });
       expect(refused.status).toBe(403);
     }
-    expect((await reset("legitimate@example.test")).status).toBe(204);
-    expect(calls.recover).toBe(1);
+    expect((await reset(ADDRESS)).status).toBe(204);
+    await vi.waitFor(() => expect(calls.recover).toBe(1), { timeout: SLOW });
   });
 });

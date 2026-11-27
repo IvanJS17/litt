@@ -25,7 +25,7 @@ import {
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
 import { anonymousMailCap, type MailKind } from "../../lib/anonymousMailCap";
-import { betaMode, canSignUp } from "../../lib/platformAccess";
+import { betaMode, canSignUp, mayRecoverPassword } from "../../lib/platformAccess";
 import { INVITE_COOLDOWN_MS, inviteAdmittedSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
 import { markSessionsEnded } from "../mcp/mcp.service";
@@ -588,13 +588,48 @@ authRouter.post("/handoff", asyncRoute(async (req, res) => {
   }
 }));
 
+// A recovery request that fails is worth seeing (the auth service down, or its
+// mailer), so it is reported, as a warning, with no trace of the address.
+function reportPasswordResetFailure(error: unknown) {
+  reportError(
+    new AppError("auth.password_reset_failed", "password reset request failed", {
+      cause: error,
+    }),
+    { level: "warning", tags: { component: "http" } },
+  );
+}
+
+/**
+ * Closed beta: asked after the answer has gone out, so that nothing the answer
+ * or its timing shows depends on the address. Never throws.
+ */
+async function requestRecoveryAfterAnswer(req: Request, email: string): Promise<void> {
+  try {
+    if (!(await mayRecoverPassword(createServerSupabase(), email))) return;
+    const { error } = await sendPasswordReset(
+      createCookielessSupabase(),
+      email,
+      callbackUrl(req, "/reset-password", "/reset-password"),
+    );
+    if (error) throw error;
+  } catch (error) {
+    reportPasswordResetFailure(error);
+  }
+}
+
 authRouter.post("/password-reset", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
   const email = emailSchema.safeParse(req.body?.email);
   if (email.success) {
+    const beta = betaMode();
     const admission = admitAnonymousMail(res, "reset", email.data);
     if (admission === "answered") return;
-    if (admission !== "send") setOrdinaryCacheHeaders(res);
+    if (admission !== "send" || beta) setOrdinaryCacheHeaders(res);
+    if (beta) {
+      res.status(204).end();
+      if (admission === "send") await requestRecoveryAfterAnswer(req, email.data);
+      return;
+    }
     if (admission === "send") try {
       const client = createRequestSupabase(req, res);
       const { error } = await sendPasswordReset(
@@ -605,15 +640,8 @@ authRouter.post("/password-reset", asyncRoute(async (req, res) => {
       if (error) throw error;
     } catch (error) {
       // Deliberately indistinguishable to prevent account enumeration: the
-      // response is the same 204 either way. The failure itself is still
-      // worth seeing (GoTrue down, or its mailer), so it is reported, as a
-      // warning, with no trace of the address.
-      reportError(
-        new AppError("auth.password_reset_failed", "password reset request failed", {
-          cause: error,
-        }),
-        { level: "warning", tags: { component: "http" } },
-      );
+      // response is the same 204 either way.
+      reportPasswordResetFailure(error);
     }
   }
   res.status(204).end();
