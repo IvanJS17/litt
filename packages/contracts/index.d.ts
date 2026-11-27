@@ -3212,3 +3212,9 @@ export type RetainerReportSentInput = {
   /** At most 500 characters. */
   note?: string;
 };
+
+/** What a storage space uses and its limit, in bytes (GET /user/storage, GET /orgs/:orgId/storage). */
+export type StorageUsage = {
+  usedBytes: number;
+  limitBytes: number;
+};

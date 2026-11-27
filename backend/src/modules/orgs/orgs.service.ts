@@ -42,6 +42,8 @@ export {
   type OrgApiKeySettings,
 } from "./orgs.apiKeys";
 
+export { getOrgStorageUsage } from "./orgs.storageUsage";
+
 export { setOrgManagedAccounts, type OrgManagedAccounts } from "./orgs.managedAccounts";
 
 export {

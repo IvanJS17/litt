@@ -22,6 +22,8 @@ export { setUserProfilePhoto } from "./user.photo";
 export { setMfaOnLogin } from "./user.mfa";
 export { setApiKeyEnabled } from "./user.apiKeys";
 
+export { getPersonalStorageUsage } from "./user.storageUsage";
+
 export {
     getCustomInstructions,
     saveCustomInstructions,

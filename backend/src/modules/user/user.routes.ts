@@ -72,6 +72,7 @@ import {
     getResponseStyle,
     getMcpConnector,
     getUserProfile,
+    getPersonalStorageUsage,
     lookupUserByEmail,
     listMcpConnectors,
     readBooleanBodyField,
@@ -373,6 +374,17 @@ userRouter.post(
 userRouter.post("/managed-notice/dismiss", requireAuth, asyncRoute(async (_req, res) => {
     await dismissManagedNotice(createServerSupabase(), res.locals.userId as string);
     res.status(204).send();
+}));
+
+// GET /user/storage: what the signed-in person's personal space uses and its
+// limit. The space is always the session's own.
+userRouter.get("/storage", requireAuth, asyncRoute(async (_req, res) => {
+    const result = await getPersonalStorageUsage(
+        createServerSupabase(),
+        res.locals.userId as string,
+    );
+    if (!result.ok) return void sendServiceFailure(res, result);
+    res.json(result.data);
 }));
 
 // GET /user/profile
