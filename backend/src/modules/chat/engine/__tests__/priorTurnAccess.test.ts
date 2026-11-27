@@ -134,6 +134,49 @@ describe.each(TABLES)("enrichWithPriorEvents over %s: a reader with full access"
     });
 });
 
+describe("enrichWithPriorEvents: a Word chat is judged as a Word chat", () => {
+    // In a Word chat the open document is the add-in's own text: the answer's
+    // snapshot read of it and its citation of it name no stored document, so
+    // they hold nothing back. In an assistant chat the same references are a
+    // source that cannot be established.
+    const openDocumentAnswer = () =>
+        askedAndAnswered(4, [
+            { type: "doc_read", filename: "open.pdf", document_id: OPEN_DOC },
+            { type: "doc_read", filename: "Contract.docx", document_id: null, version_id: null, version_number: null },
+        ]);
+    const run = async (table: Table, over: Row) => {
+        const { db } = memoryDb({
+            documents: documents(),
+            [table]: [row(1, "user", { content: "q1" }), { ...openDocumentAnswer(), ...over }],
+            chats: [],
+        });
+        return String((await enrichWithPriorEvents(request, CHAT, db, {}, "nonce", table, undefined, reader))[3].content);
+    };
+    const citesOpenDocument = { citations: [{ type: "citation_data", kind: "document", ref: 1, document_id: "active-word-document", quote: "x" }] };
+
+    it("replays the summary of a last Word answer that read or cited only the open document", async () => {
+        expect(await run("word_chat_messages", {})).toContain("open.pdf");
+        expect(await run("word_chat_messages", citesOpenDocument)).toContain("open.pdf");
+    });
+
+    it("still withholds the same references in an assistant chat", async () => {
+        expect(await run("chat_messages", {})).not.toContain("open.pdf");
+    });
+
+    it("withholds a last Word answer that also read a document the reader cannot open", async () => {
+        const text = await run("word_chat_messages", {
+            content: [
+                { type: "doc_read", filename: "closed-file.pdf", document_id: CLOSED_DOC },
+                { type: "doc_read", filename: "Contract.docx", document_id: null, version_id: null, version_number: null },
+                { type: "ask_inputs", items: [{ id: "q1", kind: "text", question: "Which colour?" }] },
+                { type: "ask_inputs_response", author_user_id: READER, responses: [{ id: "q1", kind: "text", answer: "BLUE-ANSWER" }] },
+            ],
+        });
+        expect(text).not.toContain("closed-file.pdf");
+        expect(text).toContain("BLUE-ANSWER");
+    });
+});
+
 describe.each(TABLES)("enrichWithPriorEvents over %s: a last answer the reader cannot open", (table: Table) => {
     const closedAnswer = () =>
         askedAndAnswered(4, [

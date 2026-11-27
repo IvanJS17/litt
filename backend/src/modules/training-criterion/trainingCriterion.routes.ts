@@ -57,7 +57,7 @@ pupilNotesRouter.use(routerErrorHandler("[training-criterion]"));
 export const trainingCriterionRouter = Router();
 
 trainingCriterionRouter.get("/me/criterion", requireAuth, asyncRoute(async (req, res) => {
-    send(res, await getMyCriterion(createServerSupabase(), { userId: res.locals.userId as string, orgId: req.query.org_id }));
+    send(res, await getMyCriterion(createServerSupabase(), { userId: res.locals.userId as string, userEmail: (res.locals.userEmail as string | undefined) ?? null, orgId: req.query.org_id }));
 }));
 
 trainingCriterionRouter.post("/me/retakes", requireAuth, asyncRoute(async (req, res) => {

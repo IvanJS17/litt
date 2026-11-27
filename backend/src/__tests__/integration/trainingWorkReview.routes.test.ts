@@ -492,7 +492,7 @@ describe("the review", () => {
         const t = h.state!.tables;
         t.training_turn_notes.push(note("n3", { word_chat_id: WORD_CHAT }, new Date().toISOString()));
         t.word_chats = [{ id: WORD_CHAT, title: "Contrato en Word" }];
-        t.word_chat_messages = [{ id: id(410), chat_id: WORD_CHAT, role: "assistant", citations: [{ quote: "sin verificar" }] }];
+        t.word_chat_messages = [{ id: id(410), chat_id: WORD_CHAT, role: "assistant", citations: [{ quote: "sin verificar", document_id: "active-word-document" }] }];
         const list = await as(MENTOR).get(works);
         expect(list.body.works.map((w: { surface: string }) => w.surface).sort()).toEqual(["chat", "word"]);
         const res = await as(MENTOR).post(`${works}/word/${WORD_CHAT}/review`).send({});

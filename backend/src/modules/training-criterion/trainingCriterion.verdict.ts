@@ -14,7 +14,7 @@ import { recordAudit } from "../../lib/audit";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "../../lib/trainingNotes";
-import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
+import { judgeWork } from "../../lib/trainingWork";
 import { effectiveVerdict, isTrainingVerdict, type TrainingVerdict } from "../../lib/trainingVerdict";
 import { isUuid } from "../../lib/uuid";
 import { assertCurrentMentor, LEARNING_NOT_FOUND } from "../training-supervision/trainingSupervision.service";
@@ -75,17 +75,11 @@ export async function overrideNoteVerdict(
     );
     const chatId = surface ? (note[TURN_NOTE_CHAT_COLUMN[surface] as "chat_id"] as string) : null;
     if (!surface || !chatId) return notFound();
-    const place = await workPlace(db, surface, chatId);
-    if (!place.ok) return internalFailure(place.error);
-    if (
-        !place.place ||
-        !(await mayOpenWorkMatter(db, {
-            projectId: place.place.projectId,
-            actorId: args.actorId,
-            actorEmail: args.actorEmail ?? null,
-        }))
-    )
-        return notFound();
+    try {
+        if (!(await judgeWork(db, { surface, chatId }, { actorId: args.actorId, actorEmail: args.actorEmail ?? null })).open) return notFound();
+    } catch (error) {
+        return internalFailure(error);
+    }
 
     const verdict = (args.body as { verdict?: unknown } | null | undefined)?.verdict;
     if (!isTrainingVerdict(verdict))

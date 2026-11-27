@@ -34,7 +34,6 @@ import {
     type PromotionStage,
     type PromotionWork,
 } from "../../lib/trainingPromotion";
-import { workPlace } from "../../lib/trainingWork";
 import { readPractice, removeStage, setStage } from "../training/training.service";
 import { assertCurrentMentor } from "./trainingSupervision.access";
 import { projectLens, type Viewer } from "./trainingSupervision.lens";
@@ -91,10 +90,9 @@ async function loadPromotionInput(db: Db, viewer: Viewer): Promise<ServiceResult
         }[]) {
             const at = surfaceOf(row);
             if (!at) continue;
-            const place = await workPlace(db, at.surface, at.chatId);
-            if (!place.ok) return internalFailure(place.error);
-            if (!place.place || !(await lens.mayOpen(place.place.projectId))) continue;
-            reviews.push({ id: row.id, practice: await lens.practice(place.place.projectId), at: row.reviewed_at });
+            const sight = await lens.work(at);
+            if (!sight.place || !sight.open) continue;
+            reviews.push({ id: row.id, practice: await lens.practice(sight.place.projectId), at: row.reviewed_at });
         }
 
         // The pupil's sealed drafts approved in this organization.

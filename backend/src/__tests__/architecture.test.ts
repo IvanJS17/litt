@@ -109,6 +109,66 @@ function namesRepairLibrary(text: string): boolean {
 function stripComments(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
+
+/** Whether the text names one of the lower-level helpers that decide the visibility of a training work. */
+function namesLowLevelWorkHelper(text: string): boolean {
+  return /\b(workPlace|openableWorkMatters|mayOpenWorkMatter)\b/.test(stripComments(text));
+}
+
+/** Whether the text names the matter-only helper, which only the training work module and the account export may use. */
+function namesMatterOnlyHelper(text: string): boolean {
+  return /\bjudgeWorkMatters\b/.test(stripComments(text));
+}
+
+/** Where a module specifier of the training work module ends: ".../trainingWork" with or without an extension. */
+const TRAINING_WORK_SPECIFIER = /["'`][^"'`\n]*\/trainingWork(?:\.[jt]s)?["'`]/;
+
+/**
+ * Whether the text takes the training work module whole rather than by name: a namespace import, a
+ * re-export (`export * from`, `export { … } from`), or a load whose specifier is computed (a dynamic
+ * `import(...)` or `require(...)` of anything but one quoted string, in a file that spells the module's name).
+ * Only lib/trainingWork.ts itself may.
+ * A text scan: see the comment on the rules that use it.
+ */
+function takesTrainingWorkWhole(text: string): boolean {
+  const code = stripComments(text);
+  if (new RegExp(`\\bimport\\s*\\*\\s*as\\s+[\\w$]+\\s*from\\s*${TRAINING_WORK_SPECIFIER.source}`).test(code)) return true;
+  if (new RegExp(`\\bexport\\s*(?:\\*(?:\\s*as\\s+[\\w$]+)?|\\{[^}]*\\})\\s*from\\s*${TRAINING_WORK_SPECIFIER.source}`).test(code)) return true;
+  // A computed specifier: only where the file also spells the module's name, in pieces or whole.
+  if (!/\b(?:import|require)\s*\(\s*(?!(?:"[^"\n$]*"|'[^'\n$]*'|`[^`\n$]*`)\s*[),])/.test(code)) return false;
+  const pieces = [...code.matchAll(/(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map((match) => match[2]);
+  for (let start = 0; start < pieces.length; start += 1)
+    for (let end = start + 1; end <= Math.min(pieces.length, start + 6); end += 1)
+      if (compactLetters(pieces.slice(start, end).join("")).includes("trainingwork")) return true;
+  return false;
+}
+
+const compactLetters = (text: string) => text.toLowerCase().replace(/[^a-z]/g, "");
+
+/**
+ * Whether the text can reach the table of Word chat messages: it names it between quotes, builds it from
+ * quoted pieces (a join, a concatenation), or uses a constant that holds the name. A text scan: it cannot
+ * see a name built from something other than quoted pieces.
+ */
+function readsWordChatTable(text: string, carriers: readonly string[]): boolean {
+  const code = stripComments(text);
+  const pieces = [...code.matchAll(/(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map((match) => match[2]);
+  for (let start = 0; start < pieces.length; start += 1)
+    for (let end = start + 1; end <= Math.min(pieces.length, start + 6); end += 1)
+      if (compactLetters(pieces.slice(start, end).join("")).includes("wordchatmessages")) return true;
+  return carriers.some((name) => new RegExp(`\\b${name}\\b`).test(code));
+}
+
+/** The exported constants whose declaration names the table of Word chat messages. */
+function namesOfConstantsHoldingWordChatTable(texts: readonly string[]): string[] {
+  const found = new Set<string>();
+  for (const text of texts) {
+    const code = stripComments(text);
+    for (const match of code.matchAll(/export const (\w+)\b[^]*?(?:\n\}[^\n]*;?|;)\s*(?=\n|$)/g))
+      if (readsWordChatTable(match[0].replace(/^export const \w+/, ""), [])) found.add(match[1]);
+  }
+  return [...found].sort();
+}
 const code = (file: string) => stripComments(read(file));
 
 /**
@@ -322,6 +382,116 @@ describe("backend architecture", () => {
     );
     expect(offenders).toEqual([]);
     expect(namesRepairLibrary(read("lib/boundedJsonRepair.ts"))).toBe(true);
+  });
+
+  // Content computed from documents is judged when it is read (AGENTS.md, security rule 2). A Word chat's
+  // answers are such content: every file that reads the Word chat tables is listed here with the
+  // way it judges what it serves, and a new reader is added with its own test.
+  it("security rule 2: the readers of Word chat messages are the known ones", () => {
+    const READERS: Record<string, string> = {
+      "lib/chatReadAccess.ts": "the shared judging code",
+      "modules/word-chat/wordChat.service.ts": "the transcript, judged with readableChatMessages",
+      "modules/word-chat/wordChat.routes.ts": "the running turn, judged with mayWatchChatTurn",
+      "application/exports/buildJsonExport.ts": "the export, judged with readableChatMessages",
+      "modules/chat/engine/priorTurnAccess.ts": "the prior turns given to the model, judged with readableByOwnSources",
+      "lib/trainingTurn/accountability.ts": "names the table of a backing check's citations; its readers judge with judgeWorks",
+      "modules/training-backing/trainingBacking.service.ts": "reads the citations of a backing check, after judgeWorks",
+      "modules/training-supervision/trainingSupervision.signals.ts": "citation counts of a work, after judgeWorks",
+      "modules/chat/engine/routeStreaming.ts": "writes the reserved answer",
+      "lib/wordWorkspace.ts": "reads attachments to place the chat in a workspace, not content",
+      "modules/memory/memory.curator.ts": "the owner's own memory, not served to a reader",
+    };
+    const carriers = namesOfConstantsHoldingWordChatTable(PRODUCTION_FILES.map((file) => read(file)));
+    expect(carriers).toEqual(["BACKING_MESSAGES"]);
+    const readers = PRODUCTION_FILES.filter((file) => readsWordChatTable(read(file), carriers));
+    expect(readers.filter((file) => !(file in READERS))).toEqual([]);
+  });
+
+  it("security rule 2: the table of Word chat messages is named in no spelling outside the readers", () => {
+    const carriers = ["BACKING_MESSAGES"];
+    const reading = [
+      'db.from("word_chat_messages").select("*")',
+      "db.from(`word_chat_messages`)",
+      'const t = ["word", "chat", "messages"].join("_"); db.from(t)',
+      'const t = "word_" + "chat_" + "messages"; db.from(t)',
+      "const t = BACKING_MESSAGES.word.table; db.from(t)",
+      'const { word } = BACKING_MESSAGES; db.from(word.table)',
+    ];
+    const notReading = ['db.from("chat_messages")', "// word_chat_messages in a comment", 'import { x } from "./wordChat";'];
+    for (const sample of reading) expect(readsWordChatTable(sample, carriers), sample).toBe(true);
+    for (const sample of notReading) expect(readsWordChatTable(sample, carriers), sample).toBe(false);
+    // the constant that holds the name is found by what it holds, not by a list kept here
+    expect(namesOfConstantsHoldingWordChatTable(["export const X = {\n  a: \"word_chat_messages\",\n} as const;\nexport const Y = 1;"])).toEqual(["X"]);
+  });
+
+  // Which training works a reader may see is decided in one place (lib/trainingWork.ts): the matter rule and,
+  // for a work made from a Word chat, that the reader can open what its answers drew on. A reader gives the
+  // work and the reader to judgeWorks/judgeWork; it has no lower-level helper to call and no chat to forget.
+  it("security rule 2: no file outside lib/trainingWork.ts decides the visibility of a training work by itself", () => {
+    const offenders = PRODUCTION_FILES.filter((file) => file !== "lib/trainingWork.ts" && namesLowLevelWorkHelper(read(file)));
+    expect(offenders).toEqual([]);
+    expect(namesLowLevelWorkHelper(read("lib/trainingWork.ts")) || /workPlace/.test(read("lib/trainingWork.ts"))).toBe(true);
+    expect(read("lib/trainingWork.ts")).not.toMatch(/export (async )?function (workPlace|openableWorkMatters|mayOpenWorkMatter)\b/);
+    for (const sample of [
+      "await workPlace(db, surface, chatId)",
+      "const f = openableWorkMatters; f(db, {})",
+      'import { mayOpenWorkMatter } from "../../lib/trainingWork";',
+      "mayOpenWorkMatter(db, { projectId, wordChatId: undefined })",
+      "const { workPlace: place } = await import(\"../../lib/trainingWork\");",
+    ])
+      expect(namesLowLevelWorkHelper(sample), sample).toBe(true);
+    for (const sample of ["await judgeWorks(db, works, reader)", "// uses workPlace in a comment", "const workPlaces = 1"])
+      expect(namesLowLevelWorkHelper(sample), sample).toBe(false);
+  });
+
+  // The matter-only form does not judge what a Word chat's answers drew on: the account export judges answers
+  // one by one itself; every other reader asks judgeWorks/judgeWork.
+  it("security rule 2: the matter-only helper is named only by lib/trainingWork.ts and the account export", () => {
+    const allowed = new Set(["lib/trainingWork.ts", "application/exports/buildJsonExport.ts"]);
+    const offenders = PRODUCTION_FILES.filter((file) => !allowed.has(file) && namesMatterOnlyHelper(read(file)));
+    expect(offenders).toEqual([]);
+    expect(namesMatterOnlyHelper(read("lib/trainingWork.ts"))).toBe(true);
+    expect(namesMatterOnlyHelper(read("application/exports/buildJsonExport.ts"))).toBe(true);
+    for (const sample of [
+      "await judgeWorkMatters(db, works, reader)",
+      'import { judgeWorkMatters } from "../../lib/trainingWork";',
+      "const f = judgeWorkMatters; f(db, works, reader)",
+      "const { judgeWorkMatters: only } = await import(\"../../lib/trainingWork\");",
+      'import { judgeWorkMatters as matterOnly } from "../../lib/trainingWork";',
+    ])
+      expect(namesMatterOnlyHelper(sample), sample).toBe(true);
+    for (const sample of ["await judgeWorks(db, works, reader)", "// judgeWorkMatters in a comment", "const judgeWorkMattersTotal = 1"])
+      expect(namesMatterOnlyHelper(sample), sample).toBe(false);
+  });
+
+  // The rules around the training work module are a tripwire, not a proof. A text scan does not see a table
+  // name built from an expression or from the keys of a type, nor a reader that serves training text and
+  // filters it with `openMatters` alone. The proof is each reader's own test (a Word work whose source is
+  // withheld, for every reader of training text); do not try to close those gaps with more scanning.
+  it("security rule 2: only lib/trainingWork.ts takes the training work module whole", () => {
+    const offenders = PRODUCTION_FILES.filter((file) => file !== "lib/trainingWork.ts" && takesTrainingWorkWhole(read(file)));
+    expect(offenders).toEqual([]);
+    for (const sample of [
+      'import * as work from "../../lib/trainingWork";',
+      "import * as work from '../lib/trainingWork.ts';",
+      'export * from "../../lib/trainingWork";',
+      'export * as work from "../../lib/trainingWork";',
+      'export { judgeWorks, openMatters } from "../../lib/trainingWork";',
+      'export {\n  judgeWorks as j,\n} from "../../lib/trainingWork";',
+      'const work = await import("../../lib/training" + "Work");',
+      'const name = "trainingWork"; const work = await import(`../../lib/${name}`);',
+      'const name = ["training", "Work"].join(""); const work = require("../../lib/" + name);',
+    ])
+      expect(takesTrainingWorkWhole(sample), sample).toBe(true);
+    for (const sample of [
+      'import { judgeWorks, type WorkRef } from "../../lib/trainingWork";',
+      'import type { WorkRef } from "../../lib/trainingWork";',
+      'export { other } from "../../lib/training";',
+      'const x = await import("./other");',
+      "const x = await import(`./${name}`);",
+      "// import * as work from \"../../lib/trainingWork\"",
+    ])
+      expect(takesTrainingWorkWhole(sample), sample).toBe(false);
   });
 
   it("rule 10: the text scan sees every spelling of a load of the library", () => {

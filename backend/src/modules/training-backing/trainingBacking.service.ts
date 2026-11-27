@@ -34,7 +34,7 @@ import {
     type BackingSurface,
     type StoredConclusion,
 } from "../../lib/trainingTurn/accountability";
-import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
+import { judgeWork, judgeWorks, workKey } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import { assertCurrentMentor, assertLearningAccess, LEARNING_NOT_FOUND } from "../training-supervision/trainingSupervision.service";
 
@@ -154,15 +154,8 @@ async function assertOwnWorkMatter(
     work: { surface: BackingSurface; chatId: string },
 ): Promise<ServiceResult<null>> {
     try {
-        const place = await workPlace(db, work.surface, work.chatId);
-        if (!place.ok) return internalFailure(place.error);
-        if (!place.place) return notFound();
-        const open = await mayOpenWorkMatter(db, {
-            projectId: place.place.projectId,
-            actorId: person.userId,
-            actorEmail: person.userEmail ?? null,
-        });
-        return open ? ok(null) : notFound();
+        const sight = await judgeWork(db, work, { actorId: person.userId, actorEmail: person.userEmail ?? null });
+        return sight.open ? ok(null) : notFound();
     } catch (error) {
         return internalFailure(error);
     }
@@ -319,17 +312,19 @@ export async function getPupilBacking(
     }
     const visible: { surface: BackingSurface; chatId: string; projectId: string | null; title: string | null; rows: CheckRow[] }[] = [];
     let hidden = 0;
+    let sights: Awaited<ReturnType<typeof judgeWorks>>;
+    try {
+        sights = await judgeWorks(db, [...works.values()], actor);
+    } catch (error) {
+        return internalFailure(error);
+    }
     for (const work of works.values()) {
-        const place = await workPlace(db, work.surface, work.chatId);
-        if (!place.ok) return internalFailure(place.error);
-        if (
-            !place.place ||
-            !(await mayOpenWorkMatter(db, { projectId: place.place.projectId, actorId: actor.actorId, actorEmail: actor.actorEmail }))
-        ) {
+        const sight = sights.get(workKey(work));
+        if (!sight?.place || !sight.open) {
             hidden += 1;
             continue;
         }
-        visible.push({ ...work, projectId: place.place.projectId, title: place.place.title });
+        visible.push({ ...work, projectId: sight.place.projectId, title: sight.place.title });
     }
     const presented = await presentAll(db, visible.flatMap((work) => work.rows));
     if (!presented.ok) return presented;

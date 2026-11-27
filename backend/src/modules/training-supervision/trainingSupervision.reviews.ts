@@ -47,7 +47,7 @@ import {
     WORK_REVIEW_SYSTEM_PROMPT,
 } from "../../lib/trainingSupervisionAi";
 import { promptNonce } from "../../lib/promptFence";
-import { isWorkSurface, mayOpenWorkMatter, openableWorkMatters, workPlace } from "../../lib/trainingWork";
+import { isWorkSurface, judgeWork, judgeWorks, workKey } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import {
     chatRouteColumns,
@@ -182,28 +182,23 @@ export async function listOwnReviews(
     if (!mentor.ok) return mentor;
     const seen: ReviewRow[] = [];
     if (mentor.data) {
-        const placed: { row: ReviewRow; projectId: string | null }[] = [];
+        const placed: { row: ReviewRow; work: { surface: TurnNoteSurface; chatId: string } }[] = [];
         for (const row of rows.data) {
-            const at = surfaceOf(row);
-            if (!at) continue;
-            const place = await workPlace(db, at.surface, at.chatId);
-            if (!place.ok) return internalFailure(place.error);
-            if (place.place) placed.push({ row, projectId: place.place.projectId });
+            const work = surfaceOf(row);
+            if (work) placed.push({ row, work });
         }
-        // One set read for every matter the works sit in, not one per work.
-        const projectIds = [...new Set(placed.flatMap((p) => (p.projectId ? [p.projectId] : [])))];
-        let openable: Set<string>;
-        let openableByPupil: Set<string>;
+        // The mentor reads it, and a review is computed from the work's sources:
+        // the pupil reads it only while they can open them themselves.
+        let byMentor: Awaited<ReturnType<typeof judgeWorks>>;
+        let byPupil: Awaited<ReturnType<typeof judgeWorks>>;
         try {
-            openable = await openableWorkMatters(db, { projectIds, actorId: mentor.data.id, actorEmail: mentor.data.email });
-            // A review is computed from the matter's documents: the pupil reads
-            // it only while they can open the matter themselves.
-            openableByPupil = await openableWorkMatters(db, { projectIds, actorId: args.traineeId, actorEmail: args.traineeEmail ?? null });
+            byMentor = await judgeWorks(db, placed.map((p) => p.work), { actorId: mentor.data.id, actorEmail: mentor.data.email });
+            byPupil = await judgeWorks(db, placed.map((p) => p.work), { actorId: args.traineeId, actorEmail: args.traineeEmail ?? null });
         } catch (error) {
             return internalFailure(error);
         }
-        for (const { row, projectId } of placed)
-            if (!projectId || (openable.has(projectId) && openableByPupil.has(projectId))) seen.push(row);
+        for (const { row, work } of placed)
+            if (byMentor.get(workKey(work))?.open && byPupil.get(workKey(work))?.open) seen.push(row);
     }
     const now = Date.now();
     return ok(
@@ -257,17 +252,16 @@ export async function listPupilWorks(
     const now = Date.now();
     const works: TrainingPupilWork[] = [];
     let hidden = 0;
-    for (const work of groupWorks(notes.data)) {
-        const place = await workPlace(db, work.surface, work.chatId);
-        if (!place.ok) return internalFailure(place.error);
-        if (
-            !place.place ||
-            !(await mayOpenWorkMatter(db, {
-                projectId: place.place.projectId,
-                actorId: actor.actorId,
-                actorEmail: actor.actorEmail,
-            }))
-        ) {
+    const grouped = groupWorks(notes.data);
+    let sights: Awaited<ReturnType<typeof judgeWorks>>;
+    try {
+        sights = await judgeWorks(db, grouped, actor);
+    } catch (error) {
+        return internalFailure(error);
+    }
+    for (const work of grouped) {
+        const place = sights.get(workKey(work));
+        if (!place?.place || !place.open) {
             hidden += 1;
             continue;
         }
@@ -311,18 +305,14 @@ async function targetWork(
     if (!notes.ok) return notes;
     const [work] = groupWorks(notes.data);
     if (!work) return notFound();
-    const place = await workPlace(db, surface, work.chatId);
-    if (!place.ok) return internalFailure(place.error);
-    if (
-        !place.place ||
-        !(await mayOpenWorkMatter(db, {
-            projectId: place.place.projectId,
-            actorId: target.actorId,
-            actorEmail: target.actorEmail,
-        }))
-    )
-        return notFound();
-    return ok({ orgId, traineeId, work, projectId: place.place.projectId });
+    let sight: Awaited<ReturnType<typeof judgeWork>>;
+    try {
+        sight = await judgeWork(db, { surface, chatId: work.chatId }, target);
+    } catch (error) {
+        return internalFailure(error);
+    }
+    if (!sight.place || !sight.open) return notFound();
+    return ok({ orgId, traineeId, work, projectId: sight.place.projectId });
 }
 
 async function loadReview(

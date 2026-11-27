@@ -20,11 +20,13 @@ import {
   ssoEnabled,
 } from "../../lib/ssoConfig";
 import {
+  rateLimitedBody,
   sendInternalError,
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
+import { anonymousMailCap, type MailKind } from "../../lib/anonymousMailCap";
 import { betaMode, canSignUp } from "../../lib/platformAccess";
-import { inviteAdmittedSignup } from "../../lib/inviteEmail";
+import { INVITE_COOLDOWN_MS, inviteAdmittedSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
 import { markSessionsEnded } from "../mcp/mcp.service";
 import { authErrorShape, isAuthUpstreamFailure } from "../../lib/authUpstream";
@@ -163,6 +165,43 @@ authRouter.post("/login", asyncRoute(async (req, res) => {
   }
 }));
 
+// The cache headers the auth client sets on the ordinary answer of the routes
+// that start an email flow, repeated for the answer given without the request.
+function setOrdinaryCacheHeaders(res: Response) {
+  res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");
+  res.setHeader("Expires", "0");
+  res.setHeader("Pragma", "no-cache");
+}
+
+/**
+ * Called once by each anonymous route that may have the auth service send a
+ * mail, after the origin check and the validation of the body and before
+ * anything is looked up; it counts the request. "send": the route goes on.
+ * "silent": the address is at its cap (or, with `repeatWithinMs`, was counted
+ * moments ago): the caller gives its ordinary answer and does nothing more.
+ * "answered": the instance is at its cap and the 429 has been sent here.
+ */
+function admitAnonymousMail(
+  res: Response,
+  kind: MailKind,
+  address: string,
+  options: { repeatWithinMs?: number } = {},
+): "send" | "silent" | "answered" {
+  const admission = anonymousMailCap.admit(kind, address, options);
+  if (admission.kind === "send") return "send";
+  if (admission.kind === "overall_full") {
+    res.setHeader("Retry-After", String(admission.retryAfterSeconds));
+    res.setHeader("RateLimit-Limit", String(admission.limit));
+    res.setHeader("RateLimit-Remaining", "0");
+    res.setHeader("RateLimit-Reset", String(admission.retryAfterSeconds));
+    res
+      .status(429)
+      .json(rateLimitedBody("Too many authentication requests. Please try again later."));
+    return "answered";
+  }
+  return "silent";
+}
+
 // Beta mode: the same answer whether or not the email exists or is invited.
 function inviteOnly(res: Response) {
   return res.status(403).json({
@@ -199,9 +238,29 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res, parsed.error.issues);
 
-  if (betaMode()) {
+  // One decision per request, from the route, the mode and the address typed
+  // only. Closed beta: a repeat within the invitation's own span is neither
+  // counted nor carried on.
+  const beta = betaMode();
+  const admission = admitAnonymousMail(
+    res,
+    "signup",
+    parsed.data.email,
+    beta ? { repeatWithinMs: INVITE_COOLDOWN_MS } : {},
+  );
+  if (admission === "answered") return;
+
+  if (beta) {
     res.status(201).json({ user: null, requiresEmailConfirmation: true });
-    await admitBetaSignupAfterAnswer(parsed.data.email);
+    if (admission === "send") await admitBetaSignupAfterAnswer(parsed.data.email);
+    return;
+  }
+
+  if (admission === "silent") {
+    // Nothing is requested: the same kind of answer as a sign-up that sends
+    // nothing new, with the cache headers the ordinary answer carries.
+    setOrdinaryCacheHeaders(res);
+    res.status(201).json({ user: null, requiresEmailConfirmation: true });
     return;
   }
 
@@ -533,7 +592,10 @@ authRouter.post("/password-reset", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
   const email = emailSchema.safeParse(req.body?.email);
   if (email.success) {
-    try {
+    const admission = admitAnonymousMail(res, "reset", email.data);
+    if (admission === "answered") return;
+    if (admission !== "send") setOrdinaryCacheHeaders(res);
+    if (admission === "send") try {
       const client = createRequestSupabase(req, res);
       const { error } = await sendPasswordReset(
         client,

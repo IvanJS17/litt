@@ -11,7 +11,7 @@ import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serv
 import type { Db } from "../../lib/supabase";
 import { resolveTrainingStage } from "../../lib/training";
 import { isReadableDocumentText, READING_CANDIDATE_TRIES, readingWorkSince } from "../../lib/trainingReading";
-import { openableWorkMatters } from "../../lib/trainingWork";
+import { openMatters } from "../../lib/trainingWork";
 import { readStoredDocumentText } from "../documents/documents.service";
 
 export const READING_NO_DOCUMENT_CODE = "training_reading_no_document";
@@ -103,7 +103,7 @@ export async function pickReadingDocument(
             .map((project) => project.id)
             .slice(0, MAX_PROJECTS);
         const openable = candidates.length
-            ? await openableWorkMatters(db, { projectIds: candidates, actorId: args.userId, actorEmail: args.userEmail })
+            ? await openMatters(db, { actorId: args.userId, actorEmail: args.userEmail }, candidates)
             : new Set<string>();
         const projectIds: string[] = [];
         for (const projectId of candidates) {
