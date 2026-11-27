@@ -1026,6 +1026,57 @@ describe("deleteUserAccountData", () => {
         expect(ids(tables.documents)).toEqual(["d-other"]);
     });
 
+    it("removes the staged and sealed objects of unfinished uploads, never one a stored version uses", async () => {
+        const { db, tables } = fixture();
+        const staged = "upload-sessions/u1/s1/f1/staging";
+        const sealed = "upload-sessions/u1/s1/f1/sealed";
+        const used = "upload-sessions/u1/s2/f2/sealed";
+        const othersUpload = "upload-sessions/u2/s9/f9/sealed";
+        tables.document_versions = [
+            ...(tables.document_versions ?? []),
+            { id: "v-used", document_id: "d-other", storage_path: used, pdf_storage_path: null },
+        ];
+        const bucket = new Set([staged, sealed, used, othersUpload]);
+        listFilesMock.mockImplementation(async (prefix: string) =>
+            [...bucket].filter((key) => key.startsWith(prefix)),
+        );
+        deleteFileMock.mockImplementation(async (key: string) => {
+            bucket.delete(key);
+        });
+
+        await deleteUserAccountData(db, "u1", "u1@example.com");
+
+        expect([...bucket].sort()).toEqual([othersUpload, used].sort());
+    });
+
+    it("removes the converted copy of an unfinished upload, keeps one a stored version points at, and never touches a user whose id starts with the erased one", async () => {
+        const { db, tables } = fixture();
+        const orphanCopy = "converted-pdfs/u1/r1.pdf";
+        const usedCopy = "converted-pdfs/u1/r2.pdf";
+        const siblings = [
+            "documents/u10/d/source.pdf",
+            "workflow-references/u10/w/r/a.pdf",
+            "playbooks/u10/p/source.docx",
+            "upload-sessions/u10/s/f/sealed",
+            "converted-pdfs/u10/r1.pdf",
+        ];
+        tables.document_versions = [
+            ...(tables.document_versions ?? []),
+            { id: "v-pdf", document_id: "d-other", storage_path: "documents/u2/d/a.docx", pdf_storage_path: usedCopy },
+        ];
+        const bucket = new Set([orphanCopy, usedCopy, ...siblings]);
+        listFilesMock.mockImplementation(async (prefix: string) =>
+            [...bucket].filter((key) => key.startsWith(prefix)),
+        );
+        deleteFileMock.mockImplementation(async (key: string) => {
+            bucket.delete(key);
+        });
+
+        await deleteUserAccountData(db, "u1", "u1@example.com");
+
+        expect([...bucket].sort()).toEqual([usedCopy, ...siblings].sort());
+    });
+
     // The exports/ prefix is different in kind from the orphan sweep: each
     // object under it is a complete copy of the account's data, and once the
     // account.delete job purges the user's db_jobs rows this listing is the
