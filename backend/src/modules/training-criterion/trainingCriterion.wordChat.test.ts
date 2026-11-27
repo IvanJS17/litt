@@ -68,11 +68,15 @@ describe("the pupil's own criterion and a Word chat's sources", () => {
         expect(text).not.toContain("Topic Label");
         expect(text).not.toContain("RETAKE-QUESTION");
         expect(text).not.toContain("RETAKE-CONTRAST");
+        // the retake is still listed, marked as withheld, without its text
+        expect(result.data.retakes).toHaveLength(1);
+        expect(result.data.retakes[0]).toMatchObject({ text_hidden: true, topic_key: "", topic_label: "", question: null, answer: null, contrast: null });
     });
 
     it("shows them when the answers read only the open document", async () => {
         const result = await getMyCriterion(trainingWorld(OPEN_DOCUMENT_ONLY).db, { userId: PUPIL, orgId: ORG, now: NOW });
         if (!result.ok) throw new Error(result.kind);
+        expect(result.data.retakes[0]).toMatchObject({ text_hidden: false });
         const text = JSON.stringify(result.data);
         expect(text).toContain("Topic Label");
         expect(text).toContain("RETAKE-QUESTION");

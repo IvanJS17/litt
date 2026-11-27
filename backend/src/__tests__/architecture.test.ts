@@ -115,6 +115,11 @@ function namesLowLevelWorkHelper(text: string): boolean {
   return /\b(workPlace|openableWorkMatters|mayOpenWorkMatter)\b/.test(stripComments(text));
 }
 
+/** Whether the text names the matter-only helper, which only the training work module and the account export may use. */
+function namesMatterOnlyHelper(text: string): boolean {
+  return /\bjudgeWorkMatters\b/.test(stripComments(text));
+}
+
 const compactLetters = (text: string) => text.toLowerCase().replace(/[^a-z]/g, "");
 
 /**
@@ -414,6 +419,26 @@ describe("backend architecture", () => {
       expect(namesLowLevelWorkHelper(sample), sample).toBe(true);
     for (const sample of ["await judgeWorks(db, works, reader)", "// uses workPlace in a comment", "const workPlaces = 1"])
       expect(namesLowLevelWorkHelper(sample), sample).toBe(false);
+  });
+
+  // The matter-only form does not judge what a Word chat's answers drew on: the account export judges answers
+  // one by one itself; every other reader asks judgeWorks/judgeWork.
+  it("security rule 2: the matter-only helper is named only by lib/trainingWork.ts and the account export", () => {
+    const allowed = new Set(["lib/trainingWork.ts", "application/exports/buildJsonExport.ts"]);
+    const offenders = PRODUCTION_FILES.filter((file) => !allowed.has(file) && namesMatterOnlyHelper(read(file)));
+    expect(offenders).toEqual([]);
+    expect(namesMatterOnlyHelper(read("lib/trainingWork.ts"))).toBe(true);
+    expect(namesMatterOnlyHelper(read("application/exports/buildJsonExport.ts"))).toBe(true);
+    for (const sample of [
+      "await judgeWorkMatters(db, works, reader)",
+      'import { judgeWorkMatters } from "../../lib/trainingWork";',
+      "const f = judgeWorkMatters; f(db, works, reader)",
+      "const { judgeWorkMatters: only } = await import(\"../../lib/trainingWork\");",
+      'import { judgeWorkMatters as matterOnly } from "../../lib/trainingWork";',
+    ])
+      expect(namesMatterOnlyHelper(sample), sample).toBe(true);
+    for (const sample of ["await judgeWorks(db, works, reader)", "// judgeWorkMatters in a comment", "const judgeWorkMattersTotal = 1"])
+      expect(namesMatterOnlyHelper(sample), sample).toBe(false);
   });
 
   it("rule 10: the text scan sees every spelling of a load of the library", () => {
