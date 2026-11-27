@@ -398,7 +398,8 @@ export async function regenerateTabularCell(
         // The request itself reads the row and waits for the model: it asks,
         // as a running table does, whether the person can open the row's
         // documents when the text is about to be loaded and before the result
-        // is saved. A row they can no longer open is left as it was found.
+        // is saved. A row they can no longer open gets no result: its cell
+        // goes back to pending, without the content it had before the request.
         const mayReadRow = createRowReadCheck({ db, userId, userEmail });
         const leftOut = async () => {
             await finalizeCell(db, { reviewId, rowId: row.id, columnIndex, status: "pending", generationId });
