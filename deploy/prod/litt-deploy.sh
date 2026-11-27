@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
 # LiTT — deploy de un release en el VPS compartido (README §1–§4; HOST-RULES §3–§5).
 #
-# Uso, desde la máquina de build (README §1):
-#   scp deploy/prod/litt-deploy.sh staging-apps-dev:/tmp/litt-deploy.sh
-#   git archive --format=tar.gz "$SHA" | ssh staging-apps-dev "cat > /tmp/litt-$SHA.tar.gz"
+# Uso, desde la máquina de build (README §1). El script y el árbol del release se dejan en un
+# directorio hecho para ese deploy y privado de la cuenta (mktemp -d, modo 700), no en nombres
+# fijos del directorio temporal compartido; el directorio se borra al terminar:
+#   D=$(ssh staging-apps-dev 'mktemp -d'); B=$(mktemp -d); [ -n "$D" ] || exit 1
+#   git archive --format=tar.gz "$SHA" > "$B/litt-$SHA.tar.gz"      # el mismo archivo se resume y se envía
+#   TREE_SHA256=$(sha256sum "$B/litt-$SHA.tar.gz" | cut -d' ' -f1)
+#   scp deploy/prod/litt-deploy.sh "staging-apps-dev:$D/litt-deploy.sh"
+#   scp "$B/litt-$SHA.tar.gz" "staging-apps-dev:$D/litt-$SHA.tar.gz"
 #   docker save "litt-backend:$SHA" "litt-frontend:$SHA" "litt-word:$SHA" | gzip -1 | ssh staging-apps-dev \
-#     bash /tmp/litt-deploy.sh "$SHA" "$IMAGE_BYTES" "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID" "/tmp/litt-$SHA.tar.gz"
+#     bash "$D/litt-deploy.sh" "$SHA" "$IMAGE_BYTES" "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID" "$D/litt-$SHA.tar.gz" "$TREE_SHA256"
+#   ssh staging-apps-dev "rm -rf '$D'"; rm -rf "$B"
+#
+# Antes de cambiar nada en el host el script exige: el árbol es un archivo regular (no un
+# enlace), de la cuenta que corre el script y no escribible por grupo ni otros; su directorio
+# es de la cuenta y no escribible por grupo ni otros (un directorio compartido se rechaza); el
+# propio script cumple dueño y modo; y el sha256 del árbol es el TREE_SHA256 que se pasa.
 #
 # Las imágenes llegan por stdin (sin copias temporales en disco). El script:
 #   1. marca el deploy en curso (/srv/litt/.deploy-in-progress, borrado con trap);
@@ -30,14 +41,32 @@ GIB=$((1024 * 1024 * 1024))
 die() { echo "ERROR: $*" >&2; exit 1; }
 log() { echo "$(date -u +%FT%TZ) $*"; }
 
-[ "$#" -eq 6 ] || die "uso: litt-deploy.sh <SHA> <IMAGE_BYTES> <BACKEND_ID> <FRONTEND_ID> <WORD_ID> <TREE_TGZ>"
-SHA=$1 IMAGE_BYTES=$2 BACKEND_ID=$3 FRONTEND_ID=$4 WORD_ID=$5 TREE_TGZ=$6
+[ "$#" -eq 7 ] || die "uso: litt-deploy.sh <SHA> <IMAGE_BYTES> <BACKEND_ID> <FRONTEND_ID> <WORD_ID> <TREE_TGZ> <TREE_SHA256>"
+SHA=$1 IMAGE_BYTES=$2 BACKEND_ID=$3 FRONTEND_ID=$4 WORD_ID=$5 TREE_TGZ=$6 TREE_SHA256=$7
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die "SHA debe ser el commit completo (40 hex)"
 [[ "$IMAGE_BYTES" =~ ^[1-9][0-9]*$ ]] || die "IMAGE_BYTES debe ser un entero positivo"
 for id in "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID"; do
   [[ "$id" =~ ^sha256:[0-9a-f]{64}$ ]] || die "ID de imagen inválido: $id"
 done
-[ -f "$TREE_TGZ" ] || die "no existe el árbol del release: $TREE_TGZ"
+[[ "$TREE_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "TREE_SHA256 (sha256 inválido): se esperan 64 hex en minúsculas"
+
+# Entradas: dueño y modo antes de usarlas (siempre; sin opción para omitirlo).
+owner_mode_ok() { # <ruta> <qué es>
+  local st uid mode
+  st=$(stat -c '%u %a' -- "$1") || die "no se pudo leer dueño y modo de $2: $1"
+  uid=${st% *} mode=${st#* }
+  [ "$uid" = "$(id -u)" ] || die "$2 no pertenece a la cuenta que corre el script: $1"
+  [ $((8#$mode & 8#022)) -eq 0 ] || die "$2 es escribible por grupo u otros (modo $mode): $1"
+}
+[ ! -L "$TREE_TGZ" ] || die "el árbol del release es un enlace: $TREE_TGZ"
+[ -f "$TREE_TGZ" ] || die "no existe el árbol del release (archivo regular): $TREE_TGZ"
+owner_mode_ok "$TREE_TGZ" "el árbol del release"
+owner_mode_ok "$(dirname -- "$TREE_TGZ")" "el directorio del árbol del release"
+SELF=${BASH_SOURCE[0]:-}
+[ -n "$SELF" ] && [ -f "$SELF" ] && [ ! -L "$SELF" ] || die "el script se corre desde su archivo (bash <directorio del deploy>/litt-deploy.sh ...), no desde la entrada estándar ni un enlace"
+owner_mode_ok "$SELF" "el script"
+[ "$(sha256sum -- "$TREE_TGZ" | cut -d' ' -f1)" = "$TREE_SHA256" ] || die "el sha256 no coincide con TREE_SHA256: el árbol del release no es el construido"
+
 [ -f "$APP_DIR/.env" ] || die "falta $APP_DIR/.env (primer arranque: README §3)"
 WORD_URL=$(sed -n 's/^WORD_ADDIN_URL=//p' "$APP_DIR/.env" | tail -1)
 [[ "$WORD_URL" =~ ^https://[a-z0-9.-]+$ ]] || die "WORD_ADDIN_URL en .env debe ser un origen https (README §Complemento de Word)"

@@ -14,7 +14,11 @@ setup() {
   printf 'LITT_SOURCE_COMMIT=%s\nOTRA=1\nWORD_ADDIN_URL=https://word.example.test\nLITT_EDGE_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n' "$LIVE" > "$T/app/.env"; echo "$LIVE" > "$T/app/RELEASE_SHA"
   echo dump > "$T/app/backups/db.dump"; echo viejo > "$T/app/viejo.txt"
   mkdir -p "$T/tree/deploy/prod"; echo nuevo > "$T/tree/nuevo.txt"
-  tar -czf "$T/tree.tgz" -C "$T/tree" .
+  tar -czf "$T/tree.tgz" -C "$T/tree" .; chmod 600 "$T/tree.tgz"
+  # El script y el archivo del release viven en un directorio privado (mktemp -d, modo 700) y el
+  # digest es el real del archivo: las comprobaciones de entrada se cumplen de verdad, sin atajos.
+  cp "$HERE/litt-deploy.sh" "$T/litt-deploy.sh"; chmod 700 "$T/litt-deploy.sh"
+  TGZ="$T/tree.tgz"; DIG=$(sha256sum "$TGZ" | cut -d' ' -f1)
   for r in litt-backend litt-frontend litt-word; do printf '%s\n' "$LIVE" "$OLD" > "$T/tags-$r"; done
   : > "$T/calls"; echo "$1" > "$T/free"
   cat > "$T/bin/df" <<EOF
@@ -41,7 +45,12 @@ esac
 EOF
   chmod +x "$T/bin/df" "$T/bin/docker"
 }
-run() { echo imagen | gzip | PATH="$T/bin:$PATH" LITT_APP_DIR="$T/app" bash "$HERE/litt-deploy.sh" "$NEW" "$1" "$BID" "$FID" "$WID" "$T/tree.tgz" > "$T/out" 2>&1; }
+# TGZ y DIG los fija setup; `unset DIG` omite el argumento del digest.
+run() { echo imagen | gzip | PATH="$T/bin:$PATH" LITT_APP_DIR="$T/app" bash "$T/litt-deploy.sh" "$NEW" "$1" "$BID" "$FID" "$WID" "$TGZ" ${DIG+"$DIG"} > "$T/out" 2>&1; }
+snap() { { find "$T/app" -printf '%p %y %s %T@\n' | sort; cat "$T/app/.env"; } | sha256sum; }
+# Rechazo de entrada: sale con error, dice por qué y no cambia nada en el host de prueba
+# (ni docker, ni marcador, ni archivos bajo el directorio de la aplicación).
+refused() { [ $st -ne 0 ] && grep -q "$1" "$T/out" && [ ! -s "$T/calls" ] && ! grep -q iniciado "$T/out" && [ "$(snap)" = "$(cat "$T/snap")" ]; }
 check() { if eval "$2"; then echo "ok   - $1"; else echo "FAIL - $1"; fails=$((fails + 1)); sed 's/^/       /' "$T/out"; fi; }
 
 # 1. Sin espacio: aborta antes de cargar SIN retirar ninguna imagen (viva y anterior intactas) y borra el marcador.
@@ -90,6 +99,78 @@ setup $((20 * GIB))
 sed -i '/^LITT_EDGE_SECRET=/d' "$T/app/.env"
 if run $((2 * GIB)); then st=0; else st=$?; fi
 check "exige LITT_EDGE_SECRET" '[ $st -ne 0 ] && grep -q LITT_EDGE_SECRET "$T/out" && ! grep -q "^load" "$T/calls" && [ -f "$T/app/viejo.txt" ]'
+rm -rf "$T"
+
+# 5. Entradas del deploy: el archivo del release y su directorio son de la cuenta, no escribibles por
+#    otros, y su sha256 coincide con el que pasa el operador. Se rechaza antes de tocar el host.
+setup $((20 * GIB)); snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "entrada correcta: despliega" '[ $st -eq 0 ] && grep -q "deploy $NEW terminado" "$T/out" && [ ! -e "$T/app/viejo.txt" ] && [ ! -e "$TGZ" ]'
+rm -rf "$T"
+
+setup $((20 * GIB)); ln -s "$T/tree.tgz" "$T/liga.tgz"; TGZ="$T/liga.tgz"; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un archivo que es un enlace" 'refused "es un enlace"'
+rm -rf "$T"
+
+setup $((20 * GIB)); chmod 666 "$T/tree.tgz"; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un archivo escribible por otros" 'refused "escribible por grupo u otros"'
+rm -rf "$T"
+
+setup $((20 * GIB)); chmod 664 "$T/tree.tgz"; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un archivo escribible por el grupo" 'refused "escribible por grupo u otros"'
+rm -rf "$T"
+
+for m in 1777 777; do
+  setup $((20 * GIB)); mkdir "$T/comun"; chmod "$m" "$T/comun"; cp "$T/tree.tgz" "$T/comun/"; TGZ="$T/comun/tree.tgz"; snap > "$T/snap"
+  if run $((2 * GIB)); then st=0; else st=$?; fi
+  check "rechaza un directorio con modo $m" 'refused "escribible por grupo u otros"'
+  rm -rf "$T"
+done
+
+setup $((20 * GIB)); unset DIG; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "exige el digest sha256" 'refused "TREE_SHA256"'
+rm -rf "$T"
+
+setup $((20 * GIB)); DIG=$(printf '0%.0s' {1..64}); snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un digest que no coincide" 'refused "sha256 no coincide"'
+rm -rf "$T"
+
+setup $((20 * GIB)); DIG=abc; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un digest mal formado" 'refused "sha256 inválido"'
+rm -rf "$T"
+
+setup $((20 * GIB)); chmod 777 "$T/litt-deploy.sh"; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un script escribible por otros" 'refused "el script es escribible"'
+rm -rf "$T"
+
+setup $((20 * GIB)); DIG=$(printf '%s' "$DIG" | tr a-f A-F); snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un digest en mayúsculas" 'refused "sha256 inválido"'
+rm -rf "$T"
+
+setup $((20 * GIB)); mkdir "$T/real"; mv "$T/tree.tgz" "$T/real/"; ln -s "$T/real" "$T/atajo"; TGZ="$T/atajo/tree.tgz"; snap > "$T/snap"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un archivo alcanzado a través de un directorio enlazado" 'refused "escribible por grupo u otros"'
+rm -rf "$T"
+
+setup $((20 * GIB)); snap > "$T/snap"
+if echo imagen | gzip | PATH="$T/bin:$PATH" LITT_APP_DIR="$T/app" bash <(cat "$T/litt-deploy.sh") "$NEW" $((2 * GIB)) "$BID" "$FID" "$WID" "$TGZ" "$DIG" > "$T/out" 2>&1; then st=0; else st=$?; fi
+check "rechaza correr el script si no viene de su archivo" 'refused "desde su archivo"'
+rm -rf "$T"
+
+# Otra cuenta no se puede producir sin otro usuario: se prueba la decisión con un `stat` de prueba
+# que informa un dueño distinto.
+setup $((20 * GIB)); snap > "$T/snap"
+printf '#!/usr/bin/env bash\necho "%s 600"\n' $(( $(id -u) + 1 )) > "$T/bin/stat"; chmod +x "$T/bin/stat"
+if run $((2 * GIB)); then st=0; else st=$?; fi
+check "rechaza un dueño distinto a la cuenta que corre el script" 'refused "no pertenece a la cuenta"'
 rm -rf "$T"
 
 [ "$fails" -eq 0 ] && echo "todas las pruebas pasaron" || { echo "$fails fallas"; exit 1; }
