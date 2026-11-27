@@ -8,6 +8,7 @@ import path from "node:path";
 import { app } from "./app";
 import { removeStaleExportDirectories } from "./application/exports/exportTempFiles";
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
+import { removeLeftoverReaderScratch } from "./lib/extraction/readerUser";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
   extractionLauncherWarnings,
@@ -140,6 +141,9 @@ let server: Server | null = null;
 
 async function main(): Promise<void> {
   await validateBootConfiguration();
+  // The scratch of jobs a stop or a restart interrupted belongs to the reader
+  // user, which the API cannot remove directly: do it as the reader, before any job.
+  await removeLeftoverReaderScratch();
   // Deploying this code against a database that has not run the
   // document-lifecycle migrations leaks storage silently and fails every
   // upload — see lifecycleGuard. The probe is AWAITED before the port is

@@ -360,15 +360,29 @@ in every path including the conversion of uploads to PDF, and the Google Drive r
 can run as an unprivileged user of their own (`EXTRACTION_READER_USER`, set to `litt-reader` in the backend image),
 started with `setpriv` after `prlimit`. That user has no capabilities, cannot gain
 any, and cannot read the API process's environment or files; it owns only its own
-temporary directory, which the API removes when the process ends. The API ends a
-process of another user by closing a pipe it gave it, since it holds no right to
-signal it. Any other child process of the API is started with no capability at all;
+temporary directory, which the API removes when the process ends (and, at start, the
+directories an interrupted job left). The API holds no right to signal a process of
+another user. It ends one in two ways, neither of which depends on the process: it
+closes a pipe it gave it (which ends the group even when the API itself dies), and it
+starts a small trusted helper (`src/lib/extraction/reaper.ts`) that takes the reader's
+user as its effective user only and sends `SIGKILL` to the process group, which also
+reaches a stopped process. A job whose process does not cooperate therefore still ends
+at its deadline with the usual error, and frees its slot within a short bounded wait
+(`REAPER_WAIT_MS`, 2 s). The processes of the reader user are limited in number
+(`EXTRACTION_READER_PROCESS_LIMIT`, 256 by default, 0 for none), so that a runaway
+reader cannot take the container's `pids_limit` from the API. Known limits: all readers
+share one user (a reader running foreign code can signal other readers and read their
+scratch directories while it lives); a process that leaves its group with `setsid` is
+not reached by the group kill and lives until the container is recreated; the readers
+share the container's network; what a reader returns (the PDF) is not size-bounded, as
+before. Any other child process of the API is started with no capability at all;
 one launcher (`launchChild`, `src/lib/extraction/readerUser.ts`) builds every command
 and a test requires every file that starts a process to use it. The image runs the API as `litt-api` and keeps only the set-user and
 set-group capabilities; the container has a third, `KILL`, held by its init alone so that
 `docker stop` reaches the API and its own shutdown runs (`deploy/prod/README.md`). A linked
 Drive file is handed to its reader as an open descriptor, so the API holds none of its bytes. Without the setting, or where the
-switch is not possible (macOS, CI, a container without those two capabilities), the
+switch is not possible (macOS, CI, a container without those two capabilities; the
+entrypoint then says so in one line and exits), the
 parser runs as the API's own user and startup logs a `[extraction]` warning;
 `NODE_ENV=production` on Linux refuses to start instead, unless
 `EXTRACTION_ISOLATION=off`. Defaults:

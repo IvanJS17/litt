@@ -18,7 +18,7 @@ const SRC = resolve(__dirname, "..");
 const ALLOWED: Record<string, string> = {
   "lib/convert.ts": "LibreOffice and the conversion helper (reader user): launchChild(), childProcessEnv()",
   "lib/extraction/isolated.ts": "parser spawn (reader user): launchChild(), childProcessEnv() plus scratch dir; taskkill (Windows only) carries no secrets of its own",
-  "lib/extraction/readerUser.ts": "the launcher itself and the scratch directory helpers: childProcessEnv(); the startup probe passes PATH only",
+  "lib/extraction/readerUser.ts": "the launcher itself, the scratch directory helpers (childProcessEnv()), the helper that ends a reader's process group (empty environment) and the startup probe (PATH only)",
   "lib/integrations/googleDriveExtract.ts": "Drive reader fork (reader user): launchChild(), childProcessEnv({ NODE_ENV })",
 };
 
@@ -77,6 +77,17 @@ describe("child processes", () => {
     for (const file of Object.keys(ALLOWED)) {
       expect(readFileSync(join(SRC, file), "utf8"), file).toContain("childProcessEnv(");
     }
+  });
+
+  it("only the launcher's own helper starts anything with the capabilities the API keeps, and no other file asks for that", () => {
+    // `reaper: true` is the one mode of launchChild() that does not drop them: the
+    // small helper that ends a reader's process group (lib/extraction/reaper.ts).
+    const asking = productionFiles(SRC).filter((file) => /\breaper:\s*true\b/.test(readFileSync(join(SRC, file), "utf8")));
+    expect(asking).toEqual([LAUNCHER_FILE]);
+    const launcher = readFileSync(join(SRC, LAUNCHER_FILE), "utf8");
+    expect(launcher.match(/\breaper:\s*true\b/g)).toHaveLength(1);
+    // the helper itself starts no process
+    expect(startsProcess(readFileSync(join(SRC, "lib/extraction/reaper.ts"), "utf8"))).toBe(false);
   });
 
   it("every file that starts a process goes through the shared launcher", () => {

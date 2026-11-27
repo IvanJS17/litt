@@ -1,8 +1,9 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { Document, Packer, Paragraph } from "docx";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
@@ -243,6 +244,8 @@ describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a read
   chmodSync(path.join(bin, "setpriv"), 0o755);
   beforeEach(() => {
     vi.stubEnv("EXTRACTION_READER_USER", "litt-reader");
+    // The host's own user already holds more processes than the production limit.
+    vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
     vi.stubEnv("PATH", `${bin}${path.delimiter}${process.env.PATH}`);
   });
   afterAll(() => rmSync(bin, { recursive: true, force: true }));
@@ -271,8 +274,62 @@ describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a read
     vi.stubEnv("EXTRACTION_TIMEOUT_MS", "60000");
     await expect(runIsolatedExtraction("spreadsheet", async () => workbook())).resolves.toContain("Rent");
     await stopExtractionProcess();
-    const scratch = vi.mocked(spawn).mock.calls.map((call) => call[2]?.env?.TMPDIR);
+    // The parsers (the short helpers that make and remove directories start through spawn too).
+    const scratch = vi.mocked(spawn).mock.calls.map((call) => call[2]?.env?.TMPDIR).filter((dir) => /mike-extraction-/.test(dir ?? ""));
     expect(scratch).toHaveLength(2);
     expect(scratch.filter((dir) => dir && existsSync(dir))).toEqual([]);
   });
+});
+
+// A reader that does not cooperate (here: a process that stops itself and
+// ignores the closed pipe) must not hold the extraction slot past the deadline.
+describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a reader that does not cooperate", () => {
+  const work = mkdtempSync(path.join(tmpdir(), "mike-frozen-reader-"));
+  const bin = path.join(work, "bin");
+  const freeze = path.join(work, "freeze");
+  const pidFile = path.join(work, "reader.pid");
+  mkdirSync(bin);
+  // Stand-in setpriv: the short helpers (mktemp, rm, find) run; the parser is replaced by a process that stops itself.
+  writeFileSync(path.join(bin, "setpriv"), [
+    "#!/bin/sh",
+    'while [ "$1" != "--" ]; do shift; done; shift',
+    'case "$1" in true|mktemp|rm|find) exec "$@";; esac',
+    `if [ -e "${freeze}" ]; then trap '' TERM HUP INT; echo $$ > "${pidFile}"; kill -STOP $$; sleep 3600; fi`,
+    'exec "$@"',
+  ].join("\n") + "\n");
+  chmodSync(path.join(bin, "setpriv"), 0o755);
+  const alive = (pid: string) => spawnSync("kill", ["-0", pid]).status === 0;
+  const pending = Symbol("pending");
+  const settled = (promise: Promise<unknown>, ms: number) =>
+    Promise.race([promise.then((value) => value, (error) => error), new Promise((resolve) => setTimeout(() => resolve(pending), ms))]);
+  beforeEach(() => {
+    vi.stubEnv("EXTRACTION_READER_USER", os.userInfo().username);
+    vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
+    vi.stubEnv("PATH", `${bin}${path.delimiter}${process.env.PATH}`);
+    writeFileSync(freeze, "");
+    rmSync(pidFile, { force: true });
+  });
+  afterAll(() => rmSync(work, { recursive: true, force: true }));
+
+  it("ends the job at its deadline, kills the reader's group and runs the next job", async () => {
+    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "500");
+    const outcome = await settled(runIsolatedExtraction("spreadsheet", async () => workbook()), 15_000);
+    expect(outcome).toBeInstanceOf(ExtractionLimitError);
+    expect((outcome as Error).message).toContain("parser deadline exceeded");
+    const pid = readFileSync(pidFile, "utf8").trim();
+    await vi.waitFor(() => expect(alive(pid)).toBe(false), { timeout: 5_000 });
+    rmSync(freeze);
+    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "60000");
+    await expect(settled(runIsolatedExtraction("spreadsheet", async () => workbook()), 30_000)).resolves.toEqual(expect.stringContaining("Rent"));
+  }, 60_000);
+
+  it("settles a job and stops the process when the API stops the reader", async () => {
+    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "60000");
+    const job = runIsolatedExtraction("spreadsheet", async () => workbook());
+    await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), { timeout: 10_000 });
+    const pid = readFileSync(pidFile, "utf8").trim();
+    await stopExtractionProcess();
+    expect(await settled(job, 10_000)).not.toBe(pending);
+    expect(alive(pid)).toBe(false);
+  }, 60_000);
 });

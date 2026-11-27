@@ -1,6 +1,6 @@
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import { join, parse } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,9 @@ vi.mock("../runtimeConfig", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../runtimeConfig")>();
   return { ...actual, uploadConversionTimeoutMs: () => timing.timeoutMs };
 });
+
+// The test host has no reader user: the current user plays it (the group-ending helper needs a real account).
+const me = userInfo().username;
 
 // Stand-ins: setpriv records its arguments and runs what follows "--" (the test
 // host has no reader user); soffice writes a PDF next to --outdir, or fails.
@@ -35,7 +38,8 @@ beforeEach(async () => {
   await mkdir(join(directory, "scratch"));
   await standIn("setpriv", `echo "$@" >> "${directory}/setpriv.log"\nwhile [ "$1" != "--" ]; do shift; done; shift; exec "$@"`);
   await standIn("soffice", SOFFICE_WRITES_PDF);
-  vi.stubEnv("EXTRACTION_READER_USER", "litt-reader");
+  vi.stubEnv("EXTRACTION_READER_USER", me);
+  vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
   vi.stubEnv("PATH", `${join(directory, "bin")}:${process.env.PATH}`);
   vi.stubEnv("SOFFICE_BINARY_PATH", join(directory, "bin", "soffice"));
   vi.stubEnv("TMPDIR", join(directory, "scratch"));
@@ -45,6 +49,12 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  // A stand-in that stopped itself must not outlive its test, whatever the outcome.
+  if (existsSync(join(directory, "soffice.pid"))) {
+    const pid = (await readFile(join(directory, "soffice.pid"), "utf8")).trim();
+    const group = spawnSync("ps", ["-o", "pgid=", "-p", pid], { encoding: "utf8" }).stdout.trim();
+    if (/^\d+$/.test(group) && Number(group) > 1) spawnSync("kill", ["-KILL", "--", `-${group}`]);
+  }
   vi.unstubAllEnvs();
   timing.timeoutMs = 120_000;
   await rm(directory, { recursive: true, force: true });
@@ -57,7 +67,7 @@ describe.skipIf(process.platform !== "linux")("office conversion as the reader u
     expect(pdf).toBe(join(out, "source.pdf"));
     expect(await readFile(pdf, "utf8")).toBe("synthetic document bytes");
     const calls = (await readFile(join(directory, "setpriv.log"), "utf8")).split("\n").filter(Boolean);
-    expect(calls.some((line) => line.startsWith("--reuid litt-reader --regid litt-reader --clear-groups --inh-caps -all --ambient-caps -all --no-new-privs -- "))).toBe(true);
+    expect(calls.some((line) => line.startsWith(`--reuid ${me} --regid ${me} --clear-groups --inh-caps -all --ambient-caps -all --no-new-privs -- `))).toBe(true);
     expect(await leftovers()).toEqual([]);
     expect(await readdir(out)).toEqual(["source.pdf"]);
   }, 60_000);
@@ -98,4 +108,21 @@ describe.skipIf(process.platform !== "linux")("office conversion as the reader u
     }
     expect(await leftovers()).toEqual([]);
   }, 60_000);
+  it("settles at the deadline when the helper stops and answers nothing, ends its group and lets the next conversion run", async () => {
+    timing.timeoutMs = 3_000;
+    await standIn("soffice", `echo $$ > "${directory}/soffice.pid"\nkill -STOP $PPID\nexec sleep 3600`);
+    const pending = Symbol("pending");
+    const outcome = await Promise.race([
+      officeFileToPdf(join(directory, "source.docx"), join(directory, "work")).then(() => "converted", (error) => error),
+      new Promise((resolve) => setTimeout(() => resolve(pending), 20_000)),
+    ]);
+    expect(outcome).toMatchObject({ kind: "conversion.timeout", code: "conversion_timeout" });
+    const pid = (await readFile(join(directory, "soffice.pid"), "utf8")).trim();
+    await vi.waitFor(() => expect(spawnSync("kill", ["-0", pid]).status).not.toBe(0), { timeout: 5_000 });
+    expect(await leftovers()).toEqual([]);
+    await standIn("soffice", SOFFICE_WRITES_PDF);
+    timing.timeoutMs = 120_000;
+    const out = join(directory, "next");
+    await expect(officeFileToPdf(join(directory, "source.docx"), out)).resolves.toBe(join(out, "source.pdf"));
+  }, 90_000);
 });

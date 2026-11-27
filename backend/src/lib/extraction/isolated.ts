@@ -13,7 +13,7 @@ import { asExtractionFailure, extractionFailureFromWire, type ExtractionFailureW
 import { AppError } from "../appError";
 import { childProcessEnv } from "../childEnv";
 import { LIFELINE_ENV } from "./lifeline";
-import { activeReaderUser, launchChild, runAsReader } from "./readerUser";
+import { activeReaderUser, launchChild, REAPER_WAIT_MS, reapGroup, reportOnce, runAsReader, trackReaderGroup } from "./readerUser";
 
 export { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError } from "./limits";
 export { ExtractionParseError } from "./failure";
@@ -70,19 +70,24 @@ const PARSER_UNAVAILABLE_MESSAGE =
   "backend Docker image and backend/nixpacks.toml include it, see " +
   "docs/deployment.md). No restart is needed once it is on PATH.";
 
-function killParser(child: ChildProcess, otherUser = false): void {
-  if (!child.pid) return;
-  if (otherUser) {
+/** Ends the parser's whole process group and resolves once that is done, within REAPER_WAIT_MS. */
+function killParser(child: ChildProcess, readerUser: string | null = null): Promise<void> {
+  if (!child.pid) return Promise.resolve();
+  if (readerUser) {
     // The API holds no right to signal a process of another user. It closes the
-    // parser's stdin; the parser (process.ts) ends its own process group on EOF.
+    // parser's stdin (the parser ends its own process group on EOF, process.ts)
+    // and has the reaper end the group, which does not depend on the parser.
     child.stdin?.destroy();
-  } else if (process.platform === "win32") {
+    return reapGroup(readerUser, child.pid);
+  }
+  if (process.platform === "win32") {
     const kill = launchChild("taskkill", ["/pid", String(child.pid), "/T", "/F"]);
     execFile(kill.command, kill.args, { env: childProcessEnv() }, () => { child.kill("SIGKILL"); });
   } else {
     // Includes LibreOffice descendants, including after the parser has exited.
     try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
   }
+  return Promise.resolve();
 }
 
 type Parser = {
@@ -90,24 +95,38 @@ type Parser = {
   closed: Promise<void>;
   memoryMb: number;
   started: boolean;
-  otherUser: boolean;
+  /** The reader's user name when the parser runs as another user, else null. */
+  readerUser: string | null;
   files: number;
   idle?: ReturnType<typeof setTimeout>;
+  /** Set once the process has been told to end. */
+  retired?: Promise<void>;
+  /** The child's own `close`, before its scratch directory is removed. */
+  exited: Promise<void>;
+  /** Called when the parser is retired while a job runs, so the job settles within a bounded time. */
+  onRetire?: () => void;
 };
 let parser: Parser | null = null;
 const RECYCLE_AFTER_FILES = 200;
 const IDLE_SHUTDOWN_MS = 60_000;
 
-function retire(p: Parser): void {
+function retire(p: Parser): Promise<void> {
   if (parser === p) parser = null;
   clearTimeout(p.idle);
-  killParser(p.child, p.otherUser);
+  // Once is enough for the group; a parser that ended by itself is still swept at its close.
+  p.retired ??= killParser(p.child, p.readerUser);
+  p.onRetire?.();
+  return p.retired;
 }
 
 /** Also used at test boundaries so no warm process outlives its configuration. */
 export async function stopExtractionProcess(): Promise<void> {
   const p = parser;
-  if (p) { retire(p); await p.closed; }
+  if (p) {
+    await retire(p);
+    // The scratch directory goes once the process has closed; a process that never does is not waited for.
+    await Promise.race([p.closed, new Promise<void>((resolve) => setTimeout(resolve, REAPER_WAIT_MS).unref())]);
+  }
 }
 
 function reference(p: Parser, active: boolean): void {
@@ -141,16 +160,25 @@ async function startParser(): Promise<Parser> {
     stdio: [readerUser ? "pipe" : "ignore", "ignore", "pipe", "ipc"], serialization: "advanced",
   });
   child.stdin?.on("error", () => {});
-  const p: Parser = { child, closed: Promise.resolve(), memoryMb: extractionMemoryMb(), started: false, otherUser: readerUser !== null, files: 0 };
-  const onParentExit = () => killParser(child, p.otherUser);
-  process.once("exit", onParentExit);
+  const p: Parser = { child, closed: Promise.resolve(), exited: Promise.resolve(), memoryMb: extractionMemoryMb(), started: false, readerUser, files: 0 };
+  // The API's own exit ends the group too (the reaper where there is a reader user).
+  const untrack = trackReaderGroup(child.pid, readerUser);
+  const onParentExit = () => { void killParser(child, p.readerUser); };
+  if (process.platform === "win32") process.once("exit", onParentExit);
+  p.exited = new Promise<void>((resolve) => child.once("close", () => resolve()));
   child.once("spawn", () => { p.started = true; });
   // Idle child errors must still retire the process even without a parse listener.
-  child.on("error", () => retire(p));
+  child.on("error", () => { void retire(p); });
   p.closed = new Promise<void>((resolve, reject) => child.once("close", () => {
-    retire(p);
-    process.removeListener("exit", onParentExit);
-    void (readerUser ? runAsReader(readerUser, "rm", ["-rf", "--", scratch]).then(() => undefined) : rm(scratch, { recursive: true, force: true })).then(resolve, reject);
+    // Sweeps what the process left in its group, then the scratch directory goes (as the reader).
+    void retire(p).then(() => {
+      untrack();
+      process.removeListener("exit", onParentExit);
+      return readerUser ? runAsReader(readerUser, "rm", ["-rf", "--", scratch]).then(() => undefined) : rm(scratch, { recursive: true, force: true });
+    }).then(resolve, (error) => {
+      reportOnce("parser-scratch", `could not remove a parser scratch directory: ${String((error as Error)?.message ?? error).slice(0, 200)}`);
+      resolve();
+    });
   }));
   // Idle retirement has no caller awaiting cleanup; active parses do await it.
   void p.closed.catch(() => {});
@@ -177,15 +205,17 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
     let reply: Reply | undefined;
     let failure: Error | undefined;
     let diagnostics = "";
+    let concluded = false;
     const timeout = setTimeout(() => {
       failure = new ExtractionLimitError("parser deadline exceeded");
-      retire(p);
+      void retire(p);
     }, extractionTimeoutMs());
     const onDiagnostics = (chunk: Buffer) => {
       diagnostics = (diagnostics + chunk.toString()).slice(-8192);
     };
     const cleanup = () => {
       clearTimeout(timeout);
+      p.onRetire = undefined;
       child.removeListener("message", onMessage);
       child.removeListener("error", onError);
       child.removeListener("close", onClose);
@@ -195,9 +225,9 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
     const onMessage = (message: Reply) => {
       if (failure) return;
       reply = message;
-      if (!reply.ok || ++p.files >= RECYCLE_AFTER_FILES) { retire(p); return; }
+      if (!reply.ok || ++p.files >= RECYCLE_AFTER_FILES) { void retire(p); return; }
       cleanup();
-      p.idle = setTimeout(() => retire(p), IDLE_SHUTDOWN_MS);
+      p.idle = setTimeout(() => { void retire(p); }, IDLE_SHUTDOWN_MS);
       p.idle.unref();
       reference(p, false);
       resolve(reply.result as Result<K>);
@@ -205,11 +235,13 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
     // Before "spawn" the launcher itself failed; its errno stays on the cause.
     const onError = (error: Error) => {
       failure = p.started ? error : new AppError("extraction.parser_unavailable", PARSER_UNAVAILABLE_MESSAGE, { cause: error });
-      retire(p);
+      void retire(p);
     };
-    const onClose = (_code: number | null, signal: NodeJS.Signals | null) => {
-      cleanup();
-      void p.closed.then(() => {
+    // How the job ends once the parser is gone (or is given up on, below).
+    const conclude = (signal: NodeJS.Signals | null) => {
+      if (concluded) return;
+      concluded = true;
+      {
         if (failure instanceof ExtractionLimitError) reject(failure);
         else if (reply?.ok) resolve(reply.result as Result<K>);
         else if (reply) reject(reply.limited ? new ExtractionLimitError(reply.message) : extractionFailureFromWire(reply));
@@ -225,7 +257,26 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
           const exited = new AppError("extraction.process_exited", "extraction process exited without a result");
           reject(signal ? Object.assign(exited, { code: signal }) : exited);
         }
-      }, reject);
+      }
+    };
+    const onClose = (_code: number | null, signal: NodeJS.Signals | null) => {
+      cleanup();
+      void p.closed.then(() => conclude(signal), reject);
+    };
+    // The job does not wait for a parser that does not close: once it has been
+    // told to end, the job settles within REAPER_WAIT_MS whatever the parser does
+    // (and its slot is freed with it).
+    p.onRetire = () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      void Promise.race([
+        p.exited.then(() => true),
+        new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), REAPER_WAIT_MS); }),
+      ]).then((closed) => {
+        clearTimeout(timer);
+        if (closed || concluded) return;
+        cleanup();
+        conclude(null);
+      });
     };
     const send = () => child.send({ op, bytes, fileType: options.fileType ?? "", ocr: options.ocr, args: options.args }, (error) => {
       if (error && !reply && !failure) onError(error);

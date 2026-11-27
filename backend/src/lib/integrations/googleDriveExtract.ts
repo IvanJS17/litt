@@ -3,7 +3,7 @@ import { open, type FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { childProcessEnv } from "../childEnv";
 import { LIFELINE_ENV } from "../extraction/lifeline";
-import { activeReaderUser, launchChild } from "../extraction/readerUser";
+import { activeReaderUser, launchChild, reapGroup, trackReaderGroup } from "../extraction/readerUser";
 import { googleDriveLimits } from "./googleDriveLimits";
 import { GoogleDriveUserError } from "./googleDriveHttp";
 
@@ -49,6 +49,8 @@ export async function extractGoogleDriveBinary(
                 path.join(__dirname, `googleDriveExtractChild.${extension}`),
                 [],
                 {
+                    // Its own process group, so the whole group can be ended whatever the reader does.
+                    detached: readerUser !== null,
                     ...(launch.command === process.execPath ? {} : { execPath: launch.command }),
                     // Behind setpriv, node's own path and flags are part of the arguments.
                     execArgv: launch.args,
@@ -62,21 +64,28 @@ export async function extractGoogleDriveBinary(
                 },
             );
             child.stdin?.on("error", () => {});
+            const release = readerUser ? trackReaderGroup(child.pid, readerUser) : () => {};
+            child.once("close", release);
             let settled = false;
             const finish = (text?: string) => {
                 if (settled) return;
                 settled = true;
                 clearTimeout(timer);
-                // Another user's process cannot be signalled: closing stdin ends it.
-                if (readerUser) child.stdin?.destroy();
-                else child.kill("SIGKILL");
+                // Another user's process cannot be signalled: closing stdin asks it
+                // to end, and the reaper ends its whole group whatever it does.
+                let ended: Promise<void> = Promise.resolve();
+                if (readerUser) {
+                    child.stdin?.destroy();
+                    ended = reapGroup(readerUser, child.pid);
+                } else child.kill("SIGKILL");
                 if (text !== undefined) resolve(text);
                 else
-                    reject(
+                    // Without waiting for the reader to close, only for the group to be ended (bounded).
+                    void ended.then(() => reject(
                         new GoogleDriveUserError(
                             "This Drive file could not be read within the processing limits. Open it in Google Drive.",
                         ),
-                    );
+                    ));
             };
             const timer = setTimeout(() => finish(), limits.parseMs);
             child.once("error", () => finish());

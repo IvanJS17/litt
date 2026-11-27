@@ -292,7 +292,10 @@ services:
     # Processes and threads of the whole container (the kernel counts both): the
     # API and its three worker threads, up to three parsers and LibreOffice
     # under each. Six files of every kind uploaded at once measured a peak under 80 on a local stack; this leaves a wide
-    # margin and still stops a runaway fork (README §Los lectores de archivos).
+    # margin and still stops a runaway fork (README §Los lectores de archivos). The readers also
+    # have their own per-user limit (EXTRACTION_READER_PROCESS_LIMIT, 256), so a reader that forks
+    # without end runs out of its own allowance and leaves this one room for the API and for the
+    # process that ends a reader's group.
     pids_limit: 512
     environment:
       NODE_ENV: production

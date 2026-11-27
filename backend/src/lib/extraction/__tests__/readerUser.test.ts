@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { extractionCommand } from "../isolated";
-import { inheritsCapabilities, launchChild } from "../readerUser";
+import { inheritsCapabilities, launchChild, reaperCommand } from "../readerUser";
 
 // A stand-in for util-linux setpriv: succeeds, or fails like a host where the
 // process may not change user. It runs whatever follows "--" when asked to.
@@ -20,6 +20,7 @@ const refuses = stand("refuses", "echo 'setresuid failed: Operation not permitte
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 afterEach(() => vi.unstubAllEnvs());
 
+const NPROC = (n: number) => [`--nproc=${n}:${n}`, "--"];
 const SWITCH = ["--reuid", "litt-reader", "--regid", "litt-reader", "--clear-groups", "--inh-caps", "-all", "--ambient-caps", "-all", "--no-new-privs", "--"];
 
 describe.skipIf(process.platform !== "linux")("launching the parser as its own user", () => {
@@ -27,7 +28,9 @@ describe.skipIf(process.platform !== "linux")("launching the parser as its own u
     const { command, args } = extractionCommand("process.js", "litt-reader");
     expect(command).toBe("prlimit");
     const at = args.indexOf("setpriv");
-    expect(args.slice(args.indexOf("--") + 1, at)).toEqual([]);
+    // the parser's own limits, then the reader's process limit, then the switch
+    expect(args.slice(args.indexOf("--") + 1, at).filter((arg) => arg !== "prlimit" && !arg.startsWith("--nproc") && arg !== "--")).toEqual([]);
+    expect(args.some((arg) => /^--nproc=\d+:\d+$/.test(arg))).toBe(true);
     expect(args.slice(at + 1, at + 1 + SWITCH.length)).toEqual(SWITCH);
     expect(args[at + 1 + SWITCH.length]).toBe(process.execPath);
     expect(args.at(-1)).toBe("process.js");
@@ -63,13 +66,41 @@ describe.skipIf(process.platform !== "linux")("launching the parser as its own u
 });
 
 describe("the one launcher for every child process", () => {
-  it("starts a process that opens uploaded content as the reader, whatever the API holds", () => {
+  it("starts a process that opens uploaded content as the reader, whatever the API holds, with a limit on the reader user's processes", () => {
+    vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "200");
     for (const capabilitiesHeld of [true, false]) {
       expect(launchChild("soffice", ["--headless"], { asReader: "litt-reader", capabilitiesHeld })).toEqual({
-        command: "setpriv",
-        args: [...SWITCH, "soffice", "--headless"],
+        command: "prlimit",
+        args: [...NPROC(200), "setpriv", ...SWITCH, "soffice", "--headless"],
       });
     }
+  });
+
+  it("leaves the limit off when the setting says zero, and keeps a default that leaves room under the container's limit", () => {
+    vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
+    expect(launchChild("soffice", [], { asReader: "litt-reader" })).toEqual({ command: "setpriv", args: [...SWITCH, "soffice"] });
+    vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "");
+    const limit = Number(/^--nproc=(\d+):/.exec(launchChild("soffice", [], { asReader: "litt-reader" }).args[0])?.[1]);
+    expect(limit).toBeGreaterThanOrEqual(100);
+    expect(limit).toBeLessThanOrEqual(300);
+  });
+
+  it("starts the process-ending helper with what the API holds, with only the group and the reader's user number, and nothing else keeps that", () => {
+    expect(launchChild(process.execPath, ["reaper.js", "4242", "10002"], { reaper: true, capabilitiesHeld: true })).toEqual({
+      command: process.execPath,
+      args: ["reaper.js", "4242", "10002"],
+    });
+    expect(launchChild("tool", [], { capabilitiesHeld: true }).command).toBe("setpriv");
+    expect(launchChild("tool", [], { asReader: "litt-reader", capabilitiesHeld: true }).args).toContain("--ambient-caps");
+  });
+
+  it("builds the helper's command from the group and the user number alone", () => {
+    const { command, args } = reaperCommand(4242, 10002)!;
+    expect(command).toBe(process.execPath);
+    expect(args.slice(-2)).toEqual(["4242", "10002"]);
+    expect(args.at(-3)).toMatch(/reaper\.(js|ts)$/);
+    expect(reaperCommand(1, 10002)).toBeNull();
+    expect(reaperCommand(4242, 0)).toBeNull();
   });
 
   it("starts any other process with every inheritable and ambient capability dropped and none to gain", () => {

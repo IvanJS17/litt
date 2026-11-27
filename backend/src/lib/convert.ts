@@ -11,7 +11,7 @@ import { childProcessEnv } from "./childEnv";
 import { MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CONVERSIONS } from "./conversionLimits";
 import { admission } from "./extraction/admission";
 import { LIFELINE_ENV } from "./extraction/lifeline";
-import { activeReaderUser, launchChild, runAsReader } from "./extraction/readerUser";
+import { activeReaderUser, launchChild, REAPER_WAIT_MS, reapGroup, reportOnce, runAsReader, trackReaderGroup } from "./extraction/readerUser";
 import { uploadConversionTimeoutMs } from "./runtimeConfig";
 
 let _sofficeBinaryPaths: string[] | null = null;
@@ -310,7 +310,9 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
   try {
     await new Promise<void>((resolve, reject) => {
       // stdio 3 is the lifeline: the API cannot signal a process of another
-      // user, so it closes this pipe and the helper ends its process group.
+      // user, so it closes this pipe and the helper ends its process group. That
+      // depends on the helper, so the group is also ended through the reaper
+      // (readerUser.ts), and the job does not wait for a helper that does not close.
       const child = spawn(launch.command, launch.args, {
         stdio: ["pipe", "pipe", "pipe", "pipe"],
         detached: true,
@@ -319,11 +321,23 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
           UPLOAD_CONVERT_TIMEOUT_MS: String(timeoutMs), LITT_PARSER_PROCESS: "1",
         }),
       });
+      const release = trackReaderGroup(child.pid, readerUser);
       const lifeline = child.stdio[3] as Duplex | null | undefined;
       lifeline?.on("error", () => {});
       lifeline?.resume();
       const endHelper = () => { lifeline?.destroy(); };
-      const deadline = setTimeout(() => { timedOut = true; endHelper(); }, timeoutMs);
+      let settled = false;
+      const settle = (done: () => void) => { if (!settled) { settled = true; done(); } };
+      const deadline = setTimeout(() => {
+        timedOut = true;
+        endHelper();
+        void reapGroup(readerUser, child.pid);
+        // Settles when the helper has closed, or after the bounded wait if it does not.
+        setTimeout(() => settle(() => {
+          child.stdout.destroy();
+          reject(new ConversionError("conversion.timeout", `LibreOffice conversion timed out after ${timeoutMs}ms`));
+        }), REAPER_WAIT_MS).unref();
+      }, timeoutMs);
       deadline.unref();
       child.stderr.on("data", (chunk) => { stderr = `${stderr}${String(chunk)}`.slice(-4_096); });
       child.stdin.on("error", () => {});
@@ -333,19 +347,22 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
       void pipeline(fs.createReadStream(inputPath), child.stdin).catch(() => {});
       child.once("error", (error) => {
         clearTimeout(deadline);
-        reject(converterUnavailable(error));
+        settle(() => reject(converterUnavailable(error)));
       });
       child.once("close", (code) => {
         clearTimeout(deadline);
         endHelper();
-        void written.then(() => undefined, () => undefined).then(() => {
-          if (timedOut) {
-            reject(new ConversionError("conversion.timeout", `LibreOffice conversion timed out after ${timeoutMs}ms`));
-          } else if (code === 0) {
-            resolve();
-          } else {
-            reject(conversionFailureFromChild(code, stderr));
-          }
+        // What the helper left in its group (LibreOffice) goes too.
+        void reapGroup(readerUser, child.pid).then(() => { release(); return written.then(() => undefined, () => undefined); }).then(() => {
+          settle(() => {
+            if (timedOut) {
+              reject(new ConversionError("conversion.timeout", `LibreOffice conversion timed out after ${timeoutMs}ms`));
+            } else if (code === 0) {
+              resolve();
+            } else {
+              reject(conversionFailureFromChild(code, stderr));
+            }
+          });
         });
       });
     });
@@ -353,7 +370,9 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
     await fs.promises.rm(outputPath, { force: true }).catch(() => {});
     throw error;
   } finally {
-    await runAsReader(readerUser, "rm", ["-rf", "--", scratch]).catch(() => {});
+    // After the group is ended. A removal that fails is reported once, not retried.
+    await runAsReader(readerUser, "rm", ["-rf", "--", scratch]).catch((error) =>
+      reportOnce("convert-scratch", `could not remove a conversion scratch directory: ${String((error as Error)?.message ?? error).slice(0, 200)}`));
   }
   try {
     await fs.promises.access(outputPath, fs.constants.R_OK);

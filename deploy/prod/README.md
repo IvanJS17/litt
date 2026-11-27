@@ -465,10 +465,50 @@ PID 1. Todo proceso hijo de la API se inicia por un único lanzador
 (`launchChild` en `src/lib/extraction/readerUser.ts`; `childProcessGuard.test.ts` exige que
 cada archivo que inicia procesos lo use): los que abren contenido de personas corren como
 `litt-reader`; cualquier otro hijo se inicia sin capacidades (heredables ni ambientales)
-y sin poder obtenerlas. La API no puede enviar señales a un proceso de otro usuario: cierra
-una tubería (la entrada estándar del lector, o un descriptor propio del ayudante de
-conversión) y el proceso, con un hilo propio, termina su grupo de procesos, LibreOffice
-incluido.
+y sin poder obtenerlas. La API no puede enviar señales a un proceso de otro usuario, así que un lector
+se termina de dos maneras, y ninguna depende de que el lector coopere:
+
+- **El segador (`src/lib/extraction/reaper.ts`).** Cada lector se inicia en su propio grupo de
+  procesos y la API guarda el identificador del grupo. Para terminarlo (al vencer el plazo del
+  trabajo, al retirar o parar el lector, al abortar un trabajo y al apagarse la API) inicia un
+  proceso pequeño de confianza, sin contenido externo, con solo dos argumentos (el grupo y el
+  uid de `litt-reader`) y un entorno vacío, que conserva las capacidades de la API y toma el
+  uid del lector **solo como uid efectivo** (`seteuid`): el real y el guardado siguen siendo
+  los de `litt-api`. Con eso puede enviar `SIGKILL` al grupo (que alcanza a un proceso
+  detenido con `SIGSTOP`), y un lector no puede enviarle señales, trazarlo ni leer su entorno ni
+  su memoria. Es el único modo del lanzador que conserva las capacidades de la API
+  (`childProcessGuard.test.ts`). El trabajo **no espera** al lector: al vencer el plazo
+  termina con el mismo error de siempre (`parser deadline exceeded`, `conversion.timeout`, el
+  rechazo del lector de Drive) tras, como mucho, `REAPER_WAIT_MS` (2 s) y libera su lugar
+  haya o no cierre del proceso; el directorio temporal se borra después, como el lector, y un
+  borrado que falla se avisa una sola vez en el registro (`[extraction]`).
+- **La tubería** (la entrada estándar del lector, o un descriptor propio del ayudante de
+  conversión): el proceso, con un hilo propio, termina su grupo de procesos, LibreOffice
+  incluido. Se mantiene porque es lo que termina al grupo cuando la API misma muere.
+
+Cada proceso de `litt-reader` se inicia con un tope de procesos del usuario
+(`prlimit --nproc`, 256 por defecto; `EXTRACTION_READER_PROCESS_LIMIT`, 0 lo quita): el tope
+cuenta procesos e hilos de todos los lectores juntos, y su razón es que un lector que se
+bifurque sin freno agote su propia cuota y no el `pids_limit` del contenedor, que la API
+necesita para seguir iniciando procesos (incluido el segador, que se inicia sin tope porque
+cuenta contra el usuario de la API). El pico medido de `litt-reader` con el analizador, dos
+conversiones y dos lecturas de Drive a la vez fue de 56 procesos e hilos (laboratorio con LibreOffice real; una subida de seis archivos contra la pila local completa, 40 muestreados), unas cuatro veces menos que el tope (laboratorio, no producción;
+sin espacio de nombres de usuario, el kernel cuenta por uid del anfitrión: no dejar otro
+proceso con uid 10002 en el anfitrión).
+
+Al arrancar, antes de aceptar trabajo, la API borra como `litt-reader` lo que ese usuario
+posee directamente bajo el directorio temporal (solo entradas suyas, sin seguir enlaces, con
+plazo de 20 s; un fallo se avisa una vez y no impide el arranque): son los directorios de
+trabajos que una parada o un reinicio interrumpieron, con copias de archivos subidos. No lo
+hace si el usuario lector es el mismo de la API.
+
+Límites conocidos: todos los lectores comparten un solo usuario, así que un lector que
+ejecute código ajeno puede enviar señales a otros lectores y leer su directorio temporal
+mientras viva; un proceso que se sale del grupo (`setsid`) no lo alcanza la muerte del grupo
+y vive hasta que se recrea el contenedor (en `main` ese proceso habría sido root); los
+lectores comparten la red del contenedor; lo que un lector devuelve (el PDF) no tiene tope de
+tamaño, como en `main`; y un proceso hijo iniciado fuera del lanzador heredaría las dos
+capacidades de la API, que el proceso de la API ya tiene.
 
 Ajustes de `backend` en `compose.yaml` y por qué:
 
@@ -477,7 +517,7 @@ Ajustes de `backend` en `compose.yaml` y por qué:
 | `init: true` | PID 1 es un init (tini) que recoge procesos hijos terminados |
 | `cap_drop: [ALL]`, `cap_add: [SETUID, SETGID, KILL]` | Tres capacidades en el contenedor; cada una la tiene un solo actor. `SETUID` y `SETGID`: la API las conserva (efectivas, permitidas y ambientales), y ninguna otra, para iniciar a los lectores como otro usuario. `KILL`: solo el init (PID 1, root), para pasar la señal de `docker stop` a la API, que es otro usuario. La API no tiene `KILL` (su CapEff y CapAmb son `c0`) y no puede obtenerla: con `no-new-privileges`, ni siquiera cambiar a uid 0 con `SETUID` y ejecutar otro programa se la da (queda en el conjunto limitante, no en el permitido). Los lectores no conservan ninguna |
 | `security_opt: [no-new-privileges:true]` | Ningún proceso del contenedor obtiene privilegios por un binario setuid o con capacidades de archivo |
-| `pids_limit: 512` | Cuenta procesos e hilos del contenedor completo. Una subida de seis archivos de todos los tipos contra la pila local completa midió un máximo de 77 (en reposo, 28 a 48), con la API, tres hilos de trabajo, lectores y LibreOffice; no es una medida de producción; el límite deja un margen amplio y frena una bifurcación descontrolada. Súbelo solo si `docker stats` o los registros muestran `Resource temporarily unavailable` bajo carga real |
+| `pids_limit: 512` | Cuenta procesos e hilos del contenedor completo; los lectores tienen además su propio tope por usuario (arriba), muy por debajo de este. Una subida de seis archivos de todos los tipos contra la pila local completa midió un máximo de 77 (en reposo, 28 a 48), con la API, tres hilos de trabajo, lectores y LibreOffice; no es una medida de producción; el límite deja un margen amplio y frena una bifurcación descontrolada. Súbelo solo si `docker stats` o los registros muestran `Resource temporarily unavailable` bajo carga real |
 
 Los hilos de trabajo (`worker_threads`) comparten el proceso de la API: corren como
 `litt-api` con las mismas dos capacidades y el mismo entorno, y no abren contenido de
@@ -504,6 +544,10 @@ no hay lectores aparte y la comprobación no aplica. En desarrollo, y donde no h
 segundo usuario (macOS, CI), el lector corre como el usuario de la API y el arranque avisa
 con una línea `[extraction]`.
 
+Si el contenedor no tiene `SETUID` y `SETGID` (por ejemplo `cap_drop: [ALL]` sin `cap_add`), el
+entrypoint lo dice en una línea (`litt-entrypoint: cannot start: the container needs the SETUID and SETGID
+capabilities …`) y termina con código 1, en vez del mensaje de `setpriv`.
+
 Qué comprobar después de un despliegue (sin imprimir el `.env`):
 
 ```bash
@@ -514,6 +558,7 @@ $C exec -T backend sh -c 'for d in /proc/1 $(for p in /proc/[0-9]*; do tr "\0" "
 # API: node ... dist/index.js, uid 10001, CapEff y CapAmb 00000000000000c0 (solo SETUID y SETGID), NoNewPrivs 1
 docker inspect "$($C ps -q backend)" --format '{{.HostConfig.Init}} {{json .HostConfig.CapDrop}} {{json .HostConfig.CapAdd}} {{json .HostConfig.SecurityOpt}} {{.HostConfig.PidsLimit}}'
 $C logs backend 2>&1 | grep '\[extraction\]'     # sin salida: no hay aviso de lectores como la API
+# Tras un reinicio en mitad de un trabajo, el registro dice cuántas entradas de scratch borró: [extraction] removed N leftover reader scratch entries
 ```
 
 Y que la parada sea ordenada (en una ventana sin tráfico; el contenedor se reinicia solo con `restart: unless-stopped` al volver a levantarlo con `up -d`):
