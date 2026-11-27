@@ -132,6 +132,13 @@ describe("PATCH /auth/password records that the account has a password", () => {
         expect(h.reported).toHaveLength(0);
     });
 
+    it("records it for the session's own account whatever account ids the body carries", async () => {
+        const other = "user-2";
+        const answer = await change({ password: PASSWORD, userId: other, user_id: other, p_user_id: other, id: other });
+        expect(answer.status).toBe(200);
+        expect(h.marked).toEqual([{ p_user_id: h.caller.id }]);
+    });
+
     it("records it with the sign-out option too, before the sessions end, and the sign-out is unchanged", async () => {
         const answer = await change({ password: PASSWORD, signOut: true });
         expect(answer.status).toBe(200);
