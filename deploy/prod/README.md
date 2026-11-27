@@ -93,11 +93,25 @@ WID=$(docker image inspect --format '{{.Id}}' "litt-word:$SHA")
 BYTES=$(bash deploy/prod/image-bytes.sh "$SHA") || { echo "no se pudo medir BYTES"; exit 1; }
 echo "BYTES=$BYTES"
 # Deploy (el árbol del release viaja aparte; las imágenes, por stdin y sin copias en disco):
-scp deploy/prod/litt-deploy.sh staging-apps-dev:/tmp/litt-deploy.sh
-git archive --format=tar.gz "$SHA" | ssh staging-apps-dev "cat > /tmp/litt-$SHA.tar.gz"
+# El script y el árbol van a un directorio hecho para este deploy, privado de la cuenta
+# (modo 700), no a nombres fijos de /tmp; el árbol se resume con el mismo archivo que se envía.
+D=$(ssh staging-apps-dev 'mktemp -d')
+B=$(mktemp -d)
+git archive --format=tar.gz "$SHA" > "$B/litt-$SHA.tar.gz"
+TREE_SHA256=$(sha256sum "$B/litt-$SHA.tar.gz" | cut -d' ' -f1)
+scp deploy/prod/litt-deploy.sh "staging-apps-dev:$D/litt-deploy.sh"
+scp "$B/litt-$SHA.tar.gz" "staging-apps-dev:$D/litt-$SHA.tar.gz"
 docker save "litt-backend:$SHA" "litt-frontend:$SHA" "litt-word:$SHA" | gzip -1 | ssh staging-apps-dev \
-  bash /tmp/litt-deploy.sh "$SHA" "$BYTES" "$BID" "$FID" "$WID" "/tmp/litt-$SHA.tar.gz"
+  bash "$D/litt-deploy.sh" "$SHA" "$BYTES" "$BID" "$FID" "$WID" "$D/litt-$SHA.tar.gz" "$TREE_SHA256"
+ssh staging-apps-dev "rm -rf $D"; rm -rf "$B"
 ```
+
+Antes de cambiar nada en el host, `litt-deploy.sh` exige (siempre; no hay opción para omitirlo):
+el árbol es un archivo regular (no un enlace), de la cuenta que corre el script y no
+escribible por grupo ni otros; el directorio que lo contiene cumple lo mismo (un directorio
+compartido como `/tmp` se rechaza); el propio script cumple dueño y modo; y el sha256 del
+árbol es el `TREE_SHA256` del séptimo argumento. Si algo falla, termina con error sin tocar
+el host. Los despliegues usan siempre esta invocación de siete argumentos.
 
 `litt-deploy.sh` corre en el VPS como el dueño de `/srv/litt` y sigue las reglas del
 host (`HOST-RULES.md` §3–§5):
