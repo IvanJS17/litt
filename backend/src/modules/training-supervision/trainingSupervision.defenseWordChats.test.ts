@@ -181,4 +181,75 @@ describe("a defense over a practice area remembers the Word chats it was written
         expect(text.split("AREA-QUESTION")).toHaveLength(4);
         expect(chatLookups).toBe(1);
     });
+
+    describe("recording an outcome marks the sources only of a defense that has none to record", () => {
+        const withQuestions = (over: Row = {}): Row => written({ outcome: null, outcome_reason: null, outcome_note: null, held_at: null, ...over });
+        const rowOf = (world: ReturnType<typeof trainingWorld>) => world.tables.training_defenses[0];
+        /** Runs `before` as the marking write is about to be made (the third access to the defenses table). */
+        function beforeMarking(world: ReturnType<typeof trainingWorld>, before: () => void) {
+            let accesses = 0;
+            const from = world.db.from.bind(world.db);
+            (world.db as unknown as { from: (table: string) => unknown }).from = (table: string) => {
+                if (table === "training_defenses" && ++accesses === 3) before();
+                return from(table);
+            };
+        }
+
+        for (const projects of [null, ["00000000-0000-4000-8000-0000000000e1"]]) {
+            it(`keeps a defense with questions and no recorded Word chats unrecorded (matters: ${projects === null ? "unrecorded" : "recorded"}), its questions and note withheld`, async () => {
+                const world = trainingWorld(OPEN_DOCUMENT_ONLY, {
+                    training_defenses: [withQuestions({ source_project_ids: projects, source_word_chat_ids: null })],
+                });
+                const reply = await recordedFor(world);
+                expect(rowOf(world).source_word_chat_ids).toBeNull();
+                expect(rowOf(world).source_project_ids).toEqual(projects);
+                expect(rowOf(world).outcome).toBe("approved");
+                for (const text of [reply, await mentorSees(world), await pupilSees(world)]) {
+                    expect(text).not.toContain("AREA-QUESTION");
+                    expect(text).not.toContain("AREA-NOTE");
+                }
+                expect(JSON.parse(reply)).toMatchObject({ outcome: "approved" });
+            });
+        }
+
+        it("leaves both recorded lists of a defense with questions as they were", async () => {
+            const world = trainingWorld(OPEN_DOCUMENT_ONLY, {
+                training_defenses: [withQuestions({ source_project_ids: [], source_word_chat_ids: [WORD_CHAT] })],
+            });
+            const reply = await recordedFor(world);
+            expect(rowOf(world)).toMatchObject({ source_project_ids: [], source_word_chat_ids: [WORD_CHAT] });
+            expect(reply).toContain("AREA-QUESTION");
+            expect(reply).toContain("AREA-NOTE");
+        });
+
+        it("records both lists as empty for a defense with no questions, and shows the mentor's note", async () => {
+            const world = trainingWorld(OPEN_DOCUMENT_ONLY, { training_defenses: [areaDefense()] });
+            const reply = await recordedFor(world);
+            expect(rowOf(world)).toMatchObject({ source_project_ids: [], source_word_chat_ids: [] });
+            expect(reply).toContain("AREA-NOTE");
+            expect(await mentorSees(world)).toContain("AREA-NOTE");
+        });
+
+        it("keeps the sources of questions written between the outcome and the marking", async () => {
+            const world = trainingWorld(OPEN_DOCUMENT_ONLY, { training_defenses: [areaDefense()] });
+            beforeMarking(world, () => {
+                Object.assign(rowOf(world), {
+                    questions: [{ kind: "base", text: "AREA-QUESTION", listen_for: "x" }], questions_status: "ready",
+                    source_project_ids: null, source_word_chat_ids: [WORD_CHAT],
+                });
+            });
+            await recordedFor(world);
+            expect(rowOf(world)).toMatchObject({ source_project_ids: null, source_word_chat_ids: [WORD_CHAT] });
+        });
+
+        it("does not mark a defense that had questions when the outcome was read, even if they are gone by the time it is written", async () => {
+            const world = trainingWorld(OPEN_DOCUMENT_ONLY, {
+                training_defenses: [withQuestions({ source_project_ids: null, source_word_chat_ids: null })],
+            });
+            beforeMarking(world, () => Object.assign(rowOf(world), { questions: null }));
+            await recordedFor(world);
+            expect(rowOf(world).source_word_chat_ids).toBeNull();
+            expect(rowOf(world).source_project_ids).toBeNull();
+        });
+    });
 });
