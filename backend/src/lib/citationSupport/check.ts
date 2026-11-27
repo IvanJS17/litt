@@ -14,6 +14,7 @@ import { reportError } from "../observability/report";
 import type { Db } from "../supabase";
 import { citationCheckApiKey } from "../chatFeatureGates";
 import { teamOrgIdOf } from "../personalOrgs";
+import { takeCitationChecks } from "./dailyNumber";
 import { citationCheckPermitted } from "./preference";
 import type { CitationSupportInput } from "./inputs";
 import {
@@ -226,6 +227,9 @@ export async function createCitationSupportRunner(args: {
         // Never throws and is never awaited by the work it follows.
         run: async (owner, inputs) => {
             if (!inputs.length) return null;
+            // The person's number for the day: only that many citations are sent, the first ones in order.
+            const granted = takeCitationChecks(args.userId, inputs.length);
+            if (!granted) return null;
             try {
                 const outcome = await runCitationSupportChecks({
                     db: args.db,
@@ -234,7 +238,7 @@ export async function createCitationSupportRunner(args: {
                         orgId: await teamOrgIdOf(args.db, typeof args.orgId === "function" ? await args.orgId() : args.orgId),
                         ...owner,
                     },
-                    inputs,
+                    inputs: inputs.slice(0, granted),
                     deps: args.deps,
                 });
                 if (outcome.failed) reportFailures(outcome);
