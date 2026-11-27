@@ -353,7 +353,10 @@ Generic job concurrency does not create more parser slots.
 
 Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
 `prlimit` fails extraction; the backend and worker log a warning at startup when
-it is not on `PATH`.
+it is not on `PATH`. Where the readers run as their own user (next paragraph), the
+start-up check of that user is launched with the same util-linux tools (`prlimit`,
+`setpriv`), so with `NODE_ENV=production` an image without them refuses to start
+instead of warning.
 
 On Linux the processes that read uploads for text extraction (the parser), convert
 them with LibreOffice (every path, including the conversion of uploads to PDF) and read
