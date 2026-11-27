@@ -29,6 +29,9 @@ route answers: the requests fall through to the normal 404.
 | `RATE_LIMIT_MCP_GRANT_READ_MAX` / `RATE_LIMIT_MCP_GRANT_READ_WINDOW_SECONDS` | 120 / 60 | Read budget of one connection. |
 | `LITT_MCP_HEAVY_PER_USER` / `LITT_MCP_HEAVY_GLOBAL` | 2 / 4 | Heavy jobs started from MCP that may run at once per person and in the whole process (design §9.4; see «Heavy-job cap»). |
 | `RATE_LIMIT_MCP_GRANT_WRITE_MAX` / `RATE_LIMIT_MCP_GRANT_WRITE_WINDOW_MINUTES` | 30 / 15 | Budget of one connection for calls that write, run an engine, spend or chat. |
+| `LITT_MCP_UNAPPROVED_CLIENTS_MAX` | 10000 | Cap on client rows (registered or metadata-document) that no person has ever approved, that is, that no connection has ever referred to. See «Limits on unapproved clients». |
+| `RATE_LIMIT_MCP_REGISTER_MAX` / `RATE_LIMIT_MCP_REGISTER_WINDOW_HOURS` | 60 / 1 | Registrations from one address. |
+| `RATE_LIMIT_MCP_AUTHORIZE_MAX` / `RATE_LIMIT_MCP_AUTHORIZE_WINDOW_HOURS` | 120 / 1 | `GET /oauth/authorize` requests from one address. The consent page and the token endpoints are not counted. |
 
 The proxy that makes the backend reachable at the MCP host, its DNS name and
 its Caddy block are infrastructure and are not part of the backend.
@@ -57,6 +60,26 @@ its Caddy block are infrastructure and are not part of the backend.
   valid redirect URIs. It is cached for an hour.
 * **Dynamic registration.** Redirect URIs must be https, or http on
   `localhost` / `127.0.0.1` / `[::1]`, without fragments.
+* **Limits on unapproved clients.** Registration and the first sight of a
+  metadata-document client create a client row without any person's consent.
+  When the clients that no connection has ever referred to reach
+  `LITT_MCP_UNAPPROVED_CLIENTS_MAX`, a request that would create another one is
+  refused before anything is fetched or written: registration answers `429`
+  `temporarily_unavailable`, and `/oauth/authorize` shows the same error on the
+  page. A client that already has a row (approved or not, including the refresh
+  of an expired metadata document) keeps working, approving a client takes it
+  out of the count, and nothing is deleted by the cap. While the count stays at
+  the number no new client can be created: it goes down when a client is
+  approved, when the existing clean-up at the next registration removes
+  unapproved clients idle for seven days, or when the operator raises the
+  number. The refusal is written
+  to the server log once per process and kind, without the client or the
+  address. The token endpoints never create a client: a first-seen client
+  there is unknown (`invalid_client`), with nothing fetched or written. So per
+  address and hour, at the defaults, registration writes at most 60
+  `client_registered` audit rows and `/oauth/authorize` at most 240 audit rows
+  (`cimd_rejected`, or `cimd_fetched` plus `authorization_requested`), and
+  those are the only paths that create a client.
 * **Redirect matching.** Exact, except a loopback redirect may use any port
   (RFC 8252 §7.3), with host and path still exact.
 

@@ -396,6 +396,11 @@ const mcpPublicLimiter = makeLimiter({
   max: envInt("RATE_LIMIT_MCP_PUBLIC_MAX", 3000),
   message: "Too many requests. Please try again later.",
 });
+const mcpAuthorizeLimiter = makeLimiter({
+  windowMs: hours(envInt("RATE_LIMIT_MCP_AUTHORIZE_WINDOW_HOURS", 1)),
+  max: envInt("RATE_LIMIT_MCP_AUTHORIZE_MAX", 120),
+  message: "Too many authorization requests. Please try again later.",
+});
 const mcpRegisterLimiter = makeLimiter({
   windowMs: hours(envInt("RATE_LIMIT_MCP_REGISTER_WINDOW_HOURS", 1)),
   max: envInt("RATE_LIMIT_MCP_REGISTER_MAX", 60),
@@ -436,6 +441,7 @@ export { configuredAllowedOrigins } from "./lib/origins";
 // Origin allowlist for /mcp, body parsers sized for each endpoint). Nothing
 // answers unless LITT_MCP_SERVER=enabled.
 app.post("/oauth/register", mcpRegisterLimiter);
+app.get("/oauth/authorize", mcpAuthorizeLimiter);
 app.use(["/oauth", "/mcp", "/.well-known"], mcpPublicLimiter);
 app.use(mcpPublicRouter);
 

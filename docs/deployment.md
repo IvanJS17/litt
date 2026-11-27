@@ -501,7 +501,10 @@ Optional platform settings (all off or unset by default):
   firm's; every person can opt out in Settings. See
   [Citation support check](citation-support-check.md).
 - `LITT_MCP_SERVER=enabled` and `LITT_MCP_PUBLIC_URL` turn on the MCP server's
-  OAuth authorization server and `/mcp` endpoint. See [LiTT MCP server](mcp-server.md).
+  OAuth authorization server and `/mcp` endpoint. `LITT_MCP_UNAPPROVED_CLIENTS_MAX`
+  (default 10000) caps client rows no person approved, and
+  `RATE_LIMIT_MCP_AUTHORIZE_MAX` / `_WINDOW_HOURS` (120 / 1) limit authorization
+  requests per address. See [LiTT MCP server](mcp-server.md).
 - `GOOGLE_WORKSPACE_OAUTH_CLIENT_ID/_SECRET`, `GOOGLE_DRIVE_OAUTH_CLIENT_ID/_SECRET`,
   `GOOGLE_DRIVE_PICKER_API_KEY`, `GOOGLE_DRIVE_PICKER_APP_ID` and
   `GOOGLE_WORKSPACE_DISABLED_PROVIDERS` configure the Google connectors. With

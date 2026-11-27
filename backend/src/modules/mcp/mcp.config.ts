@@ -31,6 +31,8 @@ export type McpConfig = {
     grantMaxAgeSeconds: number;
     codeTtlSeconds: number;
     requestTtlSeconds: number;
+    /** Client rows (dynamic or metadata-document) no grant has ever referred to; at this number no new one is created. */
+    unapprovedClientsMax: number;
     rateLimits: McpRateLimits;
 };
 
@@ -102,6 +104,7 @@ export function mcpConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
         grantMaxAgeSeconds: positiveInt(env.LITT_MCP_GRANT_MAX_DAYS, 90) * 86_400,
         codeTtlSeconds: 60,
         requestTtlSeconds: 600,
+        unapprovedClientsMax: positiveInt(env.LITT_MCP_UNAPPROVED_CLIENTS_MAX, 10_000),
         rateLimits: {
             readMax: positiveInt(env.RATE_LIMIT_MCP_GRANT_READ_MAX, 120),
             readWindowMs: positiveInt(env.RATE_LIMIT_MCP_GRANT_READ_WINDOW_SECONDS, 60) * 1000,
