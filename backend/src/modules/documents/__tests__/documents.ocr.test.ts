@@ -220,8 +220,8 @@ describe("the job", () => {
     fake.done();
   });
   it("stores the pages that fit whole and lists a page over the page bound as not read", async () => {
-    vi.stubEnv("OCR_PAGE_MAX_BYTES", "20");
-    mocks.parse.mockResolvedValue({ ...read, pages: [{ page: 2, text: "dos" }, { page: 5, text: "x".repeat(21) }, { page: 9, text: "ñ".repeat(10) }], failedPages: [] });
+    vi.stubEnv("OCR_PAGE_MAX_BYTES", "1000");
+    mocks.parse.mockResolvedValue({ ...read, pages: [{ page: 2, text: "dos" }, { page: 5, text: "x".repeat(1001) }, { page: 9, text: "ñ".repeat(500) }], failedPages: [] });
     const fake = scriptedDb([
       ...head(),
       { rpc: "document_ocr_state", data: asState(row()) },
@@ -229,12 +229,12 @@ describe("the job", () => {
       { table: "document_versions", op: "update" },
     ]);
     await handleDocumentOcr(fake.db, job);
-    expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 2, text: "dos" }, { page: 9, text: "ñ".repeat(10) }], failed_pages: [5] });
+    expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 2, text: "dos" }, { page: 9, text: "ñ".repeat(500) }], failed_pages: [5] });
     fake.done();
   });
   it("stores the pages that fit the reading bound, in page order, and lists the rest", async () => {
-    vi.stubEnv("OCR_READING_MAX_BYTES", "10");
-    mocks.parse.mockResolvedValue({ ...read, pages: [{ page: 2, text: "aaaaaa" }, { page: 5, text: "bbbbbb" }, { page: 9, text: "c" }], failedPages: [3] });
+    vi.stubEnv("OCR_READING_MAX_BYTES", "100000");
+    mocks.parse.mockResolvedValue({ ...read, pages: [{ page: 2, text: "a".repeat(60000) }, { page: 5, text: "b".repeat(60000) }, { page: 9, text: "c" }], failedPages: [3] });
     const fake = scriptedDb([
       ...head(),
       { rpc: "document_ocr_state", data: asState(row()) },
@@ -242,7 +242,22 @@ describe("the job", () => {
       { table: "document_versions", op: "update" },
     ]);
     await handleDocumentOcr(fake.db, job);
-    expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 2, text: "aaaaaa" }], failed_pages: [3, 5, 9] });
+    expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 2, text: "a".repeat(60000) }], failed_pages: [3, 5, 9] });
+    fake.done();
+  });
+  it("ends a reading with more pages than the bound as too large: no pages and no failed pages are written", async () => {
+    vi.stubEnv("OCR_READING_MAX_PAGES", "3");
+    mocks.parse.mockResolvedValue({ ...read, pages: [1, 2, 3, 4].map((page) => ({ page, text: "" })), failedPages: [] });
+    const fake = scriptedDb([
+      ...head(),
+      { rpc: "document_ocr_state", data: asState(row()) },
+      { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] },
+    ]);
+    await handleDocumentOcr(fake.db, job);
+    expect(fake.calls[3].payload).toMatchObject({ status: "failed", error_code: "ocr_too_large" });
+    expect(fake.calls[3].payload).not.toHaveProperty("pages");
+    expect(fake.calls[3].payload).not.toHaveProperty("failed_pages");
+    expect(mocks.publish).not.toHaveBeenCalled();
     fake.done();
   });
   it("sends a PDF scanned throughout whole, without a page selection", async () => {

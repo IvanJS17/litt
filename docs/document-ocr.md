@@ -34,14 +34,22 @@ the pages without one. A page LandingAI failed on stays unread, and **Read
 scan** is offered again.
 
 **What a reading may store.** One page stores at most **200,000 bytes** of text
-(UTF-8) and one reading at most **10,000,000 bytes** (`OCR_PAGE_MAX_BYTES`,
-`OCR_READING_MAX_BYTES`; plain whole numbers, anything else uses the default).
+(UTF-8), one reading at most **10,000,000 bytes** and at most **20,000 pages**
+(`OCR_PAGE_MAX_BYTES`, `OCR_READING_MAX_BYTES`, `OCR_READING_MAX_PAGES`; plain whole
+numbers inside a fixed range: 1,000 to 2,000,000; 100,000 to 32,000,000; 1 to 100,000.
+A value that is not one, or is outside its range, uses the default).
 Nothing is cut: a page over the page bound is not stored and is listed in
 `failed_pages` like a page LandingAI failed on, so it stays unread and the
 warning for it stays; the other pages are stored whole. When the total would pass
 the reading bound, pages are kept in page order while they fit and every later
-page is listed. `boundOcrReading` (`lib/ocr/pages.ts`) is the one place that
-decides, and the job calls it where the result becomes the stored pages. Reading
+page is listed. A reading the service returns with more pages than the page-count
+bound is not stored at all: the job ends it as `failed` with `ocr_too_large`,
+like a file that is too large, and the previous reading, if any, stays in force.
+A page LandingAI failed on and still returned text for keeps that text and stays
+listed once. A page number is stored once (the first wins), and an entry without a positive
+whole page number or a string text is dropped (and listed when its number is
+valid). `boundOcrReading` (`lib/ocr/pages.ts`) is the one place that decides,
+and the job calls it where the result becomes the stored pages. Reading
 again sends the same pages and bills them again, with the same result unless the
 bounds were raised.
 

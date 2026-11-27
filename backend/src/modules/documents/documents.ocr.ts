@@ -297,6 +297,11 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
     try {
       const result = await parsePdfWithLandingAi(key, raw, scanned.pages.length < scanned.total ? { pages: scanned.pages } : {});
       const stored = boundOcrReading(result, scanReadingStoreLimits());
+      if (!stored) {
+        // more pages than a reading may store: nothing of it is kept, and it is the same ending as a file too large to read
+        await finishRow(db, versionId, revision, { status: "failed", error_code: OCR_TOO_LARGE_CODE });
+        return;
+      }
       const saved = await finishRow(db, versionId, revision, {
         status: "ready",
         pages: stored.pages,
