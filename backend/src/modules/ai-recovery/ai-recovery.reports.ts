@@ -35,6 +35,7 @@ import {
   type HumanReviewExecution,
 } from "../../lib/recovery/review/humanReview";
 import { createApprovedArtifactStorage } from "./ai-recovery.storage";
+import { projectReadable } from "./ai-recovery.executions";
 import {
   internalFailure,
   ok,
@@ -344,11 +345,13 @@ export async function readReport(
     execution_id: string;
     identity: AuthenticatedIdentity;
     revision?: number;
+    user_email?: string | null;
   },
 ): Promise<
   ServiceResult<{ bytes: Uint8Array; filename: string; mime_type: string }>
 > {
   try {
+    if (!(await projectReadable(db, input))) return NOT_FOUND;
     const repository = createSupabaseAiReadRepository(db);
     const evidence = await repository.loadExecutionEvidence({
       project_id: input.project_id,

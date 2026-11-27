@@ -492,6 +492,18 @@ describe("MCP read-only settings route", () => {
         expect(updateUserMcpConnector).toHaveBeenCalledWith("u1", "c1", { readOnly: true }, {});
     });
 
+    it("turns the ask-before-writing switch off and on again", async () => {
+        updateUserMcpConnector.mockResolvedValue({ id: "c1", requireWriteApproval: false });
+        const off = await request(app).patch("/user/mcp-connectors/c1").send({ requireWriteApproval: false });
+        expect(off.status).toBe(200);
+        expect(off.body.requireWriteApproval).toBe(false);
+        expect(updateUserMcpConnector).toHaveBeenLastCalledWith("u1", "c1", { requireWriteApproval: false }, {});
+        updateUserMcpConnector.mockResolvedValue({ id: "c1", requireWriteApproval: true });
+        const on = await request(app).patch("/user/mcp-connectors/c1").send({ requireWriteApproval: true });
+        expect(on.body.requireWriteApproval).toBe(true);
+        expect(updateUserMcpConnector).toHaveBeenLastCalledWith("u1", "c1", { requireWriteApproval: true }, {});
+    });
+
     it("requires authentication and MFA before changing the mode", async () => {
         authState.allowed = false;
         expect((await request(app).patch("/user/mcp-connectors/c1").send({ readOnly: false })).status).toBe(401);

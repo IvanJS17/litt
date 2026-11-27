@@ -5,6 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 
+import { resolveUploadSpace } from "../../lib/storageQuota";
 import type { Db } from "../../lib/supabase";
 import { validateDestinationAccess } from "./uploads.access";
 import {
@@ -12,7 +13,7 @@ import {
   UploadSessionValidationError,
 } from "./uploads.manifest";
 import { createUploadSession } from "./uploads.sessions";
-import { failure, type UploadResult } from "./uploads.shared";
+import { failure, internalFailure, type UploadResult } from "./uploads.shared";
 
 export async function openUploadSession(
   db: Db,
@@ -43,9 +44,19 @@ export async function openUploadSession(
   );
   if (!access.ok) return access;
 
+  // The space the files will fill; the database refuses the session, in the
+  // same transaction that creates it, when that space has no room left.
+  const space = await resolveUploadSpace(db, {
+    purpose: manifest.purpose,
+    destination: manifest.destination as Record<string, unknown>,
+    userId: args.userId,
+  });
+  if (!space.ok) return internalFailure(new Error(space.detail));
+
   return await createUploadSession(db, {
     sessionId,
     userId: args.userId,
+    space: space.space,
     manifest,
     hourlySessionLimit: args.hourlySessionLimit,
   });

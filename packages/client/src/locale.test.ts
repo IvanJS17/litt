@@ -24,6 +24,30 @@ describe("failure text in es-MX", () => {
         configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
     });
 
+    it("says «subir», never «cargar», when the space is full", () => {
+        const { message } = describeError(apiError(413, "storage_quota_exceeded", "API error: 413"));
+        expect(message).toMatch(/subir/);
+        expect(message).not.toMatch(/carg/i);
+    });
+
+    it("says in Spanish to wait for uploads in progress", () => {
+        expect(
+            describeError(apiError(409, "uploads_in_progress_limit", "API error: 409")),
+        ).toMatchObject({
+            kind: "conflict",
+            message: expect.stringMatching(/Ya tienes subidas en curso/),
+        });
+    });
+
+    it("says in Spanish that the space is full", () => {
+        expect(
+            describeError(apiError(413, "storage_quota_exceeded", "API error: 413")),
+        ).toMatchObject({
+            kind: "validation",
+            message: expect.stringMatching(/Ya no hay espacio de almacenamiento.*subir.*guardar versiones nuevas/),
+        });
+    });
+
     it("titles and explains a classified failure in Spanish", () => {
         expect(clientLocale()).toBe("es-MX");
         expect(describeError(new TypeError("Failed to fetch"))).toMatchObject({

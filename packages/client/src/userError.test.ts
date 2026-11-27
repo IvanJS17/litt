@@ -33,6 +33,35 @@ describe("SUPPORT_EMAIL", () => {
 });
 
 describe("describeError", () => {
+
+    it("tells a person who holds too much in progress to wait, and a retry is honest", () => {
+        const described = describeError(
+            new FakeApiError({
+                message: "API error: 409",
+                status: 409,
+                code: "uploads_in_progress_limit",
+            }),
+        );
+        expect(described.kind).toBe("conflict");
+        expect(described.retryable).toBe(true);
+        expect(described.message).toMatch(/uploads in progress/i);
+        expect(described.message).toMatch(/wait for them to finish or cancel/i);
+    });
+
+    it("tells a person that the space is full, and offers no retry", () => {
+        const described = describeError(
+            new FakeApiError({
+                message: "API error: 413",
+                status: 413,
+                code: "storage_quota_exceeded",
+            }),
+        );
+        expect(described.kind).toBe("validation");
+        expect(described.retryable).toBe(false);
+        expect(described.supportable).toBe(false);
+        expect(described.message).toMatch(/no storage space left/i);
+        expect(described.message).toMatch(/administrator/i);
+    });
     beforeEach(() => {
         vi.stubGlobal("navigator", { onLine: true, userAgent: "vitest" });
     });
