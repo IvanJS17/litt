@@ -98,7 +98,14 @@
     [`deployment.md`](deployment.md)); #347, in invitation-only mode a recovery mail goes only
     to a finished account or a current invitation; #348, a running table generation asks, for
     each row, whether its person can still open the documents; #349, status documents.
-- **Merged, not deployed:** nothing.
+- **Merged, not deployed** (`main` at `445f7e6ee`, 2026-11-27):
+  - #351, the backup script keeps the database dump private to its account. A deploy does not
+    install that script: it takes effect on a server when the operator installs it again
+    ([`deploy/prod/README.md`](../deploy/prod/README.md), §7).
+  - #352, a watcher's refusal that throws is contained, and the reader helpers act only for an
+    accepted reader identity.
+  - #353, a password set through LiTT (the invitation's password step, a recovery or Settings)
+    is recorded on the account.
 - **Health:** production verified after `20261127a`: the health endpoint reports that commit, the
   LiTT containers are healthy, the public pages answer, the other domains of the shared edge
   answer as before, and MCP is on (`mcp=401` without a token). The backend container runs as
