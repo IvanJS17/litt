@@ -169,8 +169,7 @@ follows the sources of what it was made from. In the export:
   person's message and the answer that follows it), a backing check and a
   criteria contrast (their message), a work review (it records only the chat:
   every answer of the chat must be readable). This covers assistant and
-  tabular-review chats, listed in the export or not; Word chats are not
-  judged yet.
+  tabular-review and Word chats, listed in the export or not.
 - A reading is of a document and goes through that document's access. One
   whose document was deleted keeps what the person wrote and its result, not
   the passages and comparison drawn from the document.
@@ -1062,9 +1061,13 @@ The current mentor prepares and records an oral defense (specification §6.2):
   their defenses through `GET /training/me/supervision`.
 - The list shows the questions and the note only while the mentor can open
   every matter they were drawn from: the linked work's matter as it is now, or
-  for a practice-area defense the matters recorded in `source_project_ids` when
-A defense whose matters are not recorded (written
-  before that) loses them for every mentor. The outcome stays. Recording an
+  for a practice-area defense the matters recorded in `source_project_ids` and
+  the Word chats recorded in `source_word_chat_ids` when the questions were
+  written. A Word chat is judged as any other training work: the pupil and the
+  mentor read the questions and the note only while they can open what its
+  answers drew on, and the Word chats of all the defenses of a list are judged
+  in one pass. A defense whose matters or Word chats are not recorded (written
+  before that) loses its questions and note for every reader. The outcome stays. Recording an
   outcome answers with the defense as the list shows it, so the questions and
   the note of work in a matter the mentor cannot open are not returned there
   either. An urgency pass in a matter the mentor cannot open is listed as a
@@ -1075,8 +1078,16 @@ A defense whose matters are not recorded (written
   practice area, with questions or a note, has no recorded matters and is
   withheld from every mentor, the one who wrote it included. Questions cannot be
   generated again once an outcome is recorded, so this does not come back for
-  such a defense. A defense on one linked work is judged by that work's matter
-  and is not affected.
+  such a defense. A defense on one linked work is judged by that work and is
+  not affected.
+- Migration `20261127_01_litt_training_defense_word_chat_sources.sql` adds
+  `source_word_chat_ids` (nullable, no default, nothing rewritten). An existing
+  defense over a practice area, with questions or a note, has no recorded Word
+  chats: its questions and note stop being shown to the mentor and to the
+  pupil, and nothing is deleted. New questions record their Word chats (an
+  empty list when none was used). The account export is unchanged: it already
+  keeps a practice-area defense's outcome and drops its questions and note, and
+  it does not list this column.
 - `practice` omitted: the practice area of the linked work's matter, or every
   practice area (`null`) without one. A linked work in a matter the mentor
   cannot open is a `404`.
@@ -1492,7 +1503,11 @@ no decrypted credential is ever kept for a background job.
    those notes were deleted meanwhile, the contrast uses the ones that remain;
    if none remain it fails closed with `409 training_retake_source_gone`, no
    model is called, and the retake is closed as `failed` so it does not hold the
-   person's slot (they can ask for a new one). If the
+   person's slot (they can ask for a new one). A retake whose notes the person
+   can no longer open is listed on their map without its text or its verdict
+   (`text_hidden`), is never the open one (`open_retake_id`), and cannot be
+   answered (`409 training_retake_not_open`); asking for a new retake closes it
+   as `failed` and goes ahead. If the
    contrast fails the retake stays `open`,
    **the answer is not saved** (`503`) and the person may try again.
 

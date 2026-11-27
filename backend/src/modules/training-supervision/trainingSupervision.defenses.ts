@@ -75,6 +75,8 @@ export type DefenseRow = {
     work_review_id: string | null;
     /** The matters the questions were drawn from; null when none was recorded. */
     source_project_ids?: string[] | null;
+    /** The Word chats the questions were drawn from; null when none was recorded. */
+    source_word_chat_ids?: string[] | null;
     questions: TrainingDefenseQuestion[] | null;
     questions_status: string;
     model_provider: string | null;
@@ -153,12 +155,19 @@ export async function listOwnDefenses(
  * What a defense's questions and note rest on, or null when it cannot be
  * established: a defense on one work rests on that work (its place and what
  * its answers drew on, as they are now); one over a practice area, on the
- * matters recorded when its questions were written (none recorded: unknown).
+ * matters and the Word chats recorded when its questions were written (either
+ * not recorded: unknown).
  */
-type Basis = { work: WorkRef } | { matters: string[] } | null;
+type Basis = { work: WorkRef } | { matters: string[]; works: WorkRef[] } | null;
 
 async function defenseBasis(db: Db, row: DefenseRow): Promise<ServiceResult<Basis>> {
-    if (!row.work_review_id) return ok(row.source_project_ids ? { matters: row.source_project_ids } : null);
+    if (!row.work_review_id) {
+        if (!row.source_project_ids || !row.source_word_chat_ids) return ok(null);
+        return ok({
+            matters: row.source_project_ids,
+            works: row.source_word_chat_ids.map((chatId) => ({ surface: "word" as const, chatId })),
+        });
+    }
     const { data, error } = await db
         .from("training_work_reviews")
         .select("id, chat_id, word_chat_id, tabular_chat_id")
@@ -188,7 +197,11 @@ async function readableDefenses(db: Db, actor: Actor, rows: DefenseRow[]): Promi
     let openable: Set<string>;
     try {
         const list = [...bases.values()];
-        sights = await judgeWorks(db, list.flatMap((basis) => (basis && "work" in basis ? [basis.work] : [])), actor);
+        sights = await judgeWorks(
+            db,
+            list.flatMap((basis) => (!basis ? [] : "work" in basis ? [basis.work] : basis.works)),
+            actor,
+        );
         openable = await openMatters(db, actor, list.flatMap((basis) => (basis && "matters" in basis ? basis.matters : [])));
     } catch (error) {
         return internalFailure(error);
@@ -201,7 +214,8 @@ async function readableDefenses(db: Db, actor: Actor, rows: DefenseRow[]): Promi
                 ? false
                 : "work" in basis
                   ? sights.get(workKey(basis.work))?.open === true
-                  : basis.matters.every((id) => openable.has(id));
+                  : basis.matters.every((id) => openable.has(id)) &&
+                  basis.works.every((work) => sights.get(workKey(work))?.open === true);
             return open ? row : { ...row, questions: null, outcome_note: null };
         }),
     );
@@ -333,7 +347,7 @@ async function loadDefense(
 async function defenseNotes(
     db: Db,
     args: { orgId: string; traineeId: string; defense: DefenseRow; actorId: string; actorEmail: string | null },
-): Promise<ServiceResult<{ notes: NoteRow[]; chatId: string | null; projectId: string | null; projectIds: string[] } | null>> {
+): Promise<ServiceResult<{ notes: NoteRow[]; chatId: string | null; projectId: string | null; projectIds: string[]; wordChatIds: string[] } | null>> {
     const { orgId, traineeId, defense } = args;
     if (defense.work_review_id) {
         const review = await visibleReview(db, { ...args, reviewId: defense.work_review_id });
@@ -347,12 +361,14 @@ async function defenseNotes(
             chatId: review.data.surface.chatId,
             projectId: review.data.projectId,
             projectIds: review.data.projectId ? [review.data.projectId] : [],
+            wordChatIds: review.data.surface.surface === "word" ? [review.data.surface.chatId] : [],
         });
     }
     const all = await loadTraineeNotes(db, { orgId, traineeId });
     if (!all.ok) return all;
     const picked: NoteRow[] = [];
     const pickedMatters = new Set<string>();
+    const pickedWordChats = new Set<string>();
     const grouped = groupWorks(all.data);
     let sights: Awaited<ReturnType<typeof judgeWorks>>;
     try {
@@ -374,10 +390,11 @@ async function defenseNotes(
         }
         picked.push(...work.notes);
         if (place.place.projectId) pickedMatters.add(place.place.projectId);
+        if (work.surface === "word") pickedWordChats.add(work.chatId);
         if (picked.length >= REVIEW_MAX_NOTES) break;
     }
     picked.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
-    return ok({ notes: picked, chatId: null, projectId: null, projectIds: [...pickedMatters] });
+    return ok({ notes: picked, chatId: null, projectId: null, projectIds: [...pickedMatters], wordChatIds: [...pickedWordChats] });
 }
 
 /** POST …/defenses/:id/questions: generates (or regenerates) the five questions. */
@@ -465,7 +482,7 @@ export async function generateDefenseQuestions(
         .from("training_defenses")
         .update(
             questions
-                ? { questions_status: "ready", questions, source_project_ids: source.data.projectIds, updated_at: new Date().toISOString() }
+                ? { questions_status: "ready", questions, source_project_ids: source.data.projectIds, source_word_chat_ids: source.data.wordChatIds, updated_at: new Date().toISOString() }
                 : { questions_status: "failed", updated_at: new Date().toISOString() },
         )
         .eq("id", row.id)
@@ -544,19 +561,20 @@ export async function recordDefenseOutcome(
     });
     // Questions never written rest on no work: the mentor's note is theirs, not drawn from a matter.
     // A separate write that holds only while no questions have been written since: questions
-    // generated in between keep the matters they recorded.
+    // generated in between keep the matters and Word chats they recorded.
     let stored: DefenseRow = recorded;
-    if (loaded.data.questions == null && loaded.data.source_project_ids == null) {
+    if (loaded.data.questions == null && loaded.data.source_project_ids == null && loaded.data.source_word_chat_ids == null) {
         const { data: marked, error: markError } = await db
             .from("training_defenses")
-            .update({ source_project_ids: [] })
+            .update({ source_project_ids: [], source_word_chat_ids: [] })
             .eq("id", recorded.id)
             .is("questions", null)
             .is("source_project_ids", null)
+            .is("source_word_chat_ids", null)
             .select("id");
         // A write that fails leaves the matters unrecorded: the note stays withheld, which is safe.
         if (markError) reportError(markError, { tags: { component: "training", operation: "training.defense_sources" } });
-        else if ((marked ?? []).length > 0) stored = { ...recorded, source_project_ids: [] };
+        else if ((marked ?? []).length > 0) stored = { ...recorded, source_project_ids: [], source_word_chat_ids: [] };
     }
     // The answer carries the defense as a list of them does: its questions and note stay behind for work in a matter the mentor cannot open.
     // The outcome is already written, so a lookup that fails is not answered as an error for it: the

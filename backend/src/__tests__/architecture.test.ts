@@ -120,6 +120,29 @@ function namesMatterOnlyHelper(text: string): boolean {
   return /\bjudgeWorkMatters\b/.test(stripComments(text));
 }
 
+/** Where a module specifier of the training work module ends: ".../trainingWork" with or without an extension. */
+const TRAINING_WORK_SPECIFIER = /["'`][^"'`\n]*\/trainingWork(?:\.[jt]s)?["'`]/;
+
+/**
+ * Whether the text takes the training work module whole rather than by name: a namespace import, a
+ * re-export (`export * from`, `export { … } from`), or a load whose specifier is computed (a dynamic
+ * `import(...)` or `require(...)` of anything but one quoted string, in a file that spells the module's name).
+ * Only lib/trainingWork.ts itself may.
+ * A text scan: see the comment on the rules that use it.
+ */
+function takesTrainingWorkWhole(text: string): boolean {
+  const code = stripComments(text);
+  if (new RegExp(`\\bimport\\s*\\*\\s*as\\s+[\\w$]+\\s*from\\s*${TRAINING_WORK_SPECIFIER.source}`).test(code)) return true;
+  if (new RegExp(`\\bexport\\s*(?:\\*(?:\\s*as\\s+[\\w$]+)?|\\{[^}]*\\})\\s*from\\s*${TRAINING_WORK_SPECIFIER.source}`).test(code)) return true;
+  // A computed specifier: only where the file also spells the module's name, in pieces or whole.
+  if (!/\b(?:import|require)\s*\(\s*(?!(?:"[^"\n$]*"|'[^'\n$]*'|`[^`\n$]*`)\s*[),])/.test(code)) return false;
+  const pieces = [...code.matchAll(/(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map((match) => match[2]);
+  for (let start = 0; start < pieces.length; start += 1)
+    for (let end = start + 1; end <= Math.min(pieces.length, start + 6); end += 1)
+      if (compactLetters(pieces.slice(start, end).join("")).includes("trainingwork")) return true;
+  return false;
+}
+
 const compactLetters = (text: string) => text.toLowerCase().replace(/[^a-z]/g, "");
 
 /**
@@ -439,6 +462,36 @@ describe("backend architecture", () => {
       expect(namesMatterOnlyHelper(sample), sample).toBe(true);
     for (const sample of ["await judgeWorks(db, works, reader)", "// judgeWorkMatters in a comment", "const judgeWorkMattersTotal = 1"])
       expect(namesMatterOnlyHelper(sample), sample).toBe(false);
+  });
+
+  // The rules around the training work module are a tripwire, not a proof. A text scan does not see a table
+  // name built from an expression or from the keys of a type, nor a reader that serves training text and
+  // filters it with `openMatters` alone. The proof is each reader's own test (a Word work whose source is
+  // withheld, for every reader of training text); do not try to close those gaps with more scanning.
+  it("security rule 2: only lib/trainingWork.ts takes the training work module whole", () => {
+    const offenders = PRODUCTION_FILES.filter((file) => file !== "lib/trainingWork.ts" && takesTrainingWorkWhole(read(file)));
+    expect(offenders).toEqual([]);
+    for (const sample of [
+      'import * as work from "../../lib/trainingWork";',
+      "import * as work from '../lib/trainingWork.ts';",
+      'export * from "../../lib/trainingWork";',
+      'export * as work from "../../lib/trainingWork";',
+      'export { judgeWorks, openMatters } from "../../lib/trainingWork";',
+      'export {\n  judgeWorks as j,\n} from "../../lib/trainingWork";',
+      'const work = await import("../../lib/training" + "Work");',
+      'const name = "trainingWork"; const work = await import(`../../lib/${name}`);',
+      'const name = ["training", "Work"].join(""); const work = require("../../lib/" + name);',
+    ])
+      expect(takesTrainingWorkWhole(sample), sample).toBe(true);
+    for (const sample of [
+      'import { judgeWorks, type WorkRef } from "../../lib/trainingWork";',
+      'import type { WorkRef } from "../../lib/trainingWork";',
+      'export { other } from "../../lib/training";',
+      'const x = await import("./other");',
+      "const x = await import(`./${name}`);",
+      "// import * as work from \"../../lib/trainingWork\"",
+    ])
+      expect(takesTrainingWorkWhole(sample), sample).toBe(false);
   });
 
   it("rule 10: the text scan sees every spelling of a load of the library", () => {

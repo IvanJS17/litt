@@ -45,6 +45,7 @@ import { TURN_NOTE_CHAT_COLUMN } from "../../lib/trainingNotes";
 import { judgeWorks, WORK_SURFACES, workKey, type WorkReader } from "../../lib/trainingWork";
 import {
     effectiveRetakeStatus,
+    isLiveRetake,
     loadOwnRetake,
     readRetakes,
     retakeNotFound,
@@ -53,7 +54,7 @@ import {
 } from "./trainingCriterion.retakeRows";
 import { retakeRoute } from "./trainingCriterion.retakeRoute";
 import { visibleEvidence } from "./trainingCriterion.evidence";
-import { eventsOf } from "./trainingCriterion.view";
+import { eventsOf, splitRetakes } from "./trainingCriterion.view";
 
 export const RETAKE_IN_PROGRESS_CODE = "training_retake_in_progress";
 export const RETAKE_NOT_DUE_CODE = "training_retake_not_due";
@@ -146,16 +147,29 @@ export async function startRetake(
     if (!settled.ok) return settled;
     // Read again: a stale `pending` that had a question went back to `open`
     // and still holds the person's single slot.
-    const existing = await readRetakes(db, orgId, args.userId);
-    if (!existing.ok) return existing;
-    if (existing.data.some((row) => row.status === "pending" || row.status === "open"))
-        return failure("conflict", IN_PROGRESS, RETAKE_IN_PROGRESS_CODE);
+    const read = await readRetakes(db, orgId, args.userId);
+    if (!read.ok) return read;
 
     const loaded = await loadEvidenceNotes(db, { orgId, traineeId: args.userId });
     if (!loaded.ok) return loaded;
     // Only the notes of works the person may see now count toward a topic they retake.
     const seen = await visibleEvidence(db, loaded.data, { actorId: args.userId, actorEmail: args.userEmail });
     if (!seen.ok) return seen;
+    // A live retake whose text the person may not see holds no slot: it is closed, as one whose notes are gone is.
+    const closing = splitRetakes(read.data, seen.data.rows).hidden.filter((row) => isLiveRetake(row, now));
+    for (const row of closing) {
+        const { error: closeError } = await db
+            .from("training_retakes")
+            .update({ status: "failed", updated_at: new Date(now).toISOString() })
+            .eq("id", row.id)
+            .eq("status", row.status)
+            .eq("updated_at", row.updated_at);
+        if (closeError) return internalFailure(closeError);
+    }
+    const existing = closing.length > 0 ? await readRetakes(db, orgId, args.userId) : read;
+    if (!existing.ok) return existing;
+    if (existing.data.some((row) => row.status === "pending" || row.status === "open"))
+        return failure("conflict", IN_PROGRESS, RETAKE_IN_PROGRESS_CODE);
     const notes = { data: seen.data.rows };
     const events = eventsOf(notes.data, existing.data);
     const topic = computeMap(events, now).find((candidate) => candidate.key === key);
@@ -273,6 +287,15 @@ export async function answerRetake(
     if (status === "pending") return failure("conflict", IN_PROGRESS, RETAKE_IN_PROGRESS_CODE);
     // A stale pending that had a question reads as open: it waits for the answer again.
     if (status !== "open") return failure("conflict", NOT_OPEN, RETAKE_NOT_OPEN_CODE);
+    // A retake with a source note the person may not see now cannot be answered: it holds no slot and is closed when a new one starts.
+    const notes = await loadEvidenceNotes(db, { orgId: row.org_id, traineeId: args.userId });
+    if (!notes.ok) return notes;
+    const seen = await visibleEvidence(db, notes.data, { actorId: args.userId, actorEmail: args.userEmail });
+    if (!seen.ok) return seen;
+    const visibleIds = new Set(seen.data.rows.map((note) => note.id));
+    const existingIds = new Set(notes.data.map((note) => note.id));
+    if ((row.source_note_ids ?? []).some((id) => existingIds.has(id) && !visibleIds.has(id)))
+        return failure("conflict", NOT_OPEN, RETAKE_NOT_OPEN_CODE);
     const checked = checkRetakeAnswer(body.answer);
     if (!checked.ok) return failure("validation", checked.detail);
     const credential = parseCredentialRef(body.credential_ref);

@@ -54,7 +54,7 @@ const QUESTIONS = [
 const defense = (over: Row): Row => ({
     org_id: ORG, trainee_user_id: PUPIL, practice: null, work_review_id: null,
     questions: QUESTIONS, questions_status: "ready", outcome: "approved", outcome_reason: "razonamiento_solido",
-    outcome_note: "Nota sobre el asunto Acme", held_at: "2026-11-10T10:00:00Z",
+    outcome_note: "Nota sobre el asunto Acme", held_at: "2026-11-10T10:00:00Z", source_word_chat_ids: [],
     created_at: "2026-11-10T10:00:00Z", updated_at: "2026-11-10T10:00:00Z", ...over,
 });
 
@@ -156,10 +156,11 @@ describe("recording an outcome returns the defense as a list of them does", () =
     });
 
     it("keeps the note of a defense recorded without questions: it rests on no work", async () => {
-        const rows = [pending({ id: id(84), questions: null, questions_status: "none" })];
+        const rows = [pending({ id: id(84), questions: null, questions_status: "none", source_word_chat_ids: null })];
         const { defense: returned, stored } = await record(rows, id(84));
         expect(returned).toMatchObject({ outcome: "approved", outcome_note: "Nota de la defensa" });
         expect(stored.source_project_ids).toEqual([]);
+        expect(stored.source_word_chat_ids).toEqual([]);
         // And a later list shows it too, to whoever is the mentor then.
         expect((await listed([stored]))[0].outcome_note).toBe("Nota de la defensa");
     });

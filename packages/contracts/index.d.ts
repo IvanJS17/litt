@@ -857,9 +857,9 @@ export interface TrainingRetake {
   answered_at: string | null;
   /**
    * True only on the person's own map: the retake was made from notes of a work the person can no longer open, so
-   * it is listed without its text (`question`, `answer` and `contrast` null, `topic_key` and `topic_label` empty)
-   * and still holds the one open slot. False otherwise. The mentor's view never sends such a retake; it counts
-   * them in `retakes_without_access`.
+   * it is listed without its text or verdict (`question`, `answer`, `contrast` and `verdict` null, `topic_key` and
+   * `topic_label` empty) and holds no slot: `open_retake_id` never names it, and starting a new retake closes it.
+   * False otherwise. The mentor's view never sends such a retake; it counts them in `retakes_without_access`.
    */
   text_hidden: boolean;
 }

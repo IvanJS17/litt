@@ -125,12 +125,11 @@ describe("what a retake sends to the model", () => {
         }],
     });
 
-    it("answering one sends no note whose source is withheld, and closes it", async () => {
+    it("answering one whose source is withheld is refused as a retake that is not waiting for an answer, and sends nothing", async () => {
         const world = trainingWorld(WITHHELD_SOURCE, open());
         const result = await answerRetake(world.db, { ...person, retakeId: RETAKE, body: { answer: ANSWER } });
-        expect(result).toMatchObject({ ok: false, code: "training_retake_source_gone" });
+        expect(result).toMatchObject({ ok: false, kind: "conflict", code: "training_retake_not_open" });
         expect(sent.join("\n")).not.toContain("ATTEMPT-TEXT");
-        expect(world.tables.training_retakes[0].status).toBe("failed");
     });
 
     it("answering one sends the note when the answers read only the open document", async () => {
@@ -138,5 +137,72 @@ describe("what a retake sends to the model", () => {
         // (the stub answers with a question, so the judgement itself is not parsed: what matters is what was sent)
         await answerRetake(world.db, { ...person, retakeId: RETAKE, body: { answer: ANSWER } });
         expect(sent.join("\n")).toContain("ATTEMPT-TEXT-0");
+    });
+});
+
+describe("a retake whose text is withheld holds no slot and shows no verdict", () => {
+    const SECOND_CHAT = "00000000-0000-4000-8000-0000000000e1";
+    const SECOND_NOTES = [0, 1, 2].map((n) => `00000000-0000-4000-8000-0000000000e${n + 2}`);
+    const retakeOf = (noteIds: string[], over: Record<string, unknown> = {}) => ({
+        id: RETAKE, org_id: ORG, trainee_user_id: PUPIL, topic_key: "topic label", topic_label: "Topic Label", status: "open",
+        question: "RETAKE-QUESTION", contrast: null, answer: null, verdict: null, source_note_ids: noteIds,
+        created_at: "2026-11-11T10:00:00Z", updated_at: new Date(NOW).toISOString(), answered_at: null, ...over,
+    });
+    /** The Word chat of the first retake has a withheld source; a second Word chat, with a second topic, read only the open document. */
+    const twoTopics = (retakes: Record<string, unknown>[], secondOpen = true) => {
+        const base = trainingWorld(WITHHELD_SOURCE).tables;
+        return trainingWorld(WITHHELD_SOURCE, {
+            training_retakes: retakes,
+            word_chats: [...base.word_chats, { id: SECOND_CHAT, user_id: PUPIL, title: "second" }],
+            word_chat_messages: [
+                ...base.word_chat_messages,
+                { id: "00000000-0000-4000-8000-0000000000e8", chat_id: SECOND_CHAT, role: "user", files: null, citations: null, content: "typed", created_at: "2026-11-10T10:00:01Z" },
+                { id: "00000000-0000-4000-8000-0000000000e9", chat_id: SECOND_CHAT, role: "assistant", files: null, citations: null, content: [...(secondOpen ? OPEN_DOCUMENT_ONLY : WITHHELD_SOURCE), { type: "content", text: "a" }], created_at: "2026-11-10T10:00:02Z" },
+            ],
+            training_turn_notes: [
+                ...base.training_turn_notes,
+                ...SECOND_NOTES.map((id, index) => ({
+                    ...base.training_turn_notes[0], id, word_chat_id: SECOND_CHAT, message_id: "00000000-0000-4000-8000-0000000000e8",
+                    attempt: `SECOND-ATTEMPT-${index}`, topics: ["Second Topic"], created_at: new Date(Date.UTC(2026, 8, 1 + index)).toISOString(),
+                })),
+            ],
+        });
+    };
+    const withheldRetake = () => retakeOf(NOTE_IDS_OF_FIRST, { verdict: "no_coincide" });
+    const NOTE_IDS_OF_FIRST = ["00000000-0000-4000-8000-000000000050"];
+
+    it("lists it on the person's map with no verdict, and it does not name it as the open one", async () => {
+        const world = twoTopics([withheldRetake()]);
+        const result = await getMyCriterion(world.db, { userId: PUPIL, orgId: ORG, now: NOW });
+        if (!result.ok) throw new Error(result.kind);
+        expect(result.data.open_retake_id).toBeNull();
+        expect(result.data.retakes).toHaveLength(1);
+        expect(result.data.retakes[0]).toMatchObject({ text_hidden: true, verdict: null, question: null });
+    });
+
+    it("still names an ordinary live retake as the open one", async () => {
+        const world = twoTopics([retakeOf(SECOND_NOTES, { topic_key: "second topic", topic_label: "Second Topic" })]);
+        const result = await getMyCriterion(world.db, { userId: PUPIL, orgId: ORG, now: NOW });
+        if (!result.ok) throw new Error(result.kind);
+        expect(result.data.open_retake_id).toBe(RETAKE);
+        expect(result.data.retakes[0]).toMatchObject({ text_hidden: false, question: "RETAKE-QUESTION" });
+    });
+
+    it("starting a new one closes the withheld one and goes ahead", async () => {
+        const world = twoTopics([withheldRetake()]);
+        const result = await startRetake(world.db, { ...person, orgId: ORG, body: { topic_key: "second topic" }, now: NOW });
+        expect(result.ok).toBe(true);
+        const stored = world.tables.training_retakes;
+        expect(stored.find((row) => row.id === RETAKE)?.status).toBe("failed");
+        expect(stored).toHaveLength(2);
+        expect(sent.join("\n")).toContain("SECOND-ATTEMPT");
+        expect(sent.join("\n")).not.toContain("ATTEMPT-TEXT");
+    });
+
+    it("starting a new one is still refused while an ordinary retake is live", async () => {
+        const world = twoTopics([retakeOf(SECOND_NOTES, { topic_key: "second topic", topic_label: "Second Topic" })]);
+        const result = await startRetake(world.db, { ...person, orgId: ORG, body: { topic_key: "topic label" }, now: NOW });
+        expect(result).toMatchObject({ ok: false, code: "training_retake_in_progress" });
+        expect(world.tables.training_retakes[0].status).toBe("open");
     });
 });

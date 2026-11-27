@@ -227,7 +227,7 @@ describe("Mi criterio", () => {
             verdict: null,
             text_hidden: true,
         });
-        vi.mocked(api.getMyCriterion).mockResolvedValue(criterion({ open_retake_id: "rt-1", retakes: [hidden, retake({ id: "rt-0" })] }));
+        vi.mocked(api.getMyCriterion).mockResolvedValue(criterion({ open_retake_id: null, retakes: [hidden, retake({ id: "rt-0" })] }));
         renderEs(<MyCriterion orgId="org-1" />);
         const line = await screen.findByText(/El texto de la retoma ya no está disponible porque ya no puedes abrir/);
         expect(line.closest("li")).toHaveTextContent(/^El texto de la retoma ya no está disponible[^]*$/);
@@ -236,6 +236,24 @@ describe("Mi criterio", () => {
         expect(screen.getAllByText("Prescripción cambiaria").length).toBeGreaterThan(0);
         expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
         expect(screen.getByText("¿En cuánto prescribe la acción cambiaria directa?")).toBeInTheDocument();
+    });
+
+    it("offers to retake a due topic again while the only live retake is one whose text is withheld", async () => {
+        const hidden = retake({
+            status: "open",
+            topic_key: "",
+            topic_label: "",
+            question: null,
+            answer: null,
+            contrast: null,
+            verdict: null,
+            text_hidden: true,
+        });
+        vi.mocked(api.getMyCriterion).mockResolvedValue(criterion({ open_retake_id: null, retakes: [hidden] }));
+        renderEs(<MyCriterion orgId="org-1" />);
+        expect(await screen.findByText(/El texto de la retoma ya no está disponible/)).toBeInTheDocument();
+        fireEvent.click(await screen.findByRole("button", { name: "Retomar «Prescripción cambiaria»" }));
+        await waitFor(() => expect(api.startRetake).toHaveBeenCalledWith("org-1", "prescripcion cambiaria", "user:k1"));
     });
 
     it("reports a refused retake with its own sentence", async () => {

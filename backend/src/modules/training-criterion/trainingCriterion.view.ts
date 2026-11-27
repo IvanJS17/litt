@@ -45,9 +45,9 @@ export function answeredRetakes(rows: readonly RetakeRow[]): AnsweredRetake[] {
     );
 }
 
-/** A retake made from notes the reader may not see: its place and state, none of the text computed from them. */
+/** A retake made from notes the reader may not see: its place and state, none of the text or the verdict computed from them. */
 function withheldRetake(row: RetakeRow, now: number) {
-    return { ...serializeRetake(row, now), topic_key: "", topic_label: "", question: null, answer: null, contrast: null, text_hidden: true };
+    return { ...serializeRetake(row, now), topic_key: "", topic_label: "", question: null, answer: null, contrast: null, verdict: null, text_hidden: true };
 }
 
 /**
@@ -55,7 +55,7 @@ function withheldRetake(row: RetakeRow, now: number) {
  * label read again from those notes (never the stored one, which the model
  * wrote from every source); the others are `hidden`.
  */
-function splitRetakes(retakes: readonly RetakeRow[], visibleRows: readonly EvidenceRow[]) {
+export function splitRetakes(retakes: readonly RetakeRow[], visibleRows: readonly EvidenceRow[]) {
     const openableNotes = new Set(visibleRows.map((row) => row.id));
     const notesById = new Map(visibleRows.map((row) => [row.id, row]));
     const shown: RetakeRow[] = [];
@@ -87,7 +87,7 @@ function build(args: {
     traineeId: string;
     rows: readonly EvidenceRow[];
     retakes: readonly RetakeRow[];
-    /** Retakes whose text the reader may not read: listed without it, still holding the slot. */
+    /** Retakes whose text the reader may not read: listed without it or its verdict; they hold no slot. */
     hiddenRetakes?: readonly RetakeRow[];
     now: number;
 }) {
@@ -119,7 +119,7 @@ function build(args: {
             ...args.retakes.map((row) => serializeRetake(row, args.now)),
             ...(args.hiddenRetakes ?? []).map((row) => withheldRetake(row, args.now)),
         ].sort((a, b) => b.created_at.localeCompare(a.created_at)),
-        open_retake_id: open?.id ?? (args.hiddenRetakes ?? []).find((row) => isLiveRetake(row, args.now))?.id ?? null,
+        open_retake_id: open?.id ?? null,
     };
 }
 

@@ -18471,6 +18471,9 @@ create table if not exists public.training_defenses (
   -- The matters the questions were drawn from when they were written; empty:
   -- work outside any matter; null: not recorded.
   source_project_ids uuid[],
+  -- The Word chats the questions were drawn from when they were written; empty:
+  -- none used; null: not recorded.
+  source_word_chat_ids uuid[],
   -- [{ kind: 'base' | 'cambio_de_hechos', text, listen_for }]
   questions jsonb,
   questions_status text not null default 'none',
@@ -24312,5 +24315,6 @@ insert into public.schema_migrations (filename) values
   ('20261126_70_litt_document_text_bounded_reads.sql'),
   ('20261126_80_litt_storage_quota.sql'),
   ('20261126_90_litt_upload_claim_fairness.sql'),
-  ('20261126_95_litt_connectors_ask_before_writing.sql')
+  ('20261126_95_litt_connectors_ask_before_writing.sql'),
+  ('20261127_01_litt_training_defense_word_chat_sources.sql')
 on conflict (filename) do nothing;
