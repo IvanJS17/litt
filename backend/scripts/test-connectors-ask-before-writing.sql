@@ -79,5 +79,16 @@ select pg_temp.assert_true(
   and not (select require_write_approval from public.user_google_workspace_tokens where user_id = '00000000-0000-0000-0000-0000000000a1'),
   'a second run does not switch back on what a person turned off');
 
+-- 3. A table left with any other default makes the migration fail: it never
+-- records itself as applied having left a connector table as it was.
+savepoint other_default;
+alter table public.user_google_drive_tokens alter column require_write_approval drop default;
+\set ON_ERROR_STOP off
+\ir ../migrations/20261126_95_litt_connectors_ask_before_writing.sql
+\set migration_failed :ERROR
+\set ON_ERROR_STOP on
+rollback to savepoint other_default;
+select pg_temp.assert_true(:'migration_failed' = 'true', 'the migration fails when a connector table is left with another default');
+
 rollback;
 \echo connectors ask before writing: ok
