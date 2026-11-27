@@ -23788,6 +23788,229 @@ revoke all on function public.claim_db_jobs(integer, integer, text, integer)
 grant execute on function public.claim_db_jobs(integer, integer, text, integer)
   to service_role;
 
+-- Migration date: 2026-11-26
+-- Reading and searching the stored text of a document costs a bounded amount,
+-- whatever the document.
+--
+-- read_document_text returned the whole text as one JSON value (a stored text
+-- of 16 MiB can be about 50 MiB of JSON). It now returns one slice: at most
+-- 500,000 characters (a few MiB of JSON even for control characters, which
+-- JSON writes as six bytes), whatever the caller asks, with the length of the
+-- whole text so the caller can ask for the next slice. document_text_slice is
+-- the same slice for the server's own reads that were already authorized.
+-- Both take the offset and the length with no defaults: a caller of the previous
+-- shape (four arguments) gets an error, never a text silently cut at the bound.
+--
+-- The pieces of a search are lowered under the database's default collation
+-- (convert_from gives the "C" one, which lowers only ASCII), so the phrase finds
+-- the same text as lower(text) always did, accented capitals included, at the
+-- offsets of the lowered text.
+--
+-- find_document_text keeps its signature, its eligibility and access rules and
+-- its answer shape. It no longer runs `like` over every whole text. It scans
+-- each ready text in pieces of 64 KiB (with an overlap of the phrase's length,
+-- so a match across two pieces is found), checks the clock between pieces and
+-- stops when a 3 second budget is spent. coverage.search_incomplete says so:
+-- an incomplete search is never a silent "no matches". The setting
+-- litt.text_search_budget_ms can only shorten the budget (tests use it).
+drop function if exists public.read_document_text(text,text,uuid,uuid);
+drop function if exists public.read_document_text(text,text,uuid,uuid,integer,integer);
+drop function if exists public.document_text_slice(uuid,uuid,integer,integer);
+
+create or replace function public.read_document_text(p_user_id text,p_user_email text,p_document_id uuid,p_version_id uuid,
+  p_offset integer,p_length integer)
+returns jsonb language sql stable security invoker set search_path=public,pg_temp as $$
+  select jsonb_build_object('revision',v.text_revision,'status',coalesce(t.status,'pending'),
+    'text',substring(t.text_content from greatest(coalesce(p_offset,0),0)+1 for least(greatest(coalesce(p_length,500000),0),500000)),
+    'text_length',char_length(t.text_content),'textless_page_count',t.textless_page_count)
+  from public.document_versions v left join public.document_version_texts t
+    on t.version_id=v.id and t.source_revision=v.text_revision and t.extractor_version=1
+  where v.id=p_version_id and v.document_id=p_document_id and v.deleted_at is null
+    and public.document_text_access(p_document_id,p_user_id,p_user_email);
+$$;
+
+-- For reads the server has already authorized (the version's own revision and
+-- ready text): the same bounded slice, without the actor.
+create or replace function public.document_text_slice(p_version_id uuid,p_source_revision uuid,
+  p_offset integer,p_length integer)
+returns jsonb language sql stable security invoker set search_path=public,pg_temp as $$
+  select jsonb_build_object(
+    'text',substring(t.text_content from greatest(coalesce(p_offset,0),0)+1 for least(greatest(coalesce(p_length,500000),0),500000)),
+    'text_length',char_length(t.text_content))
+  from public.document_version_texts t
+  where t.version_id=p_version_id and t.source_revision=p_source_revision and t.extractor_version=1 and t.status='ready';
+$$;
+
+create or replace function public.find_document_text(
+  p_user_id text,p_user_email text,p_workspace text,p_scope text,p_query text,
+  p_project_id uuid default null,p_document_id uuid default null,p_version_id uuid default null,
+  p_limit integer default 10,p_offset integer default 0
+) returns jsonb language plpgsql stable security invoker set search_path=public,pg_temp as $$
+declare result jsonb; project_allowed boolean; page_limit integer:=least(greatest(coalesce(p_limit,10),1),20);
+  cov jsonb; elig jsonb; el jsonb; hits jsonb:='[]'::jsonb; found_n integer:=0; seen integer:=0; stopped boolean:=false;
+  blob bytea; nbytes integer; b0 integer; b1 integer; w1 integer; chars_before integer; hit_at integer;
+  needle text:=lower(p_query); needle_len integer:=char_length(lower(p_query));
+  piece constant integer:=65536;
+  budget_ms integer:=least(greatest(coalesce(nullif(current_setting('litt.text_search_budget_ms',true),'')::integer,3000),0),3000);
+  deadline timestamptz;
+begin
+  if p_scope is null or p_scope not in ('project','library','templates','document') or p_query is null
+    or char_length(trim(p_query))<2 or char_length(p_query)>500
+    or p_offset is null or p_offset<0 or p_offset>100000
+    or (p_scope='project' and p_project_id is null)
+    or (p_scope='document' and p_document_id is null)
+    or (p_version_id is not null and p_scope<>'document') then
+    raise exception 'Invalid document search' using errcode='22023';
+  end if;
+  deadline:=clock_timestamp()+make_interval(secs=>budget_ms/1000.0);
+  if p_scope='project' then
+    select public.project_access_role(p.id,p.user_id,p.org_id,p_user_id,p_user_email) is not null
+      into project_allowed from public.projects p where p.id=p_project_id;
+  end if;
+  with eligible as materialized (
+    select d.id document_id,d.library_kind,v.id version_id,v.version_number,v.filename,v.file_type,
+      v.storage_path,v.text_revision
+    from public.documents d join public.document_versions v on v.document_id=d.id
+    where d.archived_at is null and v.deleted_at is null
+      and (case when p_version_id is null then v.id=d.current_version_id else v.id=p_version_id end)
+      and (case when coalesce(p_workspace,'personal')='personal' then d.org_id is null else d.org_id=p_workspace::uuid end)
+      and case p_scope
+        when 'project' then d.project_id=p_project_id
+        when 'library' then d.project_id is null and d.workflow_id is null and d.library_kind='file' and d.user_id=(case when p_user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then p_user_id::uuid end)
+        when 'templates' then d.project_id is null and d.workflow_id is null and d.library_kind='template' and d.user_id=(case when p_user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then p_user_id::uuid end)
+        when 'document' then d.id=p_document_id
+        else false end
+      and case when p_scope='project' then coalesce(project_allowed,false) and public.org_is_active(d.org_id)
+        else public.document_text_access(d.id,p_user_id,p_user_email) end
+  ), coverage as (
+    select count(*) total_versions,
+      count(*) filter(where t.status='ready') indexed_versions,
+      count(*) filter(where t.status='failed') failed_versions,
+      count(*) filter(where t.status is null or t.status in ('pending','processing')) pending_versions,
+      count(*) filter(where t.status='ready' and t.textless_page_count>0) versions_needing_ocr
+    -- Each eligible version's text is one primary-key probe (OFFSET 0 keeps
+    -- the subquery from being flattened). Joined freely, a reused generic
+    -- plan scanned the text table, or its trigram index, across all tenants.
+    from eligible e left join lateral (
+      select item.status,item.textless_page_count from public.document_version_texts item
+      where item.version_id=e.version_id and item.source_revision=e.text_revision and item.extractor_version=1
+      offset 0
+    ) t on true
+  )
+  select (select to_jsonb(coverage) from coverage),
+    (select coalesce(jsonb_agg(to_jsonb(e) order by e.document_id,e.version_id),'[]'::jsonb) from eligible e)
+    into cov, elig;
+
+  -- The text of each eligible version is scanned in pieces of 64 KiB, each
+  -- extended by the phrase's length so a match across two pieces is found, and
+  -- the clock is checked between pieces: the cost of a search is bounded
+  -- whatever the stored text and the phrase.
+  for el in select value from jsonb_array_elements(elig) loop
+    exit when stopped or found_n>page_limit;
+    if clock_timestamp()>deadline then stopped:=true; exit; end if;
+    select convert_to(item.text_content,'UTF8') into blob from public.document_version_texts item
+      where item.version_id=(el->>'version_id')::uuid and item.source_revision=(el->>'text_revision')::uuid
+        and item.status='ready' and item.extractor_version=1;
+    if not found or blob is null then continue; end if;
+    nbytes:=octet_length(blob); b0:=0; chars_before:=0; hit_at:=null;
+    while b0<nbytes loop
+      if clock_timestamp()>deadline then stopped:=true; exit; end if;
+      b1:=least(b0+piece,nbytes);
+      while b1<nbytes and (get_byte(blob,b1)&192)=128 loop b1:=b1+1; end loop;
+      w1:=least(b1+4*needle_len,nbytes);
+      while w1<nbytes and (get_byte(blob,w1)&192)=128 loop w1:=w1+1; end loop;
+      hit_at:=strpos(lower(convert_from(substring(blob from b0+1 for w1-b0),'UTF8') collate "default"),needle);
+      if hit_at>0 then hit_at:=chars_before+hit_at; exit; end if;
+      hit_at:=null;
+      chars_before:=chars_before+char_length(lower(convert_from(substring(blob from b0+1 for b1-b0),'UTF8') collate "default"));
+      b0:=b1;
+    end loop;
+    if hit_at is not null then
+      seen:=seen+1;
+      if seen>p_offset then
+        hits:=hits||jsonb_build_array(el||jsonb_build_object('pos',hit_at));
+        found_n:=found_n+1;
+      end if;
+    end if;
+  end loop;
+
+  select jsonb_build_object('coverage',cov||jsonb_build_object('search_incomplete',stopped),
+    'next_offset',case when found_n>page_limit then p_offset+page_limit else null end,
+    'matches',coalesce((select jsonb_agg(jsonb_build_object(
+      'document_id',m.value->>'document_id','version_id',m.value->>'version_id',
+      'version_number',m.value->'version_number','revision',m.value->>'text_revision',
+      'filename',m.value->>'filename','file_type',m.value->>'file_type','storage_path',m.value->>'storage_path',
+      'library_kind',m.value->>'library_kind','start_char',(m.value->>'pos')::integer-1,
+      'end_char',(m.value->>'pos')::integer-1+char_length(p_query),
+      'excerpt_start_char',greatest((m.value->>'pos')::integer-161,0),
+      'excerpt',(select substring(item.text_content from greatest((m.value->>'pos')::integer-160,1) for char_length(p_query)+320)
+        from public.document_version_texts item where item.version_id=(m.value->>'version_id')::uuid
+          and item.source_revision=(m.value->>'text_revision')::uuid)
+    ) order by m.ordinality) from jsonb_array_elements(hits) with ordinality m where m.ordinality<=page_limit),'[]'::jsonb)) into result;
+  return result;
+end;
+$$;
+
+revoke all on function public.read_document_text(text,text,uuid,uuid,integer,integer),
+  public.document_text_slice(uuid,uuid,integer,integer),
+  public.find_document_text(text,text,text,text,text,uuid,uuid,uuid,integer,integer) from public,anon,authenticated;
+grant execute on function public.read_document_text(text,text,uuid,uuid,integer,integer),
+  public.document_text_slice(uuid,uuid,integer,integer),
+  public.find_document_text(text,text,text,text,text,uuid,uuid,uuid,integer,integer) to service_role;
+
+-- The state of a scan reading (docs/document-ocr.md) for what is shown to a person:
+-- the row's columns and HOW MANY pages were read, never the text of those pages
+-- (document_version_ocr.pages is read whole only by the jobs that merge or copy it).
+create or replace function public.document_ocr_state(p_version_id uuid)
+returns jsonb language sql stable security invoker set search_path=public,pg_temp as $$
+  select jsonb_build_object('version_id',o.version_id,'source_revision',o.source_revision,'updated_at',o.updated_at,'status',o.status,
+    'failed_pages',to_jsonb(o.failed_pages),'credits',o.credits,'page_count',o.page_count,
+    'error_code',o.error_code,'model',o.model,
+    'pages_read',case when jsonb_typeof(o.pages)='array' then jsonb_array_length(o.pages) end)
+  from public.document_version_ocr o where o.version_id=p_version_id;
+$$;
+revoke all on function public.document_ocr_state(uuid) from public,anon,authenticated;
+grant execute on function public.document_ocr_state(uuid) to service_role;
+
+-- The pages read from a scan (document_version_ocr.pages) leave the database in
+-- slices: from page index p_from, whole elements are added until 500,000
+-- bytes (their stored size) have been reached or 1,000 elements are
+-- in (an element is never cut, and the first always comes back, alone if it is
+-- larger than the budget), so one answer is at most the budget plus one element
+-- and at most 1,000 elements, and one call costs the same whatever they are. `next` is the index to continue from, or null
+-- at the end; source_revision and updated_at identify the reading, so a caller
+-- can tell that a new reading replaced the row between two slices. `pages` is
+-- null for a row with no pages yet. Server-only.
+-- A generic plan is forced: with the value of `pages` as a parameter, a custom plan holds one more copy of it
+-- (a reading of repetitive text is large once read, small when stored).
+create or replace function public.document_ocr_pages(p_version_id uuid,p_from integer)
+returns jsonb language plpgsql stable security invoker set search_path=public,pg_temp set plan_cache_mode=force_generic_plan as $$
+declare rev uuid; upd timestamptz; pg jsonb; total integer; first_idx integer:=greatest(coalesce(p_from,0),0); acc jsonb; last_idx integer; i integer; used integer:=0;
+begin
+  select r.source_revision,r.updated_at,r.pages into rev,upd,pg from public.document_version_ocr r where r.version_id=p_version_id;
+  if not found then return null; end if;
+  if jsonb_typeof(pg) is distinct from 'array' then
+    return jsonb_build_object('source_revision',rev,'updated_at',upd,'pages',null,'next',null);
+  end if;
+  -- one in-memory copy: indexing the stored (compressed) value would decompress all of it for every page
+  pg:=pg||'[]'::jsonb; total:=jsonb_array_length(pg);
+  first_idx:=least(first_idx,total); -- a start past the end reads nothing, whatever the number
+  -- Find the last element to return by adding up sizes only (the whole element, whatever it is: its stored size in
+  -- bytes, never less than its characters): elements are added while the bytes before them are under 500,000, at
+  -- most 1,000 of them, the first always. Nothing is built here, and only elements that are returned are read, so
+  -- memory is that of the stored value plus the answer; the time is that of at most 1,000 steps, whatever they are.
+  i:=first_idx;
+  while i<total and i<first_idx+1000 and used<500000 loop
+    used:=used+pg_column_size(pg->i); last_idx:=i; i:=i+1;
+  end loop;
+  select coalesce(jsonb_agg(pg->g order by g),'[]'::jsonb) into acc from generate_series(first_idx,last_idx) g;
+  return jsonb_build_object('source_revision',rev,'updated_at',upd,'pages',acc,
+    'next',case when last_idx is not null and last_idx+1<total then last_idx+1 end);
+end;
+$$;
+revoke all on function public.document_ocr_pages(uuid,integer) from public,anon,authenticated;
+grant execute on function public.document_ocr_pages(uuid,integer) to service_role;
+
 insert into public.schema_migrations (filename) values
   ('20260419_tabular_chat_jsonb.sql'),
   ('20260421_01_docx_editing.sql'),
@@ -24086,6 +24309,7 @@ insert into public.schema_migrations (filename) values
   ('20261126_01_litt_private_matter_project_private.sql'),
   ('20261126_20_litt_db_jobs_fair_parser_claim.sql'),
   ('20261126_30_litt_db_jobs_claim_kind_arm.sql'),
+  ('20261126_70_litt_document_text_bounded_reads.sql'),
   ('20261126_80_litt_storage_quota.sql'),
   ('20261126_90_litt_upload_claim_fairness.sql'),
   ('20261126_95_litt_connectors_ask_before_writing.sql')

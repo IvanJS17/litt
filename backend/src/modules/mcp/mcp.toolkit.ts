@@ -156,18 +156,23 @@ export function windowOf(
     text: string,
     offset: number,
     limit: number,
+    // `text` is only a part of the document: the characters from `part.start`, of a document `part.total` long.
+    part?: { start: number; total: number },
 ): { slice: string; start: number; end: number; total: number } {
     const astral = /[\uD800-\uDBFF]/.test(text);
     const points = astral ? Array.from(text) : null;
-    const total = points ? points.length : text.length;
+    const base = part?.start ?? 0;
+    const total = part ? part.total : points ? points.length : text.length;
     const start = Math.min(offset, total);
     let end = Math.min(start + limit, total);
     if (end < total) {
         const from = start + Math.floor(limit * 0.8);
-        const cut = points ? points.lastIndexOf("\n", end - 1) : text.lastIndexOf("\n", end - 1);
+        const found = points ? points.lastIndexOf("\n", end - 1 - base) : text.lastIndexOf("\n", end - 1 - base);
+        const cut = found < 0 ? -1 : found + base;
         if (cut >= from) end = cut + 1;
     }
-    return { slice: points ? points.slice(start, end).join("") : text.slice(start, end), start, end, total };
+    const [a, b] = [Math.max(start - base, 0), Math.max(end - base, 0)];
+    return { slice: points ? points.slice(a, b).join("") : text.slice(a, b), start, end, total };
 }
 
 // ---------------------------------------------------------------------------

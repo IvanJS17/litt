@@ -5,6 +5,7 @@ import path from "node:path";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import {
   extractionLauncherWarnings,
+  scanReadingStoreLimits,
   uploadConversionTimeoutMs,
   uploadJobWallClockMs,
   uploadProcessingConfiguration,
@@ -363,5 +364,24 @@ describe("extractionLauncherWarnings", () => {
 
   it("is quiet when parser isolation is off", () => {
     expect(extractionLauncherWarnings(env(empty, "off"), "linux")).toEqual([]);
+  });
+});
+
+describe("what a scan reading may store", () => {
+  const defaults = { pageBytes: 200_000, readingBytes: 10_000_000, readingPages: 20_000 };
+  const set = (page: string, reading: string, pages: string) =>
+    ({ OCR_PAGE_MAX_BYTES: page, OCR_READING_MAX_BYTES: reading, OCR_READING_MAX_PAGES: pages }) as NodeJS.ProcessEnv;
+  it("is 200,000 bytes a page, 10,000,000 a reading and 20,000 pages unless an operator sets whole numbers in range", () => {
+    expect(scanReadingStoreLimits({})).toEqual(defaults);
+    expect(scanReadingStoreLimits(set("50000", "3000000", "5000"))).toEqual({ pageBytes: 50_000, readingBytes: 3_000_000, readingPages: 5_000 });
+    for (const bad of ["", "0", "-5", "12abc", "1.5", "1e6", "abc", " 7 ", "99999999999999999999"])
+      expect(scanReadingStoreLimits(set(bad, bad, bad)), bad).toEqual(defaults);
+  });
+  it("accepts a value only inside its range, ends included, and otherwise uses the default", () => {
+    expect(scanReadingStoreLimits(set("1000", "100000", "1"))).toEqual({ pageBytes: 1_000, readingBytes: 100_000, readingPages: 1 });
+    expect(scanReadingStoreLimits(set("2000000", "32000000", "100000"))).toEqual({ pageBytes: 2_000_000, readingBytes: 32_000_000, readingPages: 100_000 });
+    expect(scanReadingStoreLimits(set("999", "99999", "0"))).toEqual(defaults);
+    expect(scanReadingStoreLimits(set("2000001", "32000001", "100001"))).toEqual(defaults);
+    expect(scanReadingStoreLimits(set("9000000000", "1000000000", "1000000"))).toEqual(defaults);
   });
 });
