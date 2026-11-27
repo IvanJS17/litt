@@ -5,6 +5,7 @@ import path from "node:path";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import {
   extractionLauncherWarnings,
+  scanReadingStoreLimits,
   uploadConversionTimeoutMs,
   uploadJobWallClockMs,
   uploadProcessingConfiguration,
@@ -363,5 +364,16 @@ describe("extractionLauncherWarnings", () => {
 
   it("is quiet when parser isolation is off", () => {
     expect(extractionLauncherWarnings(env(empty, "off"), "linux")).toEqual([]);
+  });
+});
+
+describe("what a scan reading may store", () => {
+  it("is 200,000 bytes a page and 10,000,000 a reading unless an operator sets whole numbers", () => {
+    expect(scanReadingStoreLimits({})).toEqual({ pageBytes: 200_000, readingBytes: 10_000_000 });
+    expect(scanReadingStoreLimits({ OCR_PAGE_MAX_BYTES: "50000", OCR_READING_MAX_BYTES: "3000000" } as NodeJS.ProcessEnv))
+      .toEqual({ pageBytes: 50_000, readingBytes: 3_000_000 });
+    for (const bad of ["", "0", "-5", "12abc", "1.5", "1e6", "abc", " 7 ", "99999999999999999999"])
+      expect(scanReadingStoreLimits({ OCR_PAGE_MAX_BYTES: bad, OCR_READING_MAX_BYTES: bad } as NodeJS.ProcessEnv), bad)
+        .toEqual({ pageBytes: 200_000, readingBytes: 10_000_000 });
   });
 });

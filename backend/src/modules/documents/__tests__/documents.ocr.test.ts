@@ -40,6 +40,7 @@ const job = { id: "j", kind: "document.ocr", status: "running", attempts: 1, max
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.unstubAllEnvs();
   mocks.access.mockResolvedValue(allowed);
   mocks.active.mockResolvedValue(scanned);
   mocks.key.mockResolvedValue("synthetic-key");
@@ -216,6 +217,32 @@ describe("the job", () => {
     expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything(), { pages: [2, 5, 9] });
     expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 1, text: "# Hola" }], credits: 1.5, page_count: 3, failed_pages: [2], model: "dpt-3-pro-20260710" });
     expect(fake.calls[4].payload).toEqual({ textless_page_count: 1 });
+    fake.done();
+  });
+  it("stores the pages that fit whole and lists a page over the page bound as not read", async () => {
+    vi.stubEnv("OCR_PAGE_MAX_BYTES", "20");
+    mocks.parse.mockResolvedValue({ ...read, pages: [{ page: 2, text: "dos" }, { page: 5, text: "x".repeat(21) }, { page: 9, text: "ñ".repeat(10) }], failedPages: [] });
+    const fake = scriptedDb([
+      ...head(),
+      { rpc: "document_ocr_state", data: asState(row()) },
+      { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] },
+      { table: "document_versions", op: "update" },
+    ]);
+    await handleDocumentOcr(fake.db, job);
+    expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 2, text: "dos" }, { page: 9, text: "ñ".repeat(10) }], failed_pages: [5] });
+    fake.done();
+  });
+  it("stores the pages that fit the reading bound, in page order, and lists the rest", async () => {
+    vi.stubEnv("OCR_READING_MAX_BYTES", "10");
+    mocks.parse.mockResolvedValue({ ...read, pages: [{ page: 2, text: "aaaaaa" }, { page: 5, text: "bbbbbb" }, { page: 9, text: "c" }], failedPages: [3] });
+    const fake = scriptedDb([
+      ...head(),
+      { rpc: "document_ocr_state", data: asState(row()) },
+      { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] },
+      { table: "document_versions", op: "update" },
+    ]);
+    await handleDocumentOcr(fake.db, job);
+    expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 2, text: "aaaaaa" }], failed_pages: [3, 5, 9] });
     fake.done();
   });
   it("sends a PDF scanned throughout whole, without a page selection", async () => {

@@ -2,6 +2,7 @@ import { accessSync, constants, statSync } from "node:fs";
 import path from "node:path";
 import { extractionIsolated, extractionLauncher } from "./extraction/limits";
 import { trimChars } from "./modelJsonFence";
+import { OCR_PAGE_MAX_BYTES, OCR_READING_MAX_BYTES } from "./ocr/pages";
 
 function required(env: NodeJS.ProcessEnv, names: readonly string[]): string {
   for (const name of names) {
@@ -20,6 +21,22 @@ export function envInt(
   if (!raw) return fallback;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * What a scan reading may store, in bytes of UTF-8 text: one page, and the whole
+ * reading. Plain whole numbers; anything else uses the default.
+ */
+export function scanReadingStoreLimits(env: NodeJS.ProcessEnv = process.env): { pageBytes: number; readingBytes: number } {
+  const whole = (name: string, fallback: number) => {
+    const raw = env[name];
+    const value = raw !== undefined && /^[1-9][0-9]*$/.test(raw) ? Number(raw) : NaN;
+    return Number.isSafeInteger(value) ? value : fallback;
+  };
+  return {
+    pageBytes: whole("OCR_PAGE_MAX_BYTES", OCR_PAGE_MAX_BYTES),
+    readingBytes: whole("OCR_READING_MAX_BYTES", OCR_READING_MAX_BYTES),
+  };
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

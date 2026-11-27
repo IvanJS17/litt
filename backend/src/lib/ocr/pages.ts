@@ -68,6 +68,41 @@ export function readOcrPages(markdown: string, structure: unknown, pageCount: nu
     return split ? split.map((text, index) => ({ page: only ? only[index] : index + 1, text })) : null;
 }
 
+/** What one reading may store: the text of one page and of the whole reading, in bytes (UTF-8). */
+export const OCR_PAGE_MAX_BYTES = 200_000;
+export const OCR_READING_MAX_BYTES = 10_000_000;
+export type OcrStoreLimits = { pageBytes: number; readingBytes: number };
+
+/**
+ * The pages of a reading as they are stored. A stored page is always the whole text the
+ * service returned for it (NUL characters removed): a page over `pageBytes` is not stored
+ * and is listed with the pages that could not be read. Pages are taken in page order while
+ * the reading stays within `readingBytes`; the first page that does not fit and every
+ * later one are listed. Pages the service already listed stay listed, once.
+ */
+export function boundOcrReading(
+    reading: { pages: readonly OcrPage[]; failedPages: readonly number[] },
+    limits: OcrStoreLimits,
+): { pages: OcrPage[]; failedPages: number[] } {
+    const clean = reading.pages.map((p) => ({ page: p.page, text: p.text.replaceAll("\0", "") }));
+    const failedPages = [...new Set(reading.failedPages)];
+    const dropped = new Set<OcrPage>();
+    let total = 0;
+    let outOfRoom = false;
+    for (const entry of [...clean].sort((a, b) => a.page - b.page)) {
+        const size = Buffer.byteLength(entry.text, "utf8");
+        const tooBig = size > limits.pageBytes;
+        if (!tooBig && !outOfRoom && total + size <= limits.readingBytes) {
+            total += size;
+            continue;
+        }
+        if (!tooBig) outOfRoom = true; // this page and every later one are listed
+        dropped.add(entry);
+        if (!failedPages.includes(entry.page)) failedPages.push(entry.page);
+    }
+    return { pages: clean.filter((entry) => !dropped.has(entry)), failedPages };
+}
+
 // --- Split (layer 7, docs/document-split.md) ---------------------------------
 
 /** LandingAI Split takes at most this much Markdown, this many pages and this many types per call. */

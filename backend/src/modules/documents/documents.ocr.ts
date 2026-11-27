@@ -11,7 +11,8 @@ import { loadActiveVersion, type ActiveVersion } from "../../lib/documentVersion
 import { ExtractionBusyError, withBackgroundExtraction } from "../../lib/extraction/isolated";
 import { resolveScanKey } from "../../lib/ocr/key";
 import { OcrError, parsePdfWithLandingAi, LANDINGAI_MODEL, type OcrErrorCode } from "../../lib/ocr/landingai";
-import { OCR_AUTO_MAX_PAGES, OCR_MAX_BYTES, estimateOcrCostUsd } from "../../lib/ocr/pages";
+import { OCR_AUTO_MAX_PAGES, OCR_MAX_BYTES, boundOcrReading, estimateOcrCostUsd } from "../../lib/ocr/pages";
+import { scanReadingStoreLimits } from "../../lib/runtimeConfig";
 import { reportError, setOperation } from "../../lib/observability/report";
 import { can, DOCUMENT_EDIT_FORBIDDEN } from "../../lib/permissions";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
@@ -295,13 +296,14 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
     }
     try {
       const result = await parsePdfWithLandingAi(key, raw, scanned.pages.length < scanned.total ? { pages: scanned.pages } : {});
+      const stored = boundOcrReading(result, scanReadingStoreLimits());
       const saved = await finishRow(db, versionId, revision, {
         status: "ready",
-        pages: result.pages.map((p) => ({ page: p.page, text: p.text.replaceAll("\0", "") })),
+        pages: stored.pages,
         model: result.model || LANDINGAI_MODEL,
         credits: result.credits,
         page_count: result.pageCount || null,
-        failed_pages: result.failedPages,
+        failed_pages: stored.failedPages,
         error_code: null,
       });
       if (!saved) return; // superseded by a newer request

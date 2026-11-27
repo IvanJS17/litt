@@ -149,6 +149,13 @@ function readsScanTextOutsideTheAssembler(file: string, source: string): boolean
     /^[\s\S]{0,300}?\.select\(\s*["'`][^"'`]*(\bpages\b|\*)/.test(text.slice(m.index!)));
 }
 
+// Only the scan-reading job and the copy to a split version write a scan reading's row.
+const SCAN_READING_WRITERS = new Set(["modules/documents/documents.ocr.ts", "modules/documents/documents.ocr.state.ts"]);
+function writesScanReadingOutsideItsWriters(file: string, source: string): boolean {
+  return !SCAN_READING_WRITERS.has(file)
+    && /document_version_ocr[\s\S]{0,400}?\.(?:upsert|insert|update)\(/.test(stripComments(source));
+}
+
 describe("backend architecture", () => {
   it("domain implementations cannot import application workflows or their own facade", () => {
     const offenders: string[] = [];
@@ -382,6 +389,17 @@ describe("backend architecture", () => {
     expect(textReadsOutsideTheReaders("lib/documentTextCache.ts", 'select("document_version_texts(status)"); db.rpc("document_text_slice", {})')).toBe(false);
     expect(textReadsOutsideTheReaders("modules/documents/documents.textSearch.ts", 'db.rpc("read_document_text", {})')).toBe(false);
     expect(textReadsOutsideTheReaders("modules/documents/documents.other.ts", "// the table document_version_texts is server-only\nconst x = 1;")).toBe(false);
+  });
+
+  it("rule 13: the pages stored for a scan reading come only from the bounded result, and only two files write the row", () => {
+    expect(PRODUCTION_FILES.filter((file) => writesScanReadingOutsideItsWriters(file, read(file)))).toEqual([]);
+    const job = code("modules/documents/documents.ocr.ts");
+    expect(job).toMatch(/boundOcrReading\(\s*result\s*,/);
+    expect(job).toMatch(/pages:\s*stored\.pages/);
+    expect(job).not.toMatch(/pages:\s*result\b/);
+    expect(writesScanReadingOutsideItsWriters("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").upsert({ pages })')).toBe(true);
+    expect(writesScanReadingOutsideItsWriters("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").select("status")')).toBe(false);
+    expect(writesScanReadingOutsideItsWriters("modules/documents/documents.ocr.ts", 'db.from("document_version_ocr").upsert({})')).toBe(false);
   });
 
   it("rule 12: no file names the pages of a scan reading, in a select or an embed, outside the bounded function and its one assembler (a table named in the source, not one computed at run time)", () => {
