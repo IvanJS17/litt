@@ -241,6 +241,16 @@ model's maximum against the user's balance and can answer 402. Short
 completions such as titles get the extra reasoning headroom on every router,
 since a routed model may not be able to stop reasoning.
 
+Requests ask providers not to keep or train on what LiTT sends where the request
+can say so: `store: false` to OpenAI, Azure OpenAI and xAI (their Responses APIs
+store by default; the next tool step then carries the encrypted reasoning
+itself instead of a stored reference) and `provider.data_collection: "deny"`
+to OpenRouter, which routes only to upstreams that do not collect prompts and so
+can leave a model without an upstream. Other providers have no such request
+field; their retention follows the account's terms. `LLM_PROVIDER_DATA_RETENTION=allow`
+sends none of this; the default is `deny`, and any other value stops the server
+at boot. The setting changes neither the model, the route nor the key.
+
 The model picker groups direct models by provider (Anthropic, Google, OpenAI,
 Mistral AI) and router, cloud and custom-endpoint models by the service whose
 key is used (OpenCode Go, OpenRouter, Vercel AI Gateway, and so on), sorted by

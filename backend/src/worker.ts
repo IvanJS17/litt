@@ -16,6 +16,8 @@
 // "SUPABASE_URL and SUPABASE_SECRET_KEY must be set" check. Compose deployments
 // never noticed because compose injects real environment variables.
 import "dotenv/config";
+// The environment first (lib/log.ts reads NODE_ENV when imported), then, before anything can log: provider errors carry the prompt and the reply.
+import "./logRedaction";
 
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { extractionLauncherWarnings } from "./lib/runtimeConfig";
