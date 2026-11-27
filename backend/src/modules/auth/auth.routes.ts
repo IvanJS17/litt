@@ -20,9 +20,11 @@ import {
   ssoEnabled,
 } from "../../lib/ssoConfig";
 import {
+  rateLimitedBody,
   sendInternalError,
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
+import { anonymousMailCap } from "../../lib/anonymousMailCap";
 import { betaMode, canSignUp } from "../../lib/platformAccess";
 import { inviteAdmittedSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
@@ -163,6 +165,37 @@ authRouter.post("/login", asyncRoute(async (req, res) => {
   }
 }));
 
+// The cache headers the auth client sets on the ordinary answer of the routes
+// that start an email flow, repeated for the answer given without the request.
+function setOrdinaryCacheHeaders(res: Response) {
+  res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");
+  res.setHeader("Expires", "0");
+  res.setHeader("Pragma", "no-cache");
+}
+
+/**
+ * Called once by each anonymous route that is about to ask the auth service to
+ * send a mail, after the origin check and the validation of the body.
+ * "send": the mail may be requested. "silent": the address is at its cap, the
+ * caller gives its ordinary answer without the request. "answered": the
+ * instance is at its cap and the 429 has been sent here.
+ */
+function admitAnonymousMail(res: Response, address: string): "send" | "silent" | "answered" {
+  const admission = anonymousMailCap.admit(address);
+  if (admission.kind === "send") return "send";
+  if (admission.kind === "overall_full") {
+    res.setHeader("Retry-After", String(admission.retryAfterSeconds));
+    res.setHeader("RateLimit-Limit", String(admission.limit));
+    res.setHeader("RateLimit-Remaining", "0");
+    res.setHeader("RateLimit-Reset", String(admission.retryAfterSeconds));
+    res
+      .status(429)
+      .json(rateLimitedBody("Too many authentication requests. Please try again later."));
+    return "answered";
+  }
+  return "silent";
+}
+
 // Beta mode: the same answer whether or not the email exists or is invited.
 function inviteOnly(res: Response) {
   return res.status(403).json({
@@ -199,9 +232,20 @@ authRouter.post("/signup", asyncRoute(async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res, parsed.error.issues);
 
+  const admission = admitAnonymousMail(res, parsed.data.email);
+  if (admission === "answered") return;
+
   if (betaMode()) {
     res.status(201).json({ user: null, requiresEmailConfirmation: true });
-    await admitBetaSignupAfterAnswer(parsed.data.email);
+    if (admission === "send") await admitBetaSignupAfterAnswer(parsed.data.email);
+    return;
+  }
+
+  if (admission === "silent") {
+    // Nothing is requested: the same kind of answer as a sign-up that sends
+    // nothing new, with the cache headers the ordinary answer carries.
+    setOrdinaryCacheHeaders(res);
+    res.status(201).json({ user: null, requiresEmailConfirmation: true });
     return;
   }
 
@@ -533,7 +577,10 @@ authRouter.post("/password-reset", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
   const email = emailSchema.safeParse(req.body?.email);
   if (email.success) {
-    try {
+    const admission = admitAnonymousMail(res, email.data);
+    if (admission === "answered") return;
+    if (admission === "silent") setOrdinaryCacheHeaders(res);
+    if (admission === "send") try {
       const client = createRequestSupabase(req, res);
       const { error } = await sendPasswordReset(
         client,

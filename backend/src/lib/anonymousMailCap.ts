@@ -4,12 +4,14 @@ import { createHash } from "node:crypto";
  * Caps on the mails anonymous requests make the auth service send. The
  * service has one hourly mail budget for the whole instance, shared with
  * invitations and confirmations, so anonymous callers may use only part of it:
- * a few mails per target address and a fixed number overall per window.
+ * a few mails per target address and a fixed number overall, in any span of
+ * one hour.
  *
- * The API runs as one process, so the counts here decide for every caller.
- * Counts are kept per window: an address is stored as a digest, an entry is
- * created only for a mail that is let through (so at most `overall` entries
- * exist at a time) and entries leave with their window.
+ * The API runs as one process, so the counts here decide for every caller; a
+ * restart starts them again. The times of the mails let through within the
+ * last hour are kept, overall and per address, and counted. An address is
+ * stored as a digest, an entry is created only for a mail that is let through
+ * (so at most `overall` entries exist at a time) and leaves with its last time.
  */
 export const ANONYMOUS_MAIL_WINDOW_MS = 60 * 60 * 1000;
 export const MAIL_PER_ADDRESS_MAX = 3;
@@ -37,8 +39,15 @@ export function createAnonymousMailCap(options: {
   const perAddress = options.perAddress ?? MAIL_PER_ADDRESS_MAX;
   const windowMs = options.windowMs ?? ANONYMOUS_MAIL_WINDOW_MS;
   const now = options.now ?? (() => Date.now());
-  const addresses = new Map<string, { count: number; resetAt: number }>();
-  let overall = { count: 0, resetAt: 0 };
+  const addresses = new Map<string, number[]>();
+  const overall: number[] = [];
+
+  /** Drops the times that left the span; a time counts while it is under one window old. */
+  function forget(times: number[], at: number): void {
+    let gone = 0;
+    while (gone < times.length && at - times[gone] >= windowMs) gone++;
+    if (gone > 0) times.splice(0, gone);
+  }
 
   return {
     size: () => addresses.size,
@@ -50,25 +59,32 @@ export function createAnonymousMailCap(options: {
      */
     admit(address: string): MailAdmission {
       const at = now();
-      for (const [key, entry] of addresses) if (entry.resetAt <= at) addresses.delete(key);
-      if (overall.resetAt <= at) overall = { count: 0, resetAt: 0 };
+      for (const [key, times] of addresses) {
+        forget(times, at);
+        if (times.length === 0) addresses.delete(key);
+      }
+      forget(overall, at);
 
       const key = createHash("sha256").update(address.trim().toLowerCase()).digest("hex");
       const known = addresses.get(key);
-      if (known && known.count >= perAddress) return { kind: "address_full" };
-      if (overall.count >= options.overall) {
+      if (known && known.length >= perAddress) return { kind: "address_full" };
+      if (overall.length >= options.overall) {
         return {
           kind: "overall_full",
           limit: options.overall,
-          retryAfterSeconds: Math.max(1, Math.ceil((overall.resetAt - at) / 1000)),
+          retryAfterSeconds: Math.max(1, Math.ceil((overall[0] + windowMs - at) / 1000)),
         };
       }
 
-      if (known) known.count++;
-      else addresses.set(key, { count: 1, resetAt: at + windowMs });
-      if (overall.count === 0) overall.resetAt = at + windowMs;
-      overall.count++;
+      if (known) known.push(at);
+      else addresses.set(key, [at]);
+      overall.push(at);
       return { kind: "send" };
     },
   };
 }
+
+/** The one instance the auth routes share. */
+export const anonymousMailCap = createAnonymousMailCap({
+  overall: mailOverallCap(process.env.AUTH_ANONYMOUS_MAIL_HOURLY_CAP),
+});

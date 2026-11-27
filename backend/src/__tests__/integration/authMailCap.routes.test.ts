@@ -62,7 +62,7 @@ afterAll(async () => {
 beforeEach(async () => {
   calls.recover = calls.signup = calls.invite = 0;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
-  app = await loadApp();
+  app = await loadApp({ PLATFORM_ADMIN_EMAILS: "", AUTH_ANONYMOUS_MAIL_HOURLY_CAP: "" });
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -228,5 +228,161 @@ describe("other auth mails", () => {
     const { createServerSupabase } = await import("../../lib/supabase.js");
     expect(await sendSignupInvite(createServerSupabase(), "invited@example.test")).toBe(true);
     expect(calls.invite).toBe(1);
+  });
+});
+
+describe("the caps hold over any hour", () => {
+  it("lets through at most the instance count in any hour, also around the end of the first one", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    await reset("edge-first@example.test");
+    vi.setSystemTime(Date.now() + HOUR - 1000);
+    for (let i = 0; i < 14; i++) await reset(`edge-before-${i}@example.test`);
+    expect(calls.recover).toBe(15);
+
+    vi.setSystemTime(Date.now() + 2000);
+    const statuses: number[] = [];
+    for (let i = 0; i < 15; i++) statuses.push((await reset(`edge-after-${i}@example.test`)).status);
+    // Only the first mail has left the hour, so only one more fits.
+    expect(calls.recover).toBe(16);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(14);
+  });
+
+  it("lets through at most 3 mails to one address in any hour, also around the end of the first one", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const email = "edge-address@example.test";
+    await reset(email);
+    vi.setSystemTime(Date.now() + HOUR - 1000);
+    await reset(email);
+    await reset(email);
+    expect(calls.recover).toBe(3);
+
+    vi.setSystemTime(Date.now() + 2000);
+    for (let i = 0; i < 5; i++) await reset(email);
+    expect(calls.recover).toBe(4);
+  });
+
+  it("gives the time until the oldest counted mail leaves as Retry-After", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    await reset("retry-first@example.test");
+    vi.setSystemTime(Date.now() + 10 * 60 * 1000);
+    for (let i = 0; i < 14; i++) await reset(`retry-${i}@example.test`);
+    const refused = await reset("retry-over@example.test");
+    expect(refused.status).toBe(429);
+    expect(refused.headers["retry-after"]).toBe(String(50 * 60));
+  });
+
+  it("gives exactly the count to 100 requests at once", async () => {
+    const answers = await Promise.all(
+      Array.from({ length: 100 }, (_, i) => reset(`burst-${i}@example.test`)),
+    );
+    expect(answers.filter((answer) => answer.status === 204)).toHaveLength(15);
+    expect(answers.filter((answer) => answer.status === 429)).toHaveLength(85);
+    expect(calls.recover).toBe(15);
+
+    app = await loadApp();
+    calls.recover = 0;
+    await Promise.all(Array.from({ length: 100 }, () => reset("burst-one@example.test")));
+    expect(calls.recover).toBe(3);
+  });
+});
+
+describe("a request the route refuses spends nothing", () => {
+  it("does not count 15 password-reset requests refused for their origin", async () => {
+    for (let i = 0; i < 15; i++) {
+      const refused = await request(app)
+        .post("/auth/password-reset")
+        .set("X-Forwarded-For", freshClient())
+        .set("Origin", "http://other.test")
+        .send({ email: `refused-${i}@example.test` });
+      expect(refused.status).toBe(403);
+    }
+    expect(calls.recover).toBe(0);
+    expect((await reset("legitimate@example.test")).status).toBe(204);
+    expect(calls.recover).toBe(1);
+  });
+
+  it("does not count 15 sign-up requests refused for their origin", async () => {
+    for (let i = 0; i < 15; i++) {
+      const refused = await request(app)
+        .post("/auth/signup")
+        .set("X-Forwarded-For", freshClient())
+        .set("Origin", "http://other.test")
+        .send({ email: `refused-${i}@example.test`, password: "a-long-enough-password-1" });
+      expect(refused.status).toBe(403);
+    }
+    expect(calls.signup).toBe(0);
+    expect((await signup("legitimate@example.test")).status).toBe(201);
+    expect(calls.signup).toBe(1);
+  });
+
+  it("does not count a sign-up whose body is refused", async () => {
+    for (let i = 0; i < 15; i++) {
+      const refused = await request(app)
+        .post("/auth/signup")
+        .set("X-Forwarded-For", freshClient())
+        .set("Origin", ORIGIN)
+        .send({ email: `short-${i}@example.test`, password: "x" });
+      expect(refused.status).toBe(400);
+    }
+    expect((await signup("legitimate@example.test")).status).toBe(201);
+    expect(calls.signup).toBe(1);
+  });
+});
+
+describe("a capped answer looks like the route's own answer", () => {
+  const names = (headers: Record<string, unknown>) =>
+    Object.keys(headers)
+      .filter((name) => !["date", "etag", "set-cookie"].includes(name))
+      .sort();
+
+  it("password reset: same status, body and header names for an address at its cap", async () => {
+    const email = "same-answer@example.test";
+    const ordinary = await reset(email);
+    await reset(email);
+    await reset(email);
+    const capped = await reset(email);
+    expect(calls.recover).toBe(3);
+    expect(capped.status).toBe(ordinary.status);
+    expect(capped.text).toBe(ordinary.text);
+    expect(capped.headers["cache-control"]).toBe(ordinary.headers["cache-control"]);
+    expect(names(capped.headers)).toEqual(names(ordinary.headers));
+  });
+
+  it("sign-up in closed beta: same status, body and headers for an address at its cap", async () => {
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
+    const email = "beta-same@example.test";
+    const ordinary = await signup(email);
+    for (let i = 0; i < 2; i++) await signup(email);
+    const capped = await signup(email);
+    expect(capped.status).toBe(ordinary.status);
+    expect(capped.body).toEqual(ordinary.body);
+    expect(capped.headers["cache-control"]).toBe(ordinary.headers["cache-control"]);
+    expect(names(capped.headers)).toEqual(names(ordinary.headers));
+  });
+
+  it("sign-up in closed beta: an admitted address at its cap gets no invitation", async () => {
+    app = await loadApp({ PLATFORM_ADMIN_EMAILS: "boss@example.test" });
+    for (let i = 0; i < 3; i++) await reset("boss@example.test");
+    const capped = await signup("boss@example.test");
+    expect(capped.status).toBe(201);
+    expect(calls.invite).toBe(0);
+  });
+
+  it("sign-up when open: same status, cache header and body shape", async () => {
+    const email = "open-same@example.test";
+    const ordinary = await signup(email);
+    for (let i = 0; i < 2; i++) await signup(email);
+    const capped = await signup(email);
+    expect(calls.signup).toBe(3);
+    expect(capped.status).toBe(ordinary.status);
+    expect(capped.headers["cache-control"]).toBe(ordinary.headers["cache-control"]);
+    expect(Object.keys(capped.body).sort()).toEqual(Object.keys(ordinary.body).sort());
+  });
+
+  it("the instance answer carries the route's cache header", async () => {
+    for (let i = 0; i < 15; i++) await reset(`full-${i}@example.test`);
+    const refused = await reset("full-over@example.test");
+    expect(refused.status).toBe(429);
+    expect(refused.headers["cache-control"]).toBe("private, no-store");
   });
 });
