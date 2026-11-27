@@ -28,8 +28,9 @@ export type StorageSpaceUsage = { usedBytes: number; limitBytes: number };
 /**
  * Bytes a space uses (the stored file of every document version, previous
  * versions included; a deleted version or document no longer counts, plus the bytes of upload sessions still
- * open) and its limit. Throws when the answer cannot be read: an unreadable
- * space is not an empty one.
+ * open) and its limit. Throws when the answer cannot be read, or when one of
+ * its two numbers is not a whole count of bytes: an unreadable space is not an
+ * empty one.
  */
 export async function storageSpaceUsage(
   db: Db,
@@ -46,11 +47,25 @@ export async function storageSpaceUsage(
     | { used_bytes?: number | string; limit_bytes?: number | string }
     | null
     | undefined;
-  if (error || !row)
+  const usedBytes = wholeBytes(row?.used_bytes);
+  const limitBytes = wholeBytes(row?.limit_bytes);
+  if (error || usedBytes === null || limitBytes === null)
     throw new Error("Failed to read the storage usage of a space", {
       cause: error ?? undefined,
     });
-  return { usedBytes: Number(row.used_bytes), limitBytes: Number(row.limit_bytes) };
+  return { usedBytes, limitBytes };
+}
+
+/**
+ * A count of bytes as the database answers it: a whole number from 0 up that
+ * a JavaScript number holds exactly, as a number or in plain digits. Anything
+ * else is not an answer.
+ */
+function wholeBytes(value: unknown): number | null {
+  const count = typeof value === "string" ? Number(value) : value;
+  if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) return null;
+  if (typeof value === "string" && String(count) !== value) return null;
+  return count;
 }
 
 /** The arguments `create_upload_session` takes to check and reserve a space. */

@@ -10,8 +10,10 @@ import { describe, expect, it } from "vitest";
 // working when the space is full (uploadSessions.routes.test.ts and
 // uploads.storageQuota.sql exercise both). The Markdown save and documents the
 // assistant generates are direct writes that are not checked in this part (part
-// 2 gives them the same margin); downloads and deletions never ask. This pins
-// which files may know about the quota.
+// 2 gives them the same margin); downloads and deletions never ask. Only the
+// upload session opening refuses by the quota. Two reads, a person's own
+// personal space and a firm's space (owners and administrators), only report
+// the usage and refuse nothing. This pins which files may know about the quota.
 const SRC = path.resolve(__dirname, "../../..");
 
 function sources(directory: string): string[] {
@@ -28,7 +30,7 @@ const relative = (file: string) => path.relative(SRC, file).split(path.sep).join
 describe("who asks the storage quota", () => {
   const files = sources(SRC);
 
-  it("is the upload session opening, nothing that writes versions directly, downloads or deletes", () => {
+  it("is the upload session opening and the two usage reads, nothing that writes versions directly, downloads or deletes", () => {
     const askers = files
       .filter((file) =>
         /storageQuota(?!Fill)|storage_space_usage|target_quota_/.test(
@@ -40,8 +42,10 @@ describe("who asks the storage quota", () => {
     expect(askers).toEqual([
       "lib/runtimeConfig.ts",
       "lib/storageQuota.ts",
+      "modules/orgs/orgs.storageUsage.ts",
       "modules/uploads/uploads.open.ts",
       "modules/uploads/uploads.sessions.ts",
+      "modules/user/user.storageUsage.ts",
     ]);
   });
 

@@ -42,6 +42,7 @@ import {
     cancelInvitation,
     resendInvitation,
     getOrgApiKeySettings,
+    getOrgStorageUsage,
     getOrgFirmProfile,
     saveOrgFirmProfileBody,
     getOrgSplitClasses,
@@ -428,6 +429,17 @@ orgsRouter.get("/:orgId/api-keys", requireOrgAuth, asyncRoute(async (req, res) =
     });
     if (!result.ok) return sendOrgFailure(res, result);
     res.json(result.settings);
+}));
+
+// GET /orgs/:orgId/storage — what the firm's space uses and its limit (owners
+// and admins only).
+orgsRouter.get("/:orgId/storage", requireOrgAuth, asyncRoute(async (req, res) => {
+    const result = await getOrgStorageUsage(createServerSupabase(), {
+        userId: res.locals.userId as string,
+        orgId: req.params.orgId,
+    });
+    if (!result.ok) return sendOrgFailure(res, result);
+    res.json(result.usage);
 }));
 
 // GET /orgs/:orgId/profile — the firm's profile (any member); `profile` is null

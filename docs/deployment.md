@@ -804,6 +804,10 @@ document, an uploaded new version of a document, the replacement of a version,
 and the Word add-in's version upload. The Markdown save and documents the
 assistant generates are direct writes that are not checked in this part (part 2
 gives them the same margin).
+Two reads report the use without refusing anything: `GET /user/storage` answers a
+person's own personal space, and `GET /orgs/:orgId/storage` answers a firm's space
+only to an accepted owner or administrator of that firm; both return
+`{ usedBytes, limitBytes }`, the same two numbers the upload check uses.
 What counts is the stored file of every document version that still has one,
 previous versions included. LiTT has no trash for documents: deleting a document
 removes its rows and queues the removal of its files, and deleting a version
