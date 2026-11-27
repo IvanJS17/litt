@@ -344,6 +344,13 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
       child.stdout.on("error", () => {});
       const written = pipeline(child.stdout, fs.createWriteStream(outputPath, { mode: 0o600 }));
       written.catch(() => {});
+      // The write failure (null: it finished), waited for no longer than the job's own bound.
+      const bound = Date.now() + timeoutMs + REAPER_WAIT_MS;
+      const writeOutcome = (): Promise<unknown> => new Promise((resolve) => {
+        const cutoff = setTimeout(() => { timedOut = true; child.stdout.destroy(); resolve(null); }, Math.max(0, bound - Date.now()));
+        cutoff.unref();
+        written.then(() => null, (error: unknown) => error ?? new Error("write failed")).then((error) => { clearTimeout(cutoff); resolve(error); });
+      });
       void pipeline(fs.createReadStream(inputPath), child.stdin).catch(() => {});
       child.once("error", (error) => {
         clearTimeout(deadline);
@@ -353,10 +360,12 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
         clearTimeout(deadline);
         endHelper();
         // What the helper left in its group (LibreOffice) goes too.
-        void reapGroup(readerUser, child.pid).then(() => { release(); return written.then(() => undefined, () => undefined); }).then(() => {
+        void reapGroup(readerUser, child.pid).then(() => { release(); return writeOutcome(); }).then((writeError) => {
           settle(() => {
             if (timedOut) {
               reject(new ConversionError("conversion.timeout", `LibreOffice conversion timed out after ${timeoutMs}ms`));
+            } else if (code === 0 && writeError) {
+              reject(new ConversionError("conversion.failed", "the converted PDF could not be fully written", { cause: writeError }));
             } else if (code === 0) {
               resolve();
             } else {

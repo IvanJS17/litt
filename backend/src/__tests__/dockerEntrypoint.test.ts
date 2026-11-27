@@ -40,4 +40,9 @@ describe("the reader account in the image", () => {
     expect(dockerfile).toMatch(/useradd --system --uid 48217 --gid litt-reader /);
     expect(dockerfile).not.toMatch(/--(uid|gid) 1000[0-9]\b[^\n]*litt-reader/);
   });
+
+  it("gives the API's home directory to the API alone (mode 0700)", () => {
+    expect(dockerfile).toMatch(/--home-dir \/home\/litt-api /);
+    expect(dockerfile).toMatch(/chmod 0700 \/home\/litt-api\b/);
+  });
 });

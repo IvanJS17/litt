@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REAPER_WAIT_MS, reapGroup, removeReaderScratch } from "../readerUser";
+import { ANSWER_IDENTITY_COMMAND } from "./readerStandIn";
 
 const me = os.userInfo().username;
 const work = mkdtempSync(path.join(os.tmpdir(), "mike-reaper-"));
@@ -26,6 +27,16 @@ function frozenGroup(): ChildProcess {
 const alive = (pid: number) => spawnSync("kill", ["-0", String(pid)]).status === 0;
 
 describe.skipIf(process.platform !== "linux")("ending a reader's process group", () => {
+  // Stand-in setpriv: the test host has no reader user; it answers the identity command and keeps the user.
+  beforeEach(() => {
+    const standIn = path.join(work, "bin-ending");
+    mkdirSync(standIn, { recursive: true });
+    writeFileSync(path.join(standIn, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\n${ANSWER_IDENTITY_COMMAND}\nexec "$@"\n`);
+    chmodSync(path.join(standIn, "setpriv"), 0o755);
+    vi.stubEnv("PATH", `${standIn}${path.delimiter}${process.env.PATH}`);
+    vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
+  });
+
   it("kills every process of a stopped group that ignores signals, and returns within the bounded wait", async () => {
     const child = frozenGroup();
     await vi.waitFor(() => expect(spawnSync("ps", ["-o", "stat=", "-p", String(child.pid)], { encoding: "utf8" }).stdout).toMatch(/T/), { timeout: 5_000 });
@@ -66,7 +77,7 @@ describe.skipIf(process.platform !== "linux")("removing reader scratch left by a
     mkdirSync(bin);
     mkdirSync(tmp);
     // Stand-in setpriv: the test host has no reader user; it keeps the user and runs what follows "--".
-    writeFileSync(path.join(bin, "setpriv"), '#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\nexec "$@"\n');
+    writeFileSync(path.join(bin, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\n${ANSWER_IDENTITY_COMMAND}\nexec "$@"\n`);
     chmodSync(path.join(bin, "setpriv"), 0o755);
     vi.stubEnv("PATH", `${bin}${path.delimiter}${process.env.PATH}`);
     vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
