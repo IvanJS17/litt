@@ -4,6 +4,7 @@ import { tmpdir, userInfo } from "node:os";
 import { join, parse } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ANSWER_IDENTITY_COMMAND, beAnotherUserThanTheReaders } from "../extraction/__tests__/readerStandIn";
 
 const timing = vi.hoisted(() => ({ timeoutMs: 120_000 }));
 vi.mock("../runtimeConfig", async (importOriginal) => {
@@ -35,11 +36,13 @@ async function leftovers(): Promise<string[]> {
   return present();
 }
 
+let pretend: { restore: () => void };
 beforeEach(async () => {
+  pretend = beAnotherUserThanTheReaders();
   directory = await mkdtemp(join(tmpdir(), "mike-convert-reader-"));
   await mkdir(join(directory, "bin"));
   await mkdir(join(directory, "scratch"));
-  await standIn("setpriv", `echo "$@" >> "${directory}/setpriv.log"\nwhile [ "$1" != "--" ]; do shift; done; shift; exec "$@"`);
+  await standIn("setpriv", `echo "$@" >> "${directory}/setpriv.log"\nwhile [ "$1" != "--" ]; do shift; done; shift\n${ANSWER_IDENTITY_COMMAND}\nexec "$@"`);
   await standIn("soffice", SOFFICE_WRITES_PDF);
   vi.stubEnv("EXTRACTION_READER_USER", me);
   vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
@@ -59,6 +62,7 @@ afterEach(async () => {
     if (/^\d+$/.test(group) && Number(group) > 1) spawnSync("kill", ["-KILL", "--", `-${group}`]);
   }
   vi.unstubAllEnvs();
+  pretend.restore();
   timing.timeoutMs = 120_000;
   await rm(directory, { recursive: true, force: true });
 });

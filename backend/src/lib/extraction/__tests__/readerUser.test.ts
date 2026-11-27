@@ -15,7 +15,8 @@ function stand(name: string, body: string): string {
   chmodSync(path.join(bin, "setpriv"), 0o755);
   return bin;
 }
-const works = stand("works", "exit 0");
+// "works" answers the identity command as a switched process of another user and group would.
+const works = stand("works", `case "$*" in *" sh -c "*) echo 48217; echo 48217; echo 48217;; esac; exit 0`);
 const refuses = stand("refuses", "echo 'setresuid failed: Operation not permitted' >&2; exit 1");
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 afterEach(() => vi.unstubAllEnvs());

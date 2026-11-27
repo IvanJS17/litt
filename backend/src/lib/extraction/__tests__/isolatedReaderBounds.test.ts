@@ -18,6 +18,7 @@ vi.mock("../readerUser", async (importOriginal) => {
   return { ...actual, reapGroup: (...args: Parameters<typeof actual.reapGroup>) => (reaper.ends ? actual.reapGroup(...args) : Promise.resolve()) };
 });
 import { READER_SCRATCH_CREATE_MS, REAPER_WAIT_MS } from "../readerUser";
+import { ANSWER_IDENTITY_COMMAND, beAnotherUserThanTheReaders } from "./readerStandIn";
 
 function workbook(): ArrayBuffer {
   const wb = XLSX.utils.book_new();
@@ -35,6 +36,7 @@ mkdirSync(bin);
 writeFileSync(path.join(bin, "setpriv"), [
   "#!/bin/sh",
   'while [ "$1" != "--" ]; do shift; done; shift',
+  ANSWER_IDENTITY_COMMAND,
   `if [ "$1" = mktemp ] && [ -e "${freezeMktemp}" ]; then echo $$ > "${pidFile}"; kill -STOP $$; fi`,
   `case "$1" in true|mktemp|rm|find) exec "$@";; esac`,
   `if [ -e "${freezeParser}" ]; then trap '' TERM HUP INT; echo $$ > "${pidFile}"; kill -STOP $$; sleep 3600; fi`,
@@ -47,7 +49,9 @@ const pending = Symbol("pending");
 const settled = (promise: Promise<unknown>, ms: number) =>
   Promise.race([promise.then((value) => value, (error) => error), new Promise((resolve) => setTimeout(() => resolve(pending), ms))]);
 
+let pretend: { restore: () => void };
 beforeEach(() => {
+  pretend = beAnotherUserThanTheReaders();
   vi.stubEnv("EXTRACTION_ISOLATION", "on");
   vi.stubEnv("EXTRACTION_READER_USER", os.userInfo().username);
   vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
@@ -64,6 +68,7 @@ afterEach(async () => {
     spawnSync("kill", ["-KILL", pid]);
   }
   vi.unstubAllEnvs();
+  pretend.restore();
 });
 afterAll(() => rmSync(work, { recursive: true, force: true }));
 

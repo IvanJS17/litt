@@ -32,8 +32,10 @@ RUN apt-get update \
 # but its own temporary directory. The kernel counts a user's process allowance
 # (prlimit --nproc, see src/lib/extraction/readerUser.ts) per numeric user id on the
 # whole host, so the reader's id is one other images are unlikely to use.
+# The API's home directory is its own (mode 0700): the reader user cannot list it.
 RUN groupadd --system --gid 10001 litt-api \
   && useradd --system --uid 10001 --gid litt-api --create-home --home-dir /home/litt-api --shell /usr/sbin/nologin litt-api \
+  && chmod 0700 /home/litt-api \
   && groupadd --system --gid 48217 litt-reader \
   && useradd --system --uid 48217 --gid litt-reader --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin litt-reader
 WORKDIR /app

@@ -453,8 +453,8 @@ de inicio de sesión:
 
 | Usuario | uid | Para qué | Posee |
 |---|---|---|---|
-| `litt-api` | 10001 | la API, sus hilos de trabajo y los trabajos | su `HOME` (`/home/litt-api`) |
-| `litt-reader` | 48217 | todo proceso que abre un archivo subido o enlazado: el lector (`src/lib/extraction/isolated.ts`), LibreOffice en cualquiera de sus rutas (el lector lo inicia, y la conversión a PDF de las subidas la hace un ayudante `convertChild.js`) y el proceso de lectura de Drive (inactivo en producción) | nada, salvo su directorio temporal (`/tmp/mike-extraction-*`, `/tmp/litt-convert-*`, modo 0700) |
+| `litt-api` | 10001 | la API, sus hilos de trabajo y los trabajos; también abre contenido de documentos en unas pocas operaciones dentro del propio proceso (ver «Otros límites conocidos») | su `HOME` (`/home/litt-api`, modo 0700) |
+| `litt-reader` | 48217 | los procesos que leen las subidas para extraer texto, las convierten con LibreOffice y leen los archivos enlazados de Drive: el lector (`src/lib/extraction/isolated.ts`), LibreOffice en cualquiera de sus rutas (el lector lo inicia, y la conversión a PDF de las subidas la hace un ayudante `convertChild.js`) y el proceso de lectura de Drive (inactivo en producción) | nada, salvo su directorio temporal (`/tmp/mike-extraction-*`, `/tmp/litt-convert-*`, modo 0700) |
 
 El contenedor arranca como root solo para que el entrypoint (`/usr/local/bin/litt-entrypoint`)
 pase a `litt-api`. A partir de ahí, los lectores se inician como `litt-reader` con
@@ -464,7 +464,7 @@ al ser otro usuario, no puede leer el entorno ni los archivos de la API ni el en
 PID 1. Todo proceso hijo de la API se inicia por un único lanzador
 (`launchChild` en `src/lib/extraction/readerUser.ts`; `childProcessGuard.test.ts` exige que
 cada archivo que inicia procesos lo use): los que abren contenido de personas corren como
-`litt-reader`; cualquier otro hijo se inicia sin capacidades (heredables ni ambientales)
+`litt-reader` (la lectura de subidas para extraer texto, la conversión con LibreOffice y la lectura de archivos de Drive); cualquier otro hijo se inicia sin capacidades (heredables ni ambientales)
 y sin poder obtenerlas. La API no puede enviar señales a un proceso de otro usuario, así que un lector
 se termina de dos maneras, y ninguna depende de que el lector coopere:
 
@@ -476,7 +476,11 @@ se termina de dos maneras, y ninguna depende de que el lector coopere:
   uid del lector **solo como uid efectivo** (`seteuid`): el real y el guardado siguen siendo
   los de `litt-api`. Con eso puede enviar `SIGKILL` al grupo (que alcanza a un proceso
   detenido con `SIGSTOP`), y un lector no puede enviarle señales, trazarlo ni leer su entorno ni
-  su memoria. Es el único modo del lanzador que conserva las capacidades de la API
+  su memoria. Lo que puede señalar lo decide el núcleo, no una comprobación del ayudante: como
+  su uid real sigue siendo el de `litt-api`, el núcleo le permite señalar también procesos de
+  `litt-api`; el código solo rechaza un grupo menor o igual a 1, el suyo y el de su padre, y no
+  comprueba a quién pertenece el grupo. Por eso solo se le da el grupo que la API creó para un
+  lector. Es el único modo del lanzador que conserva las capacidades de la API
   (`childProcessGuard.test.ts`). El trabajo **no espera** al lector: al vencer el plazo
   termina con el mismo error de siempre (`parser deadline exceeded`, `conversion.timeout`, el
   rechazo del lector de Drive) tras, como mucho, `REAPER_WAIT_MS` (2 s) y libera su lugar
@@ -529,7 +533,13 @@ Al arrancar, antes de aceptar trabajo, la API borra como `litt-reader` lo que es
 posee directamente bajo el directorio temporal (solo entradas suyas, sin seguir enlaces, con
 plazo de 20 s; un fallo se avisa una vez y no impide el arranque): son los directorios de
 trabajos que una parada o un reinicio interrumpieron, con copias de archivos subidos. No lo
-hace si el usuario lector es el mismo de la API.
+hace si el usuario lector es el mismo de la API. El proceso de trabajo que se inicia por
+separado (`src/worker.ts`, con `WORKERS_MODE=none` en la API; el `compose.yaml` de producción
+no lo usa) hace la misma comprobación de arranque que la API (en producción se niega a
+arrancar en los mismos casos y con el mismo mensaje) y la misma limpieza. Un proceso de
+trabajo iniciado aparte **no debe compartir el directorio temporal ni el usuario lector con una
+API en marcha**: cada uno borra al arrancar lo que el usuario lector tenga bajo el directorio
+temporal, y compartirlos borraría el trabajo en curso del otro.
 
 Límites conocidos: todos los lectores comparten un solo usuario, así que un lector que
 ejecute código ajeno puede enviar señales a otros lectores y leer su directorio temporal
@@ -538,6 +548,19 @@ y vive hasta que se reinicia o se recrea el contenedor (en `main` ese proceso ha
 lectores comparten la red del contenedor; lo que un lector devuelve (el PDF) no tiene tope de
 tamaño, como en `main`; y un proceso hijo iniciado fuera del lanzador heredaría las dos
 capacidades de la API, que el proceso de la API ya tiene.
+
+Otros límites conocidos:
+
+- **Estas operaciones leen contenido de documentos dentro del proceso de la API**, como
+  `litt-api` (ya no root) y no como `litt-reader`: aplicar o rechazar un cambio con control de
+  cambios en un `.docx`, las ediciones de documentos del asistente y su publicación, y la
+  importación de un playbook desde un `.pdf` o `.docx`. Mover ese código a un lector no forma
+  parte de esta entrega.
+- Un directorio temporal cuya creación termina justo después de su tope puede quedar, vacío,
+  hasta el siguiente arranque.
+- El número de borrados que corren a la vez solo lo acota la rapidez con que terminan los
+  trabajos, cada uno durante 10 s como máximo; lo que un borrado no pudo eliminar queda
+  (legible solo por el usuario lector) hasta el siguiente arranque.
 
 Qué puede hacer un proceso de `litt-reader` que sobrevive (por ejemplo, uno que salió de su
 grupo con `setsid`): vive hasta que el contenedor se **reinicia o se recrea** (un
@@ -568,7 +591,8 @@ Ajustes de `backend` en `compose.yaml` y por qué:
 
 Los hilos de trabajo (`worker_threads`) comparten el proceso de la API: corren como
 `litt-api` con las mismas dos capacidades y el mismo entorno, y no abren contenido de
-personas por sí mismos (todo archivo lo abre un proceso `litt-reader`). Lo que un lector
+personas por sí mismos para extraer texto, convertir ni leer archivos de Drive (eso lo hace un
+proceso `litt-reader`); sí lo abren las operaciones de «Otros límites conocidos». Lo que un lector
 comprometido alcanza: los archivos que `litt-reader` posee (solo su directorio temporal),
 los world-readable de la imagen, `/tmp` compartido (modo 1777) y la red del contenedor
 (los lectores no la necesitan; quitarla exige un espacio de nombres de red propio por
@@ -586,8 +610,15 @@ que termina con la señal sin pasarla, el cierre de la API no se ejecuta en ning
 
 El backend se niega a arrancar en producción (`NODE_ENV=production`, Linux) si los lectores
 no pueden correr como `litt-reader`: falta `EXTRACTION_READER_USER` (la imagen lo trae puesto),
-falta `setpriv` o el contenedor no tiene `SETUID` y `SETGID`. Con `EXTRACTION_ISOLATION=off`
-no hay lectores aparte y la comprobación no aplica. En desarrollo, y donde no hay un
+falta `setpriv`, el contenedor no tiene `SETUID` y `SETGID`, o la comprobación, que pregunta
+al propio proceso cambiado (con los argumentos de un lector, una vez por arranque) su usuario
+y grupo numéricos y sus grupos suplementarios, recibe usuario o grupo 0, el mismo usuario o
+grupo con el que corre el proceso, algún grupo suplementario o una respuesta ilegible (los
+lectores correrían como root o como la API sin aviso).
+El proceso de trabajo independiente hace la misma comprobación. Con `EXTRACTION_ISOLATION=off`
+no hay analizador aparte (el análisis de texto corre dentro del proceso que lo pide) y la
+comprobación no aplica; **no** apaga la conversión con LibreOffice ni la lectura de Drive, que
+siguen intentando correr como el usuario lector cuando se puede cambiar a él. En desarrollo, y donde no hay un
 segundo usuario (macOS, CI), el lector corre como el usuario de la API y el arranque avisa
 con una línea `[extraction]`.
 

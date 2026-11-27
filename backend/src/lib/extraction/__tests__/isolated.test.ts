@@ -14,6 +14,7 @@ import {
   stopExtractionProcess,
 } from "../isolated";
 import { ExtractionParseError } from "../failure";
+import { ANSWER_IDENTITY_COMMAND, beAnotherUserThanTheReaders } from "./readerStandIn";
 import { diagnosticErrorTags } from "../../observability/diagnostics";
 
 vi.mock("node:child_process", async (importOriginal) => {
@@ -240,9 +241,12 @@ describe("runIsolatedExtraction", () => {
 // reader's own scratch directory, closing stdin to end it) runs end to end.
 describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a reader user", () => {
   const bin = mkdtempSync(path.join(tmpdir(), "mike-setpriv-bin-"));
-  writeFileSync(path.join(bin, "setpriv"), "#!/bin/sh\nwhile [ \"$1\" != \"--\" ]; do shift; done\nshift\nexec \"$@\"\n");
+  writeFileSync(path.join(bin, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done\nshift\n${ANSWER_IDENTITY_COMMAND}\nexec "$@"\n`);
   chmodSync(path.join(bin, "setpriv"), 0o755);
+  let pretend: { restore: () => void };
+  afterEach(() => pretend.restore());
   beforeEach(() => {
+    pretend = beAnotherUserThanTheReaders();
     vi.stubEnv("EXTRACTION_READER_USER", "litt-reader");
     // The host's own user already holds more processes than the production limit.
     vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
@@ -293,6 +297,7 @@ describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a read
   writeFileSync(path.join(bin, "setpriv"), [
     "#!/bin/sh",
     'while [ "$1" != "--" ]; do shift; done; shift',
+    ANSWER_IDENTITY_COMMAND,
     'case "$1" in true|mktemp|rm|find) exec "$@";; esac',
     `if [ -e "${freeze}" ]; then trap '' TERM HUP INT; echo $$ > "${pidFile}"; kill -STOP $$; sleep 3600; fi`,
     'exec "$@"',
@@ -302,7 +307,10 @@ describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a read
   const pending = Symbol("pending");
   const settled = (promise: Promise<unknown>, ms: number) =>
     Promise.race([promise.then((value) => value, (error) => error), new Promise((resolve) => setTimeout(() => resolve(pending), ms))]);
+  let pretend: { restore: () => void };
+  afterEach(() => pretend.restore());
   beforeEach(() => {
+    pretend = beAnotherUserThanTheReaders();
     vi.stubEnv("EXTRACTION_READER_USER", os.userInfo().username);
     vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
     vi.stubEnv("PATH", `${bin}${path.delimiter}${process.env.PATH}`);
