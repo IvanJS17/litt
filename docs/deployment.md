@@ -638,6 +638,15 @@ default 100); only a refused email/password counts. Once the account-wide
 ceiling is reached, sign-in for that account answers 429 from every address
 until the window ends.
 
+Anonymous password-reset and sign-up requests make the auth service send mail
+from its single hourly budget, which invitations and confirmations also use.
+They are capped per target address (3 an hour, compared trimmed and lowercased;
+past that the usual answer is returned and nothing is sent) and for the whole
+instance (`AUTH_ANONYMOUS_MAIL_HOURLY_CAP`, a whole number from 1 to 1000,
+default 15 an hour; past that the answer is 429 `rate_limited`). A request that
+fails validation or is refused by the per-client lane counts against neither.
+The counts are kept in memory by the single API process.
+
 Storage quota. Opening an upload session is refused (HTTP 413, code
 `storage_quota_exceeded`) when its declared total would take the space over its
 limit: a firm's space is `STORAGE_QUOTA_BYTES_PER_MEMBER` (default 10 GiB) for

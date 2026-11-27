@@ -47,6 +47,8 @@ import { modelsRouter } from "./modules/models/models.routes";
 import { downloadsRouter } from "./modules/downloads/downloads.routes";
 import { auditRouter } from "./modules/audit/audit.routes";
 import { authRouter } from "./modules/auth/auth.routes";
+import { emailSchema, signupSchema } from "./modules/auth/auth.service";
+import { createAnonymousMailCap, mailOverallCap } from "./lib/anonymousMailCap";
 import { uploadSessionsRouter } from "./modules/uploads/uploads.routes";
 import {
   projectMemoryRouter,
@@ -375,6 +377,51 @@ const authEmailLimiter = makeLimiter({
   message: "Too many authentication requests. Please try again later.",
 });
 
+// Anonymous requests that make the auth service send a mail share its single
+// hourly budget with invitations and confirmations: one address gets at most
+// 3 such mails an hour (past that the answer is the usual one and nothing is
+// sent), and the instance at most AUTH_ANONYMOUS_MAIL_HOURLY_CAP (default 15).
+// A request counts only once it passed validation and the per-client lane.
+const anonymousMailCap = createAnonymousMailCap({
+  overall: mailOverallCap(process.env.AUTH_ANONYMOUS_MAIL_HOURLY_CAP),
+});
+
+function capAnonymousMail(
+  addressOf: (req: express.Request) => string | null,
+  silentAnswer: (res: express.Response) => void,
+): express.RequestHandler {
+  return (req, res, next) => {
+    const address = addressOf(req);
+    if (address === null) return next();
+    const admission = anonymousMailCap.admit(address);
+    if (admission.kind === "send") return next();
+    if (admission.kind === "address_full") return silentAnswer(res);
+    res.setHeader("Retry-After", String(admission.retryAfterSeconds));
+    res.setHeader("RateLimit-Limit", String(admission.limit));
+    res.setHeader("RateLimit-Remaining", "0");
+    res.setHeader("RateLimit-Reset", String(admission.retryAfterSeconds));
+    res
+      .status(429)
+      .json(rateLimitedBody("Too many authentication requests. Please try again later."));
+  };
+}
+
+const capPasswordResetMail = capAnonymousMail(
+  (req) => {
+    const email = emailSchema.safeParse(req.body?.email);
+    return email.success ? email.data : null;
+  },
+  (res) => void res.status(204).end(),
+);
+
+const capSignupMail = capAnonymousMail(
+  (req) => {
+    const parsed = signupSchema.safeParse(req.body);
+    return parsed.success ? parsed.data.email : null;
+  },
+  (res) => void res.status(201).json({ user: null, requiresEmailConfirmation: true }),
+);
+
 const authFlowLimiter = makeLimiter({
   windowMs: minutes(envInt("RATE_LIMIT_AUTH_FLOW_WINDOW_MINUTES", 15)),
   max: envInt("RATE_LIMIT_AUTH_FLOW_MAX", 30),
@@ -553,6 +600,8 @@ app.use(jsonBodyAdmission);
 // Body-aware account throttling complements the per-IP login limiter. The key
 // is a one-way digest, so email addresses never enter the limiter store.
 app.post("/auth/login", authLoginAccountGlobalLimiter, authLoginAccountLimiter);
+app.post("/auth/password-reset", capPasswordResetMail);
+app.post("/auth/signup", capSignupMail);
 
 app.use("/auth", authRouter);
 app.use("/mcp-connect", mcpConsentRouter);
