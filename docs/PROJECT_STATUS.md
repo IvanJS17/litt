@@ -98,7 +98,7 @@
     [`deployment.md`](deployment.md)); #347, in invitation-only mode a recovery mail goes only
     to a finished account or a current invitation; #348, a running table generation asks, for
     each row, whether its person can still open the documents; #349, status documents.
-- **Merged, not deployed** (`main` at `445f7e6ee`, 2026-11-27):
+- **Merged, not deployed** (`main` at `891aa57a5`, 2026-11-27; none of these has a migration):
   - #351, the backup script keeps the database dump private to its account. A deploy does not
     install that script: it takes effect on a server when the operator installs it again
     ([`deploy/prod/README.md`](../deploy/prod/README.md), §7).
@@ -106,6 +106,29 @@
     accepted reader identity.
   - #353, a password set through LiTT (the invitation's password step, a recovery or Settings)
     is recorded on the account.
+  - #355, the deploy procedure stages the script and the release tree in a directory made for
+    that deploy and private to the account, and the deploy script checks what it was given
+    (regular file, owner, mode, and the sha256 of the tree) before it changes anything on the
+    host. The next deploy uses the seven-argument invocation
+    ([`deploy/prod/README.md`](../deploy/prod/README.md), §1).
+  - #356, text from outside (a remote tool's name, a URL, a hostname, an identity service's
+    message, a streamed table reply) is trimmed and scanned at a cost proportional to its
+    length; the shape test's list holds no pending entry.
+  - #357, a person's citation checks on the platform's key have a daily number (2,000 by
+    default; [`citation-support-check.md`](citation-support-check.md)).
+  - #358, client rows for connected applications that no connection refers to have a number
+    (10,000 by default), `GET /oauth/authorize` has its own limit per address, and the token
+    endpoints never create a client ([`mcp-server.md`](mcp-server.md)).
+  - #359, a person can read the use of their personal storage space, and a firm's owners and
+    administrators the firm's (`GET /user/storage`, `GET /orgs/:orgId/storage`). There is no
+    screen for it yet.
+  - #360, vector images of a Word file are shown from an inert source in the Word viewer and
+    editor ([`docx-preview-engines.md`](docx-preview-engines.md)).
+  - #361, the numeric settings of the connected-applications server are taken only when written
+    as a whole number in plain digits; the background citation check never throws, and its
+    index exports only what goes through the daily number.
+  - The new settings of #357 and #358 run on their defaults on a server until
+    `deploy/prod/compose.yaml` passes them to the backend.
 - **Health:** production verified after `20261127a`: the health endpoint reports that commit, the
   LiTT containers are healthy, the public pages answer, the other domains of the shared edge
   answer as before, and MCP is on (`mcp=401` without a token). The backend container runs as

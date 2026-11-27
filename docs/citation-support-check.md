@@ -133,13 +133,16 @@ key cannot follow one to another host.
 
 **Daily number per person.** Each person may cause up to 2,000 checks a day
 (one request per citation, counted when the citations of an answer are handed
-over). `LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON` changes it (a whole number
-from 1 to 1,000,000; anything else uses 2,000). The day is the calendar day in
+over). `LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON` changes it: a whole number
+written in plain digits, from 1 up; 1,000,000 is the ceiling (a larger number of
+up to 12 digits is taken as 1,000,000), and any other value uses 2,000. The day
+is the calendar day in
 Mexico City. Citations beyond what is left of the person's number are not sent
 and write nothing, and a request that was sent and failed still counts. The
-count lives in the memory of each process: the API and the worker count
-separately and a restart starts the count again, so no person is written
-anywhere. It is silent: nothing is shown to the person, and the first time
+count lives in memory, one count for each process and for each worker thread:
+the API and the `jobs` worker (a thread of the same process in the default
+deployment) keep separate counts, and a restart starts them again, so no person
+is written anywhere. It is silent: nothing is shown to the person, and the first time
 anyone meets the number on a day the process writes one warning
 (`citation_support.daily_number_reached`, `component=citation-support`) that
 names no person, firm or text.

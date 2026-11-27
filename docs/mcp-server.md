@@ -29,14 +29,15 @@ route answers: the requests fall through to the normal 404.
 | `RATE_LIMIT_MCP_GRANT_READ_MAX` / `RATE_LIMIT_MCP_GRANT_READ_WINDOW_SECONDS` | 120 / 60 | Read budget of one connection. |
 | `LITT_MCP_HEAVY_PER_USER` / `LITT_MCP_HEAVY_GLOBAL` | 2 / 4 | Heavy jobs started from MCP that may run at once per person and in the whole process (design §9.4; see «Heavy-job cap»). |
 | `RATE_LIMIT_MCP_GRANT_WRITE_MAX` / `RATE_LIMIT_MCP_GRANT_WRITE_WINDOW_MINUTES` | 30 / 15 | Budget of one connection for calls that write, run an engine, spend or chat. |
-| `LITT_MCP_UNAPPROVED_CLIENTS_MAX` | 10000 | Cap on client rows (registered or metadata-document) that no person has ever approved, that is, that no connection has ever referred to. See «Limits on unapproved clients». |
+| `LITT_MCP_UNAPPROVED_CLIENTS_MAX` | 10000 | Cap on client rows (registered or metadata-document) that no connection refers to now (nobody approved them, or their last connection expired or was revoked more than 30 days ago and the clean-up removed it). See «Limits on unapproved clients». |
 | `RATE_LIMIT_MCP_REGISTER_MAX` / `RATE_LIMIT_MCP_REGISTER_WINDOW_HOURS` | 60 / 1 | Registrations from one address. |
 | `RATE_LIMIT_MCP_AUTHORIZE_MAX` / `RATE_LIMIT_MCP_AUTHORIZE_WINDOW_HOURS` | 120 / 1 | `GET /oauth/authorize` requests from one address. The consent page and the token endpoints are not counted. |
 
 `LITT_MCP_ACCESS_TTL_SECONDS`, `LITT_MCP_REFRESH_TTL_DAYS`, `LITT_MCP_GRANT_MAX_DAYS`,
 `LITT_MCP_UNAPPROVED_CLIENTS_MAX` and the four `RATE_LIMIT_MCP_GRANT_*` settings are taken only when
-written as a whole number in plain digits, from 1 up (`10000`, not `10,000`, `10k` or `1e4`); any
-other value uses the default.
+written as a whole number in plain digits, from 1 up, with at most 15 digits and no leading zero
+(`10000`, not `10,000`, `10k`, `1e4` or `010`; spaces around the number are ignored); any other
+value uses the default.
 
 The proxy that makes the backend reachable at the MCP host, its DNS name and
 its Caddy block are infrastructure and are not part of the backend.
@@ -67,7 +68,7 @@ its Caddy block are infrastructure and are not part of the backend.
   `localhost` / `127.0.0.1` / `[::1]`, without fragments.
 * **Limits on unapproved clients.** Registration and the first sight of a
   metadata-document client create a client row without any person's consent.
-  When the clients that no connection has ever referred to reach
+  When the clients that no connection refers to reach
   `LITT_MCP_UNAPPROVED_CLIENTS_MAX`, a request that would create another one is
   refused before anything is fetched or written: registration answers `429`
   `temporarily_unavailable`, and `/oauth/authorize` shows the same error on the

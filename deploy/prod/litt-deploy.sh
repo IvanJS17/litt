@@ -10,8 +10,10 @@
 #   scp deploy/prod/litt-deploy.sh "staging-apps-dev:$D/litt-deploy.sh"
 #   scp "$B/litt-$SHA.tar.gz" "staging-apps-dev:$D/litt-$SHA.tar.gz"
 #   docker save "litt-backend:$SHA" "litt-frontend:$SHA" "litt-word:$SHA" | gzip -1 | ssh staging-apps-dev \
-#     bash "$D/litt-deploy.sh" "$SHA" "$IMAGE_BYTES" "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID" "$D/litt-$SHA.tar.gz" "$TREE_SHA256"
-#   ssh staging-apps-dev "rm -rf '$D'"; rm -rf "$B"
+#     bash "$D/litt-deploy.sh" "$SHA" "$IMAGE_BYTES" "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID" "$D/litt-$SHA.tar.gz" "$TREE_SHA256" \
+#     && st=0 || st=$?
+#   ssh staging-apps-dev "rm -rf '$D'"; rm -rf "$B"       # la limpieza corre también si el deploy falló
+#   echo "deploy: estado de salida $st"; [ "$st" -eq 0 ]   # el bloque termina en fallo si el deploy falló
 #
 # Antes de cambiar nada en el host el script exige: el árbol es un archivo regular (no un
 # enlace), de la cuenta que corre el script y no escribible por grupo ni otros; su directorio
