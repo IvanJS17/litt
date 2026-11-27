@@ -25,6 +25,9 @@ describe.skipIf(!container)("document text lifecycle in PostgreSQL", () => {
   it("keeps backfill, revision publication, scopes, and permissions correct after migration replay", () => {
     const assertions = readFileSync(resolve(process.cwd(), "src/modules/documents/__tests__/documents.textSearch.sql"), "utf8");
     const migration = readFileSync(resolve(process.cwd(), "migrations/20261015_01_document_text_search.sql"), "utf8");
-    sql(assertions); sql(migration); sql(migration); sql(assertions);
+    // The later migration redefines the same functions (bounded slices, piecewise search): replaying the
+    // first one puts the old definitions back, so the later one is replayed after it, twice.
+    const bounded = readFileSync(resolve(process.cwd(), "migrations/20261126_70_litt_document_text_bounded_reads.sql"), "utf8");
+    sql(assertions); sql(migration); sql(migration); sql(bounded); sql(bounded); sql(assertions);
   }, 60_000);
 });

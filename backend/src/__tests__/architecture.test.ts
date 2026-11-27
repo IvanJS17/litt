@@ -105,6 +105,57 @@ function namesRepairLibrary(text: string): boolean {
   return /["'`\/\\]jsonrepair["'`\/\\]/.test(text);
 }
 
+/** Source without comments. */
+function stripComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+const code = (file: string) => stripComments(read(file));
+
+/**
+ * True when a production file reads or names the stored text where it must not: the table, the column or the
+ * two slice functions appear only in the files that own them (documents.indexing.ts writes the table;
+ * documentTextCache.ts and documents.textSearch.ts hold the two slice readers). Any spelling counts: the
+ * table in an embed (`!inner(*)`), a name in a variable, a template literal. A name built from pieces at run
+ * time is the one thing a text scan cannot see; it needs the pieces "document", "version" and "texts" and is
+ * not how the code base spells table names.
+ */
+function textReadsOutsideTheReaders(file: string, source: string): boolean {
+  const text = stripComments(source);
+  const mentions = (re: RegExp) => re.test(text);
+  // `*` or text_content in the column list of an embed of the table, in any spelling (`(status,*)`, `!inner(*)`).
+  const embedsTheText = () => [...text.matchAll(/document_version_texts\s*(?:![\w.]+\s*)?\(([^)]*)\)/g)].some((m) => /\*|text_content/.test(m[1]));
+  const selectsEverything = () => /\.select\(\s*["'`]\s*\*/.test(text);
+  // a select of everything, or of text_content, chained from the table itself
+  const selectsTheTextOfTheTable = () => /from\(\s*["'`]document_version_texts["'`]\s*\)[^;]*?\.select\(\s*["'`][^"'`]*(\*|text_content)/.test(text);
+  if (file === "modules/documents/documents.indexing.ts") return mentions(/\bread_document_text\b|\bdocument_text_slice\b/) || selectsTheTextOfTheTable() || embedsTheText();
+  // The cache names the table only in an embed of explicit columns; the text comes from the one bounded reader.
+  if (file === "lib/documentTextCache.ts") return mentions(/\bread_document_text\b|\btext_content\b|from\(\s*["'`]document_version_texts/) || embedsTheText() || selectsEverything();
+  if (file === "modules/documents/documents.textSearch.ts") return mentions(/\bdocument_text_slice\b|\bdocument_version_texts\b|\btext_content\b/);
+  return mentions(/\bdocument_version_texts\b|\btext_content\b|\bread_document_text\b|\bdocument_text_slice\b/)
+    || mentions(/["'`]document["'`]\s*,\s*["'`]version["'`]\s*,\s*["'`]texts["'`]/);
+}
+
+/**
+ * True when a production file selects the text of a scan reading (`pages`, or `*`) from `document_version_ocr` at
+ * all, or asks for its pages anywhere but in documents.ocr.state.ts: the bounded function `document_ocr_pages`,
+ * called there by the one assembler, is the only way to that text.
+ */
+function readsScanTextOutsideTheAssembler(file: string, source: string): boolean {
+  const text = stripComments(source);
+  if (file !== "modules/documents/documents.ocr.state.ts" && /\bdocument_ocr_pages\b/.test(text)) return true;
+  // an embed of the table in another select (`document_version_ocr(pages)`, `!inner(*)`, or no column list at all)
+  const embeds = [...text.matchAll(/document_version_ocr\s*(?:![\w.]+\s*)?\(([^)]*)\)/g)].some((m) => m[1].trim() === "" || /\*|\bpages\b/.test(m[1]));
+  return embeds || [...text.matchAll(/document_version_ocr/g)].some((m) =>
+    /^[\s\S]{0,300}?\.select\(\s*["'`][^"'`]*(\bpages\b|\*)/.test(text.slice(m.index!)));
+}
+
+// Only the scan-reading job and the copy to a split version write a scan reading's row.
+const SCAN_READING_WRITERS = new Set(["modules/documents/documents.ocr.ts", "modules/documents/documents.ocr.state.ts"]);
+function writesScanReadingOutsideItsWriters(file: string, source: string): boolean {
+  return !SCAN_READING_WRITERS.has(file)
+    && /document_version_ocr[\s\S]{0,400}?\.(?:upsert|insert|update)\(/.test(stripComments(source));
+}
+
 describe("backend architecture", () => {
   it("domain implementations cannot import application workflows or their own facade", () => {
     const offenders: string[] = [];
@@ -336,5 +387,74 @@ describe("backend architecture", () => {
     ];
     for (const sample of named) expect(namesRepairLibrary(sample), sample).toBe(true);
     for (const sample of notNamed) expect(namesRepairLibrary(sample), sample).toBe(false);
+  });
+
+  it("rule 11: a stored document text is read only through the bounded-slice readers", () => {
+    // No response from the database may carry a whole text: the column is read by the two slice
+    // functions only, and a text is assembled from slices in one place (lib/documentTextSlices.ts).
+    // The table is matched by name in any form (embed, `!inner(*)`, a name held in a variable), so a file
+    // outside the two that may touch it never mentions it at all.
+    const offenders = (files: Array<[string, string]>) => files.filter(([file, text]) => textReadsOutsideTheReaders(file, text)).map(([file]) => file);
+    expect(offenders(PRODUCTION_FILES.map((file) => [file, read(file)]))).toEqual([]);
+    expect(code("modules/documents/documents.indexing.ts").match(/text_content[^\n]*/g)).toEqual(["text_content: null, error_code: errorCode, updated_at: new Date().toISOString() })"]);
+    // the cache's embed names its columns: no `*`, no text_content
+    expect(code("lib/documentTextCache.ts")).not.toMatch(/document_version_texts\s*(!\w+\s*)?\(\s*\*/);
+    expect(code("lib/documentTextCache.ts")).not.toMatch(/text_content/);
+  });
+
+  it("rule 11: the check refuses the spellings of a whole-text read that name the table in the source", () => {
+    // A text rule catches a table named in the source, not one computed at run time.
+    const forms: Array<[string, string]> = [
+      ["modules/documents/documents.sneaky.ts", 'db.from("document_versions").select("id,document_version_texts!inner(*)")'],
+      ["modules/documents/documents.sneaky.ts", 'const TEXTS = "document_version_texts"; db.from(TEXTS).select("*")'],
+      ["modules/documents/documents.sneaky.ts", "db.from('document_version_texts').select('text_content')"],
+      ["modules/documents/documents.sneaky.ts", 'db.from("document_versions").select("document_version_texts(*)")'],
+      ["modules/documents/documents.sneaky.ts", 'db.rpc("read_document_text", {})'],
+      ["modules/documents/documents.sneaky.ts", "db.rpc(`document_text_slice`, {})"],
+      ["modules/documents/documents.sneaky.ts", 'const c = "text_" + "content"; db.from(["document", "version", "texts"].join("_"))'],
+    ];
+    for (const [file, text] of forms) expect(textReadsOutsideTheReaders(file, text), text).toBe(true);
+    // inside the files that may touch the table: `*` or text_content in any embed or select
+    const cache = "lib/documentTextCache.ts";
+    expect(textReadsOutsideTheReaders(cache, 'select("id,document_version_texts(status,*)")')).toBe(true);
+    expect(textReadsOutsideTheReaders(cache, 'db.from("document_version_texts").select("*")')).toBe(true);
+    expect(textReadsOutsideTheReaders(cache, 'select("text_revision,document_version_texts!inner(*)")')).toBe(true);
+    expect(textReadsOutsideTheReaders("modules/documents/documents.indexing.ts", 'db.from("document_version_texts").select("*")')).toBe(true);
+    // the allowed places and plain comments are not flagged
+    expect(textReadsOutsideTheReaders("modules/documents/documents.indexing.ts", 'db.from("document_version_texts").update({ text_content: null })')).toBe(false);
+    expect(textReadsOutsideTheReaders("lib/documentTextCache.ts", 'select("document_version_texts(status)"); db.rpc("document_text_slice", {})')).toBe(false);
+    expect(textReadsOutsideTheReaders("modules/documents/documents.textSearch.ts", 'db.rpc("read_document_text", {})')).toBe(false);
+    expect(textReadsOutsideTheReaders("modules/documents/documents.other.ts", "// the table document_version_texts is server-only\nconst x = 1;")).toBe(false);
+  });
+
+  it("rule 13: the pages stored for a scan reading come only from the bounded result, and only two files write the row", () => {
+    expect(PRODUCTION_FILES.filter((file) => writesScanReadingOutsideItsWriters(file, read(file)))).toEqual([]);
+    const job = code("modules/documents/documents.ocr.ts");
+    expect(job).toMatch(/boundOcrReading\(\s*result\s*,/);
+    expect(job).toMatch(/pages:\s*stored\.pages/);
+    expect(job).not.toMatch(/pages:\s*result\b/);
+    expect(writesScanReadingOutsideItsWriters("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").upsert({ pages })')).toBe(true);
+    expect(writesScanReadingOutsideItsWriters("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").select("status")')).toBe(false);
+    expect(writesScanReadingOutsideItsWriters("modules/documents/documents.ocr.ts", 'db.from("document_version_ocr").upsert({})')).toBe(false);
+  });
+
+  it("rule 12: no file names the pages of a scan reading, in a select or an embed, outside the bounded function and its one assembler (a table named in the source, not one computed at run time)", () => {
+    expect(PRODUCTION_FILES.filter((file) => readsScanTextOutsideTheAssembler(file, read(file)))).toEqual([]);
+    // no select of `pages` or `*` from the table, not even in documents.ocr.state.ts
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", read("modules/documents/documents.ocr.state.ts"))).toBe(false);
+    expect(code("modules/documents/documents.ocr.state.ts")).toMatch(/rpc\(\s*["']document_ocr_pages["']/);
+    expect(code("modules/documents/documents.ocr.state.ts")).not.toMatch(/from\(\s*["']document_version_ocr["']\s*\)\s*\.select/);
+    // the rule sees the forms
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'db.from("document_versions").select("id,document_version_ocr(pages)")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'select("id,document_version_ocr!inner(status,*)")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'select("id,document_version_ocr()")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'select("id,document_version_ocr(status,failed_pages)")')).toBe(false);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", 'db.from("document_version_ocr").select("version_id,pages")')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", "db.from('document_version_ocr').select('*')")).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.sneaky.ts", 'db.rpc("document_ocr_pages", {})')).toBe(true);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.state.ts", 'db.rpc("document_ocr_pages", {})')).toBe(false);
+    expect(readsScanTextOutsideTheAssembler("modules/platform/platform.stats.ts", '"document_version_ocr", "version_id,requested_by,created_at"')).toBe(false);
+    expect(readsScanTextOutsideTheAssembler("modules/documents/documents.ocr.ts", 'db.from("document_version_ocr").update({}).select("version_id")')).toBe(false);
   });
 });

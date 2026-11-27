@@ -149,3 +149,12 @@ describe("architecture of the MCP tools", () => {
         }
     });
 });
+
+describe("a window read from part of a text", () => {
+    const text = `${"línea de texto\n".repeat(40)}😀 fin`;
+    it.each([[0, 50], [7, 30], [300, 100], [560, 40], [1000, 10]])("is the same window as one cut from the whole text (offset %i, limit %i)", (offset, limit) => {
+        const points = Array.from(text);
+        const part = points.slice(offset, offset + limit).join("");
+        expect(windowOf(part, offset, limit, { start: offset, total: points.length })).toEqual(windowOf(text, offset, limit));
+    });
+});

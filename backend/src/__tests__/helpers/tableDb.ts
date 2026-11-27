@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "../../lib/supabase";
+import { scanReadingRpc } from "./scanReadingRpc";
 
 type Row = Record<string, unknown>;
 
@@ -144,5 +145,12 @@ export function tableDb(
     }
     return builder;
   };
-  return { db: { from } as unknown as Db, calls, tables };
+  // The only functions this stand-in answers: the two reads of a scan reading, over its table.
+  const readings = scanReadingRpc(() => tables.document_version_ocr ?? []);
+  const rpc = async (name: string, args: Record<string, unknown>) => {
+    const handler = (readings as Record<string, (a: Record<string, unknown>) => Promise<unknown>>)[name];
+    if (!handler) return { data: null, error: { message: `no rpc ${name}` } };
+    return { data: await handler(args), error: null };
+  };
+  return { db: { from, rpc } as unknown as Db, calls, tables };
 }

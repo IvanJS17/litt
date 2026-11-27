@@ -7,6 +7,8 @@
 // worker process/machine (src/worker.ts) stays identical.
 
 import "dotenv/config";
+// The environment first (lib/log.ts reads NODE_ENV when imported), then, before anything can log: provider errors carry the prompt and the reply.
+import "./logRedaction";
 import { parentPort, workerData } from "node:worker_threads";
 import { startAllWorkers, stopAllWorkers, WORKER_ROLES, type WorkerRole } from "./workerRuntime";
 import { flushReports, reportError } from "./lib/observability/report";

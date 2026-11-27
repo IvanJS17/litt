@@ -5,6 +5,7 @@ import path from "node:path";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import {
   extractionLauncherWarnings,
+  scanReadingStoreLimits,
   uploadConversionTimeoutMs,
   uploadJobWallClockMs,
   uploadProcessingConfiguration,
@@ -21,7 +22,19 @@ const validProduction = {
   FRONTEND_URL: "https://app.example.test",
   API_PUBLIC_URL: "https://app.example.test/api",
   GIT_SHA: "0123456789abcdef0123456789abcdef01234567",
+  DOWNLOAD_SIGNING_SECRET: "d".repeat(64),
+  USER_API_KEYS_ENCRYPTION_SECRET: "u".repeat(64),
 } as NodeJS.ProcessEnv;
+
+// Shaped like the keys that `supabase start` and the local compose file ship:
+// a JWT whose issuer is "supabase-demo", signed with a published secret. The
+// value here is synthetic; only the payload matters to the check.
+function jwtIssuedBy(issuer: string): string {
+  const part = (value: object) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${part({ alg: "HS256", typ: "JWT" })}.${part({ iss: issuer, role: "anon" })}.synthetic-signature`;
+}
+const SUPABASE_DEMO_KEY = jwtIssuedBy("supabase-demo");
 
 describe("runtime authentication configuration", () => {
   it("accepts a complete production configuration", () => {
@@ -140,9 +153,22 @@ describe("runtime authentication configuration", () => {
       },
     );
 
-    it.each([undefined, ""])("allows an absent or empty value %j", (value) => {
+    // Unset, the consumer fails closed on first use (no fallback key, no
+    // plaintext), so a hosted deployment would boot and then break downloads
+    // or stored credentials. Production refuses that at boot instead.
+    it.each([undefined, ""])("is required in production (%j)", (value) => {
       expect(() =>
         validateRuntimeConfiguration({ ...validProduction, [name]: value }),
+      ).toThrow(`${name} is required in production`);
+    });
+
+    it.each([undefined, ""])("may be absent outside production (%j)", (value) => {
+      expect(() =>
+        validateRuntimeConfiguration({
+          ...validProduction,
+          NODE_ENV: "development",
+          [name]: value,
+        }),
       ).not.toThrow();
     });
 
@@ -156,6 +182,51 @@ describe("runtime authentication configuration", () => {
     });
   });
 
+  it.each([
+    ["SUPABASE_SECRET_KEY", { SUPABASE_SECRET_KEY: SUPABASE_DEMO_KEY }],
+    ["SUPABASE_PUBLISHABLE_KEY", { SUPABASE_PUBLISHABLE_KEY: SUPABASE_DEMO_KEY }],
+    [
+      "SUPABASE_ANON_KEY",
+      { SUPABASE_PUBLISHABLE_KEY: undefined, SUPABASE_ANON_KEY: SUPABASE_DEMO_KEY },
+    ],
+  ])("rejects the published Supabase demo key in %s in production", (name, keys) => {
+    let message = "";
+    try {
+      validateRuntimeConfiguration({ ...validProduction, ...keys });
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toContain(`${name} is a published Supabase demo key`);
+    // Name the variable, never echo the credential.
+    expect(message).not.toContain(SUPABASE_DEMO_KEY);
+    expect(message).not.toContain("eyJ");
+  });
+
+  it("accepts keys with another issuer or that are not JWTs in production", () => {
+    expect(() =>
+      validateRuntimeConfiguration({
+        ...validProduction,
+        SUPABASE_SECRET_KEY: jwtIssuedBy("supabase"),
+        SUPABASE_PUBLISHABLE_KEY: "sb_publishable_not-a-jwt",
+      }),
+    ).not.toThrow();
+  });
+
+  // The local stack (NODE_ENV=development, the bundled Supabase's demo keys,
+  // the two app secrets optional) must keep booting.
+  it("still boots a local development configuration with the demo keys", () => {
+    expect(() =>
+      validateRuntimeConfiguration({
+        NODE_ENV: "development",
+        FRONTEND_URL: "http://localhost:3000",
+        API_PUBLIC_URL: "http://localhost:3000/api",
+        SUPABASE_URL: "http://gateway:8000",
+        SUPABASE_PUBLISHABLE_KEY: SUPABASE_DEMO_KEY,
+        SUPABASE_SECRET_KEY: SUPABASE_DEMO_KEY,
+      }),
+    ).not.toThrow();
+  });
+
   it("accepts the legacy anon key name for the user-session client", () => {
     expect(() =>
       validateRuntimeConfiguration({
@@ -164,6 +235,26 @@ describe("runtime authentication configuration", () => {
         SUPABASE_ANON_KEY: "legacy-anon-key",
       }),
     ).not.toThrow();
+  });
+});
+
+describe("LLM_PROVIDER_DATA_RETENTION", () => {
+  it.each(["deny", "allow", "ALLOW", ""])("accepts %j", (value) => {
+    expect(() =>
+      validateRuntimeConfiguration({
+        ...validProduction,
+        LLM_PROVIDER_DATA_RETENTION: value,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a value that is neither deny nor allow", () => {
+    expect(() =>
+      validateRuntimeConfiguration({
+        ...validProduction,
+        LLM_PROVIDER_DATA_RETENTION: "off",
+      }),
+    ).toThrow(/LLM_PROVIDER_DATA_RETENTION must be "deny" \(the default\) or "allow"/);
   });
 });
 
@@ -297,7 +388,7 @@ it("identifies invalid configuration fields without keeping their values", () =>
   expect(tags).toEqual({
     failure_code: "configuration_invalid",
     configuration_fields:
-      "API_PUBLIC_URL,FRONTEND_URL,GIT_SHA,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL",
+      "API_PUBLIC_URL,DOWNLOAD_SIGNING_SECRET,FRONTEND_URL,GIT_SHA,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL,USER_API_KEYS_ENCRYPTION_SECRET",
   });
   expect(JSON.stringify(tags)).not.toContain("PRIVATE");
 });
@@ -363,5 +454,24 @@ describe("extractionLauncherWarnings", () => {
 
   it("is quiet when parser isolation is off", () => {
     expect(extractionLauncherWarnings(env(empty, "off"), "linux")).toEqual([]);
+  });
+});
+
+describe("what a scan reading may store", () => {
+  const defaults = { pageBytes: 200_000, readingBytes: 10_000_000, readingPages: 20_000 };
+  const set = (page: string, reading: string, pages: string) =>
+    ({ OCR_PAGE_MAX_BYTES: page, OCR_READING_MAX_BYTES: reading, OCR_READING_MAX_PAGES: pages }) as NodeJS.ProcessEnv;
+  it("is 200,000 bytes a page, 10,000,000 a reading and 20,000 pages unless an operator sets whole numbers in range", () => {
+    expect(scanReadingStoreLimits({})).toEqual(defaults);
+    expect(scanReadingStoreLimits(set("50000", "3000000", "5000"))).toEqual({ pageBytes: 50_000, readingBytes: 3_000_000, readingPages: 5_000 });
+    for (const bad of ["", "0", "-5", "12abc", "1.5", "1e6", "abc", " 7 ", "99999999999999999999"])
+      expect(scanReadingStoreLimits(set(bad, bad, bad)), bad).toEqual(defaults);
+  });
+  it("accepts a value only inside its range, ends included, and otherwise uses the default", () => {
+    expect(scanReadingStoreLimits(set("1000", "100000", "1"))).toEqual({ pageBytes: 1_000, readingBytes: 100_000, readingPages: 1 });
+    expect(scanReadingStoreLimits(set("2000000", "32000000", "100000"))).toEqual({ pageBytes: 2_000_000, readingBytes: 32_000_000, readingPages: 100_000 });
+    expect(scanReadingStoreLimits(set("999", "99999", "0"))).toEqual(defaults);
+    expect(scanReadingStoreLimits(set("2000001", "32000001", "100001"))).toEqual(defaults);
+    expect(scanReadingStoreLimits(set("9000000000", "1000000000", "1000000"))).toEqual(defaults);
   });
 });

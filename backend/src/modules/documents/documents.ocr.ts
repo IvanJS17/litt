@@ -11,7 +11,8 @@ import { loadActiveVersion, type ActiveVersion } from "../../lib/documentVersion
 import { ExtractionBusyError, withBackgroundExtraction } from "../../lib/extraction/isolated";
 import { resolveScanKey } from "../../lib/ocr/key";
 import { OcrError, parsePdfWithLandingAi, LANDINGAI_MODEL, type OcrErrorCode } from "../../lib/ocr/landingai";
-import { OCR_AUTO_MAX_PAGES, OCR_MAX_BYTES, estimateOcrCostUsd } from "../../lib/ocr/pages";
+import { OCR_AUTO_MAX_PAGES, OCR_MAX_BYTES, boundOcrReading, estimateOcrCostUsd } from "../../lib/ocr/pages";
+import { scanReadingStoreLimits } from "../../lib/runtimeConfig";
 import { reportError, setOperation } from "../../lib/observability/report";
 import { can, DOCUMENT_EDIT_FORBIDDEN } from "../../lib/permissions";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
@@ -19,7 +20,7 @@ import { downloadFile } from "../../lib/storage";
 import { assertVersionReleasable } from "../../lib/trainingRelease";
 import { ensureDocumentAccess } from "./documents.access";
 import { extractAndPublishText } from "./documents.indexing";
-import { loadScanRow, type ScanRow } from "./documents.ocr.state";
+import { loadScanState, type ScanState } from "./documents.ocr.state";
 import type { Db } from "./documents.shared";
 
 export const OCR_KEY_MISSING_CODE = "ocr_key_missing";
@@ -83,7 +84,7 @@ const isScannedPdf = (version: ActiveVersion) =>
 async function describeState(db: Db, userId: string, target: Target): Promise<ScanReadingState> {
   const { version } = target;
   const isPdf = (version.file_type ?? "").toLowerCase() === "pdf";
-  const row = isPdf ? await loadScanRow(db, version.id) : null;
+  const row = isPdf ? await loadScanState(db, version.id) : null;
   const current = row && row.source_revision === version.text_revision ? row : null;
   const status: ScanReadingStatus = current ? current.status : "none";
   const keyAvailable = isPdf ? (await resolveScanKey(db, userId, target.doc.org_id)) !== null : false;
@@ -103,7 +104,7 @@ async function describeState(db: Db, userId: string, target: Target): Promise<Sc
     // Only the pages without a text layer are sent and billed. After a partial reading
     // `textless` counts just the pages still unread, but reading again sends every scanned
     // page of the file again: the ones already read plus the ones still unread.
-    estimated_cost_usd: textless ? estimateOcrCostUsd(textless + (current?.pages?.length ?? 0)) : null,
+    estimated_cost_usd: textless ? estimateOcrCostUsd(textless + (current?.pages_read ?? 0)) : null,
     credits: credits !== null && Number.isFinite(credits) ? credits : null,
   };
 }
@@ -131,7 +132,7 @@ async function queueReading(
   db: Db,
   target: Target,
   actor: { userId: string; userEmail: string | undefined },
-  previous: ScanRow | null,
+  previous: Pick<ScanState, "source_revision"> | null,
 ): Promise<void> {
   const { version, doc } = target;
   const revision = version.text_revision;
@@ -203,7 +204,7 @@ export async function requestScanReading(
         "Add a LandingAI key in Settings to read scanned documents.",
         OCR_KEY_MISSING_CODE,
       );
-    const current = await loadScanRow(db, target.version.id);
+    const current = await loadScanState(db, target.version.id);
     const running = current?.status === "processing" && current.source_revision === target.version.text_revision;
     if (!running) await queueReading(db, target, args, current);
     return ok(await describeState(db, args.userId, target));
@@ -232,7 +233,7 @@ export async function queueScanReadingOnUpload(
     if (!releasable.ok) return;
     const orgId = (doc as { org_id: string | null }).org_id ?? null;
     if ((await resolveScanKey(db, args.userId, orgId)) === null) return;
-    await queueReading(db, { doc: { id: args.documentId, org_id: orgId }, version, canEdit: true }, args, await loadScanRow(db, version.id));
+    await queueReading(db, { doc: { id: args.documentId, org_id: orgId }, version, canEdit: true }, args, await loadScanState(db, version.id));
   } catch (error) {
     reportError(error, { level: "warning", tags: { component: "documents", stage: "ocr-queue" } });
   }
@@ -275,7 +276,7 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
   const releasable = await assertVersionReleasable(db, version as never);
   if (!releasable.ok) throw new NonRetryableJobError("ocr_held_for_training");
 
-  const existing = await loadScanRow(db, versionId);
+  const existing = await loadScanState(db, versionId);
   if (!existing || existing.source_revision !== revision) return;
   // A retry after the reading was saved only has the merge left: never pay twice.
   if (existing.status !== "ready") {
@@ -295,13 +296,19 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
     }
     try {
       const result = await parsePdfWithLandingAi(key, raw, scanned.pages.length < scanned.total ? { pages: scanned.pages } : {});
+      const stored = boundOcrReading(result, scanReadingStoreLimits());
+      if (!stored) {
+        // more pages than a reading may store: nothing of it is kept, and it is the same ending as a file too large to read
+        await finishRow(db, versionId, revision, { status: "failed", error_code: OCR_TOO_LARGE_CODE });
+        return;
+      }
       const saved = await finishRow(db, versionId, revision, {
         status: "ready",
-        pages: result.pages.map((p) => ({ page: p.page, text: p.text.replaceAll("\0", "") })),
+        pages: stored.pages,
         model: result.model || LANDINGAI_MODEL,
         credits: result.credits,
         page_count: result.pageCount || null,
-        failed_pages: result.failedPages,
+        failed_pages: stored.failedPages,
         error_code: null,
       });
       if (!saved) return; // superseded by a newer request
