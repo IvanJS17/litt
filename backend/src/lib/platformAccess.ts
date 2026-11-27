@@ -4,6 +4,8 @@
 // nothing else.
 
 import { normalizeEmail } from "./access";
+import { findIdentity } from "./identityLookup";
+import { listPersonalOrgIds } from "./personalOrgs";
 import type { Db } from "./supabase";
 
 export function platformAdmins(env: NodeJS.ProcessEnv = process.env): string[] {
@@ -89,4 +91,43 @@ export async function releasePlatformInvitation(db: Db, id: string): Promise<voi
     .update({ status: "pending", used_at: null })
     .eq("id", id)
     .eq("status", "used");
+}
+
+/**
+ * May a recovery mail be requested for this address? Outside invitation-only
+ * mode always, reading nothing. In it, for an administrator, an address with a
+ * current invitation, and a confirmed identity that is not an unfinished
+ * invitation: one no invitation created, or one whose account shows it was
+ * finished (a password set, the terms accepted, onboarding done, or a place
+ * in a firm). An identity an invitation created that was never finished, and
+ * an address with no identity and no invitation, get none. Throws when it
+ * cannot tell, so the caller requests nothing.
+ */
+export async function mayRecoverPassword(db: Db, address: string): Promise<boolean> {
+  if (!betaMode()) return true;
+  const email = normalizeEmail(address);
+  if (!email) return false;
+  if (isPlatformAdmin(email) || (await canSignUp(db, email))) return true;
+
+  const identity = await findIdentity(email);
+  if (!identity?.email_confirmed_at) return false;
+  if (!identity.invited_at) return true;
+
+  const { data: profile, error: profileError } = await db
+    .from("user_profiles")
+    .select("password_set_at, terms_accepted_at, onboarding_version")
+    .eq("user_id", identity.id)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  const marks = (profile ?? {}) as Record<string, unknown>;
+  if (marks.password_set_at || marks.terms_accepted_at || marks.onboarding_version != null) return true;
+
+  // Every identity owns a personal organization; only another one is a firm.
+  const personalOrgIds = await listPersonalOrgIds(db, identity.id);
+  const { data: memberships, error: membershipError } = await db
+    .from("org_members")
+    .select("org_id")
+    .eq("user_id", identity.id);
+  if (membershipError) throw membershipError;
+  return (memberships ?? []).some((m) => !personalOrgIds.has((m as { org_id: string }).org_id));
 }

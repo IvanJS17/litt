@@ -756,6 +756,23 @@ flows continue. An operator may see such 429 answers while few mails go out,
 because requests count whether or not a mail follows. The counts are kept in
 memory by the single API process, so a restart starts them again.
 
+Password recovery in invitation-only mode. A recovery mail is requested from the
+auth service only for an administrator's address, an address with a current
+invitation (pending and not expired, from a firm or from the platform), and a
+confirmed account that is not an unfinished invitation: one that no invitation
+created, or one that shows it was finished (a password set, the terms accepted,
+onboarding done, or a place in a firm other than its own personal space). Anyone
+else, such as a person whose invitation ran out or who opened the invitation
+link and never finished, gets no recovery mail and needs a new invitation. The
+screen says the same as always: the route answers `204` first, with the same
+headers and no cookie for every address, and only then decides and asks, so the
+answer and its timing do not depend on the address. The count above is taken
+exactly as before, for every request. When the decision cannot be made (the
+auth service or the database cannot be read), no mail is requested and a
+warning without the address is reported. Outside invitation-only mode nothing
+changes. Before deploying, the accounts this leaves without a recovery mail can
+be counted with the read-only query in the change's description.
+
 Storage quota. Opening an upload session is refused (HTTP 413, code
 `storage_quota_exceeded`) when its declared total would take the space over its
 limit: a firm's space is `STORAGE_QUOTA_BYTES_PER_MEMBER` (default 10 GiB) for
