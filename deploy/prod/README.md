@@ -454,7 +454,7 @@ de inicio de sesión:
 | Usuario | uid | Para qué | Posee |
 |---|---|---|---|
 | `litt-api` | 10001 | la API, sus hilos de trabajo y los trabajos | su `HOME` (`/home/litt-api`) |
-| `litt-reader` | 10002 | todo proceso que abre un archivo subido o enlazado: el lector (`src/lib/extraction/isolated.ts`), LibreOffice en cualquiera de sus rutas (el lector lo inicia, y la conversión a PDF de las subidas la hace un ayudante `convertChild.js`) y el proceso de lectura de Drive (inactivo en producción) | nada, salvo su directorio temporal (`/tmp/mike-extraction-*`, `/tmp/litt-convert-*`, modo 0700) |
+| `litt-reader` | 48217 | todo proceso que abre un archivo subido o enlazado: el lector (`src/lib/extraction/isolated.ts`), LibreOffice en cualquiera de sus rutas (el lector lo inicia, y la conversión a PDF de las subidas la hace un ayudante `convertChild.js`) y el proceso de lectura de Drive (inactivo en producción) | nada, salvo su directorio temporal (`/tmp/mike-extraction-*`, `/tmp/litt-convert-*`, modo 0700) |
 
 El contenedor arranca como root solo para que el entrypoint (`/usr/local/bin/litt-entrypoint`)
 pase a `litt-api`. A partir de ahí, los lectores se inician como `litt-reader` con
@@ -480,8 +480,14 @@ se termina de dos maneras, y ninguna depende de que el lector coopere:
   (`childProcessGuard.test.ts`). El trabajo **no espera** al lector: al vencer el plazo
   termina con el mismo error de siempre (`parser deadline exceeded`, `conversion.timeout`, el
   rechazo del lector de Drive) tras, como mucho, `REAPER_WAIT_MS` (2 s) y libera su lugar
-  haya o no cierre del proceso; el directorio temporal se borra después, como el lector, y un
-  borrado que falla se avisa una sola vez en el registro (`[extraction]`).
+  haya o no cierre del proceso. El directorio temporal del lector tampoco hace esperar a un
+  trabajo: crearlo (como `litt-reader`) tiene un tope de 5 s (`READER_SCRATCH_CREATE_MS`) y, si
+  falla o vence, el trabajo falla de inmediato; borrarlo (tope de 10 s,
+  `READER_SCRATCH_REMOVE_MS`) ocurre **después** de que el trabajo terminó y liberó su lugar,
+  se avisa una sola vez en el registro (`[extraction]`) si falla y no se reintenta (lo que
+  quede lo borra la limpieza del arranque). Por tanto, **lo más que un trabajo retiene su
+  lugar es su plazo + 2 s (espera del segador) + 5 s (crear el directorio)**, haga lo que haga
+  el lector.
 - **La tubería** (la entrada estándar del lector, o un descriptor propio del ayudante de
   conversión): el proceso, con un hilo propio, termina su grupo de procesos, LibreOffice
   incluido. Se mantiene porque es lo que termina al grupo cuando la API misma muere.
@@ -493,8 +499,31 @@ bifurque sin freno agote su propia cuota y no el `pids_limit` del contenedor, qu
 necesita para seguir iniciando procesos (incluido el segador, que se inicia sin tope porque
 cuenta contra el usuario de la API). El pico medido de `litt-reader` con el analizador, dos
 conversiones y dos lecturas de Drive a la vez fue de 56 procesos e hilos (laboratorio con LibreOffice real; una subida de seis archivos contra la pila local completa, 40 muestreados), unas cuatro veces menos que el tope (laboratorio, no producción;
-sin espacio de nombres de usuario, el kernel cuenta por uid del anfitrión: no dejar otro
-proceso con uid 10002 en el anfitrión).
+sin espacio de nombres de usuario, el kernel cuenta por uid del anfitrión, como se explica
+abajo).
+
+**El tope se comparte con todo proceso de ese uid en el anfitrión.** El kernel cuenta los
+procesos de un usuario por número de uid en todo el anfitrión (el contenedor no tiene espacio
+de nombres de usuario), no por contenedor. Por eso la imagen da a `litt-reader` el uid y gid
+**48217**, un número que otras imágenes difícilmente usan (10001 y 10002 son comunes). Aun
+así, cualquier otro proceso o contenedor del anfitrión que corra con uid 48217 gasta la
+cuota de los lectores, y dos pilas de esta imagen en el mismo anfitrión **comparten** una
+sola cuota: `EXTRACTION_READER_PROCESS_LIMIT` es por lanzamiento, la cuenta es por anfitrión.
+Si la cuota se agota desde fuera, los lectores arrancan pero no pueden crear sus hilos: las
+subidas esperan hasta su plazo y fallan (con errores como `document_too_large` por plazo o
+memoria, o `conversion_timeout`); la API sigue arriba. Comprobación **en el anfitrión**, antes
+del primer despliegue y cuando las subidas agoten su plazo sin causa visible (cuenta los
+procesos e hilos con ese uid, de todos los contenedores; en reposo debe dar 0 o un número
+pequeño, muy por debajo de 256):
+
+```bash
+ps -eLo uid= | awk '$1 == 48217' | wc -l      # tareas (procesos e hilos) del uid 48217 en todo el anfitrión
+ps -eo uid=,pid=,args= | awk '$1 == 48217'    # quién las tiene (en reposo, ninguna)
+```
+
+Si da un número alto con la pila en reposo, algo ajeno usa ese uid: cámbialo de uno de los
+dos lados (en esta imagen, el uid de `litt-reader` en `backend/Dockerfile`; nada más lo nombra:
+el lanzador y el segador lo leen por nombre de `/etc/passwd` en cada arranque).
 
 Al arrancar, antes de aceptar trabajo, la API borra como `litt-reader` lo que ese usuario
 posee directamente bajo el directorio temporal (solo entradas suyas, sin seguir enlaces, con
@@ -505,10 +534,28 @@ hace si el usuario lector es el mismo de la API.
 Límites conocidos: todos los lectores comparten un solo usuario, así que un lector que
 ejecute código ajeno puede enviar señales a otros lectores y leer su directorio temporal
 mientras viva; un proceso que se sale del grupo (`setsid`) no lo alcanza la muerte del grupo
-y vive hasta que se recrea el contenedor (en `main` ese proceso habría sido root); los
+y vive hasta que se reinicia o se recrea el contenedor (en `main` ese proceso habría sido root); los
 lectores comparten la red del contenedor; lo que un lector devuelve (el PDF) no tiene tope de
 tamaño, como en `main`; y un proceso hijo iniciado fuera del lanzador heredaría las dos
 capacidades de la API, que el proceso de la API ya tiene.
+
+Qué puede hacer un proceso de `litt-reader` que sobrevive (por ejemplo, uno que salió de su
+grupo con `setsid`): vive hasta que el contenedor se **reinicia o se recrea** (un
+`docker compose restart backend` basta: los procesos mueren con el espacio de PIDs del
+contenedor). Mientras vive puede hacer fallar la lectura de **todas** las subidas siguientes
+(cada una termina igualmente en su tope y libera su lugar, pero falla), retener toda la cuota
+de procesos del usuario lector, y leer o cambiar el directorio temporal de otros trabajos.
+No hay mecanismo propio que lo termine en esta entrega. Lo que ve el operador: subidas que
+fallan por plazo (`conversion_timeout`, `parser deadline exceeded`, errores al crear el
+directorio temporal) y procesos de `litt-reader` presentes **sin que haya una subida en curso**;
+para listarlos dentro del contenedor:
+
+```bash
+$C exec -T backend sh -c 'for d in /proc/[0-9]*; do u=$(awk "/^Uid:/{print \$2}" $d/status 2>/dev/null); [ "$u" = 48217 ] && echo "$d $(tr "\0" " " < $d/cmdline | cut -c1-110)"; done'
+```
+
+Si aparece alguno en reposo (o la cuota del anfitrión de arriba no explica los fallos), el
+operador reinicia el backend: `$C restart backend`.
 
 Ajustes de `backend` en `compose.yaml` y por qué:
 
@@ -574,8 +621,8 @@ leen y que los de Word y presentaciones se convierten a PDF. Mientras se convier
 el proceso es de otro usuario (la imagen no trae `ps`; se lee `/proc`):
 
 ```bash
-$C exec -T backend sh -c 'for d in /proc/[0-9]*; do u=$(awk "/^Uid:/{print \$2}" $d/status 2>/dev/null); [ "$u" = 10002 ] && echo "$u $(tr "\0" " " < $d/cmdline | cut -c1-110)"; done'
-# 10002 ... node ... /app/dist/lib/extraction/process.js  |  node /app/dist/lib/convertChild.js ...  |  soffice.bin ...
+$C exec -T backend sh -c 'for d in /proc/[0-9]*; do u=$(awk "/^Uid:/{print \$2}" $d/status 2>/dev/null); [ "$u" = 48217 ] && echo "$u $(tr "\0" " " < $d/cmdline | cut -c1-110)"; done'
+# 48217 ... node ... /app/dist/lib/extraction/process.js  |  node /app/dist/lib/convertChild.js ...  |  soffice.bin ...
 # Al terminar la carga, sin salida: no queda ningún proceso de litt-reader
 ```
 

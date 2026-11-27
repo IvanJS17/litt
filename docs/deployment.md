@@ -368,12 +368,42 @@ starts a small trusted helper (`src/lib/extraction/reaper.ts`) that takes the re
 user as its effective user only and sends `SIGKILL` to the process group, which also
 reaches a stopped process. A job whose process does not cooperate therefore still ends
 at its deadline with the usual error, and frees its slot within a short bounded wait
-(`REAPER_WAIT_MS`, 2 s). The processes of the reader user are limited in number
+(`REAPER_WAIT_MS`, 2 s). No job waits for the reader's scratch directory: making it is
+bounded by 5 s (`READER_SCRATCH_CREATE_MS`; past that the job fails at once), and removing it
+(bounded by 10 s, `READER_SCRATCH_REMOVE_MS`) happens after the job has settled and freed its
+slot, is reported once if it fails and is not retried (the start-up clean-up removes what is
+left). The longest a job holds its slot is therefore its deadline + 2 s + 5 s, whatever the
+reader does. The processes of the reader user are limited in number
 (`EXTRACTION_READER_PROCESS_LIMIT`, 256 by default, 0 for none), so that a runaway
-reader cannot take the container's `pids_limit` from the API. Known limits: all readers
+reader cannot take the container's `pids_limit` from the API.
+
+The reader's numeric user and group id in the image is 48217. The kernel counts the
+process allowance per user id on the whole host (the container has no user namespace),
+so the allowance is shared with every process of that user id on the host, in any
+container, and two stacks of this image on one host share one allowance
+(`EXTRACTION_READER_PROCESS_LIMIT` is per launch, the count is per host). When it is used
+up from outside, readers start but cannot create their threads: uploads wait until their
+deadline and fail, and the API stays up. Before the first deploy, and when uploads time
+out for no visible reason, count the tasks of that id on the host (it should be 0, or far
+below 256, with the stack idle):
+
+```bash
+ps -eLo uid= | awk '$1 == 48217' | wc -l
+```
+
+The launcher passes the reader's name to `setpriv`, and the group-ending helper is given
+the number read from `/etc/passwd`, so changing the id in `backend/Dockerfile` is the only
+change needed.
+
+A process of the reader user that leaves its group (`setsid`) lives until the container
+is restarted or recreated (a restart is enough). While it lives it can make every later
+upload's reading fail (each still ends at its bound and frees its slot), hold the reader
+user's whole process allowance, and read or change other jobs' scratch directories. An
+operator sees uploads failing with time-outs and reader-user processes present while no
+upload runs (list them inside the container: every `/proc/<pid>` whose `Uid:` is 48217),
+and restarts the backend. There is no mechanism of its own for this. Known limits: all readers
 share one user (a reader running foreign code can signal other readers and read their
-scratch directories while it lives); a process that leaves its group with `setsid` is
-not reached by the group kill and lives until the container is recreated; the readers
+scratch directories while it lives); the readers
 share the container's network; what a reader returns (the PDF) is not size-bounded, as
 before. Any other child process of the API is started with no capability at all;
 one launcher (`launchChild`, `src/lib/extraction/readerUser.ts`) builds every command

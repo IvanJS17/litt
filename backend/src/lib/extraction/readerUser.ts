@@ -13,8 +13,11 @@ import { extractionReaderUser } from "./limits";
 /** The longest a job waits for the reader's process group to be ended before it settles anyway (and so frees its slot). */
 export const REAPER_WAIT_MS = 2_000;
 
-/** The longest a short helper (making or removing a scratch directory) may take as the reader. */
-export const READER_TASK_MS = 30_000;
+/** The longest a job waits for the reader's scratch directory to be made: past it the job fails at once. */
+export const READER_SCRATCH_CREATE_MS = 5_000;
+
+/** The longest the removal of a reader's scratch directory may take. It runs after the job has settled and freed its slot, so no job waits for it. */
+export const READER_SCRATCH_REMOVE_MS = 10_000;
 
 /** The longest the start-up clean-up of leftover reader scratch may take. */
 export const READER_CLEANUP_MS = 20_000;
@@ -27,6 +30,9 @@ export const READER_CLEANUP_MS = 20_000;
  * The container's limit is 512; the busiest measured use of the readers (an
  * upload of six files at once, the conversions and the parser together) peaks
  * well under this one (README, "Los lectores de archivos").
+ * The kernel counts per numeric user id on the whole host, so the allowance is shared
+ * with every other process of that id and with a second stack of the image (the id is
+ * 48217 in the image to make that unlikely; deploy/prod/README.md says how to check).
  * `EXTRACTION_READER_PROCESS_LIMIT` overrides it; 0 leaves it off (tests and hosts
  * where the user already holds many processes).
  */
@@ -224,18 +230,18 @@ export function trackReaderGroup(group: number | undefined, user: string | null)
   return () => { liveGroups.delete(group); };
 }
 
-/** Runs a command as the reader and resolves with its standard output; ends it and rejects after `timeoutMs`. */
-export function runAsReader(user: string, command: string, args: string[], timeoutMs = READER_TASK_MS): Promise<string> {
+/** Runs a command as the reader and resolves with its standard output; rejects at `timeoutMs` (the command's group is then ended in the background, not waited for). */
+export function runAsReader(user: string, command: string, args: string[], timeoutMs: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const launch = launchChild(command, args, { asReader: user });
     let done = false;
     let stdout = "";
     let stderr = "";
-    const finish = (error: Error | null) => {
+    const finish = (error: Error | null, keepTracking = false) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      release();
+      if (!keepTracking) release();
       if (error) reject(error); else resolve(stdout);
     };
     // Its own process group, so the group can be ended whatever the command does.
@@ -246,8 +252,33 @@ export function runAsReader(user: string, command: string, args: string[], timeo
     child.once("error", (error) => finish(error));
     child.once("close", (code) => finish(code === 0 ? null : new Error(`${command} as the reader failed (${code})${stderr.trim() ? `: ${stderr.trim()}` : ""}`)));
     const timer = setTimeout(() => {
-      void reapGroup(user, child.pid).then(() => finish(new Error(`${command} as the reader did not finish within ${timeoutMs} ms`)));
+      // The caller is told at once; the group is ended after, and stays tracked until it is.
+      void reapGroup(user, child.pid).finally(release);
+      finish(new Error(`${command} as the reader did not finish within ${timeoutMs} ms`), true);
     }, timeoutMs);
+  });
+}
+
+/** Makes a scratch directory owned by the reader (mode 0700) under the temporary directory, within READER_SCRATCH_CREATE_MS. */
+export async function createReaderScratch(user: string, prefix: string): Promise<string> {
+  return (await runAsReader(user, "mktemp", ["-d", path.join(tmpdir(), `${prefix}XXXXXX`)], READER_SCRATCH_CREATE_MS)).trim();
+}
+
+/**
+ * Removes a reader's scratch directory once the caller has finished with it:
+ * it starts on the next turn of the event loop, after the job has settled and
+ * freed its slot, and is bounded by READER_SCRATCH_REMOVE_MS. A failure is
+ * reported once under `key` and never retried (the start-up clean-up removes
+ * what is left). Resolves when it is over; never rejects.
+ */
+export function removeReaderScratchLater(user: string, scratch: string, key: string, what: string): Promise<void> {
+  return new Promise<void>((resolve) => {
+    setImmediate(() => {
+      runAsReader(user, "rm", ["-rf", "--", scratch], READER_SCRATCH_REMOVE_MS).then(
+        () => undefined,
+        (error) => reportOnce(key, `could not remove ${what}: ${String((error as Error)?.message ?? error).slice(0, 200)}`),
+      ).then(resolve);
+    });
   });
 }
 

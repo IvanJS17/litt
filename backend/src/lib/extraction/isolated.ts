@@ -13,7 +13,7 @@ import { asExtractionFailure, extractionFailureFromWire, type ExtractionFailureW
 import { AppError } from "../appError";
 import { childProcessEnv } from "../childEnv";
 import { LIFELINE_ENV } from "./lifeline";
-import { activeReaderUser, launchChild, REAPER_WAIT_MS, reapGroup, reportOnce, runAsReader, trackReaderGroup } from "./readerUser";
+import { activeReaderUser, createReaderScratch, launchChild, REAPER_WAIT_MS, reapGroup, removeReaderScratchLater, reportOnce, trackReaderGroup } from "./readerUser";
 
 export { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError } from "./limits";
 export { ExtractionParseError } from "./failure";
@@ -103,6 +103,8 @@ type Parser = {
   retired?: Promise<void>;
   /** The child's own `close`, before its scratch directory is removed. */
   exited: Promise<void>;
+  /** Resolves once the scratch directory is removed (or the attempt failed): a job never waits for it. */
+  removed: Promise<void>;
   /** Called when the parser is retired while a job runs, so the job settles within a bounded time. */
   onRetire?: () => void;
 };
@@ -125,7 +127,7 @@ export async function stopExtractionProcess(): Promise<void> {
   if (p) {
     await retire(p);
     // The scratch directory goes once the process has closed; a process that never does is not waited for.
-    await Promise.race([p.closed, new Promise<void>((resolve) => setTimeout(resolve, REAPER_WAIT_MS).unref())]);
+    await Promise.race([Promise.all([p.closed, p.removed]), new Promise<void>((resolve) => setTimeout(resolve, REAPER_WAIT_MS).unref())]);
   }
 }
 
@@ -145,7 +147,7 @@ async function startParser(): Promise<Parser> {
   const { command, args } = extractionCommand(entry, readerUser);
   // The reader's own directory (mode 0700, its owner) when it runs as another user.
   const scratch = readerUser
-    ? (await runAsReader(readerUser, "mktemp", ["-d", path.join(tmpdir(), "mike-extraction-XXXXXX")])).trim()
+    ? await createReaderScratch(readerUser, "mike-extraction-")
     : await mkdtemp(path.join(tmpdir(), "mike-extraction-"));
   // No application credentials or inherited NODE_OPTIONS in the parser.
   // The scratch directory is the parser's temp directory; glibc arena
@@ -160,7 +162,7 @@ async function startParser(): Promise<Parser> {
     stdio: [readerUser ? "pipe" : "ignore", "ignore", "pipe", "ipc"], serialization: "advanced",
   });
   child.stdin?.on("error", () => {});
-  const p: Parser = { child, closed: Promise.resolve(), exited: Promise.resolve(), memoryMb: extractionMemoryMb(), started: false, readerUser, files: 0 };
+  const p: Parser = { child, closed: Promise.resolve(), exited: Promise.resolve(), removed: Promise.resolve(), memoryMb: extractionMemoryMb(), started: false, readerUser, files: 0 };
   // The API's own exit ends the group too (the reaper where there is a reader user).
   const untrack = trackReaderGroup(child.pid, readerUser);
   const onParentExit = () => { void killParser(child, p.readerUser); };
@@ -169,14 +171,20 @@ async function startParser(): Promise<Parser> {
   child.once("spawn", () => { p.started = true; });
   // Idle child errors must still retire the process even without a parse listener.
   child.on("error", () => { void retire(p); });
-  p.closed = new Promise<void>((resolve, reject) => child.once("close", () => {
-    // Sweeps what the process left in its group, then the scratch directory goes (as the reader).
-    void retire(p).then(() => {
+  let removedDone: () => void = () => {};
+  p.removed = new Promise<void>((resolve) => { removedDone = resolve; });
+  p.closed = new Promise<void>((resolve) => child.once("close", () => {
+    // Sweeps what the process left in its group; the job is told it is over once that is done.
+    // The reader's scratch directory is removed after, not waited for.
+    void retire(p).then(async () => {
       untrack();
       process.removeListener("exit", onParentExit);
-      return readerUser ? runAsReader(readerUser, "rm", ["-rf", "--", scratch]).then(() => undefined) : rm(scratch, { recursive: true, force: true });
+      if (readerUser) { void removeReaderScratchLater(readerUser, scratch, "parser-scratch", "a parser scratch directory").then(removedDone); return; }
+      await rm(scratch, { recursive: true, force: true });
+      removedDone();
     }).then(resolve, (error) => {
       reportOnce("parser-scratch", `could not remove a parser scratch directory: ${String((error as Error)?.message ?? error).slice(0, 200)}`);
+      removedDone();
       resolve();
     });
   }));

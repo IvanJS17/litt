@@ -29,11 +29,13 @@ RUN apt-get update \
 # its workers and the jobs. litt-reader runs only the processes that open
 # uploaded files (the parser and LibreOffice, see src/lib/extraction/isolated.ts):
 # a different user cannot read the API's environment or files, and owns nothing
-# but its own temporary directory.
+# but its own temporary directory. The kernel counts a user's process allowance
+# (prlimit --nproc, see src/lib/extraction/readerUser.ts) per numeric user id on the
+# whole host, so the reader's id is one other images are unlikely to use.
 RUN groupadd --system --gid 10001 litt-api \
   && useradd --system --uid 10001 --gid litt-api --create-home --home-dir /home/litt-api --shell /usr/sbin/nologin litt-api \
-  && groupadd --system --gid 10002 litt-reader \
-  && useradd --system --uid 10002 --gid litt-reader --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin litt-reader
+  && groupadd --system --gid 48217 litt-reader \
+  && useradd --system --uid 48217 --gid litt-reader --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin litt-reader
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=build /packages/i18n/messages /packages/i18n/messages

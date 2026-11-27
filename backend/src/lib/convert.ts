@@ -11,7 +11,7 @@ import { childProcessEnv } from "./childEnv";
 import { MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CONVERSIONS } from "./conversionLimits";
 import { admission } from "./extraction/admission";
 import { LIFELINE_ENV } from "./extraction/lifeline";
-import { activeReaderUser, launchChild, REAPER_WAIT_MS, reapGroup, reportOnce, runAsReader, trackReaderGroup } from "./extraction/readerUser";
+import { activeReaderUser, createReaderScratch, launchChild, REAPER_WAIT_MS, reapGroup, removeReaderScratchLater, trackReaderGroup } from "./extraction/readerUser";
 import { uploadConversionTimeoutMs } from "./runtimeConfig";
 
 let _sofficeBinaryPaths: string[] | null = null;
@@ -299,7 +299,7 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
   const entry = path.join(__dirname, typescript ? "convertChild.ts" : "convertChild.js");
   // The helper's directory belongs to the reader (mode 0700): the API cannot
   // look into it, and removes it as the reader once the helper is gone.
-  const scratch = (await runAsReader(readerUser, "mktemp", ["-d", path.join(os.tmpdir(), "litt-convert-XXXXXX")])).trim();
+  const scratch = await createReaderScratch(readerUser, "litt-convert-");
   const launch = launchChild(
     process.execPath,
     [...(typescript ? ["--require", require.resolve("tsx/cjs")] : []), entry, safeExtension(inputPath), scratch],
@@ -370,9 +370,8 @@ async function convertAsReader(readerUser: string, inputPath: string, outputDire
     await fs.promises.rm(outputPath, { force: true }).catch(() => {});
     throw error;
   } finally {
-    // After the group is ended. A removal that fails is reported once, not retried.
-    await runAsReader(readerUser, "rm", ["-rf", "--", scratch]).catch((error) =>
-      reportOnce("convert-scratch", `could not remove a conversion scratch directory: ${String((error as Error)?.message ?? error).slice(0, 200)}`));
+    // After the group is ended, and after this job has settled and freed its slot: not waited for.
+    void removeReaderScratchLater(readerUser, scratch, "convert-scratch", "a conversion scratch directory");
   }
   try {
     await fs.promises.access(outputPath, fs.constants.R_OK);

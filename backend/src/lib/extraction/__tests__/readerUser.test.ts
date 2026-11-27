@@ -86,20 +86,20 @@ describe("the one launcher for every child process", () => {
   });
 
   it("starts the process-ending helper with what the API holds, with only the group and the reader's user number, and nothing else keeps that", () => {
-    expect(launchChild(process.execPath, ["reaper.js", "4242", "10002"], { reaper: true, capabilitiesHeld: true })).toEqual({
+    expect(launchChild(process.execPath, ["reaper.js", "4242", "48217"], { reaper: true, capabilitiesHeld: true })).toEqual({
       command: process.execPath,
-      args: ["reaper.js", "4242", "10002"],
+      args: ["reaper.js", "4242", "48217"],
     });
     expect(launchChild("tool", [], { capabilitiesHeld: true }).command).toBe("setpriv");
     expect(launchChild("tool", [], { asReader: "litt-reader", capabilitiesHeld: true }).args).toContain("--ambient-caps");
   });
 
   it("builds the helper's command from the group and the user number alone", () => {
-    const { command, args } = reaperCommand(4242, 10002)!;
+    const { command, args } = reaperCommand(4242, 48217)!;
     expect(command).toBe(process.execPath);
-    expect(args.slice(-2)).toEqual(["4242", "10002"]);
+    expect(args.slice(-2)).toEqual(["4242", "48217"]);
     expect(args.at(-3)).toMatch(/reaper\.(js|ts)$/);
-    expect(reaperCommand(1, 10002)).toBeNull();
+    expect(reaperCommand(1, 48217)).toBeNull();
     expect(reaperCommand(4242, 0)).toBeNull();
   });
 

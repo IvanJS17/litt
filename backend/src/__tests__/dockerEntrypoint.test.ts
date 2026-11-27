@@ -30,3 +30,14 @@ describe.skipIf(process.platform !== "linux" || hasSwitchCapabilities)("the cont
     }
   });
 });
+
+// The kernel counts the reader user's process allowance per numeric user id on the
+// whole host, so the reader's id is one no other image is likely to use.
+describe("the reader account in the image", () => {
+  const dockerfile = readFileSync(path.resolve(__dirname, "../../Dockerfile"), "utf8");
+  it("has a numeric user id and group id of its own, apart from the API's", () => {
+    expect(dockerfile).toMatch(/groupadd --system --gid 48217 litt-reader/);
+    expect(dockerfile).toMatch(/useradd --system --uid 48217 --gid litt-reader /);
+    expect(dockerfile).not.toMatch(/--(uid|gid) 1000[0-9]\b[^\n]*litt-reader/);
+  });
+});

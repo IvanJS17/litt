@@ -326,6 +326,7 @@ describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a read
   it("settles a job and stops the process when the API stops the reader", async () => {
     vi.stubEnv("EXTRACTION_TIMEOUT_MS", "60000");
     const job = runIsolatedExtraction("spreadsheet", async () => workbook());
+    job.catch(() => {}); // the job may settle while the stop is awaited; its outcome is read below
     await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), { timeout: 10_000 });
     const pid = readFileSync(pidFile, "utf8").trim();
     await stopExtractionProcess();

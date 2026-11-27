@@ -28,8 +28,11 @@ const SOFFICE_WRITES_PDF = `outdir=""; prev=""; for a in "$@"; do [ "$prev" = "-
 name=$(basename "$last"); name="\${name%.*}"; cp "$last" "$outdir/$name.pdf"`;
 
 // The tsx loader keeps its own cache in the temporary directory; only what the conversion made counts.
+// The scratch directory is removed just after the job has settled, not before it does.
 async function leftovers(): Promise<string[]> {
-  return (await readdir(join(directory, "scratch"))).filter((name) => name.startsWith("litt-convert-"));
+  const present = async () => (await readdir(join(directory, "scratch"))).filter((name) => name.startsWith("litt-convert-"));
+  await vi.waitFor(async () => expect(await present()).toEqual([]), { timeout: 5_000 }).catch(() => {});
+  return present();
 }
 
 beforeEach(async () => {

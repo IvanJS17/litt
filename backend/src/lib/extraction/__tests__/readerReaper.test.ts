@@ -1,6 +1,6 @@
 // The helper that ends a reader's process group for the API, which cannot signal the reader itself.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -99,5 +99,30 @@ describe.skipIf(process.platform !== "linux")("removing reader scratch left by a
     writeFileSync(path.join(bin, "setpriv"), "#!/bin/sh\necho nope >&2\nexit 1\n");
     const result = await removeReaderScratch(me, { directory: tmp, ownUid: -1 });
     expect(result).toMatchObject({ ok: false });
+  });
+});
+
+// The helper takes the reader's user as its EFFECTIVE user only, so that the readers
+// (who share that user) can neither signal it, trace it nor read its memory: all of
+// that needs a match with its real or saved user. Changing the real or saved user, or
+// the group, would remove that protection. Taking the user needs a capability the test
+// runner does not have, so the property is pinned by reading the source here; the built
+// image's process status is checked in the lab (README, "Los lectores de archivos").
+describe("the helper that ends a reader's group keeps its own real user", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "reaper.ts"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  it("changes only its effective user, before it sends the signal", () => {
+    const take = source.search(/\bprocess\.seteuid\b/);
+    const send = source.search(/\bprocess\.kill\b/);
+    expect(take, "the effective user is taken").toBeGreaterThanOrEqual(0);
+    expect(send, "the signal is sent").toBeGreaterThanOrEqual(0);
+    expect(take, "the effective user is taken before the signal").toBeLessThan(send);
+  });
+
+  it("never changes its real or saved user, or any group", () => {
+    expect(source).not.toMatch(/\.(setuid|setreuid|setresuid|setgid|setregid|setresgid|setegid|setgroups|initgroups)\b/);
+    expect(source).not.toMatch(/\bsetpriv\b|\bsetresuid\b/);
   });
 });
