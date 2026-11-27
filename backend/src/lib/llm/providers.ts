@@ -58,7 +58,7 @@ import { vertexAuthClient } from "./vertexAuth";
 import { UserFacingError } from "../userFacingError";
 import { randomBytes } from "node:crypto";
 import { trimChars } from "../modelJsonFence";
-import { sourceCommit } from "../runtimeConfig";
+import { providerDataRetentionAllowed, sourceCommit } from "../runtimeConfig";
 
 /** A base URL from the environment without the slashes at its end; undefined when unset. */
 const trimmedBaseUrl = (value: string | undefined) => (value === undefined ? undefined : trimChars(value.trim(), "", "/", Infinity));
@@ -115,6 +115,36 @@ const ROUTER_KEY_ENV_HINTS: Record<RouterProvider, string> = {
   vercel: "AI_GATEWAY_API_KEY",
   "opencode-go": "OPENCODE_API_KEY",
 };
+
+/**
+ * Per-request settings asking a provider not to keep, or train on, what LiTT
+ * sends it: prompts and document text. Only providers whose API has such a
+ * request field are listed; for the others retention is set by the account's
+ * terms, not by the request. LLM_PROVIDER_DATA_RETENTION=allow sends none of
+ * these. They change neither the route, the model nor the key.
+ *
+ * - OpenAI, Azure OpenAI and xAI Responses APIs store every response unless
+ *   told not to. With store=false the SDKs ask for reasoning encrypted and
+ *   hand it back inline on the next tool step instead of by stored id.
+ * - OpenRouter routes only to upstreams that do not collect user data; a
+ *   model with no such upstream becomes unavailable.
+ */
+const NO_RETENTION_OPTIONS: Partial<
+  Record<Provider, AiSdkAdapterConfig["requestProviderOptions"]>
+> = {
+  openai: { openai: { store: false } },
+  azure: { azure: { store: false } },
+  xai: { xai: { store: false } },
+  openrouter: { openrouter: { provider: { data_collection: "deny" } } },
+};
+
+function noRetentionOptions(
+  provider: Provider,
+): AiSdkAdapterConfig["requestProviderOptions"] {
+  return providerDataRetentionAllowed()
+    ? undefined
+    : NO_RETENTION_OPTIONS[provider];
+}
 
 // Env aliases a provider also answers to. CLAUDE_API_KEY is accepted by
 // envApiKey("claude") in lib/providerCredentials/store.ts, which decides
@@ -719,6 +749,16 @@ export function ollamaAuthHeaders(): Record<string, string> {
 }
 
 async function createProviderAdapter(
+  model: string,
+  apiKeys?: UserApiKeys,
+  conversationId?: string | null,
+): Promise<AiSdkAdapterConfig> {
+  const adapter = await buildProviderAdapter(model, apiKeys, conversationId);
+  const requestProviderOptions = noRetentionOptions(adapter.provider);
+  return requestProviderOptions ? { ...adapter, requestProviderOptions } : adapter;
+}
+
+async function buildProviderAdapter(
   model: string,
   apiKeys?: UserApiKeys,
   conversationId?: string | null,

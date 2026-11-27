@@ -1,5 +1,7 @@
-// backend/.env before anything else: configuration is read at import time.
+// backend/.env before anything else: configuration is read at import time, including NODE_ENV in lib/log.ts.
 import "dotenv/config";
+// Before anything can log: provider errors carry the prompt and the reply.
+import "./logRedaction";
 import type { Server } from "node:http";
 import { Worker as ThreadWorker } from "node:worker_threads";
 import path from "node:path";

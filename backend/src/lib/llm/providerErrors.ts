@@ -1,4 +1,5 @@
 import type { ErrorKind } from "../appError";
+import { diagnosticErrorTags } from "../observability/diagnostics";
 import { UserFacingError } from "../userFacingError";
 import { asInvalidApiKeyError, InvalidApiKeyError, isInvalidApiKeyError } from "./apiKeyErrors";
 
@@ -339,11 +340,13 @@ export function toProviderStreamError(
   error: unknown,
   context: ProviderContext,
 ): Error {
-  return withKeySource(
-    classifyProviderStreamError(error, context),
-    context.keySource,
-    context.provider,
-  );
+  const classified = classifyProviderStreamError(error, context);
+  // Whatever branch classified it, a plain provider object is never attached:
+  // the API-call error found inside it (the SDK's own class) keeps the failure
+  // classified as before, otherwise only the reduced form.
+  const reduced = plainObjectCause(error);
+  if (classified.cause === error && reduced !== error) classified.cause = findApiCallError(error) ?? reduced;
+  return withKeySource(classified, context.keySource, context.provider);
 }
 
 function classifyProviderStreamError(error: unknown, context: ProviderContext): Error {
@@ -355,5 +358,25 @@ function classifyProviderStreamError(error: unknown, context: ProviderContext): 
   const message = apiError && accessFailureMessage(apiError, context);
   if (message) return new UserFacingError(message, { cause: error });
   if (error instanceof Error && error.message) return error;
-  return new Error(streamErrorMessage(error, context.label), { cause: error });
+  return new Error(streamErrorMessage(error, context.label), {
+    cause: plainObjectCause(error),
+  });
+}
+
+/**
+ * A provider's stream error that is a plain object is its own reply (type,
+ * message, parameters it may quote from the request), and a plain object is
+ * printed with every field. Keep only the fixed codes the reports read from a
+ * cause (`status`, `code`), which diagnosticErrorTags allowlists.
+ */
+function plainObjectCause(error: unknown): unknown {
+  if (error === null || typeof error !== "object" || error instanceof Error) return error;
+  const tags = diagnosticErrorTags(error);
+  // The fixed runtime wording of a failed fetch, which isNetworkFailure reads.
+  const { message } = error as { message?: unknown };
+  return {
+    ...(message === "fetch failed" ? { message } : {}),
+    ...(tags.dependency_status === undefined ? {} : { status: tags.dependency_status }),
+    ...(tags.failure_code === undefined ? {} : { code: tags.failure_code }),
+  };
 }

@@ -103,6 +103,13 @@ describe("the route list", () => {
     });
 });
 
+describe("the framework header", () => {
+    it("is not announced on any response", async () => {
+        const resolved = await nextConfig("phase-production-server");
+        expect(resolved.poweredByHeader).toBe(false);
+    });
+});
+
 describe("the protection headers rule", () => {
     it("is one rule, separate from the noindex rule, with no conditions", async () => {
         const rules = await headerRules();

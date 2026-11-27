@@ -61,6 +61,16 @@ export function MfaVerificationPopup({
         !loading &&
         !!selectedFactorId &&
         code.trim().length === 6;
+    // Counts openings and closings, so a check in flight can tell whether
+    // the prompt it was started from is still the one on screen.
+    const openGeneration = useRef(0);
+
+    useEffect(() => {
+        openGeneration.current += 1;
+        return () => {
+            openGeneration.current += 1;
+        };
+    }, [open]);
 
     useEffect(() => {
         if (!open) return;
@@ -69,6 +79,8 @@ export function MfaVerificationPopup({
 
         async function loadFactors() {
             setLoading(true);
+            // A check still running from an earlier opening is not this one.
+            setVerifying(false);
             setError(null);
             setCode("");
             try {
@@ -108,9 +120,15 @@ export function MfaVerificationPopup({
         setVerifying(true);
         setError(null);
         devLog("[mfa-popup] verifying code", { factorId: selectedFactorId });
+        const generation = openGeneration.current;
+        // The caller's action runs only from the prompt the user still has
+        // open. One closed while its code was being checked was cancelled,
+        // and whatever it guarded must not happen afterwards.
+        const dismissed = () => openGeneration.current !== generation;
         try {
             await challengeAndVerifyMfa(selectedFactorId, code.trim());
         } catch (verifyError) {
+            if (dismissed()) return;
             setVerifying(false);
             devLog("[mfa-popup] verification failed", {
                 error:
@@ -122,6 +140,7 @@ export function MfaVerificationPopup({
             return;
         }
 
+        if (dismissed()) return;
         setVerifying(false);
         devLog("[mfa-popup] verification succeeded");
         setCode("");
@@ -133,6 +152,7 @@ export function MfaVerificationPopup({
     return (
         <Modal
             open={open}
+            // Closing is always possible: it also ends the check in flight.
             onClose={onCancel}
             breadcrumbs={[title]}
             size="sm"
@@ -140,7 +160,6 @@ export function MfaVerificationPopup({
             cancelAction={{
                 label: t("popups.cancel"),
                 onClick: onCancel,
-                disabled: verifying,
             }}
             primaryAction={{
                 label: verifying ? (
