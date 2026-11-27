@@ -770,7 +770,7 @@ onboarding done, or a place in a firm other than its own personal space). The
 password is recorded when the change succeeds, on a best-effort basis: if the
 record cannot be written the change still stands and a warning without the
 address is reported. An account that set its password before this release and
-never opened Settings has no such mark until it sets a password again. Anyone
+never set it in Settings has no such mark until it sets a password again. Anyone
 else, such as a person whose invitation ran out or who opened the invitation
 link and never finished, gets no recovery mail and needs a new invitation. The
 screen says the same as always: the route answers `204` first, with the same
