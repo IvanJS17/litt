@@ -12,9 +12,12 @@ setup() {
   printf 'RESTIC_REPOSITORY=%s\nRESTIC_PASSWORD=x\nAWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=x\n' "$T/repo" > "$T/restic.env"; chmod 600 "$T/restic.env"
   : > "$T/calls"
   # docker: el pg_dump de mentira escribe unos bytes y sale con 0, o con 1 si existe $T/pgfail.
+  # Anota en $T/during el modo del archivo al que escribe y el de su directorio, mientras escribe.
   cat > "$T/bin/docker" <<EOS
 #!/usr/bin/env bash
 echo "docker \$*" >> "$T/calls"
+out=\$(readlink "/proc/\$\$/fd/1")
+echo "\$(stat -c '%a' "\$out") \$(stat -c '%a' "\$(dirname "\$out")") \$(basename "\$out")" >> "$T/during"
 printf 'volcado-nuevo\n'
 [ -f "$T/pgfail" ] && exit 1
 exit 0
@@ -54,6 +57,13 @@ rm -rf "$T"
 setup; mkdir -p "$T/app/backups"; chmod 755 "$T/app/backups"
 if run; then st=0; else st=$?; fi
 check "un directorio previo en 755 termina en 700" '[ $st -eq 0 ] && [ "$(mode "$T/app/backups")" = 700 ]'
+check "mientras se escribe, el volcado ya es privado y su directorio también" '[ "$(cat "$T/during")" = "600 700 db.dump.tmp" ]'
+rm -rf "$T"
+
+# 3b. Un temporal viejo que es un enlace no se sigue: lo que apunta queda igual.
+setup; mkdir -p "$T/app/backups"; echo intacto > "$T/ajeno"; ln -s "$T/ajeno" "$T/app/backups/db.dump.tmp"
+if run; then st=0; else st=$?; fi
+check "un temporal viejo que es un enlace se quita y no se escribe a través de él" '[ $st -eq 0 ] && [ "$(cat "$T/ajeno")" = intacto ] && [ ! -L "$T/app/backups/db.dump" ] && grep -q volcado-nuevo "$T/app/backups/db.dump"'
 rm -rf "$T"
 
 # 4. Si pg_dump falla: sale con error, el dump anterior queda igual, sin temporal ni restic.
