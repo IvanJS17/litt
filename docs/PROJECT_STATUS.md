@@ -11,14 +11,14 @@
 ## In production
 
 - **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
-- **Deploy:** `20261126e`, tag `prod-20261126e`, `RELEASE_SHA` `7fc92edfc` (full SHA
-  `7fc92edfc8e877f38a18b87c62314d3fba9649e1`, the merge of #340). Previous deploy:
-  `20261126d` (`fd197fc5e`). Earlier deploys: `prod-20261126a` to `prod-20261126c`,
+- **Deploy:** `20261127a`, tag `prod-20261127a`, `RELEASE_SHA` `a6e5ad4cc` (full SHA
+  `a6e5ad4cc2b5cb8a323176dcf8077abdf65bc061`, the merge of #349). Previous deploy:
+  `20261126e` (`7fc92edfc`). Among earlier deploys: `prod-20261126a` to `prod-20261126d`,
   `prod-20261119a` and `prod-20261119b`,
   `prod-20261118a` to `prod-20261118e`, and `prod-20261117a` to `prod-20261117i` (see
   [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)). Each deploy is tagged
   `prod-YYYYMMDDx`.
-- **Contents:** every merged pull request up to #342 is in a deploy. #258 and #259 shipped in
+- **Contents:** every merged pull request up to #349 is in a deploy. #258 and #259 shipped in
   `20261119b` and `20261119c`. Shipped since `20261119c`:
   - `20261119e` (`27b776f7b`): #257, review notes for #249 to #253; #260, the Word add-in
     chooses a model before a chat, with a guide; #261, AI proposals of new obligation rules
@@ -88,23 +88,22 @@
   - `20261126e` (`7fc92edfc`): #338, stored document text is read in bounded slices and searched
     within a time budget; #340, provider errors stay out of the log, with four small privacy
     and verification ports from upstream.
-- **Merged, not deployed** (`main` at `8cc399aeb`, 2026-11-27):
-  - #344, Word chats are judged when read, and one function decides which training works a
-    reader sees. Carries the migration `20261127_01_litt_training_defense_word_chat_sources.sql`.
-  - #343, anonymous password-reset and sign-up mails are capped per address and per hour.
-  - #347, in invitation-only mode a recovery mail goes only to a finished account or a current
-    invitation.
-  - #348, a running table generation asks, for each row, whether its person can still open the
-    documents.
-  - #345 and #346, the processes that open uploaded files run as their own unprivileged user,
-    and a conversion whose PDF could not be written fails. These two change the backend image
-    and `deploy/prod/compose.yaml` and ship together ([`deployment.md`](deployment.md)).
-- **Health:** production verified after `20261126e`: the health endpoint reports that commit, the
-  LiTT containers are healthy, the public pages answer, and MCP is on (`mcp=401` without
-  a token). A backup was taken before the deploy.
+  - `20261127a` (`a6e5ad4cc`): #344, Word chats are judged when read, and one function decides
+    which training works a reader sees; #343, anonymous password-reset and sign-up mails are
+    capped per address and per hour; #345 and #346, the processes that open uploaded files run
+    as their own unprivileged user, and a conversion whose PDF could not be written fails (the
+    backend container now runs under an init, without root, with three capabilities;
+    [`deployment.md`](deployment.md)); #347, in invitation-only mode a recovery mail goes only
+    to a finished account or a current invitation; #348, a running table generation asks, for
+    each row, whether its person can still open the documents; #349, status documents.
+- **Merged, not deployed:** nothing.
+- **Health:** production verified after `20261127a`: the health endpoint reports that commit, the
+  LiTT containers are healthy, the public pages answer, the other domains of the shared edge
+  answer as before, and MCP is on (`mcp=401` without a token). The backend container runs as
+  documented (init, API as `litt-api`, the reader user `litt-reader` active), and a synthetic
+  `.docx` was converted to PDF inside it after the deploy. A backup was taken before the deploy.
 - **Migrations:** 302 in the ledger, applied in production through
-  `20261126_95_litt_connectors_ask_before_writing.sql` (`_80`, `_90` and `_95` applied by
-  `20261126d`, `_70` by `20261126e`); `20261127_01` waits for the deploy of #344. The runner applies every
+  `20261127_01_litt_training_defense_word_chat_sources.sql` (applied by `20261127a`). The runner applies every
   file the ledger does not list, in name order.
 - **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
   Beta statistics are for platform administrators only, counts only, audited
