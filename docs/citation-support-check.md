@@ -131,6 +131,19 @@ Any failure leaves one `[report]` (warning, tag `component=citation-support`,
 changed or failed by this. Redirects are refused (`redirect: "manual"`) so the
 key cannot follow one to another host.
 
+**Daily number per person.** Each person may cause up to 2,000 checks a day
+(one request per citation, counted when the citations of an answer are handed
+over). `LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON` changes it (a whole number
+from 1 to 1,000,000; anything else uses 2,000). The day is the calendar day in
+Mexico City. Citations beyond what is left of the person's number are not sent
+and write nothing, and a request that was sent and failed still counts. The
+count lives in the memory of each process: the API and the worker count
+separately and a restart starts the count again, so no person is written
+anywhere. It is silent: nothing is shown to the person, and the first time
+anyone meets the number on a day the process writes one warning
+(`citation_support.daily_number_reached`, `component=citation-support`) that
+names no person, firm or text.
+
 ## What leaves LiTT
 
 Per citation: the claim sentence, the quote and the context, plus the key in
