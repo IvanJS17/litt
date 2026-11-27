@@ -764,9 +764,13 @@ Password recovery in invitation-only mode. A recovery mail is requested from the
 auth service only for an administrator's address, an address with a current
 invitation (pending and not expired, from a firm or from the platform), and a
 confirmed account that is not an unfinished invitation: one that no invitation
-created, or one that shows it was finished (a password set in Settings, the terms accepted,
-onboarding done, or a place in a firm other than its own personal space; the
-invitation's own password step leaves no such mark). Anyone
+created, or one that shows it was finished (a password set through LiTT, which is the
+invitation's own password step, a recovery or Settings; the terms accepted,
+onboarding done, or a place in a firm other than its own personal space). The
+password is recorded when the change succeeds, on a best-effort basis: if the
+record cannot be written the change still stands and a warning without the
+address is reported. An account that set its password before this release and
+never opened Settings has no such mark until it sets a password again. Anyone
 else, such as a person whose invitation ran out or who opened the invitation
 link and never finished, gets no recovery mail and needs a new invitation. The
 screen says the same as always: the route answers `204` first, with the same
