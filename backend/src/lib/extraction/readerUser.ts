@@ -5,7 +5,7 @@
 // and the startup validation in runtimeConfig do, with one answer.
 import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { tmpdir, userInfo } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { childProcessEnv } from "../childEnv";
 import { extractionReaderUser } from "./limits";
@@ -94,11 +94,11 @@ function holdsInheritableCapabilities(): boolean {
 export function launchChild(
   command: string,
   args: string[],
-  options: { asReader?: string | null; capabilitiesHeld?: boolean; reaper?: boolean } = {},
+  options: { asReader?: string | null; capabilitiesHeld?: boolean; reaper?: boolean; env?: NodeJS.ProcessEnv } = {},
 ): { command: string; args: string[] } {
   if (options.reaper) return { command, args };
   if (options.asReader) {
-    const limit = readerProcessLimit();
+    const limit = readerProcessLimit(options.env);
     const switched = ["setpriv", ...readerSwitchArgs(options.asReader), command, ...args];
     return limit > 0
       ? { command: "prlimit", args: [`--nproc=${limit}:${limit}`, "--", ...switched] }
@@ -110,52 +110,85 @@ export function launchChild(
   return { command, args };
 }
 
-/** Why the process cannot start something as `user`, or null when it can. */
-export function readerSwitchProblem(user: string, env: NodeJS.ProcessEnv = process.env): string | null {
-  const result = spawnSync("setpriv", [...readerSwitchArgs(user), "true"], {
-    env: { PATH: env.PATH ?? "" }, encoding: "utf8", timeout: 10_000, stdio: ["ignore", "ignore", "pipe"],
-  });
-  if (result.error) {
-    const code = (result.error as NodeJS.ErrnoException).code;
-    return code === "ENOENT" ? "setpriv was not found on PATH (util-linux)" : `setpriv could not be run (${code ?? "error"})`;
-  }
-  if (result.status === 0) return null;
-  const detail = (result.stderr ?? "").split("\n").find((line) => line.trim())?.trim().slice(0, 200);
-  return `setpriv could not switch to ${user}${detail ? `: ${detail}` : ""}`;
+/** What the switched process prints: its user id, its group id and all its groups, one line each. */
+const READER_IDENTITY_SCRIPT = "id -u; id -g; id -G";
+
+/** What a reader started through the switch really is, as that process reports it. */
+export interface ReaderIdentity {
+  /** Why the process cannot start readers as `user`, or null when it can. */
+  problem: string | null;
+  /** The reader's numeric user id as the switched process reported it, when it could be read. */
+  uid?: number;
 }
 
-const probed = new Map<string, string | null>();
+const ID = /^\d{1,10}$/;
 
-/** The configured reader user when the process can switch to it, else null
+function judgeReaderIdentity(user: string, output: string, ownUid: number | undefined, ownGid: number | undefined): ReaderIdentity {
+  const lines = output.trim().split("\n").map((line) => line.trim());
+  const groups = (lines[2] ?? "").split(/\s+/);
+  if (lines.length !== 3 || !ID.test(lines[0]) || !ID.test(lines[1]) || !groups.every((group) => ID.test(group))) {
+    return { problem: `the identity ${user} gets could not be read from the switched process` };
+  }
+  const uid = Number(lines[0]);
+  const gid = Number(lines[1]);
+  const verdict = (problem: string | null): ReaderIdentity => ({ problem, uid });
+  if (uid === 0) return verdict(`${user} would run the readers as user id 0`);
+  if (uid === ownUid) return verdict(`${user} is the same numeric user as this process, so the readers would run as the API`);
+  if (gid === 0) return verdict(`${user} would run the readers in group id 0`);
+  if (gid === ownGid) return verdict(`${user} would run the readers in the same group as this process`);
+  if (groups.some((group) => Number(group) !== gid)) return verdict(`${user} would run the readers with supplementary groups`);
+  return { problem: null, uid };
+}
+
+const probed = new Map<string, ReaderIdentity>();
+
+/**
+ * Starts, once per process start and per (user, PATH), the identity command through
+ * the very launch a reader gets (the same switch arguments and process limit) and
+ * decides from what it prints: a reader is never started through the switch as user 0,
+ * group 0, the process's own user or group, or with a supplementary group. The one
+ * answer is used by the start-up check (runtimeConfig) and by the launcher alike.
+ */
+export function readerIdentity(user: string, env: NodeJS.ProcessEnv = process.env): ReaderIdentity {
+  const key = `${user}\0${env.PATH ?? ""}`;
+  const known = probed.get(key);
+  if (known) return known;
+  const launch = launchChild("sh", ["-c", READER_IDENTITY_SCRIPT], { asReader: user, env });
+  const result = spawnSync(launch.command, launch.args, {
+    env: { PATH: env.PATH ?? "" }, encoding: "utf8", timeout: 10_000, maxBuffer: 4_096, stdio: ["ignore", "pipe", "pipe"],
+  });
+  let identity: ReaderIdentity;
+  if (result.error) {
+    const code = (result.error as NodeJS.ErrnoException).code;
+    identity = { problem: code === "ENOENT" ? `${launch.command} was not found on PATH (util-linux)` : `${launch.command} could not be run (${code ?? "error"})` };
+  } else if (result.status !== 0) {
+    const detail = (result.stderr ?? "").split("\n").find((line) => line.trim())?.trim().slice(0, 200);
+    identity = { problem: `setpriv could not switch to ${user}${detail ? `: ${detail}` : ""}` };
+  } else {
+    identity = judgeReaderIdentity(user, result.stdout ?? "", process.getuid?.(), process.getgid?.());
+  }
+  probed.set(key, identity);
+  return identity;
+}
+
+/** Why the process cannot start readers as `user` (see readerIdentity), or null when it can. */
+export function readerSwitchProblem(user: string, env: NodeJS.ProcessEnv = process.env): string | null {
+  return readerIdentity(user, env).problem;
+}
+
+/** The configured reader user when the process can switch to it as a distinct unprivileged user, else null
  * (the parser then runs as the API's own user, as it does where there is no second user). */
 export function activeReaderUser(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string | null {
   const user = extractionReaderUser(env, platform);
-  if (!user) return null;
-  const key = `${user}\0${env.PATH ?? ""}`;
-  if (!probed.has(key)) probed.set(key, readerSwitchProblem(user, env));
-  return probed.get(key) === null ? user : null;
+  return user && readerSwitchProblem(user, env) === null ? user : null;
 }
 
 // ---- ending a reader's process group ------------------------------------
 
-/** The reader's numeric user id from the account database, or null. */
-const uids = new Map<string, number>();
+/** The reader's numeric user id as the switched process reported it, or null: the id the readers really have, which the account file need not agree with. */
 function readerUid(user: string): number | null {
-  const known = uids.get(user);
-  if (known !== undefined) return known;
-  try {
-    for (const line of readFileSync("/etc/passwd", "utf8").split("\n")) {
-      const [name, , id] = line.split(":");
-      if (name === user && /^\d+$/.test(id ?? "") && Number(id) > 0) { uids.set(user, Number(id)); return Number(id); }
-    }
-  } catch { /* unreadable: no helper */ }
-  return null;
-}
-
-/** True when `user` is the same numeric user as this process (by account database, else by name). */
-export function readerIsOwnUser(user: string, ownUid: number | undefined = process.getuid?.()): boolean {
-  const uid = readerUid(user);
-  return uid === null ? userInfo().username === user : uid === ownUid;
+  const uid = readerIdentity(user).uid;
+  return uid !== undefined && uid > 0 ? uid : null;
 }
 
 /** The helper's command: only the group id and the reader's user id. Null for a number it must not act on. */
@@ -300,7 +333,7 @@ export async function removeReaderScratch(
 ): Promise<{ ok: true; removed: number; skipped?: boolean } | { ok: false; reason: string }> {
   const uid = readerUid(user);
   const own = options.ownUid ?? process.getuid?.();
-  if ((uid !== null && uid === own) || (options.ownUid === undefined && userInfo().username === user)) return { ok: true, removed: 0, skipped: true };
+  if (uid !== null && uid === own) return { ok: true, removed: 0, skipped: true };
   try {
     const listed = await runAsReader(
       user,

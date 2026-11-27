@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CONCURRENT_CONVERSIONS } from "../conversionLimits";
+import { ANSWER_IDENTITY_COMMAND, beAnotherUserThanTheReaders } from "../extraction/__tests__/readerStandIn";
 
 const timing = vi.hoisted(() => ({ timeoutMs: 120_000, reaperEnds: true }));
 vi.mock("../runtimeConfig", async (importOriginal) => {
@@ -38,7 +39,7 @@ const SOFFICE_WRITES_PDF = `outdir=""; prev=""; for a in "$@"; do [ "$prev" = "-
 name=$(basename "$last"); name="\${name%.*}"; cp "$last" "$outdir/$name.pdf"`;
 /** The stand-in for setpriv: the test host has no reader user. `before` runs, by the name of the command that follows. */
 async function setpriv(before: string): Promise<void> {
-  await standIn("setpriv", `while [ "$1" != "--" ]; do shift; done; shift\n${before}\nexec "$@"`);
+  await standIn("setpriv", `while [ "$1" != "--" ]; do shift; done; shift\n${ANSWER_IDENTITY_COMMAND}\n${before}\nexec "$@"`);
 }
 const pending = Symbol("pending");
 const within = (promise: Promise<unknown>, ms: number) =>
@@ -53,7 +54,9 @@ async function killRecorded(): Promise<void> {
   }
 }
 
+let pretend: { restore: () => void };
 beforeEach(async () => {
+  pretend = beAnotherUserThanTheReaders();
   directory = await mkdtemp(join(tmpdir(), "mike-convert-bounds-"));
   await mkdir(join(directory, "bin"));
   await mkdir(join(directory, "scratch"));
@@ -75,6 +78,7 @@ afterEach(async () => {
   await killRecorded();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
+  pretend.restore();
   timing.timeoutMs = 120_000;
   timing.reaperEnds = true;
   await rm(directory, { recursive: true, force: true });

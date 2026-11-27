@@ -415,8 +415,13 @@ switch is not possible (macOS, CI, a container without those two capabilities; t
 entrypoint then says so in one line and exits), the
 parser runs as the API's own user and startup logs a `[extraction]` warning;
 `NODE_ENV=production` on Linux refuses to start instead, unless
-`EXTRACTION_ISOLATION=off`, and also refuses when the reader user is the same numeric
-user as the process (the readers would run as the API with no warning). The stand-alone
+`EXTRACTION_ISOLATION=off`. The check asks the switched process itself, once per
+process start, with the arguments a reader launch uses: it prints its numeric user id,
+group id and supplementary groups, and production also refuses when the answer is user
+or group 0, the process's own user or group, any supplementary group, or cannot be
+read (the readers would run as root or as the API with no warning). Outside
+production the same answer makes the readers run as the process's own user, with the
+start-up warning. The stand-alone
 worker (`src/worker.ts`) makes the same start-up check with the same message. A worker
 started separately must not share the temporary directory and the reader user with a
 running API: each removes the reader's leftover scratch at its own start.

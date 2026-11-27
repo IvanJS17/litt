@@ -610,8 +610,11 @@ que termina con la señal sin pasarla, el cierre de la API no se ejecuta en ning
 
 El backend se niega a arrancar en producción (`NODE_ENV=production`, Linux) si los lectores
 no pueden correr como `litt-reader`: falta `EXTRACTION_READER_USER` (la imagen lo trae puesto),
-falta `setpriv`, el contenedor no tiene `SETUID` y `SETGID`, o el usuario lector es el mismo
-usuario numérico con el que corre el proceso (los lectores correrían como la API sin aviso).
+falta `setpriv`, el contenedor no tiene `SETUID` y `SETGID`, o la comprobación, que pregunta
+al propio proceso cambiado (con los argumentos de un lector, una vez por arranque) su usuario
+y grupo numéricos y sus grupos suplementarios, recibe usuario o grupo 0, el mismo usuario o
+grupo con el que corre el proceso, algún grupo suplementario o una respuesta ilegible (los
+lectores correrían como root o como la API sin aviso).
 El proceso de trabajo independiente hace la misma comprobación. Con `EXTRACTION_ISOLATION=off`
 no hay analizador aparte (el análisis de texto corre dentro del proceso que lo pide) y la
 comprobación no aplica; **no** apaga la conversión con LibreOffice ni la lectura de Drive, que

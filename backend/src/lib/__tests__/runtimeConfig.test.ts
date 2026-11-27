@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir, userInfo } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import {
@@ -14,6 +14,7 @@ import {
   uploadSessionRateLimitConfiguration,
   validateRuntimeConfiguration,
 } from "../runtimeConfig";
+import { activeReaderUser } from "../extraction/readerUser";
 
 const validProduction = {
   NODE_ENV: "production",
@@ -436,7 +437,7 @@ describe("extractionLauncherWarnings", () => {
   const withBrokenSetpriv = mkdtempSync(path.join(tmpdir(), "mike-path-setpriv-broken-"));
   for (const [dir, name, body] of [
     [withLauncher, "prlimit", "#!/bin/sh\n"],
-    [withSetpriv, "setpriv", "#!/bin/sh\nexit 0\n"],
+    [withSetpriv, "setpriv", "#!/bin/sh\necho 48217; echo 48217; echo 48217\n"],
     [withBrokenSetpriv, "setpriv", "#!/bin/sh\necho 'setresuid failed' >&2\nexit 1\n"],
   ] as const) {
     writeFileSync(path.join(dir, name), body);
@@ -446,7 +447,7 @@ describe("extractionLauncherWarnings", () => {
     for (const dir of [empty, withLauncher, withSetpriv, withBrokenSetpriv]) rmSync(dir, { recursive: true, force: true });
   });
   const env = (PATH: string, isolation = "on", readerUser?: string) =>
-    ({ PATH, EXTRACTION_ISOLATION: isolation, ...(readerUser ? { EXTRACTION_READER_USER: readerUser } : {}) }) as NodeJS.ProcessEnv;
+    ({ PATH, EXTRACTION_ISOLATION: isolation, EXTRACTION_READER_PROCESS_LIMIT: "0", ...(readerUser ? { EXTRACTION_READER_USER: readerUser } : {}) }) as NodeJS.ProcessEnv;
   const both = `${withLauncher}${path.delimiter}${withSetpriv}`;
 
   it("warns once on Linux when prlimit is not on PATH", () => {
@@ -489,14 +490,48 @@ describe("the document readers' user in production", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "mike-path-setpriv-prod-"));
   const good = path.join(dir, "good");
   const bad = path.join(dir, "bad");
-  for (const [bin, body] of [[good, "exit 0"], [bad, "echo 'setresuid failed: Operation not permitted' >&2; exit 1"]] as const) {
+  const own = path.join(dir, "own");
+  // What the switched process prints: its user id, group id and groups. "good" is a distinct unprivileged user and group.
+  const stand = (answer: string) => `echo "${answer}"`;
+  for (const [bin, body] of [
+    [good, stand("48217\n48217\n48217")],
+    [bad, "echo 'setresuid failed: Operation not permitted' >&2; exit 1"],
+    [own, `echo ${process.getuid!()}; echo 48217; echo 48217`],
+  ] as const) {
     mkdirSync(bin);
     writeFileSync(path.join(bin, "setpriv"), `#!/bin/sh\n${body}\n`);
     chmodSync(path.join(bin, "setpriv"), 0o755);
   }
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
   const production = (extra: Record<string, string>) =>
-    ({ ...validProduction, EXTRACTION_ISOLATION: "on", ...extra }) as NodeJS.ProcessEnv;
+    ({ ...validProduction, EXTRACTION_ISOLATION: "on", EXTRACTION_READER_PROCESS_LIMIT: "0", ...extra }) as NodeJS.ProcessEnv;
+
+  // Identities the switched process may report that the readers must never get: user 0, the
+  // process's own user, group 0, the process's own group, a supplementary group, and answers that cannot be read.
+  const ownGid = process.getgid!();
+  const refusedIdentities = ["0\\n48217\\n48217", `${process.getuid!()}\\n48217\\n48217`, "48217\\n0\\n0", `48217\\n${ownGid}\\n${ownGid}`, "48217\\n48217\\n48217 4242", "root", ""];
+  const refusedBin = (answer: string, index: number) => {
+    const bin = path.join(dir, `refused-${index}`);
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(path.join(bin, "setpriv"), `#!/bin/sh\nprintf '%b\\n' "${answer}"\n`);
+    chmodSync(path.join(bin, "setpriv"), 0o755);
+    return bin;
+  };
+
+  it.skipIf(process.platform !== "linux")("refuses, for the API and the stand-alone worker alike, each identity the switched process reports that a reader must not have", () => {
+    for (const [index, answer] of refusedIdentities.entries()) {
+      const env = production({ PATH: refusedBin(answer, index), EXTRACTION_READER_USER: "litt-reader" });
+      expect(() => validateRuntimeConfiguration(env), answer).toThrow(/litt-reader/);
+      expect(() => assertReaderUserForProduction(env), answer).toThrowError(expect.objectContaining({ code: "configuration_invalid" }));
+    }
+  });
+
+  it.skipIf(process.platform !== "linux")("outside production, an identity a reader must not have gives the start-up warning and the readers run as the process's own user", () => {
+    const env = { ...validProduction, NODE_ENV: "development", EXTRACTION_ISOLATION: "on", EXTRACTION_READER_PROCESS_LIMIT: "0", PATH: refusedBin("0\\n48217\\n48217", 99), EXTRACTION_READER_USER: "litt-reader" } as NodeJS.ProcessEnv;
+    expect(() => validateRuntimeConfiguration(env)).not.toThrow();
+    expect(extractionLauncherWarnings(env, "linux").join("\n")).toMatch(/same user as the API.*litt-reader.*user id 0/s);
+    expect(activeReaderUser(env, "linux")).toBeNull();
+  });
 
   it.skipIf(process.platform !== "linux")("refuses to start when the readers would run as the API's own user", () => {
     expect(() => validateRuntimeConfiguration(production({ PATH: good }))).toThrow(/EXTRACTION_READER_USER/);
@@ -514,7 +549,7 @@ describe("the document readers' user in production", () => {
   });
 
   it.skipIf(process.platform !== "linux")("refuses to start when the reader user is the same numeric user as the process", () => {
-    const own = production({ PATH: good, EXTRACTION_READER_USER: userInfo().username });
+    const own = production({ PATH: path.join(dir, "own"), EXTRACTION_READER_USER: "litt-reader" });
     expect(() => validateRuntimeConfiguration(own)).toThrow(/same numeric user as this process/);
     expect(() => assertReaderUserForProduction(own)).toThrow(/same numeric user as this process/);
   });
@@ -528,7 +563,8 @@ describe("the document readers' user in production", () => {
       production({ PATH: good }),
       production({ PATH: bad, EXTRACTION_READER_USER: "litt-reader" }),
       production({ PATH: dir, EXTRACTION_READER_USER: "litt-reader" }),
-      production({ PATH: good, EXTRACTION_READER_USER: userInfo().username }),
+      production({ PATH: path.join(dir, "own"), EXTRACTION_READER_USER: "litt-reader" }),
+      ...refusedIdentities.map((answer, index) => production({ PATH: refusedBin(answer, index), EXTRACTION_READER_USER: "litt-reader" })),
     ]) {
       let worker = "";
       try { assertReaderUserForProduction(env); } catch (error) { worker = (error as Error).message; }
@@ -546,7 +582,7 @@ describe("the document readers' user in production", () => {
   });
 
   it.skipIf(process.platform !== "linux")("outside production the reader user may be the process's own user, with the start-up warning", () => {
-    const env = { ...validProduction, NODE_ENV: "development", EXTRACTION_ISOLATION: "on", PATH: good, EXTRACTION_READER_USER: userInfo().username } as NodeJS.ProcessEnv;
+    const env = { ...validProduction, NODE_ENV: "development", EXTRACTION_ISOLATION: "on", EXTRACTION_READER_PROCESS_LIMIT: "0", PATH: path.join(dir, "own"), EXTRACTION_READER_USER: "litt-reader" } as NodeJS.ProcessEnv;
     expect(() => validateRuntimeConfiguration(env)).not.toThrow();
     expect(() => assertReaderUserForProduction(env)).not.toThrow();
   });

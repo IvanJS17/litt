@@ -1,7 +1,7 @@
 import { accessSync, constants, statSync } from "node:fs";
 import path from "node:path";
 import { extractionIsolated, extractionLauncher, extractionReaderUser } from "./extraction/limits";
-import { readerIsOwnUser, readerSwitchProblem } from "./extraction/readerUser";
+import { readerSwitchProblem } from "./extraction/readerUser";
 import { trimChars } from "./modelJsonFence";
 import { OCR_PAGE_MAX_BYTES, OCR_READING_MAX_BYTES, OCR_READING_MAX_PAGES } from "./ocr/pages";
 
@@ -359,7 +359,9 @@ export function extractionLauncherWarnings(
 /**
  * The one start-up check of the document readers' user, shared by the API and
  * the stand-alone worker: in production (and only there) the readers must be
- * able to run as an unprivileged user that is not the process's own. Returns
+ * able to run as an unprivileged user that is not the process's own, as the
+ * switched process itself reports it (user and group ids and supplementary
+ * groups: readerIdentity in extraction/readerUser.ts). Returns
  * the refusal, or null. Only Linux has the launcher for it; elsewhere
  * production is not a target.
  */
@@ -370,10 +372,6 @@ export function readerUserProductionProblem(
   if (env.NODE_ENV !== "production" || !extractionIsolated(env) || platform !== "linux") return null;
   const problem = readerUserProblem(env, platform);
   if (problem) return `The document parser must run as its own unprivileged user in production: ${problem}`;
-  const user = extractionReaderUser(env, platform);
-  if (user && readerIsOwnUser(user)) {
-    return `The document parser must run as its own unprivileged user in production: EXTRACTION_READER_USER (${user}) is the same numeric user as this process, so the readers would run as the API`;
-  }
   return null;
 }
 
