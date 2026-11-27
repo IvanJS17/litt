@@ -30,7 +30,7 @@ begin
   perform pg_temp.assert_true(substring('😀 Consent requires 100% consent and a_b. Assignment permitted.' from (match->>'start_char')::int+1 for 10)='Assignment','Unicode offsets refer to original text');
   r:=public.find_document_text(owner_id::text,'',org::text,'document','Historical',null,doc,v1);
   perform pg_temp.assert_true(r#>>'{matches,0,version_id}'=v1::text,'historical version search is explicit');
-  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',doc,v1)->>'text'='Historical assignment clause','historical read stays pinned');
+  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',doc,v1,0,1000000)->>'text'='Historical assignment clause','historical read stays pinned');
   r:=public.find_document_text(owner_id::text,'','personal','project','Assignment',project);
   perform pg_temp.assert_true((r#>>'{coverage,total_versions}')::int=0,'workspace isolation covers counts');
   r:=public.find_document_text(reader_id::text,'',org::text,'project','Assignment',project);
@@ -39,7 +39,7 @@ begin
   r:=public.find_document_text(reader_id::text,'',org::text,'project','Assignment',project);
   perform pg_temp.assert_true(jsonb_array_length(r->'matches')=1,'shared project viewer can find text');
   update project_org_access_overrides set role='deny' where project_id=project and user_id=reader_id;
-  perform pg_temp.assert_true(public.read_document_text(reader_id::text,'',doc,v2) is null,'revocation between search and read denies content');
+  perform pg_temp.assert_true(public.read_document_text(reader_id::text,'',doc,v2,0,1000000) is null,'revocation between search and read denies content');
   r:=public.find_document_text(owner_id::text,'',org::text,'project','100%',project);
   perform pg_temp.assert_true(jsonb_array_length(r->'matches')=1,'percent is literal');
   r:=public.find_document_text(owner_id::text,'',org::text,'project','a_b',project);
@@ -57,7 +57,7 @@ begin
   perform public.publish_document_text(v2,revision,'Updated consent','new-hash',0);
   r:=public.find_document_text(owner_id::text,'',org::text,'project','Assignment',project);
   perform pg_temp.assert_true(jsonb_array_length(r->'matches')=0,'old text disappears after edit');
-  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',doc,v1)->>'text'='Historical assignment clause','editing current preserves history');
+  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',doc,v1,0,1000000)->>'text'='Historical assignment clause','editing current preserves history');
   tv:=(public.create_document_version(template,'{"filename":"template.docx","storage_path":"template.docx","file_type":"docx"}',true)->>'id')::uuid;
   lv:=(public.create_document_version(library_doc,'{"filename":"file.pdf","storage_path":"file.pdf","file_type":"pdf"}',true)->>'id')::uuid;
   select text_revision into revision from document_versions where id=tv;
@@ -70,9 +70,9 @@ begin
   perform pg_temp.assert_true(jsonb_array_length(r->'matches')=1 and (r#>>'{coverage,versions_needing_ocr}')::int=1,'library scope reports OCR gaps');
   r:=public.find_document_text(reader_id::text,'','personal','templates','consent');
   perform pg_temp.assert_true((r#>>'{coverage,total_versions}')::int=0,'another user cannot search library templates');
-  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',template,lv) is null,'version must belong to requested document');
+  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',template,lv,0,1000000) is null,'version must belong to requested document');
   update documents set archived_at=now() where id=library_doc;
-  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',library_doc,lv) is null,'archived document cannot be read');
+  perform pg_temp.assert_true(public.read_document_text(owner_id::text,'',library_doc,lv,0,1000000) is null,'archived document cannot be read');
   update document_versions set deleted_at=now() where id=v1;
   perform pg_temp.assert_true(not exists(select 1 from document_version_texts where version_id=v1),'soft deletion removes stored text');
   perform pg_temp.assert_true(not public.publish_document_text(v1,old_revision,'deleted bytes','hash',0),'deleted version cannot be repopulated');
@@ -121,6 +121,242 @@ begin
   perform public.publish_document_text(v2,revision,'','hash',0);
   perform pg_temp.assert_true((select status='ready' and text_content='' from document_version_texts where version_id=v2),'empty success differs from missing extraction');
   perform pg_temp.assert_true(public.backfill_document_text(10,true)=0,'ready empty documents are never re-extracted');
+end;
+$$;
+rollback;
+
+-- A stored text leaves the database in bounded slices only, and a search scans in bounded pieces under a time budget.
+begin;
+create function pg_temp.assert_true(value boolean, message text) returns void language plpgsql as $$
+begin if value is distinct from true then raise exception '%',message; end if; end; $$;
+do $$
+declare actor uuid:=gen_random_uuid(); other uuid:=gen_random_uuid(); doc uuid:=gen_random_uuid(); v uuid; revision uuid;
+  r jsonb; part jsonb; whole text:=''; chunk text; k int; filler text; txt text; t0 timestamptz; piece int:=65536;
+begin
+  insert into auth.users(id,email) values(actor,actor||'@example.test'),(other,other||'@example.test');
+  insert into documents(id,user_id,status,library_kind) values(doc,actor,'ready','file');
+  v:=(public.create_document_version(doc,'{"filename":"long.docx","storage_path":"long.docx","file_type":"docx"}',true)->>'id')::uuid;
+  select text_revision into revision from document_versions where id=v;
+  txt:=repeat('é',700000)||'😀'||repeat('z',500001);
+  perform public.publish_document_text(v,revision,txt,'hash',1);
+  update documents set current_version_id=v where id=doc;
+
+  -- Whatever the caller asks, one answer carries at most 500,000 characters.
+  r:=public.read_document_text(actor::text,'',doc,v,0,1000000);
+  perform pg_temp.assert_true(char_length(r->>'text')<=500000,'default read is one bounded slice');
+  perform pg_temp.assert_true((r->>'text_length')::int=char_length(txt),'the answer states the whole length');
+  perform pg_temp.assert_true(r->>'status'='ready' and (r->>'textless_page_count')::int=1 and r->>'revision'=revision::text,'status, revision and scan count are unchanged');
+  r:=public.read_document_text(actor::text,'',doc,v,0,2000000000);
+  perform pg_temp.assert_true(char_length(r->>'text')=500000,'a huge request is cut to the bound');
+  r:=public.read_document_text(actor::text,'',doc,v,-5,10);
+  perform pg_temp.assert_true(r->>'text'=repeat('é',10),'a negative offset reads from the start');
+  r:=public.read_document_text(actor::text,'',doc,v,char_length(txt)+10,100);
+  perform pg_temp.assert_true(r->>'text'='' and (r->>'text_length')::int=char_length(txt),'past the end reads nothing');
+  -- slices put back together are the stored text, multi-byte characters included at the boundary
+  k:=0;
+  while k<char_length(txt) loop
+    part:=public.read_document_text(actor::text,'',doc,v,k,500000);
+    whole:=whole||(part->>'text'); k:=k+500000;
+  end loop;
+  perform pg_temp.assert_true(whole=txt,'slices reassemble to the stored text');
+  perform pg_temp.assert_true(public.read_document_text(other::text,'',doc,v,0,1000000) is null,'access is still checked first');
+  -- the previous call shapes (no offset and length) are an error, never a text cut at the bound
+  begin perform public.read_document_text(actor::text,'',doc,v); raise exception 'four-argument read must not exist';
+  exception when undefined_function then null; end;
+  begin perform public.document_text_slice(v,revision); raise exception 'two-argument slice must not exist';
+  exception when undefined_function then null; end;
+  -- the trusted slice (no actor) is bounded the same way and is for the server role only
+  perform pg_temp.assert_true(char_length(public.document_text_slice(v,revision,0,2000000000)->>'text')=500000,'trusted slice is bounded');
+  perform pg_temp.assert_true(public.document_text_slice(v,gen_random_uuid(),0,10)->>'text' is null,'trusted slice is keyed to the revision');
+  perform pg_temp.assert_true(not has_function_privilege('authenticated','public.document_text_slice(uuid,uuid,integer,integer)','execute')
+    and has_function_privilege('service_role','public.document_text_slice(uuid,uuid,integer,integer)','execute'),'trusted slice is server-only');
+  perform pg_temp.assert_true(not has_function_privilege('authenticated','public.read_document_text(text,text,uuid,uuid,integer,integer)','execute'),'read is server-only');
+
+  -- A match that straddles two scanned pieces is found, with the same offsets, whatever the character width.
+  foreach filler in array array['a','é','😀'] loop
+    for k in 0..12 loop
+      txt:=repeat(filler,piece-6+k)||'Clause Target'||repeat(filler,20);
+      perform public.publish_document_text(v,revision,txt,'hash',0);
+      r:=public.find_document_text(actor::text,'','personal','library','cLAUSE tARGET');
+      perform pg_temp.assert_true(jsonb_array_length(r->'matches')=1 and (r#>>'{matches,0,start_char}')::int=piece-6+k
+        and (r#>>'{matches,0,end_char}')::int=piece-6+k+13
+        and (r#>>'{matches,0,excerpt_start_char}')::int=greatest(piece-6+k-160,0)
+        and substring(txt from (r#>>'{matches,0,excerpt_start_char}')::int+1 for 5000) like r#>>'{matches,0,excerpt}'||'%'
+        and r#>>'{matches,0,excerpt}' like '%Clause Target%',format('straddling match with %s at %s',filler,k));
+      perform pg_temp.assert_true((r#>>'{coverage,search_incomplete}')='false','a finished search says so');
+    end loop;
+  end loop;
+  -- exactly at the end of a piece, a text of exactly one piece, empty text, and no match
+  txt:=repeat('a',piece-6)||'needle'; perform public.publish_document_text(v,revision,txt,'hash',0);
+  r:=public.find_document_text(actor::text,'','personal','library','needle');
+  perform pg_temp.assert_true((r#>>'{matches,0,start_char}')::int=piece-6,'match ending at the end of a piece');
+  txt:=''; perform public.publish_document_text(v,revision,txt,'hash',0);
+  r:=public.find_document_text(actor::text,'','personal','library','needle');
+  perform pg_temp.assert_true(jsonb_array_length(r->'matches')=0 and (r#>>'{coverage,indexed_versions}')::int=1 and (r#>>'{coverage,search_incomplete}')='false','empty text: no match, not incomplete');
+  txt:=repeat('ab',3*piece); perform public.publish_document_text(v,revision,txt,'hash',0);
+  r:=public.find_document_text(actor::text,'','personal','library','abba');
+  perform pg_temp.assert_true(jsonb_array_length(r->'matches')=0,'no match when there is none');
+
+  -- A time budget stops a search INSIDE a large text, and says the answer is incomplete.
+  -- The phrase makes every piece slow to scan, so on any machine it is the budget that ends the search.
+  txt:=repeat('a',6*1048576); perform public.publish_document_text(v,revision,txt,'hash',0);
+  perform set_config('litt.text_search_budget_ms','50',true);
+  t0:=clock_timestamp();
+  r:=public.find_document_text(actor::text,'','personal','library','b'||repeat('a',499));
+  perform pg_temp.assert_true((r#>>'{coverage,search_incomplete}')='true' and jsonb_array_length(r->'matches')=0 and r->'next_offset'='null'::jsonb,'a stopped search is reported incomplete');
+  perform pg_temp.assert_true(clock_timestamp()-t0<interval '1500 milliseconds','the budget stops the scan inside one text');
+  perform set_config('litt.text_search_budget_ms','','true');
+end;
+$$;
+
+-- A phrase finds the same text whatever the case of the letters, accents included, and at the same offsets as the
+-- plain `strpos(lower(text), lower(phrase))` always gave, also across scanned pieces.
+do $$
+declare actor uuid:=gen_random_uuid(); doc uuid:=gen_random_uuid(); v uuid; revision uuid; r jsonb; pair text[]; txt text;
+  piece int:=65536; expected int;
+begin
+  insert into auth.users(id,email) values(actor,actor||'@example.test');
+  insert into documents(id,user_id,status,library_kind) values(doc,actor,'ready','file');
+  v:=(public.create_document_version(doc,'{"filename":"case.docx","storage_path":"case.docx","file_type":"docx"}',true)->>'id')::uuid;
+  select text_revision into revision from document_versions where id=v;
+  update documents set current_version_id=v where id=doc;
+  foreach pair slice 1 in array array[
+    array['CLÁUSULA DÉCIMA. CONTRATACIÓN Y PENALIZACIÓN','contratación'],
+    array['CLÁUSULA DÉCIMA. CONTRATACIÓN Y PENALIZACIÓN','CONTRATACIÓN'],
+    array['CLÁUSULA DÉCIMA. CONTRATACIÓN Y PENALIZACIÓN','cláusula décima'],
+    array['CLÁUSULA DÉCIMA. CONTRATACIÓN Y PENALIZACIÓN','Penalización'],
+    array['la contratación y la penalización','CONTRATACIÓN Y PENALIZACIÓN'],
+    array['AÑO NUEVO','año nuevo'], array['el año nuevo','AÑO NUEVO'],
+    array['PINGÜINO','pingüino'], array['un pingüino','PINGÜINO'],
+    array['Η ΣΑΣ ΕΙΝΑΙ','ΣΑΣ'], array['Η ΣΑΣ ΕΙΝΑΙ','σας'], array['STRAẞE','straße'], array['İSTANBUL','istanbul'],
+    array['CLÁUSULA','zzz']] loop
+    perform public.publish_document_text(v,revision,pair[1],'hash',0);
+    r:=public.find_document_text(actor::text,'','personal','library',pair[2]);
+    expected:=strpos(lower(pair[1]),lower(pair[2]));
+    perform pg_temp.assert_true(jsonb_array_length(r->'matches')=(expected>0)::int
+      and (expected=0 or ((r#>>'{matches,0,start_char}')::int=expected-1 and (r#>>'{matches,0,end_char}')::int=expected-1+char_length(pair[2]))),
+      format('case-insensitive search of %L for %L', pair[1], pair[2]));
+  end loop;
+  perform public.publish_document_text(v,revision,'CLÁUSULA DÉCIMA. CONTRATACIÓN','hash',0);
+  perform pg_temp.assert_true(jsonb_array_length(public.find_document_text(actor::text,'','personal','library','contratación')->'matches')=1,'an accented capital is found by a lower-case phrase');
+  -- offsets are those of the lowered whole text, also past a piece edge with letters before the match
+  foreach txt in array array[repeat('É',piece-3)||'Contratación y más', repeat('İ',40000)||repeat('ẞ',30000)||'Contratación', repeat('😀',piece/4-1)||'ñ CONTRATACIÓN',
+      repeat('é',piece-1)||'ÓÉ'||repeat('Ü',piece)||'contratación'] loop
+    perform public.publish_document_text(v,revision,txt,'hash',0);
+    r:=public.find_document_text(actor::text,'','personal','library','CONTRATACIÓN');
+    expected:=strpos(lower(txt),lower('CONTRATACIÓN'));
+    perform pg_temp.assert_true((r#>>'{matches,0,start_char}')::int=expected-1 and (r#>>'{matches,0,end_char}')::int=expected-1+12
+      and (r#>>'{matches,0,excerpt_start_char}')::int=greatest(expected-161,0)
+      and r#>>'{matches,0,excerpt}'=substring(txt from greatest(expected-160,1) for 12+320),format('offsets and excerpt after %s', left(txt,3)));
+  end loop;
+end;
+$$;
+rollback;
+
+-- The state of a scan reading comes with the number of pages read, never their text.
+begin;
+create function pg_temp.assert_true(value boolean, message text) returns void language plpgsql as $$
+begin if value is distinct from true then raise exception '%',message; end if; end; $$;
+do $$
+declare actor uuid:=gen_random_uuid(); doc uuid:=gen_random_uuid(); v uuid; revision uuid; r jsonb;
+begin
+  insert into auth.users(id,email) values(actor,actor||'@example.test');
+  insert into documents(id,user_id,status,library_kind) values(doc,actor,'ready','file');
+  v:=(public.create_document_version(doc,'{"filename":"scan.pdf","storage_path":"scan.pdf","file_type":"pdf"}',true)->>'id')::uuid;
+  select text_revision into revision from document_versions where id=v;
+  perform pg_temp.assert_true(public.document_ocr_state(v) is null,'no reading, no state');
+  insert into document_version_ocr(version_id,source_revision,status,pages,model,credits,page_count,failed_pages,error_code)
+    values(v,revision,'ready',(select jsonb_agg(jsonb_build_object('page',g,'text',repeat('texto leído ',1000))) from generate_series(1,7) g),'m',1.5,10,'{2,5,9}',null);
+  r:=public.document_ocr_state(v);
+  perform pg_temp.assert_true((r->>'pages_read')::int=7 and (r->>'page_count')::int=10 and r->'failed_pages'='[2,5,9]'::jsonb
+    and r->>'status'='ready' and (r->>'credits')::numeric=1.5 and r->>'source_revision'=revision::text and r->>'model'='m'
+    and (r->>'updated_at')::timestamptz=(select updated_at from document_version_ocr where version_id=v),'state columns, stamp and pages read');
+  perform pg_temp.assert_true(not r?'pages' and octet_length(r::text)<500,'the text of the pages is not in the answer');
+  update document_version_ocr set pages=null,status='processing' where version_id=v;
+  perform pg_temp.assert_true(public.document_ocr_state(v)->'pages_read'='null'::jsonb,'a reading with no pages yet has no count');
+  perform pg_temp.assert_true(not has_function_privilege('authenticated','public.document_ocr_state(uuid)','execute')
+    and has_function_privilege('service_role','public.document_ocr_state(uuid)','execute'),'state is server-only');
+end;
+$$;
+rollback;
+
+-- The pages of a scan reading come out in bounded slices of whole pages.
+begin;
+create function pg_temp.assert_true(value boolean, message text) returns void language plpgsql as $$
+begin if value is distinct from true then raise exception '%',message; end if; end; $$;
+do $$
+declare actor uuid:=gen_random_uuid(); doc uuid:=gen_random_uuid(); v uuid; revision uuid; r jsonb; got jsonb:='[]'; k integer:=0; calls integer:=0;
+  expected jsonb; biggest integer;
+begin
+  insert into auth.users(id,email) values(actor,actor||'@example.test');
+  insert into documents(id,user_id,status,library_kind) values(doc,actor,'ready','file');
+  v:=(public.create_document_version(doc,'{"filename":"scan.pdf","storage_path":"scan.pdf","file_type":"pdf"}',true)->>'id')::uuid;
+  select text_revision into revision from document_versions where id=v;
+  perform pg_temp.assert_true(public.document_ocr_pages(v,0) is null,'no row, no answer');
+  -- several times the budget: 14 pages of 120,000 characters (slices of whole pages; several), and a 1-character page at the end
+  expected:=(select jsonb_agg(jsonb_build_object('page',g,'text',case when g=15 then 'é' else repeat('ñ😀',60000) end) order by g) from generate_series(1,15) g);
+  insert into document_version_ocr(version_id,source_revision,status,pages) values(v,revision,'ready',expected);
+  loop
+    r:=public.document_ocr_pages(v,k); calls:=calls+1;
+    perform pg_temp.assert_true((select coalesce(sum(pg_column_size(p)),0) from jsonb_array_elements(r->'pages') p)<=500000+(select max(pg_column_size(p)) from jsonb_array_elements(r->'pages') p),'one answer is at most the budget plus one page');
+    perform pg_temp.assert_true(jsonb_array_length(r->'pages')>=1,'at least one page');
+    got:=got||(r->'pages');
+    exit when r->'next' is null or r->'next'='null'::jsonb;
+    k:=(r->>'next')::int;
+  end loop;
+  perform pg_temp.assert_true(got=expected and calls>=3,format('the slices put back give the same pages in the same order (%s calls)',calls));
+  perform pg_temp.assert_true(r->>'source_revision'=revision::text and r->>'updated_at' is not null,'the reading is identified');
+  -- thousands of blank pages, elements without text, and elements that are not pages: every answer is at most 1,000
+  -- elements and the budget plus one element, and the answers put back give the stored array
+  foreach expected in array array[
+    (select jsonb_agg(jsonb_build_object('page',g,'text','') order by g) from generate_series(1,8000) g),
+    (select jsonb_agg(jsonb_build_object('page',g,'blob',repeat('b',8000)) order by g) from generate_series(1,300) g),
+    '[null,"a string",7,{"page":1},{"page":2,"text":5},{"page":3,"text":null},{"page":4,"text":"x"},[1,2],true]'::jsonb] loop
+    update document_version_ocr set pages=expected where version_id=v;
+    got:='[]'; k:=0; calls:=0;
+    loop
+      r:=public.document_ocr_pages(v,k); calls:=calls+1;
+      perform pg_temp.assert_true(jsonb_array_length(r->'pages')<=1000 and jsonb_array_length(r->'pages')>=1,'an answer has between 1 and 1,000 elements');
+      perform pg_temp.assert_true((select sum(pg_column_size(p)) from jsonb_array_elements(r->'pages') p)<=500000+(select max(pg_column_size(p)) from jsonb_array_elements(r->'pages') p),'an answer is at most the budget plus one element');
+      got:=got||(r->'pages');
+      exit when r->'next' is null or r->'next'='null'::jsonb;
+      k:=(r->>'next')::int;
+    end loop;
+    perform pg_temp.assert_true(got=expected,format('the answers put back give the stored array (%s calls for %s elements)',calls,jsonb_array_length(expected)));
+  end loop;
+  perform pg_temp.assert_true(calls>=1,'ran');
+  -- large when read, small when stored: 300 elements of 100 KiB of one repeated character. Each answer holds only the
+  -- elements the budget allows (5: the sixth starts past 500,000 bytes), never the elements it does not return
+  expected:=(select jsonb_agg(jsonb_build_object('page',g,'text',repeat('a',102400)) order by g) from generate_series(1,300) g);
+  update document_version_ocr set pages=expected where version_id=v;
+  got:='[]'; k:=0; calls:=0;
+  loop
+    r:=public.document_ocr_pages(v,k); calls:=calls+1;
+    perform pg_temp.assert_true(jsonb_array_length(r->'pages')=5,format('an answer holds the 5 large elements the budget allows (%s)',jsonb_array_length(r->'pages')));
+    got:=got||(r->'pages');
+    exit when r->'next' is null or r->'next'='null'::jsonb;
+    k:=(r->>'next')::int;
+  end loop;
+  perform pg_temp.assert_true(calls=60 and got=expected,format('large elements: the answers put back give the stored array (%s calls)',calls));
+  -- one page larger than the budget comes back alone
+  update document_version_ocr set pages=jsonb_build_array(jsonb_build_object('page',1,'text',repeat('x',900000)),jsonb_build_object('page',2,'text','y'))  where version_id=v;
+  r:=public.document_ocr_pages(v,0);
+  perform pg_temp.assert_true(jsonb_array_length(r->'pages')=1 and (r->>'next')::int=1,'a page larger than the budget is alone');
+  r:=public.document_ocr_pages(v,1);
+  perform pg_temp.assert_true(jsonb_array_length(r->'pages')=1 and r->'next'='null'::jsonb,'and the next page follows');
+  r:=public.document_ocr_pages(v,50);
+  perform pg_temp.assert_true(r->'pages'='[]'::jsonb and r->'next'='null'::jsonb,'past the end gives nothing');
+  r:=public.document_ocr_pages(v,2147483647);
+  perform pg_temp.assert_true(r->'pages'='[]'::jsonb and r->'next'='null'::jsonb,'the largest start the type holds gives nothing');
+  update document_version_ocr set pages='[]'::jsonb where version_id=v;
+  r:=public.document_ocr_pages(v,0);
+  perform pg_temp.assert_true(r->'pages'='[]'::jsonb and r->'next'='null'::jsonb,'an empty array is an empty answer');
+  update document_version_ocr set pages=null,status='processing' where version_id=v;
+  r:=public.document_ocr_pages(v,0);
+  perform pg_temp.assert_true(r->'pages'='null'::jsonb and r->'next'='null'::jsonb and r->>'source_revision'=revision::text,'a row with no pages says so');
+  perform pg_temp.assert_true(not has_function_privilege('authenticated','public.document_ocr_pages(uuid,integer)','execute')
+    and not has_function_privilege('anon','public.document_ocr_pages(uuid,integer)','execute')
+    and has_function_privilege('service_role','public.document_ocr_pages(uuid,integer)','execute'),'pages are server-only');
 end;
 $$;
 rollback;

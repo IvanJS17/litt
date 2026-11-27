@@ -3,10 +3,14 @@
 // functions the services call (stood in for by handlers that apply the REAL
 // access rules from lib/access to these tables). Synthetic data only.
 
+import { scanReadingRpc } from "./scanReadingRpc";
 import { randomUUID } from "node:crypto";
 import { checkProjectAccess, ensureChatAccess, ensureDocAccess } from "../../lib/access";
 import type { Db } from "../../lib/supabase";
 import { memoryDb, type Row } from "./memoryDb";
+
+/** Every read_document_text call the fake database has answered (a window of a stored text each). */
+export const textReads: Array<{ offset: number; length: number }> = [];
 
 export const ORG = "11111111-1111-4111-8111-111111111111";
 export const ORG2 = "22222222-2222-4222-8222-222222222222";
@@ -211,15 +215,23 @@ export function buildWorld() {
             const offset = Number(args.p_offset ?? 0);
             return rows.slice(offset, offset + Number(args.p_limit ?? 20));
         },
-        read_document_text: async ({ p_user_id, p_user_email, p_document_id, p_version_id }) => {
+        read_document_text: async ({ p_user_id, p_user_email, p_document_id, p_version_id, p_offset, p_length }) => {
             const doc = tables.documents.find((d) => d.id === p_document_id);
             const version = tables.document_versions.find((v) => v.id === p_version_id && v.document_id === p_document_id && !v.deleted_at);
             if (!doc || !version) return null;
             const access = await ensureDocAccess(doc as never, String(p_user_id), String(p_user_email ?? ""), db);
             if (!access.ok) return null;
             const text = tables.document_version_texts.find((t) => t.version_id === version.id && t.source_revision === version.text_revision);
-            return { revision: version.text_revision, status: text?.status ?? "pending", text: text?.text_content ?? null, textless_page_count: text?.textless_page_count ?? null };
+            // Like the database: one bounded slice, in Unicode characters, and the length of the whole text.
+            textReads.push({ offset: Number(p_offset ?? 0), length: Number(p_length ?? 500_000) });
+            const points = typeof text?.text_content === "string" ? Array.from(text.text_content) : null;
+            const from = Math.max(Number(p_offset ?? 0), 0);
+            return { revision: version.text_revision, status: text?.status ?? "pending",
+                text: points ? points.slice(from, from + Math.min(Math.max(Number(p_length ?? 500_000), 0), 500_000)).join("") : null,
+                text_length: points ? points.length : null, textless_page_count: text?.textless_page_count ?? null };
         },
+        // A scan reading: its state, and its pages in bounded slices.
+        ...scanReadingRpc(() => tables.document_version_ocr ?? []),
         find_document_text: async (args) => {
             const query = String(args.p_query).toLowerCase();
             const matches: Row[] = [];

@@ -68,6 +68,66 @@ export function readOcrPages(markdown: string, structure: unknown, pageCount: nu
     return split ? split.map((text, index) => ({ page: only ? only[index] : index + 1, text })) : null;
 }
 
+/** What one reading may store: the text of one page and of the whole reading, in bytes (UTF-8), and its number of pages. */
+export const OCR_PAGE_MAX_BYTES = 200_000;
+export const OCR_READING_MAX_BYTES = 10_000_000;
+export const OCR_READING_MAX_PAGES = 20_000;
+export type OcrStoreLimits = { pageBytes: number; readingBytes: number; readingPages: number };
+
+const isPageNumber = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) > 0;
+
+/**
+ * The pages of a reading as they are stored, or null when the reading has more page entries
+ * (or more pages listed as not read) than `readingPages`: such a reading is not stored at all.
+ * A stored page is always the whole text the service returned for it (NUL characters
+ * removed), once per page number (the first wins). A page the service listed as failed and
+ * returned with text is stored like any other page and stays in the list, once. A page over
+ * `pageBytes` or one without a string text is not stored and is listed (when the number is a
+ * valid page number); a page the bound drops is never stored. Pages are taken in page
+ * order while the reading stays within `readingBytes`; the first page that does not fit and
+ * every later one are listed. Malformed entries are dropped. Linear in the number of entries.
+ */
+export function boundOcrReading(
+    reading: { pages: readonly OcrPage[]; failedPages: readonly number[] },
+    limits: OcrStoreLimits,
+): { pages: OcrPage[]; failedPages: number[] } | null {
+    if (reading.pages.length > limits.readingPages) return null;
+    const failedPages = [...new Set(reading.failedPages.filter(isPageNumber))];
+    if (failedPages.length > limits.readingPages) return null;
+    const listed = new Set(failedPages);
+    const seen = new Set<number>();
+    const candidates: OcrPage[] = [];
+    const notRead: number[] = [];
+    for (const entry of reading.pages) {
+        const number = (entry as { page?: unknown } | null)?.page;
+        if (!isPageNumber(number) || seen.has(number)) continue;
+        seen.add(number);
+        const text = (entry as { text?: unknown }).text;
+        if (typeof text !== "string") {
+            notRead.push(number);
+        } else {
+            candidates.push({ page: number, text: text.replaceAll("\0", "") });
+        }
+    }
+    const kept = new Set<OcrPage>();
+    let total = 0;
+    let outOfRoom = false;
+    for (const entry of [...candidates].sort((a, b) => a.page - b.page)) {
+        const size = Buffer.byteLength(entry.text, "utf8");
+        const tooBig = size > limits.pageBytes;
+        if (!tooBig && !outOfRoom && total + size <= limits.readingBytes) {
+            total += size;
+            kept.add(entry);
+            continue;
+        }
+        if (!tooBig) outOfRoom = true; // this page and every later one are listed
+        notRead.push(entry.page);
+    }
+    for (const number of notRead.sort((a, b) => a - b)) if (!listed.has(number)) { listed.add(number); failedPages.push(number); }
+    if (failedPages.length > limits.readingPages) return null;
+    return { pages: candidates.filter((entry) => kept.has(entry)), failedPages };
+}
+
 // --- Split (layer 7, docs/document-split.md) ---------------------------------
 
 /** LandingAI Split takes at most this much Markdown, this many pages and this many types per call. */

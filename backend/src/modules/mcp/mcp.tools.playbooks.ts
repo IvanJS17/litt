@@ -594,19 +594,24 @@ export const preparePlaybookReview = defineMcpTool({
                 instructions: args.instructions,
             }),
         );
-        const { version, stored } = await loadReleasableText(call, args.document_id);
+        const room = PREPARE_TOTAL_CHARS - prepared.brief.length;
+        const offset = args.offset ?? 0;
+        const limit = Math.min(args.limit_chars ?? PREPARE_DEFAULT_WINDOW, room);
+        // Only the window that is returned is read; the length of the whole text is enough for the size check.
+        const { version, stored } = await loadReleasableText(call, args.document_id, undefined, { offset, maxChars: Math.max(limit, 0) });
         const text = stored.text ?? "";
-        if (!text.trim()) throw new McpToolError("text_unavailable", "This document has no readable text.", "Open the document in LiTT; a scanned file may need to be read there first.");
-        if (Array.from(text).length > MAX_DOCUMENT_CHARS)
+        const total = stored.text_length ?? 0;
+        if (total === 0 || (offset === 0 && total <= text.length && !text.trim()))
+            throw new McpToolError("text_unavailable", "This document has no readable text.", "Open the document in LiTT; a scanned file may need to be read there first.");
+        if (total > MAX_DOCUMENT_CHARS)
             throw new McpToolError(
                 "document_too_large",
                 `The document is longer than ${MAX_DOCUMENT_CHARS} characters, the most a complete playbook review takes.`,
                 "Review a shorter document, or use run_playbook_review.",
             );
-        const room = PREPARE_TOTAL_CHARS - prepared.brief.length;
         if (room < 1000)
             throw new McpToolError("playbook_too_large_for_client", "This playbook is too large to hand to the client's AI together with the document.", "Use run_playbook_review, or split the playbook.");
-        const window = windowOf(text, args.offset ?? 0, Math.min(args.limit_chars ?? PREPARE_DEFAULT_WINDOW, room));
+        const window = windowOf(text, offset, limit, { start: offset, total });
         await recordEgressOrFail(call, args.document_id, version.id, window.slice.length + prepared.brief.length);
         const { ticket, expiresAt } = signTicket({
             kind: "playbook_review",

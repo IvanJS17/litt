@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { formatWithOptions } from "node:util";
+import { describe, expect, it, vi } from "vitest";
+import { jobErrorMessage } from "../dbq/jobError";
+import { installErrorLogRedaction } from "../log";
+import { reportModelFailure } from "./providerFailureReport";
 import { AppError } from "../appError";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import { UserFacingError } from "../userFacingError";
@@ -7,6 +11,7 @@ import {
   asProviderStallError,
   ProviderConfigurationError,
   isDeterministicProviderQuota,
+  isDeterministicProviderRefusal,
   isUserProviderRefusal,
   providerFailureKind,
   providerFailureResponse,
@@ -132,6 +137,83 @@ describe("toProviderStreamError", () => {
 
     expect(error).not.toBeInstanceOf(UserFacingError);
     expect(error.message).toBe("Gemini stream failed.");
+  });
+
+  it.each([
+    [401, "an invalid key", "chat.provider_rejected"],
+    [400, "an invalid key", "chat.provider_rejected"],
+    [403, "an invalid key", "chat.provider_rejected"],
+    [500, "an outage", "chat.stream_failed"],
+  ])("keeps no request or reply of a provider's stream error object (%i, %s)", async (statusCode, _what, kind) => {
+    // The package is ESM-only; the SDK builds this shape itself for a failed stream.
+    const { createProviderStreamError } = await import("@ai-sdk/provider-utils");
+    installErrorLogRedaction();
+    const marker = `PLANTED-${statusCode}`;
+    const message = statusCode === 400 || statusCode === 403 ? `invalid API key ${marker}` : `provider said ${marker}`;
+    const raw = createProviderStreamError({
+      message,
+      type: `type-${marker}`,
+      code: `code-${marker}`,
+      statusCode,
+      data: {
+        request: { prompt: `prompt-${marker}` },
+        responseHeaders: { "x-note": `header-${marker}` },
+        url: `https://host.invalid/${marker}`,
+      },
+    });
+    const error = toProviderStreamError(raw, gemini);
+
+    expect(providerFailureKind(error)).toBe(kind);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      reportModelFailure(error, { operation: "chat.stream" } as never, "[test]");
+      const printed = [
+        formatWithOptions({}, error),
+        formatWithOptions({ depth: null }, error),
+        jobErrorMessage(error),
+        ...spy.mock.calls.map((args) => formatWithOptions({ depth: null }, ...args)),
+      ].join("\n");
+      expect(printed).not.toContain("PLANTED");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("keeps a plain-object stream error that says only 'fetch failed' a provider outage", () => {
+    const error = toProviderStreamError({ message: "fetch failed", param: "private-marker" }, gemini);
+
+    expect(providerFailureKind(error)).toBe("chat.provider_unavailable");
+    expect(providerFailureLevel(error)).toBe("warning");
+    expect(JSON.stringify(error.cause)).not.toContain("private-marker");
+  });
+
+  it.each([
+    ["cause", 402],
+    ["lastError", 429],
+  ])("classifies a plain object holding an API-call error as %s like the bare API-call error (%i)", (field, status) => {
+    const inner = apiCallError(status);
+    const holder = {
+      [field]: inner,
+      message: "holder-message-marker",
+      url: "https://host.invalid/holder-url-marker",
+      data: { note: "holder-data-marker" },
+    };
+    const keyed = { ...gemini, keySource: "user" as const };
+    const wrapped = toProviderStreamError(holder, keyed);
+    const bare = toProviderStreamError(inner, keyed);
+
+    expect(wrapped.message).toBe(bare.message);
+    expect(wrapped.constructor).toBe(bare.constructor);
+    expect(providerFailureKind(wrapped)).toBe(providerFailureKind(bare));
+    expect(providerFailureStatus(wrapped)).toBe(status);
+    expect(isDeterministicProviderRefusal(wrapped)).toBe(isDeterministicProviderRefusal(bare));
+    expect(providerFailureLevel(wrapped)).toBe(providerFailureLevel(bare));
+    expect(isUserProviderRefusal(wrapped)).toBe(isUserProviderRefusal(bare));
+    expect(wrapped.cause).toBe(inner);
+    expect(wrapped.cause).not.toBe(holder);
+    const printed = formatWithOptions({ depth: null, showHidden: true }, wrapped);
+    expect(printed).not.toContain("holder-");
+    expect(JSON.stringify(wrapped)).not.toContain("holder-");
   });
 });
 
