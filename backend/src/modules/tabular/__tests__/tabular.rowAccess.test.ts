@@ -26,6 +26,7 @@ vi.mock("../../../lib/observability/report", async (importOriginal) => ({
     reportError,
 }));
 
+import { ACCESS_QUESTION_MAX_MS } from "../../../lib/streamRuns";
 import * as epoch from "../../../lib/authorizationEpoch";
 import { streamTabularGenerateSync } from "../tabular.generateStream";
 import type { ReviewRow } from "../tabular.rows";
@@ -211,5 +212,53 @@ describe("a running table generation and the person's access to a row's document
         const warnings = reportError.mock.calls.filter((call) => (call[1] as { level?: string } | undefined)?.level === "warning");
         expect(warnings).toHaveLength(1);
         expect(JSON.stringify(warnings[0])).not.toMatch(/doc-\d/);
+    });
+
+    it("leaves out a row whose question does not answer within the bound, hands its cells back, and finishes the others", async () => {
+        const w = rowAccessWorld({ documents: 5 });
+        queryTabularAllColumns.mockImplementationOnce(async (_m, _label, _text, cols, onResult) => {
+            w.unanswered.documents = true;
+            await modelAnswer(cols, onResult);
+        });
+        vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+        vi.setSystemTime(new Date("2026-06-01T10:00:00Z"));
+        const pending = run(w, makeRows(5));
+        await vi.advanceTimersByTimeAsync(ACCESS_QUESTION_MAX_MS + 100);
+        const { completed, frames } = await pending;
+
+        expect(completed).toBe(true);
+        expect(loadedRows()).not.toContain("row-5");
+        expect(loadedRows()).not.toContain("row-4");
+        for (const id of ["row-4", "row-5"]) {
+            expect(framesOf(frames, id).filter((frame) => frame.status === "done" || frame.status === "generating")).toEqual([]);
+            expect(cellsOf(w, id).map((cell) => [cell.status, cell.content ?? null, cell.generation_id ?? null])).toEqual([["pending", null, null], ["pending", null, null]]);
+        }
+        for (const id of ["row-1", "row-2", "row-3"]) expect(cellsOf(w, id).map((cell) => cell.status)).toEqual(["done", "done"]);
+        expect(reportError.mock.calls.filter((call) => (call[1] as { level?: string } | undefined)?.level === "warning")).toHaveLength(1);
+    });
+
+    describe("a row with several source documents", () => {
+        const three = (): ReviewRow[] => [{ ...makeRows(1)[0], source_document_ids: ["doc-1", "doc-2", "doc-3"] }];
+
+        it("is left out when the person can open the first and the third but not the second", async () => {
+            const w = rowAccessWorld({ documents: 3 });
+            w.lose("override", 2);
+            const { completed, frames } = await run(w, three());
+
+            expect(completed).toBe(true);
+            expect(loadRowDocumentText).not.toHaveBeenCalled();
+            expect(queryTabularAllColumns).not.toHaveBeenCalled();
+            expect(frames.filter((frame) => frame.status === "done" || frame.status === "generating")).toEqual([]);
+            expect(cellsOf(w, "row-1").map((cell) => [cell.status, cell.content ?? null, cell.generation_id ?? null])).toEqual([["pending", null, null], ["pending", null, null]]);
+        });
+
+        it("runs when the person can open all three", async () => {
+            const w = rowAccessWorld({ documents: 3 });
+            const { completed } = await run(w, three());
+
+            expect(completed).toBe(true);
+            expect(loadedRows()).toEqual(["row-1"]);
+            expect(cellsOf(w, "row-1").map((cell) => cell.status)).toEqual(["done", "done"]);
+        });
     });
 });

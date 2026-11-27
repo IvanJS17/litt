@@ -32,7 +32,7 @@ import {
 import { AppError } from "./appError";
 import { selectAllByKey, selectAllPages, selectInBatches } from "./batchedQuery";
 import { reportError } from "./observability/report";
-import { ACCESS_RECHECK_MS } from "./streamRuns";
+import { ACCESS_RECHECK_MS, answeredInTime } from "./streamRuns";
 import type { Db } from "./supabase";
 
 export type ReviewRow = {
@@ -96,8 +96,9 @@ export type RowReadCheck = (
  * It is answered by `filterAccessibleDocumentIds`, the code every other read
  * of a document uses. A row without sources has nothing to open and is not
  * readable. The answer for a row is reused for at most
- * ROW_READ_ANSWER_MAX_AGE_MS; a question that cannot be answered counts as
- * "no" (and is asked again next time), and is reported once per check, as a
+ * ROW_READ_ANSWER_MAX_AGE_MS; a question that cannot be answered, or is
+ * still unanswered after ACCESS_QUESTION_MAX_MS (a late answer is ignored),
+ * counts as "no" (and is asked again next time), and is reported once per check, as a
  * warning that names no document.
  *
  * `userEmail` may be a function, for a job that has to ask the account for its
@@ -135,7 +136,7 @@ export function createRowReadCheck(args: {
             return known.answer;
         const entry = {
             askedAt: now(),
-            answer: ask(row).catch((cause: unknown) => {
+            answer: answeredInTime(ask(row)).catch((cause: unknown) => {
                 // Not remembered: the next question is asked afresh.
                 if (answers.get(row.id) === entry) answers.delete(row.id);
                 if (!reported) {

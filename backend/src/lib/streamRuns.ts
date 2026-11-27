@@ -506,11 +506,44 @@ export function stopRunsOfUser(userId: string): number {
 export const ACCESS_RECHECK_MS = 5_000;
 
 /**
+ * How long a question "may this reader still receive this?" may stay
+ * unanswered. After it the question counts as "no", like one that fails.
+ */
+export const ACCESS_QUESTION_MAX_MS = 10_000;
+
+/**
+ * The answer to `question`, or a rejection when it is still unanswered after
+ * ACCESS_QUESTION_MAX_MS. An answer that comes later is ignored. The timer
+ * does not keep the process alive and is cleared as soon as the question
+ * answers.
+ */
+export function answeredInTime<T>(question: Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(
+            () => reject(new Error("access question unanswered")),
+            ACCESS_QUESTION_MAX_MS,
+        );
+        timer.unref?.();
+        question.then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (cause: unknown) => {
+                clearTimeout(timer);
+                reject(cause);
+            },
+        );
+    });
+}
+
+/**
  * Order the deliveries to one watcher and ask `stillAllowed` before a delivery
  * when the last answer is older than ACCESS_RECHECK_MS. A delivery that needs
  * no question is made at once; once a question is pending, later deliveries
  * wait behind it so the frames keep their order. A "no", or a question that
- * fails, calls `onRefused` and nothing more is delivered.
+ * fails or stays unanswered for ACCESS_QUESTION_MAX_MS, calls `onRefused` and
+ * nothing more is delivered.
  */
 export function createWatcherGate(
     stillAllowed: () => Promise<boolean>,
@@ -528,7 +561,7 @@ export function createWatcherGate(
             if (now() - answeredAt >= ACCESS_RECHECK_MS) {
                 let allowed = false;
                 try {
-                    allowed = await stillAllowed();
+                    allowed = await answeredInTime(stillAllowed());
                 } catch {
                     allowed = false;
                 }

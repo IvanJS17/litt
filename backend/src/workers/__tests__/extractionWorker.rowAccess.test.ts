@@ -37,6 +37,7 @@ vi.mock("../../lib/observability/report", async (importOriginal) => ({
     reportError,
 }));
 
+import { ACCESS_QUESTION_MAX_MS } from "../../lib/streamRuns";
 import { runExtractionJob } from "../extractionWorker";
 import type { ExtractionJobData } from "../../lib/queue/extractionQueue";
 import {
@@ -61,8 +62,8 @@ const DATA: ExtractionJobData = {
 };
 
 /** A world whose single row was claimed by generation "gen-1" before the job ran. */
-function world(options: { personal?: boolean } = {}) {
-    const w = rowAccessWorld({ documents: 2, personal: options.personal });
+function world(options: { personal?: boolean; documents?: number } = {}) {
+    const w = rowAccessWorld({ documents: options.documents ?? 2, personal: options.personal });
     Object.assign(w.tables.tabular_reviews[0], { columns_config: COLUMNS, model: "claude-test" });
     for (const col of COLUMNS)
         w.tables.tabular_cells.push({ id: `cell-${col.index}`, review_id: "rev-1", row_id: "row-1", column_index: col.index, status: "pending", content: null, generation_id: "gen-1" });
@@ -184,5 +185,64 @@ describe("a queued row job and the person's access to the row's documents", () =
 
         expect(loadRowDocumentText).not.toHaveBeenCalled();
         expect(cellStates(w)).toEqual([["pending", null], ["pending", null]]);
+    });
+
+    it("leaves the row out, settles and hands its cells back when the question does not answer within the bound", async () => {
+        const w = world();
+        w.unanswered.documents = true;
+        vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+        vi.setSystemTime(new Date("2026-06-01T10:00:00Z"));
+        const publish = vi.fn(async () => {});
+
+        const job = runExtractionJob(DATA, { db: w.db as never, publish });
+        await vi.advanceTimersByTimeAsync(ACCESS_QUESTION_MAX_MS + 100);
+        await expect(job).resolves.toBeUndefined();
+
+        expect(loadRowDocumentText).not.toHaveBeenCalled();
+        expect(queryTabularAllColumns).not.toHaveBeenCalled();
+        expect(cellStates(w)).toEqual([["pending", null], ["pending", null]]);
+        expect(published(publish).filter((frame) => frame.status === "done" || frame.status === "generating")).toEqual([]);
+    });
+
+    it("leaves the row out, settles and hands its cells back when the lookup of the person's address does not answer within the bound", async () => {
+        const w = world({ personal: true });
+        w.unanswered.account = true;
+        vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+        vi.setSystemTime(new Date("2026-06-01T10:00:00Z"));
+
+        const job = runExtractionJob({ ...DATA, authorization: null }, { db: w.db as never, publish: vi.fn(async () => {}) });
+        await vi.advanceTimersByTimeAsync(ACCESS_QUESTION_MAX_MS + 100);
+        await expect(job).resolves.toBeUndefined();
+
+        expect(loadRowDocumentText).not.toHaveBeenCalled();
+        expect(cellStates(w)).toEqual([["pending", null], ["pending", null]]);
+    });
+
+    describe("a row with several source documents", () => {
+        const THREE = { ...ROW, source_document_ids: ["doc-1", "doc-2", "doc-3"] };
+
+        it("is left out when the person can open the first and the third but not the second", async () => {
+            const w = world({ documents: 3 });
+            w.lose("override", 2);
+            loadReviewRow.mockResolvedValue(THREE);
+            const publish = vi.fn(async () => {});
+
+            await expect(runExtractionJob(DATA, { db: w.db as never, publish })).resolves.toBeUndefined();
+
+            expect(loadRowDocumentText).not.toHaveBeenCalled();
+            expect(queryTabularAllColumns).not.toHaveBeenCalled();
+            expect(cellStates(w)).toEqual([["pending", null], ["pending", null]]);
+            expect(published(publish).filter((frame) => frame.status === "done" || frame.status === "generating")).toEqual([]);
+        });
+
+        it("runs when the person can open all three", async () => {
+            const w = world({ documents: 3 });
+            loadReviewRow.mockResolvedValue(THREE);
+
+            await runExtractionJob(DATA, { db: w.db as never, publish: vi.fn(async () => {}) });
+
+            expect(loadRowDocumentText).toHaveBeenCalledTimes(1);
+            expect(cellStates(w)).toEqual([["done", null], ["done", null]]);
+        });
     });
 });

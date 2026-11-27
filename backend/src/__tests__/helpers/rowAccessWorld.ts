@@ -15,6 +15,11 @@ export const ROW_ACCESS_ORG = "00000000-0000-4000-8000-000000000001";
 export const ROW_ACCESS_USER = "user-1";
 export const ROW_ACCESS_EMAIL = "user-1@example.test";
 
+const never = new Promise<never>(() => {});
+/** A query builder whose result never arrives. */
+const unansweredQuery = (): unknown =>
+    new Proxy(() => {}, { get: (_target, prop) => (prop === "then" ? never.then.bind(never) : () => unansweredQuery()) });
+
 export type ReadLoss = "override" | "private" | "moved" | "deleted" | "unshared";
 
 export function rowAccessWorld({
@@ -60,8 +65,15 @@ export function rowAccessWorld({
         // Lease bookkeeping and the like: answered "true", as the lease tests do.
         return failed ? { data: true, error: null } : answered;
     };
-    const auth = { admin: { getUserById: async () => ({ data: { user: { email: ROW_ACCESS_EMAIL, email_confirmed_at: "2026-01-01T00:00:00Z" } }, error: null }) } };
-    const db = { from: (base as unknown as { from: Db["from"] }).from, rpc, auth } as unknown as Db;
+    /** Set a flag and the matching question is never answered: the document reads, or the account's address. */
+    const unanswered = { documents: false, account: false };
+    const auth = { admin: { getUserById: async () => unanswered.account ? never : ({ data: { user: { email: ROW_ACCESS_EMAIL, email_confirmed_at: "2026-01-01T00:00:00Z" } }, error: null }) } };
+    const baseFrom = (base as unknown as { from: (table: string) => unknown }).from;
+    const db = {
+        from: (table: string) => (unanswered.documents && table === "documents" ? unansweredQuery() : baseFrom(table)),
+        rpc,
+        auth,
+    } as unknown as Db;
 
     const lose = (how: ReadLoss, docNumber: number) => {
         const id = `doc-${docNumber}`;
@@ -73,7 +85,7 @@ export function rowAccessWorld({
         if (how === "deleted") tables.documents = tables.documents.filter((doc) => doc.id !== id);
         if (how === "unshared") tables.project_access_grants = tables.project_access_grants.filter((grant) => grant.project_id !== project);
     };
-    return { tables, db, calls, failSelects, lose, org };
+    return { tables, db, calls, failSelects, lose, org, unanswered };
 }
 
 /** Reads of `documents` the access code made: the question "may this person open these documents". */
