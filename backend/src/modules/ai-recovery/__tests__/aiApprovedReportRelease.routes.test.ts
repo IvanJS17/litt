@@ -22,6 +22,14 @@ const HASH = "a".repeat(64);
 const mocks = vi.hoisted(() => ({
   db: null as unknown,
   read: vi.fn(),
+  checkProjectAccess: vi.fn(async () => ({ ok: true })),
+}));
+
+// Serving the report asks the same project question as the list and the
+// review; each test says what it answers (allowed by default).
+vi.mock("../../../lib/access", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/access")>()),
+  checkProjectAccess: mocks.checkProjectAccess,
 }));
 
 vi.mock("../../../middleware/auth", () => ({
@@ -111,6 +119,17 @@ function approve() {
 }
 
 describe("GET approved-report of a pasante reviewer", () => {
+  it("answers the opaque 404 and reads nothing when the project gate refuses", async () => {
+    tables.document_versions[0].training_stage = null;
+    mocks.checkProjectAccess.mockResolvedValueOnce({ ok: false });
+
+    const response = await request(app).get(path);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: "not_found", detail: "Not found." });
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+
   it("answers 409 while the sealed report is not approved", async () => {
     const response = await request(app).get(path);
     expect(response.status).toBe(409);

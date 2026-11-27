@@ -642,6 +642,51 @@ more loosely, per account across clients (`RATE_LIMIT_AUTH_ACCOUNT_GLOBAL_MAX`,
 default 100); only a refused email/password counts. Once the account-wide
 ceiling is reached, sign-in for that account answers 429 from every address
 until the window ends.
+
+Storage quota. Opening an upload session is refused (HTTP 413, code
+`storage_quota_exceeded`) when its declared total would take the space over its
+limit: a firm's space is `STORAGE_QUOTA_BYTES_PER_MEMBER` (default 10 GiB) for
+each member who has accepted, shared by the whole firm (pending invitations add
+nothing), and a personal space is `STORAGE_QUOTA_PERSONAL_BYTES` (default 2 GiB).
+A total exactly equal to what is left is accepted. The session decides which
+limit applies by what it creates: a session that creates documents
+(`document_create`, and the older workflow-file purpose) is checked against the
+limit; a session that adds a new version to an existing document (the purposes
+`document_version_create` and `document_version_replace`, which name a document
+the person may edit and cannot create one) is checked against the limit plus a
+margin, `STORAGE_QUOTA_VERSION_MARGIN_PERCENT` (default 10, 0 to 100) of the
+limit, so saving an edit keeps working when the space is full. Past the margin
+the save is refused like any upload (`storage_quota_exceeded`). These saves go
+through an upload session and get the margin: the web editor's save of a Word
+document, an uploaded new version of a document, the replacement of a version,
+and the Word add-in's version upload. The Markdown save and documents the
+assistant generates are direct writes that are not checked in this part (part 2
+gives them the same margin).
+What counts is the stored file of every document version that still has one,
+previous versions included. LiTT has no trash for documents: deleting a document
+removes its rows and queues the removal of its files, and deleting a version
+clears its stored file and queues its removal, so neither counts any more; PDF
+copies and exports do not count. A document archived when its author left the
+firm keeps its files and still counts for the firm. A row filed under a
+person's personal organization counts in that person's personal space.
+Bytes promised by sessions that are still open count until those sessions
+finish, are cancelled or expire. One person cannot hold a space for everybody:
+what they hold promised and not yet stored is bounded to 2 GiB (one session's
+cap) in a firm's space and to a quarter of the personal limit in somebody else's
+personal space (HTTP 409, code `uploads_in_progress_limit`: wait for the uploads
+in progress or cancel them); in their own personal space only the limit applies. The check and the creation of the session run
+in one transaction under a lock on the space, so two sessions opened at the same
+moment cannot both pass when together they exceed it. Only a new upload is
+refused: opening, downloading, editing, documents the assistant generates and
+deleting keep working, saving an edit keeps working up to the margin, and nothing
+is deleted.
+Playbook source files and the playbook import are not upload sessions and are
+not counted. Versions with no recorded size count as zero until
+`node dist/jobs/fillVersionSizes.js` has been run by hand at deploy time: it is a
+dry run that only reads each stored file's real size and prints counts (found,
+object missing, could not read); add `--write` to record the sizes. It sets only
+sizes that are empty, deletes nothing and can be run again.
+
 Sessions that update the same mutable document version remain mutually
 exclusive. Sessions
 expire after 30 minutes, extended by a further 30 minutes each time a file

@@ -392,7 +392,8 @@ describe("Google connector settings", () => {
     const s = await connected(true);
     await setWorkspaceToolEnabled(s.db, personalConnectorOwner("u1"), "gmail", "gmail_send", false);
     const status = await workspaceConnectorStatus(s.db, personalConnectorOwner("u1"), "gmail");
-    expect(status).toMatchObject({ enabled: true, requireWriteApproval: false });
+    // A new connection asks before writing unless the person turns that off.
+    expect(status).toMatchObject({ enabled: true, requireWriteApproval: true });
     expect(status.tools.find((t) => t.name === "gmail_send")).toMatchObject({
       title: "Send email",
       write: true,
@@ -538,6 +539,7 @@ describe("Google write access", () => {
   });
   it("runs a write directly when the connection does not ask for permission", async () => {
     const s = await connected(true);
+    s.tables.user_google_workspace_tokens[0].require_write_approval = false; // person turned it off
     expect(
       await planGoogleWorkspaceCall(personalConnectorOwner("u1"), "gmail_send", email, s.db),
     ).toEqual({ type: "run" });
@@ -589,6 +591,7 @@ describe("Google write access", () => {
     "refuses an approved action whose connection is %s without sending",
     async (kind) => {
       const s = await connected(true);
+      s.tables.user_google_workspace_tokens[0].require_write_approval = false; // person turned it off
       const item = await approvalFor(s);
       const grant = s.tables.user_google_workspace_tokens[0];
       if (kind === "disconnected") await disconnectWorkspace(s.db, personalConnectorOwner("u1"), "gmail");
@@ -607,6 +610,7 @@ describe("Google write access", () => {
   );
   it("reports an uncertain send instead of retrying it or leaking provider text", async () => {
     const s = await connected(true);
+    s.tables.user_google_workspace_tokens[0].require_write_approval = false; // person turned it off
     const cause = new Error("provider response lost with secret");
     fetchMock.mockRejectedValueOnce(cause);
     const result = await executeGoogleWorkspaceToolCall(
@@ -628,6 +632,7 @@ describe("Google write access", () => {
     "reports uncertain HTTP %i writes while keeping definite rejections quiet",
     async (status) => {
       const s = await connected(true);
+      s.tables.user_google_workspace_tokens[0].require_write_approval = false; // person turned it off
       fetchMock.mockResolvedValueOnce(json({ error: "private upstream details" }, status));
       const result = await executeGoogleWorkspaceToolCall(
         personalConnectorOwner("u1"),

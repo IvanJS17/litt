@@ -87,6 +87,7 @@ export { getDocumentAuthorship } from "./documents.authorship";
 export { runConversionJob, setDocumentTerminalStatus } from "./documents.conversion";
 
 export { handleDocumentExtractText, markDocumentTextFailed, backfillDocumentText } from "./documents.indexing";
+export { fillMissingVersionSizes } from "./documents.versionSizes";
 export { documentOpenableNow, findDocumentText, readStoredDocumentText, storedDocumentTextCurrent } from "./documents.textSearch";
 
 export { getDocumentStatuses } from "./documents.status";

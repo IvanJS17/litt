@@ -206,8 +206,8 @@ Existing deployments must apply
 `backend/migrations/20261002_05_mcp_oauth_grants.sql`. Fresh installations
 already include these settings in `backend/schema.sql`.
 
-Turn on **Ask for permission for write actions** in a connector's Manage
-dialog to review each write first. The assistant's turn then pauses with an
+With **Ask for permission for write actions** on in a connector's Manage
+dialog, each write is reviewed first. The assistant's turn then pauses with an
 approval in the same popup it uses for questions, showing the exact action and
 its arguments. **Approve** runs that action and the turn continues with its
 result; **Reject** tells the assistant it did not run. The server runs the
@@ -221,7 +221,12 @@ Approvals are available in the LiTT assistant and project chats. The Word
 add-in and tabular review cannot show them, so a write that needs approval is
 refused there with an explanation.
 
+This setting is on by default for every new connector, and it was switched on
+once for the connectors that were already linked when it became the default
+(`backend/migrations/20261126_95_litt_connectors_ask_before_writing.sql`). Turn
+it off in a connector's Manage dialog to let the assistant write without
+asking; turning it off stays off.
+
 Tool results, including connector content, are untrusted: a message or email
 can contain instructions meant for the assistant. Leaving writes unapproved
-lets such content trigger actions as the connected account. Turn the setting
-on for connectors whose actions you want to review.
+lets such content trigger actions as the connected account.

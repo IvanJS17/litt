@@ -1474,6 +1474,8 @@
       "upload_session_rate_limit_exceeded": "Demasiadas sesiones de carga. Inténtalo de nuevo más tarde.",
       "heavy_jobs_busy": "LiTT ya está ejecutando todos los trabajos pesados que admite para tus apps conectadas. No se inició nada. Inténtalo de nuevo en unos 30 segundos.",
       "upload_target_busy": "Otra carga ya está actualizando este elemento.",
+      "storage_quota_exceeded": "Ya no hay espacio de almacenamiento aquí, así que no se pueden subir archivos nuevos ni guardar versiones nuevas. Todo lo que tienes sigue disponible. Borra los documentos o las versiones anteriores que ya no necesites, o pide más espacio a un administrador de tu despacho.",
+      "uploads_in_progress_limit": "Ya tienes subidas en curso en este espacio. Espera a que terminen o cancélalas, y vuelve a intentarlo.",
       "validation_failed": "Parte de la información que diste no es válida.",
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible.",
       "suggestion_text_too_large": "El texto de esa versión es demasiado largo para leerlo de una vez (hasta 120,000 caracteres). No se envió nada. Elige una versión más corta.",

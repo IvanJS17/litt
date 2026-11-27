@@ -8,6 +8,7 @@
  */
 
 import type { Db } from "../../lib/supabase";
+import { checkProjectAccess } from "../../lib/access";
 import type { AuthenticatedIdentity } from "../../lib/recovery/identity/authStateMatrix";
 import { evaluateInitialAccess } from "../../lib/recovery/authorization/tenancyReadPort";
 import { createSupabaseTenancyReadPort } from "../../lib/recovery/authorization/supabaseTenancyReadPort";
@@ -106,6 +107,28 @@ function toSummary(row: {
 }
 
 /**
+ * The project gate the matter's other content asks, before the matter gate:
+ * the three readers of AI review records (list, review, approved report)
+ * share it so none of them can serve what the project refuses.
+ */
+export async function projectReadable(
+  db: Db,
+  input: {
+    project_id: string;
+    identity: AuthenticatedIdentity;
+    user_email?: string | null;
+  },
+): Promise<boolean> {
+  const project = await checkProjectAccess(
+    input.project_id,
+    input.identity.user_id,
+    input.user_email,
+    db,
+  );
+  return project.ok;
+}
+
+/**
  * Executions recorded for one project that the caller may still open.
  *
  * The query is project-scoped and version-filtered; the matter gate then runs
@@ -114,9 +137,17 @@ function toSummary(row: {
  */
 export async function listExecutions(
   db: Db,
-  input: { project_id: string; identity: AuthenticatedIdentity },
+  input: {
+    project_id: string;
+    identity: AuthenticatedIdentity;
+    user_email?: string | null;
+  },
 ): Promise<ServiceResult<AiExecutionSummary[]>> {
   try {
+    // The matter's other content needs the project gate first; the matter gate
+    // below only narrows it.
+    if (!(await projectReadable(db, input))) return ok([]);
+
     const { data, error } = await db
       .from("ai_executions")
       .select(EXECUTION_COLUMNS)
@@ -163,9 +194,13 @@ export async function readReview(
     project_id: string;
     execution_id: string;
     identity: AuthenticatedIdentity;
+    user_email?: string | null;
   },
 ): Promise<ServiceResult<HumanReview>> {
   try {
+    if (!(await projectReadable(db, input)))
+      return { ok: false, kind: "not_found", code: "not_found", detail: "Not found." };
+
     const repository = createSupabaseAiReadRepository(db);
     const evidence = await repository.loadExecutionEvidence({
       project_id: input.project_id,
