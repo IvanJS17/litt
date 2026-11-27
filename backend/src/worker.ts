@@ -20,6 +20,7 @@ import "dotenv/config";
 import "./logRedaction";
 
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
+import { removeLeftoverReaderScratch } from "./lib/extraction/readerUser";
 import { extractionLauncherWarnings } from "./lib/runtimeConfig";
 import { removeStaleExportDirectories } from "./application/exports/exportTempFiles";
 import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
   for (const warning of extractionLauncherWarnings()) {
     console.warn(`[extraction] ${warning}`);
   }
+  await removeLeftoverReaderScratch();
   await enforceDocumentLifecycleMigration();
   // Archives a process that died mid-export left in the temporary folder.
   await removeStaleExportDirectories().catch((error) =>

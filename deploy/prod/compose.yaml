@@ -270,6 +270,33 @@ services:
     # (Docxodus WASM) peaks at ~360-390 MB on top of the API's ~330 MB.
     mem_limit: 1024m
     memswap_limit: 1344m
+    # The API runs as an unprivileged user (litt-api) under an init that reaps
+    # its children; the processes that open uploaded files run as another one
+    # (litt-reader). The image starts as root only to drop to litt-api, and
+    # the API needs the set-user/set-group capabilities, and only those, to
+    # start the readers (README §Los lectores de archivos).
+    # KILL belongs to the init (PID 1, root) alone: it lets it pass the stop
+    # signal to the API, which is another user, so that `docker stop` lets the
+    # API run its own shutdown. The API and the readers do not hold it and
+    # cannot gain it (the API keeps only SETUID/SETGID as ambient capabilities;
+    # the readers keep none, with no-new-privileges).
+    init: true
+    cap_drop:
+    - ALL
+    cap_add:
+    - SETUID
+    - SETGID
+    - KILL
+    security_opt:
+    - no-new-privileges:true
+    # Processes and threads of the whole container (the kernel counts both): the
+    # API and its three worker threads, up to three parsers and LibreOffice
+    # under each. Six files of every kind uploaded at once measured a peak under 80 on a local stack; this leaves a wide
+    # margin and still stops a runaway fork (README §Los lectores de archivos). The readers also
+    # have their own per-user limit (EXTRACTION_READER_PROCESS_LIMIT, 256), so a reader that forks
+    # without end runs out of its own allowance and leaves this one room for the API and for the
+    # process that ends a reader's group.
+    pids_limit: 512
     environment:
       NODE_ENV: production
       PORT: '3001'

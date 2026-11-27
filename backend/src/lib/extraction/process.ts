@@ -1,4 +1,5 @@
 // Sequential requests reuse parser imports. No database or application boot.
+import { watchLifeline } from "./lifeline";
 import { EXTRACTION_OPS, type ExtractionOp } from "./ops";
 import type { OcrFill } from "../ocr/pages";
 import { EXTRACTION_MAX_BINARY_BYTES, EXTRACTION_MAX_TEXT_BYTES, ExtractionLimitError, isAllocationFailure } from "./limits";
@@ -6,6 +7,10 @@ import { extractionFailureToWire } from "./failure";
 
 // Anything this process starts (LibreOffice) stays in its process group, which the parent kills whole.
 process.env.LITT_PARSER_PROCESS = "1";
+
+// When this process runs as another user than the API, the API ends it by
+// closing its stdin (lifeline.ts).
+watchLifeline();
 
 process.on("message", (request: { op: ExtractionOp; bytes: ArrayBuffer; fileType: string; ocr?: OcrFill; args?: unknown }) => {
   void (async () => {

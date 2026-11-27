@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import type { Duplex } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -8,6 +10,8 @@ import { AppError } from "./appError";
 import { childProcessEnv } from "./childEnv";
 import { MAX_CONCURRENT_CONVERSIONS, MAX_QUEUED_CONVERSIONS } from "./conversionLimits";
 import { admission } from "./extraction/admission";
+import { LIFELINE_ENV } from "./extraction/lifeline";
+import { activeReaderUser, createReaderScratch, launchChild, REAPER_WAIT_MS, reapGroup, removeReaderScratchLater, trackReaderGroup } from "./extraction/readerUser";
 import { uploadConversionTimeoutMs } from "./runtimeConfig";
 
 let _sofficeBinaryPaths: string[] | null = null;
@@ -262,8 +266,138 @@ export function officeFileToPdf(
   );
 }
 
-/** One conversion, already admitted: LibreOffice in its own process group, killed whole at the deadline. */
+/**
+ * One conversion, already admitted. LibreOffice opens the uploaded file, so it
+ * runs as the reader user whenever there is one: the API streams the file to a
+ * helper started as that user (convertChild.ts) and writes back the PDF it
+ * returns; the helper owns the scratch directory and LibreOffice's process
+ * group. Without a reader user (development, tests) it runs here, as before.
+ */
 async function convertOfficeFile(
+  inputPath: string,
+  outputDirectory: string,
+): Promise<string> {
+  const readerUser = process.env.LITT_PARSER_PROCESS === "1" ? null : activeReaderUser();
+  if (readerUser) return convertAsReader(readerUser, inputPath, outputDirectory);
+  return convertOfficeFileHere(inputPath, outputDirectory);
+}
+
+const CONVERT_CHILD_ERROR_KINDS = new Set<ConversionKind>(Object.keys(CONVERSION_CODES) as ConversionKind[]);
+
+/** The extension of the source, as letters and digits only (empty when it has none): all the helper is told about the file's name. */
+function safeExtension(inputPath: string): string {
+  const extension = path.extname(inputPath).slice(1);
+  return /^[A-Za-z0-9]{1,16}$/.test(extension) ? extension : "";
+}
+
+async function convertAsReader(readerUser: string, inputPath: string, outputDirectory: string): Promise<string> {
+  if (resolveSofficeBinaryPaths().length === 0) throw converterUnavailable();
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
+  const timeoutMs = uploadConversionTimeoutMs();
+  const outputPath = path.join(outputDirectory, `${path.parse(inputPath).name}.pdf`);
+  const typescript = __filename.endsWith(".ts");
+  const entry = path.join(__dirname, typescript ? "convertChild.ts" : "convertChild.js");
+  // The helper's directory belongs to the reader (mode 0700): the API cannot
+  // look into it, and removes it as the reader once the helper is gone.
+  const scratch = await createReaderScratch(readerUser, "litt-convert-");
+  const launch = launchChild(
+    process.execPath,
+    [...(typescript ? ["--require", require.resolve("tsx/cjs")] : []), entry, safeExtension(inputPath), scratch],
+    { asReader: readerUser },
+  );
+  let stderr = "";
+  let timedOut = false;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      // stdio 3 is the lifeline: the API cannot signal a process of another
+      // user, so it closes this pipe and the helper ends its process group. That
+      // depends on the helper, so the group is also ended through the reaper
+      // (readerUser.ts), and the job does not wait for a helper that does not close.
+      const child = spawn(launch.command, launch.args, {
+        stdio: ["pipe", "pipe", "pipe", "pipe"],
+        detached: true,
+        env: childProcessEnv({
+          [LIFELINE_ENV]: "3", HOME: scratch, TMPDIR: scratch, TMP: scratch, TEMP: scratch,
+          UPLOAD_CONVERT_TIMEOUT_MS: String(timeoutMs), LITT_PARSER_PROCESS: "1",
+        }),
+      });
+      const release = trackReaderGroup(child.pid, readerUser);
+      const lifeline = child.stdio[3] as Duplex | null | undefined;
+      lifeline?.on("error", () => {});
+      lifeline?.resume();
+      const endHelper = () => { lifeline?.destroy(); };
+      let settled = false;
+      const settle = (done: () => void) => { if (!settled) { settled = true; done(); } };
+      const deadline = setTimeout(() => {
+        timedOut = true;
+        endHelper();
+        void reapGroup(readerUser, child.pid);
+        // Settles when the helper has closed, or after the bounded wait if it does not.
+        setTimeout(() => settle(() => {
+          child.stdout.destroy();
+          reject(new ConversionError("conversion.timeout", `LibreOffice conversion timed out after ${timeoutMs}ms`));
+        }), REAPER_WAIT_MS).unref();
+      }, timeoutMs);
+      deadline.unref();
+      child.stderr.on("data", (chunk) => { stderr = `${stderr}${String(chunk)}`.slice(-4_096); });
+      child.stdin.on("error", () => {});
+      child.stdout.on("error", () => {});
+      const written = pipeline(child.stdout, fs.createWriteStream(outputPath, { mode: 0o600 }));
+      written.catch(() => {});
+      void pipeline(fs.createReadStream(inputPath), child.stdin).catch(() => {});
+      child.once("error", (error) => {
+        clearTimeout(deadline);
+        settle(() => reject(converterUnavailable(error)));
+      });
+      child.once("close", (code) => {
+        clearTimeout(deadline);
+        endHelper();
+        // What the helper left in its group (LibreOffice) goes too.
+        void reapGroup(readerUser, child.pid).then(() => { release(); return written.then(() => undefined, () => undefined); }).then(() => {
+          settle(() => {
+            if (timedOut) {
+              reject(new ConversionError("conversion.timeout", `LibreOffice conversion timed out after ${timeoutMs}ms`));
+            } else if (code === 0) {
+              resolve();
+            } else {
+              reject(conversionFailureFromChild(code, stderr));
+            }
+          });
+        });
+      });
+    });
+  } catch (error) {
+    await fs.promises.rm(outputPath, { force: true }).catch(() => {});
+    throw error;
+  } finally {
+    // After the group is ended, and after this job has settled and freed its slot: not waited for.
+    void removeReaderScratchLater(readerUser, scratch, "convert-scratch", "a conversion scratch directory");
+  }
+  try {
+    await fs.promises.access(outputPath, fs.constants.R_OK);
+  } catch (error) {
+    throw new ConversionError("conversion.no_output", "LibreOffice exited without producing a PDF", { cause: error });
+  }
+  return outputPath;
+}
+
+/** The helper's one-line JSON on stderr names the kind; anything else is a plain failure. */
+function conversionFailureFromChild(code: number | null, stderr: string): Error {
+  const line = stderr.trim().split("\n").at(-1) ?? "";
+  try {
+    const { kind, message } = JSON.parse(line) as { kind?: ConversionKind; message?: string };
+    if (kind && CONVERT_CHILD_ERROR_KINDS.has(kind)) {
+      return kind === "conversion.unavailable" ? converterUnavailable() : new ConversionError(kind, String(message ?? kind));
+    }
+  } catch { /* not the helper's line */ }
+  return new ConversionError(
+    "conversion.failed",
+    `LibreOffice conversion failed with exit code ${code ?? "unknown"}${stderr ? `: ${stderr}` : ""}`,
+  );
+}
+
+/** The conversion itself, in this process: LibreOffice in its own process group, killed whole at the deadline. */
+export async function convertOfficeFileHere(
   inputPath: string,
   outputDirectory: string,
 ): Promise<string> {
@@ -282,9 +416,8 @@ async function convertOfficeFile(
   let stderr = "";
   try {
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(
-        binary,
-        [
+      // Direct only where there is no reader user, or inside the helper that already is one.
+      const launch = launchChild(binary, [
           `-env:UserInstallation=${profileUrl}`,
           "--headless",
           "--convert-to",
@@ -292,7 +425,10 @@ async function convertOfficeFile(
           "--outdir",
           outputDirectory,
           inputPath,
-        ],
+        ]);
+      const child = spawn(
+        launch.command,
+        launch.args,
         // Its own process group, so the deadline reaches soffice.bin and any
         // other descendant, not only this direct child. Inside the parser
         // process it stays in the parser's group instead: killing the parser

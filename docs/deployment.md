@@ -353,7 +353,69 @@ Generic job concurrency does not create more parser slots.
 
 Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
 `prlimit` fails extraction; the backend and worker log a warning at startup when
-it is not on `PATH`. Defaults:
+it is not on `PATH`.
+
+On Linux every process that opens an uploaded or linked file (the parser, LibreOffice
+in every path including the conversion of uploads to PDF, and the Google Drive reader)
+can run as an unprivileged user of their own (`EXTRACTION_READER_USER`, set to `litt-reader` in the backend image),
+started with `setpriv` after `prlimit`. That user has no capabilities, cannot gain
+any, and cannot read the API process's environment or files; it owns only its own
+temporary directory, which the API removes when the process ends (and, at start, the
+directories an interrupted job left). The API holds no right to signal a process of
+another user. It ends one in two ways, neither of which depends on the process: it
+closes a pipe it gave it (which ends the group even when the API itself dies), and it
+starts a small trusted helper (`src/lib/extraction/reaper.ts`) that takes the reader's
+user as its effective user only and sends `SIGKILL` to the process group, which also
+reaches a stopped process. A job whose process does not cooperate therefore still ends
+at its deadline with the usual error, and frees its slot within a short bounded wait
+(`REAPER_WAIT_MS`, 2 s). No job waits for the reader's scratch directory: making it is
+bounded by 5 s (`READER_SCRATCH_CREATE_MS`; past that the job fails at once), and removing it
+(bounded by 10 s, `READER_SCRATCH_REMOVE_MS`) happens after the job has settled and freed its
+slot, is reported once if it fails and is not retried (the start-up clean-up removes what is
+left). The longest a job holds its slot is therefore its deadline + 2 s + 5 s, whatever the
+reader does. The processes of the reader user are limited in number
+(`EXTRACTION_READER_PROCESS_LIMIT`, 256 by default, 0 for none), so that a runaway
+reader cannot take the container's `pids_limit` from the API.
+
+The reader's numeric user and group id in the image is 48217. The kernel counts the
+process allowance per user id on the whole host (the container has no user namespace),
+so the allowance is shared with every process of that user id on the host, in any
+container, and two stacks of this image on one host share one allowance
+(`EXTRACTION_READER_PROCESS_LIMIT` is per launch, the count is per host). When it is used
+up from outside, readers start but cannot create their threads: uploads wait until their
+deadline and fail, and the API stays up. Before the first deploy, and when uploads time
+out for no visible reason, count the tasks of that id on the host (it should be 0, or far
+below 256, with the stack idle):
+
+```bash
+ps -eLo uid= | awk '$1 == 48217' | wc -l
+```
+
+The launcher passes the reader's name to `setpriv`, and the group-ending helper is given
+the number read from `/etc/passwd`, so changing the id in `backend/Dockerfile` is the only
+change needed.
+
+A process of the reader user that leaves its group (`setsid`) lives until the container
+is restarted or recreated (a restart is enough). While it lives it can make every later
+upload's reading fail (each still ends at its bound and frees its slot), hold the reader
+user's whole process allowance, and read or change other jobs' scratch directories. An
+operator sees uploads failing with time-outs and reader-user processes present while no
+upload runs (list them inside the container: every `/proc/<pid>` whose `Uid:` is 48217),
+and restarts the backend. There is no mechanism of its own for this. Known limits: all readers
+share one user (a reader running foreign code can signal other readers and read their
+scratch directories while it lives); the readers
+share the container's network; what a reader returns (the PDF) is not size-bounded, as
+before. Any other child process of the API is started with no capability at all;
+one launcher (`launchChild`, `src/lib/extraction/readerUser.ts`) builds every command
+and a test requires every file that starts a process to use it. The image runs the API as `litt-api` and keeps only the set-user and
+set-group capabilities; the container has a third, `KILL`, held by its init alone so that
+`docker stop` reaches the API and its own shutdown runs (`deploy/prod/README.md`). A linked
+Drive file is handed to its reader as an open descriptor, so the API holds none of its bytes. Without the setting, or where the
+switch is not possible (macOS, CI, a container without those two capabilities; the
+entrypoint then says so in one line and exits), the
+parser runs as the API's own user and startup logs a `[extraction]` warning;
+`NODE_ENV=production` on Linux refuses to start instead, unless
+`EXTRACTION_ISOLATION=off`. Defaults:
 
 | Limit | Setting |
 | --- | --- |
