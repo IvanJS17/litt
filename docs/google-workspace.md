@@ -127,8 +127,8 @@ Code entry points:
 Apply `backend/migrations/20261002_01_google_drive_writes.sql` to existing
 installations. Fresh installs include it in `backend/schema.sql`. It adds a
 connection identity and the same `require_write_approval` setting used by the
-other connectors. The default is off; users can turn on **Ask for permission for
-write actions** in the connector's Manage dialog. Reconnecting rotates the
+other connectors. The default is on (writes ask first); users can turn **Ask for permission for
+write actions** off in the connector's Manage dialog. Reconnecting rotates the
 connection identity and keeps all tool/approval settings.
 
 | Tool | Behavior |
