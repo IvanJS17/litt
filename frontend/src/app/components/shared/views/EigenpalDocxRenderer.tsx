@@ -11,6 +11,7 @@ import { docxModules } from "@/app/lib/docxReviewModule";
 import { DocxReviewPanel } from "./DocxReviewPanel";
 import { DocxNavigationMenu } from "./DocxNavigationMenu";
 import { findDocxQuote } from "./docxQuoteSelection";
+import { useInertVectorImages } from "./useInertVectorImages";
 import "@docx-editor.dev/core/styles/editor.css";
 import styles from "./EigenpalDocxRenderer.module.css";
 import type { DocxRendererProps } from "./DocxRenderer.types";
@@ -43,6 +44,7 @@ export default function DocxRenderer({ bytes, mode, toolbarVisible = true, filen
     const reviewAuthor = author?.trim() || profile?.profile?.displayName?.trim()
         || auth?.user?.email || auth?.user?.id;
     const host = useRef<HTMLDivElement>(null);
+    useInertVectorImages(host);
     const [reviewEditor, setReviewEditor] = useState<Editor | null>(null);
     const [reviewSurface, setReviewSurface] = useState<HTMLElement | null>(null);
     const [reviewRail, setReviewRail] = useState<HTMLElement | null>(null);

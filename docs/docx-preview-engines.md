@@ -50,6 +50,13 @@ choice while Edit is active. Turning Edit off overrides it with read-only mode;
 turning it on returns to the initial mode. Opening another document or version
 creates a new editor.
 
+Vector (SVG) images in a Word file are shown from a `data:` URL holding the same bytes instead of
+an object URL of the application's origin: the editor library paints the image with an object URL
+and, after one read of its bytes (a fraction of a second), the source is replaced. An object URL
+stays only on an image whose declared type is a raster image type; a vector image over 8 MiB, or
+content of any other type, shows a transparent placeholder with its alternative text. The
+document's own bytes (what Save writes) are not touched (`useInertVectorImages`).
+
 Open **… → Navigation pane** to show or hide the document outline and search.
 The action shares EigenPal's overflow menu; a More menu remains available when
 all formatting controls fit. The navigation pane has a 12px left inset.
