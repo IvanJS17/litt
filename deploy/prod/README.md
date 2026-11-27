@@ -27,6 +27,7 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 | `.env.example` | Contrato de variables (copiar a `/srv/litt/.env`, 600) |
 | `supabase-jwt.py` | Generador de las llaves JWT `anon` / `service_role` |
 | `litt-backup.sh` | Respaldo diario (pg_dump + restic en R2; sin documentos, por diseño) |
+| `litt-backup.test.sh` | Pruebas de `litt-backup.sh` con dobles de `docker` y `restic`, en un directorio temporal (`bash deploy/prod/litt-backup.test.sh`; CI no la corre) |
 | `litt-restic.env.example` | Nombres de las variables de `/etc/litt-restic.env` (sin valores) |
 | `litt-deploy.sh` | Deploy de un release en el VPS: marcador, espacio, carga verificada, árbol, salud y retención (§1) |
 | `image-bytes.sh` | Tamaño en disco de un release para el chequeo de espacio (capas y blobs únicos de las tres imágenes) |
@@ -680,6 +681,12 @@ ACME lo emite Caddy solo cuando el DNS resuelve.
    cargado.
 3. `install -m 700 -o root -g root deploy/prod/litt-backup.sh /usr/local/sbin/litt-backup.sh`
    + `sha256sum` comparado en ambos lados.
+   El script crea `backups/` en modo 700 y deja `db.dump` en modo 600 (solo la
+   cuenta que corre el respaldo lo lee); el dump se escribe a un archivo nuevo y
+   reemplaza al anterior solo si `pg_dump` terminó bien. Quien instaló una copia
+   anterior del script la instala de nuevo con el mismo `install -m 700 ...`.
+   `LITT_APP_DIR` y `LITT_RESTIC_ENV` (por omisión `/srv/litt` y
+   `/etc/litt-restic.env`) existen solo para `litt-backup.test.sh`.
 4. Cron (root, sin pisar): `45 3 * * * /usr/local/sbin/litt-backup.sh >> /var/log/litt-backup.log 2>&1`
 5. Correrlo una vez y **probar la restauración con profundidad**:
    `restic restore latest --target /tmp/litt-restore` →

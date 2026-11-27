@@ -5,9 +5,11 @@
 # Los DOCUMENTOS viven en el bucket R2 `litt-docs` (fuera de este respaldo, por
 # diseño: la política del producto es borrado definitivo sin retención oculta).
 set -Eeuo pipefail
+# Todo lo que crea este script (directorio, dump) es sólo del usuario que lo corre.
+umask 077
 
-APP_DIR=/srv/litt
-RESTIC_ENV=/etc/litt-restic.env
+APP_DIR=${LITT_APP_DIR:-/srv/litt}   # LITT_APP_DIR y LITT_RESTIC_ENV solo los usa litt-backup.test.sh
+RESTIC_ENV=${LITT_RESTIC_ENV:-/etc/litt-restic.env}
 COMPOSE=(docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/deploy/prod/compose.yaml")
 
 if [ ! -f "$RESTIC_ENV" ] || [ -L "$RESTIC_ENV" ]; then
@@ -42,8 +44,18 @@ set +a
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
 
 mkdir -p "$APP_DIR/backups"
-# Dump consistente del estado legal completo (base de datos).
-"${COMPOSE[@]}" exec -T db pg_dump -U supabase_admin -d postgres -Fc > "$APP_DIR/backups/db.dump"
+chmod 700 "$APP_DIR/backups"
+# Dump consistente del estado legal completo (base de datos). Se escribe a un
+# archivo nuevo (modo 600 por el umask) y sólo reemplaza db.dump si pg_dump
+# terminó bien; si falla, el dump anterior queda y no sobra el temporal.
+DUMP_TMP="$APP_DIR/backups/db.dump.tmp"
+rm -f "$DUMP_TMP"
+if ! "${COMPOSE[@]}" exec -T db pg_dump -U supabase_admin -d postgres -Fc > "$DUMP_TMP"; then
+  rm -f "$DUMP_TMP"
+  echo "pg_dump falló, no se reemplaza el dump anterior" >&2
+  exit 1
+fi
+mv -f "$DUMP_TMP" "$APP_DIR/backups/db.dump"
 
 restic backup "$APP_DIR/backups" "$APP_DIR/.env"
 # Integridad: metadatos a diario; el día 01, además, una porción real de datos.
