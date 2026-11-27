@@ -43,6 +43,8 @@ import { REDIS_URL } from "../../lib/queue/connection";
 import { redisEnabled } from "../../lib/dbq/driver";
 import { onResponseClosed } from "../../lib/responseClosed";
 import { startSseHeartbeat } from "../../lib/sseHeartbeat";
+import { createWatcherGate } from "../../lib/streamRuns";
+import { createRowReadCheck, mayWatchRun } from "../../lib/tabularReadAccess";
 import { enqueueExtraction } from "../../lib/queue/extractionQueue";
 import {
     runProgressChannel,
@@ -81,6 +83,15 @@ function reportStreamFailure(cause: unknown): AppError {
     reportError(failure);
     return failure;
 }
+
+/** The documents a view's rows are built from, and who is watching them. */
+const watcherOf = (
+    rows: ReviewRow[],
+    who: { userId: string; userEmail: string | null | undefined },
+) => ({
+    ...who,
+    sourceDocumentIds: [...new Set(rows.flatMap((row) => row.source_document_ids ?? []))],
+});
 
 /** How often the DB-poll backstop reconciles cell state (ms). */
 const RECONCILE_INTERVAL_MS = 3_000;
@@ -196,8 +207,14 @@ async function tailTabularRun(args: {
     log: Log;
     pending: Set<string>;
     afterSubscribe?: () => Promise<void>;
+    /**
+     * The person watching, and the documents the run's rows are built from.
+     * They are asked again, at most every few seconds, before a frame is
+     * written; once they can no longer open them all the stream ends.
+     */
+    watcher: { userId: string; userEmail: string | null | undefined; sourceDocumentIds: string[] };
 }): Promise<void> {
-    const { res, db, reviewId, log, pending, afterSubscribe } = args;
+    const { res, db, reviewId, log, pending, afterSubscribe, watcher } = args;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -206,14 +223,29 @@ async function tailTabularRun(args: {
     res.flushHeaders();
 
     const stopHeartbeat = startSseHeartbeat(res);
-    const write = (payload: unknown) => {
-        try {
-            if (!res.writableEnded)
-                res.write(`data: ${JSON.stringify(payload)}\n\n`);
-        } catch {
-            // Client gone; the "close" handler will tear the stream down.
-        }
+    const refuse = () => {
+        finished = true;
+        cleanup();
+        if (!res.writableEnded) res.end();
     };
+    const gate = createWatcherGate(
+        () =>
+            mayWatchRun(
+                db,
+                { meta: { sourceDocumentIds: watcher.sourceDocumentIds } },
+                { userId: watcher.userId, userEmail: watcher.userEmail },
+            ),
+        refuse,
+    );
+    const write = (payload: unknown) =>
+        gate(() => {
+            try {
+                if (!res.writableEnded)
+                    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+            } catch {
+                // Client gone; the "close" handler will tear the stream down.
+            }
+        });
 
     let sub: IORedis | null = null;
     let poll: ReturnType<typeof setInterval> | null = null;
@@ -232,13 +264,15 @@ async function tailTabularRun(args: {
     const finish = () => {
         if (finished) return;
         finished = true;
-        try {
-            if (!res.writableEnded) res.write("data: [DONE]\n\n");
-        } catch {
-            /* client already gone */
-        }
         cleanup();
-        if (!res.writableEnded) res.end();
+        gate(() => {
+            try {
+                if (!res.writableEnded) res.write("data: [DONE]\n\n");
+            } catch {
+                /* client already gone */
+            }
+            if (!res.writableEnded) res.end();
+        });
     };
     // Client disconnected first: stop tailing but do NOT end (already closed),
     // and leave any workers running so the extraction still completes.
@@ -521,6 +555,7 @@ export async function streamTabularGenerateAsync(args: {
     db: Db;
     reviewId: string;
     userId: string;
+    userEmail: string | undefined;
     generationId: string;
     columns: Column[];
     rows: ReviewRow[];
@@ -529,6 +564,7 @@ export async function streamTabularGenerateAsync(args: {
 }): Promise<boolean> {
     const { res, db, reviewId, userId, generationId, columns, rows, cellMap, log } =
         args;
+    const watcher = watcherOf(rows, { userId, userEmail: args.userEmail });
     const { rowIds, pending } = targetPendingCells(columns, rows, cellMap);
 
     // Nothing outstanding: no worker will ever run, so release the lease here
@@ -541,7 +577,7 @@ export async function streamTabularGenerateAsync(args: {
             log,
             "[tabular/generate-async]",
         );
-        await tailTabularRun({ res, db, reviewId, log, pending });
+        await tailTabularRun({ res, db, reviewId, log, pending, watcher });
         return true;
     }
 
@@ -573,6 +609,7 @@ export async function streamTabularGenerateAsync(args: {
         reviewId,
         log,
         pending,
+        watcher,
         afterSubscribe: async () => {
             for (const rowId of rowIds) {
                 try {
@@ -623,10 +660,20 @@ export async function streamTabularRunView(args: {
     rows: ReviewRow[];
     cellMap: Map<string, Record<string, unknown>>;
     log: Log;
+    /** The person watching: asked again, now and then, whether they can still open the rows' documents. */
+    userId: string;
+    userEmail: string | undefined;
 }): Promise<void> {
     const { res, db, reviewId, columns, rows, cellMap, log } = args;
     const { pending } = targetPendingCells(columns, rows, cellMap);
-    await tailTabularRun({ res, db, reviewId, log, pending });
+    await tailTabularRun({
+        res,
+        db,
+        reviewId,
+        log,
+        pending,
+        watcher: watcherOf(rows, { userId: args.userId, userEmail: args.userEmail }),
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -665,8 +712,13 @@ export async function streamTabularGenerateSync(args: {
     abortSignal: AbortSignal;
     onError?: (error: unknown) => void;
     onActivity?: () => void;
-    /** The person who started the run: whose opt-out and acceptance the citation check reads. */
+    /**
+     * The person who started the run: whose opt-out and acceptance the citation
+     * check reads, and whose access to each row's documents is asked afresh as
+     * the run reaches the row. Their address matches the grants made to it.
+     */
     userId: string;
+    userEmail?: string | null;
     /**
      * The review's organization (null: personal) and the epoch the run was
      * authorized under, read before its rows were filtered. Required, so a
@@ -692,6 +744,11 @@ export async function streamTabularGenerateSync(args: {
     } = args;
 
     const textCache = createTextExtractionCache();
+    const mayReadRow = createRowReadCheck({
+        db,
+        userId: args.userId,
+        userEmail: args.userEmail,
+    });
     const citationCheck = createTabularCellCheck({
         db,
         userId: args.userId,
@@ -754,7 +811,7 @@ export async function streamTabularGenerateSync(args: {
         // this run's generation id) and announces each transition through the
         // sink, which here writes SSE frames. It never decides the terminal
         // state of a column the model skipped; it reports those in `missing`.
-        const { missing, error } = await extractRowColumns({
+        const { missing, error, unreadable } = await extractRowColumns({
             textCache,
             db,
             reviewId,
@@ -768,6 +825,7 @@ export async function streamTabularGenerateSync(args: {
             citationCheck,
             reportFailure,
             stillAuthorized,
+            mayReadRow,
             sink: {
                 activity: args.onActivity,
                 generating: (rowId, columnIndex) =>
@@ -784,9 +842,10 @@ export async function streamTabularGenerateSync(args: {
             write(`data: ${JSON.stringify({ type: "error", ...frame })}\n\n`);
         }
 
-        // Stopped cells return to pending; genuine missing model output is
-        // still an error. Completed cells remain untouched.
-        const incompleteStatus = abortSignal.aborted ? "pending" : "error";
+        // Stopped cells return to pending, and so do those of a row the person
+        // can no longer open (left out, as at the start of the run); genuine
+        // missing model output is still an error. Completed cells remain untouched.
+        const incompleteStatus = abortSignal.aborted || unreadable ? "pending" : "error";
         for (const columnIndex of missing) {
             await finalizeCell(db, {
                 reviewId,

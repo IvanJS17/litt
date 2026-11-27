@@ -7,6 +7,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const queryTabularAllColumns = vi.fn();
+// The person can open every document here: these tests are about something
+// else (the row access question has its own tests, over the real access code).
+vi.mock("../../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../lib/access")>()),
+    filterAccessibleDocumentIds: async (ids: string[]) => ids,
+}));
+
 vi.mock("../tabular.extract", () => ({
     queryTabularAllColumns: (...args: unknown[]) => queryTabularAllColumns(...args),
 }));

@@ -15,6 +15,7 @@ import {
     filterAccessibleDocumentIds,
 } from "../../lib/access";
 import { can } from "../../lib/permissions";
+import { createRowReadCheck } from "../../lib/tabularReadAccess";
 import { failure, internalFailure } from "../../lib/serviceResult";
 import { AppError } from "../../lib/appError";
 import { ExtractionParseError } from "../../lib/extraction/failure";
@@ -394,6 +395,16 @@ export async function regenerateTabularCell(
             return { ok: true, data: { status: 200, body: terminal.content } };
         }
 
+        // The request itself reads the row and waits for the model: it asks,
+        // as a running table does, whether the person can open the row's
+        // documents when the text is about to be loaded and before the result
+        // is saved. A row they can no longer open is left as it was found.
+        const mayReadRow = createRowReadCheck({ db, userId, userEmail });
+        const leftOut = async () => {
+            await finalizeCell(db, { reviewId, rowId: row.id, columnIndex, status: "pending", generationId });
+            return failure("not_found", "Review row not found");
+        };
+        if (!(await mayReadRow(row))) return await leftOut();
         const markdown = await loadRowDocumentText(db, row);
         const result = await queryTabularCell(
             tabular_model,
@@ -417,6 +428,8 @@ export async function regenerateTabularCell(
                 .eq("generation_id", generationId);
             return GENERATION_FAILED;
         }
+
+        if (!(await mayReadRow(row))) return await leftOut();
 
         const citationCheck = createTabularCellCheck({ db, userId, reviewId });
         const completion = db

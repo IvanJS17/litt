@@ -306,6 +306,23 @@ away costs nothing.
   read before the rows are filtered, checked before each row, before its cells
   are marked and before each result is written or streamed. When the epoch has
   moved the run stops (cells back to `pending`, readers get `cancelled`).
+- A running generation also asks, for each row, whether the person it works
+  for can open every source document of the row *now*: when the row's text is
+  about to be loaded and again before each result is saved or streamed. The
+  question is `createRowReadCheck` (`lib/tabularReadAccess.ts`, over
+  `filterAccessibleDocumentIds`), a required argument of `extractRowColumns`,
+  so the synchronous run, the queued row job and the single-cell job all ask
+  it (the request-side single-cell regenerate asks it too). The answer for a
+  row is reused for at most 5 seconds (`ACCESS_RECHECK_MS`). A row that fails
+  it, or whose question cannot be answered (one warning per run, no document
+  names), is left out like a row the run did not start on: its cells go back
+  to `pending` and the run goes on. A queued job takes the person's address
+  from their account when it runs, as other jobs that act for a person do.
+  Someone watching the run's live cells (the original request, a second tab,
+  the progress tail) is asked again before a frame is written when the last
+  answer is older than 5 seconds; when they can no longer open the run's
+  documents their stream ends and the run goes on for the others. No
+  authorization epoch is involved in either question.
 
 #### Word chat
 

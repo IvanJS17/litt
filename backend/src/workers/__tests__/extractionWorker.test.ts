@@ -5,6 +5,16 @@ vi.mock("../../lib/supabase", () => ({
     createServerSupabase: vi.fn(),
 }));
 
+// The person can open every document here: these tests are about something
+// else (the row access question has its own tests, over the real access code).
+vi.mock("../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/access")>()),
+    filterAccessibleDocumentIds: async (ids: string[]) => ids,
+}));
+vi.mock("../../lib/confirmedEmail", () => ({
+    currentConfirmedEmail: async () => "user@example.test",
+}));
+
 const loadReviewRow = vi.fn();
 const loadRowDocumentText = vi.fn();
 vi.mock("../../modules/tabular/tabular.rows", () => ({

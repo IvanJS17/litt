@@ -240,6 +240,7 @@ export async function runTabularGeneration(started: StartedTabularGeneration): P
             apiKeys: started.apiKeys,
             generationId,
             userId,
+            userEmail,
             abortSignal: run.signal,
             orgId: started.orgId,
             authorization: started.authorization,

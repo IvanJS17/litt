@@ -1,6 +1,8 @@
 import { createTextExtractionCache } from "../../lib/textExtractionCache";
 // extraction body — implementation behind the module facade.
 import { assertAuthorizationStamp } from "../../lib/authorizationEpoch";
+import { currentConfirmedEmail } from "../../lib/confirmedEmail";
+import { createRowReadCheck } from "../../lib/tabularReadAccess";
 import { ExtractionParseError } from "../../lib/extraction/failure";
 import { ExtractionLimitError } from "../../lib/extraction/limits";
 import { type ExtractionJobData } from "../../lib/queue/extractionQueue";
@@ -243,7 +245,11 @@ export async function runExtractionJob(
         // 5. Run the shared extraction core; publish transitions over Redis so a
         //    tailing /generate request sees them live. Every cell write is
         //    stamped with — and, once terminal, guarded by — this generation.
-        const { processed, missing, error } = await extractRowColumns({
+        //    The job works for the person who asked for the run, and asks
+        //    afresh, for the row, whether they can open its documents. Their
+        //    address comes from their account as it is now (as the other
+        //    jobs that act for a person do), so a grant made to it counts.
+        const { processed, missing, error, unreadable } = await extractRowColumns({
             textCache: workerTextCache,
             reportFailure: false,
             db,
@@ -254,6 +260,11 @@ export async function runExtractionJob(
             model: tabular_model,
             apiKeys: api_keys,
             generationId,
+            mayReadRow: createRowReadCheck({
+                db,
+                userId,
+                userEmail: () => currentConfirmedEmail(db, userId),
+            }),
             citationCheck: createTabularCellCheck({
                 db,
                 userId,
@@ -278,6 +289,14 @@ export async function runExtractionJob(
                     }),
             },
         });
+        if (unreadable) {
+            // Left out, as a row the run did not start on: whatever this job
+            // had marked goes back to pending, and the job is done with the row.
+            for (const columnIndex of missing)
+                await finalizeCell(db, { reviewId, rowId, columnIndex, status: "pending", generationId });
+            settled = true;
+            return;
+        }
         if (error instanceof ExtractionLimitError || error instanceof ExtractionParseError) throw error;
         const frame = error ? gridErrorFrame(error) : null;
         if (frame) await publish(reviewId, { type: "error", ...frame });

@@ -2340,6 +2340,46 @@ describe("tabular.routes", () => {
             await firstDone;
         });
 
+        describe("when a reader's access to the run's documents is withdrawn", () => {
+            // Time as the run sees it, so the five-second window can pass without waiting.
+            let skew = 0;
+            beforeEach(() => {
+                skew = 0;
+                const realNow = Date.now.bind(Date);
+                vi.spyOn(Date, "now").mockImplementation(() => realNow() + skew);
+            });
+            afterEach(() => vi.restoreAllMocks());
+
+            async function runWithTwoReaders(withdraw: boolean) {
+                const held = heldExtraction();
+                const starter = startGeneration();
+                const starterDone = starter.then((res) => res);
+                await held.started;
+                const tail = request(app)
+                    .get("/tabular-review/r1/generate/stream?from=1")
+                    .set(...AUTH)
+                    .then((res) => res);
+                await new Promise((resolve) => setTimeout(resolve, 30));
+                if (withdraw)
+                    filterAccessibleDocumentIds.mockImplementation(async (ids: string[]) => ids.filter((id) => id !== "d1"));
+                skew = 6_000;
+                held.release();
+                return { starter: await starterDone, watcher: await tail };
+            }
+
+            it("ends the stream of the starter and of a second watcher before the next cell content", async () => {
+                const { starter, watcher } = await runWithTwoReaders(true);
+                expect(starter.text).not.toContain('"status":"done"');
+                expect(watcher.text).not.toContain('"status":"done"');
+            });
+
+            it("keeps sending everything to readers who keep access", async () => {
+                const { starter, watcher } = await runWithTwoReaders(false);
+                expect(starter.text).toContain('"status":"done"');
+                expect(watcher.text).toContain('"status":"done"');
+            });
+        });
+
         it("replays only from the requested sequence number", async () => {
             const held = heldExtraction();
             const first = startGeneration();

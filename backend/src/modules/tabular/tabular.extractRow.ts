@@ -1,4 +1,5 @@
 import type { TextExtractionCache } from "../../lib/textExtractionCache";
+import type { RowReadCheck } from "../../lib/tabularReadAccess";
 // The single source of truth for extracting one row's cells.
 //
 // A row is the review grid's unit of work: one document, or a folder of source
@@ -58,6 +59,13 @@ export interface ExtractRowResult {
     missing: number[];
     /** Stream failure, after any partial column results were persisted. */
     error?: unknown;
+    /**
+     * The person the run works for could not open every source of this row
+     * when it was asked: the row was left out, or its remaining results were
+     * dropped. Its unreturned columns are in `missing`; the caller hands them
+     * back to "pending" rather than marking them failed.
+     */
+    unreadable?: boolean;
 }
 
 /**
@@ -134,6 +142,14 @@ export async function extractRowColumns(args: {
      * means stop: nothing more is written or streamed for this row.
      */
     stillAuthorized?: () => Promise<boolean>;
+    /**
+     * Whether the person the run works for can open every source document of
+     * this row now (`createRowReadCheck`, lib/tabularReadAccess.ts). Required:
+     * asked before the row's text is loaded and again before each result is
+     * saved or announced, so no caller can run a row without it. A row that
+     * fails it is left out; the run goes on.
+     */
+    mayReadRow: RowReadCheck;
 }): Promise<ExtractRowResult> {
     const {
         db,
@@ -159,6 +175,21 @@ export async function extractRowColumns(args: {
     });
     if (processed.length === 0) return untouched();
     if (abortSignal?.aborted) return untouched();
+    // A check that cannot answer is "no": nothing of this row is read or written.
+    const mayRead = async () => {
+        try {
+            return await args.mayReadRow(row);
+        } catch {
+            return false;
+        }
+    };
+    const leftOut = (): ExtractRowResult => ({
+        processed,
+        received: new Set<number>(),
+        missing: processed.map((col) => col.index),
+        unreadable: true,
+    });
+    if (!(await mayRead())) return leftOut();
 
     // Load the row's combined source-document text once (each section is
     // prefixed with its source document id so citations can name it). Loaded
@@ -231,6 +262,7 @@ export async function extractRowColumns(args: {
     // One LLM call for all outstanding columns; persist + announce each result.
     const received = new Set<number>();
     let error: unknown;
+    let unreadable = false;
     try {
         await queryTabularAllColumns(
             model,
@@ -241,6 +273,10 @@ export async function extractRowColumns(args: {
                 // A result this run may no longer save is dropped, and its
                 // column is handed back with the others the run did not finish.
                 if (args.stillAuthorized && !(await args.stillAuthorized())) return;
+                if (!(await mayRead())) {
+                    unreadable = true;
+                    return;
+                }
                 received.add(columnIndex);
                 const query = db
                     .from("tabular_cells")
@@ -293,5 +329,11 @@ export async function extractRowColumns(args: {
     const missing = processed
         .filter((c) => !received.has(c.index))
         .map((c) => c.index);
-    return { processed, received, missing, ...(error ? { error } : {}) };
+    return {
+        processed,
+        received,
+        missing,
+        ...(error ? { error } : {}),
+        ...(unreadable ? { unreadable } : {}),
+    };
 }
