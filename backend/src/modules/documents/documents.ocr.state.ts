@@ -15,12 +15,63 @@ export type ScanRow = {
   model?: string | null;
 };
 
-export async function loadScanRow(db: Db, versionId: string): Promise<ScanRow | null> {
-  const { data, error } = await db.from("document_version_ocr")
-    .select("version_id,source_revision,status,pages,failed_pages,credits,page_count,error_code,model")
-    .eq("version_id", versionId).maybeSingle();
+/** A reading's state as shown to a person: the row without the text of its pages, and how many pages were read. */
+export type ScanState = Omit<ScanRow, "pages"> & { pages_read: number | null; updated_at: string };
+
+/**
+ * The state of the reading of this version, without the text that was read (the database answers with the
+ * count of pages read). Use it for everything that only needs the state; loadScanRow is for the callers
+ * that need the text.
+ */
+export async function loadScanState(db: Db, versionId: string): Promise<ScanState | null> {
+  const { data, error } = await db.rpc("document_ocr_state", { p_version_id: versionId });
   if (error) throw error;
-  return (data as ScanRow | null) ?? null;
+  return (data as ScanState | null) ?? null;
+}
+
+type PagesSlice = { source_revision: string; updated_at: string; pages: OcrPage[] | null; next: number | null };
+
+/**
+ * The pages read from a scan, put together from the database's bounded slices (whole pages up to a character
+ * budget per answer): no answer carries all the text. Every slice must be of the same reading (same revision and
+ * stamp); if a new reading replaces the row between two slices, the read starts again, and fails after three
+ * tries rather than hand out a mix of two readings. This is the only way the text of a reading is read.
+ */
+async function readReadingPages(db: Db, versionId: string): Promise<{ source_revision: string; updated_at: string; pages: OcrPage[] | null } | null> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let first: PagesSlice | null = null;
+    const pages: OcrPage[] = [];
+    let from = 0;
+    let changed = false;
+    for (;;) {
+      const { data, error } = await db.rpc("document_ocr_pages", { p_version_id: versionId, p_from: from });
+      if (error) throw error;
+      const slice = data as PagesSlice | null;
+      if (first === null && slice === null) return null;
+      if (slice === null || (first !== null && (slice.source_revision !== first.source_revision || slice.updated_at !== first.updated_at))) { changed = true; break; }
+      first ??= slice;
+      if (slice.pages === null) return { source_revision: slice.source_revision, updated_at: slice.updated_at, pages: null };
+      pages.push(...slice.pages);
+      if (slice.next === null) return { source_revision: slice.source_revision, updated_at: slice.updated_at, pages };
+      from = slice.next;
+    }
+    if (changed) continue;
+  }
+  throw new Error("The scan reading changed while it was being read");
+}
+
+/** The reading's state with its pages (read in slices): for the callers that need the text that was read. */
+export async function loadScanRow(db: Db, versionId: string): Promise<ScanRow | null> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const read = await readReadingPages(db, versionId);
+    const state = read ? await loadScanState(db, versionId) : null;
+    if (!read || !state) return null;
+    // the pages and the state must be of one reading: the same revision AND the same stamp
+    if (state.source_revision !== read.source_revision || state.updated_at !== read.updated_at) continue;
+    const { pages_read: _count, updated_at: _stamp, ...row } = state;
+    return { ...row, pages: read.pages };
+  }
+  throw new Error("The scan reading changed while it was being read");
 }
 
 /**

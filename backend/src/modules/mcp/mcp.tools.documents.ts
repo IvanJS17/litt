@@ -66,7 +66,13 @@ type DocRow = {
  * still waiting for a mentor, with its text ready. Shared by every tool that
  * hands document text to the client's AI.
  */
-export async function loadReleasableText(call: McpCall, documentId: string, versionIdArg?: string) {
+export async function loadReleasableText(
+    call: McpCall,
+    documentId: string,
+    versionIdArg?: string,
+    // Only this window of the text is read (a tool that returns a window does not need the rest).
+    window?: { offset: number; maxChars: number },
+) {
     const userId = call.principal.userId;
     const userEmail = await call.userEmail();
     const { doc } = await loadDocument(call, documentId);
@@ -93,6 +99,7 @@ export async function loadReleasableText(call: McpCall, documentId: string, vers
         userEmail,
         documentId: documentId,
         versionId: version.id,
+        ...(window ? { offset: window.offset, maxChars: window.maxChars } : {}),
     });
     if (!stored) throw notFound("That version");
     if (stored.status === "pending" || stored.status === "processing")
@@ -308,9 +315,10 @@ export const readDocument = defineMcpTool({
     auditRefs: (args) => ({ documentId: args.document_id, versionId: args.version_id ?? null }),
     resolveWorkspace: (args, call) => documentWorkspace(call, args.document_id),
     handler: async (args, call) => {
-        const { version, stored } = await loadReleasableText(call, args.document_id, args.version_id);
-        const text = stored.text ?? "";
-        const window = windowOf(text, args.offset ?? 0, args.limit_chars ?? READ_DEFAULT_CHARS);
+        const offset = args.offset ?? 0;
+        const limit = args.limit_chars ?? READ_DEFAULT_CHARS;
+        const { version, stored } = await loadReleasableText(call, args.document_id, args.version_id, { offset, maxChars: limit });
+        const window = windowOf(stored.text ?? "", offset, limit, { start: offset, total: stored.text_length ?? 0 });
         // Record what leaves before it leaves.
         await recordEgressOrFail(call, args.document_id, version.id, window.slice.length);
         const scanned = (stored.textless_page_count ?? 0) > 0;

@@ -2,6 +2,7 @@ import { accessSync, constants, statSync } from "node:fs";
 import path from "node:path";
 import { extractionIsolated, extractionLauncher } from "./extraction/limits";
 import { trimChars } from "./modelJsonFence";
+import { OCR_PAGE_MAX_BYTES, OCR_READING_MAX_BYTES, OCR_READING_MAX_PAGES } from "./ocr/pages";
 
 function required(env: NodeJS.ProcessEnv, names: readonly string[]): string {
   for (const name of names) {
@@ -20,6 +21,25 @@ export function envInt(
   if (!raw) return fallback;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * What a scan reading may store: bytes of UTF-8 text in one page and in the whole reading,
+ * and the number of pages. Plain whole numbers inside a fixed range (page bytes 1,000 to
+ * 2,000,000; reading bytes 100,000 to 32,000,000; pages 1 to 100,000); anything else uses
+ * the default, so a setting cannot switch a bound off.
+ */
+export function scanReadingStoreLimits(env: NodeJS.ProcessEnv = process.env): { pageBytes: number; readingBytes: number; readingPages: number } {
+  const whole = (name: string, fallback: number, min: number, max: number) => {
+    const raw = env[name];
+    const value = raw !== undefined && /^[1-9][0-9]*$/.test(raw) ? Number(raw) : NaN;
+    return Number.isSafeInteger(value) && value >= min && value <= max ? value : fallback;
+  };
+  return {
+    pageBytes: whole("OCR_PAGE_MAX_BYTES", OCR_PAGE_MAX_BYTES, 1_000, 2_000_000),
+    readingBytes: whole("OCR_READING_MAX_BYTES", OCR_READING_MAX_BYTES, 100_000, 32_000_000),
+    readingPages: whole("OCR_READING_MAX_PAGES", OCR_READING_MAX_PAGES, 1, 100_000),
+  };
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

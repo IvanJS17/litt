@@ -1,5 +1,6 @@
 import type { Db } from "../../lib/supabase";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
+import { readTextSlices } from "../../lib/documentTextSlices";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type DocumentTextMatch = {
@@ -14,8 +15,18 @@ export type DocumentTextSearch = {
   coverage: {
     total_versions: number; indexed_versions: number; pending_versions: number;
     failed_versions: number; versions_needing_ocr: number;
+    /** True when the search stopped on its time budget before it had looked at every version. */
+    search_incomplete: boolean; incomplete_notice?: string;
   };
 };
+
+// How many searches may run at once: a search holds a database connection until it ends.
+// Counted in this process, per person and for everybody together.
+const SEARCHES_PER_PERSON = 2;
+const SEARCHES_IN_TOTAL = 6;
+const searchesRunning = new Map<string, number>();
+let searchesRunningTotal = 0;
+const INCOMPLETE_NOTICE = "The search stopped on its time budget before every document was checked, so the absence of a match is not conclusive. Try a more specific phrase or a narrower scope.";
 
 /** Validate search bounds and query only text visible to the server-supplied actor. */
 export async function findDocumentText(db: Db, args: {
@@ -36,30 +47,55 @@ export async function findDocumentText(db: Db, args: {
     || [args.projectId, args.documentId, args.versionId].some((id) => id != null && !UUID.test(id))) {
     return failure("validation", "Choose a scope and a phrase of 2–500 characters, with a limit of 1–20.");
   }
-  const { data, error } = await db.rpc("find_document_text", {
-    p_user_id: args.userId, p_user_email: args.userEmail ?? null,
-    p_workspace: args.workspace ?? "personal", p_scope: args.scope, p_query: args.query,
-    p_project_id: args.projectId ?? null, p_document_id: args.documentId ?? null,
-    p_version_id: args.versionId ?? null, p_limit: limit, p_offset: offset,
-  });
-  if (error) return internalFailure(error);
-  return ok(data as DocumentTextSearch);
+  if (searchesRunningTotal >= SEARCHES_IN_TOTAL || (searchesRunning.get(args.userId) ?? 0) >= SEARCHES_PER_PERSON) {
+    return failure("unavailable", "Document search is busy. Try again in a moment.");
+  }
+  searchesRunningTotal += 1;
+  searchesRunning.set(args.userId, (searchesRunning.get(args.userId) ?? 0) + 1);
+  try {
+    const { data, error } = await db.rpc("find_document_text", {
+      p_user_id: args.userId, p_user_email: args.userEmail ?? null,
+      p_workspace: args.workspace ?? "personal", p_scope: args.scope, p_query: args.query,
+      p_project_id: args.projectId ?? null, p_document_id: args.documentId ?? null,
+      p_version_id: args.versionId ?? null, p_limit: limit, p_offset: offset,
+    });
+    if (error) return internalFailure(error);
+    const found = data as DocumentTextSearch;
+    // A search that ran out of time never looks like "no matches".
+    if (found?.coverage?.search_incomplete) found.coverage.incomplete_notice = INCOMPLETE_NOTICE;
+    return ok(found);
+  } finally {
+    searchesRunningTotal -= 1;
+    const left = (searchesRunning.get(args.userId) ?? 1) - 1;
+    if (left > 0) searchesRunning.set(args.userId, left); else searchesRunning.delete(args.userId);
+  }
 }
 
 export type StoredDocumentText = {
   revision: string; status: "pending" | "processing" | "ready" | "failed";
   text: string | null; textless_page_count: number | null;
+  /** Characters in the whole text (`text` may be only the window asked for); null when there is no text yet. */
+  text_length: number | null;
 };
-/** Rechecks authorization and matches the version to its parent in the same query. */
+/**
+ * Rechecks authorization and matches the version to its parent in the same
+ * query. The whole text is assembled from bounded slices; a caller that needs
+ * only a window of it passes `offset` and `maxChars`, and `text` is then that
+ * window (`text_length` is still the whole length).
+ */
 export async function readStoredDocumentText(db: Db, args: {
   userId: string; userEmail?: string | null; documentId: string; versionId: string;
+  offset?: number; maxChars?: number;
 }): Promise<StoredDocumentText | null> {
-  const { data, error } = await db.rpc("read_document_text", {
-    p_user_id: args.userId, p_user_email: args.userEmail ?? null,
-    p_document_id: args.documentId, p_version_id: args.versionId,
-  });
-  if (error) throw error;
-  return data as StoredDocumentText | null;
+  return readTextSlices(async (offset, length) => {
+    const { data, error } = await db.rpc("read_document_text", {
+      p_user_id: args.userId, p_user_email: args.userEmail ?? null,
+      p_document_id: args.documentId, p_version_id: args.versionId,
+      p_offset: offset, p_length: length,
+    });
+    if (error) throw error;
+    return data as StoredDocumentText | null;
+  }, { offset: args.offset, maxChars: args.maxChars });
 }
 
 /**
