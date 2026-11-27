@@ -92,7 +92,9 @@
     which training works a reader sees; #343, anonymous password-reset and sign-up mails are
     capped per address and per hour; #345 and #346, the processes that open uploaded files run
     as their own unprivileged user, and a conversion whose PDF could not be written fails (the
-    backend container now runs under an init, without root, with three capabilities;
+    backend container now runs under an init, with three capabilities: the API and the
+    readers run without root, and the init, the container's first process, stays root to
+    pass the stop signal;
     [`deployment.md`](deployment.md)); #347, in invitation-only mode a recovery mail goes only
     to a finished account or a current invitation; #348, a running table generation asks, for
     each row, whether its person can still open the documents; #349, status documents.

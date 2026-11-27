@@ -5,7 +5,15 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REAPER_WAIT_MS, reapGroup, removeReaderScratch } from "../readerUser";
-import { ANSWER_IDENTITY_COMMAND } from "./readerStandIn";
+import { ANSWER_IDENTITY_COMMAND, beAnotherUserThanTheReaders } from "./readerStandIn";
+
+// Passes every start through, so a test can see which commands were launched.
+const spawned = vi.hoisted(() => ({ spy: null as null | ReturnType<typeof vi.fn> }));
+vi.mock("node:child_process", async (importOriginal) => {
+  const real = await importOriginal<typeof import("node:child_process")>();
+  spawned.spy = vi.fn(real.spawn as (...args: never[]) => unknown);
+  return { ...real, spawn: spawned.spy };
+});
 
 const me = os.userInfo().username;
 const work = mkdtempSync(path.join(os.tmpdir(), "mike-reaper-"));
@@ -28,7 +36,11 @@ const alive = (pid: number) => spawnSync("kill", ["-0", String(pid)]).status ===
 
 describe.skipIf(process.platform !== "linux")("ending a reader's process group", () => {
   // Stand-in setpriv: the test host has no reader user; it answers the identity command and keeps the user.
+  // This process reports another user than the stand-in's answer, as it would beside a real reader user.
+  let another: { restore: () => void };
+  afterEach(() => another.restore());
   beforeEach(() => {
+    another = beAnotherUserThanTheReaders();
     const standIn = path.join(work, "bin-ending");
     mkdirSync(standIn, { recursive: true });
     writeFileSync(path.join(standIn, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\n${ANSWER_IDENTITY_COMMAND}\nexec "$@"\n`);
@@ -84,6 +96,8 @@ describe.skipIf(process.platform !== "linux")("removing reader scratch left by a
   });
 
   it("removes what the reader user owns directly under the temporary directory, links included, without following them", async () => {
+    const another = beAnotherUserThanTheReaders();
+    try {
     const outside = path.join(work, "outside");
     mkdirSync(outside);
     writeFileSync(path.join(outside, "kept.txt"), "kept");
@@ -98,6 +112,7 @@ describe.skipIf(process.platform !== "linux")("removing reader scratch left by a
     expect(existsSync(path.join(tmp, "litt-convert-BBBB"))).toBe(false);
     expect(existsSync(path.join(tmp, "link-out"))).toBe(false);
     expect(existsSync(path.join(outside, "kept.txt"))).toBe(true);
+    } finally { another.restore(); }
   });
 
   it("removes nothing that belongs to the API's own user", async () => {
@@ -107,9 +122,12 @@ describe.skipIf(process.platform !== "linux")("removing reader scratch left by a
   });
 
   it("reports a clean-up that fails, and does not throw", async () => {
-    writeFileSync(path.join(bin, "setpriv"), "#!/bin/sh\necho nope >&2\nexit 1\n");
-    const result = await removeReaderScratch(me, { directory: tmp, ownUid: -1 });
-    expect(result).toMatchObject({ ok: false });
+    writeFileSync(path.join(bin, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\n${ANSWER_IDENTITY_COMMAND}\necho nope >&2\nexit 1\n`);
+    const another = beAnotherUserThanTheReaders();
+    try {
+      const result = await removeReaderScratch(me, { directory: tmp, ownUid: -1 });
+      expect(result).toMatchObject({ ok: false });
+    } finally { another.restore(); }
   });
 });
 
@@ -136,4 +154,60 @@ describe("the helper that ends a reader's group keeps its own real user", () => 
     expect(source).not.toMatch(/\.(setuid|setreuid|setresuid|setgid|setregid|setresgid|setegid|setgroups|initgroups)\b/);
     expect(source).not.toMatch(/\bsetpriv\b|\bsetresuid\b/);
   });
+});
+
+describe.skipIf(process.platform !== "linux")("an identity the start-up check refused", () => {
+  const ownUid = process.getuid!();
+  const ownGid = process.getgid!();
+  const launches = path.join(work, "launches");
+
+  /** A stand-in setpriv that answers the identity command with `uid`, then (for anything else) logs the launch and runs it. */
+  function standInAnswering(name: string, uid: number): string {
+    const dir = path.join(work, name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "setpriv"), `#!/bin/sh\nwhile [ "$1" != "--" ]; do shift; done; shift\nif [ "$1" = sh ] && [ "$2" = -c ]; then printf '%s\\n' ${uid} ${ownGid} ${ownGid}; exit 0; fi\necho launched >> "${launches}"\nexec "$@"\n`);
+    chmodSync(path.join(dir, "setpriv"), 0o755);
+    vi.stubEnv("PATH", `${dir}${path.delimiter}${process.env.PATH}`);
+    vi.stubEnv("EXTRACTION_READER_PROCESS_LIMIT", "0");
+    return dir;
+  }
+  const launched = () => (existsSync(launches) ? readFileSync(launches, "utf8").split("\n").filter(Boolean).length : 0);
+  const reapersStarted = () => (spawned.spy!.mock.calls as unknown[][]).filter((call) => (call[1] as string[]).some((arg) => String(arg).endsWith("reaper.ts"))).length;
+  beforeEach(() => {
+    rmSync(launches, { force: true });
+    spawned.spy!.mockClear();
+  });
+
+  for (const [label, uid] of [["user id 0", 0], ["the process's own user id", ownUid]] as const) {
+    it(`removes nothing and ends no group when the switched process answers ${label}`, async () => {
+      standInAnswering(`bin-refused-${uid}`, uid);
+      const tmp = path.join(work, `tmp-refused-${uid}`);
+      mkdirSync(path.join(tmp, "owned"), { recursive: true });
+      const result = await removeReaderScratch(me, { directory: tmp, ownUid: -1 });
+      expect(result).toMatchObject({ ok: true, removed: 0 });
+      expect(existsSync(path.join(tmp, "owned"))).toBe(true);
+      expect(launched()).toBe(0);
+
+      const child = frozenGroup();
+      await reapGroup(me, child.pid!);
+      expect(reapersStarted()).toBe(0);
+      expect(alive(child.pid!)).toBe(true);
+    }, 30_000);
+  }
+
+  it("hands the helper that ends a group the user id the switched process reported, not the account file's", async () => {
+    const another = beAnotherUserThanTheReaders();
+    try {
+      const probed = ownUid + 7_777;
+      standInAnswering("bin-probed-uid", probed);
+      const child = frozenGroup();
+      await reapGroup(me, child.pid!);
+      const calls = (spawned.spy!.mock.calls as unknown[][]).filter((call) => (call[1] as string[]).some((arg) => String(arg).endsWith("reaper.ts")));
+      expect(calls).toHaveLength(1);
+      const args = calls[0][1] as string[];
+      expect(args[args.length - 1]).toBe(String(probed));
+      expect(args[args.length - 1]).not.toBe(String(ownUid));
+      expect(args[args.length - 2]).toBe(String(child.pid));
+    } finally { another.restore(); }
+  }, 30_000);
 });

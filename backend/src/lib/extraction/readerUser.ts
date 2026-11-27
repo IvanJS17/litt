@@ -185,10 +185,11 @@ export function activeReaderUser(env: NodeJS.ProcessEnv = process.env, platform:
 
 // ---- ending a reader's process group ------------------------------------
 
-/** The reader's numeric user id as the switched process reported it, or null: the id the readers really have, which the account file need not agree with. */
+/** The reader's numeric user id as the switched process reported it, or null: the id the readers really have, which the account file need not agree with.
+ * Null too for an identity the start-up check refused: nothing acts as that user. */
 function readerUid(user: string): number | null {
-  const uid = readerIdentity(user).uid;
-  return uid !== undefined && uid > 0 ? uid : null;
+  const { problem, uid } = readerIdentity(user);
+  return problem === null && uid !== undefined && uid > 0 ? uid : null;
 }
 
 /** The helper's command: only the group id and the reader's user id. Null for a number it must not act on. */
@@ -333,7 +334,7 @@ export async function removeReaderScratch(
 ): Promise<{ ok: true; removed: number; skipped?: boolean } | { ok: false; reason: string }> {
   const uid = readerUid(user);
   const own = options.ownUid ?? process.getuid?.();
-  if (uid !== null && uid === own) return { ok: true, removed: 0, skipped: true };
+  if (uid === null || uid === own) return { ok: true, removed: 0, skipped: true };
   try {
     const listed = await runAsReader(
       user,
