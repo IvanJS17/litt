@@ -8,14 +8,15 @@
 // most one entry per person who was checked today.
 import { reportError } from "../observability/report";
 import { AppError } from "../appError";
-import { envInt } from "../runtimeConfig";
 
 export const DEFAULT_DAILY_MAX_PER_PERSON = 2_000;
 const CEILING = 1_000_000;
 
-/** The setting, read when used: an unset, empty, zero, negative or non-numeric value is the default; a larger one than the ceiling is the ceiling. */
+/** The setting, read when used: only a whole number written in digits, from 1 up, is taken (a larger one than the ceiling is the ceiling); anything else is the default. */
 export function dailyMaxPerPerson(env: NodeJS.ProcessEnv = process.env): number {
-    return Math.min(envInt("LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON", DEFAULT_DAILY_MAX_PER_PERSON, env), CEILING);
+    const raw = env.LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON?.trim() ?? "";
+    if (raw.length > 12 || !/^[1-9][0-9]*$/.test(raw)) return DEFAULT_DAILY_MAX_PER_PERSON;
+    return Math.min(Number(raw), CEILING);
 }
 
 /** The calendar day in Mexico City, as YYYY-MM-DD. */

@@ -191,7 +191,7 @@ describe("the setting", () => {
     });
 
     it("falls back to the default for an empty, zero, negative or non-numeric value, and stops at a ceiling of 1,000,000", () => {
-        for (const bad of ["", "0", "-3", "abc", "NaN"]) expect(dailyMaxPerPerson({ LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON: bad })).toBe(2_000);
+        for (const bad of ["", "0", "-3", "abc", "NaN", "5abc", "1e9", "2.5", "0x10", "07", "Infinity"]) expect(dailyMaxPerPerson({ LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON: bad })).toBe(2_000);
         expect(dailyMaxPerPerson({ LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON: "99999999999" })).toBe(1_000_000);
         expect(dailyMaxPerPerson({ LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON: "1000000" })).toBe(1_000_000);
     });
