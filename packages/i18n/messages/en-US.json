@@ -1474,6 +1474,8 @@
       "upload_session_rate_limit_exceeded": "Too many upload sessions. Try again later.",
       "heavy_jobs_busy": "LiTT is already running as many heavy jobs for your connected apps as it can. Nothing was started. Try again in about 30 seconds.",
       "upload_target_busy": "Another upload is already updating this item.",
+      "storage_quota_exceeded": "There is no storage space left here, so new files can't be uploaded and new versions can't be saved. Everything you have stays available. Delete documents or earlier versions you no longer need, or ask your firm's administrator for more space.",
+      "uploads_in_progress_limit": "You already have uploads in progress in this space. Wait for them to finish or cancel them, then try again.",
       "validation_failed": "Some of the information provided isn't valid.",
       "workflow_open_source_disabled": "Publishing workflows outside LiTT isn't available.",
       "suggestion_text_too_large": "The text of that version is too long to read in one go (up to 120,000 characters). Nothing was sent. Choose a shorter version.",
