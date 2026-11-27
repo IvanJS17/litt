@@ -29,6 +29,7 @@ import { betaMode, canSignUp, mayRecoverPassword } from "../../lib/platformAcces
 import { INVITE_COOLDOWN_MS, inviteAdmittedSignup } from "../../lib/inviteEmail";
 import { createServerSupabase } from "../../lib/supabase";
 import { markSessionsEnded } from "../mcp/mcp.service";
+import { recordPasswordSet } from "../user/user.service";
 import { authErrorShape, isAuthUpstreamFailure } from "../../lib/authUpstream";
 import { AppError } from "../../lib/appError";
 import { reportError, setOperation } from "../../lib/observability/report";
@@ -599,6 +600,24 @@ function reportPasswordResetFailure(error: unknown) {
   );
 }
 
+// A password set through LiTT is recorded on the account (best effort: the
+// password is already changed, so a failure only leaves it unrecorded). It is
+// reported as a warning, with no trace of the address or of the cause.
+async function recordPasswordMark(userId: string) {
+  let failure: string | null = null;
+  try {
+    const result = await recordPasswordSet(createServerSupabase(), userId);
+    if (!result.ok) failure = result.kind;
+  } catch {
+    failure = "threw";
+  }
+  if (failure === null) return;
+  reportError(
+    new AppError("auth.password_mark_failed", `password set could not be recorded (${failure})`),
+    { level: "warning", tags: { component: "http" } },
+  );
+}
+
 /**
  * Closed beta: asked after the answer has gone out, so that nothing the answer
  * or its timing shows depends on the address. Never throws.
@@ -742,6 +761,7 @@ authRouter.patch("/password", requireAuth, asyncRoute(async (req, res) => {
   if (!client) return;
   const { data, error } = await updatePassword(client, parsed.data.password);
   if (error || !data.user) return authError(res, error);
+  await recordPasswordMark(res.locals.userId as string);
   if (parsed.data.signOut) {
     // Connected applications end with the sessions: stamped once they are
     // revoked. If that cannot be recorded the sessions are still over, and
