@@ -325,6 +325,19 @@ begin
     perform pg_temp.assert_true(got=expected,format('the answers put back give the stored array (%s calls for %s elements)',calls,jsonb_array_length(expected)));
   end loop;
   perform pg_temp.assert_true(calls>=1,'ran');
+  -- large when read, small when stored: 300 elements of 100 KiB of one repeated character. Each answer holds only the
+  -- elements the budget allows (5: the sixth starts past 500,000 bytes), never the elements it does not return
+  expected:=(select jsonb_agg(jsonb_build_object('page',g,'text',repeat('a',102400)) order by g) from generate_series(1,300) g);
+  update document_version_ocr set pages=expected where version_id=v;
+  got:='[]'; k:=0; calls:=0;
+  loop
+    r:=public.document_ocr_pages(v,k); calls:=calls+1;
+    perform pg_temp.assert_true(jsonb_array_length(r->'pages')=5,format('an answer holds the 5 large elements the budget allows (%s)',jsonb_array_length(r->'pages')));
+    got:=got||(r->'pages');
+    exit when r->'next' is null or r->'next'='null'::jsonb;
+    k:=(r->>'next')::int;
+  end loop;
+  perform pg_temp.assert_true(calls=60 and got=expected,format('large elements: the answers put back give the stored array (%s calls)',calls));
   -- one page larger than the budget comes back alone
   update document_version_ocr set pages=jsonb_build_array(jsonb_build_object('page',1,'text',repeat('x',900000)),jsonb_build_object('page',2,'text','y'))  where version_id=v;
   r:=public.document_ocr_pages(v,0);

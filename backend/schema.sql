@@ -23752,16 +23752,18 @@ grant execute on function public.document_ocr_state(uuid) to service_role;
 
 -- The pages read from a scan (document_version_ocr.pages) leave the database in
 -- slices: from page index p_from, whole elements are added until 500,000
--- characters (their whole text form) have been reached or 1,000 elements are
+-- bytes (their stored size) have been reached or 1,000 elements are
 -- in (an element is never cut, and the first always comes back, alone if it is
 -- larger than the budget), so one answer is at most the budget plus one element
 -- and at most 1,000 elements, and one call costs the same whatever they are. `next` is the index to continue from, or null
 -- at the end; source_revision and updated_at identify the reading, so a caller
 -- can tell that a new reading replaced the row between two slices. `pages` is
 -- null for a row with no pages yet. Server-only.
+-- A generic plan is forced: with the value of `pages` as a parameter, a custom plan holds one more copy of it
+-- (a reading of repetitive text is large once read, small when stored).
 create or replace function public.document_ocr_pages(p_version_id uuid,p_from integer)
-returns jsonb language plpgsql stable security invoker set search_path=public,pg_temp as $$
-declare rev uuid; upd timestamptz; pg jsonb; total integer; first_idx integer:=greatest(coalesce(p_from,0),0); acc jsonb; last_idx integer;
+returns jsonb language plpgsql stable security invoker set search_path=public,pg_temp set plan_cache_mode=force_generic_plan as $$
+declare rev uuid; upd timestamptz; pg jsonb; total integer; first_idx integer:=greatest(coalesce(p_from,0),0); acc jsonb; last_idx integer; i integer; used integer:=0;
 begin
   select r.source_revision,r.updated_at,r.pages into rev,upd,pg from public.document_version_ocr r where r.version_id=p_version_id;
   if not found then return null; end if;
@@ -23771,15 +23773,15 @@ begin
   -- one in-memory copy: indexing the stored (compressed) value would decompress all of it for every page
   pg:=pg||'[]'::jsonb; total:=jsonb_array_length(pg);
   first_idx:=least(first_idx,total); -- a start past the end reads nothing, whatever the number
-  -- One statement, linear in what it returns: at most 1,000 elements from first_idx, kept while the characters of
-  -- the elements before them (the whole element, whatever it is: its stored size in bytes, which is never less
-  -- than its characters) are under 500,000. The first element always comes.
-  with el as (
-    select s.i idx,pg->s.i v from generate_series(first_idx,least(first_idx+999,total-1)) s(i)
-  ), run as (
-    select idx,v,sum(pg_column_size(v)) over (order by idx)-pg_column_size(v) before from el
-  )
-  select coalesce(jsonb_agg(v order by idx),'[]'::jsonb),max(idx) into acc,last_idx from run where before<500000;
+  -- Find the last element to return by adding up sizes only (the whole element, whatever it is: its stored size in
+  -- bytes, never less than its characters): elements are added while the bytes before them are under 500,000, at
+  -- most 1,000 of them, the first always. Nothing is built here, and only elements that are returned are read, so
+  -- memory is that of the stored value plus the answer; the time is that of at most 1,000 steps, whatever they are.
+  i:=first_idx;
+  while i<total and i<first_idx+1000 and used<500000 loop
+    used:=used+pg_column_size(pg->i); last_idx:=i; i:=i+1;
+  end loop;
+  select coalesce(jsonb_agg(pg->g order by g),'[]'::jsonb) into acc from generate_series(first_idx,last_idx) g;
   return jsonb_build_object('source_revision',rev,'updated_at',upd,'pages',acc,
     'next',case when last_idx is not null and last_idx+1<total then last_idx+1 end);
 end;
