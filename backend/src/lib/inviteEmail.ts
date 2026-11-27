@@ -23,7 +23,7 @@ function setPasswordUrl(): string {
 const NEW_ACCOUNT_WINDOW_MS = 2 * 60 * 1000;
 
 /** An anonymous sign-up does not mail the same unconfirmed address again within this long. */
-const INVITE_COOLDOWN_MS = 10 * 60 * 1000;
+export const INVITE_COOLDOWN_MS = 10 * 60 * 1000;
 
 /**
  * Addresses mailed an anonymous invitation within the cool-down (address ->

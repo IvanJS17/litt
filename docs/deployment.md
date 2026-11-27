@@ -643,6 +643,34 @@ default 100); only a refused email/password counts. Once the account-wide
 ceiling is reached, sign-in for that account answers 429 from every address
 until the window ends.
 
+Anonymous password-reset and sign-up requests make the auth service send mail
+from its single hourly budget, which invitations and confirmations also use.
+In any span of 60 minutes they are capped per target address (3 for each kind
+of request, password reset and sign-up counted apart, the address compared
+trimmed and lowercased) and for the whole instance, shared by both kinds
+(`AUTH_ANONYMOUS_MAIL_HOURLY_CAP`, a whole number from 1 to 1000, default 15).
+What is counted depends only on the route, the mode and the address typed,
+never on who the address belongs to or on what the auth service answers, so
+the counts say nothing about either. Every password reset counts, as does every
+sign-up; in invitation-only mode a sign-up counts unless the same address was
+already counted for a sign-up in the last 10 minutes (the span of the
+invitation's own repeat rule): such a repeat counts nothing and gets the fixed
+answer. The count is taken once per request, after the origin check and the
+validation of the body and before anything is looked up; a request refused
+earlier or by the per-client lane counts against neither cap. Because of this,
+in invitation-only mode sixteen sign-ups for distinct addresses that are not
+admitted fill the instance count, the same power fifteen password resets for
+unknown addresses already have. An address at its cap for a kind gets the
+usual answer of the route and no mail (in invitation-only mode, no
+invitation). The instance count is decided first, then a repeat, then the
+address count. While the instance cap is reached, anonymous resets and sign-ups
+answer 429 `rate_limited` for everyone, whatever was counted for their
+address, with `Retry-After` set to the time until the oldest counted request
+leaves the span; invitations and signed-in
+flows continue. An operator may see such 429 answers while few mails go out,
+because requests count whether or not a mail follows. The counts are kept in
+memory by the single API process, so a restart starts them again.
+
 Storage quota. Opening an upload session is refused (HTTP 413, code
 `storage_quota_exceeded`) when its declared total would take the space over its
 limit: a firm's space is `STORAGE_QUOTA_BYTES_PER_MEMBER` (default 10 GiB) for
