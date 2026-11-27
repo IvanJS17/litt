@@ -44,3 +44,10 @@ export function extractionLauncher(platform: NodeJS.Platform = process.platform)
 export function extractionIsolated(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.EXTRACTION_ISOLATION !== "off";
 }
+
+/** The unprivileged account the parser is meant to run as (Linux only), or null.
+ * The name is passed to setpriv as a user and as a group of the same name. */
+export function extractionReaderUser(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string | null {
+  const name = env.EXTRACTION_READER_USER?.trim();
+  return platform === "linux" && name && /^[a-z_][a-z0-9_-]{0,31}$/.test(name) ? name : null;
+}

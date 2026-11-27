@@ -348,7 +348,25 @@ Generic job concurrency does not create more parser slots.
 
 Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
 `prlimit` fails extraction; the backend and worker log a warning at startup when
-it is not on `PATH`. Defaults:
+it is not on `PATH`.
+
+On Linux every process that opens an uploaded or linked file (the parser, LibreOffice
+in every path including the conversion of uploads to PDF, and the Google Drive reader)
+can run as an unprivileged user of their own (`EXTRACTION_READER_USER`, set to `litt-reader` in the backend image),
+started with `setpriv` after `prlimit`. That user has no capabilities, cannot gain
+any, and cannot read the API process's environment or files; it owns only its own
+temporary directory, which the API removes when the process ends. The API ends a
+process of another user by closing a pipe it gave it, since it holds no right to
+signal it. Any other child process of the API is started with no capability at all;
+one launcher (`launchChild`, `src/lib/extraction/readerUser.ts`) builds every command
+and a test requires every file that starts a process to use it. The image runs the API as `litt-api` and keeps only the set-user and
+set-group capabilities; the container has a third, `KILL`, held by its init alone so that
+`docker stop` reaches the API and its own shutdown runs (`deploy/prod/README.md`). A linked
+Drive file is handed to its reader as an open descriptor, so the API holds none of its bytes. Without the setting, or where the
+switch is not possible (macOS, CI, a container without those two capabilities), the
+parser runs as the API's own user and startup logs a `[extraction]` warning;
+`NODE_ENV=production` on Linux refuses to start instead, unless
+`EXTRACTION_ISOLATION=off`. Defaults:
 
 | Limit | Setting |
 | --- | --- |

@@ -446,6 +446,94 @@ Abrir el panel en Word en la web (desde OneDrive y desde SharePoint) y en Word d
 escritorio antes de dar el deploy por bueno; si la consola del navegador reporta
 un origen que falta, agregarlo a esa lista.
 
+## Los lectores de archivos (usuarios, capacidades y límites del contenedor `backend`)
+
+El contenedor `backend` no corre como root. La imagen crea dos usuarios sin shell
+de inicio de sesión:
+
+| Usuario | uid | Para qué | Posee |
+|---|---|---|---|
+| `litt-api` | 10001 | la API, sus hilos de trabajo y los trabajos | su `HOME` (`/home/litt-api`) |
+| `litt-reader` | 10002 | todo proceso que abre un archivo subido o enlazado: el lector (`src/lib/extraction/isolated.ts`), LibreOffice en cualquiera de sus rutas (el lector lo inicia, y la conversión a PDF de las subidas la hace un ayudante `convertChild.js`) y el proceso de lectura de Drive (inactivo en producción) | nada, salvo su directorio temporal (`/tmp/mike-extraction-*`, `/tmp/litt-convert-*`, modo 0700) |
+
+El contenedor arranca como root solo para que el entrypoint (`/usr/local/bin/litt-entrypoint`)
+pase a `litt-api`. A partir de ahí, los lectores se inician como `litt-reader` con
+`setpriv`, después de `prlimit` (los topes de memoria siguen aplicando). Un lector no
+tiene capacidades, no puede obtenerlas (`no_new_privs`), no tiene grupos adicionales y,
+al ser otro usuario, no puede leer el entorno ni los archivos de la API ni el entorno de
+PID 1. Todo proceso hijo de la API se inicia por un único lanzador
+(`launchChild` en `src/lib/extraction/readerUser.ts`; `childProcessGuard.test.ts` exige que
+cada archivo que inicia procesos lo use): los que abren contenido de personas corren como
+`litt-reader`; cualquier otro hijo se inicia sin capacidades (heredables ni ambientales)
+y sin poder obtenerlas. La API no puede enviar señales a un proceso de otro usuario: cierra
+una tubería (la entrada estándar del lector, o un descriptor propio del ayudante de
+conversión) y el proceso, con un hilo propio, termina su grupo de procesos, LibreOffice
+incluido.
+
+Ajustes de `backend` en `compose.yaml` y por qué:
+
+| Ajuste | Motivo |
+|---|---|
+| `init: true` | PID 1 es un init (tini) que recoge procesos hijos terminados |
+| `cap_drop: [ALL]`, `cap_add: [SETUID, SETGID, KILL]` | Tres capacidades en el contenedor; cada una la tiene un solo actor. `SETUID` y `SETGID`: la API las conserva (efectivas, permitidas y ambientales), y ninguna otra, para iniciar a los lectores como otro usuario. `KILL`: solo el init (PID 1, root), para pasar la señal de `docker stop` a la API, que es otro usuario. La API no tiene `KILL` (su CapEff y CapAmb son `c0`) y no puede obtenerla: con `no-new-privileges`, ni siquiera cambiar a uid 0 con `SETUID` y ejecutar otro programa se la da (queda en el conjunto limitante, no en el permitido). Los lectores no conservan ninguna |
+| `security_opt: [no-new-privileges:true]` | Ningún proceso del contenedor obtiene privilegios por un binario setuid o con capacidades de archivo |
+| `pids_limit: 512` | Cuenta procesos e hilos del contenedor completo. Una subida de seis archivos de todos los tipos contra la pila local completa midió un máximo de 77 (en reposo, 28 a 48), con la API, tres hilos de trabajo, lectores y LibreOffice; no es una medida de producción; el límite deja un margen amplio y frena una bifurcación descontrolada. Súbelo solo si `docker stats` o los registros muestran `Resource temporarily unavailable` bajo carga real |
+
+Los hilos de trabajo (`worker_threads`) comparten el proceso de la API: corren como
+`litt-api` con las mismas dos capacidades y el mismo entorno, y no abren contenido de
+personas por sí mismos (todo archivo lo abre un proceso `litt-reader`). Lo que un lector
+comprometido alcanza: los archivos que `litt-reader` posee (solo su directorio temporal),
+los world-readable de la imagen, `/tmp` compartido (modo 1777) y la red del contenedor
+(los lectores no la necesitan; quitarla exige un espacio de nombres de red propio por
+proceso, que pide `CAP_SYS_ADMIN` o un contenedor aparte: no entra en esta entrega).
+La lectura de un archivo de Drive le da al proceso lector el archivo descargado ya abierto
+(un descriptor más; el archivo es de la API, modo 0600): el lector lo lee desde ahí, y la API
+no lee ni guarda en memoria nada en proporción al archivo.
+
+`docker stop`: la imagen arranca la API directamente (`node dist/index.js`, no `npm start`) y
+`KILL` en el init permite que la señal le llegue: la API ejecuta su propio cierre (en el
+registro `Shutting down gracefully (SIGTERM)` y `Shutdown complete`; código de salida 0). Sin
+`KILL`, el init no puede enviar la señal a otro usuario y falla (`[FATAL tini (1)] Unexpected
+error when forwarding signal`, código 1). Con `npm start`, que corre la API tras un `sh -c`
+que termina con la señal sin pasarla, el cierre de la API no se ejecuta en ningún caso.
+
+El backend se niega a arrancar en producción (`NODE_ENV=production`, Linux) si los lectores
+no pueden correr como `litt-reader`: falta `EXTRACTION_READER_USER` (la imagen lo trae puesto),
+falta `setpriv` o el contenedor no tiene `SETUID` y `SETGID`. Con `EXTRACTION_ISOLATION=off`
+no hay lectores aparte y la comprobación no aplica. En desarrollo, y donde no hay un
+segundo usuario (macOS, CI), el lector corre como el usuario de la API y el arranque avisa
+con una línea `[extraction]`.
+
+Qué comprobar después de un despliegue (sin imprimir el `.env`):
+
+```bash
+C="docker compose --env-file /srv/litt/.env -f /srv/litt/compose.yaml"
+# `docker exec` entra como root con otras capacidades: se leen PID 1 y el proceso de la API en /proc
+$C exec -T backend sh -c 'for d in /proc/1 $(for p in /proc/[0-9]*; do tr "\0" " " <$p/cmdline | grep -q "^node .*dist/index.js" && echo $p; done); do echo "$d $(tr "\0" " " <$d/cmdline | cut -c1-60)"; grep -E "^(Uid|CapEff|CapAmb|NoNewPrivs):" $d/status | tr "\n" " "; echo; done'
+# PID 1: docker-init, uid 0, CapEff 00000000000000e0 (SETUID, SETGID y KILL), NoNewPrivs 1
+# API: node ... dist/index.js, uid 10001, CapEff y CapAmb 00000000000000c0 (solo SETUID y SETGID), NoNewPrivs 1
+docker inspect "$($C ps -q backend)" --format '{{.HostConfig.Init}} {{json .HostConfig.CapDrop}} {{json .HostConfig.CapAdd}} {{json .HostConfig.SecurityOpt}} {{.HostConfig.PidsLimit}}'
+$C logs backend 2>&1 | grep '\[extraction\]'     # sin salida: no hay aviso de lectores como la API
+```
+
+Y que la parada sea ordenada (en una ventana sin tráfico; el contenedor se reinicia solo con `restart: unless-stopped` al volver a levantarlo con `up -d`):
+
+```bash
+$C stop backend; docker inspect --format '{{.State.ExitCode}}' "$($C ps -aq backend)"   # 0
+$C logs --tail 3 backend 2>&1       # ... Shutting down gracefully (SIGTERM) / Shutdown complete; sin "[FATAL tini"
+$C up -d backend
+```
+
+Sube un `.pdf`, un `.docx`, un `.xlsx`, un `.doc`, un `.pptx` y un `.ppt` de prueba y comprueba que se
+leen y que los de Word y presentaciones se convierten a PDF. Mientras se convierte o se lee uno,
+el proceso es de otro usuario (la imagen no trae `ps`; se lee `/proc`):
+
+```bash
+$C exec -T backend sh -c 'for d in /proc/[0-9]*; do u=$(awk "/^Uid:/{print \$2}" $d/status 2>/dev/null); [ "$u" = 10002 ] && echo "$u $(tr "\0" " " < $d/cmdline | cut -c1-110)"; done'
+# 10002 ... node ... /app/dist/lib/extraction/process.js  |  node /app/dist/lib/convertChild.js ...  |  soffice.bin ...
+# Al terminar la carga, sin salida: no queda ningún proceso de litt-reader
+```
+
 ## 6. DNS
 
 Registro `A litt` → `78.47.184.224` en Cloudflare (igual que `contextlexmx`).

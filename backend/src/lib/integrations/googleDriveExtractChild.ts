@@ -1,7 +1,9 @@
 // Only executed in a short-lived, heap-limited child by googleDriveExtract.
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import type { Readable } from "node:stream";
 import JSZip from "jszip";
+import { watchLifeline } from "../extraction/lifeline";
 import { extractPdfText } from "../pdfText";
 
 async function validateDocxExpansion(
@@ -32,16 +34,21 @@ async function validateDocxExpansion(
     }
 }
 
+// Ended by the API closing stdin when it runs as another user.
+watchLifeline();
+
 process.once(
     "message",
     async (message: {
         filename: string;
         mimeType: string;
         expandedBytes: number;
+        fd?: number;
     }) => {
         try {
             let text: string;
-            const bytes = await readFile(message.filename);
+            // The API hands over the open file when it cannot give this process its path.
+            const bytes = message.fd !== undefined ? readFileSync(message.fd) : await readFile(message.filename);
             if (message.mimeType === "application/pdf") {
                 text = await extractPdfText(Uint8Array.from(bytes).buffer);
             } else {

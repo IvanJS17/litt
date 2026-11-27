@@ -1,6 +1,7 @@
 import { accessSync, constants, statSync } from "node:fs";
 import path from "node:path";
-import { extractionIsolated, extractionLauncher } from "./extraction/limits";
+import { extractionIsolated, extractionLauncher, extractionReaderUser } from "./extraction/limits";
+import { readerSwitchProblem } from "./extraction/readerUser";
 import { trimChars } from "./modelJsonFence";
 import { OCR_PAGE_MAX_BYTES, OCR_READING_MAX_BYTES, OCR_READING_MAX_PAGES } from "./ocr/pages";
 
@@ -324,11 +325,32 @@ export function extractionLauncherWarnings(
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
 ): string[] {
-  const launcher = extractionIsolated(env) ? extractionLauncher(platform) : null;
-  if (!launcher || onPath(launcher, env.PATH)) return [];
-  return [
-    `${launcher} was not found on PATH: text extraction and DOCX uploads will fail. Install util-linux (the official backend image includes it; docs/deployment.md). Extraction recovers without a restart once it is on PATH.`,
-  ];
+  if (!extractionIsolated(env)) return [];
+  const warnings: string[] = [];
+  const launcher = extractionLauncher(platform);
+  if (launcher && !onPath(launcher, env.PATH)) {
+    warnings.push(
+      `${launcher} was not found on PATH: text extraction and DOCX uploads will fail. Install util-linux (the official backend image includes it; docs/deployment.md). Extraction recovers without a restart once it is on PATH.`,
+    );
+  }
+  const problem = readerUserProblem(env, platform);
+  if (problem) {
+    warnings.push(
+      `The document parser runs as the same user as the API (${problem}). Production refuses to start this way; the official backend image sets it up (docs/deployment.md).`,
+    );
+  }
+  return warnings;
+}
+
+/** Why the document parser cannot run as its own unprivileged user, or null when it can. */
+function readerUserProblem(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string | null {
+  const user = extractionReaderUser(env, platform);
+  if (!user) {
+    return platform === "linux"
+      ? "EXTRACTION_READER_USER is not set to the name of an unprivileged user"
+      : "only Linux runs the parser as another user";
+  }
+  return readerSwitchProblem(user, env);
 }
 
 // Resolved the way spawn() will (no shell); empty entries are skipped rather
@@ -434,6 +456,18 @@ export function validateRuntimeConfiguration(
       errors.push(
         "GIT_SHA (the full commit SHA of the build) is required in production",
       );
+    }
+
+    // The readers of uploaded files run as an unprivileged user of their own,
+    // so they cannot read this process's environment (docs/deployment.md).
+    // Only Linux has the launcher for it; elsewhere production is not a target.
+    if (extractionIsolated(env) && process.platform === "linux") {
+      const problem = readerUserProblem(env, process.platform);
+      if (problem) {
+        errors.push(
+          `The document parser must run as its own unprivileged user in production: ${problem}`,
+        );
+      }
     }
 
     const wordAddin = env.WORD_ADDIN_URL?.trim();

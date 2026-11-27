@@ -25,9 +25,21 @@ FROM node:22-slim
 RUN apt-get update \
   && apt-get install -y --no-install-recommends libreoffice-writer-nogui libreoffice-impress-nogui util-linux \
   && rm -rf /var/lib/apt/lists/*
+# Two unprivileged accounts, neither with a login shell. litt-api runs the API,
+# its workers and the jobs. litt-reader runs only the processes that open
+# uploaded files (the parser and LibreOffice, see src/lib/extraction/isolated.ts):
+# a different user cannot read the API's environment or files, and owns nothing
+# but its own temporary directory.
+RUN groupadd --system --gid 10001 litt-api \
+  && useradd --system --uid 10001 --gid litt-api --create-home --home-dir /home/litt-api --shell /usr/sbin/nologin litt-api \
+  && groupadd --system --gid 10002 litt-reader \
+  && useradd --system --uid 10002 --gid litt-reader --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin litt-reader
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=build /packages/i18n/messages /packages/i18n/messages
+# Starts as root only to drop to litt-api; see the script for the two capabilities it keeps.
+COPY backend/docker-entrypoint.sh /usr/local/bin/litt-entrypoint
+RUN chmod 0755 /usr/local/bin/litt-entrypoint
 
 # AGPL-3.0 §13: the full SHA of the published commit this image is built from.
 # /health reports it, and production refuses to start without it, so the build
@@ -40,6 +52,10 @@ LABEL org.opencontainers.image.revision=$GIT_SHA
 
 # --enable-source-maps: every entrypoint in this image (API, worker,
 # sync:workflows) reports stack frames as src/*.ts lines, not dist/*.js.
-ENV NODE_ENV=production NODE_OPTIONS=--enable-source-maps
+ENV NODE_ENV=production NODE_OPTIONS=--enable-source-maps EXTRACTION_READER_USER=litt-reader
 EXPOSE 3001
-CMD ["npm", "start"]
+ENTRYPOINT ["/usr/local/bin/litt-entrypoint"]
+# The API itself, not `npm start`: npm would run it behind a shell that ends on the
+# stop signal without passing it on, so the API's own shutdown (finish requests,
+# close) would never run on `docker stop`.
+CMD ["node", "--enable-source-maps", "dist/index.js"]

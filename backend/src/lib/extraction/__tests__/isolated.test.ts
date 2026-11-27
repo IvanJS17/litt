@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -231,5 +231,48 @@ describe("runIsolatedExtraction", () => {
         async () => new ArrayBuffer(EXTRACTION_MAX_BYTES + 1),
       ),
     ).rejects.toBeInstanceOf(ExtractionLimitError);
+  });
+});
+
+// The reader runs as its own user in production. Here a stand-in setpriv keeps
+// the same user and runs what follows "--", so the launcher's path (the
+// reader's own scratch directory, closing stdin to end it) runs end to end.
+describe.skipIf(process.platform !== "linux")("runIsolatedExtraction with a reader user", () => {
+  const bin = mkdtempSync(path.join(tmpdir(), "mike-setpriv-bin-"));
+  writeFileSync(path.join(bin, "setpriv"), "#!/bin/sh\nwhile [ \"$1\" != \"--\" ]; do shift; done\nshift\nexec \"$@\"\n");
+  chmodSync(path.join(bin, "setpriv"), 0o755);
+  beforeEach(() => {
+    vi.stubEnv("EXTRACTION_READER_USER", "litt-reader");
+    vi.stubEnv("PATH", `${bin}${path.delimiter}${process.env.PATH}`);
+  });
+  afterAll(() => rmSync(bin, { recursive: true, force: true }));
+
+  it("starts the parser through setpriv, with the reader's own scratch directory as its home and temp directory", async () => {
+    await expect(runIsolatedExtraction("spreadsheet", async () => workbook())).resolves.toContain("Rent");
+    const [command, args, options] = vi.mocked(spawn).mock.calls.at(-1)!;
+    expect(command).toBe("prlimit");
+    expect(args).toContain("setpriv");
+    const env = options?.env ?? {};
+    expect(env.TMPDIR).toMatch(/mike-extraction-/);
+    expect(env.HOME).toBe(env.TMPDIR);
+  });
+
+  it("removes the scratch directory when the parser ends", async () => {
+    await runIsolatedExtraction("spreadsheet", async () => workbook());
+    const scratch = vi.mocked(spawn).mock.calls.at(-1)![2]!.env!.TMPDIR!;
+    expect(existsSync(scratch)).toBe(true);
+    await stopExtractionProcess();
+    expect(existsSync(scratch)).toBe(false);
+  });
+
+  it("ends a parse that runs past the timeout without signalling it, then recovers", async () => {
+    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "1");
+    await expect(runIsolatedExtraction("spreadsheet", async () => workbook())).rejects.toBeInstanceOf(ExtractionLimitError);
+    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "60000");
+    await expect(runIsolatedExtraction("spreadsheet", async () => workbook())).resolves.toContain("Rent");
+    await stopExtractionProcess();
+    const scratch = vi.mocked(spawn).mock.calls.map((call) => call[2]?.env?.TMPDIR);
+    expect(scratch).toHaveLength(2);
+    expect(scratch.filter((dir) => dir && existsSync(dir))).toEqual([]);
   });
 });

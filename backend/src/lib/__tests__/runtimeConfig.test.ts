@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { diagnosticErrorTags } from "../observability/diagnostics";
@@ -22,6 +22,8 @@ const validProduction = {
   FRONTEND_URL: "https://app.example.test",
   API_PUBLIC_URL: "https://app.example.test/api",
   GIT_SHA: "0123456789abcdef0123456789abcdef01234567",
+  // The document readers' own user is checked in its own describe below.
+  EXTRACTION_ISOLATION: "off",
 } as NodeJS.ProcessEnv;
 
 describe("runtime authentication configuration", () => {
@@ -339,31 +341,93 @@ describe("storagePublicEndpointWarnings", () => {
 describe("extractionLauncherWarnings", () => {
   const empty = mkdtempSync(path.join(tmpdir(), "mike-path-empty-"));
   const withLauncher = mkdtempSync(path.join(tmpdir(), "mike-path-prlimit-"));
-  writeFileSync(path.join(withLauncher, "prlimit"), "#!/bin/sh\n");
-  chmodSync(path.join(withLauncher, "prlimit"), 0o755);
+  const withSetpriv = mkdtempSync(path.join(tmpdir(), "mike-path-setpriv-"));
+  const withBrokenSetpriv = mkdtempSync(path.join(tmpdir(), "mike-path-setpriv-broken-"));
+  for (const [dir, name, body] of [
+    [withLauncher, "prlimit", "#!/bin/sh\n"],
+    [withSetpriv, "setpriv", "#!/bin/sh\nexit 0\n"],
+    [withBrokenSetpriv, "setpriv", "#!/bin/sh\necho 'setresuid failed' >&2\nexit 1\n"],
+  ] as const) {
+    writeFileSync(path.join(dir, name), body);
+    chmodSync(path.join(dir, name), 0o755);
+  }
   afterAll(() => {
-    rmSync(empty, { recursive: true, force: true });
-    rmSync(withLauncher, { recursive: true, force: true });
+    for (const dir of [empty, withLauncher, withSetpriv, withBrokenSetpriv]) rmSync(dir, { recursive: true, force: true });
   });
-  const env = (PATH: string, isolation = "on") =>
-    ({ PATH, EXTRACTION_ISOLATION: isolation }) as NodeJS.ProcessEnv;
+  const env = (PATH: string, isolation = "on", readerUser?: string) =>
+    ({ PATH, EXTRACTION_ISOLATION: isolation, ...(readerUser ? { EXTRACTION_READER_USER: readerUser } : {}) }) as NodeJS.ProcessEnv;
+  const both = `${withLauncher}${path.delimiter}${withSetpriv}`;
 
   it("warns once on Linux when prlimit is not on PATH", () => {
-    const warnings = extractionLauncherWarnings(env(empty), "linux");
+    const warnings = extractionLauncherWarnings(env(empty), "linux").filter((w) => /prlimit/.test(w));
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toMatch(/prlimit.*util-linux/s);
   });
 
-  it("is quiet when an executable prlimit is on PATH", () => {
-    expect(extractionLauncherWarnings(env(`${empty}${path.delimiter}${withLauncher}`), "linux")).toEqual([]);
+  it("is quiet when prlimit is on PATH and the readers can run as their own user", () => {
+    expect(extractionLauncherWarnings(env(both, "on", "litt-reader"), "linux")).toEqual([]);
   });
 
-  it("is quiet off Linux, where the parser is not launched through prlimit", () => {
-    expect(extractionLauncherWarnings(env(empty), "darwin")).toEqual([]);
+  it("warns that the readers share the API's user when no reader user is configured", () => {
+    const warnings = extractionLauncherWarnings(env(both), "linux");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/EXTRACTION_READER_USER/);
+    expect(warnings[0]).toMatch(/same user/);
+  });
+
+  it("warns, and does not fail, when the configured reader user cannot be switched to", () => {
+    const broken = `${withLauncher}${path.delimiter}${withBrokenSetpriv}`;
+    const warnings = extractionLauncherWarnings(env(broken, "on", "litt-reader"), "linux");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/same user/);
+    expect(warnings[0]).toMatch(/setresuid failed/);
+  });
+
+  it("warns off Linux too, where there is no second user to run the readers as", () => {
+    const warnings = extractionLauncherWarnings(env(empty), "darwin");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/same user/);
   });
 
   it("is quiet when parser isolation is off", () => {
     expect(extractionLauncherWarnings(env(empty, "off"), "linux")).toEqual([]);
+  });
+});
+
+describe("the document readers' user in production", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "mike-path-setpriv-prod-"));
+  const good = path.join(dir, "good");
+  const bad = path.join(dir, "bad");
+  for (const [bin, body] of [[good, "exit 0"], [bad, "echo 'setresuid failed: Operation not permitted' >&2; exit 1"]] as const) {
+    mkdirSync(bin);
+    writeFileSync(path.join(bin, "setpriv"), `#!/bin/sh\n${body}\n`);
+    chmodSync(path.join(bin, "setpriv"), 0o755);
+  }
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const production = (extra: Record<string, string>) =>
+    ({ ...validProduction, EXTRACTION_ISOLATION: "on", ...extra }) as NodeJS.ProcessEnv;
+
+  it.skipIf(process.platform !== "linux")("refuses to start when the readers would run as the API's own user", () => {
+    expect(() => validateRuntimeConfiguration(production({ PATH: good }))).toThrow(/EXTRACTION_READER_USER/);
+  });
+
+  it.skipIf(process.platform !== "linux")("refuses to start when the switch to the reader user is not available", () => {
+    expect(() => validateRuntimeConfiguration(production({ PATH: bad, EXTRACTION_READER_USER: "litt-reader" })))
+      .toThrow(/litt-reader.*setresuid failed/s);
+    expect(() => validateRuntimeConfiguration(production({ PATH: dir, EXTRACTION_READER_USER: "litt-reader" })))
+      .toThrow(/setpriv was not found/);
+  });
+
+  it.skipIf(process.platform !== "linux")("starts when the readers can run as their own user", () => {
+    expect(() => validateRuntimeConfiguration(production({ PATH: good, EXTRACTION_READER_USER: "litt-reader" }))).not.toThrow();
+  });
+
+  it("starts without a reader user when parser isolation is off", () => {
+    expect(() => validateRuntimeConfiguration(production({ PATH: bad, EXTRACTION_ISOLATION: "off" }))).not.toThrow();
+  });
+
+  it("does not ask for a reader user outside production", () => {
+    expect(() => validateRuntimeConfiguration({ ...validProduction, NODE_ENV: "development", EXTRACTION_ISOLATION: "on", PATH: bad })).not.toThrow();
   });
 });
 

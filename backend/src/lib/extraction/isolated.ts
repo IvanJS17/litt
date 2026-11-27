@@ -12,6 +12,8 @@ import { EXTRACTION_MAX_BYTES, ExtractionLimitError, extractionIsolated, extract
 import { asExtractionFailure, extractionFailureFromWire, type ExtractionFailureWire } from "./failure";
 import { AppError } from "../appError";
 import { childProcessEnv } from "../childEnv";
+import { LIFELINE_ENV } from "./lifeline";
+import { activeReaderUser, launchChild, runAsReader } from "./readerUser";
 
 export { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError } from "./limits";
 export { ExtractionParseError } from "./failure";
@@ -23,10 +25,11 @@ export type ExtractInSlot = <K extends ExtractionOp>(op: K, bytes: ArrayBuffer, 
 type Reply = { ok: true; result: unknown } | ({ ok: false; limited: boolean } & ExtractionFailureWire);
 
 /** Hard OS memory boundary on Linux, including native buffers. Fail closed if
- * prlimit is unavailable. Other platforms retain process/heap and input/output
+ * prlimit is unavailable. With a reader user the parser then runs as that
+ * account (setpriv), after the limits are set. Other platforms retain process/heap and input/output
  * bounds, but do not claim the Linux OS-memory guarantee.
  */
-export function extractionCommand(entry: string): { command: string; args: string[] } {
+export function extractionCommand(entry: string, readerUser: string | null = activeReaderUser()): { command: string; args: string[] } {
   const launcher = extractionLauncher();
   const memoryMb = extractionMemoryMb();
   const typescript = entry.endsWith(".ts");
@@ -43,6 +46,8 @@ export function extractionCommand(entry: string): { command: string; args: strin
     ...(typescript ? ["--require", require.resolve("tsx/cjs")] : []),
     entry,
   ];
+  // setpriv ahead of node when it runs as the reader; the limits stay ahead of it.
+  const parser = launchChild(process.execPath, nodeArgs, { asReader: readerUser });
   if (launcher) {
     const bytes = memoryMb * 1024 * 1024;
     // Writable heap/native allocations share the data limit. V8 also reserves
@@ -52,9 +57,9 @@ export function extractionCommand(entry: string): { command: string; args: strin
     // tests brings one more WebAssembly memory (its lexer), so it gets one more
     // budget of address space; the compiled server does not load it.
     const addressBytes = bytes + 2 * 1024 ** 3 + (typescript ? bytes : 0);
-    return { command: launcher, args: [`--data=${bytes}:${bytes}`, `--as=${addressBytes}:${addressBytes}`, "--core=0:0", "--", process.execPath, ...nodeArgs] };
+    return { command: launcher, args: [`--data=${bytes}:${bytes}`, `--as=${addressBytes}:${addressBytes}`, "--core=0:0", "--", parser.command, ...parser.args] };
   }
-  return { command: process.execPath, args: nodeArgs };
+  return parser;
 }
 
 // Server-log text for the operator (never sent to a client).
@@ -65,10 +70,15 @@ const PARSER_UNAVAILABLE_MESSAGE =
   "backend Docker image and backend/nixpacks.toml include it, see " +
   "docs/deployment.md). No restart is needed once it is on PATH.";
 
-function killParser(child: ChildProcess): void {
+function killParser(child: ChildProcess, otherUser = false): void {
   if (!child.pid) return;
-  if (process.platform === "win32") {
-    execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { env: childProcessEnv() }, () => { child.kill("SIGKILL"); });
+  if (otherUser) {
+    // The API holds no right to signal a process of another user. It closes the
+    // parser's stdin; the parser (process.ts) ends its own process group on EOF.
+    child.stdin?.destroy();
+  } else if (process.platform === "win32") {
+    const kill = launchChild("taskkill", ["/pid", String(child.pid), "/T", "/F"]);
+    execFile(kill.command, kill.args, { env: childProcessEnv() }, () => { child.kill("SIGKILL"); });
   } else {
     // Includes LibreOffice descendants, including after the parser has exited.
     try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
@@ -80,6 +90,7 @@ type Parser = {
   closed: Promise<void>;
   memoryMb: number;
   started: boolean;
+  otherUser: boolean;
   files: number;
   idle?: ReturnType<typeof setTimeout>;
 };
@@ -90,7 +101,7 @@ const IDLE_SHUTDOWN_MS = 60_000;
 function retire(p: Parser): void {
   if (parser === p) parser = null;
   clearTimeout(p.idle);
-  killParser(p.child);
+  killParser(p.child, p.otherUser);
 }
 
 /** Also used at test boundaries so no warm process outlives its configuration. */
@@ -111,18 +122,27 @@ function reference(p: Parser, active: boolean): void {
 
 async function startParser(): Promise<Parser> {
   const entry = path.join(__dirname, __filename.endsWith(".ts") ? "process.ts" : "process.js");
-  const { command, args } = extractionCommand(entry);
-  const scratch = await mkdtemp(path.join(tmpdir(), "mike-extraction-"));
+  const readerUser = activeReaderUser();
+  const { command, args } = extractionCommand(entry, readerUser);
+  // The reader's own directory (mode 0700, its owner) when it runs as another user.
+  const scratch = readerUser
+    ? (await runAsReader(readerUser, "mktemp", ["-d", path.join(tmpdir(), "mike-extraction-XXXXXX")])).trim()
+    : await mkdtemp(path.join(tmpdir(), "mike-extraction-"));
   // No application credentials or inherited NODE_OPTIONS in the parser.
   // The scratch directory is the parser's temp directory; glibc arena
   // reservations would otherwise exhaust RLIMIT_AS at low actual usage.
-  const env = childProcessEnv({ TMPDIR: scratch, TMP: scratch, TEMP: scratch, MALLOC_ARENA_MAX: "2" });
+  const env = childProcessEnv({
+    TMPDIR: scratch, TMP: scratch, TEMP: scratch, MALLOC_ARENA_MAX: "2",
+    ...(readerUser ? { HOME: scratch, [LIFELINE_ENV]: "0" } : {}),
+  });
+  // `command` and `args` come from extractionCommand(), which went through launchChild().
   const child = spawn(command, args, {
     env, detached: process.platform !== "win32",
-    stdio: ["ignore", "ignore", "pipe", "ipc"], serialization: "advanced",
+    stdio: [readerUser ? "pipe" : "ignore", "ignore", "pipe", "ipc"], serialization: "advanced",
   });
-  const p: Parser = { child, closed: Promise.resolve(), memoryMb: extractionMemoryMb(), started: false, files: 0 };
-  const onParentExit = () => killParser(child);
+  child.stdin?.on("error", () => {});
+  const p: Parser = { child, closed: Promise.resolve(), memoryMb: extractionMemoryMb(), started: false, otherUser: readerUser !== null, files: 0 };
+  const onParentExit = () => killParser(child, p.otherUser);
   process.once("exit", onParentExit);
   child.once("spawn", () => { p.started = true; });
   // Idle child errors must still retire the process even without a parse listener.
@@ -130,7 +150,7 @@ async function startParser(): Promise<Parser> {
   p.closed = new Promise<void>((resolve, reject) => child.once("close", () => {
     retire(p);
     process.removeListener("exit", onParentExit);
-    void rm(scratch, { recursive: true, force: true }).then(resolve, reject);
+    void (readerUser ? runAsReader(readerUser, "rm", ["-rf", "--", scratch]).then(() => undefined) : rm(scratch, { recursive: true, force: true })).then(resolve, reject);
   }));
   // Idle retirement has no caller awaiting cleanup; active parses do await it.
   void p.closed.catch(() => {});
