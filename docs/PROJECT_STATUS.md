@@ -122,8 +122,9 @@
     `deploy/prod/compose.yaml` passes `LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON` and
     `LITT_MCP_UNAPPROVED_CLIENTS_MAX` to the backend with their defaults (2000 and 10000);
     #350, #354 and #362, status documents.
-  - `20261128a` (`0577c9b89`): #365, every numeric setting is taken only when written as a
-    whole number in plain digits, by one reader; anything else uses the setting's default
+  - `20261128a` (`0577c9b89`): #365, the numeric settings read by `envInt` and the MCP server
+    are taken only when written as a whole number in plain digits; anything else uses the
+    setting's default
     ([`deployment.md`](deployment.md)); #366, the clean-up of unapproved
     connected-application clients keeps a client whose approval screen a signed-in person
     has open; #368, a client is marked in use only by a successful token exchange, and
@@ -141,7 +142,8 @@
 - **Merged, not deployed:** no code. `main` differs from the deployed commit only by status
   documents.
 - **Health:** production verified after `20261128a`: the health endpoint reports that commit, the
-  LiTT containers are healthy, the public pages answer, the other domains of the shared edge
+  LiTT containers that have a health check are healthy (the REST container is up and has
+  none), the public pages answer, the other domains of the shared edge
   answer as before, and MCP is on (`mcp=401` without a token). The backend container runs
   under an init with `cap_drop: ALL`, as documented, and it started without a settings or
   extraction warning. A backup was taken before the deploy with the
@@ -170,7 +172,7 @@
 | Model choice before a chat; model and reasoning guide in the selector | on (no flag) | Since `20261117g` (#240). The guide is checked against the providers' official model pages. Anthropic liveness, the previous-model notice and GLM reasoning levels since `20261117h` (#242). The Word add-in chooses a model before a chat since `20261119e` (#260). The Fable 5.2 entry is under owner review (see open items). |
 | OpenRouter streams with long pauses | on | `STREAM_CHUNK_TIMEOUT_MS=180000` in production since `20261117f` (#238). |
 | Storage space limit and use | on | A new upload is refused when the space is full since `20261126d` (#339). The use can be read since `20261127b` (#359); Settings show it, and opening an upload says when the space is almost full, since `20261128a` (#367, #374). Defaults: 10 GiB per member, shared by the firm, and 2 GiB for a personal space. [`deployment.md`](deployment.md), [`settings-map.md`](settings-map.md) |
-| Current Terms required by the server | on | Since `20261128a` (#370): a signed-in request or a connected-application call from a person who has not accepted the current version is refused, except the routes listed in `backend/src/lib/termsGate.ts`. [`backend-architecture.md`](backend-architecture.md) |
+| Current Terms required by the server | on | Since `20261128a` (#370): a signed-in request or a connected-application tool call, prompt or resource read from a person who has not accepted the current version is refused (its handshake and tool list still answer), except the routes listed in `backend/src/lib/termsGate.ts`. [`backend-architecture.md`](backend-architecture.md) |
 | Firm profile, settings map, managed accounts, text size, Light/Dark/Auto theme | on | [`firm-profile.md`](firm-profile.md), [`settings-map.md`](settings-map.md), [`managed-accounts.md`](managed-accounts.md), [`design-system.md`](design-system.md) |
 | Notion and Airtable connectors (per person and per workspace) | on | Suggested one-click MCP presets. No firm-shared connector. [`connectors.md`](connectors.md) |
 | LiTT MCP server (`/mcp`, OAuth) | **on** (`LITT_MCP_SERVER=enabled`, since 2026-11-17, release `20261117c`) | Host `https://mcp.litt.asteroitt.com`. Tools `create_matter` and `create_note_document` since `20261118c` (#250); the server icon is in `initialize`. Layer 2a (workflows, quick actions, compare, convert) since `20261119c` (#259); layer 2b (scanned reading and case-file split) and layer 2c (prompts, resources, matter and review chats) since `20261119e` (#262, #264); the cap on heavy jobs since `20261119e` (#266). Live checks pass: AS metadata (PKCE S256, CIMD), protected resource metadata, `401` with `resource_metadata` without a token, dynamic registration `201`, authorize `302` to the consent page, bad token `400`, other paths `404`. Registration first failed with `42501` (missing `service_role` grants), fixed by PR #229. **Real Claude/ChatGPT test pending** (owner account, login and a tool call not yet run). [`mcp-server.md`](mcp-server.md) |

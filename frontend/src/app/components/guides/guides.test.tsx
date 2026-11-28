@@ -123,6 +123,8 @@ describe("the guide for interns and juniors", () => {
         const intern = within(dialog).getByRole("tab", { name: "Intern" });
         expect(intern).toHaveAttribute("aria-selected", "false");
         expect(within(dialog).getByRole("tabpanel")).toHaveTextContent(/Direct AI answer|direct answer|accountability/i);
+        // The dialog moves focus to its title a frame after it opens: wait for that, so it cannot take focus from the tab.
+        await waitFor(() => expect(within(dialog).getByRole("heading", { level: 2 })).toHaveFocus());
         junior.focus();
         await user.keyboard("{ArrowLeft}");
         expect(intern).toHaveAttribute("aria-selected", "true");

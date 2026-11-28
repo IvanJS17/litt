@@ -1223,8 +1223,8 @@
       "invalidDocx": "{count, plural, one {{names} is not a valid DOCX file.} other {{names} are not valid DOCX files.}}",
       "invalidMarkdown": "{count, plural, one {{names} is not a valid UTF-8 text file.} other {{names} are not valid UTF-8 text files.}}",
       "invalidPdf": "{count, plural, one {{names} is not a valid PDF file.} other {{names} are not valid PDF files.}}",
-      "storageAlmostFullFirm": "The firm's space is almost full. New files will be refused when it is full; what is already stored stays. An owner or administrator can see its use in the firm's settings.",
-      "storageAlmostFullPersonal": "Your space is almost full. New files will be refused when it is full; what is already stored stays.",
+      "storageAlmostFullFirm": "The firm's space is almost full. New files are refused once it is full; what is already stored stays. An owner or administrator can see its use in Firm settings.",
+      "storageAlmostFullPersonal": "Your space is almost full. New files are refused once it is full; what is already stored stays.",
       "tooManyFiles": "You can upload at most {count} files at a time.",
       "unsupportedType": "Unsupported file type. Only PDF, Word, Excel, PowerPoint, and Markdown (.md) files can be uploaded."
     },

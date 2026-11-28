@@ -19,6 +19,8 @@ export async function repairTimesAllowed(work: () => Promise<unknown>): Promise<
   return allowed;
 }
 
-/** One operation shares one budget: only its first repair gets the whole second. */
+/** One operation shares one budget: it made at least two repairs, and only the first gets the whole second. */
 export const sharesOneBudget = (allowed: number[]): boolean =>
-  allowed[0] === 1_000 && allowed.slice(1).every((ms) => ms < 1_000);
+  allowed.length >= 2 &&
+  allowed[0] === 1_000 &&
+  allowed.slice(1).every((ms) => ms < 1_000);
