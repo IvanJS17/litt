@@ -209,6 +209,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     session_expired: "unauthenticated",
     cookie_session_required: "unauthenticated",
     mfa_verification_required: "forbidden",
+    // The person has not accepted the current Terms; every client is told so.
+    terms_acceptance_required: "forbidden",
     untrusted_origin: "forbidden",
     // An organization's owners have not allowed this in its workspace.
     member_data_action_disabled: "forbidden",

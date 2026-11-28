@@ -1438,6 +1438,7 @@
       "split_needs_scan_reading": "Some pages are scanned and still unread. Read the scan first, then split the file.",
       "split_not_supported": "Only a PDF can be split, and this one could not be read.",
       "split_too_large": "This document is too large to split (up to 400 pages and about 4 MB of text).",
+      "terms_acceptance_required": "Accept the current Terms in LiTT on the web to continue.",
       "terms_version_mismatch": "These are not the current Terms. Reload the page and try again.",
       "training_approval_required": "This version is a trainee's draft: it needs approval before it leaves LiTT.",
       "training_confidence_required": "Mark how sure you are of your approach before asking. If you don't see the scale, reload the page.",

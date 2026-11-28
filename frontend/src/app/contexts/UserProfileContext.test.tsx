@@ -70,6 +70,7 @@ import { UserProfileProvider, useUserProfile } from "./UserProfileContext";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { ModelToggle } from "@/app/components/assistant/ModelToggle";
 import { MikeApiError } from "@/app/lib/mikeApi";
+import { TERMS_ACCEPTANCE_REQUIRED_EVENT } from "@/app/lib/authEvents";
 import { subscribeToTabularChatSettingsUpdates } from "@/app/lib/tabularChatSettingsEvents";
 
 function apiProfile(theme: "light" | "dark" | "system") {
@@ -846,5 +847,27 @@ describe("UserProfileProvider when the server omits apiKeyStatus", () => {
         expect(screen.queryByRole("alert")).toBeNull();
         // Only the load's warning; the save is not reported as a failure.
         expect(reportError).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("UserProfileProvider Terms refusal", () => {
+    it("asks for the Terms when any request is refused for them", async () => {
+        function TermsState() {
+            const { profile } = useUserProfile();
+            return <span data-testid="terms">{String(profile?.termsRequired)}</span>;
+        }
+        const { unmount } = render(
+            <UserProfileProvider>
+                <TermsState />
+            </UserProfileProvider>,
+        );
+        await waitFor(() => expect(screen.getByTestId("terms")).toHaveTextContent("false"));
+
+        act(() => {
+            window.dispatchEvent(new Event(TERMS_ACCEPTANCE_REQUIRED_EVENT));
+        });
+
+        expect(screen.getByTestId("terms")).toHaveTextContent("true");
+        unmount();
     });
 });

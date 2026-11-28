@@ -3,6 +3,8 @@
 // mcp.routes.ts.
 
 import {
+    INVALID_REQUEST,
+    ProtocolError,
     OAuthError,
     OAuthErrorCode,
     McpServer,
@@ -15,6 +17,7 @@ import {
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import type { Db } from "../../lib/supabase";
 import { AppError } from "../../lib/appError";
+import { TERMS_ACCEPTANCE_REQUIRED_MCP_MESSAGE } from "../../lib/termsGate";
 import { reportError } from "../../lib/observability/report";
 import { MCP_SCOPES, mcpConfig } from "./mcp.config";
 import { MCP_TOOLS } from "./mcp.catalog";
@@ -157,6 +160,28 @@ export async function preflightMcp(
     return refusal;
 }
 
+/**
+ * A person who has not accepted the current Terms gets the handshake and the
+ * list of tools (they carry none of the person's data) and nothing else: a
+ * tool call, a prompt or a resource, listed or read, is the protocol's own
+ * error with a sentence the client can show.
+ */
+const TERMS_GATED_METHODS = [
+    "tools/call",
+    "prompts/list",
+    "prompts/get",
+    "resources/list",
+    "resources/read",
+] as const;
+
+function refuseUntilTermsAccepted(server: McpServer): void {
+    for (const method of TERMS_GATED_METHODS) {
+        server.server.setRequestHandler(method, async () => {
+            throw new ProtocolError(INVALID_REQUEST, TERMS_ACCEPTANCE_REQUIRED_MCP_MESSAGE);
+        });
+    }
+}
+
 function buildServer(principal: McpPrincipal): McpServer {
     const server = new McpServer(
         {
@@ -171,6 +196,7 @@ function buildServer(principal: McpPrincipal): McpServer {
     registerMcpTools(server, MCP_TOOLS, principal);
     registerMcpPrompts(server, principal);
     registerMcpResources(server, principal);
+    if (!principal.termsAccepted) refuseUntilTermsAccepted(server);
     return server;
 }
 

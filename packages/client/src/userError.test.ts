@@ -423,3 +423,10 @@ describe("describeError for an invitation the API refuses by code", () => {
         expect(address.retryable).toBe(false);
     });
 });
+
+describe("the Terms refusal", () => {
+    it("says to accept the current Terms in LiTT, from the code alone", () => {
+        const refusal = new FakeApiError({ message: "Accept the current Terms in LiTT on the web to continue.", status: 403, code: "terms_acceptance_required" });
+        expect(describeError(refusal).message).toBe("Accept the current Terms in LiTT on the web to continue.");
+    });
+});

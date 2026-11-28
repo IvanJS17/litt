@@ -44,8 +44,8 @@ texts of `t_4a5e7fdb`) are in this same change:
 **C1 (in code).** No citation is sent for a person whose
 `terms_accepted_version` is not the current `LEGAL_VERSION`
 (`citationCheckPermitted`). The check is silent about it; a person who has
-not accepted yet (including anyone who only uses the Word add-in) is simply
-not checked until they do.
+not accepted yet is simply not checked until they do (the server now
+requires the current Terms for every request, so this check is a second line).
 
 Other promises the texts make, kept by the code: only the sentence, the quote
 and a short piece of context go out (no file name, no user or firm data); the

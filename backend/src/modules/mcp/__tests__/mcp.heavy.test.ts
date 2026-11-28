@@ -30,6 +30,7 @@ const principal = (userId: string): McpPrincipal => ({
     defaultWorkspace: "personal",
     mode: "B",
     personalWorkspaceDisabled: false,
+    termsAccepted: true,
 });
 
 const lease = async (user: string) => {

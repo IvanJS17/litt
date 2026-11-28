@@ -39,6 +39,7 @@ function world() {
             { user_id: "veteran", email: "veteran@firm.example", created_by_org_id: null, terms_accepted_version: LEGAL_VERSION },
             { user_id: "admin", email: "admin@firm.example", created_by_org_id: null, terms_accepted_version: LEGAL_VERSION },
             { user_id: "owner", email: "owner@firm.example", created_by_org_id: null, terms_accepted_version: LEGAL_VERSION },
+            { user_id: "stranger", email: "stranger@elsewhere.example", created_by_org_id: null, terms_accepted_version: LEGAL_VERSION },
         ],
         audit_events: [],
         user_api_keys: [],
@@ -117,11 +118,11 @@ describe("a managed account", () => {
         expect(res.body.code).toBe("personal_workspace_disabled");
     });
 
-    it.each(["older", null])("is refused the personal workspace whatever legal version it has accepted (%s)", async (accepted) => {
+    it.each(["older", null])("is asked for the current Terms before anything else when it has accepted (%s)", async (accepted) => {
         h.state!.tables.user_profiles[0].terms_accepted_version = accepted;
         const res = await personalList();
         expect(res.status).toBe(403);
-        expect(res.body.code).toBe("personal_workspace_disabled");
+        expect(res.body.code).toBe("terms_acceptance_required");
     });
 
     it("reports terms to accept and the managed state together, and keeps the notice after acceptance", async () => {

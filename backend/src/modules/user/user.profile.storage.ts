@@ -1,12 +1,11 @@
 // user profile storage — implementation behind the module facade.
+import { LEGAL_VERSION } from "../../lib/legalVersion";
 import { type Db } from "./user.shared";
 
 export const MONTHLY_CREDIT_LIMIT = 999999;
 
-// The published Terms and Privacy Notice. Raise it whenever a change requires new acceptance (legal
-// t_ce7d0315 §2.3): every account then accepts again (profile `termsRequired`). Keep in step with
-// frontend/src/content/legal/version.ts (version.test.ts fails if they differ).
-export const LEGAL_VERSION = "2026-11-20";
+// The published version lives in lib/legalVersion.ts, which the request gate also reads.
+export { LEGAL_VERSION };
 
 export type UserProfileRow = {
     display_name: string | null;
