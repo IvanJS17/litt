@@ -583,6 +583,121 @@ describe("/platform", () => {
                 expect(rowsWhenBlocked).toBe(1);
             });
 
+            describe("when two live invitations for the address are withdrawn at about the same time", () => {
+                // Each withdrawal makes its first decision before the other has
+                // removed its invitation: both removals wait for each other.
+                const interleave = (onBothDecided: () => void = () => {}) => {
+                    let arrived = 0;
+                    let release: () => void = () => {};
+                    const both = new Promise<void>((resolve) => (release = resolve));
+                    const db = h.state!.db as { from: (t: string) => Record<string, unknown> };
+                    const realFrom = db.from.bind(db);
+                    const gate = (builder: Record<string, unknown>): Record<string, unknown> =>
+                        new Proxy(builder, {
+                            get: (target, key) => {
+                                if (key === "then")
+                                    return (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => {
+                                        if (++arrived === 2) {
+                                            onBothDecided();
+                                            release();
+                                        }
+                                        return both.then(() => (target.then as (a: unknown, b: unknown) => unknown)(ok, bad));
+                                    };
+                                const value = target[key as string];
+                                return typeof value === "function"
+                                    ? (...args: unknown[]) => {
+                                          const next = (value as (...a: unknown[]) => unknown).apply(target, args);
+                                          return next === target ? gate(target) : next;
+                                      }
+                                    : value;
+                            },
+                        });
+                    db.from = (table: string) => {
+                        const builder = realFrom(table);
+                        const removal = table === "platform_invitations" ? "delete" : table === "org_invitations" ? "update" : null;
+                        return !removal
+                            ? builder
+                            : new Proxy(builder, {
+                                  get: (target, key) => {
+                                      const value = target[key as string];
+                                      if (key !== removal) return typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+                                      return (...args: unknown[]) => gate(target[removal] ? ((value as (...a: unknown[]) => Record<string, unknown>).apply(target, args)) : target);
+                                  },
+                              });
+                    };
+                };
+                const withFirmInvitation = () => {
+                    // The in-memory table applies no column defaults: the platform invitation is made live here.
+                    Object.assign(h.state!.tables.platform_invitations[0], { status: "pending", expires_at: FUTURE });
+                    h.state!.tables.organizations.push({ id: "o1", name: "Firm" });
+                    h.state!.tables.org_members.push({ id: "m-u3", org_id: "o1", user_id: "u3", role: "owner" });
+                    h.state!.tables.org_invitations.push({ id: "oi1", org_id: "o1", email: GUEST, role: "member", status: "pending", expires_at: FUTURE });
+                };
+                const withdrawBoth = (id: string) =>
+                    Promise.all([withdraw(id), request(app).delete("/orgs/o1/invitations/oi1").set(...AUTH)]);
+                const settled = () =>
+                    h.state!.tables.platform_invitations.length === 0 &&
+                    h.state!.tables.org_invitations.every((r) => r.status !== "pending");
+
+                it("leaves the account blocked and marked, with no live invitation", async () => {
+                    const id = await opened();
+                    profile({});
+                    withFirmInvitation();
+                    interleave();
+                    const [platform, firm] = await withdrawBoth(id);
+                    expect([platform.status, firm.status]).toEqual([204, 204]);
+                    expect(settled()).toBe(true);
+                    expect(banned()).toBe(true);
+                    expect(ours()).toBe(true);
+                    expect(h.state!.tables.audit_events.filter((e) => e.action === "account.blocked").length).toBeGreaterThanOrEqual(1);
+                });
+
+                it("does not block an account that was finished in between", async () => {
+                    const id = await opened();
+                    profile({});
+                    withFirmInvitation();
+                    interleave(() => {
+                        (h.state!.tables.user_profiles[0] as Record<string, unknown>).terms_accepted_at = PAST;
+                    });
+                    const [platform, firm] = await withdrawBoth(id);
+                    expect([platform.status, firm.status]).toEqual([204, 204]);
+                    expect(settled()).toBe(true);
+                    expect(banned()).toBe(false);
+                    expect(h.state!.tables.audit_events.filter((e) => e.action === "account.blocked")).toHaveLength(0);
+                });
+
+                it("answers a failure, the invitation being gone, when the second look cannot be made", async () => {
+                    vi.spyOn(console, "warn").mockImplementation(() => {});
+                    const id = await opened();
+                    profile({});
+                    const db = h.state!.db as { from: (t: string) => Record<string, unknown> };
+                    const realFrom = db.from.bind(db);
+                    let removed = false;
+                    db.from = (table: string) => {
+                        // Once the invitation is removed, looking at the account fails.
+                        if (table === "user_profiles" && removed) throw new Error("boom");
+                        const builder = realFrom(table);
+                        return table !== "platform_invitations"
+                            ? builder
+                            : new Proxy(builder, {
+                                  get: (target, key) => {
+                                      const value = target[key as string];
+                                      if (key === "delete")
+                                          return (...a: unknown[]) => {
+                                              removed = true;
+                                              return (value as (...x: unknown[]) => unknown).apply(target, a);
+                                          };
+                                      return typeof value === "function" ? (value as (...x: unknown[]) => unknown).bind(target) : value;
+                                  },
+                              });
+                    };
+                    const res = await withdraw(id);
+                    expect(res.status).toBeGreaterThanOrEqual(500);
+                    expect(JSON.stringify(res.body)).not.toContain("boom");
+                    expect(h.state!.tables.platform_invitations).toHaveLength(0);
+                });
+            });
+
             describe("when the address is invited again", () => {
                 it("is let back in, by a platform invitation, when the mark is ours", async () => {
                     const id = await opened();

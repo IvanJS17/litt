@@ -5,12 +5,11 @@ import { z } from "zod";
 import { retireUnusedInvitationIdentity, sendSignupInvite } from "../../lib/inviteEmail";
 import { recordAudit } from "../../lib/audit";
 import { normalizeEmail } from "../../lib/access";
-import { blockAccount, liftInvitationBlock } from "../../lib/accountBlock";
+import { blockUnfinishedAccount, liftInvitationBlock } from "../../lib/accountBlock";
 import {
   betaMode,
   isPlatformAdmin,
   pendingPlatformInvitationId,
-  unfinishedInvitationAccountId,
 } from "../../lib/platformAccess";
 import {
   failure,
@@ -118,11 +117,7 @@ export async function deleteInvitation(
     // must not leave a way in behind it.
     await retireUnusedInvitationIdentity(db, invitation.email, { table: "platform_invitations", id });
     // One that was opened and never finished is blocked, not deleted.
-    const unfinished = await unfinishedInvitationAccountId(db, invitation.email, {
-      table: "platform_invitations",
-      id,
-    });
-    if (unfinished) await blockAccount(db, unfinished, { userId: actor.userId });
+    await blockUnfinishedAccount(db, invitation.email, { table: "platform_invitations", id }, actor);
   } catch (error) {
     return internalFailure(error);
   }
@@ -139,5 +134,12 @@ export async function deleteInvitation(
     surface: "platform",
     detail: { invitation_id: id },
   });
+  // Another invitation withdrawn at the same time may have kept the first
+  // answer at "no": ask again now that this one is gone.
+  try {
+    await blockUnfinishedAccount(db, invitation.email, { table: "platform_invitations", id }, actor);
+  } catch (error) {
+    return internalFailure(error);
+  }
   return ok(null);
 }

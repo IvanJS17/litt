@@ -26,10 +26,13 @@ let currentUser: { id: string; email: string };
 // Force one table's writes to fail, so the router's db_error arm can be
 // exercised over real HTTP rather than reasoned about.
 let writeErrors: Record<string, { message: string; code?: string }>;
+// When set, a withdrawal's write of its invitation waits on it.
+let gateCancellations: null | (() => Promise<void>);
 
 function resetState() {
     idCounter = 1;
     writeErrors = {};
+    gateCancellations = null;
     currentUser = { id: "owner-1", email: "owner@firm.example" };
     tables = {
         organizations: [{ id: "org-1", name: "Acme LLP", created_by: "owner-1" }],
@@ -267,7 +270,16 @@ function query(table: string) {
                 error: { message: string; code?: string } | null;
             }) => unknown,
             reject?: (e: unknown) => unknown,
-        ) => resolveMany().then(resolve, reject),
+        ) =>
+            (gateCancellations &&
+            op === "update" &&
+            table === "org_invitations" &&
+            (payload as Row).status === "cancelled"
+                ? gateCancellations()
+                : Promise.resolve()
+            )
+                .then(() => resolveMany())
+                .then(resolve, reject),
     };
     return builder;
 }
@@ -1032,6 +1044,30 @@ describe("organization invitations", () => {
             expect(JSON.stringify(res.body)).not.toContain("boom");
             expect(tables.org_invitations[0].status).toBe("pending");
             expect(banned()).toBe(false);
+        });
+
+        it("is blocked and marked when two firms withdraw their invitations at about the same time", async () => {
+            const first = await opened();
+            tables.organizations.push({ id: "org-2", name: "Other LLP", created_by: "owner-1" });
+            tables.org_members.push({ id: "m-o2", org_id: "org-2", user_id: "owner-1", role: "owner" });
+            tables.org_invitations.push({ id: "inv-2", org_id: "org-2", email: GUEST, role: "member", status: "pending", expires_at: "2999-01-01T00:00:00.000Z" });
+            // Each withdrawal makes its first decision before either removes its invitation.
+            let arrived = 0;
+            let release: () => void = () => {};
+            const both = new Promise<void>((resolve) => (release = resolve));
+            gateCancellations = () => {
+                if (++arrived === 2) release();
+                return both;
+            };
+            const [one, two] = await Promise.all([
+                withdraw(first),
+                request(app).delete("/orgs/org-2/invitations/inv-2").set(...AUTH),
+            ]);
+            expect([one.status, two.status]).toEqual([204, 204]);
+            expect(tables.org_invitations.every((r) => r.status === "cancelled")).toBe(true);
+            expect(banned()).toBe(true);
+            expect(ours()).toBe(true);
+            expect(blocked().length).toBeGreaterThanOrEqual(1);
         });
 
         it("is let back in by a new invitation, or a resend, when the mark is ours", async () => {

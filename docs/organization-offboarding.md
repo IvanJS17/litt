@@ -135,13 +135,23 @@ when the invitation is withdrawn: the identity service bans it, which ends its
 sessions and refuses its sign-in, and the account's `app_metadata` carries
 `litt_blocked: "invitation_withdrawn"` (`lib/accountBlock.ts`). The block is
 written before the invitation is removed; if it cannot be written nothing is
-withdrawn. Nothing the account stored is deleted. Creating or resending an
+withdrawn. Once the invitation is removed (or, for a firm invitation, marked
+cancelled) the same question is asked again with it gone, so that two
+invitations for the address withdrawn at about the same time still leave the
+account blocked; if that second look fails the request answers a failure, the
+invitation is already gone and repeating the withdrawal is not possible, and the
+account stays in the state the first look left it. An account that was already
+blocked for another reason is left as it is: no mark and no audit row are
+written for it, and the withdrawal goes on. Nothing the account stored is
+deleted. Creating or resending an
 invitation for the address lifts the ban only when that mark is present: the
 invitation is written first and the ban lifted after, and if it cannot be
-lifted the request fails and the account stays blocked. A ban without the mark
+lifted the request fails and the account stays blocked (a firm invitation can
+be re-sent; a platform invitation has no re-send, so the way through is to
+withdraw it and invite again). A ban without the mark
 is never lifted by an invitation. The sign-in of a blocked account is answered
-as refused credentials are. Both the block and the lift are recorded in the
-audit log.
+as refused credentials are. A block or a lift that is written also writes an
+audit row; if that row cannot be written the block or the lift still stands.
 
 ## Joining during signup
 
