@@ -127,8 +127,8 @@
   - #361, the numeric settings of the connected-applications server are taken only when written
     as a whole number in plain digits; the background citation check never throws, and its
     index exports only what goes through the daily number.
-  - The new settings of #357 and #358 run on their defaults on a server until
-    `deploy/prod/compose.yaml` passes them to the backend.
+  - `deploy/prod/compose.yaml` passes the new settings of #357 and #358 to the backend with their
+    defaults (2000 and 10000), so nothing changes on a server until an operator sets one.
 - **Health:** production verified after `20261127a`: the health endpoint reports that commit, the
   LiTT containers are healthy, the public pages answer, the other domains of the shared edge
   answer as before, and MCP is on (`mcp=401` without a token). The backend container runs as

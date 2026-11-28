@@ -331,6 +331,9 @@ services:
       # apagada hasta publicar los textos legales. Además del interruptor
       # necesita la llave de la plataforma; sin ella no existe.
       LITT_CITATION_CHECK: ${LITT_CITATION_CHECK:-disabled}
+      # Número diario de verificaciones por persona (en memoria; el API y el worker
+      # de jobs llevan cuentas separadas). Vacío o inválido: 2000.
+      LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON: ${LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON:-2000}
       TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
       # Servidor MCP de LiTT (docs/mcp-server.md): apagado salvo que el operador lo
       # encienda. Encendido exige LITT_MCP_PUBLIC_URL (https, origen del host MCP,
@@ -339,6 +342,9 @@ services:
       LITT_MCP_SERVER: ${LITT_MCP_SERVER:-disabled}
       LITT_MCP_PUBLIC_URL: ${LITT_MCP_PUBLIC_URL:-}
       LITT_MCP_ALLOWED_ORIGINS: ${LITT_MCP_ALLOWED_ORIGINS:-}
+      # Tope de clientes registrados a los que ninguna conexión se refiere ahora; al llegar, no se
+      # crean más (docs/mcp-server.md). Vacío o inválido: 10000.
+      LITT_MCP_UNAPPROVED_CLIENTS_MAX: ${LITT_MCP_UNAPPROVED_CLIENTS_MAX:-10000}
       # Complemento de Word (servicio litt-word). Con WORD_ADDIN_URL el backend
       # acepta ese origen, usa cookies particionadas para Word en la web y
       # exige AUTH_HANDOFF_ENCRYPTION_SECRET (>= 32 caracteres) al arrancar.
