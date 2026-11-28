@@ -1,5 +1,6 @@
 import {
   createDocumentVersion,
+  isUploadJobNotHeld,
   isVersionConflict,
   queueScanReadingOnUpload,
   updateDocumentVersion,
@@ -174,6 +175,21 @@ class DestinationUnavailableError extends AppError {
 
 /** Resolves while this attempt still holds its job; throws once it does not. */
 type HoldsJob = () => Promise<void>;
+
+/**
+ * The attempt's job. Versions are written through it: the database proves the
+ * job is held and writes the version in one transaction, and refuses once the
+ * job has ended or moved to another worker.
+ */
+type HeldUploadJob = { jobId: string; workerId: string };
+
+/** The write was refused because the job is no longer held: a lost job, as `holdsJob` reports it. */
+function requireJobHeld(error: unknown): void {
+  if (isUploadJobNotHeld(error)) throw leaseLost();
+}
+
+/** The write's options when it runs for a job. */
+const forJob = (job?: HeldUploadJob) => (job ? ([{ job }] as const) : ([] as const));
 
 const LEASE_LOST_MESSAGE = "upload_job_lease_lost";
 
@@ -549,6 +565,7 @@ async function processCreatedDocument(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
+  job?: HeldUploadJob,
 ) {
   const destination = session.destination;
   const scope = destination.scope as
@@ -738,7 +755,8 @@ async function processCreatedDocument(
     page_count: pageCount,
     textless_page_count: textlessPageCount,
     content_sha256: artifact.sha256,
-  });
+  }, ...forJob(job));
+  requireJobHeld(versionError);
   // The document went while we were converting: stop, and hand the bytes we
   // just uploaded to cleanup rather than leaving them for a retry to adopt.
   if (versionError && isMissingDocumentError(versionError))
@@ -800,6 +818,7 @@ async function processNewDocumentVersion(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
+  job?: HeldUploadJob,
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = file.resource_id;
@@ -853,7 +872,8 @@ async function processNewDocumentVersion(
     textless_page_count: textlessPageCount,
     content_sha256: artifact.sha256,
     ...(baseVersionId ? { base_version_id: baseVersionId } : {}),
-  });
+  }, ...forJob(job));
+  requireJobHeld(error);
   // The document moved on while the upload was processed: the RPC refused the
   // edit under the document lock. Nothing was written; drop these bytes.
   if (baseVersionId && isVersionConflict(error))
@@ -902,6 +922,7 @@ async function processReplacementDocumentVersion(
   file: UploadFileRow,
   artifact: SealedFileArtifact,
   holdsJob?: HoldsJob,
+  job?: HeldUploadJob,
 ) {
   const documentId = session.destination.document_id as string;
   const versionId = session.destination.version_id as string;
@@ -989,8 +1010,10 @@ async function processReplacementDocumentVersion(
       actorUserId: session.user_id,
       expectedStoragePath: current.storage_path,
       expectedContentSha256: current.content_sha256 ?? null,
-    } : { actorUserId: session.user_id },
+      ...(job ? { job } : {}),
+    } : { actorUserId: session.user_id, ...(job ? { job } : {}) },
   );
+  requireJobHeld(written.error);
   let updated: Record<string, unknown> | null = written.data;
   let error: unknown = written.error;
   let resultVersionId = versionId;
@@ -1012,7 +1035,8 @@ async function processReplacementDocumentVersion(
       textless_page_count: textlessPageCount,
       content_sha256: artifact.sha256,
       base_version_id: versionId,
-    });
+    }, ...forJob(job));
+    requireJobHeld(created.error);
     if (isVersionConflict(created.error))
       throw new ChangedDocumentError([sourcePath, ...(pdfPath ? [pdfPath] : [])]);
     error = created.error;
@@ -1050,6 +1074,7 @@ export async function processUploadFile(
   session: UploadSessionRow,
   file: UploadFileRow,
   holdsJob?: HoldsJob,
+  job?: HeldUploadJob,
 ) {
   const artifact = await requireSealedFile(file);
   try {
@@ -1059,9 +1084,9 @@ export async function processUploadFile(
     if (file.file_type === "docx") await validateDocxFile(artifact);
     switch (session.purpose) {
       case "document_create":
-        return await processCreatedDocument(db, session, file, artifact, holdsJob);
+        return await processCreatedDocument(db, session, file, artifact, holdsJob, job);
       case "document_version_create":
-        return await processNewDocumentVersion(db, session, file, artifact, holdsJob);
+        return await processNewDocumentVersion(db, session, file, artifact, holdsJob, job);
       case "document_version_replace":
         return await processReplacementDocumentVersion(
           db,
@@ -1069,6 +1094,7 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
+          job,
         );
       case "workflow_reference_create":
         // Complete upload sessions created by the previous release using the
@@ -1086,6 +1112,7 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
+          job,
         );
       case "workflow_reference_replace":
         // A former replacement is retained as a new version so history is not
@@ -1103,6 +1130,7 @@ export async function processUploadFile(
           file,
           artifact,
           holdsJob,
+          job,
         );
     }
   } finally {
@@ -1316,8 +1344,12 @@ export async function processUploadJob(
       let result: unknown;
       try {
         markStage("process-file");
-        result = await processUploadFile(db, typedSession, file, () =>
-          heartbeatJob(db, jobId, workerId),
+        result = await processUploadFile(
+          db,
+          typedSession,
+          file,
+          () => heartbeatJob(db, jobId, workerId),
+          { jobId, workerId },
         );
       } catch (error) {
         // A failed timer heartbeat makes ownership uncertain. Re-prove the

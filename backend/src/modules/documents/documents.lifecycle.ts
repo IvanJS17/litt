@@ -65,6 +65,19 @@ export type DocumentVersionRecord = Omit<NewDocumentVersion, "authorship"> &
 };
 
 /**
+ * The upload job an attempt writes for. With it the write is refused, and
+ * nothing is written, unless the job is still running and held by that worker:
+ * the proof and the write are one database transaction.
+ */
+export type HeldUploadJob = { jobId: string; workerId: string };
+
+/** The database refused a write because its upload job is no longer held. */
+export function isUploadJobNotHeld(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown };
+  return code === "55000" && typeof message === "string" && message.includes("upload_job_not_held");
+}
+
+/**
  * Trusted persistence operation. The caller must authorize the destination
  * (and independently authorize any copy source). Upload workers use their
  * validated session destination; chat tools use their authorized document
@@ -74,7 +87,7 @@ export type DocumentVersionRecord = Omit<NewDocumentVersion, "authorship"> &
 export async function createDocumentVersion(
   db: Db,
   version: NewDocumentVersion,
-  options: { activate?: boolean } = {},
+  options: { activate?: boolean; job?: HeldUploadJob } = {},
 ) {
   let row: Record<string, unknown> & { document_id: string };
   try {
@@ -83,11 +96,19 @@ export async function createDocumentVersion(
     return { data: null, error: sealFailure(error) };
   }
   const { document_id, ...metadata } = row;
-  const { data, error } = await db.rpc("create_document_version", {
-    p_document_id: document_id,
-    p_version: metadata,
-    p_activate: options.activate !== false,
-  });
+  const { data, error } = options.job
+    ? await db.rpc("create_document_version_for_upload_job", {
+        p_job_id: options.job.jobId,
+        p_worker_id: options.job.workerId,
+        p_document_id: document_id,
+        p_version: metadata,
+        p_activate: options.activate !== false,
+      })
+    : await db.rpc("create_document_version", {
+        p_document_id: document_id,
+        p_version: metadata,
+        p_activate: options.activate !== false,
+      });
   if (!error && data?.id) await processDocumentTextInline(db, [data.id]).catch((err) => logError("document-text", safeError(err)));
   return { data: data as DocumentVersionRecord | null, error };
 }
@@ -148,6 +169,8 @@ export async function updateDocumentVersion(
     actorUserId: string;
     expectedStoragePath?: string;
     expectedContentSha256?: string | null;
+    /** The write is made in the same transaction that proves this job is held. */
+    job?: HeldUploadJob;
   },
 ) {
   let seal: TrainingSeal;
@@ -163,24 +186,41 @@ export async function updateDocumentVersion(
     patch,
   );
   const changesContent = "storage_path" in patch || "content_sha256" in patch;
-  let query = db
-    .from("document_versions")
-    .update(seal.training_stage ? { ...patch, ...seal } : patch)
-    .eq("id", versionId)
-    .eq("document_id", documentId)
-    .is("deleted_at", null);
-  if (changesContent) query = query.is("training_stage", null);
-  if (options.expectedStoragePath !== undefined)
-    query = query.eq("storage_path", options.expectedStoragePath);
-  if (options.expectedContentSha256 !== undefined)
-    query = options.expectedContentSha256 === null
-      ? query.is("content_sha256", null)
-      : query.eq("content_sha256", options.expectedContentSha256);
-  const result = await query
-    .select(
-      "id, version_number, source, created_at, filename, file_type, size_bytes, page_count, textless_page_count",
-    )
-    .maybeSingle();
+  const values = seal.training_stage ? { ...patch, ...seal } : patch;
+  let result;
+  if (options.job) {
+    const expected: Record<string, unknown> = {};
+    if (options.expectedStoragePath !== undefined) expected.storage_path = options.expectedStoragePath;
+    if (options.expectedContentSha256 !== undefined) expected.content_sha256 = options.expectedContentSha256;
+    const { data, error } = await db.rpc("replace_document_version_for_upload_job", {
+      p_job_id: options.job.jobId,
+      p_worker_id: options.job.workerId,
+      p_document_id: documentId,
+      p_version_id: versionId,
+      p_patch: values,
+      p_expect: expected,
+    });
+    result = { data: (data ?? null) as Record<string, unknown> | null, error };
+  } else {
+    let query = db
+      .from("document_versions")
+      .update(values)
+      .eq("id", versionId)
+      .eq("document_id", documentId)
+      .is("deleted_at", null);
+    if (changesContent) query = query.is("training_stage", null);
+    if (options.expectedStoragePath !== undefined)
+      query = query.eq("storage_path", options.expectedStoragePath);
+    if (options.expectedContentSha256 !== undefined)
+      query = options.expectedContentSha256 === null
+        ? query.is("content_sha256", null)
+        : query.eq("content_sha256", options.expectedContentSha256);
+    result = await query
+      .select(
+        "id, version_number, source, created_at, filename, file_type, size_bytes, page_count, textless_page_count",
+      )
+      .maybeSingle();
+  }
   if (!result.error && !result.data && changesContent) {
     // No row matched. Tell a sealed version apart from a lost comparison: it is
     // sealed only if every expectation the caller gave still holds.

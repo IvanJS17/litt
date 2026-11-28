@@ -75,7 +75,7 @@ export { handleDocumentPrecomputeText } from "./documents.textJobs";
 export { handleConversionConvert, markConversionFailed } from "./documents.conversionJobs";
 export { sweepStaleProcessingDocuments } from "./documents.maintenance";
 
-export { createDocumentVersion } from "./documents.lifecycle";
+export { createDocumentVersion, isUploadJobNotHeld } from "./documents.lifecycle";
 export { handleDocumentCleanup } from "./documents.cleanupJobs";
 export { askRoomForBatch, copyDocumentVersionFiles, sourceContentSha256, sourceStoredBytes } from "./documents.copyFiles";
 export { captureInlineDocumentCleanup, completeInlineDocumentCleanup } from "./documents.cleanupJobs";

@@ -67,7 +67,7 @@ import { numberedSources } from "../../../__tests__/helpers/numberedSources";
 import { syntheticPdf } from "../../../lib/__tests__/pdfFixtures";
 import type { Db } from "../../../lib/supabase";
 import { handleStorageCleanup } from "../../../lib/dbq/storageCleanup";
-import { cleanupUploadSessions, processUploadJob, UPLOAD_JOB_LEASE_SECONDS, UPLOAD_JOB_MAX_ATTEMPTS } from "../uploads.processing";
+import { cleanupUploadSessions, processUploadFile, processUploadJob, UPLOAD_JOB_LEASE_SECONDS, UPLOAD_JOB_MAX_ATTEMPTS } from "../uploads.processing";
 import { completeUploadSessionFile, refreshUploadUrls } from "../uploads.sessions";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -554,6 +554,7 @@ describe("a replacement onto a sealed version", () => {
         base_version_id: VERSION,
         content_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
       }),
+      { job: { jobId: "job-1", workerId: "w1" } },
     );
     // The database numbers this version: later versions must not repeat its number.
     expect(numberedSources()).toContain(mocks.createDocumentVersion.mock.calls[0][1].source);
@@ -910,4 +911,97 @@ describe("a cleanup is queued only by the attempt that ends the job", () => {
       expect(mocks.deleteFile).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("a version is written only while the attempt holds its job", () => {
+  const JOB = { jobId: "job-1", workerId: "w1" };
+  const notHeld = { code: "55000", message: "upload_job_not_held" };
+
+  it.each([
+    ["create", "createDocumentVersion", 2],
+    ["newVersion", "createDocumentVersion", 2],
+    ["replace", "updateDocumentVersion", 4],
+  ] as const)("passes the attempt's job to the write (%s)", async (kindKey, write, optionsAt) => {
+    const w = world();
+    versionRpc(w);
+    openSession(w, KINDS[kindKey]);
+    claim(w, 1);
+    await processUploadJob(w.db, "job-1", "w1");
+
+    expect(mocks[write]).toHaveBeenCalledTimes(1);
+    const options = mocks[write].mock.calls[0][optionsAt] as { job?: unknown } | undefined;
+    expect(options?.job).toEqual(JOB);
+    expect(w.tables.upload_session_files[0].status).toBe("completed");
+  });
+
+  it("passes the job to the new version written when the edited one is sealed, with its seal", async () => {
+    const w = world();
+    versionRpc(w);
+    mocks.updateDocumentVersion.mockResolvedValue({ data: null, error: null, sealed: true });
+    openSession(w, KINDS.replace);
+    claim(w, 1);
+    await processUploadJob(w.db, "job-1", "w1");
+
+    expect(mocks.updateDocumentVersion.mock.calls[0][4]).toMatchObject({ job: JOB });
+    expect(mocks.createDocumentVersion).toHaveBeenCalledTimes(1);
+    const [, version, options] = mocks.createDocumentVersion.mock.calls[0];
+    expect(version).toMatchObject({ authorship: { kind: "copy", sourceVersionId: VERSION }, base_version_id: VERSION });
+    expect(options).toEqual({ job: JOB });
+  });
+
+  it.each([
+    ["create", "createDocumentVersion"],
+    ["newVersion", "createDocumentVersion"],
+    ["replace", "updateDocumentVersion"],
+  ] as const)("ends as a lost job when the database reports the job is not held (%s)", async (kindKey, write) => {
+    const w = world();
+    versionRpc(w);
+    // The database refuses because the job has gone to another worker.
+    mocks[write].mockImplementation(async () => {
+      stealLease(w);
+      return { data: null, error: notHeld };
+    });
+    openSession(w, KINDS[kindKey]);
+    claim(w, 1);
+
+    await expect(processUploadJob(w.db, "job-1", "w1")).rejects.toThrow("upload_job_lease_lost");
+
+    const optionsAt = write === "createDocumentVersion" ? 2 : 4;
+    expect((mocks[write].mock.calls[0][optionsAt] as { job?: unknown } | undefined)?.job).toEqual(JOB);
+
+    expect(w.tables.document_versions.map((v) => v.id)).toEqual([VERSION]);
+    expect(w.tables.upload_session_files[0].status).not.toBe("error");
+    expect(mocks.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it("ends as a lost job when the replacement written for a sealed version reports the job is not held", async () => {
+    const w = world();
+    versionRpc(w);
+    mocks.updateDocumentVersion.mockResolvedValue({ data: null, error: null, sealed: true });
+    mocks.createDocumentVersion.mockImplementation(async () => {
+      stealLease(w);
+      return { data: null, error: notHeld };
+    });
+    openSession(w, KINDS.replace);
+    claim(w, 1);
+
+    await expect(processUploadJob(w.db, "job-1", "w1")).rejects.toThrow("upload_job_lease_lost");
+    expect(mocks.createDocumentVersion.mock.calls[0][2]).toEqual({ job: JOB });
+    expect(w.tables.document_versions.map((v) => v.id)).toEqual([VERSION]);
+    expect(mocks.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it("writes through the unchanged call when the file is processed without a job", async () => {
+    const w = world();
+    versionRpc(w);
+    openSession(w, KINDS.newVersion);
+    await processUploadFile(
+      w.db,
+      w.tables.upload_sessions[0] as never,
+      w.tables.upload_session_files[0] as never,
+    );
+
+    expect(mocks.createDocumentVersion).toHaveBeenCalledTimes(1);
+    expect(mocks.createDocumentVersion.mock.calls[0]).toHaveLength(2);
+  });
 });

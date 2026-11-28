@@ -710,11 +710,17 @@ the attempt whose failure is final (refusal, or the last attempt spent), and
 the sweep that retires a running job whose attempts are spent. It is the same
 cleanup job, which skips every object a stored version points at. A job that
 goes on to another attempt queues nothing, and a worker that is still running
-for a job that has ended is refused at its next job check. What remains
-possible: an attempt that stalls inside the version-creating call itself for
-longer than that period can still store a version whose objects a cleanup
-already removed; the database function that creates the version does not check
-the job. Objects a job copied before it lost its turn, and that no later
+for a job that has ended is refused at its next job check. The version
+itself is written only while the job is held: the document version is created
+or replaced by a database function that locks the job row (running, held by
+that worker) and writes in the same transaction, and refuses with
+`upload_job_not_held`, writing nothing, once the job has ended or moved to
+another worker; the attempt then ends as a lost job. Whatever ends the job
+waits for that transaction, so the cleanup that follows sees the stored
+version's objects and skips them. Migration
+`20261128_01_litt_upload_version_holds_job.sql` adds the two functions; the new
+backend needs it, and the previous backend keeps working on the migrated
+database. Objects a job copied before it lost its turn, and that no later
 attempt stores, stay in storage unreferenced until the job ends and its cleanup
 runs. A
 session nobody completes is swept when it expires. A check whose own database read
