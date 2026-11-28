@@ -449,6 +449,34 @@ function isFreshInviteSession(accessToken: string, user: { invited_at?: string |
   }
 }
 
+const RECOVERY_SESSION_MAX_AGE_S = 60 * 60;
+
+/**
+ * Whether the access token records a sign-in by an emailed link (the recovery
+ * link included) within the last hour: the holder proved control of the
+ * mailbox. Read only for a token the session middleware has verified, so the
+ * claims are trusted.
+ */
+function signedInByEmailedLink(accessToken: unknown): boolean {
+  if (typeof accessToken !== "string") return false;
+  try {
+    const claims = JSON.parse(Buffer.from(accessToken.split(".")[1] ?? "", "base64url").toString("utf8"));
+    const now = Date.now() / 1000;
+    return (
+      Array.isArray(claims?.amr) &&
+      claims.amr.some(
+        (entry: { method?: unknown; timestamp?: unknown }) =>
+          (entry?.method === "recovery" || entry?.method === "otp") &&
+          typeof entry.timestamp === "number" &&
+          now - entry.timestamp >= -60 &&
+          now - entry.timestamp < RECOVERY_SESSION_MAX_AGE_S,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
 authRouter.post("/invite-session", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
   const parsed = inviteSessionSchema.safeParse(req.body);
@@ -762,6 +790,13 @@ authRouter.patch("/password", requireAuth, asyncRoute(async (req, res) => {
   const { data, error } = await updatePassword(client, parsed.data.password);
   if (error || !data.user) return authError(res, error);
   await recordPasswordMark(res.locals.userId as string);
+  // A password set through the emailed link proves control of the mailbox: the
+  // refused sign-ins counted against this session's own address are forgotten,
+  // so the next sign-in is judged on its own. Set by app.ts.
+  const clearRefusals = res.locals.clearLoginRefusals as ((address: string) => void) | undefined;
+  if (clearRefusals && res.locals.userEmail && signedInByEmailedLink(res.locals.token)) {
+    clearRefusals(res.locals.userEmail as string);
+  }
   if (parsed.data.signOut) {
     // Connected applications end with the sessions: stamped once they are
     // revoked. If that cannot be recorded the sessions are still over, and

@@ -649,6 +649,7 @@
       "loggingIn": "Logging in...",
       "noAccount": "Don't have an account?",
       "password": "Password",
+      "rateLimitedResetHint": "You can still get in by <link>resetting your password by email</link>.",
       "requestTimeout": "The login request timed out. Try again.",
       "restoreAction": "restore your session",
       "restoreFailed": "Unable to restore your session. Try again.",

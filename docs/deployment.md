@@ -739,6 +739,12 @@ more loosely, per account across clients (`RATE_LIMIT_AUTH_ACCOUNT_GLOBAL_MAX`,
 default 100); only a refused email/password counts. Once the account-wide
 ceiling is reached, sign-in for that account answers 429 from every address
 until the window ends.
+The account's owner keeps a way in by email: when the answer is 429 the sign-in
+page links to the password reset, and a password set through the emailed link
+(a session whose sign-in record shows an emailed link within the last hour, not
+an ordinary signed-in password change) clears the refusals counted for that
+address, both the account-wide count and the count of the client that sets the
+password. These counters are in memory, per process: a restart clears them too.
 
 Anonymous password-reset and sign-up requests make the auth service send mail
 from its single hourly budget, which invitations and confirmations also use.

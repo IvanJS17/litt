@@ -329,10 +329,13 @@ const loginWasNotCredentialRefusal = (
   res: express.Response,
 ) => res.locals.loginCredentialRejected !== true;
 
-function loginAccountDigest(req: express.Request): string | null {
-  const email =
-    typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+function accountDigest(address: unknown): string | null {
+  const email = typeof address === "string" ? address.trim().toLowerCase() : "";
   return email ? createHash("sha256").update(email).digest("hex") : null;
+}
+
+function loginAccountDigest(req: express.Request): string | null {
+  return accountDigest(req.body?.email);
 }
 
 function loginClient(req: express.Request): string {
@@ -368,6 +371,21 @@ const authLoginAccountGlobalLimiter = makeLimiter({
     return digest ? `email:${digest}` : `ip:${loginClient(req)}`;
   },
 });
+
+/**
+ * Forgets the refused sign-ins counted against an address: its across-clients
+ * count and the count of the client that asks. The one place a sign-in counter
+ * is cleared; it is reached only through `res.locals.clearLoginRefusals`
+ * below, which the password route calls for the session's own address after a
+ * password was set through the emailed link. The counters are in memory, per
+ * process.
+ */
+export function clearLoginRefusals(address: string, client: string): void {
+  const digest = accountDigest(address);
+  if (!digest) return;
+  authLoginAccountGlobalLimiter.resetKey(`email:${digest}`);
+  authLoginAccountLimiter.resetKey(`email:${digest}:${client}`);
+}
 
 const authEmailLimiter = makeLimiter({
   windowMs: hours(envInt("RATE_LIMIT_AUTH_EMAIL_WINDOW_HOURS", 1)),
@@ -559,6 +577,12 @@ app.use(jsonBodyAdmission);
 // Body-aware account throttling complements the per-IP login limiter. The key
 // is a one-way digest, so email addresses never enter the limiter store.
 app.post("/auth/login", authLoginAccountGlobalLimiter, authLoginAccountLimiter);
+
+app.patch("/auth/password", (req, res, next) => {
+  res.locals.clearLoginRefusals = (address: string) =>
+    clearLoginRefusals(address, loginClient(req));
+  next();
+});
 
 app.use("/auth", authRouter);
 app.use("/mcp-connect", mcpConsentRouter);
