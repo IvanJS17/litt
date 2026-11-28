@@ -11,13 +11,18 @@ import {
 } from "../../lib/trainingTurn";
 import type { CreatedTurnNote } from "../../lib/trainingNotes";
 import {
+    APP_MESSAGE_POLICY,
+    appWrittenMessage,
     buildFirmProfilePrompt,
+    chatOriginColumns,
     generateSpotlightNonce,
+    loadAppWrittenUserMessages,
     loadUserMessageSentTimes,
     parseOptionalModel,
     parseOptionalReasoning,
     userMessageStamper,
     type ChatMessage,
+    type ChatOrigin,
     type MessageTimeContext,
     type TabularCellStore,
 } from "../chat/chat.service";
@@ -136,6 +141,8 @@ export function buildTabularMessages(
     time?: MessageTimeContext,
     /** The firm's profile block (buildFirmProfilePrompt); empty for a personal space. */
     firmProfilePrompt?: string,
+    /** Which user messages a connected app wrote (one entry per user message), and the fence nonce. */
+    appMessages?: { written: readonly boolean[]; nonce: string },
 ): unknown[] {
     const docList = tabularStore.documents
         .map((d, i) => `- ROW:${i} "${d.filename}"`)
@@ -175,14 +182,21 @@ Rules:
 - Do not fabricate cell content
 - Answer in clear, concise prose. You may use markdown formatting.${
         time ? `\n\n${MESSAGE_TIME_PROMPT}` : ""
-    }${firmProfilePrompt ? `\n\n${firmProfilePrompt}` : ""}`;
+    }${firmProfilePrompt ? `\n\n${firmProfilePrompt}` : ""}${
+        appMessages?.written.some(Boolean) ? `\n\n${APP_MESSAGE_POLICY}` : ""
+    }`;
 
     const formatted: unknown[] = [{ role: "system", content: systemContent }];
     const stamp = userMessageStamper(messages, time);
+    let userPosition = 0;
     for (const [index, msg] of messages.entries()) {
+        let content = msg.content ?? "";
+        if (msg.role === "user" && appMessages?.written[userPosition++]) {
+            content = appWrittenMessage(content, appMessages.nonce);
+        }
         formatted.push({
             role: msg.role,
-            content: stamp(msg, index, msg.content ?? ""),
+            content: stamp(msg, index, content),
         });
     }
     return formatted;
@@ -532,7 +546,7 @@ export async function listTabularReviewChatMessages(
         const complete = await selectCompleteChatMessages(
             db,
             [chatId],
-            "id, role, content, annotations, created_at, source_document_ids",
+            "id, role, content, annotations, created_at, source_document_ids, origin, origin_label",
         );
         messages = await filterReadableChatMessages(
             db,
@@ -693,6 +707,8 @@ export async function prepareTabularChat(
         confidence?: unknown;
         /** LiTT training: a hint or a counterpart turn the author asks for (the server decides the step). */
         trainingMode?: unknown;
+        /** The connected app this turn comes from: its message is stored with the app's mark. */
+        origin?: ChatOrigin;
     },
 ): Promise<TabularResult<PreparedTabularChat>> {
     const {
@@ -992,6 +1008,7 @@ export async function prepareTabularChat(
                 content: lastUserContent,
                 author_user_id: userId,
                 source_document_ids: sourceDocumentIds,
+                ...chatOriginColumns(args.origin),
             });
         if (userMessageError) return internalFailure(userMessageError);
     }
@@ -1027,6 +1044,14 @@ export async function prepareTabularChat(
         chatId,
         messages,
     );
+    const appWritten = await loadAppWrittenUserMessages(
+        db,
+        "tabular_review_chat_messages",
+        chatId,
+        messages,
+    );
+    if (!appWritten.ok) return internalFailure(appWritten.error);
+    const nonce = generateSpotlightNonce(chatId);
     const apiMessages = buildTabularMessages(
         messages,
         tabularStore,
@@ -1034,8 +1059,9 @@ export async function prepareTabularChat(
         { timeZone, now: new Date(), userSentAt },
         buildFirmProfilePrompt(
             await loadFirmProfileFor(db, (review.org_id as string | null) ?? null),
-            generateSpotlightNonce(chatId),
+            nonce,
         ),
+        { written: appWritten.marks, nonce },
     );
 
     return {

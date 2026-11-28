@@ -74,8 +74,8 @@ export function generateSpotlightNonce(conversationId?: string | null): string {
 /**
  * Neutralizes fence tokens the fenced text tries to smuggle in: redacts any
  * echoed nonce and HTML-encodes the `<` of any literal fence tag (the
- * `<untrusted-content>`, `<workflow-instructions>`, and `<user-instructions>`
- * families), so even a sloppy model never sees a clean boundary token inside
+ * `<untrusted-content>`, `<workflow-instructions>`, `<user-instructions>`, and
+ * `<app-message>` families), so even a sloppy model never sees a clean boundary token inside
  * the data.
  */
 function neutralizeFenceTokens(text: string, nonce: string): string {
@@ -83,7 +83,7 @@ function neutralizeFenceTokens(text: string, nonce: string): string {
     .split(nonce)
     .join("[redacted-nonce]")
     .replace(
-      /<(\/?)(untrusted-content|workflow-instructions|user-instructions)/gi,
+      /<(\/?)(untrusted-content|workflow-instructions|user-instructions|app-message)/gi,
       "&lt;$1$2",
     );
 }
@@ -802,6 +802,34 @@ export function withDocumentList(
   return withoutList + documentListPrompt(docs, nonce);
 }
 
+/** What a stored message's `origin` holds when a connected app wrote it. */
+export const APP_MESSAGE_ORIGIN = "mcp";
+
+/** The one line the model reads before a message a connected app wrote: fixed text, never the app's name. */
+export const APP_MESSAGE_LINE =
+  "[Sent through an app the person connected to LiTT, on their behalf; not typed by them in LiTT.]";
+
+/**
+ * Wraps the text of a message a connected app wrote in the semi-trusted
+ * `<app-message>` fence, built like `spotlightWorkflow`: the person asked
+ * through their app, so the text is a request to follow (subject to system
+ * rules), not data only. Same nonce and fence-token neutralization, so the
+ * text cannot close its own fence or forge another fence's boundary.
+ */
+export function spotlightAppMessage(text: string, nonce: string): string {
+  const neutralized = neutralizeFenceTokens(text, nonce);
+  return `<app-message nonce="${nonce}">\n${neutralized}\n</app-message nonce="${nonce}">`;
+}
+
+/**
+ * A message a connected app wrote, as the model reads it: the fixed line, then
+ * the text inside the app-message fence (the line alone precedes it when no
+ * nonce is in use).
+ */
+export function appWrittenMessage(content: string, nonce: string | undefined): string {
+  return nonce ? `${APP_MESSAGE_LINE}\n${spotlightAppMessage(content, nonce)}` : `${APP_MESSAGE_LINE}\n${content}`;
+}
+
 export function buildMessages(
   messages: ChatMessage[],
   docAvailability: {
@@ -814,6 +842,8 @@ export function buildMessages(
   nonce?: string,
   systemPromptMode: "append" | "replace" = "append",
   time?: MessageTimeContext,
+  /** One entry per user message in the history, in order: written through a connected app. */
+  appWritten?: readonly boolean[],
 ) {
   const formatted: unknown[] = [];
   let systemContent =
@@ -842,8 +872,12 @@ export function buildMessages(
   }
 
   const stamp = userMessageStamper(messages, time);
+  let userPosition = 0;
   for (const [index, msg] of messages.entries()) {
     let content = msg.content ?? "";
+    if (msg.role === "user" && appWritten?.[userPosition++]) {
+      content = appWrittenMessage(content, nonce);
+    }
     if (msg.role === "user" && msg.workflow) {
       // Workflow titles are user-controlled; spotlight them.
       const title = nonce
@@ -972,6 +1006,54 @@ export async function loadUserMessageSentTimes(
     times[savedCount - k] = stored[k - 1];
   }
   return times;
+}
+
+/** Which user messages a connected app wrote, or the failed read: the caller ends the turn on a failure. */
+export type AppWrittenRead = { ok: true; marks: boolean[] } | { ok: false; error: unknown };
+
+/**
+ * Which of the history's user messages carry the connected-app mark: those
+ * whose text equals the text of a message a connected app wrote in this
+ * conversation, read from the stored rows (never from the request). No
+ * position is involved, so a history that differs from the stored rows keeps
+ * every mark on the right message. Accepted: a message the person typed with
+ * exactly the same text as an app's is presented with the mark too (the mark
+ * restricts nothing), and a message whose text changed after it was stored is
+ * not the stored one and is not marked. An empty or missing body never
+ * matches. Unlike the send times, a read that fails is reported, not
+ * blanked: a blank would present an app's text as the person's own.
+ */
+export async function loadAppWrittenUserMessages(
+  db: Db,
+  messageTable: string,
+  chatId: string | null | undefined,
+  messages: readonly ChatMessage[],
+): Promise<AppWrittenRead> {
+  const users = messages.filter((m) => m.role === "user");
+  if (!chatId || users.length === 0) return { ok: true, marks: users.map(() => false) };
+  const appTexts = new Set<string>();
+  try {
+    // Pages below PostgREST's row cap, until a short page.
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await db
+        .from(messageTable)
+        .select("content")
+        .eq("chat_id", chatId)
+        .eq("role", "user")
+        .eq("origin", APP_MESSAGE_ORIGIN)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(offset, offset + 499);
+      if (error || !Array.isArray(data)) throw error ?? new Error("The stored messages could not be read");
+      for (const row of data as { content?: unknown }[]) {
+        if (typeof row.content === "string" && row.content !== "") appTexts.add(row.content);
+      }
+      if (data.length < 500) break;
+    }
+  } catch (error) {
+    return { ok: false, error };
+  }
+  return { ok: true, marks: users.map((m) => typeof m.content === "string" && m.content !== "" && appTexts.has(m.content)) };
 }
 
 export function extractCitations(

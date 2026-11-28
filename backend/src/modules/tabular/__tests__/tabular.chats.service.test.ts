@@ -546,6 +546,8 @@ describe("prepareTabularChat", () => {
     it("creates a chat, stores the user turn, and builds the prompt", async () => {
         const fake = makeFakeDb({
             tables: {
+                // Messages already stored in the thread (none yet).
+                tabular_review_chat_messages: { data: [], error: null },
                 tabular_reviews: { data: REVIEW, error: null },
                 tabular_cells: {
                     data: [
@@ -599,6 +601,8 @@ describe("prepareTabularChat", () => {
         filterAccessibleDocumentIds.mockResolvedValue(["d-ok"]);
         const fake = makeFakeDb({
             tables: {
+                // Messages already stored in the thread (none yet).
+                tabular_review_chat_messages: { data: [], error: null },
                 tabular_reviews: { data: REVIEW, error: null },
                 tabular_cells: {
                     data: [
@@ -628,6 +632,8 @@ describe("prepareTabularChat", () => {
     it("refuses to adopt a chat id belonging to another review", async () => {
         const fake = makeFakeDb({
             tables: {
+                // Messages already stored in the thread (none yet).
+                tabular_review_chat_messages: { data: [], error: null },
                 tabular_reviews: { data: REVIEW, error: null },
                 tabular_review_chats: [
                     // The lookup of the supplied chat id…
@@ -654,6 +660,8 @@ describe("prepareTabularChat", () => {
     it("pins a new review chat to provider, model and credential", async () => {
         const fake = makeFakeDb({
             tables: {
+                // Messages already stored in the thread (none yet).
+                tabular_review_chat_messages: { data: [], error: null },
                 tabular_reviews: { data: REVIEW, error: null },
                 tabular_review_chats: { data: { id: "chat-new", title: null }, error: null },
             },

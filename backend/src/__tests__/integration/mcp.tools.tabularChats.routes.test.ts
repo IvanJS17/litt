@@ -24,7 +24,7 @@ const h = vi.hoisted(() => ({
     outcome: "ok" as "ok" | "error" | "hang",
     gate: null as null | Promise<void>,
     answer: "",
-    started: [] as { parsed: Record<string, any>; reviewId: string; allowedCapabilities?: string[] }[], // eslint-disable-line @typescript-eslint/no-explicit-any
+    started: [] as { parsed: Record<string, any>; reviewId: string; allowedCapabilities?: string[]; origin?: unknown }[], // eslint-disable-line @typescript-eslint/no-explicit-any
     sinks: [] as unknown[],
 }));
 
@@ -75,9 +75,9 @@ vi.mock("../../modules/tabular/tabular.chatTurn", async (importOriginal) => {
     const tables = () => h.state!.tables;
     return {
         ...original,
-        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; reviewId: string; parsed: Record<string, unknown> & { chatId?: string; model?: string; messages: { content: string }[]; training: { attempt?: unknown } }; allowedCapabilities?: string[] }) => {
+        startTabularChatTurn: vi.fn(async (db: Db, args: { userId: string; userEmail?: string; reviewId: string; parsed: Record<string, unknown> & { chatId?: string; model?: string; messages: { content: string }[]; training: { attempt?: unknown } }; allowedCapabilities?: string[]; origin?: unknown }) => {
             const { parsed, userId, reviewId } = args;
-            h.started.push({ parsed, reviewId, allowedCapabilities: args.allowedCapabilities });
+            h.started.push({ parsed, reviewId, allowedCapabilities: args.allowedCapabilities, origin: args.origin });
             if (parsed.model === "no-key-model") return statusFailure(400, { code: "missing_api_key", detail: "Anthropic (Claude) API key is not configured." });
             const review = tables().tabular_reviews.find((r) => r.id === reviewId);
             if (!review) return failure("not_found", "Review not found");
@@ -332,6 +332,8 @@ describe("send_tabular_chat_message", () => {
 
         // The request is the route's: one user message, no thread yet, the review's id.
         expect(h.started[0]).toMatchObject({ reviewId: REVIEW_PUBLIC });
+        // The message carries the connection's mark (the app's name as registered).
+        expect(h.started[0].origin as object).toMatchObject({ grantId: grantId(), label: expect.any(String) });
         expect(h.started[0].parsed).toMatchObject({ chatId: undefined, messages: [{ role: "user", content: "¿Cuál es la renta?" }] });
         // The thread is the person's own, in the review's panel.
         const thread = threadRows().find((c) => c.id === reply.data.chat_id)!;
@@ -355,6 +357,8 @@ describe("send_tabular_chat_message", () => {
         expect(reply.ok).toBe(true);
         expect(reply.data.chat_id).toBe(WEB_THREAD);
         expect(h.started[0].parsed.chatId).toBe(WEB_THREAD);
+        // A message added to an existing thread carries the mark too.
+        expect(h.started[0].origin as object).toMatchObject({ grantId: grantId() });
         expect(h.started[0].parsed.messages).toEqual([
             { role: "user", content: "¿Cuál es la renta?" },
             { role: "assistant", content: "Son $10,000 MXN." },

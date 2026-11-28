@@ -122,6 +122,9 @@ interface ServerMessage {
     files?: MessageFile[] | null;
     workflow?: { id: string; title: string } | null;
     playbook?: { id: string; title: string } | null;
+    /** 'mcp' for a message a connected app wrote, with the app's name as it was then. */
+    origin?: string | null;
+    origin_label?: string | null;
     citations?: Citation[] | null;
     /** Low-band citation numbers of the automatic support check. */
     review_refs?: number[] | null;
@@ -4513,6 +4516,7 @@ export async function getChat(chatId: string): Promise<ChatDetailOut> {
                 files: m.files ?? undefined,
                 workflow: m.workflow ?? undefined,
                 playbook: m.playbook ?? undefined,
+                ...(m.origin === "mcp" ? { fromApp: { name: m.origin_label?.trim() || null } } : {}),
             };
         }
         const events = Array.isArray(m.content)
@@ -5139,12 +5143,16 @@ export interface RawTRMessage {
     /** Low-band citation numbers of the automatic support check. */
     review_refs?: number[] | null;
     created_at: string;
+    /** 'mcp' for a message a connected app wrote, with the app's name as it was then. */
+    origin?: string | null;
+    origin_label?: string | null;
 }
 
 interface TRDisplayMessage {
     id?: string;
     role: "user" | "assistant";
     content: string;
+    fromApp?: { name: string | null };
     events?: AssistantEvent[];
     annotations?: TRCitationAnnotation[];
     reviewRefs?: number[];
@@ -5195,6 +5203,7 @@ export function mapTRMessages(raw: RawTRMessage[]): TRDisplayMessage[] {
                 id: m.id,
                 role: "user" as const,
                 content: typeof m.content === "string" ? m.content : "",
+                ...(m.origin === "mcp" ? { fromApp: { name: m.origin_label?.trim() || null } } : {}),
             };
         }
         const events = Array.isArray(m.content)

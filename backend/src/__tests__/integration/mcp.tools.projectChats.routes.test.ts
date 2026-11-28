@@ -432,7 +432,8 @@ describe("send_project_chat_message", () => {
         const reply = await callTool(token, "send_project_chat_message", { chat_id: WEB_CHAT, message: "¿Y el plazo?" });
         expect(reply.ok).toBe(true);
         expect(reply.data.chat_id).toBe(WEB_CHAT);
-        expect(h.started[0]).toMatchObject({ projectId: PROJECT_PUBLIC, origin: undefined });
+        // The message the app adds carries the app's mark; the conversation keeps its own origin below.
+        expect(h.started[0]).toMatchObject({ projectId: PROJECT_PUBLIC, origin: { grantId: grantId(), label: "Claude" } });
         expect(h.started[0].parsed).toMatchObject({ chatId: WEB_CHAT });
         expect(h.started[0].parsed.messages).toEqual([
             { role: "user", content: "¿Cuál es la renta?" },

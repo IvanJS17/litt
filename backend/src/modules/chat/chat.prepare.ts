@@ -25,7 +25,7 @@ import {
 } from "../../lib/webSearch";
 import { resolveRequestTimeZone } from "../../lib/userTime";
 import { loadFirmProfileFor } from "../../lib/firmProfileStore";
-import { createAssistantHistoryLoader, attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, buildFirmProfilePrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
+import { createAssistantHistoryLoader, attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, buildFirmProfilePrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, loadAppWrittenUserMessages, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
 import type { McpToolEvent } from "@mike/contracts";
 import {
     chatRouteColumns,
@@ -173,7 +173,7 @@ export async function prepareChatStream(
         trainingMode?: unknown;
         /** LiTT training: the routes and the explanation of a criteria contrast. */
         trainingCriteria?: { routes?: unknown; explanation?: unknown };
-        /** The connected app a NEW chat is started from (not used for an existing one). */
+        /** The connected app this turn comes from: its message is stored with the app's mark, and a NEW chat records it too. */
         origin?: ChatOrigin;
     },
 ): Promise<
@@ -590,6 +590,7 @@ export async function prepareChatStream(
                 workflow: lastUser.workflow ?? null,
                 playbook: lastUser.playbook ?? null,
                 author_user_id: userId,
+                ...chatOriginColumns(args.origin),
             });
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
@@ -682,6 +683,15 @@ export async function prepareChatStream(
             enrichedMessages,
             !!args.askInputsResponse,
         );
+        const appWritten = await loadAppWrittenUserMessages(
+            db,
+            "chat_messages",
+            chatId,
+            enrichedMessages,
+        );
+        if (!appWritten.ok) {
+            return { ok: false, internal: true, error: appWritten.error };
+        }
         const apiMessages = buildMessages(
             enrichedMessages,
             docAvailability,
@@ -690,6 +700,7 @@ export async function prepareChatStream(
             nonce,
             "append",
             { timeZone, now: new Date(), userSentAt },
+            appWritten.marks,
         );
 
         const workflowStore = await buildWorkflowStore(userId, userEmail, db, contentOrgId);

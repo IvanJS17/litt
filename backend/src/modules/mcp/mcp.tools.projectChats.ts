@@ -113,9 +113,8 @@ async function runProjectTurn(
         requestId: undefined,
         projectId: args.matterId,
         parsed: parsed.value,
-        origin: args.chatId
-            ? undefined
-            : { grantId: call.principal.grantId, label: await clientNameOf(call.db, call.principal.clientId) },
+        // The connection's mark goes on the message it writes, into a new conversation or an existing one.
+        origin: { grantId: call.principal.grantId, label: await clientNameOf(call.db, call.principal.clientId) },
         allowedCapabilities: turnCapabilities(call),
         connectionCheck: turnConnectionCheck(call),
     });

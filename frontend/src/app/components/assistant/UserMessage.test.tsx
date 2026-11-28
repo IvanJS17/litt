@@ -140,3 +140,45 @@ describe("UserMessage", () => {
         expect(container.querySelector("p")).toBeNull();
     });
 });
+
+describe("UserMessage written by a connected app", () => {
+    it("says in plain text which app the message came from", () => {
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <UserMessage content="¿Procede?" fromApp={{ name: "Claude" }} />
+            </IntlClientProvider>,
+        );
+        const line = screen.getByText("Desde Claude");
+        expect(line.tagName).toBe("P");
+        expect(line.className).toContain("break-words");
+    });
+
+    it("says it came from a connected app when the name is missing", () => {
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <UserMessage content="¿Procede?" fromApp={{ name: null }} />
+            </IntlClientProvider>,
+        );
+        expect(screen.getByText("Desde una app conectada")).toBeInTheDocument();
+    });
+
+    it("shows the name as text, wrapped, never as markup", () => {
+        const name = "<b>Mi app</b> " + "muylargo".repeat(20);
+        const { container } = render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <UserMessage content="hola" fromApp={{ name }} />
+            </IntlClientProvider>,
+        );
+        expect(container.querySelector("b")).toBeNull();
+        expect(screen.getByText(`Desde ${name}`)).toHaveClass("break-words");
+    });
+
+    it("adds nothing to an ordinary message", () => {
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <UserMessage content="hola" />
+            </IntlClientProvider>,
+        );
+        expect(screen.queryByText(/^Desde /)).toBeNull();
+    });
+});

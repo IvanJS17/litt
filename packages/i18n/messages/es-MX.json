@@ -497,6 +497,7 @@
       "rateLimitedWait": "Esta fuente tiene un límite temporal de solicitudes. Inténtalo de nuevo en aproximadamente {seconds, plural, one {# segundo} other {# segundos}}."
     },
     "userMessage": {
+      "fromUnnamedApp": "Desde una app conectada",
       "openFilename": "Abrir {filename}",
       "openPlaybookTitle": "Abrir playbook {title}",
       "openWorkflowTitle": "Abrir flujo de trabajo {title}"

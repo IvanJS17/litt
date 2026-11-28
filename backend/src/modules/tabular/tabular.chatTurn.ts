@@ -39,6 +39,7 @@ import {
     type ToolCapability,
     parseOptionalModel,
     parseOptionalReasoning,
+    type ChatOrigin,
 } from "../chat/chat.service";
 import {
     releaseMemoryConversationTurn,
@@ -186,6 +187,8 @@ export async function startTabularChatTurn(
         allowedCapabilities?: readonly ToolCapability[];
         /** Only for a connected app's turn: is its connection still good? Asked before each tool call. */
         connectionCheck?: () => Promise<boolean>;
+        /** The connected app this turn comes from: its message is stored with the app's mark. */
+        origin?: ChatOrigin;
     },
 ): Promise<StartTabularChatTurnResult> {
     const { userId, userEmail, reviewId, parsed } = args;
@@ -205,6 +208,7 @@ export async function startTabularChatTurn(
         attempt: parsed.training.attempt,
         confidence: parsed.training.confidence,
         trainingMode: parsed.training.mode,
+        origin: args.origin,
     });
     if (!preparation.ok) return preparation;
     const prepared = preparation.data;
