@@ -1147,8 +1147,7 @@ export async function buildUserAccountExport(
     // contrast but keeps the person's answer and its result.
     const keptReviewIds = new Set(idsFrom(workReviews));
     const allReviewIds = new Set(idsFrom(trainingWorkReviews));
-    // Counted: a defense whose work review was withheld. Not counted: one with
-    // no review recorded, or whose review no longer exists.
+    // Counted: a defense whose work review was withheld.
     holdBack(
         tally,
         "training_records",
@@ -1160,7 +1159,9 @@ export async function buildUserAccountExport(
                 !ofLeftOrg(row),
         ).length,
     );
-    // Counted once: a kept defense with no work review (deleted) that had questions or a note to blank.
+    // Counted once: a kept defense with no work review recorded (a
+    // practice-area defense, or one whose review was deleted) that had
+    // questions or a note to blank.
     holdBack(
         tally,
         "training_records",
