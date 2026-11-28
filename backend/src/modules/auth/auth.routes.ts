@@ -42,6 +42,7 @@ import {
   buildCallbackUrl,
   challengeAndVerifyMfa,
   challengeMfaFactor,
+  confirmedInvitedAccount,
   consumeWordHandoff,
   credentialsSchema,
   currentUser,
@@ -129,6 +130,13 @@ const REFUSED_CREDENTIALS = {
   status: 400,
   code: "invalid_credentials",
   message: "Invalid login credentials",
+};
+
+/** What the identity service answers for an expired or unknown emailed value. */
+const REFUSED_EMAIL_LINK = {
+  status: 403,
+  code: "otp_expired",
+  message: "Email link is invalid or has expired",
 };
 
 function invalidBody(
@@ -538,9 +546,17 @@ authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
   const parsed = verifyOtpSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res);
   try {
+    // Invitation-only mode: accounts are made by invitations, whose own door
+    // opens the session. A sign-up value is refused as a wrong one is.
+    if (parsed.data.type === "signup" && betaMode()) {
+      clearRequestAuthCookies(req, res);
+      return authError(res, REFUSED_EMAIL_LINK);
+    }
     // The token is spent on a client that writes no cookies, so this browser
     // keeps its own session until we know whose session the token carries.
-    const { data, error } = await verifyEmailToken(createCookielessSupabase(), parsed.data);
+    const tokenClient = createCookielessSupabase();
+    const startedAt = Date.now();
+    const { data, error } = await verifyEmailToken(tokenClient, parsed.data);
     // Secure email change: the first of the two links GoTrue sends only
     // records its half (200, no user, no session). The change applies, and a
     // session is issued, when the second one is confirmed.
@@ -556,6 +572,18 @@ authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
       // A spent email-change link must not sign out whoever is using this browser.
       if (parsed.data.type !== "email_change") clearRequestAuthCookies(req, res);
       return authError(res, error);
+    }
+    // A sign-up value opens a session only for an account that registered
+    // itself. One an invitation created is answered as a wrong value is, and
+    // the session just issued for it is ended.
+    if (parsed.data.type === "signup" && confirmedInvitedAccount(data.user, startedAt)) {
+      try {
+        await tokenClient.auth.signOut({ scope: "local" });
+      } catch (revokeError) {
+        console.error("[auth/verify-otp] could not end the issued session", revokeError);
+      }
+      clearRequestAuthCookies(req, res);
+      return authError(res, REFUSED_EMAIL_LINK);
     }
     // The token is spent either way. A browser that holds another account's
     // session never becomes this one by confirming a link: nothing is written.
@@ -737,10 +765,16 @@ async function whoHoldsThisBrowser(client: ReturnType<typeof createRequestSupaba
   throw new AppError("auth.supabase_unavailable", "could not tell who holds the session", { cause: error });
 }
 
+/** The identity service's own failure behind one that `signOut` threw. */
+function revocationCause(error: unknown): unknown {
+  return error instanceof AppError ? error.cause : error;
+}
+
 authRouter.post("/logout", asyncRoute(async (req, res) => {
   setOperation("auth.session");
   const scope = req.body?.scope === "global" ? "global" : "local";
   let connectionsFailure: unknown = null;
+  let revokeFailure: unknown = null;
   let signingOut: string | null = null;
   try {
     const client = createRequestSupabase(req, res);
@@ -756,15 +790,7 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
     }
     await signOut(client, scope);
   } catch (error) {
-    // Local cookie removal must not depend on the upstream revocation request,
-    // but a GoTrue that cannot revoke sessions is an outage worth seeing.
-    const failure = new AppError(
-      "auth.supabase_unavailable",
-      "upstream sign-out failed",
-      { cause: error },
-    );
-    reportError(failure, { level: "warning", tags: { component: "http" } });
-    console.error("[auth/logout] upstream sign-out failed", failure);
+    revokeFailure = error;
   } finally {
     // Stamped after the sign-out, whether or not it succeeded.
     if (signingOut) {
@@ -777,6 +803,18 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
     clearRequestAuthCookies(req, res);
   }
   if (connectionsFailure) throw connectionsFailure;
+  if (revokeFailure) {
+    // Everywhere: other sessions may still be open, so the person is told so.
+    if (scope === "global") return authError(res, revocationCause(revokeFailure));
+    // This browser only: its cookies are cleared, so it is signed out; the
+    // identity service's refusal to revoke the token is reported, not shown.
+    const failure =
+      revokeFailure instanceof AppError
+        ? revokeFailure
+        : new AppError("auth.supabase_unavailable", "upstream sign-out failed", { cause: revokeFailure });
+    reportError(failure, { level: "warning", tags: { component: "http" } });
+    console.error("[auth/logout] upstream sign-out failed", failure);
+  }
   res.status(204).end();
 }));
 
@@ -816,10 +854,11 @@ authRouter.patch("/password", requireAuth, asyncRoute(async (req, res) => {
     // revoked. If that cannot be recorded the sessions are still over, and
     // the failure is answered after the cookies are cleared.
     let failure: unknown = null;
+    let revokeFailure: unknown = null;
     try {
       await signOut(client, "global");
     } catch (error) {
-      failure = error;
+      revokeFailure = error;
     }
     try {
       await markSessionsEnded(createServerSupabase(), res.locals.userId as string, "password_recovery_sign_out");
@@ -828,6 +867,8 @@ authRouter.patch("/password", requireAuth, asyncRoute(async (req, res) => {
     }
     clearRequestAuthCookies(req, res);
     if (failure) throw failure;
+    // Other sessions may still be open: the password changed, the sign-out did not finish.
+    if (revokeFailure) return authError(res, revocationCause(revokeFailure));
   }
   res.json({ user: publicAuthUser(data.user) });
 }));

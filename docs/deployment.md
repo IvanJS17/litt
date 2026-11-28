@@ -920,7 +920,10 @@ default templates (the local stack). In production the recovery, signup
 confirmation and email-change templates do not use it: they link to
 `/auth/confirm?token_hash=…&type=recovery|signup|email_change`, which the person
 confirms with a button and the backend verifies server-side
-(`POST /api/auth/verify-otp`), so the link works in any browser. GoTrue caches
+(`POST /api/auth/verify-otp`), so the link works in any browser. A `signup`
+value opens a session only for an account that registered itself: one an
+invitation created is refused as a wrong value is, and in invitation-only mode
+`signup` is refused before GoTrue is asked. GoTrue caches
 templates for up to 10 minutes: restart `auth` after deploying new templates.
 
 Every link GoTrue mails carries a value derived from a numeric one-time code.

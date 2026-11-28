@@ -12,6 +12,8 @@ export type Identity = {
   password: string | null;
   confirmed: boolean;
   invitedAt: string | null;
+  /** When the address was confirmed, if it was confirmed before this moment. */
+  confirmedAt?: string | null;
   createdAt: string;
   token: string | null;
   /** Set when the person has ever signed in. */
@@ -45,7 +47,7 @@ export function fakeIdentityService() {
     created_at: u.createdAt,
     invited_at: u.invitedAt,
     last_sign_in_at: u.lastSignInAt ?? null,
-    email_confirmed_at: u.confirmed ? nowIso() : null,
+    email_confirmed_at: u.confirmed ? (u.confirmedAt ?? nowIso()) : null,
     banned_until: u.bannedUntil ?? null,
     app_metadata: { provider: "email", ...(u.appMetadata ?? {}) },
   });
@@ -138,6 +140,22 @@ export function fakeIdentityService() {
       if (!wanted || u.token !== wanted) return false;
       u.confirmed = true;
       return true;
+    },
+    /**
+     * The person spends an emailed token hash: the identity that holds it is confirmed and
+     * answers with its user and a session. A token nobody holds is refused as the service
+     * refuses an expired one.
+     */
+    verifyToken(tokenHash: string) {
+      const found = [...identities.entries()].find(([, u]) => u.token === tokenHash);
+      if (!found) {
+        return { data: { user: null, session: null }, error: { __isAuthError: true, name: "AuthApiError", status: 403, code: "otp_expired", message: "Email link is invalid or has expired" } };
+      }
+      const [email, u] = found;
+      u.confirmed = true;
+      u.confirmedAt ??= nowIso();
+      u.token = null;
+      return { data: { user: publicUser(email, u), session: { access_token: `access-${u.id}`, refresh_token: `refresh-${u.id}` } }, error: null };
     },
     choosePassword(email: string, password: string) {
       identities.get(email)!.password = password;
