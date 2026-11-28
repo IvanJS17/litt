@@ -20,6 +20,8 @@ const h = vi.hoisted(() => ({
     /** How many times the clean-up function was called, and which client rows it treats as idle (it removes those). */
     purgeCalls: 0,
     idle: new Set<string>(),
+    /** When set, the clean-up's answer waits for it. */
+    purgeGate: null as null | Promise<void>,
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -86,7 +88,13 @@ function dbWithGrantFilter(rows: Record<string, Row[]>) {
         },
     });
     type Builder = Record<string, (...args: unknown[]) => unknown>;
-    const db = state.db as unknown as { from: (table: string) => Builder };
+    const db = state.db as unknown as { from: (table: string) => Builder; rpc: (...args: unknown[]) => Promise<unknown> };
+    const realRpc = db.rpc;
+    db.rpc = async (...args: unknown[]) => {
+        const answer = realRpc(...args);
+        if (h.purgeGate) await h.purgeGate;
+        return answer;
+    };
     const realFrom = db.from;
     db.from = (table: string) => {
         const builder = realFrom(table);
@@ -142,6 +150,7 @@ beforeEach(() => {
     h.countRead = "ok";
     h.purgeCalls = 0;
     h.idle.clear();
+    h.purgeGate = null;
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", WEB);
@@ -452,6 +461,25 @@ describe("the clean-up when a first-seen metadata-document client meets the numb
         const lines = reportLines(warn);
         expect(lines).toHaveLength(1);
         expect(lines[0]).not.toContain("app.example");
+    });
+
+    it("runs one clean-up for two first-seen metadata-document requests started together", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        const other = "https://other.example/oauth/client.json";
+        h.documents.set(other, doc(other));
+        seedUnapproved(CAP);
+        let release!: () => void;
+        h.purgeGate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const both = Promise.all([authorizeFresh(DOC_URL), authorizeFresh(other)]);
+        for (let i = 0; i < 100 && h.purgeCalls === 0; i++) await new Promise((r) => setTimeout(r, 10));
+        // the second request has had time to reach the check while the first waits for the clean-up
+        await new Promise((r) => setTimeout(r, 200));
+        release();
+        const answers = await both;
+        expect(answers.map((a) => a.status)).toEqual([429, 429]);
+        expect(h.purgeCalls).toBe(1);
     });
 
     it("does not clean up below the number", async () => {

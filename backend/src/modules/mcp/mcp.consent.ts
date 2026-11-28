@@ -110,6 +110,14 @@ export async function getConsentView(
             });
         if (!clientQuery.data)
             return failure("not_found", "This connection request has expired.", "mcp_request_expired");
+        // A person is looking at this request: the client is in use, so the
+        // clean-up of idle clients keeps it, and so its open request.
+        const mark = await db
+            .from("mcp_oauth_clients")
+            .update({ last_used_at: nowIso() })
+            .eq("client_id", row.client_id);
+        if (mark.error)
+            throw new AppError("mcp.db_failed", "[mcp] client mark failed", { cause: mark.error });
         const client = toClient(clientQuery.data as ClientRow);
         const workspaces = await allowedWorkspaces(db, args.userId, args.personalWorkspaceDisabled);
         return ok({

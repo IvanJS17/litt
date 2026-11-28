@@ -429,6 +429,106 @@ describe("the consent page API", () => {
     });
 });
 
+describe("opening the approval screen marks the client as in use", () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const seedOld = () => {
+        tables().mcp_oauth_clients.push({
+            client_id: "litt_dcr_old",
+            kind: "dcr",
+            client_name: "Old",
+            redirect_uris: [REDIRECT],
+            created_at: new Date(Date.now() - 8 * DAY).toISOString(),
+            last_used_at: null,
+        });
+    };
+    const client = () => tables().mcp_oauth_clients.find((c) => c.client_id === "litt_dcr_old")!;
+    /** What the clean-up reads: the later of last use and creation, against seven days. */
+    const idleForSevenDays = (c: Record<string, unknown>) =>
+        Date.parse(String(c.last_used_at ?? c.created_at)) < Date.now() - 7 * DAY;
+    const openRequestFor = async () => requestIdOf((await authorize({ clientId: "litt_dcr_old" })).headers.location);
+
+    it("marks it, so the clean-up keeps the client and its open request", async () => {
+        seedOld();
+        const requestId = await openRequestFor();
+        expect(client().last_used_at ?? null).toBeNull();
+        expect(idleForSevenDays(client())).toBe(true);
+        const before = Date.now();
+        const res = await request(app).get(`/mcp-connect/authorizations/${requestId}`);
+        expect(res.status).toBe(200);
+        expect(Date.parse(String(client().last_used_at))).toBeGreaterThanOrEqual(before - 1000);
+        expect(idleForSevenDays(client())).toBe(false);
+        expect(tables().mcp_oauth_requests).toHaveLength(1);
+    });
+
+    it("marks only the client of the request the person opened", async () => {
+        seedOld();
+        tables().mcp_oauth_clients.push({
+            client_id: "litt_dcr_other_old",
+            kind: "dcr",
+            client_name: "Other",
+            redirect_uris: [REDIRECT],
+            created_at: new Date(Date.now() - 8 * DAY).toISOString(),
+            last_used_at: null,
+        });
+        const requestId = await openRequestFor();
+        expect((await request(app).get(`/mcp-connect/authorizations/${requestId}`)).status).toBe(200);
+        expect(client().last_used_at ?? null).not.toBeNull();
+        const other = tables().mcp_oauth_clients.find((c) => c.client_id === "litt_dcr_other_old")!;
+        expect(other.last_used_at ?? null).toBeNull();
+    });
+
+    it("is not done by the authorization request without a session", async () => {
+        seedOld();
+        const res = await authorize({ clientId: "litt_dcr_old" });
+        expect(res.status).toBe(302);
+        expect(client().last_used_at ?? null).toBeNull();
+        expect(idleForSevenDays(client())).toBe(true);
+    });
+
+    it("shows nothing and answers the generic failure when the mark cannot be written, naming no person or client in the log", async () => {
+        seedOld();
+        const requestId = await openRequestFor();
+        const logged: string[] = [];
+        for (const method of ["error", "warn", "log"] as const)
+            vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+                logged.push(args.map((a) => (a instanceof Error ? `${a.message} ${a.stack}` : typeof a === "string" ? a : JSON.stringify(a))).join(" "));
+            });
+        h.state!.failNext("mcp_oauth_clients", "update", { message: "write unavailable" });
+        const res = await request(app).get(`/mcp-connect/authorizations/${requestId}`);
+        expect(res.status).toBe(500);
+        expect(res.body.client).toBeUndefined();
+        expect(JSON.stringify(res.body)).not.toContain("write unavailable");
+        expect(client().last_used_at ?? null).toBeNull();
+        const text = logged.join("\n");
+        expect(text).toContain("mcp.db_failed");
+        for (const secret of ["user-1", "ana@firm.example", "litt_dcr_old", "web-session-token"]) expect(text).not.toContain(secret);
+        vi.restoreAllMocks();
+    });
+
+    it("still lets the person approve after opening the screen", async () => {
+        seedOld();
+        const requestId = await openRequestFor();
+        expect((await request(app).get(`/mcp-connect/authorizations/${requestId}`)).status).toBe(200);
+        const res = await request(app)
+            .post(`/mcp-connect/authorizations/${requestId}/decision`)
+            .send({ decision: "approve", workspaces: ["personal"], scopes: ["litt.read"] });
+        expect(res.status).toBe(200);
+        expect(new URL(res.body.redirect_url).searchParams.get("code")).toBeTruthy();
+        expect(tables().mcp_grants).toHaveLength(1);
+        expect(idleForSevenDays(client())).toBe(false);
+    });
+
+    it("still lets the person refuse after opening the screen", async () => {
+        seedOld();
+        const requestId = await openRequestFor();
+        expect((await request(app).get(`/mcp-connect/authorizations/${requestId}`)).status).toBe(200);
+        const res = await request(app).post(`/mcp-connect/authorizations/${requestId}/decision`).send({ decision: "deny" });
+        expect(res.status).toBe(200);
+        expect(new URL(res.body.redirect_url).searchParams.get("error")).toBe("access_denied");
+        expect(tables().mcp_grants).toHaveLength(0);
+    });
+});
+
 describe("authorization code → tokens", () => {
     it("issues opaque tokens bound to the user, client, workspaces and resource, stored hashed", async () => {
         const { token, back, code } = await connect({ workspaces: ["personal", "11111111-1111-4111-8111-111111111111"] });
