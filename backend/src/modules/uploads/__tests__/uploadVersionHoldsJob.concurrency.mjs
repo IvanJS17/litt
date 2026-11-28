@@ -198,13 +198,23 @@ try {
 } finally {
   // A failed check must not leave a transaction open over the rows to remove.
   await Promise.allSettled([...opened].map((session) => session.finish("rollback;\n")));
-  // Disposable database: triggers are skipped for the cleanup alone.
+  // Disposable database: triggers are skipped for the cleanup alone, so the
+  // rows that triggers derived from the fixtures (text extraction, cleanup
+  // jobs, the account's own workspace) are removed here by name. The checks
+  // that run after this script count rows.
+  const versions = `select id from public.document_versions where document_id in (${uuid(created.documents) || "null"})`;
   await query(`
     set session_replication_role = replica;
+    delete from public.db_jobs where payload->>'versionId' in (select id::text from (${versions}) v);
+    delete from public.document_version_texts where version_id in (${versions});
     delete from public.upload_processing_jobs where user_id = '${user}';
     delete from public.upload_session_files where session_id in (${uuid(created.sessions) || "null"});
     delete from public.upload_sessions where user_id = '${user}';
     delete from public.document_versions where document_id in (${uuid(created.documents) || "null"});
     delete from public.documents where user_id = '${user}';
+    delete from public.memory_files where user_id = '${user}';
+    delete from public.organizations where id in (select org_id from public.org_members where user_id = '${user}');
+    delete from public.org_members where user_id = '${user}';
+    delete from public.user_profiles where user_id = '${user}';
     delete from auth.users where id = '${user}';`);
 }
