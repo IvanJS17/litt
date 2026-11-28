@@ -220,6 +220,8 @@ async function loadUserReviews(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
     tally: HeldBack,
+    /** Filled with the id of each review counted as refused. */
+    refusedIds?: Set<unknown>,
 ) {
     const reviews = await selectAll(db, "tabular_reviews", {
         filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
@@ -228,7 +230,10 @@ async function loadUserReviews(
     return readableRows(
         reviews,
         createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
-        () => holdBack(tally, "table_reviews"),
+        (review) => {
+            holdBack(tally, "table_reviews");
+            refusedIds?.add(review.id);
+        },
     );
 }
 
@@ -309,7 +314,10 @@ async function loadUserTabularChats(
     orgId: ExportWorkspace,
     tally: HeldBack,
 ) {
-    return (await loadUserTabularChatsJudged(db, userId, userEmail, orgId, tally)).result;
+    const loaded = await loadUserTabularChatsJudged(db, userId, userEmail, orgId, tally);
+    // This download carries no reviews: the chats of one that was refused are counted here.
+    holdBack(tally, "table_review_chats", loaded.leftOutWithReview.length);
+    return loaded.result;
 }
 
 async function loadUserTabularChatsJudged(
@@ -339,9 +347,11 @@ async function loadUserTabularChatsJudged(
         (review) => refusedReviews.add(review.id),
     );
     const reviewIds = new Set(idsFrom(readableReviews));
-    // The chats of a review the holder cannot open are left out whole.
-    holdBack(tally, "table_review_chats", candidates.filter((chat) => refusedReviews.has(chat.review_id)).length);
-    return loadReadableTabularTranscriptsJudged(
+    // The chats of a review the holder cannot open are left out whole. The
+    // caller counts them: a download that carries the reviews counts the
+    // review, which covers its chats.
+    const leftOutWithReview = candidates.filter((chat) => refusedReviews.has(chat.review_id)).map((chat) => chat.review_id);
+    const loaded = await loadReadableTabularTranscriptsJudged(
         db,
         candidates.filter(
             (chat) =>
@@ -352,6 +362,7 @@ async function loadUserTabularChatsJudged(
         userEmail,
         tally,
     );
+    return { ...loaded, leftOutWithReview };
 }
 
 /**
@@ -754,6 +765,8 @@ export async function buildUserAccountExport(
         orgId ? Promise.resolve(empty) : load();
     const normalizedEmail = userEmail?.trim().toLowerCase();
     const tally: HeldBack = new Map();
+    // Reviews counted as refused: a chat of one is covered by that count.
+    const refusedReviewIds = new Set<unknown>();
     const [
         profile,
         apiKeys,
@@ -858,7 +871,7 @@ export async function buildUserAccountExport(
             : Promise.resolve([]),
         loadUserChatsJudged(db, userId, userEmail, orgId, tally),
         loadUserTabularChatsJudged(db, userId, userEmail, orgId, tally),
-        loadUserReviews(db, userId, userEmail, orgId, tally),
+        loadUserReviews(db, userId, userEmail, orgId, tally, refusedReviewIds),
         normalizedEmail
             ? (async () => {
                   // Grants are candidates too: stale grants cannot override
@@ -895,7 +908,10 @@ export async function buildUserAccountExport(
                       const readable = await readableRows(
                           rows.filter((row) => rowInWorkspace(row, orgId)),
                           createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
-                          () => holdBack(tally, "shared_table_reviews"),
+                          (review) => {
+                              holdBack(tally, "shared_table_reviews");
+                              refusedReviewIds.add(review.id);
+                          },
                       );
                       return readable.map(
                           ({ org_id: _org, archived_at: _archive, ...row }) => row,
@@ -909,6 +925,8 @@ export async function buildUserAccountExport(
         }),
         loadMemoryExport(db, "user", userId, orgId),
     ]);
+
+    holdBack(tally, "table_review_chats", tabularLoaded.leftOutWithReview.filter((id) => !refusedReviewIds.has(id)).length);
 
     // Organization membership + the orgs the user belongs to and the
     // invitations addressed to them, for a complete GDPR-style export of
@@ -1117,6 +1135,9 @@ export async function buildUserAccountExport(
         typeof row.document_id === "string" ? [row.document_id] : [],
     );
     holdBackTraining(openReadings, readableReadings);
+    // Counted once: a kept reading of a deleted document that had passages or a comparison to blank.
+    const blankedReading = (row: Row) => typeof row.document_id !== "string" && (row.machine_findings != null || row.comparison != null);
+    holdBack(tally, "training_records", readableReadings.filter((row) => blankedReading(row) && !ofLeftOrg(row)).length);
     const readings = readableReadings.map((row) => (typeof row.document_id === "string" ? row : { ...row, machine_findings: null, comparison: null }));
     // A defense hangs from a work review: what was derived from a withheld
     // review goes with it, and from none recorded (a practice-area defense is
@@ -1139,6 +1160,12 @@ export async function buildUserAccountExport(
                 !ofLeftOrg(row),
         ).length,
     );
+    // Counted once: a kept defense with no work review (deleted) that had questions or a note to blank.
+    holdBack(
+        tally,
+        "training_records",
+        trainingDefenses.filter((row) => typeof row.work_review_id !== "string" && (row.questions != null || row.outcome_note != null) && !ofLeftOrg(row)).length,
+    );
     const defenses = trainingDefenses.map((row) =>
         typeof row.work_review_id === "string" && keptReviewIds.has(row.work_review_id)
             ? row
@@ -1151,13 +1178,17 @@ export async function buildUserAccountExport(
         noteIdsOf(row).every((id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id)),
     );
     holdBackTraining(trainingRetakes, retakesKept);
-    const retakes = retakesKept
-        .map((row) => {
-            const ids = noteIdsOf(row);
-            return ids.length > 0 && ids.every((id) => typeof id === "string" && allNoteIds.has(id))
-                ? row
-                : { ...row, question: null, contrast: null };
-        });
+    const notesGone = (row: Row) => {
+        const ids = noteIdsOf(row);
+        return !(ids.length > 0 && ids.every((id) => typeof id === "string" && allNoteIds.has(id)));
+    };
+    // Counted once: a kept retake whose notes cannot all be found and that had a question or contrast to blank.
+    holdBack(
+        tally,
+        "training_records",
+        retakesKept.filter((row) => notesGone(row) && (row.question != null || row.contrast != null) && !ofLeftOrg(row)).length,
+    );
+    const retakes = retakesKept.map((row) => (notesGone(row) ? { ...row, question: null, contrast: null } : row));
 
     // Retainer requests that name the holder, in matters they can still open.
     const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId, tally);

@@ -579,14 +579,23 @@ permissions again when a queued request executes. No domain facade re-exports
 these workflows. Every JSON download (account, chats only, table reviews only)
 carries a top-level `held_back` field, in Spanish and English with a count per
 kind and never a name or an id, only when it left something out because the
-holder cannot open it, or what it was drawn from, today (conversations, review
-chats and cells, documents, playbooks and runs, training records, matter
-requests and other matter records). Archived rows and the records of an
-organization the holder has left are not counted, except where the reason
-cannot be told apart without a second access check: a record whose chat or
-review no longer exists, a run whose document was deleted, a row refused at
-read time where the holder's membership of its organization is not at hand,
-and a matter record whose project is archived are counted.
+holder cannot open it, or what it was drawn from, today (projects, workflows,
+conversations and Word chats, table reviews, their chats and cells, projects
+and table reviews shared with the holder, documents, playbooks and runs, training
+records, matter requests and other matter records). A row kept with content
+blanked because its source is gone (a playbook run or training reading whose
+document was deleted, a defense whose work review was deleted, a retake whose
+notes cannot all be found) is counted once, if there was something to blank. Where a
+download carries the table reviews, a review the holder cannot open is counted
+once and covers its chats and cells; the chats-only download counts the chats.
+Archived rows and the records of an organization the holder has left are not
+counted, except where the reason cannot be told apart without a second access
+check: a record whose chat or review no longer exists, a row refused at read
+time where the holder's membership of its organization is not at hand, and a
+matter record whose project is archived are counted. Records that belong to no
+matter or project of the workspace being downloaded (a matter without a project
+or without its row, a question or answer without a matter, a suggestion with
+neither) are outside the download and are not counted.
 
 Projects own `projects.lifecycle.ts` and `projects.export.ts`. Document lifecycle
 mutations continue through documents. Shared credential persistence, precedence

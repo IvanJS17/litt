@@ -89,9 +89,12 @@ changes to the team no longer move them. What changes is that the team is no
 longer the only door: the project's own rules decide, so its creator (while
 still a member of the organization), an organization owner (when the project
 is visible to the organization, or has no owner left) and anyone holding an
-access entry on the project can open it. Before making a matter public,
-review who those rules admit and remove what is not wanted. The application
-has no function to change a matter's visibility; it is done in the database.
+access entry that grants a role can open it. An entry that denies closes it to
+its holder, unless the holder is its creator or such an organization owner.
+When the project is visible to the organization, every other member of the
+organization has the editor role. Before making a matter public, review who
+those rules admit and remove what is not wanted. The application has no
+function to change a matter's visibility; it is done in the database.
 
 The screens for these actions are pending
 (TD-029). Apply these migrations, in order, before deploying the backend:

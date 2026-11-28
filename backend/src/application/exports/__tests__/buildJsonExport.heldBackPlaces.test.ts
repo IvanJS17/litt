@@ -65,7 +65,7 @@ describe("account export: each place that leaves something out is counted under 
             tabular_reviews: [{ id: "r", user_id: holder, org_id: "org", project_id: "p-walled" }],
             tabular_review_chats: [{ id: "tc", review_id: "r", user_id: holder, title: "TC-HELD-BACK", created_at: at }],
         };
-        expect((await account(tables)).held_back.counts).toEqual({ table_reviews: 1, table_review_chats: 1 });
+        expect((await account(tables)).held_back.counts).toEqual({ table_reviews: 1 });
         expect((await buildUserChatsExport(makeExportDb(tables).db, holder, email, "org") as any).held_back.counts).toEqual({ table_review_chats: 1 });
     });
 
