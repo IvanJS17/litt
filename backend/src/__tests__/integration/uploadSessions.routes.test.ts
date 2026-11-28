@@ -214,7 +214,7 @@ describe("upload session routes", () => {
     expect(response.status).toBe(413);
     expect(response.body.code).toBe("storage_quota_exceeded");
     expect(response.body.detail).toMatch(/no storage space left/i);
-    expect(response.body.detail).toMatch(/to store this/i);
+    expect(response.body.detail).toMatch(/can't be uploaded or saved/i);
     expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
   });
 

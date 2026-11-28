@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   /** Whether the person is a member of the firm. */
   member: true,
+  /** Whether reading the membership fails. */
+  memberReadFails: false,
   /** Whose personal document a new version is added to. */
   documentOwner: "11111111-1111-4111-8111-111111111111",
 }));
@@ -46,21 +48,16 @@ vi.mock("../../../lib/supabase", () => ({
       const query: Record<string, unknown> = {};
       for (const method of ["select", "eq", "in", "is", "order", "limit"])
         query[method] = () => query;
-      query.maybeSingle = async () => ({
-        data:
-          table === "projects"
-            ? { org_id: "33333333-3333-4333-8333-333333333333" }
-            : table === "organizations"
-              ? { kind: "team" }
-              : table === "org_members"
-                ? mocks.member
-                  ? { role: "member" }
-                  : null
-                : table === "documents"
-                  ? { org_id: null, user_id: mocks.documentOwner }
-                  : null,
-        error: null,
-      });
+      query.maybeSingle = async () => {
+        if (table === "org_members" && mocks.memberReadFails) throw new Error("down");
+        const rows: Record<string, unknown> = {
+          projects: { org_id: "33333333-3333-4333-8333-333333333333" },
+          organizations: { kind: "team" },
+          org_members: mocks.member ? { role: "member" } : null,
+          documents: { org_id: null, user_id: mocks.documentOwner },
+        };
+        return { data: rows[table] ?? null, error: null };
+      };
       return query;
     },
   }),
@@ -114,6 +111,7 @@ describe("opening an upload session says how full the space is", () => {
     mocks.usage.personal = { used_bytes: 0, limit_bytes: 1000 };
     mocks.usage.firm = { used_bytes: 0, limit_bytes: 1000 };
     mocks.member = true;
+    mocks.memberReadFails = false;
     mocks.documentOwner = USER;
     mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
       if (name === "storage_space_usage") {
@@ -197,6 +195,16 @@ describe("opening an upload session says how full the space is", () => {
 
   it("says nothing of a firm's space to someone who is not a member of it", async () => {
     mocks.member = false;
+    mocks.usage.firm = { used_bytes: 950, limit_bytes: 1000 };
+    const response = await request(app).post("/upload-sessions").send(firmUpload);
+    expect(response.status).toBe(201);
+    expect(response.body).not.toHaveProperty("storageLevel");
+    expect(response.body).not.toHaveProperty("storageSpace");
+    expect(usageReads()).toBe(0);
+  });
+
+  it("says nothing, and still opens the session, when the membership cannot be read", async () => {
+    mocks.memberReadFails = true;
     mocks.usage.firm = { used_bytes: 950, limit_bytes: 1000 };
     const response = await request(app).post("/upload-sessions").send(firmUpload);
     expect(response.status).toBe(201);

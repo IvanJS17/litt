@@ -44,7 +44,7 @@ describe("failure text in es-MX", () => {
             describeError(apiError(413, "storage_quota_exceeded", "API error: 413")),
         ).toMatchObject({
             kind: "validation",
-            message: expect.stringMatching(/Ya no hay espacio de almacenamiento.*subir.*guardar versiones nuevas/),
+            message: expect.stringMatching(/Ya no hay espacio de almacenamiento.*no se puede subir ni guardar/),
         });
     });
 
