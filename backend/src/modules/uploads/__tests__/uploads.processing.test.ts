@@ -1383,13 +1383,16 @@ describe("upload processing", () => {
       purpose: "document_version_create" as const,
       destination: { document_id: documentId, base_version_id: baseVersionId, generate_pdf: false },
     };
-    const versionDb = () => fakeDb({
+    // The version the save was made on is read for its seal (default: not held).
+    const notHeld = { id: baseVersionId, training_author_user_id: null, training_stage: null, content_sha256: "h" };
+    const versionDb = (base: Record<string, unknown> = notHeld, stages: unknown[] = [], org: string | null = null, approvals: unknown[] = []) => fakeDb({
+      documents: [{ data: { org_id: org, project_id: null }, error: null }],
       document_versions: [
         { data: null, error: null },
         { data: { version_number: 2 }, error: null },
         { data: { id: baseFile.resource_id }, error: null },
       ],
-    });
+    }, { document_versions: [base], training_stages: stages, training_version_approvals: approvals });
 
     it("creates a NEW version with source user_edit, tied to its base, without touching any other version or building a PDF", async () => {
       mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
@@ -1408,11 +1411,40 @@ describe("upload processing", () => {
 
     it("writes only a new version (RPC): no version row is updated, replaced or deleted, so the base keeps its file and SHA", async () => {
       mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
-      const db = scriptedDb([{ data: null }, { data: { version_number: 2 } }, { data: { id: baseFile.resource_id } }]);
+      const db = scriptedDb([{ data: [notHeld] }, { data: { org_id: null, project_id: null } }]);
       await processUploadFile(db as never, editSession, docxFile);
       expect(db.rpc).toHaveBeenCalledOnce();
       expect(db.calls.filter((call) => call.operation && call.operation !== "select")).toEqual([]);
       expect(mocks.deleteFile).not.toHaveBeenCalled();
+    });
+
+    const sealedByOther = { ...notHeld, training_author_user_id: "other-trainee", training_stage: "pasante" };
+    const approved = [{ document_version_id: baseVersionId, content_sha256: "h" }];
+    const pasante = [{ practice: null, stage: "pasante" }];
+    it.each([
+      ["a pasante", "held under another pasante", sealedByOther, pasante, [], "other-trainee"],
+      ["a lawyer", "held under a pasante", sealedByOther, [], [], "other-trainee"],
+      ["a pasante", "sealed and approved", sealedByOther, pasante, approved, baseSession.user_id],
+      ["a lawyer", "sealed and approved", sealedByOther, [], approved, null],
+      ["a pasante", "never sealed", notHeld, pasante, [], baseSession.user_id],
+      ["a lawyer", "never sealed", notHeld, [], [], null],
+    ])("%s saving on a version %s: the new version is held under whom its base and its maker say", async (_who, _what, base, stages, approvals, heldUnder) => {
+      mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
+      const db = versionDb(base, stages, "org-1", approvals);
+      await processUploadFile(db as never, editSession, docxFile);
+      const version = (db.rpc.mock.calls[0]![1] as { p_version: Record<string, unknown> }).p_version;
+      if (heldUnder) expect(version).toMatchObject({ training_author_user_id: heldUnder, training_stage: "pasante" });
+      else {
+        expect(version).not.toHaveProperty("training_author_user_id");
+        expect(version).not.toHaveProperty("training_stage");
+      }
+    });
+
+    it("does not write a version when the version it was made on cannot be read", async () => {
+      mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
+      const db = fakeDb({ documents: [{ data: { org_id: "org-1", project_id: null }, error: null }] });
+      await expect(processUploadFile(db as never, editSession, docxFile)).rejects.toMatchObject({ kind: "training.copy_source_missing" });
+      expect(db.rpc).not.toHaveBeenCalled();
     });
 
     it("an ordinary upload is a user_upload with no base", async () => {

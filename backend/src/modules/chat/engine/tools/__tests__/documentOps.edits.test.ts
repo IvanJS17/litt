@@ -83,6 +83,8 @@ const initial = () => [
 ];
 // After activation the result says whether the version may leave
 // (lib/trainingRelease): one read, plus the approvals when it is sealed.
+const NOT_HELD = { training_author_user_id: null, training_stage: null };
+const SEALED_BASE = { training_author_user_id: "other-trainee", training_stage: "pasante" } as const;
 const UNSEALED_RELEASE = [
   { table: "document_versions", data: { training_stage: null, content_sha256: "hash" } },
 ];
@@ -94,9 +96,13 @@ const SEALED_RELEASE = [
 function newVersionDb(
   options: {
     editsFail?: boolean;
-    createFail?: boolean;
+    createFail?: boolean | "conflict";
     activation?: boolean;
     seal?: Array<{ table: string; data?: unknown }>;
+    /** The seal of the version the edit was read from (default: never sealed). */
+    base?: { training_author_user_id: string; training_stage: "pasante" } | null;
+    /** Whether the sealed version it was read from is approved for its bytes. */
+    baseApproved?: boolean;
     release?: Array<{ table: string; data?: unknown }>;
   } = {},
 ) {
@@ -105,6 +111,11 @@ function newVersionDb(
   const fake = scriptedDb([
     ...initial(),
     { table: "document_versions", data: { filename: "Renamed.docx" } },
+    // The version the edit was made from is read for its seal.
+    { table: "document_versions", data: [{ id: "active", content_sha256: "h", ...(options.base ?? NOT_HELD) }] },
+    ...(options.base
+      ? [{ table: "training_version_approvals", data: options.baseApproved ? [{ document_version_id: "active", content_sha256: "h" }] : [] }]
+      : []),
     ...(options.seal ?? [{ table: "documents", data: null }]),
     ...(!options.createFail
       ? [
@@ -125,7 +136,7 @@ function newVersionDb(
       );
       expect(params.p_activate).toBe(false);
       return options.createFail
-        ? { data: null, error: { message: "version insert failed" } }
+        ? { data: null, error: { message: options.createFail === "conflict" ? "document_version_conflict" : "version insert failed" } }
         : { data: { id: "version", version_number: 9 }, error: null };
     }
     expect(name).toBe("activate_document_version");
@@ -324,6 +335,16 @@ describe("assistant document-edit lifecycle", () => {
     expect(fake.rpc).toHaveBeenCalledOnce();
     fake.done();
   });
+  it("says the document changed when the version it read is no longer the current one, and drops its upload", async () => {
+    const fake = newVersionDb({ createFail: "conflict" });
+    expect(await run(fake.db)).toEqual({
+      ok: false,
+      error: "The document changed while it was being edited. Read the latest version and try again.",
+    });
+    expect(fake.rpc).toHaveBeenCalledOnce();
+    expect(mocks.deleteFileBestEffort).toHaveBeenCalledWith(expect.stringContaining("documents/actor/doc/edits/"), "assistant-edit-conflict");
+    fake.done();
+  });
   it("does not report success if the target was deleted before activation", async () => {
     const fake = newVersionDb({ activation: false });
     expect(await run(fake.db)).toEqual({
@@ -450,6 +471,26 @@ describe("assistant document-edit lifecycle", () => {
       expect(version).not.toHaveProperty("training_author_user_id");
       expect(version).not.toHaveProperty("training_stage");
     }
+    fake.done();
+  });
+  const heldSeal = [{ table: "documents", data: { org_id: "org" } }];
+  it.each([
+    ["a pasante", "held under another pasante", heldSeal, SEALED_BASE, false, true],
+    ["a lawyer", "held under a pasante", heldSeal, SEALED_BASE, false, true],
+    ["a pasante", "sealed and approved", pasanteSeal, SEALED_BASE, true, true],
+    ["a lawyer", "sealed and approved", lawyerSeal, SEALED_BASE, true, false],
+    ["a pasante", "never sealed", pasanteSeal, null, false, true],
+    ["a lawyer", "never sealed", lawyerSeal, null, false, false],
+  ])("a first edit by %s of a version %s gives a version held or not as its seal says", async (_who, _from, seal, base, baseApproved, held) => {
+    const fake = newVersionDb({ seal, base, baseApproved, release: held ? SEALED_RELEASE : UNSEALED_RELEASE });
+    expect(await run(fake.db)).toMatchObject({ ok: true, training_held: held });
+    const version = fake.rpc.mock.calls[0][1].p_version as Record<string, unknown>;
+    expect(version.base_version_id).toBe("active");
+    if (!held) expect(version).not.toHaveProperty("training_stage");
+    else
+      expect(version).toMatchObject(
+        base && !baseApproved ? base : { training_author_user_id: "actor", training_stage: "pasante" },
+      );
     fake.done();
   });
   it.each([

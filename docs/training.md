@@ -749,11 +749,12 @@ facade decides the seal before calling `create_document_version`:
 
 | Paths | Authorship | Seal |
 |---|---|---|
-| A1 upload, A2 new version, A4 assistant edit, A6 generated file | the actor | sealed with the actor as author when the actor's effective stage (`resolveTrainingStage`, in the document's organization and project) is `pasante` |
+| A1 upload, A2 new version uploaded as a file, A6 generated file | the actor | sealed with the actor as author when the actor's effective stage (`resolveTrainingStage`, in the document's organization and project) is `pasante` |
+| A4 assistant edit (first edit of a turn), editor save (Word or Markdown) | the actor, made from the version the actor started from (`base_version_id`) | when that version is held (sealed and not approved for its bytes), the new one keeps its seal and author, whoever saves it, and needs its own approval; when it is approved or was never sealed, the actor's stage decides: sealed with the actor as author when the actor is a `pasante` |
 | A3 version from another document, A5 replicate, A8 copy to workflow assets, A9 copy to another project | a copy of the source version | the source's seal and author, whoever copies |
 | A7 workflow add-on from the catalog | catalog | never |
 | A10 approved AI review report | the reviewer | the backend always states `training_stage` (`'pasante'` or `null`); `append_ai_review_export` refuses a contract without it |
-| U1 accept/reject an edit, U2 same-turn edit, U3 replacement (editor save) | the actor (`updateDocumentVersion` requires `actorUserId`) | on a version not yet sealed, a pasante seals it in place; on a sealed version the change is written as a new version that keeps that version's seal (below) |
+| U1 accept/reject an edit, U2 same-turn edit, U3 replacement of a version's file (document table, workflow assets) | the actor (`updateDocumentVersion` requires `actorUserId`) | on a version not yet sealed, a pasante seals it in place; on a sealed version the change is written as a new version that keeps that version's seal (below) |
 | U4 conversion (rendition only) | — | no change |
 
 The stored content of a sealed version never changes: `updateDocumentVersion`
@@ -763,6 +764,8 @@ Accepting or rejecting a change, and replacing a version's file, then create a
 new version based on the sealed one. It keeps the seal of that version (the
 same training author and stage, whoever makes the change) and needs its own
 approval because its content is new; the response names that version.
+Conversion, comparison and split refuse a version that is held (`409`), so
+what they produce is made only from approved or unsealed content.
 The assistant's later edits within one turn follow the same rule: while the turn's version is unsealed they are
 written to it, and when it is sealed each one makes a new version.
 
