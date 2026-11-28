@@ -544,12 +544,14 @@ Every signed-in request needs the person to have accepted the current Terms
 `terms_acceptance_required` unless the person has accepted; nothing is cached,
 so accepting unblocks the next request. The only routes that answer without it
 are the ones in `TERMS_GATE_ALLOW_LIST` (`lib/termsGate.ts`, one reason each):
-reading the profile and accepting, the second-factor and password steps that
-come before the Terms screen, and the person's own account deletion and export.
+asking who is signed in, reading the profile and accepting, the second-factor
+and password steps that come before the Terms screen, and the person's own
+account deletion and export.
 Platform administrators are not exempt. Connected applications (`/mcp`) judge the
-same question in `revalidatePrincipal`: the handshake and the list of tools
-answer, while a tool call, a prompt or a resource is refused with a protocol
-error. The web shows its Terms screen when any request answers the code; the
+same question in `revalidatePrincipal`: what carries none of the person's data
+still answers (the handshake, `ping`, the list of tools and the fixed list of
+resource templates), while a tool call, a prompt or a resource is refused with
+a protocol error. The web shows its Terms screen when any request answers the code; the
 Word add-in tells the person to accept the Terms in LiTT on the web.
 
 ## Background jobs
