@@ -14,6 +14,7 @@ import { deleteFileBestEffort, downloadFile, uploadFile } from "../../lib/storag
 import { reportError } from "../../lib/observability/report";
 import type { Db } from "../../lib/supabase";
 import { profileAttributionName } from "../../lib/userLookup";
+import { isVersionConflict } from "./documents.markdown";
 import {
   activateDocumentVersion,
   createDocumentVersion,
@@ -236,6 +237,9 @@ export async function applyTrackedEditsToDocument(params: {
         authorship: baseSealed && reuseVersion
           ? { kind: "copy", sourceVersionId: reuseVersion.versionId }
           : { kind: "author", userId },
+        // Otherwise made from the version it read (the document's current
+        // one): when that is held, so is this one.
+        ...(baseSealed && reuseVersion ? {} : { base_version_id: activeVersion.id }),
         document_id: documentId,
         storage_path: newPath,
         source: "assistant_edit",
@@ -247,6 +251,12 @@ export async function applyTrackedEditsToDocument(params: {
         content_sha256: contentSha256(editedBytes),
       }, { activate: false });
     if (verErr || !versionRow) {
+      // The document moved on after this edit was read: the version was
+      // refused and nothing references the uploaded object.
+      if (isVersionConflict(verErr)) {
+        await deleteFileBestEffort(newPath, "assistant-edit-conflict");
+        return { ok: false, error: "The document changed while it was being edited. Read the latest version and try again." };
+      }
       return { ok: false, error: "Failed to record document version." };
     }
     versionRowId = versionRow.id as string;

@@ -8,13 +8,17 @@ import {
 import { type Db } from "../../lib/supabase";
 import { resolveTrainingStage } from "../../lib/training";
 import { AppError } from "../../lib/appError";
+import { heldVersionIds, type ReleaseCandidate } from "../../lib/trainingRelease";
 
 /**
  * Whose content a new version holds, which decides its pasante seal
  * (docs/training.md). Every insertion names one:
  * - `author`: content the actor wrote or produced (upload, edit, generated
  *   file). Sealed with the actor as author when the actor's effective stage
- *   in the document's organization and project is `pasante`.
+ *   in the document's organization and project is `pasante`. A version made
+ *   from another one of the document names it in the row's `base_version_id`:
+ *   when that one is held (sealed and not approved for its bytes) the new
+ *   version keeps its seal instead, whoever makes it.
  * - `copy`: bytes copied from another version, identified by its id or, when
  *   only the object is known, its storage path. The copy keeps the source's
  *   seal and author, whoever copies it.
@@ -207,7 +211,7 @@ async function sealedVersionRow(
   version: NewDocumentVersion,
 ): Promise<Record<string, unknown> & { document_id: string }> {
   const { authorship, ...metadata } = version;
-  const seal = await resolveSeal(db, version.document_id, authorship);
+  const seal = await resolveSeal(db, version.document_id, authorship, version.base_version_id);
   return seal.training_stage ? { ...metadata, ...seal } : metadata;
 }
 
@@ -219,10 +223,28 @@ async function resolveSeal(
   db: Db,
   documentId: string,
   authorship: VersionAuthorship,
+  baseVersionId?: string | null,
 ): Promise<TrainingSeal> {
   if (authorship.kind === "catalog") return NO_SEAL;
-  if (authorship.kind === "author")
-    return authorSeal(db, documentId, authorship.userId);
+  if (authorship.kind === "author") {
+    if (!baseVersionId) return authorSeal(db, documentId, authorship.userId);
+    // Made from a version: when that one is held (sealed and not approved for
+    // its bytes: the rule every blocked output uses) so is this one, whoever
+    // makes it. A base that cannot be read or found never reads as "not held".
+    const { data, error } = await db
+      .from("document_versions")
+      .select("id, training_author_user_id, training_stage, content_sha256")
+      .eq("id", baseVersionId);
+    if (error) throw error;
+    const base = ((data ?? []) as (TrainingSeal & ReleaseCandidate)[])[0];
+    if (!base)
+      throw new AppError("training.copy_source_missing", "The version this one is made from was not found");
+    const held = await heldVersionIds(db, [base]);
+    if (!held.ok)
+      throw "error" in held ? held.error : new AppError("db.query_failed", "The approvals could not be read");
+    if (!held.data.has(base.id)) return authorSeal(db, documentId, authorship.userId);
+    return heldCopySeal(db, documentId, base);
+  }
   let query = db
     .from("document_versions")
     .select("training_author_user_id, training_stage");
@@ -241,6 +263,11 @@ async function resolveSeal(
     (row) => row.training_stage === "pasante" && row.training_author_user_id,
   );
   if (!sealed) return NO_SEAL;
+  return heldCopySeal(db, documentId, sealed);
+}
+
+/** The held source's seal for a new version in `documentId`. */
+async function heldCopySeal(db: Db, documentId: string, sealed: TrainingSeal): Promise<TrainingSeal> {
   // Approval is decided inside an organization (documents.trainingApproval):
   // a sealed copy outside one could never be released, so it is not made.
   const { data: target, error: targetError } = await db

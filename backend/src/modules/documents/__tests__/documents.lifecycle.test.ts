@@ -308,3 +308,96 @@ it("preserves cached text when only the filename changes", async () => {
   expect(storage.deleteFile).not.toHaveBeenCalled();
   fake.done();
 });
+
+describe("a version made from a held version stays held; otherwise its maker's stage decides", () => {
+  const made = (over: object = {}) => ({
+    authorship: { kind: "author", userId: "maker" } as const,
+    document_id: "doc",
+    storage_path: "new/key",
+    source: "user_edit",
+    filename: "Escrito.docx",
+    base_version_id: "base",
+    ...over,
+  });
+  const sealed = { id: "base", training_author_user_id: "pupil", training_stage: "pasante", content_sha256: "h" };
+  const never = { id: "base", training_author_user_id: null, training_stage: null, content_sha256: "h" };
+  const sealOf = (fake: ReturnType<typeof scriptedDb>) =>
+    (fake.calls.find((call) => call.op === "rpc")!.args as { p_version: Record<string, unknown> }).p_version;
+  const makerIs = (stage: "pasante" | "lawyer") => [
+    { table: "documents", data: { org_id: "org", project_id: null } },
+    { table: "training_stages", data: stage === "pasante" ? [{ practice: null, stage: "pasante" }] : [] },
+  ];
+  const approval = { table: "training_version_approvals", data: [{ document_version_id: "base", content_sha256: "h" }] };
+  const noApproval = { table: "training_version_approvals", data: [] };
+  const create = { rpc: "create_document_version", data: { id: "v" } };
+
+  it.each(["pasante", "lawyer"] as const)("a held base keeps its seal whoever makes the version (%s)", async (who) => {
+    const fake = scriptedDb([
+      { table: "document_versions", data: [sealed] },
+      noApproval,
+      { table: "documents", data: { org_id: "org" } },
+      create,
+    ]);
+    await createDocumentVersion(fake.db, made({ authorship: { kind: "author", userId: who } }));
+    expect(sealOf(fake)).toMatchObject({ training_author_user_id: "pupil", training_stage: "pasante", base_version_id: "base" });
+    expect(fake.calls[0].filters).toContainEqual(["eq", "id", "base"]);
+    fake.done();
+  });
+
+  it.each([
+    ["a pasante", "pasante", { training_author_user_id: "maker", training_stage: "pasante" }],
+    ["a lawyer", "lawyer", null],
+  ] as const)("a sealed base that is approved leaves the seal to the maker (%s)", async (_who, stage, expected) => {
+    const fake = scriptedDb([{ table: "document_versions", data: [sealed] }, approval, ...makerIs(stage), create]);
+    await createDocumentVersion(fake.db, made());
+    if (expected) expect(sealOf(fake)).toMatchObject(expected);
+    else expect(sealOf(fake)).not.toHaveProperty("training_stage");
+    expect(sealOf(fake)).not.toMatchObject({ training_author_user_id: "pupil" });
+    fake.done();
+  });
+
+  it.each([
+    ["a pasante", "pasante", { training_author_user_id: "maker", training_stage: "pasante" }],
+    ["a lawyer", "lawyer", null],
+  ] as const)("a never sealed base leaves the seal to the maker, without reading approvals (%s)", async (_who, stage, expected) => {
+    const fake = scriptedDb([{ table: "document_versions", data: [never] }, ...makerIs(stage), create]);
+    await createDocumentVersion(fake.db, made());
+    if (expected) expect(sealOf(fake)).toMatchObject(expected);
+    else expect(sealOf(fake)).not.toHaveProperty("training_stage");
+    fake.done();
+  });
+
+  it("without a base the maker's stage decides, as before", async () => {
+    const fake = scriptedDb([...makerIs("lawyer"), create]);
+    await createDocumentVersion(fake.db, made({ base_version_id: undefined }));
+    expect(sealOf(fake)).not.toHaveProperty("training_stage");
+    fake.done();
+  });
+
+  it("fails and writes nothing when the base or its approvals cannot be read, or the base is gone", async () => {
+    const unreadable = scriptedDb([{ table: "document_versions", error: { message: "down" } }]);
+    expect(await createDocumentVersion(unreadable.db, made())).toMatchObject({ data: null, error: { kind: "db.query_failed" } });
+    unreadable.done();
+    const gone = scriptedDb([{ table: "document_versions", data: [] }]);
+    expect(await createDocumentVersion(gone.db, made())).toMatchObject({ data: null, error: { kind: "training.copy_source_missing" } });
+    gone.done();
+    const noApprovals = scriptedDb([
+      { table: "document_versions", data: [sealed] },
+      { table: "training_version_approvals", error: { message: "down" } },
+    ]);
+    const failed = await createDocumentVersion(noApprovals.db, made({ authorship: { kind: "author", userId: "lawyer" } }));
+    expect(failed).toMatchObject({ data: null });
+    expect(failed.error).not.toBeNull();
+    noApprovals.done();
+  });
+
+  it("refuses a held base's seal in a document without an organization", async () => {
+    const fake = scriptedDb([
+      { table: "document_versions", data: [sealed] },
+      noApproval,
+      { table: "documents", data: { org_id: null } },
+    ]);
+    expect(await createDocumentVersion(fake.db, made())).toMatchObject({ data: null, error: { kind: "training.copy_without_org" } });
+    fake.done();
+  });
+});
