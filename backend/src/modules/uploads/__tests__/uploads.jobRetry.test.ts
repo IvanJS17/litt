@@ -63,6 +63,7 @@ vi.mock("../../documents/documents.service", async (importOriginal) => ({
 
 import { ownerlessRpcResult } from "../../../__tests__/helpers/ownerlessRpc";
 import { tableDb } from "../../../__tests__/helpers/tableDb";
+import { numberedSources } from "../../../__tests__/helpers/numberedSources";
 import { syntheticPdf } from "../../../lib/__tests__/pdfFixtures";
 import type { Db } from "../../../lib/supabase";
 import { handleStorageCleanup } from "../../../lib/dbq/storageCleanup";
@@ -528,6 +529,48 @@ describe("a replacement whose job is taken while it compares hashes", () => {
     expect(reads).toBeGreaterThanOrEqual(2);
     expect(mocks.copyFile).not.toHaveBeenCalled();
     expect(mocks.updateDocumentVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe("a replacement onto a sealed version", () => {
+  it("is stored as a new version based on it, and the sealed row is left as it is", async () => {
+    const w = world();
+    versionRpc(w);
+    openSession(w, KINDS.replace);
+    claim(w, 1);
+    const before = { ...w.tables.document_versions.find((v) => v.id === VERSION)! };
+    // The shared writer refuses a content change of a sealed version.
+    mocks.updateDocumentVersion.mockResolvedValue({ data: null, error: null, sealed: true });
+
+    await processUploadJob(w.db, "job-1", "w1");
+
+    expect(mocks.createDocumentVersion).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      expect.objectContaining({
+        // Held under the sealed version's training author, whoever replaces it.
+        authorship: { kind: "copy", sourceVersionId: VERSION },
+        id: VRESOURCE,
+        document_id: DOCUMENT,
+        base_version_id: VERSION,
+        content_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    );
+    // The database numbers this version: later versions must not repeat its number.
+    expect(numberedSources()).toContain(mocks.createDocumentVersion.mock.calls[0][1].source);
+    expect(w.tables.document_versions.find((v) => v.id === VERSION)).toEqual(before);
+    expect(w.tables.document_versions.map((v) => v.id)).toEqual([VERSION, VRESOURCE]);
+  });
+
+  it("without a sealed version, still rewrites it in place and creates nothing", async () => {
+    const w = world();
+    versionRpc(w);
+    openSession(w, KINDS.replace);
+    claim(w, 1);
+
+    await processUploadJob(w.db, "job-1", "w1");
+
+    expect(mocks.updateDocumentVersion).toHaveBeenCalledOnce();
+    expect(mocks.createDocumentVersion).not.toHaveBeenCalled();
   });
 });
 

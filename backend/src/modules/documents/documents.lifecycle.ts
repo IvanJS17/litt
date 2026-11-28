@@ -129,8 +129,11 @@ export type DocumentVersionPatch = Partial<
 /**
  * Only live versions within the authorized document can be replaced.
  * `actorUserId` is who changes the bytes: a pasante seals the version as its
- * author. An existing seal is kept as it is (the database restores it), so a
- * lawyer's change never unseals a pasante's version.
+ * author. The stored file and content hash of an already sealed version are
+ * never changed: the update itself is conditioned on the version being
+ * unsealed, and the refusal is answered as `{ data: null, error: null,
+ * sealed: true }`, so the caller writes a new version instead
+ * (docs/training.md). A patch that touches neither (metadata) is unaffected.
  */
 export async function updateDocumentVersion(
   db: Db,
@@ -155,12 +158,14 @@ export async function updateDocumentVersion(
     versionId,
     patch,
   );
+  const changesContent = "storage_path" in patch || "content_sha256" in patch;
   let query = db
     .from("document_versions")
     .update(seal.training_stage ? { ...patch, ...seal } : patch)
     .eq("id", versionId)
     .eq("document_id", documentId)
     .is("deleted_at", null);
+  if (changesContent) query = query.is("training_stage", null);
   if (options.expectedStoragePath !== undefined)
     query = query.eq("storage_path", options.expectedStoragePath);
   if (options.expectedContentSha256 !== undefined)
@@ -172,6 +177,24 @@ export async function updateDocumentVersion(
       "id, version_number, source, created_at, filename, file_type, size_bytes, page_count, textless_page_count",
     )
     .maybeSingle();
+  if (!result.error && !result.data && changesContent) {
+    // No row matched. Tell a sealed version apart from a lost comparison: it is
+    // sealed only if every expectation the caller gave still holds.
+    const { data: row, error: readError } = await db
+      .from("document_versions")
+      .select("training_stage, storage_path, content_sha256")
+      .eq("id", versionId)
+      .eq("document_id", documentId)
+      .maybeSingle();
+    if (readError) return { data: null, error: readError };
+    const current = row as { training_stage: string | null; storage_path: string | null; content_sha256: string | null } | null;
+    if (
+      current?.training_stage &&
+      (options.expectedStoragePath === undefined || current.storage_path === options.expectedStoragePath) &&
+      (options.expectedContentSha256 === undefined || (current.content_sha256 ?? null) === options.expectedContentSha256)
+    )
+      return { data: null, error: null, sealed: true as const };
+  }
   if (!result.error && result.data)
     await completeInlineDocumentCleanup(db, keys);
   if (!result.error && result.data && ("storage_path" in patch || "content_sha256" in patch || "file_type" in patch)) await processDocumentTextInline(db, [versionId]).catch((err) => logError("document-text", safeError(err)));

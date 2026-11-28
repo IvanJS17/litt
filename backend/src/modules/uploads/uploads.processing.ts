@@ -970,7 +970,7 @@ async function processReplacementDocumentVersion(
   const textlessPageCount = pdfCounts?.textlessPageCount ?? null;
   await requireWritableDestination(db, session, file, [sourcePath, pdfPath], holdsJob);
   await holdsJob?.();
-  const { data: updated, error } = await updateDocumentVersion(
+  const written = await updateDocumentVersion(
     db,
     documentId,
     versionId,
@@ -991,6 +991,46 @@ async function processReplacementDocumentVersion(
       expectedContentSha256: current.content_sha256 ?? null,
     } : { actorUserId: session.user_id },
   );
+  let updated: Record<string, unknown> | null = written.data;
+  let error: unknown = written.error;
+  let resultVersionId = versionId;
+  if ("sealed" in written && written.sealed) {
+    // A sealed version keeps its content: the replacement is a new version
+    // with its own approval, on top of the one it replaces.
+    const created = await createDocumentVersion(db, {
+      // The replacement stays held under the sealed version's training author.
+      authorship: { kind: "copy", sourceVersionId: versionId },
+      id: file.resource_id,
+      document_id: documentId,
+      storage_path: sourcePath,
+      pdf_storage_path: pdfPath,
+      source: "user_edit",
+      filename: file.filename,
+      file_type: file.file_type,
+      size_bytes: artifact.size,
+      page_count: pageCount,
+      textless_page_count: textlessPageCount,
+      content_sha256: artifact.sha256,
+      base_version_id: versionId,
+    });
+    if (isVersionConflict(created.error))
+      throw new ChangedDocumentError([sourcePath, ...(pdfPath ? [pdfPath] : [])]);
+    error = created.error;
+    updated = created.data
+      ? {
+          id: created.data.id,
+          version_number: created.data.version_number,
+          source: created.data.source,
+          created_at: created.data.created_at,
+          filename: created.data.filename,
+          file_type: created.data.file_type,
+          size_bytes: created.data.size_bytes,
+          page_count: created.data.page_count,
+          textless_page_count: created.data.textless_page_count,
+        }
+      : null;
+    resultVersionId = created.data?.id ?? versionId;
+  }
   if (!error && !updated && expectedHash)
     throw new ChangedDocumentError([sourcePath, ...(pdfPath ? [pdfPath] : [])]);
   if (error || !updated)
@@ -998,7 +1038,7 @@ async function processReplacementDocumentVersion(
 
   await queueScanReadingOnUpload(db, {
     documentId,
-    versionId,
+    versionId: resultVersionId,
     userId: session.user_id,
     userEmail: session.user_email ?? undefined,
   });

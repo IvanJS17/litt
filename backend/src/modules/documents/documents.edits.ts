@@ -10,7 +10,8 @@ import { contentSha256, loadActiveVersion } from "../../lib/documentVersions";
 import { ensureDocAccess } from "../../lib/access";
 import { can, DOCUMENT_EDIT_FORBIDDEN } from "../../lib/permissions";
 import { downloadFilenameForVersion, type Db } from "./documents.shared";
-import { updateDocumentVersion } from "./documents.lifecycle";
+import { createDocumentVersion, updateDocumentVersion } from "./documents.lifecycle";
+import { isVersionConflict } from "./documents.markdown";
 // devLog comes from lib/chat/types (a leaf file — importing the whole chat
 // barrel here just for a logger would be a heavy dependency edge).
 import { devLog } from "../../lib/log";
@@ -222,18 +223,51 @@ async function resolveEditOnce(
     ) as ArrayBuffer;
     const nextPath = versionStorageKey(userId, documentId, randomUUID(), active?.filename || "document.docx");
     await uploadFile(nextPath, ab, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    const { data: updated, error: versionErr } = await updateDocumentVersion(
+    const contentPatch = {
+        storage_path: nextPath,
+        content_sha256: contentSha256(ab),
+        pdf_storage_path: null,
+        size_bytes: ab.byteLength,
+    };
+    let resultVersionId = doc.current_version_id;
+    let resultVersionNumber = active?.version_number ?? null;
+    const written = await updateDocumentVersion(
         db,
         documentId,
         active.id,
-        {
-            storage_path: nextPath,
-            content_sha256: contentSha256(ab),
-            pdf_storage_path: null,
-            size_bytes: ab.byteLength,
-        },
+        contentPatch,
         { actorUserId: userId, expectedStoragePath: latestPath },
     );
+    let updated: unknown = written.data;
+    let versionErr: unknown = written.error;
+    if ("sealed" in written && written.sealed) {
+        // A sealed version keeps its content: the result is a new version
+        // with its own approval, on top of the one it came from.
+        const created = await createDocumentVersion(db, {
+            // Whoever resolves the change, the result stays held under the
+            // sealed version's own training author.
+            authorship: { kind: "copy", sourceVersionId: active.id },
+            document_id: documentId,
+            storage_path: nextPath,
+            source: "user_edit",
+            filename: active.filename || "document.docx",
+            file_type: active.file_type,
+            size_bytes: contentPatch.size_bytes,
+            content_sha256: contentPatch.content_sha256,
+            base_version_id: active.id,
+        });
+        versionErr = created.error;
+        updated = created.data;
+        if (created.data) {
+            resultVersionId = created.data.id;
+            resultVersionNumber = created.data.version_number;
+        }
+        // The document moved on: nothing was written, so retry on the new state.
+        if (isVersionConflict(created.error)) {
+            await deleteFileBestEffort(nextPath, "edit-resolution-conflict");
+            return "retry";
+        }
+    }
     if (versionErr || !updated) {
         // A definite comparison miss left the new object unreferenced. On a
         // database error the commit outcome may be unknown, so retain it.
@@ -264,18 +298,18 @@ async function resolveEditOnce(
 
     const payload = {
         ok: true,
-        version_id: doc.current_version_id,
+        version_id: resultVersionId,
         download_url: buildDownloadUrl(
             nextPath,
             downloadFilenameForVersion(
                 active?.filename,
-                active?.version_number ?? null,
+                resultVersionNumber,
                 active?.source === "assistant_edit",
             ),
         ),
         // A pasante\'s unapproved version: the card hides its download link.
-        training_held: doc.current_version_id
-            ? await isVersionHeld(db, doc.current_version_id)
+        training_held: resultVersionId
+            ? await isVersionHeld(db, resultVersionId)
             : false,
         remaining_pending: remainingPending ?? 0,
     };

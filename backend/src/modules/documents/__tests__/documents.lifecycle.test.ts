@@ -101,12 +101,13 @@ describe("document version persistence boundary", () => {
       ["eq", "id", "v"],
       ["eq", "document_id", "doc"],
       ["is", "deleted_at", null],
+      ["is", "training_stage", null],
     ]);
     fake.done();
   });
 
   it.each([null, "original-hash"])("atomically guards editor saves against intervening writes (%s)", async (hash) => {
-    const fake = scriptedDb([{ table: "documents", data: null }, { table: "document_versions", op: "update", data: null }]);
+    const fake = scriptedDb([{ table: "documents", data: null }, { table: "document_versions", op: "update", data: null }, { table: "document_versions", data: { training_stage: null } }]);
     const result = await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new/key" }, {
       actorUserId: "lawyer", expectedStoragePath: "old/key", expectedContentSha256: hash,
     });
@@ -200,10 +201,11 @@ it("cleans replaced bytes and cache inline with workers disabled while retaining
     "old",
     "extracted-text/v.txt",
   ]);
-  expect(fake.calls[1].filters).toEqual([
+  expect(fake.calls[2].filters).toEqual([
     ["eq", "id", "v"],
     ["eq", "document_id", "doc"],
     ["is", "deleted_at", null],
+    ["is", "training_stage", null],
   ]);
   fake.done();
 });
@@ -215,12 +217,85 @@ it.each([{ data: null }, { error: { message: "write failed" } }])(
       { table: "documents", data: null },
       { table: "document_versions", data: { storage_path: "old" } },
       { table: "document_versions", op: "update", ...result },
+      ...("error" in result ? [] : [{ table: "document_versions", data: { training_stage: null } }]),
     ]);
     await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new" }, { actorUserId: "lawyer" });
     expect(storage.deleteFile).not.toHaveBeenCalled();
     fake.done();
   },
 );
+describe("a sealed version's stored content", () => {
+  const content = { storage_path: "new", content_sha256: "new-hash", pdf_storage_path: null };
+  it("is refused by the update itself and answered as sealed", async () => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { table: "document_versions", data: { storage_path: "old", pdf_storage_path: null, content_sha256: "old-hash" } },
+      { table: "document_versions", op: "update", data: null },
+      { table: "document_versions", data: { training_stage: "pasante" } },
+    ]);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", content, { actorUserId: "lawyer" })).toEqual({ data: null, error: null, sealed: true });
+    expect(fake.calls[2].filters).toContainEqual(["is", "training_stage", null]);
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+    fake.done();
+  });
+  it.each([{ storage_path: "new" }, { content_sha256: "new-hash" }])("is refused for a patch of %j alone", async (patch) => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { table: "document_versions", data: { storage_path: "old" } },
+      { table: "document_versions", op: "update", data: null },
+      { table: "document_versions", data: { training_stage: "pasante" } },
+    ]);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", patch, { actorUserId: "lawyer" })).toMatchObject({ sealed: true });
+    fake.done();
+  });
+  const expectations = [
+    ["path", { expectedStoragePath: "old" }, { training_stage: "pasante", storage_path: "moved", content_sha256: "old-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: "old-hash" }],
+    ["hash", { expectedContentSha256: "old-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: "other-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: "old-hash" }],
+    ["empty hash", { expectedContentSha256: null }, { training_stage: "pasante", storage_path: "old", content_sha256: "other-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: null }],
+  ] as const;
+  const noRow = (read: object) => scriptedDb([
+    { table: "documents", data: null },
+    { table: "document_versions", data: { storage_path: "old" } },
+    { table: "document_versions", op: "update", data: null },
+    { table: "document_versions", data: read },
+  ]);
+  it.each(expectations)("is a plain miss, not sealed, when the version no longer matches the expected %s", async (_name, opts, moved) => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = noRow(moved);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", content, { actorUserId: "lawyer", ...opts })).toEqual({ data: null, error: null });
+    fake.done();
+  });
+  it.each(expectations)("is answered sealed while the expected %s still holds", async (_name, opts, _moved, same) => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = noRow(same);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", content, { actorUserId: "lawyer", ...opts })).toEqual({ data: null, error: null, sealed: true });
+    fake.done();
+  });
+  it("returns the error when the read that tells sealed from lost fails", async () => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { table: "document_versions", data: { storage_path: "old" } },
+      { table: "document_versions", op: "update", data: null },
+      { table: "document_versions", error: { message: "read failed" } },
+    ]);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", content, { actorUserId: "lawyer", expectedStoragePath: "old" }))
+      .toEqual({ data: null, error: { message: "read failed" } });
+    fake.done();
+  });
+  it("accepts a metadata-only patch without the unsealed condition", async () => {
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { table: "document_versions", op: "update", data: { id: "v" } },
+    ]);
+    const result = await updateDocumentVersion(fake.db, "doc", "v", { filename: "renamed.docx" }, { actorUserId: "lawyer" });
+    expect(result.data).toEqual({ id: "v" });
+    expect(JSON.stringify(fake.calls[1].filters)).not.toContain("training_stage");
+    fake.done();
+  });
+});
 it("preserves cached text when only the filename changes", async () => {
   vi.stubEnv("DB_JOBS_ENABLED", "false");
   const fake = scriptedDb([

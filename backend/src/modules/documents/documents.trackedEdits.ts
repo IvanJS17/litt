@@ -167,9 +167,13 @@ export async function applyTrackedEditsToDocument(params: {
     return { ok: false, error: "The turn was stopped before the edit was saved." };
   }
 
-  let versionRowId: string;
-  let newPath: string;
-  let nextVersionNumber: number;
+  let versionRowId = "";
+  let newPath = "";
+  let nextVersionNumber = 0;
+  // A sealed version keeps its content (docs/training.md): when the version
+  // to reuse is sealed, this edit is written as a new version instead.
+  let reused = false;
+  let baseSealed = false;
 
   if (reuseVersion) {
     // Reuse the version number, but never overwrite bytes an extraction job
@@ -187,21 +191,29 @@ export async function applyTrackedEditsToDocument(params: {
       file_type: "docx", size_bytes: editedBytes.byteLength, page_count: null,
       content_sha256: contentSha256(editedBytes), pdf_storage_path: null,
     }, { actorUserId: userId, expectedStoragePath: reuseVersion.storagePath });
-    if (updated.error || !updated.data) {
+    if ("sealed" in updated && updated.sealed) {
+      // Falls through to the new-version path below with the stored object.
+      baseSealed = true;
+    } else if (updated.error || !updated.data) {
       // A transport/database error may arrive after the update committed. Only
       // an acknowledged no-row result proves this new object is unreferenced;
       // deleting it on an ambiguous failure could destroy the saved document.
       if (!updated.error) await deleteFileBestEffort(newPath, "assistant-edit-conflict");
       return { ok: false, error: "Failed to update document version. Read the latest version and try again." };
+    } else {
+      reused = true;
     }
-  } else {
-    const versionId = crypto.randomUUID().replace(/-/g, "");
-    newPath = `documents/${userId}/${documentId}/edits/${versionId}.docx`;
-    await uploadFile(
-      newPath,
-      ab,
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    );
+  }
+  if (!reused) {
+    if (!newPath) {
+      const versionId = crypto.randomUUID().replace(/-/g, "");
+      newPath = `documents/${userId}/${documentId}/edits/${versionId}.docx`;
+      await uploadFile(
+        newPath,
+        ab,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+    }
 
     // Inherit the filename from the most recent prior version so
     // user-applied renames carry forward through further edits. Malformed
@@ -220,7 +232,10 @@ export async function applyTrackedEditsToDocument(params: {
     versionFilename = inheritedFilename;
 
     const { data: versionRow, error: verErr } = await createDocumentVersion(db, {
-        authorship: { kind: "author", userId },
+        // Written because its base was sealed: it keeps that seal.
+        authorship: baseSealed && reuseVersion
+          ? { kind: "copy", sourceVersionId: reuseVersion.versionId }
+          : { kind: "author", userId },
         document_id: documentId,
         storage_path: newPath,
         source: "assistant_edit",
