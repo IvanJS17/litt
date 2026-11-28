@@ -1,7 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { spyOnJsonrepair } from "../../../__tests__/helpers/jsonrepairCalls";
 import { expectLinearCost } from "../../../__tests__/helpers/linearCost";
+import { RepairBudget, setRepairObserverForTests } from "../../../lib/boundedJsonRepair";
 import { MODEL_TEXT_MAX_CHARS } from "../../../lib/modelJsonFence";
+import { checkProposalOutput } from "../playbooks.changes";
+import { checkDraftOutput, validateDraftWithRetry } from "../playbooks.draft";
 import { parseModelJson, PlaybookModelOutputError, validatePlaybookCompilationWithRetry } from "../playbooks.operations";
 
 describe("parseModelJson on an answer that overflows the library's stack", () => {
@@ -122,5 +125,65 @@ describe("the size check of the playbook answer repair", () => {
         const { parseModelJson: parse } = await load();
         const answer = `{"text":"${'say \\"x\\" '.repeat(11_000)}",}`;
         expect((parse(answer) as { text: string }).text.length).toBeGreaterThan(80_000);
+    });
+});
+
+describe("the repairs of one playbook operation share one time budget", () => {
+    // An injected clock: every reading of it moves 600 ms on, so each repair (two readings) costs 600 ms.
+    const allowed: number[] = [];
+    let clock = 0;
+    beforeEach(() => {
+        allowed.length = 0;
+        clock = 0;
+        vi.spyOn(performance, "now").mockImplementation(() => (clock += 600));
+        setRepairObserverForTests((_chars, allowedMs) => allowed.push(allowedMs));
+    });
+    afterEach(() => {
+        setRepairObserverForTests(null);
+        vi.restoreAllMocks();
+    });
+    const structure = { sections: [] } as unknown as Parameters<typeof validatePlaybookCompilationWithRetry>[0]["structure"];
+    const compile = () =>
+        validatePlaybookCompilationWithRetry({ raw: "{'a': 1,}", structure, retry: async () => "{'b': 2,}" }).catch((error: unknown) => error);
+
+    it("gives the retry of a compile attempt only the time the first answer left", async () => {
+        const failure = await compile();
+        expect(failure).toBeInstanceOf(PlaybookModelOutputError);
+        expect(allowed).toEqual([1_000, 400]);
+    });
+    it("gives each separate operation its own budget", async () => {
+        await compile();
+        await compile();
+        expect(allowed).toEqual([1_000, 400, 1_000, 400]);
+    });
+    it("answers a damaged reply with the limit outcome, without a repair, once the budget is spent", () => {
+        const budget = new RepairBudget(1_000);
+        expect(parseModelJson("{'a': 1,}", budget)).toEqual({ a: 1 });
+        expect(parseModelJson("{'a': 2,}", budget)).toEqual({ a: 2 });
+        expect(allowed).toEqual([1_000, 400]);
+        expect(() => parseModelJson("{'a': 3,}", budget)).toThrow("The model did not return structured JSON.");
+        expect(allowed).toEqual([1_000, 400]);
+    });
+    it("still reads a valid reply after the budget is spent, without touching it", () => {
+        const budget = new RepairBudget(0);
+        expect(parseModelJson('{"a":1}', budget)).toEqual({ a: 1 });
+        expect(parseModelJson('```json\n{"a":2}\n```', budget)).toEqual({ a: 2 });
+        expect(parseModelJson('Here: {"a":3} done', budget)).toEqual({ a: 3 });
+        expect(budget.remaining).toBe(0);
+        expect(allowed).toEqual([]);
+    });
+    it("shares one budget between the attempts of a draft and of a set of proposals", async () => {
+        const budgets: unknown[] = [];
+        const check = (raw: string, budget: RepairBudget) => {
+            budgets.push(budget);
+            return checkProposalOutput(raw, { content: { rules: [], topics: [] } as never, answers: {}, sources: [] }, budget);
+        };
+        await validateDraftWithRetry({ raw: "{'changes': 1,}", check, retry: async () => "{'changes': 2,}" }).catch(() => undefined);
+        expect(budgets).toHaveLength(2);
+        expect(budgets[1]).toBe(budgets[0]);
+        expect(allowed).toEqual([1_000, 400]);
+        expect(() => checkDraftOutput("{'a': 1,}", { name: "x", answers: {}, sources: [] }, new RepairBudget(0))).toThrow(
+            "The model did not return structured JSON.",
+        );
     });
 });

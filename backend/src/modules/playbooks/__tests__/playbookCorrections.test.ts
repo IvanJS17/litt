@@ -52,6 +52,7 @@ import { getPlaybookImport, updatePlaybookContent } from "../playbooks.operation
 import { setPlaybookState } from "../playbooks.state";
 import type { PlaybookContent, PlaybookCorrectionWork } from "../playbooks.types";
 import { database, ORG, type Row } from "./playbookTestDb";
+import { repairTimesAllowed, sharesOneBudget } from "./repairClock";
 import { loadPinnedChatRoute, recordChatEgress } from "../../user/user.service";
 
 const MODEL = "claude-opus-5";
@@ -589,6 +590,16 @@ describe("when it cannot be completed", () => {
     await handlePlaybookDraft(db, job(work));
     expect(completeText).not.toHaveBeenCalled();
     expect(tables.playbook_imports.at(-1)).toMatchObject({ status: "failed" });
+  });
+
+  it("gives the retry of a set of corrections only the repair time its first answer left", async () => {
+    const { db, work } = await sent([]);
+    completeText.mockResolvedValue("{'changes': 1,}");
+
+    const allowed = await repairTimesAllowed(() => handlePlaybookDraft(db, job(work)));
+
+    expect(completeText).toHaveBeenCalledTimes(2);
+    expect(sharesOneBudget(allowed)).toBe(true);
   });
 
   it("fails after one repair on an invalid answer, leaving the playbook as it was", async () => {

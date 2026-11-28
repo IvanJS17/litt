@@ -497,7 +497,10 @@ at most (`charsForTokens`):
   (`TOOL_ARGUMENT_REPAIR_MAX_CHARS`). Over it the caller fails the way it does
   for an answer that is not JSON. Text that `JSON.parse` accepts is read
   directly, whatever its size up to `MODEL_TEXT_MAX_CHARS`; only text that does
-  not parse reaches the repair and its limit.
+  not parse reaches the repair and its limit. The repairs of one playbook
+  operation (a compile attempt with its retry, a draft or proposals with
+  theirs, a review) share a single one-second time budget, as those of one
+  tool-call reply do.
 - A caller whose answer is over its limit reaches the failure the feature
   already has (an import or review that did not return structured JSON, a Word
   turn that could not be saved, an extraction that did not answer with the

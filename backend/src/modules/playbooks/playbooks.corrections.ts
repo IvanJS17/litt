@@ -622,7 +622,7 @@ export async function compilePlaybookCorrections(
     };
     const { changes, counts } = await validateDraftWithRetry({
       raw,
-      check: (output) => checkProposalOutput(output, evidence),
+      check: (output, budget) => checkProposalOutput(output, evidence, budget),
       retry: async (validationError) => {
         stage = enterImportStage("repairing_output");
         await updateImportAttempt(db, attemptId, { stage });

@@ -51,10 +51,11 @@ import {
   markPlaybookDraftJobFailed,
   queuePlaybookDraft,
 } from "../playbooks.jobs";
-import { playbookContentSchema } from "../playbooks.operations";
+import { newPlaybookRepairBudget, playbookContentSchema } from "../playbooks.operations";
 import { parseAnswers, playbookQuestionnaire } from "../playbooks.questionnaire";
 import type { PlaybookDraftWork } from "../playbooks.types";
 import { database, type Row } from "./playbookTestDb";
+import { repairTimesAllowed, sharesOneBudget } from "./repairClock";
 
 const MODEL = "claude-opus-5";
 const STAGED_KEY = "playbooks/owner/imports/11111111-2222-4333-8444-555555555555.docx";
@@ -96,7 +97,7 @@ const evidence = {
 };
 
 const verify = (rules: Row[]) => {
-  const { content, counts } = checkDraftOutput(output(rules), evidence);
+  const { content, counts } = checkDraftOutput(output(rules), evidence, newPlaybookRepairBudget());
   return { rules: content.topics[0].rules, counts };
 };
 
@@ -583,6 +584,17 @@ describe("a draft from the questionnaire, end to end", () => {
     expect(completeText).not.toHaveBeenCalled();
     expect(tables.playbooks).toEqual([]);
     expect(tables.playbook_imports[0]).toMatchObject({ status: "failed", request_json: null });
+  });
+
+  it("gives the retry of a draft only the repair time its first answer left", async () => {
+    const { db, tables } = await queued({ attachments: [] });
+    completeText.mockResolvedValue("{'topics': 1,}");
+
+    const allowed = await repairTimesAllowed(() => handlePlaybookDraft(db, job(tables.db_jobs[0].payload)));
+
+    expect(completeText).toHaveBeenCalledTimes(2);
+    expect(sharesOneBudget(allowed)).toBe(true);
+    expect(tables.playbook_imports[0]).toMatchObject({ status: "failed" });
   });
 
   it("fails after one repair when the model returns an invalid format twice", async () => {
