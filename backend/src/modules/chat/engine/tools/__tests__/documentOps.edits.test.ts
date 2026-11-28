@@ -326,13 +326,15 @@ describe("assistant document-edit lifecycle", () => {
     ]);
     fake.done();
   });
-  it("reports insertion failure without persisting edits or activating", async () => {
+  it("reports insertion failure without persisting edits or activating, and keeps the upload", async () => {
     const fake = newVersionDb({ createFail: true });
     expect(await run(fake.db)).toEqual({
       ok: false,
       error: "Failed to record document version.",
     });
     expect(fake.rpc).toHaveBeenCalledOnce();
+    // The failure may have arrived after the version was saved: its object stays.
+    expect(mocks.deleteFileBestEffort).not.toHaveBeenCalled();
     fake.done();
   });
   it("says the document changed when the version it read is no longer the current one, and drops its upload", async () => {
