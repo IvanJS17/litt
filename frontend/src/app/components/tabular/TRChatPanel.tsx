@@ -423,7 +423,7 @@ export const TRMessageBubble = memo(function MessageBubble({
                     {msg.content}
                 </div>
                 {msg.fromApp && (
-                    <p className="max-w-[90%] break-words text-right text-xs text-gray-400">
+                    <p className="max-w-[90%] break-words text-right text-xs text-gray-500">
                         {msg.fromApp.name
                             ? t("shared.sidebarChatItem.fromApp", { app: msg.fromApp.name })
                             : t("assistant.userMessage.fromUnnamedApp")}

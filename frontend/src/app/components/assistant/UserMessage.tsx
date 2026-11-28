@@ -131,7 +131,7 @@ export function UserMessage({
                 )}
             </div>
             {fromApp && (
-                <p className="max-w-[80%] break-words text-right text-xs text-gray-400">
+                <p className="max-w-[80%] break-words text-right text-xs text-gray-500">
                     {fromApp.name
                         ? t("shared.sidebarChatItem.fromApp", { app: fromApp.name })
                         : t("assistant.userMessage.fromUnnamedApp")}
