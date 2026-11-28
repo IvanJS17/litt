@@ -33,7 +33,7 @@ import {
   tick,
 } from "../../../../lib/llm/__tests__/mockLanguageModel";
 import type { AssistantEvent } from "@mike/contracts";
-import { AssistantStreamAbortError, runLLMStream } from "../streaming";
+import { AssistantStreamAbortError, AssistantStreamError, runLLMStream } from "../streaming";
 import { isConnectionEnded } from "../tools/connectionEnded";
 
 const read = (id: string) => ({ id, name: "read_document", input: { doc_id: "doc-0" } });
@@ -233,5 +233,92 @@ describe("a turn whose connection ended, through the real model adapter", () => 
       expect(frames.filter((f) => f.includes('"status":"cancelled"')).length).toBe(1);
       expect(model.doStreamCalls.length).toBe(2);
     });
+  });
+});
+
+// A turn waits for every subagent run, however it ended. When one run fails
+// outside its own handling (here: saving its run row rejects after it
+// completed) while another is still inside a model call, the turn must not
+// settle before that other run has finished and been recorded.
+describe("a turn whose subagent run fails while another subagent is inside a model call", () => {
+  const SLOW_MODEL_CALL_MS = 300; // the slow subagent's scripted model call
+  const WAIT_AFTER_SETTLE_MS = 1000; // longer than SLOW_MODEL_CALL_MS: anything still running would show
+
+  type Scripted = { parts: ReturnType<typeof text>; delay: number };
+  const scripted = (t: string, delay = 0): Scripted => ({ parts: [...text(t), finish("stop")], delay });
+
+  async function routedModel(scripts: Record<string, Scripted[]>) {
+    const { MockLanguageModelV3 } = await import("ai/test");
+    return new MockLanguageModelV3({
+      doStream: async (options: { prompt: unknown; abortSignal?: AbortSignal }) => {
+        const prompt = JSON.stringify(options.prompt);
+        const who = ["TASKFAST", "TASKSLOW"].find((k) => prompt.includes(k)) ?? "parent";
+        const next = scripts[who].shift();
+        if (!next) throw new Error(`no scripted step for ${who}`);
+        return {
+          stream: new ReadableStream({
+            async start(controller) {
+              controller.enqueue({ type: "stream-start", warnings: [] });
+              controller.enqueue({ type: "response-metadata", id: "r", modelId: "mock" });
+              if (next.delay) await new Promise((r) => setTimeout(r, next.delay));
+              for (const part of next.parts) controller.enqueue(part);
+              controller.close();
+            },
+          }),
+        };
+      },
+    } as never);
+  }
+
+  it("waits for the slow subagent, stores its terminal event and writes nothing after the turn settled", async () => {
+    const model = await routedModel({
+      parent: [
+        {
+          parts: [
+            ...text("Two. "),
+            toolCall("d1", "delegate", { title: "Fast", task: "TASKFAST Read doc-0." }),
+            toolCall("d2", "delegate", { title: "Slow", task: "TASKSLOW Read doc-0." }),
+            finish("tool-calls"),
+          ],
+          delay: 0,
+        },
+      ],
+      TASKFAST: [scripted("fast brief")],
+      TASKSLOW: [scripted("slow brief", SLOW_MODEL_CALL_MS)],
+    });
+    adapter.run = (params) => streamAiSdk(params as never, config(model as never));
+    const frames: string[] = [];
+    let settled = false;
+    const saveFailure = new Error("run row could not be saved");
+    const save = vi.fn(async (_id: string, status: string) => {
+      // The first run row to be saved (the fast subagent's, completed) fails to save.
+      if (status === "completed" && save.mock.calls.length === 1) throw saveFailure;
+    });
+    const outcome = await runLLMStream({
+      model: "gemini-3.8-flash",
+      apiMessages: [{ role: "system", content: "Base prompt." }, { role: "user", content: "Go." }],
+      docStore: docStore(),
+      docIndex: {},
+      userId: "u1",
+      db: {} as never,
+      write: (chunk: string) => frames.push(settled ? `AFTER SETTLE ${chunk}` : chunk),
+      nonce: "turnnonce",
+      subagentRuns: { save, load: vi.fn(async () => null) },
+      apiKeys: {},
+    } as never).then(
+      () => ({ error: null as unknown }),
+      (error: unknown) => ({ error }),
+    );
+    settled = true;
+    const callsAtSettle = model.doStreamCalls.length;
+    await new Promise((r) => setTimeout(r, WAIT_AFTER_SETTLE_MS));
+
+    expect(outcome.error).toBeInstanceOf(AssistantStreamError);
+    expect(((outcome.error as AssistantStreamError).cause as Error).cause).toBe(saveFailure);
+    const stored = ((outcome.error as AssistantStreamError).events).filter((e) => e.type === "delegation");
+    expect(stored.map((e) => (e as { title: string }).title)).toContain("Slow");
+    expect(frames.filter((f) => f.includes('"title":"Slow"') && f.includes('"type":"delegation"') && !f.includes("delegation_start")).length).toBe(1);
+    expect(model.doStreamCalls.length).toBe(callsAtSettle);
+    expect(frames.filter((f) => f.startsWith("AFTER SETTLE"))).toEqual([]);
   });
 });

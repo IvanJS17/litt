@@ -587,9 +587,9 @@ blanked because its source cannot be found is counted once: a playbook run
 whose document was deleted; and, when there was something to blank, a training
 reading whose document was deleted, a defense with no work review recorded (a
 practice-area defense, or one whose review was deleted) and a retake whose
-notes cannot all be found. Where a download carries the table reviews, a review
-the holder cannot open is counted once and covers its chats and cells; the
-chats-only download counts the chats.
+notes cannot all be found or that records no notes at all. Where a download
+carries the table reviews, a review the holder cannot open is counted once and
+covers its chats and cells; the chats-only download counts the chats.
 Archived rows and the records of an organization the holder has left are not
 counted, except where the reason cannot be told apart without a second access
 check: a record whose chat or review no longer exists, a row refused at read

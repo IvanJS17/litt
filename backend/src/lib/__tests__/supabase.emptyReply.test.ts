@@ -84,11 +84,12 @@ describe("a reply from the database gateway that is not a success and whose body
         ["plain text", 500, () => new Response("upstream exploded", { status: 500 })],
     ])("%s is an error", async (_name, status, make) => {
         gateway.mockResolvedValue(make());
-        const { data, error } = await read();
-        expect(error).not.toBeNull();
-        expect(data).toBeNull();
-        expect(error?.message).toBeTruthy();
-        expect(status).toBeGreaterThanOrEqual(400);
+        const result = await read();
+        expect(result.error).not.toBeNull();
+        expect(result.data).toBeNull();
+        expect(result.error?.message).toBeTruthy();
+        // The reply's own status is kept with the error.
+        expect(result.status).toBe(status);
     });
 
     it.each([404, 400])("with status %s and the gateway's JSON object is left as it is", async (status) => {

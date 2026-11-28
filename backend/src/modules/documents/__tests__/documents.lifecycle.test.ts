@@ -386,8 +386,8 @@ describe("a version made from a held version stays held; otherwise its maker's s
       { table: "training_version_approvals", error: { message: "down" } },
     ]);
     const failed = await createDocumentVersion(noApprovals.db, made({ authorship: { kind: "author", userId: "lawyer" } }));
-    expect(failed).toMatchObject({ data: null });
-    expect(failed.error).not.toBeNull();
+    expect(failed).toMatchObject({ data: null, error: { kind: "db.query_failed" } });
+    expect(noApprovals.calls.some((call) => call.op === "rpc")).toBe(false);
     noApprovals.done();
   });
 

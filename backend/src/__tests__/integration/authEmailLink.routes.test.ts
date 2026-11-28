@@ -124,7 +124,7 @@ describe("the emailed sign-up value", () => {
             confirmed: true,
             confirmedAt: "2026-01-02T00:00:00.000Z",
         });
-        expect((await confirm("signup-value")).status).toBe(200);
+        expect(signedIn(await confirm("signup-value"))).toBe(true);
     });
 
     it("is refused before the identity service is asked in invitation-only mode", async () => {

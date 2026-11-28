@@ -92,9 +92,11 @@ is visible to the organization, or has no owner left) and anyone holding an
 access entry that grants a role can open it. An entry that denies closes it to
 its holder, unless the holder is its creator or such an organization owner.
 When the project is visible to the organization, every other member of the
-organization has the editor role. Before making a matter public, review who
-those rules admit and remove what is not wanted. The application has no
-function to change a matter's visibility; it is done in the database.
+organization has the editor role, except a member holding an access entry of
+their own, who has that entry's role (or none, when it denies). Before making
+a matter public, review who those rules admit and remove what is not wanted.
+The application has no function to change a matter's visibility; it is done in
+the database.
 
 The screens for these actions are pending
 (TD-029). Apply these migrations, in order, before deploying the backend:

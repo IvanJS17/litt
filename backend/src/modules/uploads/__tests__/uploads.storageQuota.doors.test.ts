@@ -95,6 +95,28 @@ describe("who asks the storage quota", () => {
     ]);
   });
 
+  it("calls the copy helper only from the three copy flows, and lets a copy ask nothing only for a move inside one space", () => {
+    const callers = files
+      .filter((file) => /\bcopyDocumentVersionFiles\(\{/.test(readFileSync(file, "utf8")))
+      .map(relative)
+      .sort();
+    expect(callers).toEqual([
+      "modules/documents/documents.versions.ts",
+      "modules/projects/projects.documents.ts",
+      "modules/workflows/workflows.assets.ts",
+    ]);
+    // A copy that asks nothing (`room: null`, also as one branch of a
+    // condition) belongs only to the version flow, whose move inside one
+    // space deletes its source right after.
+    const askingNothing = callers.filter((file) =>
+      /\broom:\s*(?:null\b|[\w.]+\s*\?\s*null\b)/.test(readFileSync(path.join(SRC, file), "utf8")),
+    );
+    expect(askingNothing).toEqual(["modules/documents/documents.versions.ts"]);
+    expect(readFileSync(path.join(SRC, "modules/documents/documents.versions.ts"), "utf8")).toMatch(
+      /room:\s*staysInOneSpace\s*\?\s*null\b/,
+    );
+  });
+
   it("opens sessions through one function only", () => {
     const callers = files
       .filter((file) => readFileSync(file, "utf8").includes('"create_upload_session"'))
