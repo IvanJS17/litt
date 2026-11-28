@@ -20,6 +20,7 @@ import {
   readAuthorizationStamp,
 } from "../../lib/authorizationEpoch";
 import { completeText } from "../../lib/llm";
+import { neutralizeFence } from "../../lib/promptFence";
 import { safeError } from "../../lib/safeError";
 import { downloadFile, headFile } from "../../lib/storage";
 import { createServerSupabase, type Db } from "../../lib/supabase";
@@ -278,7 +279,7 @@ export async function beginPlaybookDraft(
 
 // --- Prompt -----------------------------------------------------------------
 
-const FENCED_TAGS = /<(\/?)(respuestas|adjunto|correcciones)/gi;
+const FENCED_TAGS = ["respuestas", "adjunto", "correcciones"];
 
 /** Client text that cannot close, or forge, the block that carries it. */
 export function fenced(
@@ -287,10 +288,7 @@ export function fenced(
   text: string,
   attributes = "",
 ): string {
-  const safe = text
-    .split(nonce)
-    .join("[redacted-nonce]")
-    .replace(FENCED_TAGS, "&lt;$1$2");
+  const safe = neutralizeFence(text, nonce, FENCED_TAGS);
   return `<${tag}${attributes} nonce="${nonce}">\n${safe}\n</${tag} nonce="${nonce}">`;
 }
 
