@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 // Numeric settings are read by one reader (lib/runtimeConfig.ts), which takes
 // only a whole number in plain digits. `parseInt` takes the leading digits of
 // anything ("10,000" is 10), so a file that reads the environment must not use
-// it. A file is an offender when it reads the environment and has a
-// `parseInt(` line that does not parse a request's query string.
+// it (nor `parseFloat`). A file is an offender when it reads the environment and
+// has such a line that does not parse a request's query string.
 
 const SRC = join(__dirname, "..");
 
@@ -20,12 +20,12 @@ function walk(dir: string, out: string[] = []): string[] {
     return out;
 }
 
-const READS_ENVIRONMENT = /process\.env|NodeJS\.ProcessEnv/;
-const PARSE_INT = /\bparseInt\(/;
+const READS_ENVIRONMENT = /process\.env|process\[["']env["']\]|NodeJS\.ProcessEnv|from "node:process"/;
+const PARSE_INT = /\bparse(?:Int|Float)\(/;
 const QUERY_STRING = /\breq\.query\b/;
 
 describe("numeric settings", () => {
-    it("are not read with parseInt in a file that reads the environment", () => {
+    it("are not read with parseInt or parseFloat in a file that reads the environment", () => {
         const offenders = walk(SRC)
             .filter((file) => {
                 const text = readFileSync(file, "utf8");

@@ -692,6 +692,7 @@ describe("reading a numeric setting", () => {
       const name = uniqueName("QUIET");
       envInt(name, 10, {});
       envInt(name, 10, { [name]: "" });
+      expect(envInt(name, 10, { [name]: "   " })).toBe(10);
       envInt(name, 10, { [name]: "25" });
       expect(warn).not.toHaveBeenCalled();
     });
