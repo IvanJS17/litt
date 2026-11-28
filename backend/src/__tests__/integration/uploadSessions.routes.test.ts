@@ -72,6 +72,10 @@ const app = express();
 app.use(express.json());
 app.use("/upload-sessions", uploadSessionsRouter);
 
+/** The session is created by one call; the space's use is read by another. */
+const sessionCreations = () =>
+  mocks.rpc.mock.calls.filter(([name]) => name === "create_upload_session");
+
 function manifest(fileCount = 1) {
   return {
     purpose: "document_create",
@@ -107,7 +111,7 @@ describe("upload session routes", () => {
       method: "PUT",
       headers: { "Content-Type": "application/pdf" },
     });
-    expect(mocks.rpc).toHaveBeenCalledOnce();
+    expect(sessionCreations()).toHaveLength(1);
     expect(mocks.rpc).toHaveBeenCalledWith(
       "create_upload_session",
       expect.objectContaining({ target_hourly_session_limit: 50 }),
@@ -323,7 +327,7 @@ describe("upload session routes", () => {
 
     expect(response.status).toBe(429);
     expect(response.body.code).toBe("upload_session_rate_limit_exceeded");
-    expect(mocks.rpc).toHaveBeenCalledOnce();
+    expect(sessionCreations()).toHaveLength(1);
     expect(mocks.getSignedUploadUrl).not.toHaveBeenCalled();
   });
 
@@ -454,7 +458,7 @@ describe("upload session destination access", () => {
       .send(versionManifest("document_version_create"));
 
     expect(response.status).toBe(201);
-    expect(mocks.rpc).toHaveBeenCalledOnce();
+    expect(sessionCreations()).toHaveLength(1);
   });
 });
 

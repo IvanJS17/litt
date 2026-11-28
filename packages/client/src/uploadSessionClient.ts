@@ -250,9 +250,15 @@ type UploadSessionFileResponse = {
     };
 };
 
+/** The space an upload goes to: told apart by id, never by a figure. */
+export type UploadStorageSpace = { kind: "personal" | "firm"; id: string };
+
 type UploadSessionResponse = {
     session: { id: string; status: string; error_code?: string | null };
     files: UploadSessionFileResponse[];
+    /** Only the answer that opens a session says it. */
+    storageLevel?: "ok" | "almostFull";
+    storageSpace?: UploadStorageSpace;
 };
 
 /**
@@ -348,6 +354,12 @@ type UploadSessionTransport = {
      * `storageFailureReport` builds. Never receives URLs or files.
      */
     reportStorageFailure?(error: unknown, report: StorageFailureReport): void;
+    /**
+     * Called at most once per space in one call of `uploadFilesWithSessionCore`
+     * (a batch), when opening a session says that space is almost full. A host
+     * that shows nothing leaves it out.
+     */
+    noticeStorageAlmostFull?(space: UploadStorageSpace): void;
 };
 
 type ResolvedInput = UploadSessionInput & { clientId: string };
@@ -449,6 +461,18 @@ export async function uploadFilesWithSessionCore<T>(args: {
         }
     };
 
+    const noticedSpaces = new Set<string>();
+    const noticeAlmostFull = (space: UploadStorageSpace) => {
+        const key = `${space.kind}:${space.id}`;
+        if (noticedSpaces.has(key)) return;
+        noticedSpaces.add(key);
+        try {
+            args.transport.noticeStorageAlmostFull?.(space);
+        } catch {
+            // A notice must never interrupt the upload itself.
+        }
+    };
+
     const outcomes = new Map<string, UploadOutcome<T>>();
     const eligible: ResolvedInput[] = [];
     for (const input of inputs) {
@@ -490,6 +514,7 @@ export async function uploadFilesWithSessionCore<T>(args: {
                 transport: args.transport,
                 signal: args.signal,
                 reportProgress,
+                noticeAlmostFull,
             });
             for (const outcome of chunkOutcomes) {
                 outcomes.set(outcome.clientId, outcome);
@@ -524,6 +549,7 @@ async function runUploadSession<T>(args: {
     transport: UploadSessionTransport;
     signal?: AbortSignal;
     reportProgress: (progress: UploadProgress<T>) => void;
+    noticeAlmostFull: (space: UploadStorageSpace) => void;
 }): Promise<UploadOutcome<T>[]> {
     const { apiRequest, fetchStorage, shouldRetryControlRequest } =
         args.transport;
@@ -564,6 +590,9 @@ async function runUploadSession<T>(args: {
         },
     );
     const sessionId = created.session.id;
+    if (created.storageLevel === "almostFull" && created.storageSpace) {
+        args.noticeAlmostFull(created.storageSpace);
+    }
     reportResponse(created);
     let descriptors = new Map(
         created.files.map((file) => [file.client_id, file]),

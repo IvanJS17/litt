@@ -818,6 +818,14 @@ document, an uploaded new version of a document, the replacement of a version,
 and the Word add-in's version upload. The Markdown save and documents the
 assistant generates are direct writes that are not checked in this part (part 2
 gives them the same margin).
+Opening a session also says whether the space the files go to is almost full:
+the answer of `POST /upload-sessions` carries `storageLevel` (`"ok"`, or
+`"almostFull"` from 80 % of the limit, counting the use before the new files; a
+limit of zero is `almostFull`) and `storageSpace` (`{ kind: "personal" | "firm",
+id }`), never a figure, so a plain member of a firm learns nothing of the firm's
+numbers. The web shows one notice per batch and per space until the page is
+reloaded, and the new files are not held back by it; the Word add-in and the MCP
+upload tool ignore both fields. When the use cannot be read the level is `"ok"`.
 Two reads report the use without refusing anything: `GET /user/storage` answers a
 person's own personal space, and `GET /orgs/:orgId/storage` answers a firm's space
 only to an accepted owner or administrator of that firm; both return

@@ -1223,6 +1223,8 @@
       "invalidDocx": "{count, plural, one {{names} no es un archivo DOCX válido.} other {{names} no son archivos DOCX válidos.}}",
       "invalidMarkdown": "{count, plural, one {{names} no es un archivo de texto UTF-8 válido.} other {{names} no son archivos de texto UTF-8 válidos.}}",
       "invalidPdf": "{count, plural, one {{names} no es un archivo PDF válido.} other {{names} no son archivos PDF válidos.}}",
+      "storageAlmostFullFirm": "El espacio del despacho está casi lleno. Los archivos nuevos se rechazarán cuando se llene; lo que ya está guardado se conserva. Un propietario o administrador puede ver su uso en la configuración del despacho.",
+      "storageAlmostFullPersonal": "Tu espacio está casi lleno. Los archivos nuevos se rechazarán cuando se llene; lo que ya está guardado se conserva.",
       "tooManyFiles": "Puedes subir como máximo {count} archivos a la vez.",
       "unsupportedType": "Tipo de archivo no compatible. Solo puedes subir archivos PDF, Word, Excel, PowerPoint y Markdown (.md)."
     },

@@ -56,6 +56,37 @@ export async function storageSpaceUsage(
   return { usedBytes, limitBytes };
 }
 
+/** How full a space is, said without a figure. */
+export type StorageLevel = "ok" | "almostFull";
+
+/**
+ * The one rule for "almost full": the space uses at least four fifths of its
+ * limit (a limit of zero always does). Whole-number arithmetic, exact for any
+ * count a JavaScript number holds.
+ */
+export function storageLevel({ usedBytes, limitBytes }: StorageSpaceUsage): StorageLevel {
+  return BigInt(usedBytes) * 5n >= BigInt(limitBytes) * 4n ? "almostFull" : "ok";
+}
+
+/**
+ * The level of a space, from one read of its use. A failed read says "ok":
+ * opening the upload is never held back by a notice about the space.
+ */
+export async function storageLevelOfSpace(db: Db, space: StorageSpace): Promise<StorageLevel> {
+  try {
+    return storageLevel(await storageSpaceUsage(db, space));
+  } catch {
+    return "ok";
+  }
+}
+
+/** The space an answer names, so the client can tell two spaces apart: no figure. */
+export function describeStorageSpace(space: StorageSpace) {
+  return space.orgId
+    ? ({ kind: "firm", id: space.orgId } as const)
+    : ({ kind: "personal", id: space.userId } as const);
+}
+
 /**
  * A count of bytes as the database answers it: a whole number from 0 up that
  * a JavaScript number holds exactly, as a number or in plain digits. Anything

@@ -37,6 +37,7 @@ export type {
 
 import { isPanelDocument } from "@/app/components/shared/types";
 import { authenticatedFetch } from "@/app/lib/authEvents";
+import { noticeStorageAlmostFull } from "@/app/lib/storageSpaceNotice";
 import { notifyTabularReviewsChanged } from "@/app/lib/tabularReviewChanges";
 import type { RouterProfileLists } from "@mike/client";
 import { reportedUpstreamMessage } from "@mike/client";
@@ -341,6 +342,7 @@ export async function uploadFilesWithSession<T>(args: {
               console.warn("[upload] direct storage upload failed", report.tags);
               reportError(error, report);
             },
+            noticeStorageAlmostFull,
             shouldRetryControlRequest: createControlRequestRetryPolicy(
                 (error) =>
                     error instanceof MikeApiError
