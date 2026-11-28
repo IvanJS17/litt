@@ -197,6 +197,9 @@ jobs:
       - name: Concurrent storage quota reservations
         run: node backend/src/modules/uploads/__tests__/uploads.storageQuota.concurrency.mjs
 
+      - name: Upload version writes hold their job until commit
+        run: node backend/src/modules/uploads/__tests__/uploadVersionHoldsJob.concurrency.mjs
+
       - name: Algorithmic performance and authorization regressions
         run: |
           for test in backend/src/__tests__/sql/performance.*.sql; do
