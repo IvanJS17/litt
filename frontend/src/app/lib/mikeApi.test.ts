@@ -1047,6 +1047,23 @@ describe("getChat message mapping", () => {
         expect(messages[0]).toMatchObject({ unreadable: true, unreadableReason: "source_unknown" });
     });
 
+    it("carries the mark of a message a connected app wrote, and only that one", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({
+                chat,
+                messages: [
+                    { id: "m1", chat_id: "c1", role: "user", content: "hola", created_at: "2026-01-01" },
+                    { id: "m2", chat_id: "c1", role: "user", content: "desde la app", origin: "mcp", origin_label: " Claude ", created_at: "2026-01-02" },
+                    { id: "m3", chat_id: "c1", role: "user", content: "sin nombre", origin: "mcp", origin_label: null, created_at: "2026-01-03" },
+                ],
+            }),
+        );
+        const { messages } = await getChat("c1");
+        expect(messages[0]).not.toHaveProperty("fromApp");
+        expect(messages[1]).toMatchObject({ fromApp: { name: "Claude" } });
+        expect(messages[2]).toMatchObject({ fromApp: { name: null } });
+    });
+
     it("maps a legacy string assistant body to empty content without events", async () => {
         fetchMock.mockResolvedValue(
             jsonResponse({
@@ -1100,6 +1117,18 @@ describe("getChat active turn", () => {
 });
 
 describe("mapTRMessages", () => {
+    it("carries the mark of a review thread message a connected app wrote, and only that one", () => {
+        const row = { chat_id: "c1", role: "user" as const, created_at: "2026-01-01" };
+        const mapped = mapTRMessages([
+            { ...row, id: "m1", content: "hola" },
+            { ...row, id: "m2", content: "desde la app", origin: "mcp", origin_label: " Claude " },
+            { ...row, id: "m3", content: "sin nombre", origin: "mcp", origin_label: null },
+        ]);
+        expect(mapped[0]).not.toHaveProperty("fromApp");
+        expect(mapped[1]).toMatchObject({ fromApp: { name: "Claude" } });
+        expect(mapped[2]).toMatchObject({ fromApp: { name: null } });
+    });
+
     it("maps user and assistant rows including annotations", () => {
         const events: AssistantEvent[] = [{ type: "content", text: "Answer" }];
         const mapped = mapTRMessages([

@@ -17,11 +17,12 @@
 // answer is what LiTT's assistant wrote, as untrusted data, and what leaves
 // is recorded as a chat egress before it is returned.
 //
-// A review thread has no origin column: the connection's activity (the
-// session «desde Claude») shows these calls, which carry the review and chat
-// ids, not a label on the thread.
+// A thread keeps no origin of its own; each message the connection writes
+// carries the connection's mark, and the connection's activity (the session
+// «desde Claude») shows these calls, which carry the review and chat ids.
 
 import { defaultKeyFor, workspaceOrgId } from "./mcp.defaultKey";
+import { clientNameOf } from "./mcp.grants";
 import { z } from "zod";
 import { getActiveAssistantTurn, getAssistantTurnRun } from "../../lib/assistantTurnRuns";
 import { mayWatchRun } from "../../lib/tabularReadAccess";
@@ -202,6 +203,8 @@ export const sendTabularChatMessage = defineMcpTool({
             userEmail,
             reviewId: args.review_id,
             parsed: parsed.value,
+            // The connection's mark goes on the message it writes, into a new thread or an existing one.
+            origin: { grantId: call.principal.grantId, label: await clientNameOf(call.db, call.principal.clientId) },
             allowedCapabilities: turnCapabilities(call),
             connectionCheck: turnConnectionCheck(call),
         });

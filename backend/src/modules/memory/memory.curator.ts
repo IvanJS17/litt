@@ -1,4 +1,5 @@
 import { wordChatHasWorkspaceAttachments } from "../../lib/wordWorkspace";
+import { APP_MESSAGE_ORIGIN } from "../chat/chat.service";
 import { filterChatMemoryEvidence } from "../../lib/chatReadAccess";
 import { filterMemoryEvidenceMessages } from "../../lib/tabularReadAccess";
 import { randomUUID } from "node:crypto";
@@ -57,6 +58,8 @@ export type MemoryCuratorStoredMessage = {
   memory_eligible_at: string | null;
   memory_app_eligible_at: string | null;
   created_at: string;
+  /** `APP_MESSAGE_ORIGIN` when a connected app wrote the message; the Word table has no such column. */
+  origin?: string | null;
 };
 
 type CuratorConversation = {
@@ -284,9 +287,10 @@ export function buildMemoryCuratorTranscript(
       );
     const inputContent = inputInWindow ? textFromContent(input.content) : "";
     if (inputContent) {
-      lines.push(
-        `${scope === "user" ? "User" : "Project member"}: ${inputContent}`,
-      );
+      const sentBy = scope === "user" ? "User" : "Project member";
+      const through =
+        input?.origin === APP_MESSAGE_ORIGIN ? " (sent through a connected app)" : "";
+      lines.push(`${sentBy}${through}: ${inputContent}`);
     }
     const events = Array.isArray(row.content) ? row.content : [row.content];
     let segmentAuthorUserId = row.author_user_id;
@@ -405,8 +409,8 @@ export async function loadEligibleMemoryMessages(
   actorUserId: string,
   includeProjectEvidence = false,
 ): Promise<MemoryCuratorStoredMessage[]> {
-  const columns =
-    "id, role, content, author_user_id, memory_input_message_id, memory_eligible_at, memory_app_eligible_at, created_at";
+  // The Word table has no `origin` column.
+  const columns = `id, role, content, author_user_id, memory_input_message_id, memory_eligible_at, memory_app_eligible_at, created_at${table === "word_chat_messages" ? "" : ", origin"}`;
   const loadAssistants = async () => {
     const eligibilityColumn = includeProjectEvidence
       ? "memory_eligible_at"
@@ -428,7 +432,7 @@ export async function loadEligibleMemoryMessages(
     if (error) {
       throw conversationLoadFailure(error, "assistants");
     }
-    return (data ?? []) as MemoryCuratorStoredMessage[];
+    return (data ?? []) as unknown as MemoryCuratorStoredMessage[];
   };
 
   // Project memory receives the project's successful pairs. Every other
@@ -455,7 +459,7 @@ export async function loadEligibleMemoryMessages(
     if (error) {
       throw conversationLoadFailure(error, "inputs");
     }
-    inputs = (data ?? []) as MemoryCuratorStoredMessage[];
+    inputs = (data ?? []) as unknown as MemoryCuratorStoredMessage[];
   }
 
   return [...inputs, ...assistantsById.values()].sort((left, right) => {

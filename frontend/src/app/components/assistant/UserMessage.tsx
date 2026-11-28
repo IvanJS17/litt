@@ -25,6 +25,8 @@ interface Props {
     workflow?: { id: string; title: string };
     /** The playbook this message ran; its pill links to the playbook. */
     playbook?: { id: string; title: string };
+    /** Written by a connected app: shown as one line of plain text under the message. */
+    fromApp?: { name: string | null };
     onFileClick?: (file: MessageFile) => void;
     /** Reveals the workflow this message ran, in the workflow modal. */
     onWorkflowClick?: (workflow: { id: string; title: string }) => void;
@@ -37,6 +39,7 @@ export function UserMessage({
     files,
     workflow,
     playbook,
+    fromApp,
     onFileClick,
     onWorkflowClick,
     trainingNote,
@@ -127,6 +130,13 @@ export function UserMessage({
                     />
                 )}
             </div>
+            {fromApp && (
+                <p className="max-w-[80%] break-words text-right text-xs text-gray-500">
+                    {fromApp.name
+                        ? t("shared.sidebarChatItem.fromApp", { app: fromApp.name })
+                        : t("assistant.userMessage.fromUnnamedApp")}
+                </p>
+            )}
             {trainingNote && (
                 <TrainingNoteUI
                     note={trainingNote}

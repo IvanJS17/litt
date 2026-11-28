@@ -363,6 +363,8 @@ export interface Message {
   workflow?: { id: string; title: string };
   /** The playbook the user picked to run, shown as a pill. */
   playbook?: { id: string; title: string };
+  /** A message a connected app wrote: the app's name when it did (empty when unknown). */
+  fromApp?: { name: string | null };
   model?: string;
   /** LiTT: the credential chosen for a NEW conversation's first turn. */
   credential_ref?: string;

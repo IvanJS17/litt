@@ -877,6 +877,7 @@ export function ProjectChatPanel({
                                             content={msg.content ?? ""}
                                             files={msg.files}
                                             workflow={msg.workflow}
+                                            fromApp={msg.fromApp}
                                             onFileClick={(file) => {
                                                 if (!file.document_id) return;
                                                 onOpenDocument({

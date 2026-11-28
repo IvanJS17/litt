@@ -497,6 +497,7 @@
       "rateLimitedWait": "This source is temporarily rate limited. Please try again in about {seconds, plural, one {# second} other {# seconds}}."
     },
     "userMessage": {
+      "fromUnnamedApp": "From a connected app",
       "openFilename": "Open {filename}",
       "openPlaybookTitle": "Open playbook {title}",
       "openWorkflowTitle": "Open workflow {title}"

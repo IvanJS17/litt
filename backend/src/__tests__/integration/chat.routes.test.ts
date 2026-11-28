@@ -306,6 +306,15 @@ function makeQuery(table: string) {
     reject?: (e: unknown) => unknown,
     ) => {
         const resolveQuery = async () => {
+            // The read of the messages a connected app wrote in the
+            // conversation: none in these tests.
+            if (
+                !activeUpdate &&
+                didSelect &&
+                selectState.filters.some((f) => f.column === "origin")
+            ) {
+                return { data: [], error: null };
+            }
             if (
                 dbControl.failContentGrantLookup &&
                 table === "chat_access_grants"

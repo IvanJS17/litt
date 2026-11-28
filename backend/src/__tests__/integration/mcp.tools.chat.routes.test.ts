@@ -419,8 +419,8 @@ describe("send_chat_message and the start + poll lifecycle", () => {
             { role: "assistant", content: "Son $10,000 MXN." },
             { role: "user", content: "¿Y el plazo?" },
         ]);
-        // A conversation that began in LiTT keeps its origin.
-        expect(h.started[0].origin).toBeUndefined();
+        // The conversation keeps its own origin; the message the app adds carries the app's mark.
+        expect(h.started[0].origin).toMatchObject({ grantId: grantId() });
         // The connection's permissions, not the conversation's origin, set what the assistant may do.
         expect(h.started[0].allowedCapabilities).toEqual(["read", "run", "write"]);
         expect(tables().chats.find((c) => c.id === WEB_CHAT)!.origin).toBe("web");
@@ -782,6 +782,30 @@ describe("GET /mcp-connect/grants/:id/activity", () => {
         expect(web.status).toBe(200);
         expect(web.body.chat).toMatchObject({ origin: "mcp", origin_label: hostile });
         expect(web.body.chat).not.toHaveProperty("origin_grant_id");
+    });
+
+    it("returns the mark of a message to the web and to the app, and never the connection's id", async () => {
+        as("owner");
+        const token = await connect();
+        const started = await callTool(token, "start_chat", { message: "hola", matter_id: PROJECT_PUBLIC });
+        tables().chat_messages.push({
+            id: randomUUID(),
+            chat_id: started.data.chat_id,
+            role: "user",
+            content: "desde la app",
+            created_at: "2026-11-28T10:00:00Z",
+            origin: "mcp",
+            origin_grant_id: grantId(),
+            origin_label: "Claude",
+        });
+        const web = await request(app).get(`/chat/${started.data.chat_id}`);
+        expect(web.status).toBe(200);
+        expect(web.body.messages.find((m: { content: string }) => m.content === "desde la app")).toMatchObject({ origin: "mcp", origin_label: "Claude" });
+        expect(JSON.stringify(web.body)).not.toContain(grantId());
+        expect(JSON.stringify(web.body)).not.toContain("origin_grant_id");
+        const got = await callTool(token, "get_chat", { chat_id: started.data.chat_id });
+        expect(JSON.stringify(got.data)).not.toContain(grantId());
+        expect(JSON.stringify(got.data)).not.toContain("origin_grant_id");
     });
 
     it("keeps the conversations after the connection is removed, without the link", async () => {

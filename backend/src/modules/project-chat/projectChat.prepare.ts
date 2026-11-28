@@ -28,6 +28,7 @@ import {
     attachPriorReasoning,
     enrichWithPriorEvents,
     loadUserMessageSentTimes,
+    loadAppWrittenUserMessages,
     appendAskInputsResponseToAssistantMessage,
     runApprovedConnectorActions,
     generateSpotlightNonce,
@@ -578,6 +579,7 @@ export async function prepareProjectChatStream(
                 files: lastUser.files ?? null,
                 workflow: lastUser.workflow ?? null,
                 author_user_id: userId,
+                ...chatOriginColumns(args.origin),
             });
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
@@ -722,6 +724,16 @@ export async function prepareProjectChatStream(
             messagesForLLM,
             !!args.askInputsResponse,
         );
+        const appWritten = await loadAppWrittenUserMessages(
+            db,
+            "chat_messages",
+            chatId,
+            // The history as stored: the displayed-document note is added to the last message only after this.
+            enrichedMessages,
+        );
+        if (!appWritten.ok) {
+            return { ok: false, internal: true, error: appWritten.error };
+        }
         const apiMessages = buildMessages(
             messagesForLLM,
             docAvailability,
@@ -730,6 +742,7 @@ export async function prepareProjectChatStream(
             nonce,
             "append",
             { timeZone, now: new Date(), userSentAt },
+            appWritten.marks,
         );
 
         const workflowStore = await buildWorkflowStore(userId, userEmail, db, projectAccess.project.org_id ?? null);

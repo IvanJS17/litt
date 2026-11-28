@@ -103,6 +103,8 @@ interface TRMessage {
     /** LiTT training: this just-sent message asked for a hint or a counterparty round. */
     training_mode?: TrainingTurnMode;
     content: string;
+    /** A message a connected app wrote: the app's name when it did (null when unknown). */
+    fromApp?: { name: string | null };
     events?: AssistantEvent[];
     annotations?: TRCitationAnnotation[];
     /** Citation numbers the automatic check put in the low band («Revisar esta cita»). */
@@ -413,12 +415,20 @@ export const TRMessageBubble = memo(function MessageBubble({
     onCitationClick: (colIdx: number, rowIdx: number) => void;
 }) {
     const trainingText = useTrainingText();
+    const t = useTranslations();
     if (msg.role === "user") {
         return (
             <div className="flex flex-col items-end gap-2">
                 <div className="max-w-[90%] rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-800 whitespace-pre-wrap">
                     {msg.content}
                 </div>
+                {msg.fromApp && (
+                    <p className="max-w-[90%] break-words text-right text-xs text-gray-500">
+                        {msg.fromApp.name
+                            ? t("shared.sidebarChatItem.fromApp", { app: msg.fromApp.name })
+                            : t("assistant.userMessage.fromUnnamedApp")}
+                    </p>
+                )}
                 {trainingNote && (
                     <TrainingNoteUI
                         note={trainingNote}

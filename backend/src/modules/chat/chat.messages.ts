@@ -153,7 +153,10 @@ export async function getChatMessages(
     // were built from: an answer the reader cannot open now keeps its place,
     // emptied and marked `unreadable` with its reason, so nothing disappears silently. A
     // lookup that fails throws.
-    const stored = withoutEmptyAssistantReservations(messages ?? []);
+    // origin_grant_id links a message to a connection: not for chat readers.
+    const stored = withoutEmptyAssistantReservations(messages ?? []).map(
+        ({ origin_grant_id: _originGrantId, ...message }) => message,
+    );
     const { messages: readable, reasons } = await readableChatMessages(db, reader, stored, "chat_messages", "live");
     const readableById = new Map(readable.map((m) => [m.id, m]));
     const visible = stored.map(

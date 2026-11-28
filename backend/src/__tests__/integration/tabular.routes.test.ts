@@ -130,6 +130,13 @@ function makeQuery(table: string) {
     "contains",
     ];
     for (const m of chain) q[m] = vi.fn(() => q);
+    // The read of the messages a connected app wrote in the thread (filtered
+    // by origin): none in these tests.
+    let appWrittenRead = false;
+    q.eq = vi.fn((column: string) => {
+        if (column === "origin") appWrittenRead = true;
+        return q;
+    });
     let assistantInsert = false;
     q.insert = vi.fn((payload: unknown) => {
         supabaseState.inserts.push({ table, payload });
@@ -159,6 +166,7 @@ function makeQuery(table: string) {
     const gate = assistantInsert ? supabaseState.assistantInsertGate : null;
     return (gate ?? Promise.resolve())
       .then(() => {
+        if (appWrittenRead) return { data: [], error: null, count: 0 };
         const result = resultForTable(table);
         return {
           ...result,
