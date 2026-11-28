@@ -23,7 +23,8 @@ vi.mock("../../../../lib/mcpConnectors", () => ({
   buildUserMcpTools: vi.fn(async () => []),
 }));
 
-import { isAbortError, runLLMStream } from "../streaming";
+import { runLLMStream } from "../streaming";
+import { isConnectionEnded } from "../tools/connectionEnded";
 import { runFirmCriteriaCall } from "../tools/firmCriteriaTool";
 import { createWebTurnState } from "../tools/webSearchTools";
 import type { Db } from "../../../../lib/supabase";
@@ -134,7 +135,7 @@ describe("running the tool in a turn", () => {
     p.connectionCheck = vi.fn(async () => ++asked < 3);
     await runLLMStream(p as never);
     const second = { ...call({ practice: "civil" }), id: "call-2" };
-    await expect(streamChatWithTools.mock.calls[0]![0].runTools([call({ practice: "mercantil" }), second])).rejects.toSatisfy(isAbortError);
+    await expect(streamChatWithTools.mock.calls[0]![0].runTools([call({ practice: "mercantil" }), second])).rejects.toSatisfy(isConnectionEnded);
     const frames = p.write.mock.calls.map((c) => String(c[0])).filter((chunk) => chunk.includes("firm_criteria"));
     expect(frames).toHaveLength(1);
     expect(frames[0]).toContain("call-1");

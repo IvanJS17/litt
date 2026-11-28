@@ -35,6 +35,7 @@ import {
 } from "./delegateRuns";
 import { scopedDocuments } from "./documentScope";
 import { createChildWebTurnState, type WebTurnState } from "./webSearchTools";
+import { isConnectionEnded } from "./connectionEnded";
 
 export const DELEGATE_TOOL_NAME = "delegate";
 export const ASK_PARENT_TOOL_NAME = "ask_parent";
@@ -857,6 +858,8 @@ async function runDelegateCallInner(
         const paused = question || outcome.events.some((e) => e.type === "ask_inputs");
         status = paused ? "needs_input" : "completed";
     } catch (error) {
+        // The end of the connection ends the whole turn, not only this run.
+        if (isConnectionEnded(error)) throw error;
         outcome = partialRun(error);
         const reason = stopper.reason();
         status = reason === "parent" ? "cancelled" : reason ? "incomplete" : "failed";

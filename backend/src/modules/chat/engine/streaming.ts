@@ -96,6 +96,7 @@ import {
   CITATIONS_OPEN_TAG,
 } from "./citations";
 import { requireLiveConnection, runToolCalls } from "./tools/toolDispatcher";
+import { isConnectionEnded } from "./tools/connectionEnded";
 import {
   emptyToolCallBatchResult,
   type ToolCallBatchResult,
@@ -250,8 +251,12 @@ export function sanitizeAssistantSseChunk(chunk: string): string {
 }
 
 export class AssistantStreamAbortError extends AssistantStreamError {
-  constructor(fullText: string, events: AssistantEvent[]) {
-    super("Stream aborted.", fullText, events);
+  constructor(
+    fullText: string,
+    events: AssistantEvent[],
+    options?: ErrorOptions,
+  ) {
+    super("Stream aborted.", fullText, events, options);
     this.name = "AbortError";
   }
 }
@@ -1286,15 +1291,18 @@ export async function runLLMStream(params: {
       // The ask_inputs event has already been emitted and persisted in `events`.
       // Stop this assistant turn here so the model does not add redundant
       // prose telling the user to answer the picker or attach documents.
-    } else if (isAbortError(err) || signal?.aborted) {
+    } else if (isAbortError(err) || isConnectionEnded(err) || signal?.aborted) {
       // Any failure after the turn's signal fired (a client tool or a tool
       // call that rejects once the stop reached it) ends the turn as
-      // stopped: that is the outcome its readers were given.
+      // stopped: that is the outcome its readers were given. So does the
+      // end of the connection that started the turn, which carries on as
+      // the cause so a parent turn recognises it from a subagent's stop.
       await recordDelegations().catch(() => {});
       flushPartialTurn({ emit: false });
       throw new AssistantStreamAbortError(
         fullText,
         events.map(sanitizeAssistantEvent),
+        isConnectionEnded(err) ? { cause: err } : undefined,
       );
     } else {
       delegationStop.abort();

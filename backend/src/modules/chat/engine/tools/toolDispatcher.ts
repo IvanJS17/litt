@@ -1,5 +1,6 @@
 import type { ConnectorApprovalItem, DocumentSearchEvent } from "@mike/contracts";
 import { textCardEvent } from "./textCard";
+import { ConnectionEndedError } from "./connectionEnded";
 import { METHODOLOGY_TOOL_NAME, runMethodology } from "./methodologyTool";
 import { methodologyText, readAnnexLocale } from "../../../../lib/methodology";
 import { internalFailure } from "../../../../lib/serviceResult";
@@ -273,9 +274,7 @@ export async function requireLiveConnection(
     reportToolFailure(error, "warning");
   }
   if (good) return;
-  const stop = new Error("Stream aborted.");
-  stop.name = "AbortError";
-  throw stop;
+  throw new ConnectionEndedError();
 }
 
 export async function runToolCalls(

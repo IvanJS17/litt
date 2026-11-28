@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // A turn a connected application started asks, before each tool call, whether
 // that connection is still good. When it is not (or the question cannot be
-// answered) the call does not run and the turn ends as a stopped turn. A turn
+// answered) the call does not run and the dispatcher raises the connection-ended
+// error, which the stream ends as a stopped turn (pinned in
+// connectionEndedStop.test.ts). A turn
 // the web started asks nothing.
 
 const mocks = vi.hoisted(() => ({
@@ -19,7 +21,7 @@ vi.mock("../../../../lib/access", async (load) => ({
   filterAccessibleDocumentIds: mocks.accessible,
 }));
 
-import { isAbortError } from "../streaming";
+import { isConnectionEnded } from "../tools/connectionEnded";
 import { emptyToolCallBatchResult } from "../tools/toolBatchResult";
 import { runToolCalls } from "../tools/toolDispatcher";
 import type { TabularCellStore } from "../types";
@@ -54,13 +56,13 @@ describe("a connected application's turn asks whether its connection is still go
     expect(r.toolResults).toHaveLength(2);
   });
 
-  it("does not run the call after the connection ended, and ends the turn as stopped", async () => {
+  it("does not run the call after the connection ended, and raises the connection-ended error", async () => {
     let good = true;
     const check = vi.fn(async () => good);
     const first = await run([call("a")], check);
     expect(JSON.stringify(first.toolResults)).toContain("alpha twelve months");
     good = false;
-    await expect(run([call("b"), call("c")], check)).rejects.toSatisfy(isAbortError);
+    await expect(run([call("b"), call("c")], check)).rejects.toSatisfy(isConnectionEnded);
     expect(served()).toBe(1);
   });
 
@@ -71,7 +73,7 @@ describe("a connected application's turn asks whether its connection is still go
     await expect(
       runToolCalls([call("a"), call("b")], new Map(), ME, {} as never, () => {}, undefined, store, undefined, undefined, new Map(), null, "nonce",
         { userEmail: "me@example.test", allowedCapabilities: ["read"], connectionCheck: check, results: batch }),
-    ).rejects.toSatisfy(isAbortError);
+    ).rejects.toSatisfy(isConnectionEnded);
     expect(served()).toBe(1);
     expect(batch.toolResults).toHaveLength(1);
   });
@@ -79,7 +81,7 @@ describe("a connected application's turn asks whether its connection is still go
   it("does not run the call when the check cannot be answered, and names nothing of the failure", async () => {
     const check = vi.fn(async () => { throw new Error("private database detail"); });
     const error = await run([call("a")], check).then(() => null, (e: unknown) => e);
-    expect(isAbortError(error)).toBe(true);
+    expect(isConnectionEnded(error)).toBe(true);
     expect(String((error as Error).message)).not.toContain("private database detail");
     expect(served()).toBe(0);
   });
