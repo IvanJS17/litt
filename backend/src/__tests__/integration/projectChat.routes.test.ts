@@ -84,6 +84,13 @@ function makeQuery(table: string) {
     "contains",
     ];
     for (const m of chain) q[m] = vi.fn(() => q);
+  // The read of the messages a connected app wrote in the conversation
+  // (filtered by origin): none in these tests.
+  let appWrittenRead = false;
+  q.eq = vi.fn((column: string) => {
+    if (column === "origin") appWrittenRead = true;
+    return q;
+  });
   q.update = vi.fn((value: unknown) => {
     dbUpdates.push({ table, value });
     return q;
@@ -109,6 +116,7 @@ function makeQuery(table: string) {
           dbControl.assistantInsertFailures -= 1;
           return { data: null, error: { message: "insert failed" } };
         }
+        if (appWrittenRead) return { data: [], error: null };
         return result;
       })
       .then(resolve, reject);
