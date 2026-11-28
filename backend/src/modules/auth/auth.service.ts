@@ -12,6 +12,7 @@
 // lib/authSession and lib/authHandoff because middleware/auth depends on them.
 
 import { z } from "zod";
+import { AppError } from "../../lib/appError";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
@@ -268,6 +269,28 @@ export function verifyEmailToken(
   return client.auth.verifyOtp(args);
 }
 
+/**
+ * Clock difference allowed between this server and the identity service when
+ * judging whether an address was confirmed before a call.
+ */
+const CONFIRMATION_SKEW_MS = 60_000;
+
+/**
+ * Did this emailed sign-up value only now confirm an account an invitation
+ * created (`invited_at` set, as lib/platformAccess reads it)? Such an account
+ * has its own door; the sign-up value must not open a session for it. An
+ * invited account that had already confirmed its address before `startedAt`
+ * is not in this case.
+ */
+export function confirmedInvitedAccount(
+  user: Pick<User, "invited_at" | "email_confirmed_at">,
+  startedAt: number,
+): boolean {
+  if (!user.invited_at) return false;
+  const confirmedAt = user.email_confirmed_at ? Date.parse(user.email_confirmed_at) : NaN;
+  return !(confirmedAt < startedAt - CONFIRMATION_SKEW_MS);
+}
+
 /** Mint a one-shot ticket the Word add-in trades for a cookie session. */
 export function issueWordHandoff(args: {
   userId: string;
@@ -312,8 +335,17 @@ export async function currentUser(
   return { user: data.user, error };
 }
 
-export function signOut(client: SupabaseClient, scope: "global" | "local") {
-  return client.auth.signOut({ scope });
+/**
+ * Ends the session at the identity service. The client RETURNS a refusal
+ * instead of throwing; here it is thrown, so no caller can report a sign-out
+ * that did not happen. A session that is already gone is not a refusal (the
+ * client answers success for it).
+ */
+export async function signOut(client: SupabaseClient, scope: "global" | "local"): Promise<void> {
+  const { error } = await client.auth.signOut({ scope });
+  if (error) {
+    throw new AppError("auth.supabase_unavailable", "upstream sign-out failed", { cause: error });
+  }
 }
 
 export function updateEmail(

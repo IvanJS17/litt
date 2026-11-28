@@ -29,6 +29,7 @@ describe("createServerSupabase", () => {
           persistSession: false,
           autoRefreshToken: false,
         },
+        global: { fetch: expect.any(Function) },
       },
     );
   });

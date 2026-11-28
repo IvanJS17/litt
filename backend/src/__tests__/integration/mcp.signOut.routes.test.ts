@@ -343,8 +343,8 @@ describe.each([
 });
 
 describe.each([
-    ["signing out everywhere", globalLogout, 204],
-    ["recovering the password with the sign-out option", recovery, 200],
+    ["signing out everywhere", globalLogout, 503],
+    ["recovering the password with the sign-out option", recovery, 503],
 ] as const)("the order of %s", (_name, endSessions, failedStatus) => {
     it("stamps only once the identity service has ended the sessions", async () => {
         await connect();
@@ -355,7 +355,7 @@ describe.each([
         expect(stampOf()).toEqual(expect.any(String));
     });
 
-    it("stamps even when the identity service reports a failure, answering as it did before", async () => {
+    it("stamps even when the identity service reports a failure, answering the failure", async () => {
         const { token } = await connect();
         h.signOutFails = true;
         await later();

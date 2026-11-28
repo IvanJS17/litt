@@ -12,13 +12,26 @@ export type Identity = {
   password: string | null;
   confirmed: boolean;
   invitedAt: string | null;
+  /** When the address was confirmed, if it was confirmed before this moment. */
+  confirmedAt?: string | null;
   createdAt: string;
   token: string | null;
+  /** Which kind of mail the held value came from; seeded values are sign-up values. */
+  tokenKind?: TokenKind;
   /** Set when the person has ever signed in. */
   lastSignInAt?: string | null;
   /** The identity service's own ban: set by `ban_duration`, lifted by "none". */
   bannedUntil?: string | null;
   appMetadata?: Record<string, unknown>;
+};
+
+export type TokenKind = "signup" | "invite" | "recovery" | "email_change";
+// As observed: an invitation's value is spent under `signup` or `invite`; every other kind only under its own type.
+const spendableUnder: Record<TokenKind, string[]> = {
+  signup: ["signup"],
+  invite: ["signup", "invite"],
+  recovery: ["recovery"],
+  email_change: ["email_change"],
 };
 
 type Tables = Record<string, Record<string, unknown>[]>;
@@ -45,7 +58,7 @@ export function fakeIdentityService() {
     created_at: u.createdAt,
     invited_at: u.invitedAt,
     last_sign_in_at: u.lastSignInAt ?? null,
-    email_confirmed_at: u.confirmed ? nowIso() : null,
+    email_confirmed_at: u.confirmed ? (u.confirmedAt ?? nowIso()) : null,
     banned_until: u.bannedUntil ?? null,
     app_metadata: { provider: "email", ...(u.appMetadata ?? {}) },
   });
@@ -93,10 +106,18 @@ export function fakeIdentityService() {
       // As on the real service: every invitation, a repeat included, sets the invitation date to now.
       u.invitedAt = nowIso();
       u.token = `token-${++counter}`;
+      u.tokenKind = "invite";
       if (!known) givePersonalOrg(u.id);
       identities.set(email, u);
       mails.push({ email, token: u.token });
       return { data: { user: publicUser(email, u) }, error: null };
+    },
+    /** A recovery mail is sent to an existing address: it holds a value that only the recovery type spends. */
+    issueRecovery(email: string) {
+      const u = identities.get(email)!;
+      u.token = `token-${++counter}`;
+      u.tokenKind = "recovery";
+      mails.push({ email, token: u.token });
     },
     async deleteUser(id: string) {
       const found = byId(id);
@@ -138,6 +159,24 @@ export function fakeIdentityService() {
       if (!wanted || u.token !== wanted) return false;
       u.confirmed = true;
       return true;
+    },
+    /**
+     * The person spends an emailed token hash: the identity that holds it is confirmed and
+     * answers with its user and a session. A token nobody holds, or one presented under a
+     * type that does not take it, is refused as the service refuses an expired one.
+     */
+    verifyToken(tokenHash: string, type = "signup") {
+      const found = [...identities.entries()].find(
+        ([, u]) => u.token === tokenHash && spendableUnder[u.tokenKind ?? "signup"].includes(type),
+      );
+      if (!found) {
+        return { data: { user: null, session: null }, error: { __isAuthError: true, name: "AuthApiError", status: 403, code: "otp_expired", message: "Email link is invalid or has expired" } };
+      }
+      const [email, u] = found;
+      u.confirmed = true;
+      u.confirmedAt ??= nowIso();
+      u.token = null;
+      return { data: { user: publicUser(email, u), session: { access_token: `access-${u.id}`, refresh_token: `refresh-${u.id}` } }, error: null };
     },
     choosePassword(email: string, password: string) {
       identities.get(email)!.password = password;
