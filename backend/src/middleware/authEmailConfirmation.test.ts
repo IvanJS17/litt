@@ -13,13 +13,14 @@ vi.mock("../lib/supabase", () => ({
       const builder = {
         select: () => builder,
         eq: () => builder,
-        maybeSingle: async () => ({ data: null, error: null }),
+        maybeSingle: async () => ({ data: { terms_accepted_version: LEGAL_VERSION }, error: null }),
       };
       return builder;
     },
   }),
 }));
 import { requireAuth } from "./auth";
+import { LEGAL_VERSION } from "../modules/user/user.service";
 
 // The middleware is driven directly rather than mounted on an app: the
 // behaviour under test is what it writes to res.locals.

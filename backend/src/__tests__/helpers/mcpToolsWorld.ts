@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { checkProjectAccess, ensureChatAccess, ensureDocAccess } from "../../lib/access";
 import type { Db } from "../../lib/supabase";
 import { memoryDb, type Row } from "./memoryDb";
+import { LEGAL_VERSION } from "../../modules/user/user.service";
 
 /** Every read_document_text call the fake database has answered (a window of a stored text each). */
 export const textReads: Array<{ offset: number; length: number }> = [];
@@ -74,7 +75,8 @@ export function buildWorld() {
         mcp_oauth_audit: [],
         mcp_tool_calls: [],
         audit_events: [],
-        user_profiles: [],
+        // Everyone has accepted the current Terms unless a test says otherwise.
+        user_profiles: Object.values(PEOPLE).map((p) => ({ user_id: p.id, terms_accepted_version: LEGAL_VERSION })),
         training_stages: [],
         organizations: [
             { id: ORG, name: "Firm A", kind: "firm", deleted_at: null, authorization_epoch: 1, managed_accounts: false },

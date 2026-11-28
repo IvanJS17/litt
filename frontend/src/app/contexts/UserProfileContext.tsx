@@ -54,6 +54,7 @@ import {
     type RouterSlug,
     clientTranslator,
 } from "@mike/client";
+import { TERMS_ACCEPTANCE_REQUIRED_EVENT } from "@/app/lib/authEvents";
 import { publishTabularChatSettingsUpdate } from "@/app/lib/tabularChatSettingsEvents";
 import {
     clearConfiguredModels,
@@ -356,6 +357,16 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             setLoading(false);
         }
     }, [applyProfile]);
+
+    // A request the server refused for the Terms shows the Terms screen at
+    // once, wherever it came from (the screen is OnboardingGate's).
+    useEffect(() => {
+        const onTermsRequired = () =>
+            setProfile((previous) => previous && { ...previous, termsRequired: true });
+        window.addEventListener(TERMS_ACCEPTANCE_REQUIRED_EVENT, onTermsRequired);
+        return () =>
+            window.removeEventListener(TERMS_ACCEPTANCE_REQUIRED_EVENT, onTermsRequired);
+    }, []);
 
     // A new signed-in user invalidates the shared model catalog. This runs as
     // a LAYOUT effect on purpose: React runs a component's passive effects

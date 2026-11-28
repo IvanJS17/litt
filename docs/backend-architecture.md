@@ -536,6 +536,22 @@ The assistant engine lives in `modules/chat/engine/`. Other chat surfaces use
 named exports from `chat.service.ts`. HTTP framing lives in `lib/assistantSse.ts`;
 message reservation and persistence belong to the chat module.
 
+## The current Terms are required by the server
+
+Every signed-in request needs the person to have accepted the current Terms
+(`LEGAL_VERSION`). `requireAuth` reads `terms_accepted_version` in the same
+`user_profiles` read it already makes and answers 403
+`terms_acceptance_required` unless the person has accepted; nothing is cached,
+so accepting unblocks the next request. The only routes that answer without it
+are the ones in `TERMS_GATE_ALLOW_LIST` (`lib/termsGate.ts`, one reason each):
+reading the profile and accepting, the second-factor and password steps that
+come before the Terms screen, and the person's own account deletion and export.
+Platform administrators are not exempt. Connected applications (`/mcp`) judge the
+same question in `revalidatePrincipal`: the handshake and the list of tools
+answer, while a tool call, a prompt or a resource is refused with a protocol
+error. The web shows its Terms screen when any request answers the code; the
+Word add-in tells the person to accept the Terms in LiTT on the web.
+
 ## Background jobs
 
 `jobs/registry.ts` composes domain handlers from module facades and supplies both

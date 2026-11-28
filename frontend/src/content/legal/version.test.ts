@@ -8,7 +8,7 @@ const read = (file: string) => readFileSync(path.join(process.cwd(), "src/conten
 describe("LEGAL_VERSION", () => {
     it("is the same in the backend and the frontend (raise both together)", () => {
         const backend = readFileSync(
-            path.join(process.cwd(), "../backend/src/modules/user/user.profile.storage.ts"),
+            path.join(process.cwd(), "../backend/src/lib/legalVersion.ts"),
             "utf8",
         ).match(/export const LEGAL_VERSION = "([^"]+)";/);
         expect(backend?.[1]).toBe(LEGAL_VERSION);

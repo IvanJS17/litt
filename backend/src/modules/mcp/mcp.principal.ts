@@ -10,6 +10,7 @@
 
 import type { Db } from "../../lib/supabase";
 import { AppError } from "../../lib/appError";
+import { hasAcceptedCurrentTerms } from "../../lib/termsGate";
 import { getOrgRole } from "../../lib/access";
 import { managedByCreatingOrg, PERSONAL_WORKSPACE_DISABLED_DETAIL } from "../../lib/managedAccounts";
 import { readAuthorizationStamp } from "../../lib/authorizationEpoch";
@@ -47,6 +48,8 @@ export type McpPrincipal = {
     /** `A` as soon as any live workspace belongs to an apprentice, otherwise `B`. */
     mode: McpMode;
     personalWorkspaceDisabled: boolean;
+    /** Whether the person has accepted the current Terms; without it no tool, resource or prompt answers. */
+    termsAccepted: boolean;
 };
 
 export type Denial = {
@@ -101,7 +104,7 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
     // 2. The account.
     const profile = await db
         .from("user_profiles")
-        .select("account_deletion_requested_at, created_by_org_id, sessions_ended_at")
+        .select("account_deletion_requested_at, created_by_org_id, sessions_ended_at, terms_accepted_version")
         .eq("user_id", grant.user_id)
         .maybeSingle();
     if (profile.error) throw dbFailure("account state lookup failed", profile.error);
@@ -109,6 +112,7 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
         account_deletion_requested_at?: string | null;
         created_by_org_id?: string | null;
         sessions_ended_at?: string | null;
+        terms_accepted_version?: string | null;
     } | null;
     if (grantPredatesSignOut(grant, account?.sessions_ended_at))
         return deny(401, "invalid_token", "The connection was revoked or has expired.");
@@ -175,6 +179,7 @@ export async function revalidatePrincipal(db: Db, grantId: string): Promise<Reva
                 : workspaces[0].id,
             mode: workspaces.some((w) => w.mode === "A") ? "A" : "B",
             personalWorkspaceDisabled,
+            termsAccepted: hasAcceptedCurrentTerms(account?.terms_accepted_version),
         },
     };
 }

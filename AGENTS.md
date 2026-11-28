@@ -349,6 +349,11 @@ means fix the code, not the test.
 10. An OAuth return is accepted only from the session that started it.
 11. Commit messages, PR texts, comments and tests describe the behaviour wanted,
     never how a weakness is used, and name no private paths or identifiers from private material.
+12. The current Terms are required by the server, not only by a screen: `requireAuth`
+    and the connected-applications endpoint refuse a person who has not accepted
+    the current version, except the routes listed in `backend/src/lib/termsGate.ts`.
+    A new router authenticates through `requireAuth`, and a new entry in that
+    list is a decision (`backend/src/__tests__/termsGate.test.ts`).
 
 ## LiTT fork
 

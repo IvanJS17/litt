@@ -260,7 +260,7 @@ describe("create_matter", () => {
     it("takes Personal away from a managed account: the web's rule, and the tool's", async () => {
         as("owner");
         const token = await connect({ workspaces: [ORG, "personal"] });
-        tables().user_profiles.push({ user_id: PEOPLE.owner.id, created_by_org_id: ORG, terms_accepted_version: "test-terms" });
+        Object.assign(tables().user_profiles.find((p) => p.user_id === PEOPLE.owner.id)!, { created_by_org_id: ORG });
         tables().organizations.find((o) => o.id === ORG)!.managed_accounts = true;
         const before = tables().projects.length;
         const personal = await callTool(token, "create_matter", { name: "Personal", workspace: "personal" });

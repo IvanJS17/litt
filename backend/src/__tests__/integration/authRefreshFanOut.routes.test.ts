@@ -15,6 +15,7 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../lib/log", () => ({ devLog: vi.fn(), isDev: false }));
+import { LEGAL_VERSION as TERMS_VERSION } from "../../modules/user/user.service";
 
 function jwt(exp: number, signature = "signature"): string {
   const part = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -79,7 +80,13 @@ const gotrue = http.createServer((req, res) => {
       res.end(JSON.stringify(user));
       return;
     }
-    res.end("[]"); // PostgREST: no profile row, so no deletion and no login MFA
+    if (req.url?.startsWith("/rest/v1/user_profiles")) {
+      // A profile that has accepted the current Terms: no deletion, no login MFA.
+      const row = { terms_accepted_version: TERMS_VERSION };
+      res.end(JSON.stringify(String(req.headers.accept).includes("pgrst.object") ? row : [row]));
+      return;
+    }
+    res.end("[]"); // PostgREST: nothing else
   });
 });
 

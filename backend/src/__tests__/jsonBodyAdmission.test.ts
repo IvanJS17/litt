@@ -9,6 +9,8 @@ import type express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LEGAL_VERSION } from "../modules/user/user.service";
+
 vi.mock("../lib/log", () => ({ devLog: vi.fn(), isDev: false }));
 
 const ORIGIN = "http://app.test";
@@ -40,6 +42,11 @@ const gotrue = http.createServer((req, res) => {
     }
     if (req.url?.startsWith("/rest/v1/upload_sessions")) {
       const row = { id: SESSION_ID, user_id: USER_ID, status: "pending_upload" };
+      res.end(JSON.stringify(String(req.headers.accept).includes("pgrst.object") ? row : [row]));
+      return;
+    }
+    if (req.url?.startsWith("/rest/v1/user_profiles")) {
+      const row = { terms_accepted_version: LEGAL_VERSION };
       res.end(JSON.stringify(String(req.headers.accept).includes("pgrst.object") ? row : [row]));
       return;
     }

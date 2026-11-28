@@ -25,6 +25,7 @@ vi.mock("../lib/supabase", () => ({
 }));
 
 import { requireAuth } from "./auth";
+import { LEGAL_VERSION } from "../modules/user/user.service";
 
 const USER = { id: "u1", email: "user@example.com", email_confirmed_at: "2026-01-01T00:00:00Z" };
 const COLUMN_MISSING = {
@@ -45,7 +46,7 @@ function adminClient() {
         select: (columns: string) => ({
           eq: () => ({
             maybeSingle: async () => {
-              if (columns.startsWith("account_deletion_requested_at")) return { data: null, error: null };
+              if (columns.startsWith("account_deletion_requested_at")) return { data: { terms_accepted_version: LEGAL_VERSION }, error: null };
               if (columns === "email") return { data: { email: USER.email }, error: null };
               if (columns === "mfa_on_login") return mocks.mfaLookup();
               throw new Error(`unexpected select ${columns}`);

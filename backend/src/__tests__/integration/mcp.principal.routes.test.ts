@@ -83,6 +83,7 @@ import { memoryDb } from "../helpers/memoryDb";
 import { resetGrantBudgets, takeGrantBudget } from "../../modules/mcp/mcp.limits";
 import { mcpConfig } from "../../modules/mcp/mcp.config";
 import { revalidatePrincipal } from "../../modules/mcp/mcp.principal";
+import { LEGAL_VERSION } from "../../modules/user/user.service";
 
 const ISSUER = "https://mcp.test.example";
 const RESOURCE = `${ISSUER}/mcp`;
@@ -106,7 +107,7 @@ beforeEach(() => {
             { id: ORG, name: "Firm A", kind: "firm", deleted_at: null, authorization_epoch: 4, managed_accounts: false },
             { id: ORG2, name: "Firm B", kind: "firm", deleted_at: null, authorization_epoch: 9, managed_accounts: false },
         ],
-        user_profiles: [],
+        user_profiles: [{ user_id: "user-1", terms_accepted_version: LEGAL_VERSION }],
         training_stages: [],
         mcp_tool_calls: [],
         audit_events: [],
@@ -219,7 +220,7 @@ describe("live revalidation on every call", () => {
 
     it("takes Personal away from a managed account at once", async () => {
         const { access } = await connect();
-        tables().user_profiles.push({ user_id: "user-1", created_by_org_id: ORG, terms_accepted_version: "test-terms" });
+        Object.assign(tables().user_profiles.find((p) => p.user_id === "user-1")!, { created_by_org_id: ORG });
         tables().organizations.find((o) => o.id === ORG)!.managed_accounts = true;
         const me = await who(access);
         expect(me.workspaces).toEqual([ORG]);
@@ -228,7 +229,7 @@ describe("live revalidation on every call", () => {
 
     it("answers 403 personal_workspace_disabled when a managed account's grant only had Personal", async () => {
         const { access } = await connect({ workspaces: ["personal"] });
-        tables().user_profiles.push({ user_id: "user-1", created_by_org_id: ORG, terms_accepted_version: "test-terms" });
+        Object.assign(tables().user_profiles.find((p) => p.user_id === "user-1")!, { created_by_org_id: ORG });
         tables().organizations.find((o) => o.id === ORG)!.managed_accounts = true;
         const res = await call(access, "whoami");
         expect(res.status).toBe(403);
@@ -237,7 +238,7 @@ describe("live revalidation on every call", () => {
 
     it.each(["older-terms", null])("refuses a personal-only grant of a managed account whatever legal version it accepted (%s)", async (accepted) => {
         const { access } = await connect({ workspaces: ["personal"] });
-        tables().user_profiles.push({ user_id: "user-1", created_by_org_id: ORG, terms_accepted_version: accepted });
+        Object.assign(tables().user_profiles.find((p) => p.user_id === "user-1")!, { created_by_org_id: ORG, terms_accepted_version: accepted });
         tables().organizations.find((o) => o.id === ORG)!.managed_accounts = true;
         const res = await call(access, "whoami");
         expect(res.status).toBe(403);
@@ -284,7 +285,7 @@ describe("live revalidation on every call", () => {
 
     it("refuses with 401 once the account is being erased, a grant is revoked or it expired", async () => {
         const erased = await connect();
-        tables().user_profiles.push({ user_id: "user-1", account_deletion_requested_at: "2026-11-16T00:00:00.000Z" });
+        Object.assign(tables().user_profiles.find((p) => p.user_id === "user-1")!, { account_deletion_requested_at: "2026-11-16T00:00:00.000Z" });
         const res = await call(erased.access, "whoami");
         expect(res.status).toBe(401);
         expect(res.headers["www-authenticate"]).toContain('error="invalid_token"');

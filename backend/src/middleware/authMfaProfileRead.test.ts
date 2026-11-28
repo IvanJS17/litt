@@ -28,7 +28,7 @@ vi.mock("../lib/supabase", () => ({
                 eq: () => builder,
                 maybeSingle: async () =>
                     !columns.includes("mfa_on_login")
-                        ? { data: null, error: null }
+                        ? { data: { terms_accepted_version: LEGAL_VERSION }, error: null }
                         : mocks.profileError
                           ? { data: null, error: mocks.profileError }
                           : { data: { mfa_on_login: true }, error: null },
@@ -38,6 +38,7 @@ vi.mock("../lib/supabase", () => ({
     }),
 }));
 import { requireAuth } from "./auth";
+import { LEGAL_VERSION } from "../modules/user/user.service";
 
 async function run() {
     const req = {

@@ -11,6 +11,12 @@ import { requestOriginIsTrusted } from "../lib/origins";
 import { devLog, isDev } from "../lib/log";
 import { AppError } from "../lib/appError";
 import {
+  TERMS_ACCEPTANCE_REQUIRED,
+  TERMS_ACCEPTANCE_REQUIRED_DETAIL,
+  hasAcceptedCurrentTerms,
+  isTermsGateExempt,
+} from "../lib/termsGate";
+import {
   bindRequestPrincipal,
   managedByCreatingOrg,
 } from "../lib/managedAccounts";
@@ -292,7 +298,7 @@ export async function requireAuth(
 
   const { data: deletionProfile, error: deletionError } = await admin
     .from("user_profiles")
-    .select("account_deletion_requested_at, created_by_org_id")
+    .select("account_deletion_requested_at, created_by_org_id, terms_accepted_version")
     .eq("user_id", user.id)
     .maybeSingle();
   if (deletionError) {
@@ -306,6 +312,23 @@ export async function requireAuth(
   }
   if (deletionProfile?.account_deletion_requested_at) {
     res.status(401).json({ code: "account_deletion_pending", detail: "This account is being deleted." });
+    return;
+  }
+
+  // The current Terms must be accepted for anything but the routes in
+  // lib/termsGate.ts. Read from the same row, on every request: accepting
+  // unblocks the next call.
+  if (
+    !hasAcceptedCurrentTerms(
+      (deletionProfile as { terms_accepted_version?: string | null } | null)
+        ?.terms_accepted_version,
+    ) &&
+    !isTermsGateExempt(req.method, req.originalUrl)
+  ) {
+    res.status(403).json({
+      code: TERMS_ACCEPTANCE_REQUIRED,
+      detail: TERMS_ACCEPTANCE_REQUIRED_DETAIL,
+    });
     return;
   }
 

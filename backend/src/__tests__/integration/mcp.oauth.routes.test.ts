@@ -51,6 +51,7 @@ vi.mock("../../lib/mcp/client", async (importOriginal) => {
 
 import { app } from "../../app";
 import { memoryDb } from "../helpers/memoryDb";
+import { LEGAL_VERSION } from "../../modules/user/user.service";
 
 const ISSUER = "https://mcp.test.example";
 const RESOURCE = `${ISSUER}/mcp`;
@@ -73,7 +74,7 @@ beforeEach(() => {
         training_stages: [],
         mcp_tool_calls: [],
         audit_events: [],
-        user_profiles: [],
+        user_profiles: [{ user_id: "user-1", terms_accepted_version: LEGAL_VERSION }],
     };
     h.state = memoryDb(tables, { mcp_oauth_purge: () => null });
     (h.state.db as { auth?: unknown }).auth = {
@@ -866,7 +867,7 @@ describe("/mcp", () => {
 
     it("stops answering when the account is being deleted", async () => {
         const { token } = await connect();
-        tables().user_profiles.push({ user_id: "user-1", account_deletion_requested_at: "2026-11-16T00:00:00.000Z" });
+        Object.assign(tables().user_profiles[0], { account_deletion_requested_at: "2026-11-16T00:00:00.000Z" });
         expect((await rpc("tools/list", token.body.access_token)).status).toBe(401);
     });
 

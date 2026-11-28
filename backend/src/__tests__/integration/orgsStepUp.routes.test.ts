@@ -21,6 +21,7 @@ vi.mock("../../lib/userLookup", async (importOriginal) => ({
 }));
 import { app } from "../../app";
 import { memoryDb } from "../helpers/memoryDb";
+import { LEGAL_VERSION } from "../../modules/user/user.service";
 
 const AUTH = ["Authorization", "Bearer test"] as const;
 const ARCHIVE = "11111111-1111-4111-8111-111111111111";
@@ -35,8 +36,8 @@ function world() {
             { id: "m2", org_id: "firm", user_id: "member", role: "member" },
         ],
         user_profiles: [
-            { user_id: "owner", email: "owner@firm.example", mfa_on_login: false },
-            { user_id: "member", email: "member@firm.example" },
+            { user_id: "owner", email: "owner@firm.example", mfa_on_login: false, terms_accepted_version: LEGAL_VERSION },
+            { user_id: "member", email: "member@firm.example", terms_accepted_version: LEGAL_VERSION },
         ],
         org_invitations: [
             {
