@@ -1,4 +1,32 @@
+import { ensureReviewAccess } from "../../../../lib/access";
+import { filterReadableReviewRows } from "../../../../lib/tabularReadAccess";
+import type { Db } from "../../../../lib/supabase";
 import type { TabularCellStore } from "../types";
+
+/**
+ * The rows of the table this person may read at this moment, asked again for
+ * each read: may they still open the review, and which rows' source documents
+ * may they still open (the two questions the turn's start asked, answered by
+ * the same functions). `null` is a refusal: the review is no longer theirs, the
+ * store carries nothing to check against, or the check could not be answered.
+ */
+export async function readableTableRowIds(
+  store: TabularCellStore,
+  db: Db,
+  userId: string,
+  userEmail: string | null | undefined,
+): Promise<Set<string> | null> {
+  const recheck = store.recheck;
+  if (!recheck) return null;
+  try {
+    const access = await ensureReviewAccess(recheck.review, userId, userEmail, db);
+    if (!access.ok) return null;
+    const { rows } = await filterReadableReviewRows(db, recheck.rows, [], userId, userEmail);
+    return new Set(rows.map((row) => row.id));
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Render the read_table_cells tool result for the requested slice of a
@@ -13,6 +41,7 @@ export function renderTableCells(
   store: TabularCellStore,
   colIndices: number[] | undefined,
   rowIndices: number[] | undefined,
+  readableRowIds?: ReadonlySet<string>,
 ): { label: string; content: string } {
   const wantedCols = colIndices?.length ? new Set(colIndices) : null;
   const wantedRows = rowIndices?.length ? new Set(rowIndices) : null;
@@ -31,9 +60,11 @@ export function renderTableCells(
   const cols = wantedCols
     ? store.columns.filter((_, i) => wantedCols.has(i))
     : store.columns;
-  const docs = wantedRows
-    ? store.documents.filter((_, i) => wantedRows.has(i))
-    : store.documents;
+  const docs = store.documents.filter(
+    (doc, i) =>
+      (!wantedRows || wantedRows.has(i)) &&
+      (!readableRowIds || readableRowIds.has(doc.id)),
+  );
 
   const label = `${cols.length} ${cols.length === 1 ? "column" : "columns"} × ${docs.length} ${docs.length === 1 ? "row" : "rows"}`;
 

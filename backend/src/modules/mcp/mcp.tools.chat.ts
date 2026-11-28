@@ -36,7 +36,7 @@ import {
 import { createMcpChatSink, turnErrorMessage } from "./mcp.chatSink";
 import { recordMcpChatEgress } from "./mcp.calls";
 import { clientNameOf } from "./mcp.grants";
-import { PERSONAL_WORKSPACE } from "./mcp.principal";
+import { PERSONAL_WORKSPACE, revalidatePrincipal } from "./mcp.principal";
 import { chatReleases, chatTurnRelease, titleReleases, withheldFields, type Release } from "./mcp.release";
 import { defaultKeyFor, workspaceOrgId } from "./mcp.defaultKey";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
@@ -154,6 +154,19 @@ export function turnCapabilities(call: McpCall): ToolCapability[] {
     if (scopes.includes("litt.run")) capabilities.push("run");
     if (scopes.includes("litt.write")) capabilities.push("write");
     return capabilities;
+}
+
+/**
+ * The question a turn a connected application started asks before each tool
+ * call: is the connection that started it still good? It is the question the
+ * endpoint asks of every request (revalidatePrincipal): a revoked or expired
+ * connection, or one that predates the person's sign-out everywhere, is not.
+ * A read that fails throws, and the engine treats that as "not good".
+ */
+export function turnConnectionCheck(call: McpCall): () => Promise<boolean> {
+    const { db } = call;
+    const { grantId } = call.principal;
+    return async () => (await revalidatePrincipal(db, grantId)).ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +316,7 @@ export async function runTurn(
             ? undefined
             : { grantId: call.principal.grantId, label: await clientNameOf(call.db, call.principal.clientId) },
         allowedCapabilities: turnCapabilities(call),
+        connectionCheck: turnConnectionCheck(call),
     });
     if (!started.ok) startRefusal(started);
     const turn = started.started;

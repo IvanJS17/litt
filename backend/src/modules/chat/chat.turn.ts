@@ -43,6 +43,7 @@ import {
     isMeaningfulTextlessAssistantOutput,
     runLLMStream,
     stripTransientAssistantEvents,
+    startedByConnectedApp,
     type ToolCapability,
     throwIfTurnStopped,
     writeApprovedConnectorFrames,
@@ -130,6 +131,8 @@ export type StartedChatTurn = {
     subagentRuns: ReturnType<typeof createSubagentRunStore>;
     /** The tool capabilities of a turn a connected app started; absent: all. */
     allowedCapabilities?: readonly ToolCapability[];
+    /** Only for a connected app's turn: is its connection still good? Asked before each tool call. */
+    connectionCheck?: () => Promise<boolean>;
 };
 
 export type StartChatTurnFailure =
@@ -232,6 +235,8 @@ export async function startChatTurn(
         origin?: ChatOrigin;
         /** The tools this turn may use when a connected app starts it; the web passes none. */
         allowedCapabilities?: readonly ToolCapability[];
+        /** Only for a connected app's turn: is its connection still good? Asked before each tool call. */
+        connectionCheck?: () => Promise<boolean>;
     },
 ): Promise<{ ok: true; started: StartedChatTurn } | StartChatTurnFailure> {
     const { userId, userEmail, requestId, parsed } = args;
@@ -386,6 +391,7 @@ export async function startChatTurn(
                 turnMessageId,
                 subagentRuns,
                 ...(args.allowedCapabilities ? { allowedCapabilities: args.allowedCapabilities } : {}),
+                ...(args.connectionCheck ? { connectionCheck: args.connectionCheck } : {}),
             },
         };
     } finally {
@@ -558,6 +564,7 @@ export async function runChatTurn(
                 write,
                 allowDocumentMutation,
                 allowedCapabilities: started.allowedCapabilities,
+                connectionCheck: started.connectionCheck,
                 trainingPlan: trainingEnginePlan(trainingPlan),
                 workflowStore,
                 webSearch,
@@ -711,7 +718,7 @@ export async function runChatTurn(
                     assistantMessageId ??
                     askInputsResponse?.assistant_message_id ??
                     null;
-                if (completedTurnId) {
+                if (completedTurnId && !startedByConnectedApp(started.allowedCapabilities)) {
                     const scheduled = await scheduleMemoryConsolidation({
                         db,
                         surface: "chat",

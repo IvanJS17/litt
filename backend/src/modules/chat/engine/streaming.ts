@@ -95,7 +95,7 @@ import {
   createCitation,
   CITATIONS_OPEN_TAG,
 } from "./citations";
-import { runToolCalls } from "./tools/toolDispatcher";
+import { requireLiveConnection, runToolCalls } from "./tools/toolDispatcher";
 import {
   emptyToolCallBatchResult,
   type ToolCallBatchResult,
@@ -359,6 +359,11 @@ export async function runLLMStream(params: {
    */
   allowedCapabilities?: readonly ToolCapability[];
   /**
+   * Only for a turn a connected application started: is its connection still
+   * good? Asked before each tool call; when it is not, the turn is stopped.
+   */
+  connectionCheck?: () => Promise<boolean>;
+  /**
    * What a training turn asks of this engine (lib/trainingTurn): extra system
    * text and tool limits. It can only narrow the turn, never widen it.
    */
@@ -456,6 +461,7 @@ export async function runLLMStream(params: {
     connectorApprovals = false,
     allowDocumentMutation: requestedDocumentMutation = true,
     allowedCapabilities,
+    connectionCheck,
     trainingPlan,
     workflowStore,
     tabularStore,
@@ -837,6 +843,7 @@ export async function runLLMStream(params: {
         connectorApprovals: canPauseForApproval,
         allowDocumentMutation,
         allowedCapabilities,
+        connectionCheck,
         emitDone: false,
       }),
   });
@@ -1052,8 +1059,11 @@ export async function runLLMStream(params: {
               name: call.name,
             })}\n\n`,
           );
+          // A turn a connected application started starts its delegations in
+          // the round, after the connection was asked, never while streaming.
           if (
             delegateContext &&
+            !connectionCheck &&
             call.name === DELEGATE_TOOL_NAME &&
             !call.invalid
           ) {
@@ -1109,6 +1119,9 @@ export async function runLLMStream(params: {
           c.name === DELEGATE_TOOL_NAME ||
           !!clientTools?.owns(c.name);
         const serverCalls = permittedCalls.filter((c) => !handledElsewhere(c));
+        // Asked once before anything of this round starts; the per-call
+        // checks below still stop a long round between calls.
+        if (connectionCheck) await requireLiveConnection(connectionCheck);
         const delegating = Promise.all(
           delegateContext
             ? delegateCalls.map((call) => startDelegation(call, delegateContext))
@@ -1134,6 +1147,7 @@ export async function runLLMStream(params: {
           write(`data: ${JSON.stringify(event)}\n\n`);
         });
         for (const call of firmCalls) {
+          await requireLiveConnection(connectionCheck);
           const { content, event } = await runFirmCriteriaCall(call, {
             db,
             userId,
@@ -1191,6 +1205,7 @@ export async function runLLMStream(params: {
               personMessage: lastPersonMessage,
               allowDocumentMutation,
               allowedCapabilities,
+              connectionCheck,
               signal,
               results: batch,
             },

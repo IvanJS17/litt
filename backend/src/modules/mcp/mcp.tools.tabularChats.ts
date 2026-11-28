@@ -38,7 +38,7 @@ import {
     type TabularFailure,
 } from "../tabular/tabular.service";
 import { createMcpChatSink, turnErrorMessage } from "./mcp.chatSink";
-import { ANSWER_MAX_PAGE_CHARS, ANSWER_PAGE_CHARS, attemptSchema, confidenceSchema, messageSchema, presentTurn, turnCapabilities } from "./mcp.tools.chat";
+import { ANSWER_MAX_PAGE_CHARS, ANSWER_PAGE_CHARS, attemptSchema, confidenceSchema, messageSchema, presentTurn, turnCapabilities, turnConnectionCheck } from "./mcp.tools.chat";
 import { refuse, reviewAnswerRelease, reviewChatRelease, reviewWorkspace } from "./mcp.tools.tabular";
 import { outsideConnectionError } from "./mcp.release";
 import { defineMcpTool, mcpText, McpToolError, type McpCall } from "./mcp.tools";
@@ -203,6 +203,7 @@ export const sendTabularChatMessage = defineMcpTool({
             reviewId: args.review_id,
             parsed: parsed.value,
             allowedCapabilities: turnCapabilities(call),
+            connectionCheck: turnConnectionCheck(call),
         });
         if (!started.ok) {
             if (started.kind === "turn_in_progress")

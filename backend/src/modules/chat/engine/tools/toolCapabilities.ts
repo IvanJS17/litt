@@ -94,3 +94,16 @@ export function withAllowedTools<T>(
 ): T[] {
   return allowed ? tools.filter((tool) => isToolAllowed(toolName(tool), allowed)) : tools;
 }
+
+/**
+ * Was this turn started by a connected application? Such a turn carries the
+ * capabilities its connection was granted; a turn started in the web app or
+ * the Word add-in carries none. Text a connected application wrote never
+ * becomes the person's or the matter's lasting memory, so the three turns
+ * schedule no consolidation for it.
+ */
+export function startedByConnectedApp(
+  allowed: readonly ToolCapability[] | undefined,
+): boolean {
+  return allowed !== undefined;
+}

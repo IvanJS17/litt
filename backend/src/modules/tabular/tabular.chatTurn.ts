@@ -35,6 +35,7 @@ import {
     TABULAR_TOOLS,
     throwIfTurnStopped,
     type ChatMessage,
+    startedByConnectedApp,
     type ToolCapability,
     parseOptionalModel,
     parseOptionalReasoning,
@@ -90,6 +91,8 @@ export type StartedTabularChatTurn = {
     assistantMessageId: string;
     /** The tool capabilities of a turn a connected app started; absent: all. */
     allowedCapabilities?: readonly ToolCapability[];
+    /** Only for a connected app's turn: is its connection still good? Asked before each tool call. */
+    connectionCheck?: () => Promise<boolean>;
 };
 
 /**
@@ -181,6 +184,8 @@ export async function startTabularChatTurn(
         parsed: ParsedTabularChatRequest;
         /** The tools this turn may use when a connected app starts it; the web passes none. */
         allowedCapabilities?: readonly ToolCapability[];
+        /** Only for a connected app's turn: is its connection still good? Asked before each tool call. */
+        connectionCheck?: () => Promise<boolean>;
     },
 ): Promise<StartTabularChatTurnResult> {
     const { userId, userEmail, reviewId, parsed } = args;
@@ -247,6 +252,7 @@ export async function startTabularChatTurn(
             },
             assistantMessageId,
             ...(args.allowedCapabilities ? { allowedCapabilities: args.allowedCapabilities } : {}),
+            ...(args.connectionCheck ? { connectionCheck: args.connectionCheck } : {}),
         },
     };
 }
@@ -328,6 +334,7 @@ export async function runTabularChatTurn(
             write,
             extraTools: TABULAR_TOOLS,
             allowedCapabilities: started.allowedCapabilities,
+            connectionCheck: started.connectionCheck,
             trainingPlan: trainingEnginePlan(trainingPlan),
             tabularStore,
             buildCitations: (text) =>
@@ -429,6 +436,7 @@ export async function runTabularChatTurn(
         if (
             chatId &&
             assistantSaved &&
+            !startedByConnectedApp(started.allowedCapabilities) &&
             !persistedEvents.some(
                 (event) =>
                     event.type === "ask_inputs" || event.type === "error",

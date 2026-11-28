@@ -795,6 +795,16 @@ export async function prepareTabularChat(
                 parseCellContent(c.content),
             ]),
         ),
+        // Each read of the table asks again with these (see read_table_cells).
+        recheck: {
+            review: {
+                id: review.id,
+                user_id: review.user_id,
+                project_id: review.project_id,
+                org_id: review.org_id,
+            },
+            rows,
+        },
     };
 
     // Create or verify chat record

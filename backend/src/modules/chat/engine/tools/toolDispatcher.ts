@@ -89,7 +89,7 @@ import {
 } from "../contextBuilders";
 import type { Db } from "../../../../lib/supabase";
 import { CHAT_ROUTE_CREDENTIAL_REQUIRED } from "../../../../lib/chatRouteCredentialRequired";
-import { renderTableCells } from "./tableCells";
+import { readableTableRowIds, renderTableCells } from "./tableCells";
 import { isToolAllowed, type ToolCapability } from "./toolCapabilities";
 
 /**
@@ -256,6 +256,28 @@ function workflowVerdictForTurn(
   return verdict;
 }
 
+/**
+ * Asked before each tool call of a turn a connected application started: is
+ * the connection that started it still good? When it is not, or the question
+ * cannot be answered, the call does not run and the turn ends the way a
+ * stopped turn does (what it already wrote stays).
+ */
+export async function requireLiveConnection(
+  check: (() => Promise<boolean>) | undefined,
+): Promise<void> {
+  if (!check) return;
+  let good = false;
+  try {
+    good = await check();
+  } catch (error) {
+    reportToolFailure(error, "warning");
+  }
+  if (good) return;
+  const stop = new Error("Stream aborted.");
+  stop.name = "AbortError";
+  throw stop;
+}
+
 export async function runToolCalls(
   toolCalls: ToolCall[],
   docStore: DocStore,
@@ -316,6 +338,11 @@ export async function runToolCalls(
      * call to any other tool is refused before it runs. Omitted: no limit.
      */
     allowedCapabilities?: readonly ToolCapability[];
+    /**
+     * Only for a turn a connected application started: is its connection
+     * still good? Asked before each tool call (requireLiveConnection).
+     */
+    connectionCheck?: () => Promise<boolean>;
     /**
      * The turn's abort signal. Calls run one after another, so a turn stopped
      * by Stop or a stream deadline starts none of the batch's remaining tools
@@ -462,6 +489,8 @@ export async function runToolCalls(
       });
       continue;
     }
+
+    await requireLiveConnection(options.connectionCheck);
 
     const isConnectorTool =
       tc.function.name.startsWith(GOOGLE_DRIVE_TOOL_PREFIX) ||
@@ -1201,10 +1230,27 @@ export async function runToolCalls(
         content: `${instructions}${assetNotice}`,
       });
     } else if (tc.function.name === "read_table_cells" && tabularStore) {
+      // Asked again at each read: the rows copied when the turn started
+      // decide nothing about what this person may read now.
+      const readableRows = await readableTableRowIds(
+        tabularStore,
+        db,
+        actor.userId,
+        actor.userEmail,
+      );
+      if (!readableRows) {
+        toolResults.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify({ error: "Table could not be read." }),
+        });
+        continue;
+      }
       const { label, content } = renderTableCells(
         tabularStore,
         args.col_indices as number[] | undefined,
         args.row_indices as number[] | undefined,
+        readableRows,
       );
       write(
         `data: ${JSON.stringify({ type: "doc_read_start", filename: label })}\n\n`,

@@ -439,6 +439,43 @@ describe("runChatTurn against a sink that is not HTTP", () => {
         expect(mocks.runLLMStream.mock.calls[1][0].allowedCapabilities).toBeUndefined();
     });
 
+    it("schedules no memory consolidation for a turn a connected app started, and schedules it for a web turn", async () => {
+        mocks.runLLMStream.mockResolvedValue({ fullText: "ok", events: [{ type: "content", text: "ok" }], citations: [] });
+        const narrowed = await startChatTurn(db, {
+            userId: "u1",
+            userEmail: "u1@test.local",
+            requestId: undefined,
+            parsed,
+            allowedCapabilities: ["read", "write"],
+        });
+        if (!narrowed.ok) throw new Error("turn must start");
+        await runChatTurn(db, narrowed.started, memorySink(narrowed.started).sink);
+        expect(mocks.scheduleMemoryConsolidation).not.toHaveBeenCalled();
+        expect(mocks.releaseMemoryConversationTurn).toHaveBeenCalledTimes(1);
+
+        resetAssistantTurnRunsForTests();
+        const web = await start();
+        await runChatTurn(db, web, memorySink(web).sink);
+        expect(mocks.scheduleMemoryConsolidation).toHaveBeenCalledTimes(1);
+    });
+
+    it("hands the connection check of a connected app's turn to the engine, and none for a turn the web starts", async () => {
+        mocks.runLLMStream.mockResolvedValue({ fullText: "ok", events: [{ type: "content", text: "ok" }], citations: [] });
+        const connectionCheck = async () => true;
+        const narrowed = await startChatTurn(db, {
+            userId: "u1", userEmail: "u1@test.local", requestId: undefined, parsed,
+            allowedCapabilities: ["read"], connectionCheck,
+        });
+        if (!narrowed.ok) throw new Error("turn must start");
+        await runChatTurn(db, narrowed.started, memorySink(narrowed.started).sink);
+        expect(mocks.runLLMStream.mock.calls[0][0].connectionCheck).toBe(connectionCheck);
+
+        resetAssistantTurnRunsForTests();
+        const web = await start();
+        await runChatTurn(db, web, memorySink(web).sink);
+        expect(mocks.runLLMStream.mock.calls[1][0].connectionCheck).toBeUndefined();
+    });
+
     it("reports a failed generation as one error frame and [DONE], and releases memory", async () => {
         mocks.runLLMStream.mockRejectedValue(new Error("provider down"));
         const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
