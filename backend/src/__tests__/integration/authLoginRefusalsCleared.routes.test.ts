@@ -13,6 +13,7 @@ import type { Row } from "../helpers/memoryDb";
 const h = vi.hoisted(() => ({
     session: null as null | { id: string; email: string; amr: { method: string; timestamp: number }[] },
     state: null as null | { db: unknown; tables: Record<string, Row[]> },
+    refuseNewPassword: false,
 }));
 
 vi.mock("../../lib/log", () => ({ devLog: vi.fn(), isDev: false }));
@@ -55,10 +56,10 @@ const fakeAuthClient = () => ({
             };
         },
         signOut: async () => ({ error: null }),
-        updateUser: async () => ({
-            data: { user: { id: h.session!.id, email: h.session!.email } },
-            error: null,
-        }),
+        updateUser: async () =>
+            h.refuseNewPassword
+                ? { data: { user: null }, error: new AuthApiError("New password should be different", 422, "same_password") }
+                : { data: { user: { id: h.session!.id, email: h.session!.email } }, error: null },
     },
 });
 vi.mock("../../lib/authSession", async (importOriginal) => ({
@@ -110,6 +111,7 @@ const now = () => Math.floor(Date.now() / 1000);
 
 beforeEach(() => {
     h.session = null;
+    h.refuseNewPassword = false;
     h.state = memoryDb(
         { user_profiles: [{ user_id: "u-owner" }, { user_id: "u-other" }], user_api_keys: [] },
         { sync_user_password_set: () => "2026-11-27T00:00:00.000Z" },
@@ -120,8 +122,10 @@ const login = (email: string, password: string, client: string) =>
     request(app).post("/auth/login").set("Origin", WEB).set("X-Forwarded-For", client).send({ email, password });
 const setPassword = (client: string, body: object = { password: CORRECT, signOut: true }) =>
     request(app).patch("/auth/password").set("Origin", WEB).set("X-Forwarded-For", client).set("Cookie", "mike-session=x").send(body);
-const recoverySession = (email: string, id = "u-owner") => {
-    h.session = { id, email, amr: [{ method: "recovery", timestamp: now() }] };
+// The auth service records a sign-in by an emailed link as `otp` (a link that
+// is exchanged as a code, as `recovery`).
+const recoverySession = (email: string, id = "u-owner", method = "otp") => {
+    h.session = { id, email, amr: [{ method, timestamp: now() }] };
 };
 const refuseThreeTimes = async (email: string, client: string) => {
     for (let i = 0; i < 3; i++) expect((await login(email, "wrong-password-1", client)).status).toBe(400);
@@ -148,6 +152,43 @@ describe("a password set through the emailed link clears the sign-in refusals fo
         recoverySession(email);
         expect((await setPassword("198.51.100.12", { password: CORRECT })).status).toBe(200);
         expect((await login(email, CORRECT, "198.51.100.12")).status).toBe(200);
+    });
+
+    it("clears for a link that was exchanged as a code", async () => {
+        const email = "exchanged@example.test";
+        await refuseThreeTimes(email, "198.51.100.6");
+        recoverySession(email, "u-owner", "recovery");
+        expect((await setPassword("198.51.100.6")).status).toBe(200);
+        expect((await login(email, CORRECT, "198.51.100.6")).status).toBe(200);
+    });
+
+    it("does not clear for a password session that also passed a second factor", async () => {
+        const email = "secondfactor@example.test";
+        await refuseThreeTimes(email, "198.51.100.7");
+        h.session = {
+            id: "u-owner",
+            email,
+            amr: [{ method: "password", timestamp: now() }, { method: "totp", timestamp: now() }],
+        };
+        expect((await setPassword("198.51.100.7")).status).toBe(200);
+        expect((await login(email, CORRECT, "198.51.100.7")).status).toBe(429);
+    });
+
+    it("does not clear for a sign-in record dated in the future", async () => {
+        const email = "future@example.test";
+        await refuseThreeTimes(email, "198.51.100.8");
+        h.session = { id: "u-owner", email, amr: [{ method: "otp", timestamp: now() + 3600 }] };
+        expect((await setPassword("198.51.100.8")).status).toBe(200);
+        expect((await login(email, CORRECT, "198.51.100.8")).status).toBe(429);
+    });
+
+    it("does not clear when the new password is refused", async () => {
+        const email = "refused@example.test";
+        await refuseThreeTimes(email, "198.51.100.9");
+        recoverySession(email);
+        h.refuseNewPassword = true;
+        expect((await setPassword("198.51.100.9")).status).toBeGreaterThanOrEqual(400);
+        expect((await login(email, CORRECT, "198.51.100.9")).status).toBe(429);
     });
 
     it("does not clear when the password is changed in an ordinary signed-in session", async () => {
