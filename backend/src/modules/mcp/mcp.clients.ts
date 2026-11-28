@@ -230,14 +230,17 @@ export async function resolveClient(
         if (!mcpConfig().cimdEnabled) return oauthFail("invalid_client", "Unknown client.", 400);
         return fetchCimdClient(db, clientId, options.transport);
     }
-    if (options.touch) {
-        const { error } = await db
-            .from("mcp_oauth_clients")
-            .update({ last_used_at: nowIso() })
-            .eq("client_id", clientId);
-        if (error) throw dbFailure("client touch failed", error);
-    }
+    if (options.touch) await markClientUsed(db, clientId);
     return oauthOk(toClient(row));
+}
+
+/** Record that a client was used (what keeps an unapproved client from the idle clean-up). */
+export async function markClientUsed(db: Db, clientId: string): Promise<void> {
+    const { error } = await db
+        .from("mcp_oauth_clients")
+        .update({ last_used_at: nowIso() })
+        .eq("client_id", clientId);
+    if (error) throw dbFailure("client touch failed", error);
 }
 
 async function fetchCimdClient(

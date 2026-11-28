@@ -11,7 +11,7 @@ import { AppError } from "../../lib/appError";
 import { mcpConfig } from "./mcp.config";
 import { newSecret, sha256Hex, verifyPkceS256 } from "./mcp.crypto";
 import { recordMcpAudit, tryRecordMcpAudit } from "./mcp.audit";
-import { resolveClient } from "./mcp.clients";
+import { markClientUsed, resolveClient } from "./mcp.clients";
 import { grantIsCurrent, grantIsLive, grantPredatesSignOut, loadGrant, revokeGrant } from "./mcp.grants";
 import { nowIso, oauthFail, oauthOk, type GrantRow, type OAuthResult } from "./mcp.shared";
 
@@ -90,7 +90,7 @@ export async function exchangeAuthorizationCode(
             "invalid_request",
             "client_id, code, code_verifier and redirect_uri are required.",
         );
-    const client = await resolveClient(db, client_id, { touch: true, mayCreate: false });
+    const client = await resolveClient(db, client_id, { mayCreate: false });
     if (!client.ok) return client;
 
     const hash = sha256Hex(code);
@@ -138,6 +138,8 @@ export async function exchangeAuthorizationCode(
     if (resource && resource !== grant.resource)
         return oauthFail("invalid_target", "resource does not match the authorization.");
 
+    // Only an exchange that got this far marks the client as in use.
+    await markClientUsed(db, client_id);
     const tokens = await issueTokens(db, grant);
     await recordMcpAudit(db, {
         event: "token_issued",
@@ -155,7 +157,7 @@ export async function refreshTokens(
     const { client_id, refresh_token, scope, resource } = params;
     if (!client_id || !refresh_token)
         return oauthFail("invalid_request", "client_id and refresh_token are required.");
-    const client = await resolveClient(db, client_id, { touch: true, mayCreate: false });
+    const client = await resolveClient(db, client_id, { mayCreate: false });
     if (!client.ok) return client;
 
     const hash = sha256Hex(refresh_token);
@@ -205,6 +207,7 @@ export async function refreshTokens(
     if (resource && resource !== grant.resource)
         return oauthFail("invalid_target", "resource does not match the authorization.");
 
+    await markClientUsed(db, client_id);
     const tokens = await issueTokens(db, grant);
     await tryRecordMcpAudit(db, {
         event: "token_refreshed",
