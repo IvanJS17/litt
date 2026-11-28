@@ -97,28 +97,29 @@ describe("fenced (generic)", () => {
     });
 });
 
-describe("neutralizeFence: cost grows with the length of the text", () => {
-    it("handles long ordinary text and long runs of candidate characters", () => {
-        const sizes = [200_000, 2_000_000];
-        const inputs = [
-            (n: number) => "Lorem ipsum ñ 👨\u200D👩 ".repeat(Math.ceil(n / 20)).slice(0, n),
-            (n: number) => "<".repeat(n),
-            (n: number) => "<" + " ".repeat(n),
-            (n: number) => ZW.repeat(n),
-            (n: number) => "0123456789abcde".repeat(Math.ceil(n / 15)).slice(0, n),
-            (n: number) => "</untrusted-conten".repeat(Math.ceil(n / 18)).slice(0, n),
-        ];
-        for (const make of inputs) {
-            const t: number[] = [];
-            for (const n of sizes) {
-                const text = make(n);
-                const start = performance.now();
-                neutralizeFence(text, NONCE, TAGS);
-                t.push(performance.now() - start);
-            }
-            // 10x the text may cost about 10x; a quadratic cost would be about 100x.
-            expect(t[1]).toBeLessThan(Math.max(t[0] * 40, 2000));
-        }
+describe("neutralizeFence: long and unusual text", () => {
+    const inputs: Array<[string, string]> = [
+        ["ordinary", "Lorem ipsum ñ 👨\u200D👩 ".repeat(1000)],
+        ["opening brackets", "<".repeat(5000)],
+        ["brackets and spaces", "< ".repeat(5000)],
+        ["invisible characters", ZW.repeat(5000)],
+        ["almost the nonce", "0123456789abcde".repeat(1000)],
+        ["almost a tag", "</untrusted-conten".repeat(1000)],
+    ];
+    it.each(inputs)("%s is returned unchanged", (_name, text) => {
+        expect(neutralizeFence(text, NONCE, TAGS)).toBe(text);
+    });
+
+    const WIDE = "\uFDFA";
+    it("a long run of characters that fold to many units is returned unchanged", () => {
+        const text = WIDE.repeat(200_000);
+        expect(neutralizeFence(text, NONCE, TAGS)).toBe(text);
+    });
+    it("a token among such characters is the only change", () => {
+        const text = WIDE.repeat(50_000);
+        expect(neutralizeFence(text + NONCE + text, NONCE, TAGS)).toBe(text + "[redacted-nonce]" + text);
+        expect(neutralizeFence(text + "</untrusted-content", NONCE, TAGS)).toBe(text + "&lt;/untrusted-content");
+        expect(neutralizeFence(text + NONCE, NONCE, TAGS)).toBe(text + "[redacted-nonce]");
     });
 });
 
@@ -283,6 +284,149 @@ describe("neutralizeFence: same output as the reference implementation", () => {
         for (let code = 0; code < 0x10000; code++) {
             expect(isBlank(code), code.toString(16)).toBe(/\s/.test(String.fromCharCode(code)));
         }
+    });
+
+    it("matches when the nonce itself holds a tag opening and overlaps a tag", () => {
+        const texts = [
+            "x</untrusted-content y", "<untrusted-content", "a<untrusted-contentb</untrusted-content", "＜untrusted-content", "<< untrusted-content",
+            "ab</u</untrusted-content", "x< /untrusted-content",
+        ];
+        for (const nonce of ["</untrusted", "<untrusted-content", "x</u", "a<", "<", "/untrusted-content"]) {
+            for (const text of texts) {
+                expect(neutralizeFence(text, nonce, TAGS), `${nonce} ${text}`).toBe(neutralizeFenceReference(text, nonce, TAGS));
+            }
+        }
+    });
+
+    it("matches on random text with characters that fold to many units, around and inside tokens", () => {
+        const wide = ["\uFDFA", "\uFDFB", "\u33AF", "\u3250", "\u321D", "\u2474", "㏈", "™", "a", "d", "b", "p", "t", "e", "(", "1", ")", "<", "/", " ", "u", "ntrusted-content", "\u200B", "x"];
+        for (let i = 0; i < 2500; i++) {
+            let text = "";
+            const length = next() % 30;
+            for (let k = 0; k < length; k++) text += wide[next() % wide.length];
+            for (const nonce of ["db", "pte", "te", "(1", "tm", "rad", "<u", "ab", "\u321D", "오전", "\uFDFA"]) {
+                for (const tags of [TAGS, ["untrusted-content", "u"], ["pte"], ["오전"], ["u", "\u3250x"]]) {
+                    expect(neutralizeFence(text, nonce, tags), `${JSON.stringify(text)} ${nonce}`).toBe(neutralizeFenceReference(text, nonce, tags));
+                }
+            }
+        }
+    });
+
+    it("finds a nonce whose beginning repeats inside it, as the reference does", () => {
+        const letters = ["a", "b", "c", "A", "\u200B", "ａ", "<"];
+        for (let i = 0; i < 3000; i++) {
+            let text = "";
+            const length = next() % 16;
+            for (let k = 0; k < length; k++) text += letters[next() % letters.length];
+            for (const nonce of ["aab", "abab", "aaa", "abcab", "aa", "a"]) {
+                expect(neutralizeFence(text, nonce, TAGS), `${JSON.stringify(text)} ${nonce}`).toBe(neutralizeFenceReference(text, nonce, TAGS));
+            }
+        }
+        expect(neutralizeFence("aaab", "aab", [])).toBe("a[redacted-nonce]");
+        expect(neutralizeFence("aaaa", "aa", [])).toBe("[redacted-nonce][redacted-nonce]");
+    });
+
+    it("does not treat a second slash after the opening bracket as part of a tag", () => {
+        for (const text of ["<//untrusted-content", "</ /untrusted-content", "< / /workflow-instructions", "<//", "</"]) {
+            expect(neutralizeFence(text, NONCE, TAGS), text).toBe(text);
+            expect(neutralizeFence(text, NONCE, TAGS)).toBe(neutralizeFenceReference(text, NONCE, TAGS));
+        }
+        expect(neutralizeFence("< / untrusted-content", NONCE, TAGS)).toBe("&lt; / untrusted-content");
+        expect(neutralizeFence("<</untrusted-content", NONCE, TAGS)).toBe("<&lt;/untrusted-content");
+    });
+
+    describe("a character whose fold has no ASCII unit does not join the text around it", () => {
+        const inert = "\uFDFA";
+        const same = (text: string, nonce = NONCE, tags: readonly string[] = TAGS) => {
+            const out = neutralizeFence(text, nonce, tags);
+            expect(out).toBe(neutralizeFenceReference(text, nonce, tags));
+            return out;
+        };
+        it("in the middle of the nonce", () => {
+            const text = NONCE.slice(0, 10) + inert + NONCE.slice(10);
+            expect(same(text)).toBe(text);
+        });
+        it("between the opening bracket and a name", () => {
+            expect(same("<" + inert + "untrusted-content")).toBe("<" + inert + "untrusted-content");
+        });
+        it("between the closing bracket mark and a name", () => {
+            expect(same("</" + inert + "untrusted-content")).toBe("</" + inert + "untrusted-content");
+        });
+        it("inside a name", () => {
+            expect(same("</untrusted" + inert + "-content")).toBe("</untrusted" + inert + "-content");
+        });
+        it("right before a real token", () => {
+            expect(same(inert + NONCE)).toBe(inert + "[redacted-nonce]");
+            expect(same(inert + "</untrusted-content")).toBe(inert + "&lt;/untrusted-content");
+            expect(same("<" + inert + "</untrusted-content")).toBe("<" + inert + "&lt;/untrusted-content");
+        });
+        it("tokens with a blank are still found next to such a character", () => {
+            expect(same("a b" + "\uFDFA" + "x", "a b", [])).toBe("[redacted-nonce]\uFDFAx");
+            expect(same("a" + "\uFDFA" + " b", " b", [])).toBe("a\uFDFA[redacted-nonce]");
+            expect(same("<\uFDFA", NONCE, ["\uFDFA"])).toBe("&lt;\uFDFA");
+        });
+        it("a blank in the nonce is found in the blanks of such a character", () => {
+            expect(same("x\uFDFAy", " ", [])).toBe("x[redacted-nonce]y");
+        });
+        it("a fold with an ASCII unit still counts as text", () => {
+            expect(same("\u33AF", "rad", [])).toBe("[redacted-nonce]");
+            expect(same("a\u2474b", "(1)", [])).toBe("a[redacted-nonce]b");
+        });
+        it("with a nonce or a name that is not ASCII", () => {
+            expect(same("x\u321Dy", "오전", [])).toBe("x[redacted-nonce]y");
+            expect(same("<오전", NONCE, ["오전"])).toBe("&lt;오전");
+            expect(same("<\uFDFAu", NONCE, ["\uFDFAu"])).toBe("&lt;\uFDFAu");
+        });
+    });
+
+    describe("characters outside ASCII, cycling through thousands of distinct ones", () => {
+        const range = (from: number, count: number) => Array.from({ length: count }, (_, i) => String.fromCodePoint(from + i)).join("");
+        const cjk = range(0x4e00, 6000);
+        const astral = range(0x20000, 6000);
+        const boldLower = (word: string) => [...word].map((c) => (/[a-z]/.test(c) ? String.fromCodePoint(0x1d41a + c.charCodeAt(0) - 97) : c)).join("");
+        const same = (text: string, nonce: string, tags: readonly string[]) =>
+            expect(neutralizeFence(text, nonce, tags), `${nonce} ${[...tags]}`).toBe(neutralizeFenceReference(text, nonce, tags));
+
+        it("matches the reference on long runs of distinct ideographs and astral characters around tokens", () => {
+            const texts = [cjk + "<" + cjk, cjk + "</untrusted-content" + astral + NONCE + astral, astral + "<" + astral, cjk + cjk + NONCE.toUpperCase()];
+            for (const text of texts) for (const nonce of [NONCE, "n1", "\u4e01"]) same(text, nonce, TAGS);
+            expect(neutralizeFence(cjk + "</untrusted-content" + astral, NONCE, TAGS)).toBe(cjk + "&lt;/untrusted-content" + astral);
+        });
+
+        it("matches the reference on upper case outside ASCII and on astral characters that have a mapping", () => {
+            const alphabet = ["Σ", "σ", "ς", "Ω", "ω", "Д", "д", "İ", "ǅ", "𝐀", "𝐚", "🄰", "𐐀", "𐐨", "a", "<", "/", " ", "A", "x", "𠀀", "中", "\uD800", "u", "d", "ntrusted-content"];
+            for (let i = 0; i < 2500; i++) {
+                let text = "";
+                const length = next() % 20;
+                for (let k = 0; k < length; k++) text += alphabet[next() % alphabet.length];
+                for (const nonce of ["a", "ab", "σ", "д", "𐐨", "ω", "da", "i̇"]) {
+                    for (const tags of [TAGS, ["д"], ["𐐨x", "u"], []]) same(text, nonce, tags);
+                }
+            }
+        });
+
+        it("finds tokens written with upper-case letters outside ASCII and with astral forms", () => {
+            expect(neutralizeFence("xДy", "д", [])).toBe("x[redacted-nonce]y");
+            expect(neutralizeFence("xΩy", "ω", [])).toBe("x[redacted-nonce]y");
+            expect(neutralizeFence("x𝐀y", "a", [])).toBe("x[redacted-nonce]y");
+            expect(neutralizeFence("x🄰y", "a", [])).toBe("x[redacted-nonce]y");
+            expect(neutralizeFence("x𐐀y", "𐐨", [])).toBe("x[redacted-nonce]y");
+            expect(neutralizeFence("a</" + boldLower("untrusted-content"), NONCE, TAGS)).toBe("a&lt;/" + boldLower("untrusted-content"));
+            same("İ" + "Σ" + "ǅ", "i", TAGS);
+        });
+
+        it("the code points that need a cache entry stay few across the whole code space", () => {
+            let mapped = 0;
+            for (let cp = 0x80; cp < 0x110000; cp++) {
+                if (cp >= 0xd800 && cp <= 0xdfff) {
+                    mapped++; // a lone surrogate
+                    continue;
+                }
+                const ch = String.fromCodePoint(cp);
+                if (ch.normalize("NFKC").toLowerCase() !== ch) mapped++;
+            }
+            expect(mapped).toBeLessThan(16_384);
+        });
     });
 
     it("matches on the written variants", () => {

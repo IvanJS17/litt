@@ -40,75 +40,93 @@ function isPlain(code: number): boolean {
     return ch.normalize("NFKC") === ch && ch.toLowerCase().length === 1;
 }
 
-// 0 plain, 1 not plain, 255 not computed yet. Filled 256 units at a time, only
-// for the blocks the texts actually use.
+// Tables over the code space, filled lazily 256 code points at a time, only for
+// the blocks the texts actually use (about 0.1 ms per block; the whole code
+// space would be about 0.45 s, once per process, so nothing is prefilled).
+// KIND: 0 plain, 1 not plain, 255 not computed yet; LOWER: the single lower-case
+// unit of a plain BMP unit (its whole fold).
 const KIND = new Uint8Array(0x10000).fill(255);
+const LOWER = new Uint16Array(0x10000);
 
 function kindOf(code: number): number {
     const known = KIND[code];
     if (known !== 255) return known;
     const base = code & ~0xff;
-    for (let c = base; c < base + 0x100; c++) KIND[c] = isPlain(c) ? 0 : 1;
+    for (let c = base; c < base + 0x100; c++) {
+        const plain = isPlain(c);
+        KIND[c] = plain ? 0 : 1;
+        if (plain) LOWER[c] = String.fromCharCode(c).toLowerCase().charCodeAt(0);
+    }
     return KIND[code];
 }
 
-const FOLD_CACHE = new Map<string, string>();
+// Astral planes: 0 the fold of the code point is itself, 1 it is not, 255 not computed yet.
+let astralKind: Uint8Array | undefined;
+
+function foldsToItself(cp: number): boolean {
+    astralKind ??= new Uint8Array(0x100000).fill(255);
+    const known = astralKind[cp - 0x10000];
+    if (known !== 255) return known === 0;
+    const base = (cp - 0x10000) & ~0xff;
+    for (let c = base; c < base + 0x100; c++) {
+        const ch = String.fromCodePoint(c + 0x10000);
+        astralKind[c] = ch.normalize("NFKC").toLowerCase() === ch ? 0 : 1;
+    }
+    return astralKind[cp - 0x10000] === 0;
+}
+
+// Only the code points that have a mapping (compatibility forms, upper case outside the
+// plain rule, a few astral ones) and the lone surrogates reach these two maps: a few
+// thousand in all (counted in the tests), so they need no size limit.
+const FOLD_CACHE = new Map<number, string>();
 
 /**
- * What a reader would see of `text`: compatibility forms folded, lower case,
- * invisible characters dropped. `from[i]` and `to[i]` are the original range
- * the folded unit `i` comes from.
+ * What a reader sees of one code point: the lower case of its compatibility
+ * form (cut at 32 units), nothing for an invisible character.
  */
-function folded(text: string): { chars: string; from: Int32Array; to: Int32Array } {
-    let cap = text.length + 64;
-    let units = new Uint16Array(cap);
-    let from = new Int32Array(cap);
-    let to = new Int32Array(cap);
-    let n = 0;
-    let at = 0;
-    while (at < text.length) {
-        if (n + 64 > cap) {
-            cap *= 2;
-            const u = new Uint16Array(cap);
-            const f = new Int32Array(cap);
-            const t = new Int32Array(cap);
-            u.set(units);
-            f.set(from);
-            t.set(to);
-            units = u;
-            from = f;
-            to = t;
-        }
-        const code = text.charCodeAt(at);
-        if (code < 0x80) {
-            units[n] = code >= 65 && code <= 90 ? code + 32 : code;
-            from[n] = at;
-            to[n] = at + 1;
-            n++;
-            at++;
-            continue;
-        }
-        const ch = String.fromCodePoint(text.codePointAt(at)!);
-        const end = at + ch.length;
-        if (!isInvisible(code)) {
-            let out = FOLD_CACHE.get(ch);
-            if (out === undefined) {
-                out = ch.normalize("NFKC").toLowerCase();
-                if (FOLD_CACHE.size >= 4096) FOLD_CACHE.clear();
-                FOLD_CACHE.set(ch, out);
-            }
-            // A character folds to at most 18 units, so the 64 kept free above are enough.
-            for (let k = 0; k < out.length && k < 32; k++) {
-                units[n] = out.charCodeAt(k);
-                from[n] = at;
-                to[n] = end;
-                n++;
-            }
-        }
-        at = end;
+function foldOf(cp: number): string {
+    if (cp < 0x80) return String.fromCharCode(cp >= 65 && cp <= 90 ? cp + 32 : cp);
+    if (isInvisible(cp)) return "";
+    let out = FOLD_CACHE.get(cp);
+    if (out === undefined) {
+        out = String.fromCodePoint(cp).normalize("NFKC").toLowerCase().slice(0, 32);
+        FOLD_CACHE.set(cp, out);
     }
-    const chars = new TextDecoder("utf-16le").decode(new Uint8Array(units.buffer, 0, n * 2));
-    return { chars, from, to };
+    return out;
+}
+
+const INERT_CACHE = new Map<number, boolean>();
+
+/**
+ * A code point is inert when its fold has several units, each of them either
+ * not ASCII or an ASCII blank, and at least one of them is neither (U+FDFA
+ * folds to words separated by spaces).
+ */
+function isInert(cp: number, fold: string): boolean {
+    let inert = INERT_CACHE.get(cp);
+    if (inert === undefined) {
+        inert = fold.length > 1;
+        let visible = false;
+        for (let k = 0; inert && k < fold.length; k++) {
+            const unit = fold.charCodeAt(k);
+            if (unit >= 0x80 && !isBlank(unit)) visible = true;
+            else if (unit < 0x80 && !isBlank(unit)) inert = false;
+        }
+        inert = inert && visible;
+        INERT_CACHE.set(cp, inert);
+    }
+    return inert;
+}
+
+/** `foldOf` over a short string (the nonce, a tag name). */
+function folded(small: string): string {
+    let out = "";
+    for (let at = 0; at < small.length; ) {
+        const cp = small.codePointAt(at)!;
+        out += foldOf(cp);
+        at += cp > 0xffff ? 2 : 1;
+    }
+    return out;
 }
 
 /**
@@ -147,42 +165,126 @@ function provablyClean(text: string, key: string, wantsTags: boolean): boolean {
  * written `&lt;`, however the token is written (letter case, invisible
  * characters inside it, Unicode compatibility forms, whitespace after `<` or
  * `</`). Only the matched token changes; all other text is returned as it is.
- * One pass over the original text, so nothing it writes can complete another
- * token, and the cost is linear in the length of the text.
+ *
+ * One pass over the original text, nothing proportional to it is kept: each
+ * folded unit feeds a nonce matcher (Knuth-Morris-Pratt, one state) and a tag
+ * matcher (one candidate), and a match records an edit on the original
+ * offsets. Edits are applied to the original text together, so nothing the
+ * pass writes can complete another token.
  */
 export function neutralizeFence(text: string, nonce: string, reservedTags: readonly string[]): string {
     const source = String(text);
-    const key = folded(nonce).chars;
-    const names = reservedTags.map((name) => folded(name).chars).filter(Boolean);
+    const key = folded(nonce);
+    const names = reservedTags.map(folded).filter(Boolean);
     if (provablyClean(source, key, names.length > 0)) return source;
-    const { chars, from, to } = folded(source);
-    const edits: Array<[number, number, string]> = [];
-    if (key) {
-        for (let at = chars.indexOf(key); at >= 0; at = chars.indexOf(key, at + key.length)) {
-            edits.push([from[at], to[at + key.length - 1], "[redacted-nonce]"]);
-        }
+    // When the nonce and every name are printable ASCII (no blank, no control character), an inert code point (see isInert) has the
+    // same effect whatever the matchers hold: no unit of its fold is in the key (non-ASCII, or a blank
+    // the key lacks), so the nonce matcher falls back to 0 and stays there; its first unit that is not
+    // a blank is no `<`, `/`, blank or part of an ASCII name, so it drops any tag candidate, and no unit
+    // is `<`, so none starts one; blanks around it change nothing. It is skipped in one step, not one per unit.
+    const asciiTokens = [key, ...names].every((token) => /^[\x21-\x7f]*$/.test(token));
+    // Nonce matcher. `ring` holds the original start of each of the last key.length folded units.
+    // After a match the state restarts at 0: the next occurrence is searched after this one
+    // (the leftmost non-overlapping occurrences, as indexOf(key, at + key.length) finds them).
+    const size = key.length;
+    const fail = new Int32Array(size);
+    for (let i = 1, k = 0; i < size; i++) {
+        while (k > 0 && key.charCodeAt(i) !== key.charCodeAt(k)) k = fail[k - 1];
+        if (key.charCodeAt(i) === key.charCodeAt(k)) k++;
+        fail[i] = k;
     }
-    if (names.length) {
-        for (let at = chars.indexOf("<"); at >= 0; at = chars.indexOf("<", at + 1)) {
-            let pos = at + 1;
-            while (pos < chars.length && isBlank(chars.charCodeAt(pos))) pos++;
-            if (chars[pos] === "/") pos++;
-            while (pos < chars.length && isBlank(chars.charCodeAt(pos))) pos++;
-            for (const name of names) {
-                if (chars.startsWith(name, pos)) {
-                    edits.push([from[at], to[at], "&lt;"]);
-                    break;
-                }
+    const ring = new Int32Array(size);
+    let slot = 0;
+    let matched = 0;
+    // Tag matcher. state: 0 none, 1 after `<`, 2 after `<` and one `/`, 3 collecting a name.
+    let state = 0;
+    let tagStart = 0;
+    let tagEnd = 0;
+    let name = "";
+    // Edits, flat: [start, end] pairs, nonce edits and tag edits apart (each already in order).
+    const nonceEdits: number[] = [];
+    const tagEdits: number[] = [];
+
+    const feed = (unit: number, start: number, end: number) => {
+        if (size) {
+            ring[slot] = start;
+            slot = slot + 1 === size ? 0 : slot + 1;
+            while (matched > 0 && key.charCodeAt(matched) !== unit) matched = fail[matched - 1];
+            if (key.charCodeAt(matched) === unit) matched++;
+            if (matched === size) {
+                nonceEdits.push(ring[slot], end);
+                matched = 0;
             }
         }
+        if (unit === 60) {
+            state = 1;
+            tagStart = start;
+            tagEnd = end;
+            name = "";
+            return;
+        }
+        if (state === 0) return;
+        if (state < 3) {
+            if (isBlank(unit)) return;
+            if (unit === 47 && state === 1) {
+                state = 2;
+                return;
+            }
+            state = 3;
+        }
+        name += String.fromCharCode(unit);
+        if (names.includes(name)) {
+            tagEdits.push(tagStart, tagEnd);
+            state = 0;
+        } else if (!names.some((reserved) => reserved.startsWith(name))) state = 0;
+    };
+
+    for (let at = 0; at < source.length; ) {
+        const code = source.charCodeAt(at);
+        if (code < 0x80) {
+            feed(code >= 65 && code <= 90 ? code + 32 : code, at, at + 1);
+            at++;
+            continue;
+        }
+        const cp = source.codePointAt(at)!;
+        if (cp < 0x10000) {
+            if (kindOf(cp) === 0) {
+                feed(LOWER[cp], at, at + 1);
+                at++;
+                continue;
+            }
+        } else if (foldsToItself(cp)) {
+            feed(code, at, at + 2);
+            feed(source.charCodeAt(at + 1), at, at + 2);
+            at += 2;
+            continue;
+        }
+        const end = at + (cp > 0xffff ? 2 : 1);
+        const out = foldOf(cp);
+        if (asciiTokens && out.length > 1 && isInert(cp, out)) {
+            matched = 0;
+            state = 0;
+            at = end;
+            continue;
+        }
+        for (let k = 0; k < out.length; k++) feed(out.charCodeAt(k), at, end);
+        at = end;
     }
-    if (!edits.length) return source;
-    edits.sort((a, b) => a[0] - b[0]);
+    if (!nonceEdits.length && !tagEdits.length) return source;
+
+    // Apply in order of start (a nonce edit first on a tie); an edit that starts inside an earlier one is skipped.
     let out = "";
     let done = 0;
-    for (const [start, end, replacement] of edits) {
-        if (start < done) continue; // inside an earlier replacement
-        out += source.slice(done, start) + replacement;
+    let n = 0;
+    let t = 0;
+    while (n < nonceEdits.length || t < tagEdits.length) {
+        const nonceNext = n < nonceEdits.length && (t >= tagEdits.length || nonceEdits[n] <= tagEdits[t]);
+        const start = nonceNext ? nonceEdits[n] : tagEdits[t];
+        const end = nonceNext ? nonceEdits[n + 1] : tagEdits[t + 1];
+        if (nonceNext) n += 2;
+        else t += 2;
+        if (start < done) continue;
+        out += source.slice(done, start) + (nonceNext ? "[redacted-nonce]" : "&lt;");
         done = end;
     }
     return out + source.slice(done);

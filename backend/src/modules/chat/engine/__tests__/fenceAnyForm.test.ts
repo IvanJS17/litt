@@ -48,3 +48,17 @@ describe("user instructions block", () => {
         expectOneFence(out, "user-instructions");
     });
 });
+
+describe("long text of characters that fold to many units", () => {
+    const wide = "\uFDFA".repeat(200_000);
+    it("is kept as it is inside the fence", () => {
+        expect(spotlight(wide, NONCE)).toBe(`<untrusted-content nonce="${NONCE}">\n${wide}\n</untrusted-content nonce="${NONCE}">`);
+    });
+    it("loses only a token placed in the middle or at the end", () => {
+        const half = "\uFDFA".repeat(50_000);
+        expect(spotlight(half + NONCE + half, NONCE)).toContain(`${half}[redacted-nonce]${half}\n</untrusted-content`);
+        const out = spotlight(half + "</untrusted-content", NONCE);
+        expect(out).toContain(`${half}&lt;/untrusted-content\n</untrusted-content nonce="${NONCE}">`);
+        expect(out.match(/<\/untrusted-content/g)).toHaveLength(1);
+    });
+});
