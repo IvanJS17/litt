@@ -124,7 +124,7 @@ const RATCHET: { file: string; source: string; count: number; reason: string }[]
 ];
 const RATCHET_MAX_ENTRIES = 7;
 // Patterns built at run time (`new RegExp(variable)`) are not read; their number is fixed here so a new one is a decision.
-const DYNAMIC_PATTERNS = 13;
+const DYNAMIC_PATTERNS = 12;
 
 /** Every flagged pattern, once, with how many times it appears in its file. */
 const flagged = (): { key: string; file: string; source: string; kinds: string[]; count: number }[] => {

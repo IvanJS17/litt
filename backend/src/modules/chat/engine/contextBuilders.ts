@@ -1,4 +1,5 @@
 import { AppError } from "../../../lib/appError";
+import { neutralizeFence } from "../../../lib/promptFence";
 import { reportError } from "../../../lib/observability/report";
 import { responseLanguageName } from "../../../lib/responseLanguages";
 import { folderPathResolver } from "../../../lib/folderTree";
@@ -79,13 +80,12 @@ export function generateSpotlightNonce(conversationId?: string | null): string {
  * the data.
  */
 function neutralizeFenceTokens(text: string, nonce: string): string {
-  return String(text)
-    .split(nonce)
-    .join("[redacted-nonce]")
-    .replace(
-      /<(\/?)(untrusted-content|workflow-instructions|user-instructions|app-message)/gi,
-      "&lt;$1$2",
-    );
+  return neutralizeFence(text, nonce, [
+    "untrusted-content",
+    "workflow-instructions",
+    "user-instructions",
+    "app-message",
+  ]);
 }
 
 /**
