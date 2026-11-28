@@ -11,6 +11,7 @@
 // database function (`storage_space_usage`), under a lock on the space, inside
 // `create_upload_session`; anything that shows usage calls this function.
 
+import { getOrgRole } from "./access";
 import { teamOrgIdOf } from "./personalOrgs";
 import { storageQuotaConfiguration } from "./runtimeConfig";
 import type { Db } from "./supabase";
@@ -54,6 +55,57 @@ export async function storageSpaceUsage(
       cause: error ?? undefined,
     });
   return { usedBytes, limitBytes };
+}
+
+/** How full a space is, said without a figure. */
+export type StorageLevel = "ok" | "almostFull";
+
+/**
+ * The one rule for "almost full": the space uses at least four fifths of its
+ * limit (a limit of zero always does). Whole-number arithmetic, exact for any
+ * count a JavaScript number holds.
+ */
+export function storageLevel({ usedBytes, limitBytes }: StorageSpaceUsage): StorageLevel {
+  return BigInt(usedBytes) * 5n >= BigInt(limitBytes) * 4n ? "almostFull" : "ok";
+}
+
+/** What a person is told about the space an upload fills: its level and which space it is, never a figure. */
+export type StorageNotice = {
+  storageLevel: StorageLevel;
+  storageSpace: { kind: "personal" | "firm"; id: string };
+};
+
+/**
+ * What the person opening an upload is told about the space it fills, from one
+ * read of its use. Only a person whose space it is is told: their own personal
+ * space, or a firm they belong to. Anyone else (someone adding a version to
+ * another person's document, someone working in a firm they are not a member
+ * of) is told nothing, and the use is not read. A failed read of the use says
+ * "ok", and a failed read of the membership says nothing: opening the upload
+ * is never held back by a notice about the space.
+ */
+export async function storageNoticeOfSpace(
+  db: Db,
+  space: StorageSpace,
+  userId: string,
+): Promise<StorageNotice | null> {
+  let storageSpace: StorageNotice["storageSpace"];
+  if (space.orgId === null) {
+    if (space.userId !== userId) return null;
+    storageSpace = { kind: "personal", id: userId };
+  } else {
+    try {
+      if (!(await getOrgRole(userId, space.orgId, db))) return null;
+    } catch {
+      return null;
+    }
+    storageSpace = { kind: "firm", id: space.orgId };
+  }
+  try {
+    return { storageLevel: storageLevel(await storageSpaceUsage(db, space)), storageSpace };
+  } catch {
+    return { storageLevel: "ok", storageSpace };
+  }
 }
 
 /**

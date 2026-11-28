@@ -1223,6 +1223,8 @@
       "invalidDocx": "{count, plural, one {{names} is not a valid DOCX file.} other {{names} are not valid DOCX files.}}",
       "invalidMarkdown": "{count, plural, one {{names} is not a valid UTF-8 text file.} other {{names} are not valid UTF-8 text files.}}",
       "invalidPdf": "{count, plural, one {{names} is not a valid PDF file.} other {{names} are not valid PDF files.}}",
+      "storageAlmostFullFirm": "The firm's space is almost full. New files will be refused when it is full; what is already stored stays. An owner or administrator can see its use in the firm's settings.",
+      "storageAlmostFullPersonal": "Your space is almost full. New files will be refused when it is full; what is already stored stays.",
       "tooManyFiles": "You can upload at most {count} files at a time.",
       "unsupportedType": "Unsupported file type. Only PDF, Word, Excel, PowerPoint, and Markdown (.md) files can be uploaded."
     },
@@ -1476,7 +1478,7 @@
       "upload_session_rate_limit_exceeded": "Too many upload sessions. Try again later.",
       "heavy_jobs_busy": "LiTT is already running as many heavy jobs for your connected apps as it can. Nothing was started. Try again in about 30 seconds.",
       "upload_target_busy": "Another upload is already updating this item.",
-      "storage_quota_exceeded": "There is no storage space left here, so new files can't be uploaded and new versions can't be saved. Everything you have stays available. Delete documents or earlier versions you no longer need, or ask your firm's administrator for more space.",
+      "storage_quota_exceeded": "There is no storage space left here, so this can't be uploaded or saved. Everything you have stays available. Delete documents or earlier versions you no longer need, or ask your firm's administrator for more space.",
       "uploads_in_progress_limit": "You already have uploads in progress in this space. Wait for them to finish or cancel them, then try again.",
       "validation_failed": "Some of the information provided isn't valid.",
       "workflow_open_source_disabled": "Publishing workflows outside LiTT isn't available.",
@@ -6223,8 +6225,8 @@
       "almostFullLabel": "The space is almost full",
       "almostFullBody": "When it fills up, new files cannot be uploaded. Everything stored stays available.",
       "fullLabel": "The space is full",
-      "fullBodyPersonal": "New files can't be uploaded and new versions can't be saved. Everything you have stays available. To free space, delete documents or earlier versions you no longer need.",
-      "fullBodyFirm": "New files can't be uploaded and new versions can't be saved in the firm. Everything stored stays available. To free space, delete documents or earlier versions the firm no longer needs.",
+      "fullBodyPersonal": "New files can't be uploaded. Everything you have stays available. To free space, delete documents or earlier versions you no longer need.",
+      "fullBodyFirm": "New files can't be uploaded in the firm. Everything stored stays available. To free space, delete documents or earlier versions the firm no longer needs.",
       "loadAction": "load the storage use"
     }
   },

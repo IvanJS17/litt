@@ -5,7 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import { resolveUploadSpace } from "../../lib/storageQuota";
+import { resolveUploadSpace, storageNoticeOfSpace } from "../../lib/storageQuota";
 import type { Db } from "../../lib/supabase";
 import { validateDestinationAccess } from "./uploads.access";
 import {
@@ -53,11 +53,18 @@ export async function openUploadSession(
   });
   if (!space.ok) return internalFailure(new Error(space.detail));
 
-  return await createUploadSession(db, {
+  // How full that space is, read once, before this session's files count. It
+  // is said as a level only (a plain member of a firm never learns its
+  // figures), and only to a person whose space it is.
+  const notice = await storageNoticeOfSpace(db, space.space, args.userId);
+
+  const created = await createUploadSession(db, {
     sessionId,
     userId: args.userId,
     space: space.space,
     manifest,
     hourlySessionLimit: args.hourlySessionLimit,
   });
+  if (!created.ok) return created;
+  return { ok: true, data: { ...created.data, ...notice } };
 }

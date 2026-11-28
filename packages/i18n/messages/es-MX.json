@@ -1223,6 +1223,8 @@
       "invalidDocx": "{count, plural, one {{names} no es un archivo DOCX válido.} other {{names} no son archivos DOCX válidos.}}",
       "invalidMarkdown": "{count, plural, one {{names} no es un archivo de texto UTF-8 válido.} other {{names} no son archivos de texto UTF-8 válidos.}}",
       "invalidPdf": "{count, plural, one {{names} no es un archivo PDF válido.} other {{names} no son archivos PDF válidos.}}",
+      "storageAlmostFullFirm": "El espacio del despacho está casi lleno. Los archivos nuevos se rechazarán cuando se llene; lo que ya está guardado se conserva. Un propietario o administrador puede ver su uso en la configuración del despacho.",
+      "storageAlmostFullPersonal": "Tu espacio está casi lleno. Los archivos nuevos se rechazarán cuando se llene; lo que ya está guardado se conserva.",
       "tooManyFiles": "Puedes subir como máximo {count} archivos a la vez.",
       "unsupportedType": "Tipo de archivo no compatible. Solo puedes subir archivos PDF, Word, Excel, PowerPoint y Markdown (.md)."
     },
@@ -1476,7 +1478,7 @@
       "upload_session_rate_limit_exceeded": "Demasiadas sesiones de carga. Inténtalo de nuevo más tarde.",
       "heavy_jobs_busy": "LiTT ya está ejecutando todos los trabajos pesados que admite para tus apps conectadas. No se inició nada. Inténtalo de nuevo en unos 30 segundos.",
       "upload_target_busy": "Otra carga ya está actualizando este elemento.",
-      "storage_quota_exceeded": "Ya no hay espacio de almacenamiento aquí, así que no se pueden subir archivos nuevos ni guardar versiones nuevas. Todo lo que tienes sigue disponible. Borra los documentos o las versiones anteriores que ya no necesites, o pide más espacio a un administrador de tu despacho.",
+      "storage_quota_exceeded": "Ya no hay espacio de almacenamiento aquí, así que esto no se puede subir ni guardar. Todo lo que tienes sigue disponible. Borra los documentos o las versiones anteriores que ya no necesites, o pide más espacio a un administrador de tu despacho.",
       "uploads_in_progress_limit": "Ya tienes subidas en curso en este espacio. Espera a que terminen o cancélalas, y vuelve a intentarlo.",
       "validation_failed": "Parte de la información que diste no es válida.",
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible.",
@@ -6223,8 +6225,8 @@
       "almostFullLabel": "El espacio está casi lleno",
       "almostFullBody": "Cuando se llene, no se podrán subir archivos nuevos. Todo lo guardado sigue disponible.",
       "fullLabel": "El espacio está lleno",
-      "fullBodyPersonal": "No se pueden subir archivos nuevos ni guardar versiones nuevas. Todo lo que tienes sigue disponible. Para liberar espacio, borra los documentos o las versiones anteriores que ya no necesites.",
-      "fullBodyFirm": "No se pueden subir archivos nuevos ni guardar versiones nuevas en el despacho. Todo lo guardado sigue disponible. Para liberar espacio, borren los documentos o las versiones anteriores que ya no necesiten.",
+      "fullBodyPersonal": "No se pueden subir archivos nuevos. Todo lo que tienes sigue disponible. Para liberar espacio, borra los documentos o las versiones anteriores que ya no necesites.",
+      "fullBodyFirm": "No se pueden subir archivos nuevos en el despacho. Todo lo guardado sigue disponible. Para liberar espacio, borra los documentos o las versiones anteriores que el despacho ya no necesite.",
       "loadAction": "cargar el uso del almacenamiento"
     }
   },

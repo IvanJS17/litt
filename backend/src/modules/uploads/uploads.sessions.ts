@@ -54,7 +54,7 @@ import {
  * translation of the same sentence for the `storage_quota_exceeded` code).
  */
 const STORAGE_QUOTA_EXCEEDED_DETAIL =
-  "There is no storage space left here, so new files can't be uploaded and new versions can't be saved. Everything you have stays available. Delete documents or earlier versions you no longer need, or ask your firm's administrator for more space.";
+  "There is no storage space left here, so this can't be uploaded or saved. Everything you have stays available. Delete documents or earlier versions you no longer need, or ask your firm's administrator for more space.";
 
 // ---------------------------------------------------------------------------
 // Row loading

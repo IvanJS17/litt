@@ -4,8 +4,10 @@
  * attempts, then one report) is pinned in
  * `frontend/src/app/lib/mikeApi.uploadSessions.test.ts`.
  */
-import { describe, expect, it } from "vitest";
-import { classifyStorageTarget, storageFailureReport } from "./uploadSessionClient";
+import { describe, expect, it, vi } from "vitest";
+import { classifyStorageTarget, storageFailureReport, uploadFilesWithSessionCore } from "./uploadSessionClient";
+
+type UploadSessionTransport = Parameters<typeof uploadFilesWithSessionCore>[0]["transport"];
 
 describe("classifyStorageTarget", () => {
     it.each([
@@ -56,5 +58,105 @@ describe("storageFailureReport", () => {
             tags: { http_status: code },
             fingerprint: ["upload-storage-put"],
         });
+    });
+});
+
+describe("the almost-full notice of an upload batch", () => {
+    const file = (name: string) => new File(["x"], name, { type: "application/pdf" });
+
+    function setup(sessions: Array<Record<string, unknown>>) {
+        let opened = 0;
+        const noticeStorageAlmostFull = vi.fn();
+        const puts: string[] = [];
+        const transport = {
+            apiRequest: (async (path: string, init?: RequestInit) => {
+                if (path === "/upload-sessions" && init?.method === "POST") {
+                    const extra = sessions[opened++] ?? {};
+                    const body = JSON.parse(String(init.body)) as { files: Array<{ client_id: string; filename: string }> };
+                    return {
+                        session: { id: `s${opened}`, status: "completed" },
+                        files: body.files.map((f) => ({
+                            id: `f-${f.client_id}`,
+                            client_id: f.client_id,
+                            filename: f.filename,
+                            status: "completed",
+                            error_code: null,
+                            result: { ok: true },
+                            upload: { method: "PUT", url: `https://store.example/${f.client_id}`, headers: {} },
+                        })),
+                        ...extra,
+                    };
+                }
+                return { session: { id: "s", status: "completed" }, files: [] };
+            }) as unknown as UploadSessionTransport["apiRequest"],
+            fetchStorage: (async (url: string) => {
+                puts.push(url);
+                return new Response(null, { status: 200 });
+            }) as unknown as typeof fetch,
+            shouldRetryControlRequest: () => false,
+            noticeStorageAlmostFull,
+        };
+        return { transport, noticeStorageAlmostFull, puts };
+    }
+    const run = (transport: UploadSessionTransport, count: number) =>
+        uploadFilesWithSessionCore({
+            purpose: "document_create",
+            destination: { scope: "standalone" },
+            files: Array.from({ length: count }, (_, i) => ({ file: file(`f${i}.pdf`) })),
+            transport,
+        });
+    const almostFull = { storageLevel: "almostFull", storageSpace: { kind: "firm", id: "firm-1" } };
+
+    it("says it once for a batch of ten files, and the files still upload", async () => {
+        const { transport, noticeStorageAlmostFull, puts } = setup([almostFull]);
+        const outcomes = await run(transport, 10);
+        expect(noticeStorageAlmostFull).toHaveBeenCalledTimes(1);
+        expect(noticeStorageAlmostFull).toHaveBeenCalledWith({ kind: "firm", id: "firm-1" });
+        expect(puts).toHaveLength(10);
+        expect(outcomes.every((o) => o.status === "completed")).toBe(true);
+    });
+
+    it("says it once for a batch that needs several sessions for the same space", async () => {
+        const { transport, noticeStorageAlmostFull } = setup([almostFull, almostFull]);
+        await run(transport, 51);
+        expect(noticeStorageAlmostFull).toHaveBeenCalledTimes(1);
+    });
+
+    it("says nothing when the space is ok, when the answer carries no level, or when the host shows nothing", async () => {
+        const ok = setup([{ storageLevel: "ok", storageSpace: { kind: "personal", id: "u" } }]);
+        await run(ok.transport, 2);
+        const none = setup([{}]);
+        await run(none.transport, 2);
+        const silent = setup([almostFull]);
+        const { noticeStorageAlmostFull: _unused, ...withoutHook } = silent.transport;
+        void _unused;
+        await run(withoutHook, 1);
+        expect(ok.noticeStorageAlmostFull).not.toHaveBeenCalled();
+        expect(none.noticeStorageAlmostFull).not.toHaveBeenCalled();
+    });
+
+    it("says nothing for a level it does not know or a space it cannot name, and the files still upload", async () => {
+        const answers = [
+            { storageLevel: "full", storageSpace: { kind: "firm", id: "firm-1" } },
+            { storageLevel: "almostFull", storageSpace: { kind: "firm", id: { toString: 1, valueOf: 1 } } },
+            { storageLevel: "almostFull", storageSpace: { kind: "other", id: "x" } },
+            { storageLevel: "almostFull", storageSpace: "firm-1" },
+        ];
+        for (const answer of answers) {
+            const { transport, noticeStorageAlmostFull, puts } = setup([answer]);
+            const outcomes = await run(transport, 1);
+            expect(noticeStorageAlmostFull).not.toHaveBeenCalled();
+            expect(puts).toHaveLength(1);
+            expect(outcomes.every((o) => o.status === "completed")).toBe(true);
+        }
+    });
+
+    it("does not let a failing notice stop the upload", async () => {
+        const { transport, noticeStorageAlmostFull, puts } = setup([almostFull]);
+        noticeStorageAlmostFull.mockImplementation(() => {
+            throw new Error("boom");
+        });
+        await run(transport, 1);
+        expect(puts).toHaveLength(1);
     });
 });
