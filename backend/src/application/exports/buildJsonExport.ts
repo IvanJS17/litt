@@ -87,6 +87,15 @@ async function selectByIds(
 }
 
 /**
+ * The id of the connection a conversation or a message came from is never
+ * returned to a client: a row of the chats or review-chat messages leaves
+ * without it, and keeps its origin and the app's name.
+ */
+function withoutConnectionId<T extends Row>(rows: T[]): T[] {
+    return rows.map(({ origin_grant_id: _connection, ...rest }) => rest as unknown as T);
+}
+
+/**
  * The workspace an export covers: an organization's id, or null for
  * Personal. Settings exports one workspace at a time; a row is in it as
  * public.workspace_matches decides, by its org_id.
@@ -209,7 +218,7 @@ async function loadReadableTabularTranscriptsJudged(
     const judged = judgeChats(all, messages);
     holdBack(tally, "table_review_chats", countChatsHeldBack(judged));
     return {
-        result: { chats: withReadableTitles(chats, all, messages), messages },
+        result: { chats: withReadableTitles(chats, all, messages), messages: withoutConnectionId(messages) },
         judged,
     };
 }
@@ -274,8 +283,8 @@ async function loadUserChatsJudged(
     holdBack(tally, "conversations", withheld.size);
     return {
         result: {
-            chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
-            messages,
+            chats: withoutConnectionId(chats).map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
+            messages: withoutConnectionId(messages),
         },
         judged: judgeChats(all, messages),
     };

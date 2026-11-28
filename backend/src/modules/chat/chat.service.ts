@@ -77,6 +77,7 @@ export {
   loadAppWrittenUserMessages,
   appWrittenMessage,
   APP_MESSAGE_POLICY,
+  APP_MESSAGE_ORIGIN,
   userMessageStamper,
   type MessageTimeContext,
   buildUserPersonalisationPrompt,
