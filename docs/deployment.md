@@ -846,7 +846,8 @@ question is not atomic against an upload opened at the same moment. These
 writers add stored bytes without asking the space yet: the files the assistant
 generates, the Markdown save, the assistant's tracked edits, the publication
 of a review's edits, the documents made by conversion, comparison, split or a
-note, and the in-place replacement of an edited version.
+note, and accepting or rejecting a tracked change, which replaces the edited
+version in place or, when that version is sealed, writes a new one.
 Two reads report the figures of the use without refusing anything: `GET /user/storage` answers a
 person's own personal space, and `GET /orgs/:orgId/storage` answers a firm's space
 only to an accepted owner or administrator of that firm; both return
