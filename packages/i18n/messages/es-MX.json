@@ -1478,7 +1478,7 @@
       "upload_session_rate_limit_exceeded": "Demasiadas sesiones de carga. Inténtalo de nuevo más tarde.",
       "heavy_jobs_busy": "LiTT ya está ejecutando todos los trabajos pesados que admite para tus apps conectadas. No se inició nada. Inténtalo de nuevo en unos 30 segundos.",
       "upload_target_busy": "Otra carga ya está actualizando este elemento.",
-      "storage_quota_exceeded": "Ya no hay espacio de almacenamiento aquí, así que no se pueden subir archivos nuevos ni guardar versiones nuevas. Todo lo que tienes sigue disponible. Borra los documentos o las versiones anteriores que ya no necesites, o pide más espacio a un administrador de tu despacho.",
+      "storage_quota_exceeded": "Ya no hay espacio de almacenamiento aquí para guardar esto. Todo lo que tienes sigue disponible. Borra los documentos o las versiones anteriores que ya no necesites, o pide más espacio a un administrador de tu despacho.",
       "uploads_in_progress_limit": "Ya tienes subidas en curso en este espacio. Espera a que terminen o cancélalas, y vuelve a intentarlo.",
       "validation_failed": "Parte de la información que diste no es válida.",
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible.",
@@ -6225,8 +6225,8 @@
       "almostFullLabel": "El espacio está casi lleno",
       "almostFullBody": "Cuando se llene, no se podrán subir archivos nuevos. Todo lo guardado sigue disponible.",
       "fullLabel": "El espacio está lleno",
-      "fullBodyPersonal": "No se pueden subir archivos nuevos ni guardar versiones nuevas. Todo lo que tienes sigue disponible. Para liberar espacio, borra los documentos o las versiones anteriores que ya no necesites.",
-      "fullBodyFirm": "No se pueden subir archivos nuevos ni guardar versiones nuevas en el despacho. Todo lo guardado sigue disponible. Para liberar espacio, borren los documentos o las versiones anteriores que ya no necesiten.",
+      "fullBodyPersonal": "No se pueden subir archivos nuevos. Todo lo que tienes sigue disponible. Para liberar espacio, borra los documentos o las versiones anteriores que ya no necesites.",
+      "fullBodyFirm": "No se pueden subir archivos nuevos en el despacho. Todo lo guardado sigue disponible. Para liberar espacio, borra los documentos o las versiones anteriores que el despacho ya no necesite.",
       "loadAction": "cargar el uso del almacenamiento"
     }
   },
