@@ -151,7 +151,8 @@ describe("a review thread message a connected app writes", () => {
         const result = await prepareTabularChat(w.db, args([{ role: "user", content: "hola" }], { origin }));
         const input = modelInput(result as never);
         const content = input.at(-1)!.content;
-        expect(content).toMatch(new RegExp(`${LINE.replace(/[[\]().]/g, "\\$&")}\\n<app-message nonce="[0-9a-f]{32}">\\nhola\\n</app-message nonce="[0-9a-f]{32}">$`));
+        expect(content).toContain(LINE);
+        expect(content.slice(content.indexOf(LINE) + LINE.length)).toMatch(/^\n<app-message nonce="[0-9a-f]{32}">\nhola\n<\/app-message nonce="[0-9a-f]{32}">$/);
         expect(content).not.toContain("untrusted-content");
         expect(input[0].content).toContain("APP MESSAGE POLICY:");
         expect(JSON.stringify(input)).not.toContain("ZQXAPPNAMEZQX");
