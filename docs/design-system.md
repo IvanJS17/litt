@@ -740,6 +740,7 @@ keep their own spacing and should not receive this attribute.
 | `GlassCardUI` | `shared/ui` | Canonical liquid-glass card surface. |
 | `TextSlabUI` | `shared/ui` | Inset slab holding quoted or proposed text inside a card — citation quotes, tracked-change diffs, and their loading/empty states. Owns shape, padding, and fill; the caller owns typography. |
 | `ToggleSwitchUI` | `shared/ui` | `role="switch"` toggle with an optional text label. |
+| `MeterUI` | `shared/ui` | A bar for how much of a range is used (storage space): `role="progressbar"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, an accessible name and optional `aria-valuetext`. The value is kept inside the range. State is never colour alone: the host writes the figure and any notice as text beside it. |
 | `CitationPillUI` | `shared/ui` | Canonical numbered citation control for web, tabular review, and Word. Uses neutral gray by default, red for verification errors, and the neutral interactive tint for the selected state (`bg-interactive-soft-strong` with `text-interactive`). |
 | `TrainingConfidenceUI` | `shared/ui` | The training thermometer: a named radio group of four levels, the chosen one `aria-checked` with a check mark (state is never colour alone). Takes its words from the host; web and Word share it. |
 | `InputUI` | `shared/ui` | Canonical shadcn input for the web app and Word add-in. |

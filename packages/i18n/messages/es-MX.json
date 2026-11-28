@@ -5726,6 +5726,11 @@
         "title": "Tipos de documento para separar expediente",
         "description": "Elige los tipos de documento que se usan para separar un expediente en tu espacio personal.",
         "keywords": "separar|separar expediente|expediente|tipos de documento|clases|páginas|landingai"
+      },
+      "storage": {
+        "title": "Almacenamiento",
+        "description": "Cuánto de tu espacio de almacenamiento está en uso.",
+        "keywords": "almacenamiento|espacio|cuota|límite|uso|capacidad|disco|gb|lleno|archivos|documentos|cuánto"
       }
     },
     "security": {
@@ -5930,6 +5935,10 @@
           "title": "Privacidad y datos",
           "help": "Descarga o borra tus chats, proyectos y memoria."
         },
+        "storage": {
+          "title": "Almacenamiento",
+          "help": "Consulta cuánto espacio de almacenamiento usas."
+        },
         "myActivity": {
           "title": "Mi actividad",
           "help": "Consulta lo que hiciste en LiTT, con fecha y hora."
@@ -6019,6 +6028,10 @@
         "privacyData": {
           "title": "Privacidad y datos",
           "help": "Decide si los miembros pueden exportar o borrar sus datos, y borra datos de todo el despacho."
+        },
+        "storage": {
+          "title": "Almacenamiento",
+          "help": "Consulta cuánto espacio de almacenamiento usa el despacho."
         }
       },
       "personalBanner": "Estos ajustes son tuyos. Lo de tu despacho está en <link>Ajustes del despacho →</link>",
@@ -6195,6 +6208,22 @@
         "propose_case_file_split": "Proponer cómo separar un expediente",
         "create_split_documents": "Crear los documentos de una separación"
       }
+    },
+    "storage": {
+      "personalHeading": "Tu almacenamiento",
+      "firmHeading": "Almacenamiento del despacho",
+      "meterLabel": "Espacio de almacenamiento en uso",
+      "usage": "{used} de {limit} en uso",
+      "percent": "{percent} usado",
+      "countsPersonal": "Incluye los documentos y las versiones guardados en tu espacio personal.",
+      "countsFirm": "Incluye los documentos y las versiones guardados en el despacho.",
+      "sharedFirm": "Todo el despacho comparte este espacio. Crece con los miembros aceptados del despacho.",
+      "almostFullLabel": "El espacio está casi lleno",
+      "almostFullBody": "Cuando se llene, no se podrán subir archivos nuevos. Todo lo guardado sigue disponible.",
+      "fullLabel": "El espacio está lleno",
+      "fullBodyPersonal": "No se pueden subir archivos nuevos ni guardar versiones nuevas. Todo lo que tienes sigue disponible. Para liberar espacio, borra los documentos o las versiones anteriores que ya no necesites.",
+      "fullBodyFirm": "No se pueden subir archivos nuevos ni guardar versiones nuevas en el despacho. Todo lo guardado sigue disponible. Para liberar espacio, borren los documentos o las versiones anteriores que ya no necesiten.",
+      "loadAction": "cargar el uso del almacenamiento"
     }
   },
   "shared": {

@@ -5726,6 +5726,11 @@
         "title": "Document types for splitting case files",
         "description": "Choose the document types used to split a case file in your personal space.",
         "keywords": "split|separate|case file|expediente|document types|classes|pages|landingai"
+      },
+      "storage": {
+        "title": "Storage",
+        "description": "How much of your storage space is in use.",
+        "keywords": "storage|space|quota|limit|usage|capacity|disk|gb|full|files|documents|how much"
       }
     },
     "security": {
@@ -5930,6 +5935,10 @@
           "title": "Privacy and data",
           "help": "Download or delete your chats, projects and memory."
         },
+        "storage": {
+          "title": "Storage",
+          "help": "See how much of your storage space you use."
+        },
         "myActivity": {
           "title": "My activity",
           "help": "See what you did in LiTT, with date and time."
@@ -6019,6 +6028,10 @@
         "privacyData": {
           "title": "Privacy and data",
           "help": "Decide whether members can export or delete their data, and delete data for the whole firm."
+        },
+        "storage": {
+          "title": "Storage",
+          "help": "See how much storage space the firm uses."
         }
       },
       "personalBanner": "These settings are yours. Your firm’s are in <link>Firm settings →</link>",
@@ -6195,6 +6208,22 @@
         "propose_case_file_split": "Propose how to split a case file",
         "create_split_documents": "Create the documents of a split"
       }
+    },
+    "storage": {
+      "personalHeading": "Your storage",
+      "firmHeading": "Firm storage",
+      "meterLabel": "Storage space in use",
+      "usage": "{used} of {limit} in use",
+      "percent": "{percent} used",
+      "countsPersonal": "Includes the documents and versions stored in your personal space.",
+      "countsFirm": "Includes the documents and versions stored in the firm.",
+      "sharedFirm": "The whole firm shares this space. It grows with the firm's accepted members.",
+      "almostFullLabel": "The space is almost full",
+      "almostFullBody": "When it fills up, new files cannot be uploaded. Everything stored stays available.",
+      "fullLabel": "The space is full",
+      "fullBodyPersonal": "New files can't be uploaded and new versions can't be saved. Everything you have stays available. To free space, delete documents or earlier versions you no longer need.",
+      "fullBodyFirm": "New files can't be uploaded and new versions can't be saved in the firm. Everything stored stays available. To free space, delete documents or earlier versions the firm no longer needs.",
+      "loadAction": "load the storage use"
     }
   },
   "shared": {

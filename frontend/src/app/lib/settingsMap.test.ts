@@ -226,6 +226,7 @@ describe("what reads the map", () => {
             "scan-reading",
             "training",
             "audit",
+            "storage",
         ]);
         expect(ids("firm", "owner")).toContain("privacy-data");
         expect(ids("personal", null)).not.toContain("beta-stats");
@@ -233,6 +234,32 @@ describe("what reads the map", () => {
             expect.arrayContaining(["beta-invitations", "beta-stats"]),
         );
         expect(ids("personal", null, { memberDataActions: false })).not.toContain("privacy-data");
+    });
+});
+
+describe("storage use", () => {
+    const personal = personalTab("storage");
+    const firm = firmTab("storage");
+    const none = { platformAdmin: false, memberDataActions: true };
+
+    it("is a tab of the account group, for everyone, at its own address", () => {
+        expect(personal).toMatchObject({ home: "personal", group: "account", path: "/settings/storage", audience: "everyone" });
+        expect(visibleSettingsTabs("personal", { ...none, firmRole: null }).map((tab) => tab.id)).toContain("storage");
+        expect(visibleSettingsTabs("personal", { ...none, memberDataActions: false, firmRole: null }).map((tab) => tab.id)).toContain("storage");
+    });
+
+    it("is a section of the firm's settings only for owners and administrators", () => {
+        expect(firm).toMatchObject({ home: "firm", path: "/organizations/:orgId/settings/storage", audience: "firmAdmin" });
+        const idsFor = (firmRole: "owner" | "admin" | "member" | null) =>
+            visibleSettingsTabs("firm", { ...none, firmRole }).map((tab) => tab.id);
+        expect(idsFor("owner")).toContain("storage");
+        expect(idsFor("admin")).toContain("storage");
+        expect(idsFor("member")).not.toContain("storage");
+        expect(idsFor(null)).not.toContain("storage");
+    });
+
+    it("is found by the settings search", () => {
+        expect(SETTINGS_SEARCH_ENTRIES.some((entry) => entry.tabId === "storage" && entry.href === "/settings/storage")).toBe(true);
     });
 });
 

@@ -109,6 +109,7 @@ describe("the sections each role is offered", () => {
       "Training",
       "Audit",
       "Privacy and data",
+      "Storage",
     ]);
   });
 
@@ -123,6 +124,7 @@ describe("the sections each role is offered", () => {
       "Scanned document reading",
       "Training",
       "Audit",
+      "Storage",
     ]);
   });
 
