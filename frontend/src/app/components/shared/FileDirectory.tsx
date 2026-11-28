@@ -26,6 +26,7 @@ import {
 } from "@/app/lib/mikeApi";
 import { useDocumentWorkspace } from "@/app/contexts/WorkspaceContext";
 import { missingById } from "@/app/lib/idCollections";
+import { formatBytes } from "@/app/lib/formatBytes";
 import {
     LIQUID_GLASS_MODAL_ROW_HOVER_CLASS,
     LIQUID_GLASS_MODAL_ROW_SELECTED_CLASS,
@@ -79,11 +80,8 @@ function formatDate(format: DateFormatter, iso: string | null) {
     });
 }
 
-function formatBytes(bytes: number | null | undefined) {
-    if (bytes == null) return null;
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function sizeLabel(bytes: number | null | undefined) {
+    return bytes == null ? null : formatBytes(bytes);
 }
 
 function versionLabel(doc: Document) {
@@ -664,7 +662,7 @@ function WorkspaceFileDirectory({
                 <FileDirectoryMetaCells
                     version={versionLabel(doc)}
                     created={formatDate(format, doc.created_at)}
-                    size={formatBytes(doc.size_bytes)}
+                    size={sizeLabel(doc.size_bytes)}
                 />
             </label>
         );

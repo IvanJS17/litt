@@ -2296,6 +2296,25 @@ export async function deleteOrg(orgId: string): Promise<void> {
     await apiRequest("organizations.manage", `/orgs/${orgId}`, { method: "DELETE" });
 }
 
+/** What the signed-in person's personal space uses, and its limit. */
+export async function getUserStorageUsage(
+    signal?: AbortSignal,
+): Promise<import("@mike/contracts").StorageUsage> {
+    return apiRequest<import("@mike/contracts").StorageUsage>("storage.usage", "/user/storage", { signal });
+}
+
+/** What a firm's space uses, and its limit. Owners and administrators only. */
+export async function getOrgStorageUsage(
+    orgId: string,
+    signal?: AbortSignal,
+): Promise<import("@mike/contracts").StorageUsage> {
+    return apiRequest<import("@mike/contracts").StorageUsage>(
+        "storage.usage",
+        `/orgs/${encodeURIComponent(orgId)}/storage`,
+        { signal },
+    );
+}
+
 export type OrgDataKind =
     | "chats"
     | "tabular-reviews"

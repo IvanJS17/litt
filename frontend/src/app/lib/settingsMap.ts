@@ -145,6 +145,18 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         ],
     },
     {
+        id: "storage",
+        home: "personal",
+        group: "account",
+        path: "/settings/storage",
+        audience: "everyone",
+        titleKey: "settings.map.tab.storage.title",
+        helpKey: "settings.map.tab.storage.help",
+        audienceKeys: [
+            { icon: "user", key: "settings.signals.yourSpace" },
+        ],
+    },
+    {
         id: "my-activity",
         home: "personal",
         group: "account",
@@ -413,6 +425,19 @@ export const SETTINGS_TABS: readonly SettingsTabDef[] = [
         audienceKeys: [
             { icon: "lock", key: "settings.signals.onlyOwners" },
             { icon: "shield", key: "settings.signals.needsTwoFactor" },
+        ],
+    },
+    {
+        id: "storage",
+        home: "firm",
+        group: "firmControl",
+        path: `${FIRM_ROOT}/storage`,
+        audience: "firmAdmin",
+        titleKey: "settings.map.firmTab.storage.title",
+        helpKey: "settings.map.firmTab.storage.help",
+        audienceKeys: [
+            { icon: "firm", key: "settings.signals.firmWide" },
+            { icon: "lock", key: "settings.signals.onlyOwnersAdmins" },
         ],
     },
 ];

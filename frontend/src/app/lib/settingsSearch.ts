@@ -192,6 +192,15 @@ function buildEntries(t: Translate): SettingsSearchEntry[] {
             href: "/settings/privacy-data#delete-data",
         },
         {
+            id: "storage",
+            tabId: "storage",
+            tab: t("settings.map.tab.storage.title"),
+            title: t("settings.searchIndex.storage.title"),
+            description: t("settings.searchIndex.storage.description"),
+            keywords: keywordList(t("settings.searchIndex.storage.keywords")),
+            href: "/settings/storage",
+        },
+        {
             id: "my-activity",
             tabId: "my-activity",
             tab: t("settings.map.tab.myActivity.title"),

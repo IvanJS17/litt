@@ -31,7 +31,7 @@ changes; the labels say who.
 
 ```
 Ajustes (lo mío)
-  Mi cuenta ............... Cuenta · Seguridad · Privacidad y datos · Mi actividad
+  Mi cuenta ............... Cuenta · Seguridad · Privacidad y datos · Almacenamiento · Mi actividad
   Mi forma de trabajar .... Personalización · Memoria · Apariencia · Asistente · Preferencias de modelos
   Mis llaves y servicios .. Mis llaves de IA · Búsqueda web · Lectura de escaneados · Conectores · Aplicaciones conectadas
   Mi formación ............ Mi formación (+ aprendices y Panel del mentor, dentro, si soy mentor)
@@ -41,7 +41,7 @@ Ajustes (lo mío)
 Ajustes del despacho · <nombre>
   Despacho ................ General · Miembros
   Llaves y servicios ...... Llaves del despacho · Lectura de escaneados      (propietario y administrador)
-  Formación y control ..... Formación · Auditoría (propietario y administrador) · Privacidad y datos (solo propietario)
+  Formación y control ..... Formación · Auditoría (propietario y administrador) · Privacidad y datos (solo propietario) · Almacenamiento (propietario y administrador)
 ```
 
 | Tab | Home | Route | Offered to |
@@ -49,6 +49,7 @@ Ajustes del despacho · <nombre>
 | Cuenta | personal | `/settings` | everyone |
 | Seguridad | personal | `/settings/security` | everyone |
 | Privacidad y datos | personal | `/settings/privacy-data` | everyone, unless the firm lets members neither export nor delete (the opt-out «Verificar mis citas con TypeSafe» is shown to everyone, whatever the firm decides, but only where the deployment runs the check) |
+| Almacenamiento | personal | `/settings/storage` | everyone (how much of my personal storage space is in use: a meter, «X de Y en uso», and a notice from 80 %) |
 | Mi actividad | personal | `/settings/my-activity` | everyone |
 | Personalización, Memoria, Apariencia (theme Light / Dark / Auto, text size) | personal | `/settings/personalisation`, `/memory`, `/appearance` | everyone |
 | Asistente | personal | `/settings/assistant` | everyone |
@@ -67,6 +68,7 @@ Ajustes del despacho · <nombre>
 | Formación | firm | `/organizations/:orgId/settings/training` | every member (owners and administrators also manage mentors) |
 | Auditoría | firm | `/organizations/:orgId/settings/audit` | owners and administrators |
 | Privacidad y datos | firm | `/organizations/:orgId/settings/privacy-data` | owners |
+| Almacenamiento | firm | `/organizations/:orgId/settings/storage` | owners and administrators (how much of the firm's shared storage space is in use; a member who opens the address is told the settings are not available) |
 
 ## Where each thing lives (no duplicates)
 

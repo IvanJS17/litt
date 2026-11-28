@@ -54,11 +54,7 @@ export const DOC_NAME_COL_W =
 
 export const treeNameCellStyle = tableTreeCellStyle;
 
-export function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+export { formatBytes } from "@/app/lib/formatBytes";
 
 export function formatDate(format: DateFormatter, iso: string) {
     return format.dateTime(new Date(iso), {
