@@ -15,7 +15,10 @@
 --     version is not changed; no row updated returns null).
 -- A job that is not running, or is held by another worker, or does not exist,
 -- raises upload_job_not_held (SQLSTATE 55000) and writes nothing.
--- Lock order: the job row first, then the document row.
+-- Lock order: the job row first, then the document row. A cascade that
+-- deletes the account or the document takes them in the other order; if the
+-- two meet, the database aborts one of them, and an aborted write ends the
+-- attempt as any failed write does.
 --
 -- Only adds functions. Safe to re-run: create or replace, grants repeated.
 

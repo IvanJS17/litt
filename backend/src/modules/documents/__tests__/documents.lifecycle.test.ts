@@ -443,6 +443,8 @@ describe("a version written for an upload job", () => {
     expect(result).toEqual({ data: null, error: notHeld });
     expect(isUploadJobNotHeld(result.error)).toBe(true);
     expect(isUploadJobNotHeld({ code: "P0002", message: "document_not_found" })).toBe(false);
+    // The same SQLSTATE with another message is another refusal.
+    expect(isUploadJobNotHeld({ code: "55000", message: "audit_events is insert-only" })).toBe(false);
     expect(isUploadJobNotHeld(null)).toBe(false);
     fake.done();
   });
