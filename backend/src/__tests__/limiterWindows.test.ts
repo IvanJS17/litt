@@ -16,15 +16,31 @@ function sources(dir: string): string[] {
     });
 }
 
+const KEY = /^\s*(?:windowMs|"windowMs"|'windowMs')\s*:/;
+
 /** The lines that give a limiter its window in a file that builds limiters (a type's field aside). */
 function windowLines(text: string): string[] {
     if (!/from "express-rate-limit"/.test(text)) return [];
     return text
         .split("\n")
-        .filter((line) => /^\s*windowMs\s*:/.test(line) && !/^\s*windowMs:\s*number;\s*$/.test(line));
+        .filter((line) => KEY.test(line) && !/^\s*["']?windowMs["']?\s*:\s*number;\s*$/.test(line));
 }
 
-const ALLOWED = /^\s*windowMs:\s*(?:(?:minutes|hours)\(|options\.windowMs,)/;
+/** The whole value is one call of a helper, or the window the builder was given: nothing is added, multiplied or chosen around it. */
+const ALLOWED = {
+    test(line: string): boolean {
+        const value = line.replace(KEY, "").trim();
+        if (/^options\.windowMs,$/.test(value)) return true;
+        const call = /^(?:minutes|hours)\(/.exec(value);
+        if (!call || !value.endsWith("),")) return false;
+        let depth = 0;
+        for (let i = call[0].length - 1; i < value.length - 1; i++) {
+            if (value[i] === "(") depth++;
+            else if (value[i] === ")" && --depth === 0) return i === value.length - 2;
+        }
+        return false;
+    },
+};
 
 describe("rate-limit windows", () => {
     it("come through the shared helpers in every file that builds a limiter", () => {
@@ -49,5 +65,25 @@ describe("rate-limit windows", () => {
     it("refuses a window multiplied in place", () => {
         const text = 'import rateLimit from "express-rate-limit";\nrateLimit({\n  windowMs: envInt("X", 15) * 60 * 1000,\n});\n';
         expect(windowLines(text).filter((line) => !ALLOWED.test(line))).toHaveLength(1);
+    });
+
+    it("sees a window written with the other quote style", () => {
+        const text = 'import rateLimit from "express-rate-limit";\nrateLimit({\n  "windowMs": 60_000,\n  \'windowMs\': minutes(1) * 2,\n});\n';
+        expect(windowLines(text)).toHaveLength(2);
+        expect(windowLines(text).filter((line) => !ALLOWED.test(line))).toHaveLength(2);
+    });
+
+    it("takes only a whole call of a helper or the given window as the value", () => {
+        const allowed = ['windowMs: minutes(envInt("X", 15)),', '  "windowMs": hours(1),', "  'windowMs': options.windowMs,"];
+        const refused = [
+            'windowMs: minutes(envInt("X", 15)) * 60,',
+            'windowMs: minutes(1) + hours(2),',
+            'windowMs: minutes(1) || 5000,',
+            'windowMs: options.windowMs ?? 5000,',
+            "windowMs: 60_000,",
+            "windowMs: minutes(1)",
+        ];
+        expect(allowed.filter((line) => !ALLOWED.test(line))).toEqual([]);
+        expect(refused.filter((line) => ALLOWED.test(line))).toEqual([]);
     });
 });

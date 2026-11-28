@@ -555,6 +555,7 @@ describe("/platform", () => {
                 expect((await withdraw(id)).status).toBe(204);
                 expect(guest().bannedUntil).toBe("2999-01-01T00:00:00.000Z");
                 expect(ours()).toBe(false);
+                expect(h.state!.tables.audit_events.filter((e) => e.action === "account.blocked")).toHaveLength(0);
             });
 
             it("fails, leaving the invitation, when the block cannot be written; a repeat completes", async () => {
@@ -650,6 +651,52 @@ describe("/platform", () => {
                     expect(banned()).toBe(true);
                     expect(ours()).toBe(true);
                     expect(h.state!.tables.audit_events.filter((e) => e.action === "account.blocked").length).toBeGreaterThanOrEqual(1);
+                });
+
+                it("blocks it when the platform withdrawal's own removal is written last and its second look decides", async () => {
+                    const id = await opened();
+                    profile({});
+                    withFirmInvitation();
+                    // The firm withdrawal runs to its end before the platform removal is written.
+                    let firm: { status: number } | null = null;
+                    const db = h.state!.db as { from: (t: string) => Record<string, unknown> };
+                    const realFrom = db.from.bind(db);
+                    const wrap = (o: Record<string, unknown>): Record<string, unknown> =>
+                        new Proxy(o, {
+                            get: (target, key) => {
+                                if (key === "then")
+                                    return (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) =>
+                                        (async () => {
+                                            firm = await request(app).delete("/orgs/o1/invitations/oi1").set(...AUTH);
+                                            return new Promise((resolve, reject) => (target.then as (a: unknown, b: unknown) => unknown)(resolve, reject));
+                                        })().then(ok, bad);
+                                const value = target[key as string];
+                                return typeof value === "function"
+                                    ? (...args: unknown[]) => {
+                                          const next = (value as (...a: unknown[]) => unknown).apply(target, args);
+                                          return next === target ? wrap(target) : next;
+                                      }
+                                    : value;
+                            },
+                        });
+                    db.from = (table: string) => {
+                        const builder = realFrom(table);
+                        return table !== "platform_invitations"
+                            ? builder
+                            : new Proxy(builder, {
+                                  get: (target, key) => {
+                                      const value = target[key as string];
+                                      if (key !== "delete") return typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+                                      return (...args: unknown[]) => wrap((value as (...a: unknown[]) => Record<string, unknown>).apply(target, args));
+                                  },
+                              });
+                    };
+                    const platform = await withdraw(id);
+                    expect([platform.status, firm!.status]).toEqual([204, 204]);
+                    expect(settled()).toBe(true);
+                    expect(banned()).toBe(true);
+                    expect(ours()).toBe(true);
+                    expect(h.state!.tables.audit_events.filter((e) => e.action === "account.blocked")).toHaveLength(1);
                 });
 
                 it("does not block an account that was finished in between", async () => {

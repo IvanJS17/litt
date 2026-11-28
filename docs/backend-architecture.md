@@ -498,8 +498,8 @@ at most (`charsForTokens`):
   for an answer that is not JSON. Text that `JSON.parse` accepts is read
   directly, whatever its size up to `MODEL_TEXT_MAX_CHARS`; only text that does
   not parse reaches the repair and its limit. The repairs of one playbook
-  operation (a compile attempt with its retry, a draft or proposals with
-  theirs, a review) share a single one-second time budget, as those of one
+  operation (a compile attempt with its retry, a draft, proposals or a
+  correction with theirs, a review) share a single one-second time budget, as those of one
   tool-call reply do.
 - A caller whose answer is over its limit reaches the failure the feature
   already has (an import or review that did not return structured JSON, a Word
@@ -545,7 +545,7 @@ Every signed-in request needs the person to have accepted the current Terms
 (`LEGAL_VERSION`). `requireAuth` reads `terms_accepted_version` in the same
 `user_profiles` read it already makes and answers 403
 `terms_acceptance_required` unless the person has accepted; nothing is cached,
-so accepting unblocks the next request. The only routes that answer without it
+so accepting unblocks the next request. The only signed-in routes that answer without it
 are the ones in `TERMS_GATE_ALLOW_LIST` (`lib/termsGate.ts`, one reason each):
 asking who is signed in, reading the profile and accepting, the second-factor
 and password steps that come before the Terms screen, and the person's own
