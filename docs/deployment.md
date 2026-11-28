@@ -500,9 +500,14 @@ Optional platform settings (all off or unset by default):
   citation support check. The key is the platform's, not a person's or a
   firm's; every person can opt out in Settings. See
   [Citation support check](citation-support-check.md).
+- Numeric settings read by `envInt` and the MCP server (every `RATE_LIMIT_*` setting, the numeric
+  `LITT_MCP_*` settings and `AUTH_HANDOFF_TTL_SECONDS`, among others) are taken only as a whole number in plain
+  digits (at most 15, no sign, separator, exponent, decimal point or leading zero; spaces around it are
+  ignored). Anything else, such as `10,000` or `10k`, uses the setting's default, and the backend writes one
+  line at the first read that names the setting (never its value).
 - `LITT_MCP_SERVER=enabled` and `LITT_MCP_PUBLIC_URL` turn on the MCP server's
   OAuth authorization server and `/mcp` endpoint. `LITT_MCP_UNAPPROVED_CLIENTS_MAX`
-  (default 10000; plain digits only, at most 15 and without a leading zero; anything else uses the default) caps client rows no person approved, and
+  (default 10000) caps client rows that no connection refers to now, and
   `RATE_LIMIT_MCP_AUTHORIZE_MAX` / `_WINDOW_HOURS` (120 / 1) limit authorization
   requests per address. See [LiTT MCP server](mcp-server.md).
 - `GOOGLE_WORKSPACE_OAUTH_CLIENT_ID/_SECRET`, `GOOGLE_DRIVE_OAUTH_CLIENT_ID/_SECRET`,

@@ -124,3 +124,49 @@ describe("Word OAuth handoff tickets", () => {
     ).resolves.toBeNull();
   });
 });
+
+describe("how long a handoff ticket lives", () => {
+  const lifetime = async (value: string | undefined) => {
+    if (value === undefined) delete process.env.AUTH_HANDOFF_TTL_SECONDS;
+    else process.env.AUTH_HANDOFF_TTL_SECONDS = value;
+    process.env.AUTH_HANDOFF_ENCRYPTION_SECRET = "x".repeat(48);
+    let expiresAt = "";
+    const database = {
+      from: () => ({
+        delete: () => ({ lt: async () => ({ error: null }) }),
+        insert: async (row: { expires_at: string }) => {
+          expiresAt = row.expires_at;
+          return { error: null };
+        },
+      }),
+    };
+    const before = Date.now();
+    await issueAuthHandoff({
+      userId: "user-1",
+      requestId: "request-id-123456",
+      origin: "https://word.example.test",
+      session: { access_token: "a", refresh_token: "r" } as never,
+      db: database as never,
+    });
+    return Math.round((Date.parse(expiresAt) - before) / 1000);
+  };
+  afterEach(() => {
+    delete process.env.AUTH_HANDOFF_TTL_SECONDS;
+    vi.restoreAllMocks();
+  });
+
+  it("is the default when the setting is unset or not a plain whole number", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (const value of [undefined, "", "90abc", "1e2", "2.5", "-5", "+90", "090", "1,000", "9".repeat(16)])
+      expect(await lifetime(value), String(value)).toBe(120);
+  });
+
+  it("takes a plain number and keeps it between 30 and 300 seconds", async () => {
+    expect(await lifetime("90")).toBe(90);
+    expect(await lifetime(" 90 ")).toBe(90);
+    expect(await lifetime("5")).toBe(30);
+    expect(await lifetime("0")).toBe(30);
+    expect(await lifetime("900")).toBe(300);
+    expect(await lifetime("9".repeat(15))).toBe(300);
+  });
+});

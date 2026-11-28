@@ -13,15 +13,59 @@ function required(env: NodeJS.ProcessEnv, names: readonly string[]): string {
   return "";
 }
 
+/**
+ * The one reader of a number written in a setting: a whole number in plain
+ * digits (spaces around it are ignored; no sign, separator, exponent, decimal
+ * point or leading zero; at most 15 digits), or null. `10,000` and `10k` are
+ * not numbers here, never 10.
+ */
+export function wholeNumber(raw: string | undefined): number | null {
+  const text = raw?.trim();
+  if (!text || !/^(?:0|[1-9][0-9]{0,14})$/.test(text)) return null;
+  return Number(text);
+}
+
+const reportedSettings = new Set<string>();
+
+// One line per setting name for the life of the process, with the name and
+// never the value (it may be a pasted secret).
+function reportSetting(name: string, consequence: string): void {
+  if (reportedSettings.has(name)) return;
+  reportedSettings.add(name);
+  console.warn(`[config] ${name} ${consequence}`, { setting: name });
+}
+
+/**
+ * A whole-number setting read from `env[name]`: a plain whole number from
+ * `min` (1 unless said) up is taken; a larger one than `max` is `max`; unset or
+ * empty is `fallback`; anything else is `fallback` and one warning line.
+ */
+export function settingInt(
+  name: string,
+  fallback: number,
+  env: NodeJS.ProcessEnv = process.env,
+  range: { min?: number; max?: number } = {},
+): number {
+  const raw = env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const value = wholeNumber(raw);
+  if (value === null || value < (range.min ?? 1)) {
+    reportSetting(name, "is not a whole number in range: its default is used");
+    return fallback;
+  }
+  if (range.max !== undefined && value > range.max) {
+    reportSetting(name, "is above its ceiling: the ceiling is used");
+    return range.max;
+  }
+  return value;
+}
+
 export function envInt(
   name: string,
   fallback: number,
   env: NodeJS.ProcessEnv = process.env,
 ): number {
-  const raw = env[name];
-  if (!raw) return fallback;
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return settingInt(name, fallback, env);
 }
 
 /**
@@ -77,12 +121,6 @@ export function uploadSessionRateLimitConfiguration(
 }
 
 const GIBIBYTE = 1024 ** 3;
-
-/** A value that is only digits (no "5000abc", no sign, no decimals), or null. */
-export function wholeNumber(raw: string | undefined): number | null {
-  if (!raw || !/^\d{1,15}$/.test(raw)) return null;
-  return Number.parseInt(raw, 10);
-}
 
 /**
  * The storage quota: bytes a firm may keep for each member who has accepted

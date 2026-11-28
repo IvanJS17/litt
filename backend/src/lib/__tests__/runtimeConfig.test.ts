@@ -1,10 +1,13 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import {
   assertReaderUserForProduction,
+  envInt,
+  wholeNumber,
+  storageQuotaConfiguration,
   extractionLauncherWarnings,
   scanReadingStoreLimits,
   uploadConversionTimeoutMs,
@@ -608,5 +611,99 @@ describe("what a scan reading may store", () => {
     expect(scanReadingStoreLimits(set("999", "99999", "0"))).toEqual(defaults);
     expect(scanReadingStoreLimits(set("2000001", "32000001", "100001"))).toEqual(defaults);
     expect(scanReadingStoreLimits(set("9000000000", "1000000000", "1000000"))).toEqual(defaults);
+  });
+});
+
+// The one reader of a numeric setting: a whole number in plain digits, nothing else.
+const NOT_NUMBERS = ["10,000", "10k", "1e9", "2.5", "-5", "+5", "05", "0x10", "1_000", "1234567890123456", "9".repeat(16), "abc", "50abc", "", "  "];
+const WARNED_SETTINGS = vi.hoisted(() => ({ n: 0 }));
+const uniqueName = (label: string) => `TEST_SETTING_${label}_${(WARNED_SETTINGS.n += 1)}`;
+
+describe("reading a numeric setting", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  describe("envInt (from 1)", () => {
+    for (const value of NOT_NUMBERS) {
+      it(`uses the default for ${JSON.stringify(value)}`, () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        expect(envInt("X", 77, { X: value })).toBe(77);
+      });
+    }
+    it("uses the default for zero and when unset", () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      expect(envInt("X", 77, { X: "0" })).toBe(77);
+      expect(envInt("X", 77, {})).toBe(77);
+    });
+    it("takes plain digits, with or without spaces around them, up to fifteen digits", () => {
+      expect(envInt("X", 77, { X: "250" })).toBe(250);
+      expect(envInt("X", 77, { X: " 250 " })).toBe(250);
+      expect(envInt("X", 77, { X: "1" })).toBe(1);
+      expect(envInt("X", 77, { X: "9".repeat(15) })).toBe(999_999_999_999_999);
+    });
+  });
+
+  describe("wholeNumber (from 0)", () => {
+    it("reads zero and plain digits only", () => {
+      expect(wholeNumber("0")).toBe(0);
+      expect(wholeNumber(" 250 ")).toBe(250);
+      expect(wholeNumber("250")).toBe(250);
+      expect(wholeNumber("9".repeat(15))).toBe(999_999_999_999_999);
+      for (const value of [...NOT_NUMBERS, "00", "007"]) expect(wholeNumber(value), JSON.stringify(value)).toBeNull();
+      expect(wholeNumber(undefined)).toBeNull();
+    });
+  });
+
+  it("keeps the storage quota's tested results", () => {
+    expect(storageQuotaConfiguration({ STORAGE_QUOTA_BYTES_PER_MEMBER: "1,000", STORAGE_QUOTA_VERSION_MARGIN_PERCENT: "5k" })).toEqual({
+      bytesPerMember: 10 * 1024 ** 3,
+      personalBytes: 2 * 1024 ** 3,
+      versionMarginPercent: 10,
+    });
+  });
+
+  it("reads a rate-limit setting of the upload sessions strictly", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(uploadSessionRateLimitConfiguration({ RATE_LIMIT_UPLOAD_SESSION_MUTATION_MAX: "1,000" }).mutationMax).toBe(300);
+    expect(uploadSessionRateLimitConfiguration({ RATE_LIMIT_UPLOAD_SESSION_CREATE_MAX_PER_HOUR: "10k" }).sessionCreationMaxPerHour).toBe(50);
+  });
+
+  describe("the line written when a setting is refused", () => {
+    const lines = () => vi.spyOn(console, "warn").mockImplementation(() => {});
+    it("names the setting once, however often it is read, and never prints the value", () => {
+      const warn = lines();
+      const name = uniqueName("ONCE");
+      const secret = "pasted-secret-value-12345";
+      for (let i = 0; i < 5; i += 1) envInt(name, 10, { [name]: secret });
+      expect(warn).toHaveBeenCalledTimes(1);
+      const written = JSON.stringify(warn.mock.calls[0]);
+      expect(written).toContain(name);
+      expect(written).toContain("default");
+      expect(written).not.toContain(secret);
+    });
+    it("is written for a value below the lowest one the reader takes", () => {
+      const warn = lines();
+      const name = uniqueName("ZERO");
+      expect(envInt(name, 10, { [name]: "0" })).toBe(10);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(warn.mock.calls[0])).toContain(name);
+    });
+    it("writes nothing for a setting that is unset, empty or valid", () => {
+      const warn = lines();
+      const name = uniqueName("QUIET");
+      envInt(name, 10, {});
+      envInt(name, 10, { [name]: "" });
+      expect(envInt(name, 10, { [name]: "   " })).toBe(10);
+      envInt(name, 10, { [name]: "25" });
+      expect(warn).not.toHaveBeenCalled();
+    });
+    it("is written once for each setting name", () => {
+      const warn = lines();
+      const first = uniqueName("A");
+      const second = uniqueName("B");
+      envInt(first, 10, { [first]: "x1" });
+      envInt(second, 10, { [second]: "x2" });
+      envInt(first, 10, { [first]: "x1" });
+      expect(warn).toHaveBeenCalledTimes(2);
+    });
   });
 });

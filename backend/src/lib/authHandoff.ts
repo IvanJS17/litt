@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { Session } from "@supabase/supabase-js";
 import { createServerSupabase } from "./supabase";
-import { authHandoffEncryptionSecret } from "./runtimeConfig";
+import { authHandoffEncryptionSecret, settingInt } from "./runtimeConfig";
 import type { Db } from "./supabase";
 import { AppError } from "./appError";
 import { reportError } from "./observability/report";
@@ -109,8 +109,7 @@ function decryptSession(row: StoredHandoff): ConsumedAuthHandoff {
 }
 
 function ttlSeconds(env: NodeJS.ProcessEnv = process.env): number {
-  const configured = Number.parseInt(env.AUTH_HANDOFF_TTL_SECONDS ?? "", 10);
-  if (!Number.isFinite(configured)) return DEFAULT_TTL_SECONDS;
+  const configured = settingInt("AUTH_HANDOFF_TTL_SECONDS", DEFAULT_TTL_SECONDS, env, { min: 0 });
   return Math.min(MAX_TTL_SECONDS, Math.max(MIN_TTL_SECONDS, configured));
 }
 
