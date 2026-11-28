@@ -39,16 +39,13 @@ const CAP_REPORT_OPERATIONS = {
 } as const;
 const capReported = new Set<string>();
 
-/**
- * True when the client rows no grant has ever referred to have reached
- * LITT_MCP_UNAPPROVED_CLIENTS_MAX: a request that would create another one is
- * refused. The database is asked for the count, not for rows (it shortens
- * row answers to its own limit); a count that cannot be read is a failure, so
- * the request is refused. A client that already has a row never goes through
- * here. Reported once per process and kind, without the client or the caller.
- */
-async function unapprovedClientCapReached(db: Db, kind: "dcr" | "cimd"): Promise<boolean> {
-    const max = mcpConfig().unapprovedClientsMax;
+// The clean-up (mcp_oauth_purge) that a first-seen metadata-document client
+// triggers when the number is met runs at most once in this interval per
+// process; the attempt counts whether or not it succeeded.
+const CIMD_CLEANUP_INTERVAL_MS = 60_000;
+let lastCimdCleanupAt = -Infinity;
+
+async function unapprovedClientCount(db: Db): Promise<number> {
     const { count, error } = await db
         .from("mcp_oauth_clients")
         .select("client_id, mcp_grants!left(id)", { count: "exact", head: true })
@@ -57,6 +54,30 @@ async function unapprovedClientCapReached(db: Db, kind: "dcr" | "cimd"): Promise
     if (error) throw dbFailure("client count failed", error);
     if (count === null || count === undefined)
         throw dbFailure("client count failed", new Error("the database gave no count"));
+    return count;
+}
+
+/**
+ * True when the client rows that no connection refers to now have reached
+ * LITT_MCP_UNAPPROVED_CLIENTS_MAX: a request that would create another one is
+ * refused. The database is asked for the count, not for rows (it shortens
+ * row answers to its own limit); a count that cannot be read is a failure, so
+ * the request is refused. A client that already has a row never goes through
+ * here. For a first-seen metadata-document client that meets the number the
+ * clean-up runs first (at most once a minute per process) and the count is
+ * read again; a clean-up that fails is a database failure. Reported once per
+ * process and kind, only when a request is refused, without the client or the
+ * caller.
+ */
+async function unapprovedClientCapReached(db: Db, kind: "dcr" | "cimd"): Promise<boolean> {
+    const max = mcpConfig().unapprovedClientsMax;
+    let count = await unapprovedClientCount(db);
+    if (count >= max && kind === "cimd" && Date.now() - lastCimdCleanupAt >= CIMD_CLEANUP_INTERVAL_MS) {
+        lastCimdCleanupAt = Date.now();
+        const purge = await db.rpc("mcp_oauth_purge");
+        if (purge.error) throw dbFailure("purge failed", purge.error);
+        count = await unapprovedClientCount(db);
+    }
     if (count < max) return false;
     if (!capReported.has(kind)) {
         capReported.add(kind);

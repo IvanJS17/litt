@@ -33,7 +33,7 @@ export type McpConfig = {
     grantMaxAgeSeconds: number;
     codeTtlSeconds: number;
     requestTtlSeconds: number;
-    /** Client rows (dynamic or metadata-document) no grant has ever referred to; at this number no new one is created. */
+    /** Client rows (dynamic or metadata-document) that no connection refers to now; at this number no new one is created. */
     unapprovedClientsMax: number;
     rateLimits: McpRateLimits;
 };

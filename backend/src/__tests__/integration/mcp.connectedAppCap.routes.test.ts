@@ -17,6 +17,9 @@ const h = vi.hoisted(() => ({
     maxRows: undefined as number | undefined,
     /** How the count read of unapproved clients fails, if it does. */
     countRead: "ok" as "ok" | "error" | "missing",
+    /** How many times the clean-up function was called, and which client rows it treats as idle (it removes those). */
+    purgeCalls: 0,
+    idle: new Set<string>(),
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -69,7 +72,15 @@ const LOCAL = "http://127.0.0.1:1234/callback";
 
 /** memoryDb does not know PostgREST's embedded filter: `mcp_grants is null` keeps the clients no grant row refers to. */
 function dbWithGrantFilter(rows: Record<string, Row[]>) {
-    const state = memoryDb(rows, { mcp_oauth_purge: () => null }, {
+    const state = memoryDb(rows, {
+        mcp_oauth_purge: (_args, all) => {
+            h.purgeCalls++;
+            const clients = all.mcp_oauth_clients;
+            for (let i = clients.length - 1; i >= 0; i--)
+                if (h.idle.has(String(clients[i].client_id))) clients.splice(i, 1);
+            return null;
+        },
+    }, {
         get maxRows() {
             return h.maxRows;
         },
@@ -129,6 +140,8 @@ beforeEach(() => {
     h.fetched = [];
     h.maxRows = undefined;
     h.countRead = "ok";
+    h.purgeCalls = 0;
+    h.idle.clear();
     vi.stubEnv("LITT_MCP_SERVER", "enabled");
     vi.stubEnv("LITT_MCP_PUBLIC_URL", ISSUER);
     vi.stubEnv("FRONTEND_URL", WEB);
@@ -161,7 +174,7 @@ const doc = (clientId = DOC_URL) => () =>
         status: 200,
         headers: { "content-type": "application/json" },
     });
-/** Client rows no person ever approved. */
+/** Client rows no connection refers to. */
 function seedUnapproved(count: number, kind = "dcr") {
     for (let i = 0; i < count; i++)
         tables().mcp_oauth_clients.push({
@@ -349,4 +362,145 @@ describe("the token endpoint never creates a client", () => {
             expect(tables().mcp_oauth_clients[0]).toMatchObject({ client_name: "Hermes" });
         },
     );
+});
+
+describe("the clean-up when a first-seen metadata-document client meets the number", () => {
+    // A fresh copy of the app per test: the clean-up time and the report
+    // memory live in the module. The clock is faked (the date only).
+    let fresh: typeof app;
+    let clock: number;
+    const advance = (ms: number) => {
+        clock += ms;
+        vi.setSystemTime(clock);
+    };
+    const authorizeFresh = (clientId: string) =>
+        request(fresh)
+            .get("/oauth/authorize")
+            .query({
+                response_type: "code",
+                client_id: clientId,
+                redirect_uri: LOCAL,
+                code_challenge: challengeOf("x".repeat(43)),
+                code_challenge_method: "S256",
+                resource: RESOURCE,
+                state: "st-1",
+            })
+            .redirects(0);
+    const registerFresh = () =>
+        request(fresh).post("/oauth/register").send({ client_name: "Claude", redirect_uris: [REDIRECT], token_endpoint_auth_method: "none" });
+    const markIdle = (count: number) => {
+        for (const c of tables().mcp_oauth_clients.slice(0, count)) h.idle.add(String(c.client_id));
+    };
+
+    beforeEach(async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        clock = Date.parse("2026-11-27T12:00:00.000Z");
+        vi.setSystemTime(clock);
+        vi.resetModules();
+        fresh = (await import("../../app.js")).app;
+        h.documents.set(DOC_URL, doc());
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it("cleans up once, then fetches and creates the client when the clean-up made room", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        seedUnapproved(CAP);
+        markIdle(2);
+        const res = await authorizeFresh(DOC_URL);
+        expect(res.status).toBe(302);
+        expect(h.purgeCalls).toBe(1);
+        expect(h.fetched).toEqual([DOC_URL]);
+        expect(clientIds()).toContain(DOC_URL);
+        expect(clientIds()).toHaveLength(CAP - 2 + 1);
+        expect(reportLines(warn)).toEqual([]);
+    });
+
+    it("does not clean up again inside the minute after a clean-up that made room", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        const other = "https://other.example/oauth/client.json";
+        h.documents.set(other, doc(other));
+        seedUnapproved(CAP);
+        markIdle(2);
+        expect((await authorizeFresh(DOC_URL)).status).toBe(302);
+        expect(h.purgeCalls).toBe(1);
+        // back at the number, with rows a clean-up could remove
+        seedUnapproved(1);
+        markIdle(1);
+        advance(30_000);
+        expect((await authorizeFresh(other)).status).toBe(429);
+        expect(h.purgeCalls).toBe(1);
+        expect(h.fetched).toEqual([DOC_URL]);
+        expect(clientIds()).not.toContain(other);
+    });
+
+    it("refuses when nothing could be removed, with no second clean-up inside a minute and one after it", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        seedUnapproved(CAP);
+        const before = snapshot();
+        expect((await authorizeFresh(DOC_URL)).status).toBe(429);
+        expect(h.purgeCalls).toBe(1);
+        advance(59_000);
+        expect((await authorizeFresh(DOC_URL)).status).toBe(429);
+        expect(h.purgeCalls).toBe(1);
+        advance(2_000);
+        expect((await authorizeFresh(DOC_URL)).status).toBe(429);
+        expect(h.purgeCalls).toBe(2);
+        expect(h.fetched).toEqual([]);
+        expect(snapshot()).toBe(before);
+        const lines = reportLines(warn);
+        expect(lines).toHaveLength(1);
+        expect(lines[0]).not.toContain("app.example");
+    });
+
+    it("does not clean up below the number", async () => {
+        seedUnapproved(CAP - 1);
+        expect((await authorizeFresh(DOC_URL)).status).toBe(302);
+        expect(h.purgeCalls).toBe(0);
+    });
+
+    it("refuses with the generic error when the clean-up fails, fetching and writing nothing, and does not try again inside the minute", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        seedUnapproved(CAP);
+        markIdle(2);
+        const before = snapshot();
+        h.state!.failNext("mcp_oauth_purge", "rpc", { message: "purge unavailable" });
+        const first = await authorizeFresh(DOC_URL);
+        expect(first.status).toBeGreaterThanOrEqual(400);
+        expect(first.status).not.toBe(302);
+        expect(first.text).not.toContain("purge unavailable");
+        expect(h.purgeCalls).toBe(0);
+        expect(h.fetched).toEqual([]);
+        expect(snapshot()).toBe(before);
+        // inside the minute: no attempt, refused for the number even though rows are idle
+        expect((await authorizeFresh(DOC_URL)).status).toBe(429);
+        expect(h.purgeCalls).toBe(0);
+        expect(reportLines(warn)).toHaveLength(1);
+        advance(61_000);
+        expect((await authorizeFresh(DOC_URL)).status).toBe(302);
+        expect(h.purgeCalls).toBe(1);
+    });
+
+    it("keeps cleaning up at every registration, before the count", async () => {
+        seedUnapproved(CAP);
+        markIdle(1);
+        expect((await registerFresh()).status).toBe(201);
+        expect(h.purgeCalls).toBe(1);
+        expect((await registerFresh()).status).toBe(429);
+        expect(h.purgeCalls).toBe(2);
+        expect((await registerFresh()).status).toBe(429);
+        expect(h.purgeCalls).toBe(3);
+    });
+
+    it("does not clean up at the token endpoints for a first-seen client", async () => {
+        seedUnapproved(CAP);
+        const res = await request(fresh)
+            .post("/oauth/token")
+            .type("form")
+            .send({ grant_type: "refresh_token", client_id: DOC_URL, refresh_token: "r".repeat(43) });
+        expect(res.body.error).toBe("invalid_client");
+        expect(h.purgeCalls).toBe(0);
+    });
 });
