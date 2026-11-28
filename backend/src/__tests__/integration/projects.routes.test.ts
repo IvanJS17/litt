@@ -1583,6 +1583,33 @@ describe("projects.routes", () => {
             ]);
         });
 
+        it("does not return the id of the connection a conversation came from", async () => {
+            seedChats();
+            (supabaseState.tables.chats.data as Record<string, unknown>[])[1] = {
+                id: "c-theirs",
+                user_id: "u2",
+                updated_at: "2026-09-02T00:00:00Z",
+                origin: "mcp",
+                origin_label: "Claude",
+                origin_grant_id: "grant-of-a-colleague",
+            };
+            checkProjectAccess.mockResolvedValue({
+                ok: true,
+                isCreator: false,
+                orgRole: "member",
+                projectRole: "viewer",
+                project: { id: "p1", user_id: "u2", org_id: "org-1" },
+            });
+
+            const res = await request(app).get("/projects/p1/chats").set(...AUTH);
+
+            expect(res.status).toBe(200);
+            const theirs = (res.body as Record<string, unknown>[]).find((c) => c.id === "c-theirs");
+            expect(theirs).toMatchObject({ origin: "mcp", origin_label: "Claude" });
+            expect(JSON.stringify(res.body)).not.toContain("origin_grant_id");
+            expect(JSON.stringify(res.body)).not.toContain("grant-of-a-colleague");
+        });
+
         it("labels each chat with its creator's name and photo", async () => {
             seedChats();
             supabaseState.tables.user_profiles = {

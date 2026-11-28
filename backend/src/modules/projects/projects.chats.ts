@@ -1,6 +1,7 @@
 // Project chat service functions: list a project's assistant chats.
 
 import { checkProjectAccess } from "../../lib/access";
+import { withoutConnectionId } from "../../lib/connectionId";
 import { withReadableChatTitles } from "../../lib/chatReadAccess";
 import { queryFailureCause, selectAllByKey } from "../../lib/batchedQuery";
 import { type ProjectRole } from "../../lib/permissions";
@@ -23,11 +24,13 @@ export async function listProjectChats(
   // max_rows, so a project's oldest-active chats past 1000 disappeared.
   let chats: { id: string; user_id?: string | null; updated_at?: string | null }[];
   try {
-    chats = await selectAllByKey<{ id: string; user_id?: string | null; updated_at?: string | null }>("project chats", () =>
+    const stored = await selectAllByKey<{ id: string; user_id?: string | null; updated_at?: string | null }>("project chats", () =>
         db
           .from("chats")
           .select("*")
           .eq("project_id", projectId));
+    // The id of the connection that started a chat is not for the people of the matter.
+    chats = stored.map((chat) => withoutConnectionId(chat));
   } catch (error) {
     return { ok: false, kind: "db_error", error: queryFailureCause(error) };
   }
