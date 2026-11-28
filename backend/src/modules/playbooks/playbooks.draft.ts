@@ -630,7 +630,8 @@ export function verifyDraftProvenance(
 export function checkDraftOutput(
   raw: string,
   evidence: { name: string; answers: PlaybookAnswers; sources: Pick<DraftSource, "label" | "text">[] },
-  budget: RepairBudget = newPlaybookRepairBudget(),
+  // Required: the caller owns the budget of its whole operation, retry included.
+  budget: RepairBudget,
 ): { content: PlaybookContent; counts: DraftProvenanceCounts } {
   const content = stableIds(
     playbookContentSchema.parse(normalizeDraftOutput(parseModelJson(raw, budget), evidence.name)),
@@ -919,7 +920,7 @@ export async function compilePlaybookDraft(
     const evidence = { name, answers: request.answers, sources };
     const { content, counts } = await validateDraftWithRetry({
       raw,
-      check: (output) => checkDraftOutput(output, evidence),
+      check: (output, budget) => checkDraftOutput(output, evidence, budget),
       retry: async (validationError) => {
         stage = enterImportStage("repairing_output");
         await updateImportAttempt(db, attemptId, { stage });

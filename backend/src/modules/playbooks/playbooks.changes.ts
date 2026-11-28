@@ -27,7 +27,6 @@ import {
   editablePlaybook,
   editablePlaybookSchema,
   getPlaybook,
-  newPlaybookRepairBudget,
   parseModelJson,
   PlaybookRequestError,
 } from "./playbooks.operations";
@@ -142,7 +141,8 @@ export function checkProposalOutput(
     /** Set when the rules come from corrections, not from a questionnaire. */
     corrections?: { ids: ReadonlySet<string>; attributedTo: string };
   },
-  budget: RepairBudget = newPlaybookRepairBudget(),
+  // Required: the caller owns the budget of its whole operation, retry included.
+  budget: RepairBudget,
 ): { changes: ProposedChange[]; counts: ProposalCounts } {
   const parsed = parseModelJson(raw, budget);
   if (!isObject(parsed) || !Array.isArray(parsed.changes))

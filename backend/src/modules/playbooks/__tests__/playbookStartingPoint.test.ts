@@ -53,11 +53,12 @@ import {
   markPlaybookDraftJobFailed,
   queuePlaybookProposals,
 } from "../playbooks.jobs";
-import { getPlaybook, updatePlaybookContent } from "../playbooks.operations";
+import { getPlaybook, newPlaybookRepairBudget, updatePlaybookContent } from "../playbooks.operations";
 import { setPlaybookState } from "../playbooks.state";
 import { discardProposal } from "../playbooks.proposals";
 import type { PlaybookContent, PlaybookProposalWork } from "../playbooks.types";
 import { database, type Row } from "./playbookTestDb";
+import { repairTimesAllowed, sharesOneBudget } from "./repairClock";
 
 const MODEL = "claude-opus-5";
 const ORIGINAL = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -405,7 +406,11 @@ describe("proposals over the copy", () => {
       topicId: null,
       after: rule({ name: `Regla ${index}` }),
     }));
-    const result = checkProposalOutput(JSON.stringify({ changes }), { content, answers: {}, sources: [] });
+    const result = checkProposalOutput(
+      JSON.stringify({ changes }),
+      { content, answers: {}, sources: [] },
+      newPlaybookRepairBudget(),
+    );
     expect(result.changes).toHaveLength(40);
     expect(result.counts.discarded).toBe(5);
     expect(new Set(result.changes.map((change) => change.ruleId)).size).toBe(40);
@@ -455,6 +460,16 @@ describe("proposals over the copy", () => {
       queuePlaybookProposals({ userId: "owner", playbookId: ORIGINAL, model: MODEL, db }),
     ).rejects.toMatchObject({ status: 409, code: "playbook_not_draft" });
     expect(completeText).not.toHaveBeenCalled();
+  });
+
+  it("gives the retry of a set of proposals only the repair time its first answer left", async () => {
+    const { db, work } = await proposed([]);
+    completeText.mockResolvedValue("{'changes': 1,}");
+
+    const allowed = await repairTimesAllowed(() => handlePlaybookDraft(db, job(work)));
+
+    expect(completeText).toHaveBeenCalledTimes(2);
+    expect(sharesOneBudget(allowed)).toBe(true);
   });
 
   it("fails after one repair on an invalid answer, leaving the copy as it was", async () => {
