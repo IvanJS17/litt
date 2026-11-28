@@ -13,6 +13,7 @@
 // a rule edited since then answers 409 playbook_change_stale and the change
 // stays pending. Rejecting records the decision and touches nothing else.
 
+import type { RepairBudget } from "../../lib/boundedJsonRepair";
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { recordPlaybookAudit } from "./playbooks.audit";
 import {
@@ -26,6 +27,7 @@ import {
   editablePlaybook,
   editablePlaybookSchema,
   getPlaybook,
+  newPlaybookRepairBudget,
   parseModelJson,
   PlaybookRequestError,
 } from "./playbooks.operations";
@@ -140,8 +142,9 @@ export function checkProposalOutput(
     /** Set when the rules come from corrections, not from a questionnaire. */
     corrections?: { ids: ReadonlySet<string>; attributedTo: string };
   },
+  budget: RepairBudget = newPlaybookRepairBudget(),
 ): { changes: ProposedChange[]; counts: ProposalCounts } {
-  const parsed = parseModelJson(raw);
+  const parsed = parseModelJson(raw, budget);
   if (!isObject(parsed) || !Array.isArray(parsed.changes))
     throw new Error('Devuelve un objeto JSON con la lista "changes".');
   const located = locateRules(evidence.content);

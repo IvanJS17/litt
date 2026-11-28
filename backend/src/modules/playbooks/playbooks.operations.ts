@@ -35,7 +35,7 @@ import { AppError } from "../../lib/appError";
 import { safeError } from "../../lib/safeError";
 import { COMPLETION_REASONING_HEADROOM_TOKENS } from "../../lib/llm/aiSdk";
 import { BoundedTextError, charsForTokens, stripCodeFence } from "../../lib/modelJsonFence";
-import { isRepairRefusal, repairJson } from "../../lib/boundedJsonRepair";
+import { isRepairRefusal, RepairBudget, repairJson } from "../../lib/boundedJsonRepair";
 import { z } from "zod";
 import { readableRunRows, readableRuns, runWithheldReason } from "./playbooks.runAccess";
 import {
@@ -279,7 +279,10 @@ export const PLAYBOOK_REPAIR_MAX_CHARS = charsForTokens(REVIEW_MAX_OUTPUT_TOKENS
  */
 const PLAYBOOK_REPAIR_MAX_MS = 1_000;
 
-export function parseModelJson(raw: string): unknown {
+/** The time budget of one operation (a compile attempt with its retry, a review): every repair it causes shares it. */
+export const newPlaybookRepairBudget = (): RepairBudget => new RepairBudget(PLAYBOOK_REPAIR_MAX_MS);
+
+export function parseModelJson(raw: string, budget: RepairBudget = newPlaybookRepairBudget()): unknown {
   let cleaned: string;
   try {
     cleaned = stripCodeFence(raw);
@@ -304,7 +307,7 @@ export function parseModelJson(raw: string): unknown {
             repairJson(slice, {
               maxChars: PLAYBOOK_REPAIR_MAX_CHARS,
               maxMs: PLAYBOOK_REPAIR_MAX_MS,
-            }),
+            }, budget),
           );
         } catch (repairError) {
           // A text the bounds refuse is an answer that cannot be read, as one that is not JSON is.
@@ -382,6 +385,7 @@ export function normalizeCompiledPlaybookOutput(value: unknown): unknown {
 function validateCompiledPlaybookOutput(
   raw: string,
   structure: PlaybookWordStructure,
+  budget: RepairBudget,
 ): PlaybookContent {
   // Provenance belongs to the server: a rule read from a file carries none,
   // whatever the model wrote.
@@ -389,7 +393,7 @@ function validateCompiledPlaybookOutput(
     stableIds(
       stripProvenance(
         playbookContentSchema.parse(
-          normalizeCompiledPlaybookOutput(parseModelJson(raw)),
+          normalizeCompiledPlaybookOutput(parseModelJson(raw, budget)),
         ),
       ),
     ),
@@ -407,12 +411,13 @@ export async function validatePlaybookCompilationWithRetry(args: {
   structure: PlaybookWordStructure;
   retry: (validationError: string) => Promise<string>;
 }): Promise<PlaybookContent> {
+  const budget = newPlaybookRepairBudget();
   try {
-    return validateCompiledPlaybookOutput(args.raw, args.structure);
+    return validateCompiledPlaybookOutput(args.raw, args.structure, budget);
   } catch (firstError) {
     const repaired = await args.retry(validationErrorMessage(firstError));
     try {
-      return validateCompiledPlaybookOutput(repaired, args.structure);
+      return validateCompiledPlaybookOutput(repaired, args.structure, budget);
     } catch (retryError) {
       throw new PlaybookModelOutputError(
         `The selected model returned invalid structured output twice. ${validationErrorMessage(retryError)}`,
@@ -2780,7 +2785,7 @@ export async function runPlaybookReview(
           apiKeys: keys,
           abortSignal: signal,
         });
-    const parsed = reviewSchema.parse(parseModelJson(raw));
+    const parsed = reviewSchema.parse(parseModelJson(raw, newPlaybookRepairBudget()));
     const normalized = normalizeFindings(
       work.content,
       work.documentText,

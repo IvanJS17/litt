@@ -12,6 +12,7 @@
 // writes as an import. The answers live in the row's request_json, never in
 // db_jobs.payload, and are cleared once the draft has an outcome.
 
+import type { RepairBudget } from "../../lib/boundedJsonRepair";
 import crypto from "node:crypto";
 import { parseContentVisibility } from "../../lib/access";
 import {
@@ -34,6 +35,7 @@ import {
   loadPlaybookRoute,
   MAX_PLAYBOOK_IMPORT_BYTES,
   normalizeCompiledPlaybookOutput,
+  newPlaybookRepairBudget,
   parseModelJson,
   assertFirmKeyForDocuments,
   pinPlaybookRoute,
@@ -628,9 +630,10 @@ export function verifyDraftProvenance(
 export function checkDraftOutput(
   raw: string,
   evidence: { name: string; answers: PlaybookAnswers; sources: Pick<DraftSource, "label" | "text">[] },
+  budget: RepairBudget = newPlaybookRepairBudget(),
 ): { content: PlaybookContent; counts: DraftProvenanceCounts } {
   const content = stableIds(
-    playbookContentSchema.parse(normalizeDraftOutput(parseModelJson(raw), evidence.name)),
+    playbookContentSchema.parse(normalizeDraftOutput(parseModelJson(raw, budget), evidence.name)),
   );
   return verifyDraftProvenance(content, evidence);
 }
@@ -641,15 +644,16 @@ export function checkDraftOutput(
  */
 export async function validateDraftWithRetry<T>(args: {
   raw: string;
-  check: (raw: string) => T;
+  check: (raw: string, budget: RepairBudget) => T;
   retry: (validationError: string) => Promise<string>;
 }): Promise<T> {
+  const budget = newPlaybookRepairBudget();
   try {
-    return args.check(args.raw);
+    return args.check(args.raw, budget);
   } catch (firstError) {
     const repaired = await args.retry(validationErrorMessage(firstError));
     try {
-      return args.check(repaired);
+      return args.check(repaired, budget);
     } catch (retryError) {
       throw new PlaybookModelOutputError(
         `El modelo elegido devolvió dos veces un formato inválido. ${validationErrorMessage(retryError)}`,
