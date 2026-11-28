@@ -63,6 +63,7 @@ vi.mock("../../documents/documents.service", async (importOriginal) => ({
 
 import { ownerlessRpcResult } from "../../../__tests__/helpers/ownerlessRpc";
 import { tableDb } from "../../../__tests__/helpers/tableDb";
+import { numberedSources } from "../../../__tests__/helpers/numberedSources";
 import { syntheticPdf } from "../../../lib/__tests__/pdfFixtures";
 import type { Db } from "../../../lib/supabase";
 import { handleStorageCleanup } from "../../../lib/dbq/storageCleanup";
@@ -554,6 +555,8 @@ describe("a replacement onto a sealed version", () => {
         content_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
       }),
     );
+    // The database numbers this version: later versions must not repeat its number.
+    expect(numberedSources()).toContain(mocks.createDocumentVersion.mock.calls[0][1].source);
     expect(w.tables.document_versions.find((v) => v.id === VERSION)).toEqual(before);
     expect(w.tables.document_versions.map((v) => v.id)).toEqual([VERSION, VRESOURCE]);
   });

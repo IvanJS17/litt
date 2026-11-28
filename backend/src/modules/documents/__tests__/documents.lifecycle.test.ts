@@ -250,6 +250,41 @@ describe("a sealed version's stored content", () => {
     expect(await updateDocumentVersion(fake.db, "doc", "v", patch, { actorUserId: "lawyer" })).toMatchObject({ sealed: true });
     fake.done();
   });
+  const expectations = [
+    ["path", { expectedStoragePath: "old" }, { training_stage: "pasante", storage_path: "moved", content_sha256: "old-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: "old-hash" }],
+    ["hash", { expectedContentSha256: "old-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: "other-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: "old-hash" }],
+    ["empty hash", { expectedContentSha256: null }, { training_stage: "pasante", storage_path: "old", content_sha256: "other-hash" }, { training_stage: "pasante", storage_path: "old", content_sha256: null }],
+  ] as const;
+  const noRow = (read: object) => scriptedDb([
+    { table: "documents", data: null },
+    { table: "document_versions", data: { storage_path: "old" } },
+    { table: "document_versions", op: "update", data: null },
+    { table: "document_versions", data: read },
+  ]);
+  it.each(expectations)("is a plain miss, not sealed, when the version no longer matches the expected %s", async (_name, opts, moved) => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = noRow(moved);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", content, { actorUserId: "lawyer", ...opts })).toEqual({ data: null, error: null });
+    fake.done();
+  });
+  it.each(expectations)("is answered sealed while the expected %s still holds", async (_name, opts, _moved, same) => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = noRow(same);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", content, { actorUserId: "lawyer", ...opts })).toEqual({ data: null, error: null, sealed: true });
+    fake.done();
+  });
+  it("returns the error when the read that tells sealed from lost fails", async () => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { table: "document_versions", data: { storage_path: "old" } },
+      { table: "document_versions", op: "update", data: null },
+      { table: "document_versions", error: { message: "read failed" } },
+    ]);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", content, { actorUserId: "lawyer", expectedStoragePath: "old" }))
+      .toEqual({ data: null, error: { message: "read failed" } });
+    fake.done();
+  });
   it("accepts a metadata-only patch without the unsealed condition", async () => {
     const fake = scriptedDb([
       { table: "documents", data: null },

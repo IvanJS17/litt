@@ -230,6 +230,7 @@ async function resolveEditOnce(
         size_bytes: ab.byteLength,
     };
     let resultVersionId = doc.current_version_id;
+    let resultVersionNumber = active?.version_number ?? null;
     const written = await updateDocumentVersion(
         db,
         documentId,
@@ -248,7 +249,7 @@ async function resolveEditOnce(
             authorship: { kind: "copy", sourceVersionId: active.id },
             document_id: documentId,
             storage_path: nextPath,
-            source: mode === "accept" ? "user_accept" : "user_reject",
+            source: "user_edit",
             filename: active.filename || "document.docx",
             file_type: active.file_type,
             size_bytes: contentPatch.size_bytes,
@@ -257,7 +258,10 @@ async function resolveEditOnce(
         });
         versionErr = created.error;
         updated = created.data;
-        if (created.data) resultVersionId = created.data.id;
+        if (created.data) {
+            resultVersionId = created.data.id;
+            resultVersionNumber = created.data.version_number;
+        }
         // The document moved on: nothing was written, so retry on the new state.
         if (isVersionConflict(created.error)) {
             await deleteFileBestEffort(nextPath, "edit-resolution-conflict");
@@ -299,7 +303,7 @@ async function resolveEditOnce(
             nextPath,
             downloadFilenameForVersion(
                 active?.filename,
-                active?.version_number ?? null,
+                resultVersionNumber,
                 active?.source === "assistant_edit",
             ),
         ),

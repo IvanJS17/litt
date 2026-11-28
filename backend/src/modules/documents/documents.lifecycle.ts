@@ -178,15 +178,21 @@ export async function updateDocumentVersion(
     )
     .maybeSingle();
   if (!result.error && !result.data && changesContent) {
-    // No row matched. Tell a sealed version apart from a lost comparison.
+    // No row matched. Tell a sealed version apart from a lost comparison: it is
+    // sealed only if every expectation the caller gave still holds.
     const { data: row, error: readError } = await db
       .from("document_versions")
-      .select("training_stage")
+      .select("training_stage, storage_path, content_sha256")
       .eq("id", versionId)
       .eq("document_id", documentId)
       .maybeSingle();
     if (readError) return { data: null, error: readError };
-    if ((row as { training_stage: string | null } | null)?.training_stage)
+    const current = row as { training_stage: string | null; storage_path: string | null; content_sha256: string | null } | null;
+    if (
+      current?.training_stage &&
+      (options.expectedStoragePath === undefined || current.storage_path === options.expectedStoragePath) &&
+      (options.expectedContentSha256 === undefined || (current.content_sha256 ?? null) === options.expectedContentSha256)
+    )
       return { data: null, error: null, sealed: true as const };
   }
   if (!result.error && result.data)

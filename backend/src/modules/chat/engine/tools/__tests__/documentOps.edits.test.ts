@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { scriptedDb } from "../../../../../__tests__/helpers/scriptedDb";
 import type { Db } from "../../../../../lib/supabase";
+import { numberedSources } from "../../../../../__tests__/helpers/numberedSources";
 const mocks = vi.hoisted(() => ({
   reportError: vi.fn(),
   active: vi.fn(),
@@ -376,10 +377,11 @@ describe("assistant document-edit lifecycle", () => {
       ...initial(),
       { table: "documents", data: null },
       { table: "document_versions", op: "update", data: null },
-      { table: "document_versions", data: { training_stage: "pasante" } },
+      { table: "document_versions", data: { training_stage: "pasante", storage_path: "same-turn" } },
       { table: "document_versions", data: { filename: "Renamed.docx" } },
-      // The new version keeps the seal of the sealed version it comes from.
-      { table: "document_versions", data: [{ training_author_user_id: "actor", training_stage: "pasante" }] },
+      // The new version keeps the seal of the sealed version it comes from,
+      // whose training author is not the actor.
+      { table: "document_versions", data: [{ training_author_user_id: "other-trainee", training_stage: "pasante" }] },
       { table: "documents", data: { org_id: "org" } },
       { table: "document_edits", op: "insert", data: [editRow] },
       ...SEALED_RELEASE,
@@ -391,7 +393,8 @@ describe("assistant document-edit lifecycle", () => {
     const result = await run({ ...fake.db, rpc } as unknown as Db, { versionId: "reused", versionNumber: 7, storagePath: "same-turn" });
     expect(result).toMatchObject({ ok: true, version_id: "next", version_number: 8, training_held: true });
     expect(rpc.mock.calls.map(([name]) => name)).toEqual(["create_document_version", "activate_document_version"]);
-    expect(rpc.mock.calls[0][1]).toMatchObject({ p_version: { training_author_user_id: "actor", training_stage: "pasante" } });
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_version: { training_author_user_id: "other-trainee", training_stage: "pasante" } });
+    expect(numberedSources()).toContain((rpc.mock.calls[0][1] as { p_version: { source: string } }).p_version.source);
     expect(fake.calls.filter((call) => call.op === "update")).toHaveLength(1);
     expect(mocks.uploadFile).toHaveBeenCalledOnce();
     expect(mocks.deleteFileBestEffort).not.toHaveBeenCalled();

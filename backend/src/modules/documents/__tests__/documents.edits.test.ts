@@ -40,6 +40,7 @@ vi.mock("../../../lib/documentVersions", async (importOriginal) => ({
 
 import { loadActiveVersion } from "../../../lib/documentVersions";
 import { resolveEdit } from "../documents.edits";
+import { numberedSources } from "../../../__tests__/helpers/numberedSources";
 
 const PENDING_EDIT = {
   id: "edit-1",
@@ -292,12 +293,12 @@ describe.each([
   ["reject", "the trainee", "user-1"],
 ] as const)("%s by %s on a sealed version", (mode, _who, author) => {
   const SEALED_ACTIVE = { id: "v1", storage_path: "docs/v1.docx", filename: "Clause.docx", file_type: "docx", version_number: 2, source: "assistant_edit", training_stage: "pasante" };
-  const created = { id: "v2", version_number: 3, source: mode === "accept" ? "user_accept" : "user_reject" };
+  const created = { id: "v2", version_number: 3, source: "user_edit" };
   // The refused conditional update, then the seal read from the sealed base.
   const refused = [
     { table: "documents", data: null },
     { table: "document_versions", op: "update", data: null },
-    { table: "document_versions", data: { training_stage: "pasante" } },
+    { table: "document_versions", data: { training_stage: "pasante", storage_path: "docs/v1.docx" } },
     { table: "document_versions", data: [{ training_author_user_id: author, training_stage: "pasante" }] },
     { table: "documents", data: { org_id: "org-1" } },
   ];
@@ -332,6 +333,8 @@ describe.each([
     const writes = fake.calls.filter(call => call.table === "document_versions" && call.op === "update");
     expect(writes).toHaveLength(1);
     expect(writes[0].filters).toContainEqual(["is", "training_stage", null]);
+    // The database numbers this version: later versions of the document must not repeat its number.
+    expect(numberedSources()).toContain((rpc.mock.calls[0] as unknown as [string, { p_version: { source: string } }])[1].p_version.source);
     expect(storage.deleteFileBestEffort).not.toHaveBeenCalled();
     fake.done();
   });
@@ -363,7 +366,7 @@ it("answers its failure, not a raw error, when the sealed base cannot be copied 
     { table: "documents", data: DOC },
     { table: "documents", data: null },
     { table: "document_versions", op: "update", data: null },
-    { table: "document_versions", data: { training_stage: "pasante" } },
+    { table: "document_versions", data: { training_stage: "pasante", storage_path: "docs/v1.docx" } },
     { table: "document_versions", data: [] },
   ]);
   const rpc = vi.fn();
@@ -388,5 +391,45 @@ it("an unsealed version is still updated in place, once, without a new version",
   expect(result).toMatchObject({ ok: true, body: { version_id: "v1", training_held: false } });
   expect(rpc).not.toHaveBeenCalled();
   expect(fake.calls.filter(call => call.table === "document_versions" && call.op === "update")).toHaveLength(1);
+  fake.done();
+});
+
+// A sealed version that is no longer at the path the resolution was computed
+// from is a lost comparison, not a sealed answer: nothing is built on stale bytes.
+it("retries and creates nothing when a sealed version moved to another path", async () => {
+  arrange();
+  vi.mocked(loadActiveVersion)
+    .mockResolvedValueOnce({ id: "v1", storage_path: "docs/v1.docx", filename: "Clause.docx", file_type: "docx", training_stage: "pasante" } as never)
+    .mockResolvedValueOnce({ id: "v1", storage_path: "docs/v1-other.docx", filename: "Clause.docx", file_type: "docx", training_stage: "pasante" } as never);
+  const fake = scriptedDb([
+    { table: "document_edits", data: PENDING_EDIT },
+    { table: "documents", data: DOC },
+    { table: "documents", data: null },
+    { table: "document_versions", op: "update", data: null },
+    { table: "document_versions", data: { training_stage: "pasante", storage_path: "docs/v1-other.docx" } },
+    { table: "document_edits", data: { ...PENDING_EDIT, status: "accepted" } },
+    { table: "documents", data: DOC },
+    { table: "documents", data: null },
+  ]);
+  const rpc = vi.fn();
+  expect(await run({ ...fake.db, rpc } as never)).toMatchObject({ ok: true, body: { already_resolved: true } });
+  expect(rpc).not.toHaveBeenCalled();
+  expect(storage.deleteFileBestEffort).toHaveBeenCalledWith(storage.uploadFile.mock.calls[0][0], "edit-resolution-conflict");
+  fake.done();
+});
+
+it("writes nothing when the read that tells sealed from lost fails", async () => {
+  arrange();
+  const fake = scriptedDb([
+    { table: "document_edits", data: PENDING_EDIT },
+    { table: "documents", data: DOC },
+    { table: "documents", data: null },
+    { table: "document_versions", op: "update", data: null },
+    { table: "document_versions", error: { message: "read failed" } },
+  ]);
+  const rpc = vi.fn();
+  expect(await run({ ...fake.db, rpc } as never)).toMatchObject({ ok: false, detail: "Failed to resolve edit" });
+  expect(rpc).not.toHaveBeenCalled();
+  expect(fake.calls.filter((call) => call.op === "update")).toHaveLength(1);
   fake.done();
 });
