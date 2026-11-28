@@ -129,6 +129,13 @@ function folded(small: string): string {
     return out;
 }
 
+const NOT_ASCII = /[^\x00-\x7f]/;
+
+/** Whether the fold of a reserved name contains `<`; an ASCII-only name does exactly when its raw text does. */
+function hasOpeningAngle(name: string): boolean {
+    return name.includes("<") || (NOT_ASCII.test(name) && folded(name).includes("<"));
+}
+
 /**
  * True only when the text cannot contain the nonce or a reserved tag in any
  * written form, decided without folding it. Every unit is plain, so a token
@@ -171,11 +178,15 @@ function provablyClean(text: string, key: string, wantsTags: boolean): boolean {
  * matcher (one candidate), and a match records an edit on the original
  * offsets. Edits are applied to the original text together, so nothing the
  * pass writes can complete another token.
+ *
+ * A reserved name cannot contain `<` (it throws), because a `<` in the text
+ * always starts a new candidate tag.
  */
 export function neutralizeFence(text: string, nonce: string, reservedTags: readonly string[]): string {
     const source = String(text);
     const key = folded(nonce);
     const names = reservedTags.map(folded).filter(Boolean);
+    for (const reserved of reservedTags) if (hasOpeningAngle(reserved)) throw new Error("promptFence: a reserved tag name cannot contain '<'");
     if (provablyClean(source, key, names.length > 0)) return source;
     // When the nonce and every name are printable ASCII (no blank, no control character), an inert code point (see isInert) has the
     // same effect whatever the matchers hold: no unit of its fold is in the key (non-ASCII, or a blank

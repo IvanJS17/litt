@@ -228,6 +228,33 @@ function neutralizeFenceReference(text: string, nonce: string, reservedTags: rea
 }
 
 
+describe("neutralizeFence: a reserved tag name cannot contain '<'", () => {
+    const MESSAGE = "promptFence: a reserved tag name cannot contain '<'";
+    const names = { "ASCII <": "a<b", "fullwidth <": "a\uFF1Cb", "small <": "a\uFE64b", "leading <": "<a" };
+    for (const [label, name] of Object.entries(names)) {
+        it(`throws for a name with ${label}, for plain text and for text with '<'`, () => {
+            expect(() => neutralizeFence("plain letters only", NONCE, [name])).toThrow(MESSAGE);
+            expect(() => neutralizeFence("<a<b <<a", NONCE, [name])).toThrow(MESSAGE);
+            expect(() => neutralizeFence("plain letters only", NONCE, ["fine", name])).toThrow(MESSAGE);
+            expect(() => neutralizeFence("", "", [name])).toThrow(MESSAGE);
+        });
+    }
+
+    it("does not throw for the name lists the callers pass", () => {
+        const lists = [
+            ["untrusted-content", "workflow-instructions", "user-instructions", "app-message"],
+            ["respuestas", "adjunto", "correcciones"],
+            TAGS,
+            [],
+        ];
+        for (const list of lists) {
+            expect(() => neutralizeFence("texto ordinario", NONCE, list)).not.toThrow();
+            expect(() => neutralizeFence("<app-message", NONCE, list)).not.toThrow();
+        }
+        expect(() => fenced("texto", "gym-practice", NONCE, ["gym-practice", "gym-topic"])).not.toThrow();
+    });
+});
+
 describe("neutralizeFence: same output as the reference implementation", () => {
     const ALPHABET = [
         ..."0123456789abcdefABCDEF".split(""),
