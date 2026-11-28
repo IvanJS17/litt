@@ -45,22 +45,29 @@ export function withheldRun<
 /**
  * Stored run rows as a reader may take them away (the account export): a run
  * whose document the reader cannot open now keeps its place and outcome but not
- * what it quoted. A failed lookup throws.
+ * what it quoted. `withheld` counts those runs. A failed lookup throws.
  */
-export async function withholdUnreadableRunRows(db: Db, reader: DerivedReader, rows: Row[]): Promise<Row[]> {
+export async function withholdUnreadableRunRows(
+  db: Db,
+  reader: DerivedReader,
+  rows: Row[],
+): Promise<{ rows: Row[]; withheld: number }> {
   const kept = new Set(await keepReadableDerived(db, reader, rows, runSources));
-  return rows.map((row) =>
-    kept.has(row)
-      ? row
-      : {
-          ...row,
-          document_id: null,
-          document_name: null,
-          edited_version_id: null,
-          summary: null,
-          findings_json: [],
-        },
-  );
+  return {
+    rows: rows.map((row) =>
+      kept.has(row)
+        ? row
+        : {
+            ...row,
+            document_id: null,
+            document_name: null,
+            edited_version_id: null,
+            summary: null,
+            findings_json: [],
+          },
+    ),
+    withheld: rows.filter((row) => !kept.has(row)).length,
+  };
 }
 
 /** The rows whose document the reader can open now. A failed lookup throws. */

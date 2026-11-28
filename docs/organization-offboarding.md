@@ -82,6 +82,15 @@ matter teammate with the highest role (the earliest on a tie), or to the
 successor chosen in the departure when the matter has no teammate left
 (`20261108_10_litt_public_matter_project_succession.sql`). The matter itself
 is unchanged and owners and admins do not inherit the project by their role.
+When a private matter is made public, the permissions people already had on
+its projects stay exactly as they were: the change itself resets nothing and
+widens nothing, and the project's own visibility is not changed by it. From
+then on they are administered in the project (its sharing and access
+settings), no longer through the matter team, so later changes to the team
+no longer move them. After making a matter public, an administrator should
+review who holds access on each of its projects and remove what is no longer
+wanted.
+
 The screens for these actions are pending
 (TD-029). Apply these migrations, in order, before deploying the backend:
 

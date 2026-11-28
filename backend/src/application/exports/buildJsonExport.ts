@@ -125,12 +125,15 @@ type ExportResourceRow = Row & {
 async function readableRows(
     rows: Row[],
     authorize: (row: ExportResourceRow) => Promise<{ ok: boolean }>,
+    /** Told of each row the holder cannot open (not of archived ones). */
+    onRefused?: (row: Row) => void,
 ): Promise<Row[]> {
-    const allowed = await mapWithConcurrency(rows, 8, async (row) =>
-        typeof row.id === "string" && !row.archived_at
-            ? (await authorize(row as ExportResourceRow)).ok
-            : false,
-    );
+    const allowed = await mapWithConcurrency(rows, 8, async (row) => {
+        if (typeof row.id !== "string" || row.archived_at) return false;
+        const ok = (await authorize(row as ExportResourceRow)).ok;
+        if (!ok) onRefused?.(row);
+        return ok;
+    });
     return rows.filter((_, index) => allowed[index]);
 }
 
@@ -147,7 +150,8 @@ async function loadReadableReviewCells(
     db: Db,
     reviewIds: string[],
     userId: string,
-    userEmail?: string | null,
+    userEmail: string | null | undefined,
+    tally: HeldBack,
 ) {
     if (reviewIds.length === 0) return [];
     const rowsByReview = await mapWithConcurrency(reviewIds, 8, (reviewId) =>
@@ -162,10 +166,12 @@ async function loadReadableReviewCells(
     );
     const visibleRowIds = new Set(rows.map((row) => row.id));
     const cells = await selectByIds(db, "tabular_cells", "review_id", reviewIds);
-    return cells.filter(
+    const kept = cells.filter(
         (cell) =>
             typeof cell.row_id === "string" && visibleRowIds.has(cell.row_id),
     );
+    holdBack(tally, "table_review_cells", cells.length - kept.length);
+    return kept;
 }
 
 /**
@@ -179,16 +185,18 @@ async function loadReadableTabularTranscripts(
     db: Db,
     chats: Record<string, unknown>[],
     userId: string,
-    userEmail?: string | null,
+    userEmail: string | null | undefined,
+    tally: HeldBack,
 ) {
-    return (await loadReadableTabularTranscriptsJudged(db, chats, userId, userEmail)).result;
+    return (await loadReadableTabularTranscriptsJudged(db, chats, userId, userEmail, tally)).result;
 }
 
 async function loadReadableTabularTranscriptsJudged(
     db: Db,
     chats: Record<string, unknown>[],
     userId: string,
-    userEmail?: string | null,
+    userEmail: string | null | undefined,
+    tally: HeldBack,
 ) {
     const all = await selectCompleteChatMessages(db, idsFrom(chats), "*");
     const messages = await filterReadableChatMessages(
@@ -197,9 +205,11 @@ async function loadReadableTabularTranscriptsJudged(
         userId,
         userEmail,
     );
+    const judged = judgeChats(all, messages);
+    holdBack(tally, "table_review_chats", countChatsHeldBack(judged));
     return {
         result: { chats: withReadableTitles(chats, all, messages), messages },
-        judged: judgeChats(all, messages),
+        judged,
     };
 }
 
@@ -208,6 +218,7 @@ async function loadUserReviews(
     userId: string,
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
+    tally: HeldBack,
 ) {
     const reviews = await selectAll(db, "tabular_reviews", {
         filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
@@ -216,6 +227,7 @@ async function loadUserReviews(
     return readableRows(
         reviews,
         createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
+        () => holdBack(tally, "table_reviews"),
     );
 }
 
@@ -224,8 +236,9 @@ async function loadUserChats(
     userId: string,
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
+    tally: HeldBack,
 ) {
-    return (await loadUserChatsJudged(db, userId, userEmail, orgId)).result;
+    return (await loadUserChatsJudged(db, userId, userEmail, orgId, tally)).result;
 }
 
 /** The holder's chats as exported, with the verdict on each message that training records follow. */
@@ -234,6 +247,7 @@ async function loadUserChatsJudged(
     userId: string,
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
+    tally: HeldBack,
 ) {
     const candidates = await selectAll(db, "chats", {
         filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
@@ -242,6 +256,7 @@ async function loadUserChatsJudged(
     const chats = await readableRows(
         candidates,
         createSharedRowAccessChecker("chat", userId, userEmail, db),
+        () => holdBack(tally, "conversations"),
     );
     const chatIds = idsFrom(chats);
     const all = await selectByIds(db, "chat_messages", "chat_id", chatIds);
@@ -250,6 +265,7 @@ async function loadUserChatsJudged(
     // the holder typed stays. A chat with anything withheld loses its title,
     // which was written from the chat.
     const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all, "chat_messages");
+    holdBack(tally, "conversations", withheld.size);
     return {
         result: {
             chats: chats.map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
@@ -260,7 +276,7 @@ async function loadUserChatsJudged(
 }
 
 /** The holder's Word chats as exported, with the verdict on each message that training records follow. */
-async function loadUserWordChatsJudged(db: Db, userId: string, userEmail: string | null | undefined) {
+async function loadUserWordChatsJudged(db: Db, userId: string, userEmail: string | null | undefined, tally: HeldBack) {
     const documents = await selectAll(db, "word_documents", {
         filter: (query) => query.eq("user_id", userId),
         order: ["created_at"],
@@ -274,6 +290,7 @@ async function loadUserWordChatsJudged(db: Db, userId: string, userEmail: string
     // longer open stays behind, and so does the title of a chat with anything
     // withheld.
     const { messages, withheld } = await readableChatMessages(db, { userId, userEmail }, all, "word_chat_messages");
+    holdBack(tally, "word_chats", withheld.size);
     return {
         result: {
             documents,
@@ -289,8 +306,9 @@ async function loadUserTabularChats(
     userId: string,
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
+    tally: HeldBack,
 ) {
-    return (await loadUserTabularChatsJudged(db, userId, userEmail, orgId)).result;
+    return (await loadUserTabularChatsJudged(db, userId, userEmail, orgId, tally)).result;
 }
 
 async function loadUserTabularChatsJudged(
@@ -298,6 +316,7 @@ async function loadUserTabularChatsJudged(
     userId: string,
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
+    tally: HeldBack,
 ) {
     const candidates = await selectAll(db, "tabular_review_chats", {
         filter: (query) => query.eq("user_id", userId),
@@ -312,11 +331,15 @@ async function loadUserTabularChatsJudged(
         idsFrom(candidates, "review_id"),
     );
     // A review chat is in its review's workspace.
+    const refusedReviews = new Set<unknown>();
     const readableReviews = await readableRows(
         reviews.filter((review) => rowInWorkspace(review, orgId)),
         createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
+        (review) => refusedReviews.add(review.id),
     );
     const reviewIds = new Set(idsFrom(readableReviews));
+    // The chats of a review the holder cannot open are left out whole.
+    holdBack(tally, "table_review_chats", candidates.filter((chat) => refusedReviews.has(chat.review_id)).length);
     return loadReadableTabularTranscriptsJudged(
         db,
         candidates.filter(
@@ -326,6 +349,7 @@ async function loadUserTabularChatsJudged(
         ),
         userId,
         userEmail,
+        tally,
     );
 }
 
@@ -345,6 +369,7 @@ async function loadUserPlaybooks(
     userEmail: string | null | undefined,
     orgMemberships: Row[],
     orgId: ExportWorkspace,
+    tally: HeldBack,
 ) {
     const orgRoles = new Map<string, OrgRole>();
     for (const row of orgMemberships) {
@@ -389,6 +414,20 @@ async function loadUserPlaybooks(
         ),
     );
     const playbooks = created.filter((row) => inScope.has(row.id as string));
+    // A playbook (and the runs of one) the holder cannot open is left out; one
+    // of an organization the holder has left stays with that organization.
+    const refused = new Set(
+        idsFrom(
+            [...created, ...runPlaybooks].filter(
+                (row) =>
+                    !roles.has(row.id as string) &&
+                    rowInWorkspace(row, orgId) &&
+                    (typeof row.org_id !== "string" || orgRoles.has(row.org_id)),
+            ),
+        ),
+    );
+    holdBack(tally, "playbooks", created.filter((row) => refused.has(row.id as string)).length);
+    holdBack(tally, "playbook_runs", runCandidates.filter((row) => refused.has(row.playbook_id as string)).length);
     const [sources, changes] = await Promise.all([
         selectByIds(db, "playbook_sources", "playbook_id", idsFrom(playbooks), {
             columns: "id, playbook_id, filename, file_type, size_bytes, text_length, created_at",
@@ -398,21 +437,25 @@ async function loadUserPlaybooks(
         selectByIds(db, "playbook_changes", "playbook_id", idsFrom(playbooks)),
     ]);
 
+    // A run quotes the document it reviewed: it leaves with the holder
+    // only while the holder can open that document.
+    const runs = await withholdUnreadableRunRows(
+        db,
+        { userId, userEmail },
+        runCandidates.filter(
+            (row) =>
+                typeof row.playbook_id === "string" &&
+                inScope.has(row.playbook_id),
+        ),
+    );
+
+    holdBack(tally, "playbook_runs", runs.withheld);
+
     return {
         playbooks,
         playbook_sources: sources,
         playbook_changes: changes,
-        // A run quotes the document it reviewed: it leaves with the holder
-        // only while the holder can open that document.
-        playbook_runs: await withholdUnreadableRunRows(
-            db,
-            { userId, userEmail },
-            runCandidates.filter(
-                (row) =>
-                    typeof row.playbook_id === "string" &&
-                    inScope.has(row.playbook_id),
-            ),
-        ),
+        playbook_runs: runs.rows,
         // Import records are metadata (file name, stage, error); one made in
         // an organization the user has left stays with that organization.
         playbook_imports: imports.filter(
@@ -454,17 +497,19 @@ export async function buildUserChatsExport(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
+    const tally: HeldBack = new Map();
     const [assistant, wordAddin, tabular] = await Promise.all([
-        loadUserChats(db, userId, userEmail, orgId),
+        loadUserChats(db, userId, userEmail, orgId, tally),
         // The Word add-in works in Personal only.
         orgId
             ? Promise.resolve({ documents: [], chats: [], messages: [] })
-            : loadUserWordChatsJudged(db, userId, userEmail).then(({ result }) => result),
-        loadUserTabularChats(db, userId, userEmail, orgId),
+            : loadUserWordChatsJudged(db, userId, userEmail, tally).then(({ result }) => result),
+        loadUserTabularChats(db, userId, userEmail, orgId, tally),
     ]);
 
     return {
         exported_at: new Date().toISOString(),
+        ...heldBackNotice(tally),
         user: { id: userId, email: userEmail ?? null },
         workspace: workspaceLabel(orgId),
         assistant_chats: assistant,
@@ -479,11 +524,12 @@ export async function buildUserTabularReviewsExport(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
-    const tabularReviews = await loadUserReviews(db, userId, userEmail, orgId);
+    const tally: HeldBack = new Map();
+    const tabularReviews = await loadUserReviews(db, userId, userEmail, orgId, tally);
     const reviewIds = idsFrom(tabularReviews);
 
     const [cells, chats] = await Promise.all([
-        loadReadableReviewCells(db, reviewIds, userId, userEmail),
+        loadReadableReviewCells(db, reviewIds, userId, userEmail, tally),
         selectByIds(db, "tabular_review_chats", "review_id", reviewIds),
     ]);
     const transcript = await loadReadableTabularTranscripts(
@@ -491,10 +537,12 @@ export async function buildUserTabularReviewsExport(
         chats,
         userId,
         userEmail,
+        tally,
     );
 
     return {
         exported_at: new Date().toISOString(),
+        ...heldBackNotice(tally),
         user: { id: userId, email: userEmail ?? null },
         workspace: workspaceLabel(orgId),
         tabular_reviews: tabularReviews,
@@ -544,6 +592,43 @@ export const TRAINING_EXPORT_EXCLUDED: Record<string, string> = {
     training_version_approvals:
         "Insert-only evidence about a document version (document_version_id, content hash, approver), not learning data of the holder: it has no trainee column, hangs from no membership and records another person's decision. The holder's sealed drafts are in their documents.",
 };
+
+/** How many chats had a message withheld. */
+function countChatsHeldBack(judged: ChatJudgement): number {
+    let count = 0;
+    for (const messages of judged.values()) if (messages.some((message) => message.withheld)) count += 1;
+    return count;
+}
+
+/**
+ * What a download left out because the holder cannot open it (or what it was
+ * drawn from) today: kind of thing → how many. The builder makes one and hands
+ * it to the places that withhold. Archived rows and the records of an
+ * organization the holder has left are not counted.
+ */
+export type HeldBack = Map<string, number>;
+
+function holdBack(tally: HeldBack, kind: string, count = 1) {
+    if (count > 0) tally.set(kind, (tally.get(kind) ?? 0) + count);
+}
+
+/**
+ * The notice a download carries when something was held back: counts only,
+ * never a name, an id or any text of what stayed behind. Absent when nothing
+ * was held back.
+ */
+export const HELD_BACK_NOTE = {
+    "es-MX":
+        "Esta descarga no es una copia completa: algunos elementos se retuvieron porque el material del que provienen no puede abrirse hoy. Abajo se cuenta, por tipo, lo que se retuvo.",
+    "en-US":
+        "This download is not a complete copy: some items were held back because the material they were drawn from cannot be opened today. Counts of what was held back are listed by kind.",
+} as const;
+
+function heldBackNotice(tally: HeldBack) {
+    return tally.size > 0
+        ? { held_back: { note: HELD_BACK_NOTE, counts: Object.fromEntries([...tally].sort(([a], [b]) => (a < b ? -1 : 1))) } }
+        : {};
+}
 
 /** Per chat, its stored messages oldest first, each with whether the export withheld it. */
 type ChatJudgement = Map<string, { id: string; role: unknown; withheld: boolean }[]>;
@@ -679,6 +764,7 @@ export async function buildUserAccountExport(
     const personalOnly = <T>(load: () => Promise<T>, empty: T): Promise<T> =>
         orgId ? Promise.resolve(empty) : load();
     const normalizedEmail = userEmail?.trim().toLowerCase();
+    const tally: HeldBack = new Map();
     const [
         profile,
         apiKeys,
@@ -719,7 +805,7 @@ export async function buildUserAccountExport(
         }).then((rows) =>
             readableRows(rows, (row) =>
                 checkProjectAccess(row.id, userId, userEmail, db),
-            ),
+            () => holdBack(tally, "projects")),
         ),
         selectAll(db, "documents", {
             filter: (query) =>
@@ -732,7 +818,7 @@ export async function buildUserAccountExport(
         }).then((rows) =>
             readableRows(rows, (row) =>
                 checkWorkflowAccess(row.id, userId, userEmail, db),
-            ),
+            () => holdBack(tally, "workflows")),
         ),
         personalOnly(
             () =>
@@ -781,9 +867,9 @@ export async function buildUserAccountExport(
                   [],
               )
             : Promise.resolve([]),
-        loadUserChatsJudged(db, userId, userEmail, orgId),
-        loadUserTabularChatsJudged(db, userId, userEmail, orgId),
-        loadUserReviews(db, userId, userEmail, orgId),
+        loadUserChatsJudged(db, userId, userEmail, orgId, tally),
+        loadUserTabularChatsJudged(db, userId, userEmail, orgId, tally),
+        loadUserReviews(db, userId, userEmail, orgId, tally),
         normalizedEmail
             ? (async () => {
                   // Grants are candidates too: stale grants cannot override
@@ -800,7 +886,7 @@ export async function buildUserAccountExport(
                   }).then(async (rows) => {
                       const readable = await readableRows(rows, (row) =>
                           checkProjectAccess(row.id, userId, userEmail, db),
-                      );
+                      () => holdBack(tally, "shared_projects"));
                       return readable.map(({ org_id: _org, ...row }) => row);
                   });
               })()
@@ -820,6 +906,7 @@ export async function buildUserAccountExport(
                       const readable = await readableRows(
                           rows.filter((row) => rowInWorkspace(row, orgId)),
                           createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
+                          () => holdBack(tally, "shared_table_reviews"),
                       );
                       return readable.map(
                           ({ org_id: _org, archived_at: _archive, ...row }) => row,
@@ -999,8 +1086,17 @@ export async function buildUserAccountExport(
     const reader = { userId, userEmail };
     const judged: ChatJudgement = new Map([...assistantLoaded.judged, ...tabularLoaded.judged]);
     await judgeUnlistedChats(db, judged, [...trainingNotes, ...trainingWorkReviews, ...trainingBackingChecks, ...trainingCriteriaContrasts], reader);
-    const keepOpenable = (rows: Row[]) => openableTrainingRows(db, rows, userId, userEmail);
-    const keepFromChats = async (rows: Row[]) => (await keepOpenable(rows)).filter((row) => madeFromReadableAnswers(judged, row));
+    const keepOpenable = async (rows: Row[]) => {
+        const kept = await openableTrainingRows(db, rows, userId, userEmail);
+        holdBack(tally, "training_records", rows.length - kept.length);
+        return kept;
+    };
+    const keepFromChats = async (rows: Row[]) => {
+        const open = await keepOpenable(rows);
+        const kept = open.filter((row) => madeFromReadableAnswers(judged, row));
+        holdBack(tally, "training_records", open.length - kept.length);
+        return kept;
+    };
     const [
         turnNotes,
         workReviews,
@@ -1021,11 +1117,11 @@ export async function buildUserAccountExport(
     // A reading is of a document: through that document's access. One whose
     // document was deleted keeps what the person wrote and its result, not the
     // passages and comparison drawn from the document.
-    const readings = (
-        await keepReadableDerived(db, reader, openReadings, (row) =>
-            typeof row.document_id === "string" ? [row.document_id] : [],
-        )
-    ).map((row) => (typeof row.document_id === "string" ? row : { ...row, machine_findings: null, comparison: null }));
+    const readableReadings = await keepReadableDerived(db, reader, openReadings, (row) =>
+        typeof row.document_id === "string" ? [row.document_id] : [],
+    );
+    holdBack(tally, "training_records", openReadings.length - readableReadings.length);
+    const readings = readableReadings.map((row) => (typeof row.document_id === "string" ? row : { ...row, machine_findings: null, comparison: null }));
     // A defense hangs from a work review: what was derived from a withheld
     // review goes with it, and from none recorded (a practice-area defense is
     // drawn from several works that are not recorded; a deleted review looks
@@ -1033,6 +1129,16 @@ export async function buildUserAccountExport(
     // note goes too; one whose notes no longer exist loses its question and
     // contrast but keeps the person's answer and its result.
     const keptReviewIds = new Set(idsFrom(workReviews));
+    const allReviewIds = new Set(idsFrom(trainingWorkReviews));
+    // Counted: a defense whose work review was withheld. Not counted: one with
+    // no review recorded, or whose review no longer exists.
+    holdBack(
+        tally,
+        "training_records",
+        trainingDefenses.filter(
+            (row) => typeof row.work_review_id === "string" && allReviewIds.has(row.work_review_id) && !keptReviewIds.has(row.work_review_id),
+        ).length,
+    );
     const defenses = trainingDefenses.map((row) =>
         typeof row.work_review_id === "string" && keptReviewIds.has(row.work_review_id)
             ? row
@@ -1041,8 +1147,11 @@ export async function buildUserAccountExport(
     const keptNoteIds = new Set(idsFrom(turnNotes));
     const allNoteIds = new Set(idsFrom(trainingNotes));
     const noteIdsOf = (row: Row) => (Array.isArray(row.source_note_ids) ? (row.source_note_ids as unknown[]) : []);
-    const retakes = trainingRetakes
-        .filter((row) => noteIdsOf(row).every((id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id)))
+    const retakesKept = trainingRetakes.filter((row) =>
+        noteIdsOf(row).every((id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id)),
+    );
+    holdBack(tally, "training_records", trainingRetakes.length - retakesKept.length);
+    const retakes = retakesKept
         .map((row) => {
             const ids = noteIdsOf(row);
             return ids.length > 0 && ids.every((id) => typeof id === "string" && allNoteIds.has(id))
@@ -1064,6 +1173,7 @@ export async function buildUserAccountExport(
         userEmail,
         orgMemberships,
         orgId,
+        tally,
     );
     const exportedWorkflowIds = new Set(idsFrom(workflows));
 
@@ -1077,6 +1187,7 @@ export async function buildUserAccountExport(
     const documents = await readableRows(
         [...standaloneDocuments, ...projectDocuments],
         createDocumentAccessChecker(userId, userEmail, db),
+        () => holdBack(tally, "documents"),
     );
     const documentIds = idsFrom(documents);
     const reviewIds = idsFrom(tabularReviews);
@@ -1085,11 +1196,12 @@ export async function buildUserAccountExport(
         selectByIds(db, "project_subfolders", "project_id", projectIds),
         selectByIds(db, "document_versions", "document_id", documentIds),
         selectByIds(db, "document_edits", "document_id", documentIds),
-        loadReadableReviewCells(db, reviewIds, userId, userEmail),
+        loadReadableReviewCells(db, reviewIds, userId, userEmail, tally),
     ]);
 
     return {
         exported_at: new Date().toISOString(),
+        ...heldBackNotice(tally),
         user: { id: userId, email: userEmail ?? null },
         workspace: workspaceLabel(orgId),
         ...(orgId

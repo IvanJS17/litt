@@ -576,7 +576,12 @@ queue adapters in `application/jobs/`. The registry imports these adapters direc
 `orgs.deletion.ts` retains recovery-period organization suspension.
 `application/exports/` validates/enqueues requests and builds artifacts, checking
 permissions again when a queued request executes. No domain facade re-exports
-these workflows.
+these workflows. Every JSON download (account, chats only, table reviews only)
+carries a top-level `held_back` field, in Spanish and English with a count per
+kind and never a name or an id, only when it left something out because the
+holder cannot open it, or what it was drawn from, today (conversations, review
+chats and cells, documents, playbooks and runs, training records). Archived rows
+and the records of an organization the holder has left are not counted.
 
 Projects own `projects.lifecycle.ts` and `projects.export.ts`. Document lifecycle
 mutations continue through documents. Shared credential persistence, precedence
