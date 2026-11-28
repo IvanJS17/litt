@@ -143,7 +143,8 @@ count lives in memory, one count for each process and for each worker thread:
 the API and the `jobs` worker (a thread of the same process in the default
 deployment) keep separate counts, and a restart starts them again, so no person
 is written anywhere. It is silent: nothing is shown to the person, and the first time
-anyone meets the number on a day the process writes one warning
+anyone meets the number on a day, each count writes one warning (so the API and
+the `jobs` worker can write one each)
 (`citation_support.daily_number_reached`, `component=citation-support`) that
 names no person, firm or text.
 

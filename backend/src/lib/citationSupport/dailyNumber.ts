@@ -1,6 +1,7 @@
 // The daily number of citation checks one person may cause (docs/citation-support-check.md).
 //
-// Kept in memory, per process: person id -> checks taken on the current day.
+// Kept in memory, per process and per worker thread (the API and the `jobs`
+// worker keep separate counts): person id -> checks taken on the current day.
 // Nothing is written anywhere and the table of results stays free of people.
 // The day is the calendar day in Mexico City, the same rule the product's other
 // daily numbers use (written out here because lib/ never imports from modules/).
