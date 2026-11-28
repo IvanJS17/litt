@@ -237,7 +237,28 @@ export default function LoginPage() {
                                         : sessionWarningTitle()
                                 }
                                 message={
-                                    shownError ? shownError.message : authError
+                                    shownError ? (
+                                        <>
+                                            {shownError.message}
+                                            {error?.kind === "rate_limited" && (
+                                                <>
+                                                    {" "}
+                                                    {t.rich("auth.login.rateLimitedResetHint", {
+                                                        link: (chunks) => (
+                                                            <Link
+                                                                href="/forgot-password"
+                                                                className="font-medium underline underline-offset-2"
+                                                            >
+                                                                {chunks}
+                                                            </Link>
+                                                        ),
+                                                    })}
+                                                </>
+                                            )}
+                                        </>
+                                    ) : (
+                                        authError
+                                    )
                                 }
                                 retry={retryAction}
                                 supportHref={

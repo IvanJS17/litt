@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMessages } from "@litt/i18n";
@@ -149,6 +149,30 @@ describe("LoginPage", () => {
         await user.click(screen.getByRole("button", { name: "Log in" }));
 
         expect(await screen.findByRole("alert")).toHaveTextContent(shown);
+    });
+
+    it("points to resetting the password by email when sign-in is refused for too many attempts, and only then", async () => {
+        const user = userEvent.setup();
+        render(<LoginPage />);
+        await user.type(screen.getByRole("textbox", { name: "Email" }), "person@example.com");
+        await user.type(screen.getByLabelText("Password"), "correct-horse");
+
+        login.mockRejectedValueOnce(Object.assign(new Error("Request rate limit reached"), { status: 429 }));
+        await user.click(screen.getByRole("button", { name: "Log in" }));
+        const alert = await screen.findByRole("alert");
+        expect(alert).toHaveTextContent("You can still get in by resetting your password by email.");
+        expect(within(alert).getByRole("link", { name: "resetting your password by email" })).toHaveAttribute(
+            "href",
+            "/forgot-password",
+        );
+
+        login.mockRejectedValueOnce(
+            Object.assign(new Error("Invalid login credentials"), { status: 400, code: "invalid_credentials" }),
+        );
+        await user.click(screen.getByRole("button", { name: "Log in" }));
+        expect(await screen.findByText("The email or password is incorrect.")).toBeInTheDocument();
+        expect(screen.getByRole("alert")).not.toHaveTextContent("resetting your password");
+        expect(screen.queryByRole("link", { name: "resetting your password by email" })).toBeNull();
     });
 
     it("offers Retry for a failure that may pass on a second attempt", async () => {

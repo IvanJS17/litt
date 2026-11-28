@@ -649,6 +649,7 @@
       "loggingIn": "Iniciando sesión…",
       "noAccount": "¿No tienes una cuenta?",
       "password": "Contraseña",
+      "rateLimitedResetHint": "Aun así puedes entrar si <link>restableces tu contraseña por correo</link>.",
       "requestTimeout": "Se agotó el tiempo de la solicitud de inicio de sesión. Inténtalo de nuevo.",
       "restoreAction": "restaurar tu sesión",
       "restoreFailed": "No se pudo restaurar tu sesión. Inténtalo de nuevo.",
