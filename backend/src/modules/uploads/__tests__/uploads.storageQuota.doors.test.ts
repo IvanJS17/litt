@@ -79,6 +79,22 @@ describe("who asks the storage quota", () => {
     ]);
   });
 
+  it("names the database's usage function only where the usage is read, and compares with a size only in the copy helper", () => {
+    const naming = files
+      .filter((file) => readFileSync(file, "utf8").includes("storage_space_usage"))
+      .map(relative)
+      .sort();
+    expect(naming).toEqual(["lib/storageQuota.ts"]);
+    const comparing = files
+      .filter((file) => /\bfitsInSpace\(/.test(readFileSync(file, "utf8")))
+      .map(relative)
+      .sort();
+    expect(comparing).toEqual([
+      "lib/storageQuota.ts",
+      "modules/documents/documents.copyFiles.ts",
+    ]);
+  });
+
   it("opens sessions through one function only", () => {
     const callers = files
       .filter((file) => readFileSync(file, "utf8").includes('"create_upload_session"'))

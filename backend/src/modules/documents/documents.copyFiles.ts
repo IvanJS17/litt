@@ -91,13 +91,15 @@ async function requireRoom(room: CopyRoom, bytes: number): Promise<void> {
 
 /**
  * Ask once for the space a batch of copies fills, before the first object is
- * written, with each source's stored size. The returned proof is what the
- * batch's copies pass as `room`.
+ * written, with each source's stored size. A batch without sources asks
+ * nothing. The returned proof is what the batch's copies pass as `room`.
  */
 export async function askRoomForBatch(
   room: CopyRoom,
   sources: CopySource[],
 ): Promise<AskedRoom> {
+  // A request that adds no stored bytes asks nothing and reads nothing.
+  if (sources.length === 0) return AskedRoom.ask();
   let bytes = 0;
   for (const source of sources) bytes += await sourceStoredBytes(source);
   await requireRoom(room, bytes);

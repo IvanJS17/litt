@@ -638,4 +638,48 @@ describe("importing an add-on asks the storage space", () => {
     expect(calls.some((c) => c.table === "workflows" && c.op === "delete")).toBe(true);
     expect(enqueueStorageCleanup).toHaveBeenCalledWith(db, []);
   });
+
+  it("still refuses an add-on with assets when the space is already above its limit", async () => {
+    usage.mockResolvedValue({ usedBytes: 1500, limitBytes: 1000 });
+    const { db } = world();
+    expect(await importWorkflowAddon(db, { addonId: "a1", userId: "u1" })).toMatchObject({
+      ok: false,
+      kind: "storage_quota_exceeded",
+    });
+    expect(uploadFile).not.toHaveBeenCalled();
+  });
+
+  describe("an add-on that adds no stored bytes", () => {
+    const withoutAssets = () =>
+      makeDb({
+        mike_workflows: [{ data: catalogRow, error: null }],
+        workflows: [{ data: workflowRow, error: null }],
+        mike_workflow_assets: [{ data: [], error: null }],
+      });
+    const tabularRow = { ...catalogRow, type: "tabular" };
+
+    it.each([
+      ["a space above its limit", () => usage.mockResolvedValue({ usedBytes: 1001, limitBytes: 1000 })],
+      ["a usage figure that cannot be read", () => usage.mockRejectedValue(new Error("unreadable"))],
+      ["a space that cannot be resolved", () => space.mockResolvedValue({ ok: false, detail: "unreadable" })],
+    ])("imports an assistant add-on without assets in %s and reads nothing", async (_name, arrange) => {
+      arrange();
+      const { db } = withoutAssets();
+      expect(await importWorkflowAddon(db, { addonId: "a1", userId: "u1" })).toMatchObject({ ok: true });
+      expect(usage).not.toHaveBeenCalled();
+      expect(space).not.toHaveBeenCalled();
+      expect(uploadFile).not.toHaveBeenCalled();
+    });
+
+    it("imports a tabular add-on in a space above its limit and reads nothing", async () => {
+      usage.mockResolvedValue({ usedBytes: 1001, limitBytes: 1000 });
+      const { db } = makeDb({
+        mike_workflows: [{ data: tabularRow, error: null }],
+        workflows: [{ data: { ...workflowRow, type: "tabular" }, error: null }],
+      });
+      expect(await importWorkflowAddon(db, { addonId: "a1", userId: "u1" })).toMatchObject({ ok: true });
+      expect(usage).not.toHaveBeenCalled();
+      expect(space).not.toHaveBeenCalled();
+    });
+  });
 });
