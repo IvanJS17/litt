@@ -76,8 +76,10 @@ its Caddy block are infrastructure and are not part of the backend.
   of an expired metadata document) keeps working, approving a client takes it
   out of the count, and nothing is deleted by the cap. While the count stays at
   the number no new client can be created: it goes down when a client is
-  approved, when the existing clean-up at the next registration removes
-  unapproved clients idle for seven days, or when the operator raises the
+  approved, when the existing clean-up removes unapproved clients idle for
+  seven days (it runs at every registration and, at most once a minute, when a
+  first-seen metadata-document client meets the number; the request is refused
+  only if the number is still met afterwards), or when the operator raises the
   number. The refusal is written
   to the server log once per process and kind, without the client or the
   address. The token endpoints never create a client: a first-seen client
