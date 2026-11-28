@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../../lib/supabase";
 import type { ProjectRole } from "../../../lib/permissions";
@@ -9,6 +11,16 @@ const mocks = vi.hoisted(() => ({
   deleteSource: vi.fn(),
   enqueueConversion: vi.fn(),
   docxToPdf: vi.fn(),
+  copyFile: vi.fn(),
+  headFile: vi.fn(),
+  readStream: vi.fn(),
+  space: vi.fn(),
+  usage: vi.fn(),
+}));
+vi.mock("../../../lib/storageQuota", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/storageQuota")>()),
+  resolveUploadSpace: mocks.space,
+  storageSpaceUsage: mocks.usage,
 }));
 // Only the verdict is stubbed; canManageDocument stays real so the policy
 // under test is the production one.
@@ -28,6 +40,9 @@ vi.mock("../../../lib/storage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/storage")>()),
   downloadFile: mocks.downloadFile,
   uploadFile: mocks.uploadFile,
+  copyFile: mocks.copyFile,
+  headFile: mocks.headFile,
+  createFileReadStream: mocks.readStream,
   versionStorageKey: () => "destination/key",
 }));
 vi.mock("../../../lib/convert", async (importOriginal) => ({
@@ -55,8 +70,9 @@ const args = {
 const access = (
   role: ProjectRole = "owner",
   creator = true,
-  project = "target-project",
+  project: string | null = "target-project",
   workflow: string | null = null,
+  org: string | null = null,
 ) => ({
   ok: true,
   isCreator: creator,
@@ -66,6 +82,7 @@ const access = (
     user_id: creator ? "actor" : "other",
     project_id: project,
     workflow_id: workflow,
+    org_id: org,
   },
 });
 const row = {
@@ -104,8 +121,15 @@ beforeEach(() => {
     filename: "Clause.docx",
     file_type: "docx",
     page_count: 2,
+    size_bytes: 100,
+    content_sha256: "row-hash",
   });
   mocks.downloadFile.mockResolvedValue(new ArrayBuffer(2));
+  mocks.copyFile.mockResolvedValue(undefined);
+  mocks.headFile.mockResolvedValue({ size: 2, etag: null, contentType: null });
+  mocks.readStream.mockImplementation(() => Readable.from([Buffer.from("streamed")]));
+  mocks.space.mockResolvedValue({ ok: true, space: { orgId: "org", userId: null } });
+  mocks.usage.mockResolvedValue({ usedBytes: 0, limitBytes: 1000 });
   mocks.deleteSource.mockResolvedValue({ error: null });
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -228,7 +252,7 @@ describe("version copy caller policy", () => {
       const storageError = new StorageOperationError("upload", {
         cause: Object.assign(new Error("denied"), { name: "AccessDenied" }),
       });
-      mocks.uploadFile.mockRejectedValue(storageError);
+      mocks.copyFile.mockRejectedValue(storageError);
       const fake = db();
       const result = await createVersionFromDocument(args, fake.db);
       expect(result).toMatchObject({ ok: false, kind: "storage_write", error: storageError });
@@ -241,7 +265,7 @@ describe("version copy caller policy", () => {
     });
     it("wraps a bare storage throw as a copy failure", async () => {
       const raw = new Error("socket hang up");
-      mocks.uploadFile.mockRejectedValue(raw);
+      mocks.copyFile.mockRejectedValue(raw);
       const result = await createVersionFromDocument(args, db().db);
       const { error } = result as { error: AppError };
       expect(error.cause).toBe(raw);
@@ -261,15 +285,13 @@ describe("version copy caller policy", () => {
     });
   });
   it("tolerates a missing legacy PDF while retaining the copied original", async () => {
-    mocks.downloadFile
-      .mockResolvedValueOnce(new ArrayBuffer(2))
-      .mockResolvedValueOnce(null);
+    mocks.headFile.mockResolvedValue(null);
     const fake = db();
     expect(await createVersionFromDocument(args, fake.db)).toMatchObject({
       ok: true,
     });
     expect(fake.rpc.mock.calls[0][1].p_version.pdf_storage_path).toBeNull();
-    expect(mocks.uploadFile).toHaveBeenCalledOnce();
+    expect(mocks.copyFile).toHaveBeenCalledOnce();
   });
   it("queues the conversion, and reports nothing, when the converter is busy", async () => {
     vi.stubEnv("ASYNC_DOCUMENT_CONVERSION", "false");
@@ -380,4 +402,88 @@ describe("version deletion caller policy", () => {
       ).toMatchObject({ ok: false, kind });
     },
   );
+});
+
+describe("a version taken from another document asks the storage space", () => {
+  beforeEach(() => {
+    mocks.access
+      .mockResolvedValueOnce(access())
+      .mockResolvedValueOnce(access("viewer", false, "source-project"));
+  });
+  it("copies in the store with the row's hash, and reads nothing into memory", async () => {
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: true });
+    expect(mocks.copyFile).toHaveBeenCalledWith("source/key", "destination/key");
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+    expect(mocks.uploadFile).not.toHaveBeenCalled();
+    expect(mocks.readStream).not.toHaveBeenCalled();
+    expect(mocks.space).toHaveBeenCalledWith(fake.db, expect.objectContaining({
+      purpose: "document_version_create", destination: { document_id: "target" },
+    }));
+    expect(fake.rpc.mock.calls[0][1].p_version.content_sha256).toBe("row-hash");
+  });
+  it("streams the hash when the source row has none", async () => {
+    mocks.active.mockResolvedValue({ ...(await mocks.active()), content_sha256: null });
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: true });
+    expect(fake.rpc.mock.calls[0][1].p_version.content_sha256).toBe(
+      createHash("sha256").update("streamed").digest("hex"),
+    );
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+  });
+  it("allows the version margin: 1100 of 1000 fits, 1101 does not", async () => {
+    mocks.usage.mockResolvedValue({ usedBytes: 1000, limitBytes: 1000 });
+    expect(await createVersionFromDocument(args, db().db)).toMatchObject({ ok: true });
+    mocks.access
+      .mockResolvedValueOnce(access())
+      .mockResolvedValueOnce(access("viewer", false, "source-project"));
+    mocks.usage.mockResolvedValue({ usedBytes: 1001, limitBytes: 1000 });
+    expect(await createVersionFromDocument(args, db().db)).toMatchObject({
+      ok: false, kind: "storage_quota_exceeded",
+    });
+  });
+  it.each([
+    ["does not fit", () => mocks.usage.mockResolvedValue({ usedBytes: 1001, limitBytes: 1000 }), "storage_quota_exceeded"],
+    ["cannot be read", () => mocks.usage.mockRejectedValue(new Error("unreadable")), "storage_write"],
+  ])("refuses when the space %s: no object and no row", async (_name, arrange, kind) => {
+    arrange();
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: false, kind });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(mocks.uploadFile).not.toHaveBeenCalled();
+    expect(fake.rpc).not.toHaveBeenCalled();
+    expect(mocks.deleteSource).not.toHaveBeenCalled();
+  });
+});
+
+describe("a move asks the storage space only when it stays in one space", () => {
+  const arrange = (target: ReturnType<typeof access>, source: ReturnType<typeof access>) =>
+    mocks.access.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+  it("asks nothing for two personal documents of the same person", async () => {
+    arrange(access("owner", true, null), access("owner", true, null));
+    expect(await createVersionFromDocument(args, db().db)).toMatchObject({ ok: true });
+    expect(mocks.deleteSource).toHaveBeenCalled();
+    expect(mocks.space).not.toHaveBeenCalled();
+    expect(mocks.usage).not.toHaveBeenCalled();
+  });
+  it("asks nothing for two documents of one project", async () => {
+    arrange(access("owner", true, "p", null, "org"), access("owner", true, "p", null, "org"));
+    expect(await createVersionFromDocument(args, db().db)).toMatchObject({ ok: true });
+    expect(mocks.usage).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["a firm's document and a personal one", ["org", null]],
+    ["the documents of two firms", ["org", "other-org"]],
+  ])("asks, and refuses a full destination, for %s outside projects", async (_name, [targetOrg, sourceOrg]) => {
+    arrange(access("owner", true, null, null, targetOrg), access("owner", true, null, null, sourceOrg));
+    mocks.usage.mockResolvedValue({ usedBytes: 1001, limitBytes: 1000 });
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({
+      ok: false, kind: "storage_quota_exceeded",
+    });
+    expect(mocks.usage).toHaveBeenCalledOnce();
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(fake.rpc).not.toHaveBeenCalled();
+    expect(mocks.deleteSource).not.toHaveBeenCalled();
+  });
 });

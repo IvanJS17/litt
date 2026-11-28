@@ -1,5 +1,5 @@
 import { mapWithConcurrency } from "../../lib/concurrency";
-import { captureInlineDocumentCleanup, completeInlineDocumentCleanup, createDocumentVersion, copyDocumentVersionFiles } from "../documents/documents.service";
+import { captureInlineDocumentCleanup, completeInlineDocumentCleanup, createDocumentVersion, copyDocumentVersionFiles, askRoomForBatch } from "../documents/documents.service";
 
 // workflows assets — implementation behind the module facade.
 // Business logic + data access for the workflows module.
@@ -18,6 +18,7 @@ import { convertedPdfKey } from "../../lib/convert";
 import { storageKey } from "../../lib/storage";
 import { enqueueStorageCleanup } from "../../lib/dbq/enqueue";
 import { attachActiveVersionPaths, attachLatestVersionNumbers } from "../../lib/documentVersions";
+import { StorageQuotaExceededError } from "../../lib/storageQuota";
 import { resolveWorkflowAccess, assetsUnsupported } from "./workflows.access";
 
 // --- Assets (assistant workflows only) -------------------------------------
@@ -38,6 +39,7 @@ export type WorkflowAssetFailure =
   | { ok: false; kind: "documents_workspace_mismatch" }
   | { ok: false; kind: "documents_not_ready" }
   | { ok: false; kind: "training_copy_needs_organization" }
+  | { ok: false; kind: "storage_quota_exceeded" }
   | { ok: false; kind: "db_error"; error: unknown };
 
 type WorkflowAssetRow = {
@@ -215,13 +217,21 @@ export async function copyDocumentsToWorkflowAssets(
     };
   });
   const copiedPaths = new Set<string>();
-
   try {
+    // The whole batch is asked once, before its first object is written.
+    const room = await askRoomForBatch(
+      {
+        db, userId, purpose: "document_create",
+        destination: { scope: "workflow", workflow_id: workflowId },
+      },
+      plans.map((plan) => plan.sourceVersion),
+    );
     for (const plan of plans) {
       await copyDocumentVersionFiles({
         source: plan.sourceVersion, storagePath: plan.sourcePath,
         pdfStoragePath: plan.pdfPath ?? plan.sourcePath,
         transport: "server", rendition: "required",
+        room,
         beforeWrite: (key) => { copiedPaths.add(key); },
       });
     }
@@ -291,6 +301,8 @@ export async function copyDocumentsToWorkflowAssets(
     await enqueueStorageCleanup(db, [...copiedPaths]);
     // A pasante's draft in a workflow without an organization: nobody could
     // approve it there (documents.lifecycle), which the caller can act on.
+    if (error instanceof StorageQuotaExceededError)
+      return { ok: false, kind: "storage_quota_exceeded" };
     if (findAppError(error)?.kind === "training.copy_without_org")
       return { ok: false, kind: "training_copy_needs_organization" };
     return { ok: false, kind: "db_error", error };

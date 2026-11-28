@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { tableDb } from "../../__tests__/helpers/tableDb";
 import { storageQuotaConfiguration } from "../runtimeConfig";
 import {
+  fitsInSpace,
   quotaRpcArgs,
   resolveUploadSpace,
   storageSpaceUsage,
@@ -233,5 +234,20 @@ describe("one answer to how much a space uses", () => {
       target_quota_personal_bytes: 3,
       target_quota_version_margin_percent: 10,
     });
+  });
+});
+
+describe("the room a copy needs", () => {
+  const space = { usedBytes: 900, limitBytes: 1000 };
+  it("accepts exactly the limit and refuses one byte over", () => {
+    expect(fitsInSpace(space, 100, null)).toBe(true);
+    expect(fitsInSpace(space, 101, null)).toBe(false);
+    expect(fitsInSpace({ usedBytes: 0, limitBytes: 0 }, 1, null)).toBe(false);
+  });
+  it("gives a new version the margin, rounded down", () => {
+    expect(fitsInSpace(space, 200, 10)).toBe(true);
+    expect(fitsInSpace(space, 201, 10)).toBe(false);
+    expect(fitsInSpace({ usedBytes: 0, limitBytes: 19 }, 20, 10)).toBe(true);
+    expect(fitsInSpace({ usedBytes: 0, limitBytes: 19 }, 21, 10)).toBe(false);
   });
 });

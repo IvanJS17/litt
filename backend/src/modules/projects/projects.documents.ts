@@ -1,4 +1,8 @@
-import { createDocumentVersion, copyDocumentVersionFiles } from "../documents/documents.service";
+import {
+  createDocumentVersion,
+  copyDocumentVersionFiles,
+  sourceContentSha256,
+} from "../documents/documents.service";
 // Project document service functions: list, assign/copy an existing document
 // into a project, and rename.
 
@@ -6,13 +10,9 @@ import { renameDocument } from "../documents/documents.service";
 import {
   attachActiveVersionPaths,
   attachLatestVersionNumbers,
-  contentSha256,
 } from "../../lib/documentVersions";
-import {
-  deleteFileBestEffort,
-  downloadFile,
-  storageKey,
-} from "../../lib/storage";
+import { deleteFileBestEffort, storageKey } from "../../lib/storage";
+import { StorageQuotaExceededError } from "../../lib/storageQuota";
 import { convertedPdfKey } from "../../lib/convert";
 import {
   checkProjectAccess,
@@ -135,8 +135,8 @@ export type AssignOrCopyResult =
   | { ok: false; kind: "workspace_mismatch" }
   | { ok: false; kind: "update_failed" }
   | { ok: false; kind: "no_active_version" }
-  | { ok: false; kind: "read_failed"; error?: unknown }
   | { ok: false; kind: "copy_failed" }
+  | { ok: false; kind: "storage_quota_exceeded" }
   | { ok: false; kind: "db_error"; error: unknown };
 
 /**
@@ -242,7 +242,7 @@ export async function assignOrCopyDocument(
     const { data: srcV } = await db
       .from("document_versions")
       .select(
-        "storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count",
+        "storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count, content_sha256",
       )
       .eq("id", doc.current_version_id)
       .single();
@@ -252,16 +252,6 @@ export async function assignOrCopyDocument(
 
     const activeVersionFilename =
       (srcV.filename as string | null)?.trim() || "Untitled document";
-    let srcBytes: ArrayBuffer | null;
-    try {
-      srcBytes = await downloadFile(srcV.storage_path);
-    } catch (error) {
-      return { ok: false, kind: "read_failed", error };
-    }
-    if (!srcBytes) {
-      return { ok: false, kind: "read_failed" };
-    }
-
     const copyOrg = await resolveContentOrgId(db, { projectId });
     if (!copyOrg.ok) return { ok: false, kind: "db_error", error: copyOrg.detail };
     const { data: copy, error } = await db
@@ -285,10 +275,15 @@ export async function assignOrCopyDocument(
     try {
       ({ pdfStoragePath: newPdfPath } = await copyDocumentVersionFiles({
         source: { storage_path: srcV.storage_path, pdf_storage_path: srcV.pdf_storage_path,
-          file_type: (srcV.file_type as string | null) ?? doc.file_type },
+          file_type: (srcV.file_type as string | null) ?? doc.file_type,
+          size_bytes: srcV.size_bytes as number | null },
         storagePath: newKey,
         pdfStoragePath: convertedPdfKey(userId, copy.id as string),
-        transport: "download", rendition: "optional", sourceBytes: srcBytes,
+        transport: "server", rendition: "optional",
+        room: {
+          db, userId, purpose: "document_create",
+          destination: { scope: "project", project_id: projectId },
+        },
       }));
 
       const { data: newV, error: newVError } = await createDocumentVersion(db, {
@@ -306,7 +301,7 @@ export async function assignOrCopyDocument(
             (srcV.page_count as number | null) ?? doc.page_count ?? null,
           textless_page_count:
             (srcV.textless_page_count as number | null) ?? null,
-          content_sha256: contentSha256(srcBytes),
+          content_sha256: await sourceContentSha256(srcV),
         });
       const copyVersionRowId = (newV?.id as string | null) ?? null;
       if (newVError || !copyVersionRowId) {
@@ -332,7 +327,8 @@ export async function assignOrCopyDocument(
       );
       return { ok: true, status: 201, doc: updatedCopy };
     } catch (err) {
-      console.error("[projects/documents/copy] failed", err);
+      if (!(err instanceof StorageQuotaExceededError))
+        console.error("[projects/documents/copy] failed", err);
       await Promise.all([
         deleteFileBestEffort(newKey, "copy-rollback"),
         newPdfPath && newPdfPath !== newKey
@@ -340,6 +336,8 @@ export async function assignOrCopyDocument(
           : Promise.resolve(),
         db.from("documents").delete().eq("id", copy.id),
       ]);
+      if (err instanceof StorageQuotaExceededError)
+        return { ok: false, kind: "storage_quota_exceeded" };
       return { ok: false, kind: "copy_failed" };
     }
   }

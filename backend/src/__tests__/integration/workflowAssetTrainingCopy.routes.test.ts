@@ -11,6 +11,12 @@ import { scriptedDb } from "../helpers/scriptedDb";
 const mocks = vi.hoisted(() => ({
   db: null as unknown,
   workflowAccess: vi.fn(),
+  usage: vi.fn(),
+}));
+vi.mock("../../lib/storageQuota", async (original) => ({
+  ...(await original<typeof import("../../lib/storageQuota")>()),
+  resolveUploadSpace: vi.fn(async () => ({ ok: true, space: { orgId: null, userId: "actor" } })),
+  storageSpaceUsage: mocks.usage,
 }));
 
 vi.mock("../../middleware/auth", () => ({
@@ -67,6 +73,7 @@ const sourceVersion = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.usage.mockResolvedValue({ usedBytes: 0, limitBytes: 1000 });
   mocks.workflowAccess.mockResolvedValue({
     allowEdit: true,
     workflow: { org_id: null, type: "assistant" },
@@ -102,5 +109,25 @@ describe("POST /workflows/:id/assets/from-documents with a pasante's draft", () 
     // Nothing inapprovable is left behind.
     expect(fake.calls.some((c) => c.op === "rpc")).toBe(false);
     expect(fake.calls.some((c) => c.op === "delete")).toBe(true);
+  });
+});
+
+describe("POST /workflows/:id/assets/from-documents when the space is full", () => {
+  it("answers 413 storage_quota_exceeded, as an upload does", async () => {
+    mocks.usage.mockResolvedValue({ usedBytes: 1000, limitBytes: 1000 });
+    mocks.db = scriptedDb([
+      { table: "documents", data: [source] },
+      { table: "documents", data: [source] },
+      { table: "document_versions", data: [sourceVersion] },
+      { table: "documents", op: "delete" },
+    ]).db;
+    const res = await request(app)
+      .post("/workflows/workflow/assets/from-documents")
+      .send({ document_ids: [DOC_ID] });
+    expect(res.status).toBe(413);
+    expect(res.body).toEqual({
+      code: "storage_quota_exceeded",
+      detail: expect.stringContaining("no storage space left"),
+    });
   });
 });

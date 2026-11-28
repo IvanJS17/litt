@@ -2,6 +2,10 @@
 // call the service layer in workflows.service.ts, and map its typed results
 // onto status codes and JSON responses.
 
+import {
+  STORAGE_QUOTA_EXCEEDED_CODE,
+  STORAGE_QUOTA_EXCEEDED_DETAIL,
+} from "../../lib/storageQuota";
 import { Router, type Request, type Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { requireAuth } from "../../middleware/auth";
@@ -102,6 +106,11 @@ function sendWorkflowAssetFailure(res: Response, failure: WorkflowAssetFailure) 
       return void res.status(409).json({
         code: TRAINING_COPY_NEEDS_ORGANIZATION_CODE,
         detail: TRAINING_COPY_NEEDS_ORGANIZATION_MESSAGE,
+      });
+    case "storage_quota_exceeded":
+      return void res.status(413).json({
+        code: STORAGE_QUOTA_EXCEEDED_CODE,
+        detail: STORAGE_QUOTA_EXCEEDED_DETAIL,
       });
     case "db_error":
       return void sendInternalError(res, failure.error);

@@ -2,7 +2,12 @@ import {
     captureInlineDocumentCleanup,
     completeInlineDocumentCleanup,
 } from "./documents.cleanupJobs";
-import { copyDocumentVersionFiles } from "./documents.copyFiles";
+import {
+    copyDocumentVersionFiles,
+    sourceContentSha256,
+    sourceStoredBytes,
+} from "./documents.copyFiles";
+import { StorageQuotaExceededError } from "../../lib/storageQuota";
 import { createDocumentVersion } from "./documents.lifecycle";
 // Version lifecycle for documents: listing, creating one from another
 // document's bytes, renaming, and deleting versions.
@@ -21,7 +26,7 @@ import {
 import { convertedPdfKey, docxToPdf } from "../../lib/convert";
 import { ExtractionBusyError } from "../../lib/extraction/limits";
 import { enqueueConversion } from "../../lib/queue/conversionQueue";
-import { contentSha256, loadActiveVersion } from "../../lib/documentVersions";
+import { loadActiveVersion } from "../../lib/documentVersions";
 import { creatorScopedAllowed } from "../../lib/access";
 import { can, DOCUMENT_EDIT_FORBIDDEN } from "../../lib/permissions";
 import {
@@ -153,8 +158,7 @@ export async function createVersionFromDocument(
               | "source_not_found"
               | "source_not_owner"
               | "source_no_active"
-              | "source_bytes"
-              | "source_bytes";
+              | "storage_quota_exceeded";
           detail: string;
       }
     // Internal failures carry the cause as an AppError: the route hands it to
@@ -220,6 +224,13 @@ export async function createVersionFromDocument(
             !targetDoc.project_id &&
             sourceDoc.user_id === userId &&
             targetDoc.user_id === userId);
+    // The space a document fills comes from its organization (a personal
+    // document has none), as the storage quota reads it: a move that crosses
+    // from one space into another does grow the destination.
+    const staysInOneSpace =
+        willDeleteSource &&
+        ((sourceDoc.project_id && sourceDoc.project_id === targetDoc.project_id) ||
+            (sourceDoc.org_id ?? null) === (targetDoc.org_id ?? null));
     if (
         willDeleteSource &&
         !creatorScopedAllowed(sourceAccess, sourceDoc.user_id)
@@ -240,14 +251,6 @@ export async function createVersionFromDocument(
         };
     const sourceType = active.file_type ?? "";
 
-    const bytes = await downloadFile(active.storage_path);
-    if (!bytes)
-        return {
-            ok: false,
-            kind: "source_bytes",
-            detail: "Source document bytes not available.",
-        };
-
     const filename =
         requestedFilename && requestedFilename.trim()
             ? requestedFilename.trim().slice(0, 200)
@@ -262,11 +265,26 @@ export async function createVersionFromDocument(
             source: { ...active, file_type: suffix },
             storagePath: key,
             pdfStoragePath: convertedPdfKey(userId, documentId, versionSlug),
-            transport: "download",
+            transport: "server",
             rendition: "optional",
-            sourceBytes: bytes,
+            // A move inside one space (the source is deleted below) adds
+            // nothing to it; any other copy asks the space it fills.
+            room: staysInOneSpace
+                ? null
+                : {
+                      db,
+                      userId,
+                      purpose: "document_version_create",
+                      destination: { document_id: documentId },
+                  },
         }));
     } catch (e) {
+        if (e instanceof StorageQuotaExceededError)
+            return {
+                ok: false,
+                kind: "storage_quota_exceeded",
+                detail: "Storage space is full.",
+            };
         return {
             ok: false,
             kind: "storage_write",
@@ -293,6 +311,9 @@ export async function createVersionFromDocument(
             deferConversion = true;
         } else {
             try {
+                // Only here are the bytes read into memory: converting needs them.
+                const bytes = await downloadFile(active.storage_path);
+                if (!bytes) throw new Error("copy_source_unavailable");
                 const pdfBuf = await docxToPdf(Buffer.from(bytes));
                 const pdfKey = convertedPdfKey(userId, documentId, versionSlug);
                 await uploadFile(
@@ -340,10 +361,10 @@ export async function createVersionFromDocument(
 
             filename: filename,
             file_type: sourceType || null,
-            size_bytes: active.size_bytes ?? bytes.byteLength,
+            size_bytes: active.size_bytes ?? (await sourceStoredBytes(active)),
             page_count: active.page_count,
             textless_page_count: active.textless_page_count,
-            content_sha256: contentSha256(bytes),
+            content_sha256: await sourceContentSha256(active),
         },
     );
     if (verErr || !versionRow) {

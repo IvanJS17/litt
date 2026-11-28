@@ -23,6 +23,7 @@ const base = {
   pdfStoragePath: "copy-pdf",
   transport: "server" as const,
   rendition: "required" as const,
+  room: null,
 };
 
 describe("copying version objects", () => {

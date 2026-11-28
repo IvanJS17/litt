@@ -57,6 +57,39 @@ export async function storageSpaceUsage(
   return { usedBytes, limitBytes };
 }
 
+/** The code and sentence an upload is refused with when the space is full; a copy is refused with the same. */
+export const STORAGE_QUOTA_EXCEEDED_CODE = "storage_quota_exceeded";
+export const STORAGE_QUOTA_EXCEEDED_DETAIL =
+  "There is no storage space left here, so this can't be uploaded or saved. Everything you have stays available. Delete documents or earlier versions you no longer need, or ask your firm's administrator for more space.";
+
+/** A copy that does not fit in the space it would fill. */
+export class StorageQuotaExceededError extends Error {
+  constructor() {
+    super(STORAGE_QUOTA_EXCEEDED_CODE);
+    this.name = "StorageQuotaExceededError";
+  }
+}
+
+/**
+ * Whether `bytes` more fit in a space: the comparison `create_upload_session`
+ * makes, written once more here because the database function cannot be
+ * called for a copy. Exactly at the limit fits; one byte over does not. A
+ * new version of an existing document may go over by `versionMarginPercent`
+ * of the limit (rounded down). Keep this in step with that function.
+ */
+export function fitsInSpace(
+  { usedBytes, limitBytes }: StorageSpaceUsage,
+  bytes: number,
+  newVersionMarginPercent: number | null,
+): boolean {
+  const limit = BigInt(limitBytes);
+  const allowed =
+    newVersionMarginPercent === null
+      ? limit
+      : limit + (limit * BigInt(newVersionMarginPercent)) / 100n;
+  return BigInt(usedBytes) + BigInt(bytes) <= allowed;
+}
+
 /** How full a space is, said without a figure. */
 export type StorageLevel = "ok" | "almostFull";
 

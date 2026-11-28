@@ -829,6 +829,13 @@ document gets neither field.
 The web shows one notice per batch and per space until the page is reloaded,
 and the new files are not held back by it; the Word add-in and the MCP upload
 tool ignore both fields. When the use cannot be read the level is `"ok"`.
+Copying a document into a project or into workflow assets, and taking a new
+version from another document, are asked at the same door: before any object is
+copied the destination space must have room for the source's stored size, with
+the same limit, the same margin for a new version and the same
+`storage_quota_exceeded` answer (HTTP 413); a figure that cannot be read refuses
+the copy. The copy is made inside the object store, and the question is not
+atomic against an upload opened at the same moment.
 Two reads report the figures of the use without refusing anything: `GET /user/storage` answers a
 person's own personal space, and `GET /orgs/:orgId/storage` answers a firm's space
 only to an accepted owner or administrator of that firm; both return
