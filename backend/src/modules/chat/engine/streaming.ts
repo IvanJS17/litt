@@ -95,7 +95,8 @@ import {
   createCitation,
   CITATIONS_OPEN_TAG,
 } from "./citations";
-import { runToolCalls } from "./tools/toolDispatcher";
+import { requireLiveConnection, runToolCalls } from "./tools/toolDispatcher";
+import { isConnectionEnded } from "./tools/connectionEnded";
 import {
   emptyToolCallBatchResult,
   type ToolCallBatchResult,
@@ -250,8 +251,12 @@ export function sanitizeAssistantSseChunk(chunk: string): string {
 }
 
 export class AssistantStreamAbortError extends AssistantStreamError {
-  constructor(fullText: string, events: AssistantEvent[]) {
-    super("Stream aborted.", fullText, events);
+  constructor(
+    fullText: string,
+    events: AssistantEvent[],
+    options?: ErrorOptions,
+  ) {
+    super("Stream aborted.", fullText, events, options);
     this.name = "AbortError";
   }
 }
@@ -359,6 +364,11 @@ export async function runLLMStream(params: {
    */
   allowedCapabilities?: readonly ToolCapability[];
   /**
+   * Only for a turn a connected application started: is its connection still
+   * good? Asked before each tool call; when it is not, the turn is stopped.
+   */
+  connectionCheck?: () => Promise<boolean>;
+  /**
    * What a training turn asks of this engine (lib/trainingTurn): extra system
    * text and tool limits. It can only narrow the turn, never widen it.
    */
@@ -456,6 +466,7 @@ export async function runLLMStream(params: {
     connectorApprovals = false,
     allowDocumentMutation: requestedDocumentMutation = true,
     allowedCapabilities,
+    connectionCheck,
     trainingPlan,
     workflowStore,
     tabularStore,
@@ -837,6 +848,7 @@ export async function runLLMStream(params: {
         connectorApprovals: canPauseForApproval,
         allowDocumentMutation,
         allowedCapabilities,
+        connectionCheck,
         emitDone: false,
       }),
   });
@@ -847,6 +859,8 @@ export async function runLLMStream(params: {
     let run = delegationRuns.get(call.id);
     if (!run) {
       run = runDelegateCall(call, context).then((result) => {
+        // The end of the connection stops every other subagent at once.
+        if (result.connectionEnded) delegationStop.abort();
         if (result.event) write(`data: ${JSON.stringify(result.event)}\n\n`);
         return result;
       });
@@ -864,7 +878,13 @@ export async function runLLMStream(params: {
   const recordDelegations = async () => {
     const runs = [...delegationRuns.values()];
     delegationRuns.clear();
-    for (const { event } of await Promise.all(runs)) if (event) events.push(event);
+    // Waits for every run, however it ended, before the first failure is raised.
+    const settled = await Promise.allSettled(runs);
+    for (const outcome of settled) {
+      if (outcome.status === "fulfilled" && outcome.value.event) events.push(outcome.value.event);
+    }
+    const failed = settled.find((outcome) => outcome.status === "rejected");
+    if (failed) throw (failed as PromiseRejectedResult).reason;
   };
 
   // Tool batches still running. On a Stop or a deadline the model adapter
@@ -1052,8 +1072,11 @@ export async function runLLMStream(params: {
               name: call.name,
             })}\n\n`,
           );
+          // A turn a connected application started starts its delegations in
+          // the round, after the connection was asked, never while streaming.
           if (
             delegateContext &&
+            !connectionCheck &&
             call.name === DELEGATE_TOOL_NAME &&
             !call.invalid
           ) {
@@ -1109,6 +1132,9 @@ export async function runLLMStream(params: {
           c.name === DELEGATE_TOOL_NAME ||
           !!clientTools?.owns(c.name);
         const serverCalls = permittedCalls.filter((c) => !handledElsewhere(c));
+        // Asked once before anything of this round starts; the per-call
+        // checks below still stop a long round between calls.
+        if (connectionCheck) await requireLiveConnection(connectionCheck);
         const delegating = Promise.all(
           delegateContext
             ? delegateCalls.map((call) => startDelegation(call, delegateContext))
@@ -1134,6 +1160,7 @@ export async function runLLMStream(params: {
           write(`data: ${JSON.stringify(event)}\n\n`);
         });
         for (const call of firmCalls) {
+          await requireLiveConnection(connectionCheck);
           const { content, event } = await runFirmCriteriaCall(call, {
             db,
             userId,
@@ -1191,6 +1218,7 @@ export async function runLLMStream(params: {
               personMessage: lastPersonMessage,
               allowDocumentMutation,
               allowedCapabilities,
+              connectionCheck,
               signal,
               results: batch,
             },
@@ -1216,6 +1244,10 @@ export async function runLLMStream(params: {
         throwIfAborted(signal);
 
         const delegated = await delegating;
+        // The connection ended inside a subagent: the other subagents were
+        // stopped when it reported, and the turn ends as stopped.
+        const ended = delegated.find((result) => result.connectionEnded);
+        if (ended) throw ended.connectionEnded;
         // Once the answer has stopped or failed, its catch records these.
         throwIfAborted(delegationSignal);
         delegated.forEach(({ content }, index) =>
@@ -1271,15 +1303,20 @@ export async function runLLMStream(params: {
       // The ask_inputs event has already been emitted and persisted in `events`.
       // Stop this assistant turn here so the model does not add redundant
       // prose telling the user to answer the picker or attach documents.
-    } else if (isAbortError(err) || signal?.aborted) {
+    } else if (isAbortError(err) || isConnectionEnded(err) || signal?.aborted) {
       // Any failure after the turn's signal fired (a client tool or a tool
       // call that rejects once the stop reached it) ends the turn as
-      // stopped: that is the outcome its readers were given.
+      // stopped: that is the outcome its readers were given. So does the
+      // end of the connection that started the turn, which carries on as
+      // the cause so a parent turn recognises it from a subagent's stop.
+      // Running subagents are stopped, then waited for, before they are recorded.
+      delegationStop.abort();
       await recordDelegations().catch(() => {});
       flushPartialTurn({ emit: false });
       throw new AssistantStreamAbortError(
         fullText,
         events.map(sanitizeAssistantEvent),
+        isConnectionEnded(err) ? { cause: err } : undefined,
       );
     } else {
       delegationStop.abort();

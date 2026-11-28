@@ -14,6 +14,7 @@ vi.mock("../projectChat.prepare", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../projectChat.prepare")>()),
     prepareProjectChatStream: (...args: unknown[]) => mocks.prepareProjectChatStream(...args),
     updateChatTitle: vi.fn(async () => ({ ok: true })),
+    insertAssistantMessage: vi.fn(async () => ({ ok: true })),
 }));
 vi.mock("../../chat/chat.service", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../chat/chat.service")>()),
@@ -41,6 +42,7 @@ vi.mock("../../../lib/trainingTurn", async (importOriginal) => ({
 import { resetAssistantTurnRunsForTests } from "../../../lib/assistantTurnRuns";
 import { MAX_LIVE_RUNS_PER_USER, startStreamRun } from "../../../lib/streamRuns";
 import type { Db } from "../../../lib/supabase";
+import { scheduleMemoryConsolidation } from "../../../lib/memory/schedule";
 import {
     parseProjectChatRequest,
     runProjectChatTurn,
@@ -142,6 +144,34 @@ describe("runProjectChatTurn", () => {
         const started = await start();
         await runProjectChatTurn(db, started, sinkOf(started));
         expect(mocks.runLLMStream.mock.calls[0][0]).toMatchObject({ credentialRef: "org:o1:claude:v3" });
+    });
+
+    it("schedules no memory consolidation for a turn a connected app started, and schedules it for a web turn", async () => {
+        vi.mocked(scheduleMemoryConsolidation).mockClear();
+        const narrowed = await start(["read", "write"]);
+        await runProjectChatTurn(db, narrowed, sinkOf(narrowed));
+        expect(vi.mocked(scheduleMemoryConsolidation)).not.toHaveBeenCalled();
+
+        resetAssistantTurnRunsForTests();
+        const web = await start();
+        await runProjectChatTurn(db, web, sinkOf(web));
+        expect(vi.mocked(scheduleMemoryConsolidation)).toHaveBeenCalledTimes(1);
+    });
+
+    it("hands the connection check of a connected app's turn to the engine, and none for a turn the web starts", async () => {
+        const connectionCheck = async () => true;
+        const narrowed = await startProjectChatTurn(db, {
+            userId: "u1", userEmail: "u1@test.local", requestId: undefined, projectId: "p1", parsed,
+            allowedCapabilities: ["read"], connectionCheck,
+        });
+        if (!narrowed.ok) throw new Error("turn must start");
+        await runProjectChatTurn(db, narrowed.started, sinkOf(narrowed.started));
+        expect(mocks.runLLMStream.mock.calls[0][0].connectionCheck).toBe(connectionCheck);
+
+        resetAssistantTurnRunsForTests();
+        const web = await start();
+        await runProjectChatTurn(db, web, sinkOf(web));
+        expect(mocks.runLLMStream.mock.calls[1][0].connectionCheck).toBeUndefined();
     });
 
     it("hands a connected app's tool capabilities to the engine, and none for a turn the web starts", async () => {

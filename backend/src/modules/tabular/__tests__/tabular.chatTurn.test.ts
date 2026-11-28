@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../tabular.chats", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../tabular.chats")>()),
     prepareTabularChat: (...args: unknown[]) => mocks.prepareTabularChat(...args),
+    saveTabularChatTurn: vi.fn(async () => ({ saved: true, error: null })),
 }));
 vi.mock("../../chat/chat.service", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../chat/chat.service")>()),
@@ -24,6 +25,7 @@ vi.mock("../../../lib/memory/schedule", () => ({
 }));
 
 import type { Db } from "../../../lib/supabase";
+import { scheduleMemoryConsolidation } from "../../../lib/memory/schedule";
 import { resetStreamRunsForTests, MAX_LIVE_RUNS_PER_USER, startStreamRun } from "../../../lib/streamRuns";
 import { parseTabularChatRequest, runTabularChatTurn, startTabularChatTurn } from "../tabular.chatTurn";
 
@@ -109,6 +111,32 @@ describe("runTabularChatTurn", () => {
         });
         await runTabularChatTurn(db, await start(), sink());
         expect(mocks.runLLMStream.mock.calls[0][0]).toMatchObject({ credentialRef: "org:o1:claude:v3" });
+    });
+
+    it("schedules no memory consolidation for a turn a connected app started, and schedules it for a web turn", async () => {
+        const prepared = await mocks.prepareTabularChat.getMockImplementation()!();
+        mocks.prepareTabularChat.mockResolvedValue({ ...prepared, data: { ...prepared.data, chatId: "chat-1" } });
+        vi.mocked(scheduleMemoryConsolidation).mockClear();
+        await runTabularChatTurn(db, await start(["read", "write"]), sink());
+        expect(vi.mocked(scheduleMemoryConsolidation)).not.toHaveBeenCalled();
+
+        mocks.prepareTabularChat.mockResolvedValue({ ...prepared, data: { ...prepared.data, chatId: "chat-2" } });
+        await runTabularChatTurn(db, await start(), sink());
+        expect(vi.mocked(scheduleMemoryConsolidation)).toHaveBeenCalledTimes(1);
+    });
+
+    it("hands the connection check of a connected app's turn to the engine, and none for a turn the web starts", async () => {
+        const connectionCheck = async () => true;
+        const narrowed = await startTabularChatTurn(db, {
+            userId: "u1", userEmail: "u1@test.local", reviewId: "r1", parsed,
+            allowedCapabilities: ["read"], connectionCheck,
+        });
+        if (!narrowed.ok) throw new Error("turn must start");
+        await runTabularChatTurn(db, narrowed.started, sink());
+        expect(mocks.runLLMStream.mock.calls[0][0].connectionCheck).toBe(connectionCheck);
+
+        await runTabularChatTurn(db, await start(), sink());
+        expect(mocks.runLLMStream.mock.calls[1][0].connectionCheck).toBeUndefined();
     });
 
     it("hands a connected app's tool capabilities to the engine, and none for a turn the web starts", async () => {

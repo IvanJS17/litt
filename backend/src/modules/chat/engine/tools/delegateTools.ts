@@ -35,6 +35,7 @@ import {
 } from "./delegateRuns";
 import { scopedDocuments } from "./documentScope";
 import { createChildWebTurnState, type WebTurnState } from "./webSearchTools";
+import { isConnectionEnded } from "./connectionEnded";
 
 export const DELEGATE_TOOL_NAME = "delegate";
 export const ASK_PARENT_TOOL_NAME = "ask_parent";
@@ -312,6 +313,8 @@ export type DelegateResult = {
     event?: DelegationEvent;
     /** Connector actions the subagent paused on, for its answer to put to the user. */
     approvals?: ConnectorApprovalItem[];
+    /** Set when the connection that started the turn ended during the run; the run is recorded as cancelled. */
+    connectionEnded?: unknown;
 };
 
 const frame = (payload: Record<string, unknown>) =>
@@ -800,6 +803,7 @@ async function runDelegateCallInner(
     const records: SubagentRecord[] = [];
     let outcome: SubagentResult;
     let status: DelegationEvent["status"];
+    let connectionEnded: unknown;
     try {
         outcome = await ctx.spawn({
             apiMessages: childMessages(
@@ -859,7 +863,15 @@ async function runDelegateCallInner(
     } catch (error) {
         outcome = partialRun(error);
         const reason = stopper.reason();
-        status = reason === "parent" ? "cancelled" : reason ? "incomplete" : "failed";
+        // The end of the connection ends the whole turn, not only this run:
+        // it is recorded as stopped, like a person's stop, and handed back so
+        // the turn can stop the other subagents and end as stopped.
+        if (isConnectionEnded(error)) {
+            connectionEnded = error;
+            status = "cancelled";
+        } else {
+            status = reason === "parent" ? "cancelled" : reason ? "incomplete" : "failed";
+        }
     } finally {
         stopper.dispose();
     }
@@ -888,5 +900,6 @@ async function runDelegateCallInner(
         content: delegationResultText(event, outcome.citations, approvals, ctx.nonce),
         event,
         approvals,
+        ...(connectionEnded ? { connectionEnded } : {}),
     };
 }

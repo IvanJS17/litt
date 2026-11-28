@@ -795,6 +795,20 @@ export async function prepareTabularChat(
                 parseCellContent(c.content),
             ]),
         ),
+        // Each read of the table asks again with these (see read_table_cells).
+        recheck: {
+            // The review's row as it is at each read, not as the turn found it.
+            loadReview: async () => {
+                const { data, error } = await db
+                    .from("tabular_reviews")
+                    .select("id, user_id, project_id, org_id")
+                    .eq("id", reviewId)
+                    .maybeSingle();
+                if (error) throw error;
+                return data ?? null;
+            },
+            rows,
+        },
     };
 
     // Create or verify chat record

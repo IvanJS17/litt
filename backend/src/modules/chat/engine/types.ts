@@ -2,6 +2,8 @@
 // working; the definition lives in lib/log.ts.
 export { devLog } from "../../../lib/log";
 
+import type { ReviewRow } from "../../../lib/tabularReadAccess";
+
 // ---------------------------------------------------------------------------
 // Core types
 // ---------------------------------------------------------------------------
@@ -60,6 +62,22 @@ export type TabularCellStore = {
     string,
     { summary: string; flag?: string; reasoning?: string } | null
   >;
+  /**
+   * What each read of the table asks again with: a function that reads the
+   * review's row as it is now (null when it no longer exists; it throws when
+   * the read fails), whose access is checked, and the review's rows with their
+   * source documents, whose readability is checked. A store without it serves
+   * no cells.
+   */
+  recheck?: {
+    loadReview: () => Promise<{
+      id: string;
+      user_id: string | null;
+      project_id: string | null;
+      org_id?: string | null;
+    } | null>;
+    rows: ReviewRow[];
+  };
 };
 
 export type ToolCall = {
