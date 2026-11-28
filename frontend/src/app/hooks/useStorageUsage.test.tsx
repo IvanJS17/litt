@@ -44,6 +44,18 @@ describe("useStorageUsage", () => {
         await waitFor(() => expect(result.current.state.status).toBe("loaded"));
     });
 
+    it.each([
+        ["a figure that is text", { usedBytes: "12", limitBytes: 4 }],
+        ["a missing figure", { limitBytes: 4 }],
+        ["a figure that is not finite", { usedBytes: 1, limitBytes: Number.POSITIVE_INFINITY }],
+        ["a negative figure", { usedBytes: -5, limitBytes: 4 }],
+        ["no figures at all", null],
+    ])("treats %s as a read that failed", async (_name, answer) => {
+        api.user.mockResolvedValue(answer);
+        const { result } = renderHook(() => useStorageUsage());
+        await waitFor(() => expect(result.current.state.status).toBe("failed"));
+    });
+
     it("shows nothing for a read that was cancelled", async () => {
         const seen: AbortSignal[] = [];
         api.user.mockImplementation((signal: AbortSignal) => {

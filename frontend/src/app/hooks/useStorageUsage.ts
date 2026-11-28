@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { StorageUsage } from "@mike/contracts";
 import { getOrgStorageUsage, getUserStorageUsage } from "@/app/lib/mikeApi";
+import { isStorageUsage } from "@/app/lib/storageUsage";
 import { reportFault, type UserFacingError } from "@/app/lib/userFacingError";
 
 export type StorageUsageState =
@@ -32,7 +33,16 @@ export function useStorageUsage(orgId?: string): {
             : getOrgStorageUsage(orgId, controller.signal);
         read.then(
             (usage) => {
-                if (!controller.signal.aborted) setState({ status: "loaded", usage });
+                if (controller.signal.aborted) return;
+                // Figures that cannot be shown are a failed read, not a card of "NaN".
+                if (isStorageUsage(usage)) return setState({ status: "loaded", usage });
+                setState({
+                    status: "failed",
+                    error: reportFault(new Error("storage usage: figures are not numbers"), {
+                        action,
+                        operation: "storage.usage",
+                    }),
+                });
             },
             (error: unknown) => {
                 // A read that was cancelled has nobody left to tell.

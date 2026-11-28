@@ -27,6 +27,12 @@ describe("MeterUI", () => {
         expect(container.querySelector("[data-slot=meter-fill]")).toHaveStyle({ width: "0%" });
     });
 
+    it("shows a value that is not a number as the start of the range", () => {
+        const { container } = render(<MeterUI label="Use" value={Number.NaN} />);
+        expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
+        expect(container.querySelector("[data-slot=meter-fill]")).toHaveStyle({ width: "0%" });
+    });
+
     it("takes another range", () => {
         const { container } = render(<MeterUI label="Use" value={5} min={0} max={20} />);
         expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "20");

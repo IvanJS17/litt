@@ -4,6 +4,18 @@ import type { StorageUsage } from "@mike/contracts";
 const ALMOST_FULL_NUMERATOR = 4;
 const ALMOST_FULL_DENOMINATOR = 5;
 
+/**
+ * Whether a read gave the two figures as numbers that can be shown: finite and
+ * not negative. Anything else is treated as a read that failed.
+ */
+export function isStorageUsage(value: unknown): value is StorageUsage {
+    if (typeof value !== "object" || value === null) return false;
+    const { usedBytes, limitBytes } = value as Record<string, unknown>;
+    return [usedBytes, limitBytes].every(
+        (figure) => typeof figure === "number" && Number.isFinite(figure) && figure >= 0,
+    );
+}
+
 export type StorageLevel = "ok" | "almostFull" | "full";
 
 export type StorageMeter = {

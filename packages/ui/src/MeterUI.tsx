@@ -29,7 +29,8 @@ export function MeterUI({
     valueText,
     className,
 }: MeterUIProps): ReactElement {
-    const shown = Math.min(max, Math.max(min, value));
+    // A value that is not a number is shown as the start of the range.
+    const shown = Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : min;
     const share = max > min ? ((shown - min) / (max - min)) * 100 : 0;
     return (
         <div

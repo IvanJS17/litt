@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { storageMeter } from "./storageUsage";
+import { isStorageUsage, storageMeter } from "./storageUsage";
 
 const GIB = 1024 ** 3;
 
@@ -29,5 +29,25 @@ describe("storageMeter", () => {
 
     it("never draws below the start", () => {
         expect(storageMeter({ usedBytes: -5, limitBytes: 1000 })).toEqual({ percent: 0, level: "ok" });
+    });
+});
+
+describe("isStorageUsage", () => {
+    it("takes two finite figures that are not negative", () => {
+        expect(isStorageUsage({ usedBytes: 0, limitBytes: 0 })).toBe(true);
+        expect(isStorageUsage({ usedBytes: 5, limitBytes: 4 })).toBe(true);
+    });
+
+    it.each([
+        null,
+        "text",
+        {},
+        { usedBytes: 1 },
+        { usedBytes: "1", limitBytes: 2 },
+        { usedBytes: Number.NaN, limitBytes: 2 },
+        { usedBytes: 1, limitBytes: Number.POSITIVE_INFINITY },
+        { usedBytes: -1, limitBytes: 2 },
+    ])("refuses %j", (value) => {
+        expect(isStorageUsage(value)).toBe(false);
     });
 });
