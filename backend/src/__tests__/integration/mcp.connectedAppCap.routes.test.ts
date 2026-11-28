@@ -417,6 +417,24 @@ describe("the clean-up when a first-seen metadata-document client meets the numb
         expect(reportLines(warn)).toEqual([]);
     });
 
+    it("does not clean up again inside the minute after a clean-up that made room", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        const other = "https://other.example/oauth/client.json";
+        h.documents.set(other, doc(other));
+        seedUnapproved(CAP);
+        markIdle(2);
+        expect((await authorizeFresh(DOC_URL)).status).toBe(302);
+        expect(h.purgeCalls).toBe(1);
+        // back at the number, with rows a clean-up could remove
+        seedUnapproved(1);
+        markIdle(1);
+        advance(30_000);
+        expect((await authorizeFresh(other)).status).toBe(429);
+        expect(h.purgeCalls).toBe(1);
+        expect(h.fetched).toEqual([DOC_URL]);
+        expect(clientIds()).not.toContain(other);
+    });
+
     it("refuses when nothing could be removed, with no second clean-up inside a minute and one after it", async () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         seedUnapproved(CAP);
