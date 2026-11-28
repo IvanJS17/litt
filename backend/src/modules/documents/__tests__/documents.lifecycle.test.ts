@@ -6,6 +6,7 @@ import {
   createDocumentVersions,
   activateDocumentVersion,
   updateDocumentVersion,
+  isUploadJobNotHeld,
 } from "../documents.lifecycle";
 
 describe("document version persistence boundary", () => {
@@ -398,6 +399,98 @@ describe("a version made from a held version stays held; otherwise its maker's s
       { table: "documents", data: { org_id: null } },
     ]);
     expect(await createDocumentVersion(fake.db, made())).toMatchObject({ data: null, error: { kind: "training.copy_without_org" } });
+    fake.done();
+  });
+});
+
+describe("a version written for an upload job", () => {
+  const job = { jobId: "job-1", workerId: "worker-1" };
+  const notHeld = { code: "55000", message: "upload_job_not_held" };
+
+  it("is created by the function that proves the job in the same transaction, with its seal", async () => {
+    const fake = scriptedDb([
+      { table: "document_versions", data: [{ training_author_user_id: "pupil", training_stage: "pasante" }] },
+      { table: "documents", data: { org_id: "org" } },
+      { rpc: "create_document_version_for_upload_job", data: { id: "v" } },
+    ]);
+    await createDocumentVersion(fake.db, {
+      authorship: { kind: "copy", sourceVersionId: "source" },
+      document_id: "doc",
+      id: "v",
+      storage_path: "key",
+      source: "user_edit",
+      filename: "Copia.docx",
+    }, { job });
+    expect(fake.calls[2].args).toMatchObject({
+      p_job_id: "job-1",
+      p_worker_id: "worker-1",
+      p_document_id: "doc",
+      p_activate: true,
+      p_version: { id: "v", training_author_user_id: "pupil", training_stage: "pasante" },
+    });
+    fake.done();
+  });
+
+  it("returns the refusal of a job that is not held, and recognises it", async () => {
+    const fake = scriptedDb([{ rpc: "create_document_version_for_upload_job", error: notHeld }]);
+    const result = await createDocumentVersion(fake.db, {
+      authorship: { kind: "catalog" },
+      document_id: "doc",
+      storage_path: "key",
+      source: "upload",
+      filename: "a.pdf",
+    }, { job });
+    expect(result).toEqual({ data: null, error: notHeld });
+    expect(isUploadJobNotHeld(result.error)).toBe(true);
+    expect(isUploadJobNotHeld({ code: "P0002", message: "document_not_found" })).toBe(false);
+    // The same SQLSTATE with another message is another refusal.
+    expect(isUploadJobNotHeld({ code: "55000", message: "audit_events is insert-only" })).toBe(false);
+    expect(isUploadJobNotHeld(null)).toBe(false);
+    fake.done();
+  });
+
+  it("replaces a version through the function that proves the job, keeping the conditions", async () => {
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { rpc: "replace_document_version_for_upload_job", data: { id: "v" } },
+    ]);
+    const result = await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new/key", pdf_storage_path: null }, {
+      actorUserId: "lawyer", expectedStoragePath: "old/key", expectedContentSha256: null, job,
+    });
+    expect(result.data).toEqual({ id: "v" });
+    expect(fake.calls[1].args).toEqual({
+      p_job_id: "job-1",
+      p_worker_id: "worker-1",
+      p_document_id: "doc",
+      p_version_id: "v",
+      p_patch: { storage_path: "new/key", pdf_storage_path: null },
+      p_expect: { storage_path: "old/key", content_sha256: null },
+    });
+    fake.done();
+  });
+
+  it("answers a sealed version as sealed when no row was updated, as without a job", async () => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { table: "document_versions", data: { storage_path: "old" } },
+      { rpc: "replace_document_version_for_upload_job", data: null },
+      { table: "document_versions", data: { training_stage: "pasante" } },
+    ]);
+    expect(await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new" }, { actorUserId: "lawyer", job }))
+      .toEqual({ data: null, error: null, sealed: true });
+    fake.done();
+  });
+
+  it("returns the refusal of a replacement whose job is not held, without reading further", async () => {
+    vi.stubEnv("DB_JOBS_ENABLED", "false");
+    const fake = scriptedDb([
+      { table: "documents", data: null },
+      { table: "document_versions", data: { storage_path: "old" } },
+      { rpc: "replace_document_version_for_upload_job", error: notHeld },
+    ]);
+    const result = await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new" }, { actorUserId: "lawyer", job });
+    expect(result).toEqual({ data: null, error: notHeld });
     fake.done();
   });
 });
