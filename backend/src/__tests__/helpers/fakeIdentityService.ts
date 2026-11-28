@@ -16,6 +16,9 @@ export type Identity = {
   token: string | null;
   /** Set when the person has ever signed in. */
   lastSignInAt?: string | null;
+  /** The identity service's own ban: set by `ban_duration`, lifted by "none". */
+  bannedUntil?: string | null;
+  appMetadata?: Record<string, unknown>;
 };
 
 type Tables = Record<string, Record<string, unknown>[]>;
@@ -43,6 +46,8 @@ export function fakeIdentityService() {
     invited_at: u.invitedAt,
     last_sign_in_at: u.lastSignInAt ?? null,
     email_confirmed_at: u.confirmed ? nowIso() : null,
+    banned_until: u.bannedUntil ?? null,
+    app_metadata: { provider: "email", ...(u.appMetadata ?? {}) },
   });
   const byId = (id: string) => [...identities.entries()].find(([, u]) => u.id === id);
 
@@ -98,13 +103,33 @@ export function fakeIdentityService() {
       if (found) identities.delete(found[0]);
       return { data: {}, error: null };
     },
-    async updateUserById(id: string, attrs: { password?: string }) {
+    async updateUserById(
+      id: string,
+      attrs: { password?: string; ban_duration?: string; app_metadata?: Record<string, unknown> },
+    ) {
       const found = byId(id);
       if (found && attrs.password) {
         found[1].password = attrs.password;
         found[1].token = null;
       }
+      if (found && attrs.ban_duration !== undefined) {
+        // As observed: a duration bans, "none" lifts.
+        found[1].bannedUntil =
+          attrs.ban_duration === "none" ? null : new Date(Date.now() + 100 * 365 * 86_400_000).toISOString();
+      }
+      if (found && attrs.app_metadata) {
+        // As observed: the keys sent are merged in; a null removes its key.
+        const merged = { ...(found[1].appMetadata ?? {}), ...attrs.app_metadata };
+        for (const key of Object.keys(merged)) if (merged[key] === null) delete merged[key];
+        found[1].appMetadata = merged;
+      }
       return { data: {}, error: null };
+    },
+    async getUserById(id: string) {
+      const found = byId(id);
+      return found
+        ? { data: { user: publicUser(found[0], found[1]) }, error: null }
+        : { data: { user: null }, error: { message: "User not found" } };
     },
     /** The person opens a mailed link (the newest one unless a token is given). True when it still works. */
     openLink(email: string, token?: string) {
@@ -119,7 +144,7 @@ export function fakeIdentityService() {
     },
     canSignIn(email: string, password: string) {
       const u = identities.get(email);
-      return !!u && u.confirmed && u.password === password;
+      return !!u && u.confirmed && u.password === password && !(u.bannedUntil && Date.parse(u.bannedUntil) > Date.now());
     },
     /** `fetch` for the admin lookup. */
     fetch: async (input: unknown) => {
