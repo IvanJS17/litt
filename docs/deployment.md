@@ -833,13 +833,21 @@ Copying a document into a project or into workflow assets, taking a new
 version from another document, the assistant's copies of a document and the
 import of a workflow add-on are asked at the same door: before any object is
 copied the destination space must have room for the stored size of everything
-the request adds (all the copies of one request are asked once), with the same
-limit, the same margin for a new version and the same `storage_quota_exceeded`
-answer (HTTP 413; the assistant is told the copies were not made because the
-storage space is full); a figure that cannot be read refuses the copy. A copy
-records the size it was asked with. Copies between documents are made inside
-the object store, and the question is not atomic against an upload opened at
-the same moment.
+the request adds (all the copies of one request are asked once; a move that
+stays inside one space is not asked, because its source is deleted right
+after), with the same limit, the same margin for a new version and the same
+`storage_quota_exceeded` answer (HTTP 413; the assistant is told the copies
+were not made because the storage space is full); a figure that cannot be read
+refuses the copy. A copy records the size it was asked with. The copy into a
+project, the new version taken from another document and the copy into
+workflow assets are made inside the object store; the assistant's copies and
+the import of a workflow add-on download the bytes and upload them again. The
+question is not atomic against an upload opened at the same moment. These
+writers add stored bytes without asking the space yet: the files the assistant
+generates, the Markdown save, the assistant's tracked edits, the publication
+of a review's edits, the documents made by conversion, comparison, split or a
+note, and accepting or rejecting a tracked change, which replaces the edited
+version in place or, when that version is sealed, writes a new one.
 Two reads report the figures of the use without refusing anything: `GET /user/storage` answers a
 person's own personal space, and `GET /orgs/:orgId/storage` answers a firm's space
 only to an accepted owner or administrator of that firm; both return

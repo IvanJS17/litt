@@ -11,14 +11,15 @@
 ## In production
 
 - **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
-- **Deploy:** `20261128a`, tag `prod-20261128a`, `RELEASE_SHA` `0577c9b89` (full SHA
-  `0577c9b8996a60ddbad90ca5931e77f1a0d3691d`, the merge of #373). Previous deploy:
-  `20261127b` (`9c4f9782b`). Among earlier deploys: `prod-20261127a`, `prod-20261126a` to
+- **Deploy:** `20261128e`, tag `prod-20261128e`, `RELEASE_SHA` `7e77bcfa4` (full SHA
+  `7e77bcfa4fadd6d5a995f21e2ad6c3724482c3cf`, the merge of #381). Previous deploy:
+  `20261128d` (`247428857`). Among earlier deploys: `prod-20261128a` to `prod-20261128c`,
+  `prod-20261127a` and `prod-20261127b`, `prod-20261126a` to
   `prod-20261126e`, `prod-20261119a` and `prod-20261119b`,
   `prod-20261118a` to `prod-20261118e`, and `prod-20261117a` to `prod-20261117i` (see
   [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)). Each deploy is tagged
   `prod-YYYYMMDDx`.
-- **Contents:** every merged pull request up to #374 is in a deploy. #258 and #259 shipped in
+- **Contents:** every merged pull request up to #382 is in a deploy. #258 and #259 shipped in
   `20261119b` and `20261119c`. Shipped since `20261119c`:
   - `20261119e` (`27b776f7b`): #257, review notes for #249 to #253; #260, the Word add-in
     chooses a model before a chat, with a guide; #261, AI proposals of new obligation rules
@@ -139,9 +140,33 @@
     at the account again once its invitation is gone
     ([`organization-offboarding.md`](organization-offboarding.md)); #372, the repairs of one
     playbook operation share one time budget.
-- **Merged, not deployed:** no code. `main` differs from the deployed commit only by status
-  documents.
-- **Health:** production verified after `20261128a`: the health endpoint reports that commit, the
+  - `20261128b` (`d735cad31`): #376, the wording of the storage notices and tests that
+    were missing; #378, a sign-up value does not open a session for an account an
+    invitation created while sign-up is by invitation only, a global sign-out the
+    identity service refuses is an error, and a database gateway error without an error
+    object is an error ([`deployment.md`](deployment.md)); #377, the stored content of a
+    sealed version is never rewritten: accepting or rejecting a change, replacing its
+    file and the assistant's later edit within a turn write a new version that keeps the
+    seal ([`training.md`](training.md)); #375, status document.
+  - `20261128c` (`f8cb094b6`): #380, a copy of a stored document asks the destination
+    storage space before anything is written, as an upload does: the copy into a project
+    or into workflow assets, a new version taken from another document, the assistant's
+    copies and the import of a workflow add-on ([`deployment.md`](deployment.md)).
+  - `20261128d` (`247428857`): #379, the chat engine asks again during a turn: the chat
+    of a table review checks the review at every read of its cells, a turn a connected
+    application starts does not feed the memory, and when the connection that started a
+    turn has ended the turn stops with its subagents and is stored as stopped
+    ([`mcp-server.md`](mcp-server.md)).
+  - `20261128e` (`7e77bcfa4`): #382, a new version made from a held version stays held,
+    whoever makes it, in the application's editors and the assistant's first edit of a
+    turn ([`training.md`](training.md)); #381, a data download says when something was
+    left out because the holder cannot open it today, with a count per kind, and the
+    operator guide says what changes when a private matter is made public
+    ([`backend-architecture.md`](backend-architecture.md),
+    [`organization-offboarding.md`](organization-offboarding.md)).
+- **Merged, not deployed:** no production code. `main` differs from the deployed commit only
+  by documents and tests.
+- **Health:** production verified after `20261128e`: the health endpoint reports that commit, the
   LiTT containers that have a health check are healthy (the REST container is up and has
   none), the public pages answer, the other domains of the shared edge
   answer as before, and MCP is on (`mcp=401` without a token). The backend container runs
@@ -152,7 +177,7 @@
   inside the container was last run after `20261127a`.
 - **Migrations:** 302 in the ledger, applied in production through
   `20261127_01_litt_training_defense_word_chat_sources.sql` (applied by `20261127a`);
-  `20261127b` and `20261128a` carried none. The runner applies every
+  `20261127b` and `20261128a` to `20261128e` carried none. The runner applies every
   file the ledger does not list, in name order.
 - **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
   Beta statistics are for platform administrators only, counts only, audited
@@ -171,7 +196,7 @@
 | Request triage (Donna triage) | on (no flag) | Jev classifies each new request and the firm's AI drafts, since `20261119h` (#275); playbooks linked to request types since `20261119g` (#270); a daily cap per person and the run reservation since `20261125a` (#319). Per-project switch `donna_enabled`, on by default. [`request-triage.md`](request-triage.md) |
 | Model choice before a chat; model and reasoning guide in the selector | on (no flag) | Since `20261117g` (#240). The guide is checked against the providers' official model pages. Anthropic liveness, the previous-model notice and GLM reasoning levels since `20261117h` (#242). The Word add-in chooses a model before a chat since `20261119e` (#260). The Fable 5.2 entry is under owner review (see open items). |
 | OpenRouter streams with long pauses | on | `STREAM_CHUNK_TIMEOUT_MS=180000` in production since `20261117f` (#238). |
-| Storage space limit and use | on | A new upload is refused when the space is full since `20261126d` (#339). The use can be read since `20261127b` (#359); Settings show it, and opening an upload says when the space is almost full, since `20261128a` (#367, #374). Defaults: 10 GiB per member, shared by the firm, and 2 GiB for a personal space. [`deployment.md`](deployment.md), [`settings-map.md`](settings-map.md) |
+| Storage space limit and use | on | A new upload is refused when the space is full since `20261126d` (#339). The use can be read since `20261127b` (#359); Settings show it, and opening an upload says when the space is almost full, since `20261128a` (#367, #374). A copy of a stored document asks the same space since `20261128c` (#380). Defaults: 10 GiB per member, shared by the firm, and 2 GiB for a personal space. [`deployment.md`](deployment.md), [`settings-map.md`](settings-map.md) |
 | Current Terms required by the server | on | Since `20261128a` (#370): a signed-in request or a connected-application tool call, prompt or resource read from a person who has not accepted the current version is refused (its handshake and tool list still answer), except the routes listed in `backend/src/lib/termsGate.ts`. [`backend-architecture.md`](backend-architecture.md) |
 | Firm profile, settings map, managed accounts, text size, Light/Dark/Auto theme | on | [`firm-profile.md`](firm-profile.md), [`settings-map.md`](settings-map.md), [`managed-accounts.md`](managed-accounts.md), [`design-system.md`](design-system.md) |
 | Notion and Airtable connectors (per person and per workspace) | on | Suggested one-click MCP presets. No firm-shared connector. [`connectors.md`](connectors.md) |
@@ -212,7 +237,7 @@ matter now:
   #245; the ledger row stays open until the CI runs confirm them.
 - Dependabot pull requests open and not merged: #296 to #302. #207, #235, #236 and #237 are
   closed without a merge.
-- Owner check after `20261128a`, not yet run: sign in, upload a Word file and open a chat in
+- Owner check after `20261128e`, not yet run: sign in, upload a Word file and open a chat in
   production.
 - A frontend test failed once in CI on 2026-11-28 on a change that touched no frontend file
   and passed on the next run: the keyboard case of the guides tabs
