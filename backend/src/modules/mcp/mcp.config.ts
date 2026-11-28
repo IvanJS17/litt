@@ -5,7 +5,7 @@
 // FIXED by configuration, never derived from the request's Host header: a
 // token is only as good as the audience it names.
 
-import { wholeNumber } from "../../lib/runtimeConfig";
+import { settingInt } from "../../lib/runtimeConfig";
 
 export const MCP_SCOPES = ["litt.read", "litt.run", "litt.write", "litt.chat"] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
@@ -46,12 +46,14 @@ export type McpRateLimits = {
     writeWindowMs: number;
 };
 
-function positiveInt(raw: string | undefined, fallback: number): number {
-    // Only a whole number written in plain digits from 1 up (no sign, separator, exponent, decimals or leading zero).
-    const text = raw?.trim();
-    const parsed = text && !text.startsWith("0") ? wholeNumber(text) : null;
-    return parsed !== null && parsed > 0 ? parsed : fallback;
+/** A setting that takes only a whole number written in plain digits from 1 up (a value above `max` is `max`). */
+function positiveInt(env: NodeJS.ProcessEnv, name: string, fallback: number, max?: number): number {
+    return settingInt(name, fallback, env, { min: 1, max });
 }
+
+// Ceilings of the settings that are multiplied into times and dates.
+const MAX_ACCESS_TTL_SECONDS = 31_536_000;
+const MAX_DAYS = 36_500;
 
 function originOf(value: string | undefined): string | null {
     if (!value?.trim()) return null;
@@ -103,18 +105,18 @@ export function mcpConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
                 .map((o) => originOf(o))
                 .filter((o): o is string => !!o),
         ),
-        accessTtlSeconds: positiveInt(env.LITT_MCP_ACCESS_TTL_SECONDS, 3600),
-        refreshTtlSeconds: positiveInt(env.LITT_MCP_REFRESH_TTL_DAYS, 30) * 86_400,
-        grantMaxAgeSeconds: positiveInt(env.LITT_MCP_GRANT_MAX_DAYS, 90) * 86_400,
+        accessTtlSeconds: positiveInt(env, "LITT_MCP_ACCESS_TTL_SECONDS", 3600, MAX_ACCESS_TTL_SECONDS),
+        refreshTtlSeconds: positiveInt(env, "LITT_MCP_REFRESH_TTL_DAYS", 30, MAX_DAYS) * 86_400,
+        grantMaxAgeSeconds: positiveInt(env, "LITT_MCP_GRANT_MAX_DAYS", 90, MAX_DAYS) * 86_400,
         codeTtlSeconds: 60,
         requestTtlSeconds: 600,
-        unapprovedClientsMax: positiveInt(env.LITT_MCP_UNAPPROVED_CLIENTS_MAX, 10_000),
+        unapprovedClientsMax: positiveInt(env, "LITT_MCP_UNAPPROVED_CLIENTS_MAX", 10_000),
         rateLimits: {
-            readMax: positiveInt(env.RATE_LIMIT_MCP_GRANT_READ_MAX, 120),
-            readWindowMs: positiveInt(env.RATE_LIMIT_MCP_GRANT_READ_WINDOW_SECONDS, 60) * 1000,
-            writeMax: positiveInt(env.RATE_LIMIT_MCP_GRANT_WRITE_MAX, 30),
+            readMax: positiveInt(env, "RATE_LIMIT_MCP_GRANT_READ_MAX", 120),
+            readWindowMs: positiveInt(env, "RATE_LIMIT_MCP_GRANT_READ_WINDOW_SECONDS", 60) * 1000,
+            writeMax: positiveInt(env, "RATE_LIMIT_MCP_GRANT_WRITE_MAX", 30),
             writeWindowMs:
-                positiveInt(env.RATE_LIMIT_MCP_GRANT_WRITE_WINDOW_MINUTES, 15) * 60_000,
+                positiveInt(env, "RATE_LIMIT_MCP_GRANT_WRITE_WINDOW_MINUTES", 15) * 60_000,
         },
     };
 }

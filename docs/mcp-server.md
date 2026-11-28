@@ -33,11 +33,13 @@ route answers: the requests fall through to the normal 404.
 | `RATE_LIMIT_MCP_REGISTER_MAX` / `RATE_LIMIT_MCP_REGISTER_WINDOW_HOURS` | 60 / 1 | Registrations from one address. |
 | `RATE_LIMIT_MCP_AUTHORIZE_MAX` / `RATE_LIMIT_MCP_AUTHORIZE_WINDOW_HOURS` | 120 / 1 | `GET /oauth/authorize` requests from one address. The consent page and the token endpoints are not counted. |
 
-`LITT_MCP_ACCESS_TTL_SECONDS`, `LITT_MCP_REFRESH_TTL_DAYS`, `LITT_MCP_GRANT_MAX_DAYS`,
-`LITT_MCP_UNAPPROVED_CLIENTS_MAX` and the four `RATE_LIMIT_MCP_GRANT_*` settings are taken only when
-written as a whole number in plain digits, from 1 up, with at most 15 digits and no leading zero
-(`10000`, not `10,000`, `10k`, `1e4` or `010`; spaces around the number are ignored); any other
-value uses the default.
+Every numeric setting above (and every `RATE_LIMIT_*` setting of the backend) is taken only when written
+as a whole number in plain digits, from 1 up (from 0 for `LITT_MCP_RUN_WAIT_MS` and `LITT_MCP_RUN_POLL_MS`),
+with at most 15 digits and no leading zero (`10000`, not `10,000`, `10k`, `1e4` or `010`; spaces around
+the number are ignored); any other value uses the default and the backend writes one line naming the setting
+(never its value) the first time it is read. `LITT_MCP_ACCESS_TTL_SECONDS` has a ceiling of 31 536 000
+(one year) and `LITT_MCP_REFRESH_TTL_DAYS` and `LITT_MCP_GRANT_MAX_DAYS` of 36 500: a larger value is the
+ceiling, and the same line says so.
 
 The proxy that makes the backend reachable at the MCP host, its DNS name and
 its Caddy block are infrastructure and are not part of the backend.

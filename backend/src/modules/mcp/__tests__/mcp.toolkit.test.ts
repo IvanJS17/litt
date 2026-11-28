@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { decodeCursor, encodeCursor, originOf, untrusted, windowOf } from "../mcp.toolkit";
+import { decodeCursor, encodeCursor, originOf, runWait, untrusted, windowOf } from "../mcp.toolkit";
 import { McpToolError } from "../mcp.tools";
 import { isAmbiguous, matchScore } from "../mcp.tools.matters";
 
@@ -156,5 +156,22 @@ describe("a window read from part of a text", () => {
         const points = Array.from(text);
         const part = points.slice(offset, offset + limit).join("");
         expect(windowOf(part, offset, limit, { start: offset, total: points.length })).toEqual(windowOf(text, offset, limit));
+    });
+});
+
+describe("how long a run waits", () => {
+    const read = (wait: string | undefined, poll: string | undefined) =>
+        runWait({ LITT_MCP_RUN_WAIT_MS: wait, LITT_MCP_RUN_POLL_MS: poll } as NodeJS.ProcessEnv);
+    it("takes plain whole numbers, zero included", () => {
+        expect(read("0", "0")).toEqual({ maxMs: 0, intervalMs: 10 });
+        expect(read(" 300 ", " 50 ")).toEqual({ maxMs: 300, intervalMs: 50 });
+        expect(read("999999999", "20")).toEqual({ maxMs: 120_000, intervalMs: 20 });
+    });
+    it("uses the defaults for anything that is not a plain whole number", () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        for (const value of ["10,000", "10k", "1e9", "2.5", "-5", "+5", "05", "0x10", "1_000", "", "9".repeat(16)])
+            expect(read(value, value), JSON.stringify(value)).toEqual({ maxMs: 45_000, intervalMs: 1_000 });
+        expect(read(undefined, undefined)).toEqual({ maxMs: 45_000, intervalMs: 1_000 });
+        warn.mockRestore();
     });
 });

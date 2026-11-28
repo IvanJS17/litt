@@ -13,6 +13,7 @@ import { AppError } from "../../lib/appError";
 import { chunkArray } from "../../lib/arrays";
 import { ID_FILTER_BATCH_SIZE } from "../../lib/batchedQuery";
 import { findDocumentsOutsideWorkspace } from "../../lib/documentWorkspace";
+import { settingInt } from "../../lib/runtimeConfig";
 import { UUID_PATTERN } from "../../lib/uuid";
 import { getDocument } from "../documents/documents.service";
 import { PERSONAL_WORKSPACE } from "./mcp.principal";
@@ -276,13 +277,10 @@ export function serviceFailure(operation: string, cause?: unknown): AppError {
  * Clients cut a call off at ~240 s, so the default is well under that.
  */
 export function runWait(env: NodeJS.ProcessEnv = process.env): { maxMs: number; intervalMs: number } {
-    const read = (raw: string | undefined, fallback: number) => {
-        const parsed = Number.parseInt(raw ?? "", 10);
-        return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
-    };
+    const read = (name: string, fallback: number) => settingInt(name, fallback, env, { min: 0 });
     return {
-        maxMs: Math.min(read(env.LITT_MCP_RUN_WAIT_MS, 45_000), 120_000),
-        intervalMs: Math.max(read(env.LITT_MCP_RUN_POLL_MS, 1_000), 10),
+        maxMs: Math.min(read("LITT_MCP_RUN_WAIT_MS", 45_000), 120_000),
+        intervalMs: Math.max(read("LITT_MCP_RUN_POLL_MS", 1_000), 10),
     };
 }
 

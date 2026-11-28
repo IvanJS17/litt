@@ -22,6 +22,8 @@
 // so a call that is turned away is recorded as an `error` call (not an
 // action) and has left nothing behind.
 
+import { settingInt } from "../../lib/runtimeConfig";
+
 export type HeavyClass = "sync" | "background";
 
 export const HEAVY_JOBS_BUSY = "heavy_jobs_busy";
@@ -49,15 +51,10 @@ type Slot = {
 
 const slots = new Set<Slot>();
 
-function limit(raw: string | undefined, fallback: number): number {
-    const parsed = Number.parseInt(raw ?? "", 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 export function heavyLimits(env: NodeJS.ProcessEnv = process.env): { perUser: number; global: number } {
     return {
-        perUser: limit(env.LITT_MCP_HEAVY_PER_USER, DEFAULT_HEAVY_PER_USER),
-        global: limit(env.LITT_MCP_HEAVY_GLOBAL, DEFAULT_HEAVY_GLOBAL),
+        perUser: settingInt("LITT_MCP_HEAVY_PER_USER", DEFAULT_HEAVY_PER_USER, env),
+        global: settingInt("LITT_MCP_HEAVY_GLOBAL", DEFAULT_HEAVY_GLOBAL, env),
     };
 }
 

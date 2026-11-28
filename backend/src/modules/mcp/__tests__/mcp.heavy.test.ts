@@ -255,3 +255,13 @@ describe("heavy_jobs_busy as a user-facing code", () => {
         expect(readFileSync(join(root, "backend/src/lib/observability/diagnostics.ts"), "utf8")).toContain(" heavy_jobs_busy ");
     });
 });
+
+describe("the settings of the heavy-job cap are plain whole numbers from 1", () => {
+    afterEach(() => vi.restoreAllMocks());
+    it("uses the default for anything else and takes a plain number", () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        for (const value of ["10,000", "10k", "1e9", "2.5", "-5", "+5", "05", "0", "", "  ", "9".repeat(16)])
+            expect(heavyLimits({ LITT_MCP_HEAVY_PER_USER: value, LITT_MCP_HEAVY_GLOBAL: value }), JSON.stringify(value)).toEqual({ perUser: 2, global: 4 });
+        expect(heavyLimits({ LITT_MCP_HEAVY_PER_USER: " 7 ", LITT_MCP_HEAVY_GLOBAL: "9" })).toEqual({ perUser: 7, global: 9 });
+    });
+});
