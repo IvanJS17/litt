@@ -150,8 +150,8 @@ lifted the request fails and the account stays blocked (a firm invitation can
 be re-sent; a platform invitation has no re-send, so the way through is to
 withdraw it and invite again). A ban without the mark
 is never lifted by an invitation. The sign-in of a blocked account is answered
-as refused credentials are. A block or a lift that is written is recorded in
-the audit log.
+as refused credentials are. A block or a lift that is written also writes an
+audit row; if that row cannot be written the block or the lift still stands.
 
 ## Joining during signup
 
