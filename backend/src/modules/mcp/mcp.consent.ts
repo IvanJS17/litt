@@ -111,7 +111,7 @@ export async function getConsentView(
         if (!clientQuery.data)
             return failure("not_found", "This connection request has expired.", "mcp_request_expired");
         // A person is looking at this request: the client is in use, so the
-        // clean-up of idle clients keeps it (and the request) for seven more days.
+        // clean-up of idle clients keeps it, and so its open request.
         const mark = await db
             .from("mcp_oauth_clients")
             .update({ last_used_at: nowIso() })

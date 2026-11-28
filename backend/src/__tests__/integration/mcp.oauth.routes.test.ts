@@ -460,6 +460,23 @@ describe("opening the approval screen marks the client as in use", () => {
         expect(tables().mcp_oauth_requests).toHaveLength(1);
     });
 
+    it("marks only the client of the request the person opened", async () => {
+        seedOld();
+        tables().mcp_oauth_clients.push({
+            client_id: "litt_dcr_other_old",
+            kind: "dcr",
+            client_name: "Other",
+            redirect_uris: [REDIRECT],
+            created_at: new Date(Date.now() - 8 * DAY).toISOString(),
+            last_used_at: null,
+        });
+        const requestId = await openRequestFor();
+        expect((await request(app).get(`/mcp-connect/authorizations/${requestId}`)).status).toBe(200);
+        expect(client().last_used_at ?? null).not.toBeNull();
+        const other = tables().mcp_oauth_clients.find((c) => c.client_id === "litt_dcr_other_old")!;
+        expect(other.last_used_at ?? null).toBeNull();
+    });
+
     it("is not done by the authorization request without a session", async () => {
         seedOld();
         const res = await authorize({ clientId: "litt_dcr_old" });

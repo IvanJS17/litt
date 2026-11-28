@@ -82,8 +82,8 @@ its Caddy block are infrastructure and are not part of the backend.
   request is refused only if the number is still met afterwards), or when the
   operator raises the
   number. A signed-in person opening the approval screen of a request marks
-  its client as in use, so the clean-up keeps the client and the request for
-  seven more days; an authorization request without a session never does. The refusal is written
+  its client as in use, which keeps the client, and so its open request, from
+  the clean-up; `GET /oauth/authorize` never marks a client. The refusal is written
   to the server log once per process and kind, without the client or the
   address. The token endpoints never create a client: a first-seen client
   there is unknown (`invalid_client`), with nothing fetched or written. So per
