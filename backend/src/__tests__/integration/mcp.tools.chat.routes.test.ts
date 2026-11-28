@@ -808,6 +808,39 @@ describe("GET /mcp-connect/grants/:id/activity", () => {
         expect(JSON.stringify(got.data)).not.toContain("origin_grant_id");
     });
 
+    it("returns the id of the connection in none of the conversation reads of the web", async () => {
+        as("owner");
+        const token = await connect();
+        const started = await callTool(token, "start_chat", { message: "hola", matter_id: PROJECT_PUBLIC });
+        const chatId = started.data.chat_id as string;
+        tables().chat_messages.push({
+            id: randomUUID(),
+            chat_id: chatId,
+            role: "user",
+            content: "desde la app",
+            created_at: "2026-11-28T10:00:00Z",
+            origin: "mcp",
+            origin_grant_id: grantId(),
+            origin_label: "Claude",
+        });
+        expect(tables().chats.find((c) => c.id === chatId)).toHaveProperty("origin_grant_id", grantId());
+        const reads = [
+            "/chat",
+            `/chat/${chatId}`,
+            `/chat/${chatId}/people`,
+            `/chat/${chatId}/access`,
+            `/projects/${PROJECT_PUBLIC}/chats`,
+        ];
+        for (const path of reads) {
+            const res = await request(app).get(path);
+            expect(res.status, path).toBe(200);
+            expect(JSON.stringify(res.body), path).not.toContain(grantId());
+            expect(JSON.stringify(res.body), path).not.toContain("origin_grant_id");
+        }
+        const matter = await request(app).get(`/projects/${PROJECT_PUBLIC}/chats`);
+        expect((matter.body as { id: string }[]).map((c) => c.id)).toContain(chatId);
+    });
+
     it("keeps the conversations after the connection is removed, without the link", async () => {
         as("owner");
         const token = await connect();

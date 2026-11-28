@@ -13,6 +13,7 @@
 // DB preparation live here. `prepareChatStream` returns the prepared data the
 // route needs to run the stream; it does not stream.
 import { type Db } from "../../lib/supabase";
+import { withoutConnectionId } from "../../lib/connectionId";
 import { checkProjectAccess, ensureChatAccess } from "../../lib/access";
 import { can, type ProjectRole } from "../../lib/permissions";
 
@@ -94,7 +95,8 @@ export async function getAccessibleChat(
     if (!access.ok) return { ok: false };
     return {
         ok: true,
-        chat: row,
+        // The id of the connection that started the chat is not for its readers.
+        chat: withoutConnectionId(row),
         isCreator: access.isCreator,
         projectRole: access.projectRole,
     };

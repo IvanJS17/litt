@@ -8,6 +8,7 @@ import {
     type OrgRole,
 } from "../../lib/access";
 import { readableChatMessages } from "../../lib/chatReadAccess";
+import { withoutConnectionId } from "../../lib/connectionId";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import { type Db } from "../../lib/supabase";
@@ -91,8 +92,8 @@ async function selectByIds(
  * returned to a client: a row of the chats or review-chat messages leaves
  * without it, and keeps its origin and the app's name.
  */
-function withoutConnectionId<T extends Row>(rows: T[]): T[] {
-    return rows.map(({ origin_grant_id: _connection, ...rest }) => rest as unknown as T);
+function withoutConnectionIds<T extends Row>(rows: T[]): T[] {
+    return rows.map(withoutConnectionId);
 }
 
 /**
@@ -218,7 +219,7 @@ async function loadReadableTabularTranscriptsJudged(
     const judged = judgeChats(all, messages);
     holdBack(tally, "table_review_chats", countChatsHeldBack(judged));
     return {
-        result: { chats: withReadableTitles(chats, all, messages), messages: withoutConnectionId(messages) },
+        result: { chats: withReadableTitles(chats, all, messages), messages: withoutConnectionIds(messages) },
         judged,
     };
 }
@@ -283,8 +284,8 @@ async function loadUserChatsJudged(
     holdBack(tally, "conversations", withheld.size);
     return {
         result: {
-            chats: withoutConnectionId(chats).map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
-            messages: withoutConnectionId(messages),
+            chats: withoutConnectionIds(chats).map((chat) => (withheld.has(chat.id as string) ? { ...chat, title: null } : chat)),
+            messages: withoutConnectionIds(messages),
         },
         judged: judgeChats(all, messages),
     };

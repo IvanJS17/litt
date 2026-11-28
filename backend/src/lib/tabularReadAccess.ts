@@ -31,6 +31,7 @@ import {
 } from "./access";
 import { AppError } from "./appError";
 import { selectAllByKey, selectAllPages, selectInBatches } from "./batchedQuery";
+import { withoutConnectionId } from "./connectionId";
 import { reportError } from "./observability/report";
 import { ACCESS_RECHECK_MS, answeredInTime } from "./streamRuns";
 import type { Db } from "./supabase";
@@ -280,7 +281,8 @@ export async function selectCompleteChatMessages(
     // means a page was capped or lost.
     if (rows.length < expected)
         throw new Error("Incomplete chat message read");
-    return rows;
+    // Whatever columns were asked for, the connection a message came from stays out.
+    return rows.map((row) => withoutConnectionId(row));
 }
 
 /**

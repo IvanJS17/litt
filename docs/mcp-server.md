@@ -542,25 +542,26 @@ and recorded as `mcp.chat_egress` (chat, message, characters) before they go out
 Conversations live in the person's history like any other; the web list shows "Desde <app>"
 from `chats.origin` / `origin_label` (migration `20261117_10_litt_chat_origin.sql`).
 
-Every message a connected app writes into a conversation, a new one or one that already
-exists, carries a mark of its own (`origin = 'mcp'`, `origin_grant_id`, `origin_label` on
-`chat_messages` and on `tabular_review_chat_messages`, the threads of a table review; migration
+Every message a connected app writes into a conversation, a new one or one that already exists,
+carries a mark of its own (`origin = 'mcp'`, `origin_grant_id`, `origin_label` on `chat_messages`
+and on `tabular_review_chat_messages`, the threads of a table review; migration
 `20261128_02_litt_message_origin.sql`). The mark is set only by the tools that write the message,
 never from a request body, and it stays after the connection is removed. The person sees one line
 of plain text under the message, "Desde <app>" ("From <app>"), or "Desde una app conectada" when
-the name is not known; the connection's id is never returned to a client. The assistant reads the
-message after one fixed line saying it was sent through an app the person connected, on their
-behalf, and not typed by them in LiTT, with the text inside an `<app-message nonce>` fence of its
-own: it treats it as the person's request, subject to the system rules (the same limits as a
-workflow's instructions; documents and fetched text stay data), and the text cannot open or
-close the fence. The line never names the app. The mark is information: it changes no permission
-and asks for no confirmation. If the mark cannot be read, the turn fails rather than presenting
-an app's text as the person's own. A message of the history carries the mark when its text equals
-the stored text of a message an app wrote in that conversation (no position is involved; a message
-the person typed with exactly that text carries it too, and a message whose text changed after it
-was stored does not). Messages written before the migration are
-not marked (they cannot be told apart).
-A restart of the backend turns a running answer into `interrupted`.
+the name is not known; the conversation reads and the downloads never return the id of the
+connection a conversation or a message came from (a person's own connections list,
+`GET /mcp-connect/grants`, and their own activity record name their own connections). The assistant
+reads the message after one fixed line saying it was sent through an app the person connected, on
+their behalf, and not typed by them in LiTT, with the text inside an `<app-message nonce>` fence of
+its own: it treats it as the person's request, subject to the system rules (the same limits as a
+workflow's instructions; documents and fetched text stay data), and the text cannot open or close
+the fence. The line never names the app. The mark is information: it changes no permission and asks
+for no confirmation. If the mark cannot be read, the turn fails rather than presenting an app's
+text as the person's own. A message of the history carries the mark when its text equals the stored
+text of a message an app wrote in that conversation (no position is involved; a message the person
+typed with exactly that text carries it too, and a message whose text changed after it was stored
+does not). Messages written before the migration are not marked (they cannot be told apart). A
+restart of the backend turns a running answer into `interrupted`.
 
 **Sessions.** `GET /mcp-connect/grants/:id/activity` (the «Aplicaciones conectadas» tab)
 lists a connection's recent calls (tool, time, workspace, outcome: `mcp_tool_calls` holds
