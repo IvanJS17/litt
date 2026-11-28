@@ -82,6 +82,20 @@ matter teammate with the highest role (the earliest on a tie), or to the
 successor chosen in the departure when the matter has no teammate left
 (`20261108_10_litt_public_matter_project_succession.sql`). The matter itself
 is unchanged and owners and admins do not inherit the project by their role.
+While a matter is private its project is open only to the matter's team. When
+the matter is made public nothing is rewritten: the project's own visibility
+and the access entries on it stay as they are, and later
+changes to the team no longer move them. What changes is that the team is no
+longer the only door: the project's own rules decide, so its creator (while
+still a member of the organization), an organization owner (when the project
+is visible to the organization, or has no owner left) and anyone holding an
+access entry that grants a role can open it. An entry that denies closes it to
+its holder, unless the holder is its creator or such an organization owner.
+When the project is visible to the organization, every other member of the
+organization has the editor role. Before making a matter public, review who
+those rules admit and remove what is not wanted. The application has no
+function to change a matter's visibility; it is done in the database.
+
 The screens for these actions are pending
 (TD-029). Apply these migrations, in order, before deploying the backend:
 

@@ -2,6 +2,7 @@ import { checkProjectAccess } from "../../lib/access";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import type { Db } from "../../lib/supabase";
+import { holdBack, type HeldBack } from "./heldBackTally";
 
 type Row = Record<string, unknown>;
 
@@ -17,6 +18,11 @@ const ids = (rows: Row[], column = "id") =>
  * organization, an active matter membership, and the project gate open. Matter
  * work stays with the firm, so what a matter the holder was removed from
  * names is not theirs to take.
+ *
+ * `closed`, when given, receives the matters left out only because the project's
+ * door is closed to the holder today (in this organization, an active member):
+ * the ones the download counts. A matter of another organization, or one the
+ * holder is no longer on, is the firm's and is not reported.
  */
 export async function readableMatterIds(
     db: Db,
@@ -24,6 +30,7 @@ export async function readableMatterIds(
     userEmail: string | null | undefined,
     orgId: string,
     matterIds: string[],
+    closed?: Set<string>,
 ): Promise<Set<string>> {
     const matters = await selectInBatches<Row>("export matters", matterIds, (batch) =>
         (db as any).from("matters").select("id, project_id, workspace_id").in("id", batch),
@@ -44,9 +51,21 @@ export async function readableMatterIds(
     const openable = await mapWithConcurrency(matters, 8, async (matter) => {
         if (!inOrg.has(matter.workspace_id as string) || !member.has(matter.id as string) || typeof matter.project_id !== "string")
             return false;
-        return (await checkProjectAccess(matter.project_id, userId, userEmail, db)).ok;
+        const ok = (await checkProjectAccess(matter.project_id, userId, userEmail, db)).ok;
+        if (!ok) closed?.add(matter.id as string);
+        return ok;
     });
     return new Set(matters.filter((_, index) => openable[index]).map((row) => row.id as string));
+}
+
+/**
+ * Of the rows of one kind, keep those of a matter the holder can open and count
+ * under `kind` the ones left out because the project's door is closed to them.
+ */
+export function keepReadableMatterRows(rows: Row[], readable: Set<string>, closed: Set<string>, tally: HeldBack | undefined, kind: string): Row[] {
+    const kept = rows.filter((row) => readable.has(row.matter_id as string));
+    if (tally) holdBack(tally, kind, rows.filter((row) => closed.has(row.matter_id as string)).length);
+    return kept;
 }
 
 /**
@@ -62,6 +81,7 @@ export async function loadUserMatterRequests(
     userId: string,
     userEmail: string | null | undefined,
     orgId: string | null,
+    tally?: HeldBack,
 ): Promise<{ requests: Row[]; events: Row[] }> {
     if (!orgId) return { requests: [], events: [] };
     const named = async (column: string) =>
@@ -75,17 +95,22 @@ export async function loadUserMatterRequests(
     const matterIds = ids(candidates, "matter_id");
     if (matterIds.length === 0) return { requests: [], events: [] };
 
-    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    const closed = new Set<string>();
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds, closed);
 
-    const requests = candidates.filter((row) => readable.has(row.matter_id as string));
-    const events = (
+    const requests = keepReadableMatterRows(candidates, readable, closed, tally, "matter_requests");
+    const events = keepReadableMatterRows(
         await selectAllByKey<Row>("export matter_request_events", () =>
             (db as any)
                 .from("matter_request_events")
                 .select("id, request_id, matter_id, action, detail, created_at")
                 .eq("actor_user_id", userId),
-        )
-    ).filter((row) => readable.has(row.matter_id as string));
+        ),
+        readable,
+        closed,
+        tally,
+        "matter_request_events",
+    );
     return {
         requests: sortRows(requests, "created_at", "id"),
         events: sortRows(events, "created_at", "id"),

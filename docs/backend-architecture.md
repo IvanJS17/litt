@@ -576,7 +576,28 @@ queue adapters in `application/jobs/`. The registry imports these adapters direc
 `orgs.deletion.ts` retains recovery-period organization suspension.
 `application/exports/` validates/enqueues requests and builds artifacts, checking
 permissions again when a queued request executes. No domain facade re-exports
-these workflows.
+these workflows. Every JSON download (account, chats only, table reviews only)
+carries a top-level `held_back` field, in Spanish and English with a count per
+kind and never a name or an id, only when it left something out because the
+holder cannot open it, or what it was drawn from, today (projects, workflows,
+conversations and Word chats, table reviews, their chats and cells, projects
+and table reviews shared with the holder, documents, playbook runs, training
+records, matter requests and other matter records). A row kept with content
+blanked because its source cannot be found is counted once: a playbook run
+whose document was deleted; and, when there was something to blank, a training
+reading whose document was deleted, a defense with no work review recorded (a
+practice-area defense, or one whose review was deleted) and a retake whose
+notes cannot all be found. Where a download carries the table reviews, a review
+the holder cannot open is counted once and covers its chats and cells; the
+chats-only download counts the chats.
+Archived rows and the records of an organization the holder has left are not
+counted, except where the reason cannot be told apart without a second access
+check: a record whose chat or review no longer exists, a row refused at read
+time where the holder's membership of its organization is not at hand, and a
+matter record whose project is archived are counted. Records that belong to no
+matter or project of the workspace being downloaded (a matter without a project
+or without its row, a question or answer without a matter, a suggestion with
+neither) are outside the download and are not counted.
 
 Projects own `projects.lifecycle.ts` and `projects.export.ts`. Document lifecycle
 mutations continue through documents. Shared credential persistence, precedence

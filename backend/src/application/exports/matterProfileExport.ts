@@ -2,7 +2,8 @@ import { checkProjectAccess } from "../../lib/access";
 import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import type { Db } from "../../lib/supabase";
-import { readableMatterIds } from "./matterRequestsExport";
+import { holdBack, type HeldBack } from "./heldBackTally";
+import { keepReadableMatterRows, readableMatterIds } from "./matterRequestsExport";
 
 type Row = Record<string, unknown>;
 
@@ -21,6 +22,7 @@ export async function loadUserProfileFacts(
     userId: string,
     userEmail: string | null | undefined,
     orgId: string | null,
+    tally?: HeldBack,
 ): Promise<{ facts: Row[]; events: Row[] }> {
     if (!orgId) return { facts: [], events: [] };
     const facts = await selectAllByKey<Row>("export matter_profile_facts", () =>
@@ -37,10 +39,11 @@ export async function loadUserProfileFacts(
     );
     const matterIds = [...new Set([...facts, ...events].map((row) => row.matter_id as string))];
     if (matterIds.length === 0) return { facts: [], events: [] };
-    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    const closed = new Set<string>();
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds, closed);
     return {
-        facts: sortRows(facts.filter((row) => readable.has(row.matter_id as string))),
-        events: sortRows(events.filter((row) => readable.has(row.matter_id as string))),
+        facts: sortRows(keepReadableMatterRows(facts, readable, closed, tally, "matter_profile_facts")),
+        events: sortRows(keepReadableMatterRows(events, readable, closed, tally, "matter_profile_fact_events")),
     };
 }
 
@@ -55,6 +58,7 @@ export async function loadUserRadarEvents(
     userId: string,
     userEmail: string | null | undefined,
     orgId: string | null,
+    tally?: HeldBack,
 ): Promise<Row[]> {
     if (!orgId) return [];
     const events = await selectAllByKey<Row>("export matter_radar_item_events", () =>
@@ -65,8 +69,9 @@ export async function loadUserRadarEvents(
     );
     const matterIds = [...new Set(events.map((row) => row.matter_id as string))];
     if (matterIds.length === 0) return [];
-    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
-    return sortRows(events.filter((row) => readable.has(row.matter_id as string)));
+    const closed = new Set<string>();
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds, closed);
+    return sortRows(keepReadableMatterRows(events, readable, closed, tally, "matter_radar_events"));
 }
 
 /**
@@ -81,6 +86,7 @@ export async function loadUserObligationEvents(
     userId: string,
     userEmail: string | null | undefined,
     orgId: string | null,
+    tally?: HeldBack,
 ): Promise<{ rules: Row[]; items: Row[] }> {
     if (!orgId) return { rules: [], items: [] };
     const rules = await selectAllByKey<Row>("export matter_obligation_rule_events", () =>
@@ -97,10 +103,11 @@ export async function loadUserObligationEvents(
     );
     const matterIds = [...new Set([...rules, ...items].map((row) => row.matter_id as string))];
     if (matterIds.length === 0) return { rules: [], items: [] };
-    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
+    const closed = new Set<string>();
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds, closed);
     return {
-        rules: sortRows(rules.filter((row) => readable.has(row.matter_id as string))),
-        items: sortRows(items.filter((row) => readable.has(row.matter_id as string))),
+        rules: sortRows(keepReadableMatterRows(rules, readable, closed, tally, "matter_obligation_rule_events")),
+        items: sortRows(keepReadableMatterRows(items, readable, closed, tally, "matter_obligation_item_events")),
     };
 }
 
@@ -115,6 +122,7 @@ export async function loadUserReportSentEvents(
     userId: string,
     userEmail: string | null | undefined,
     orgId: string | null,
+    tally?: HeldBack,
 ): Promise<Row[]> {
     if (!orgId) return [];
     const events = await selectAllByKey<Row>("export matter_report_sent_events", () =>
@@ -125,8 +133,9 @@ export async function loadUserReportSentEvents(
     );
     const matterIds = [...new Set(events.map((row) => row.matter_id as string))];
     if (matterIds.length === 0) return [];
-    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds);
-    return sortRows(events.filter((row) => readable.has(row.matter_id as string)));
+    const closed = new Set<string>();
+    const readable = await readableMatterIds(db, userId, userEmail, orgId, matterIds, closed);
+    return sortRows(keepReadableMatterRows(events, readable, closed, tally, "matter_report_sent_events"));
 }
 
 /**
@@ -143,6 +152,7 @@ export async function loadUserRuleSuggestions(
     userId: string,
     userEmail: string | null | undefined,
     orgId: string | null,
+    tally?: HeldBack,
 ): Promise<{ suggestions: Row[]; events: Row[]; questions: Row[]; answers: Row[] }> {
     if (!orgId) return { suggestions: [], events: [], questions: [], answers: [] };
     const suggestions = await selectAllByKey<Row>("export obligation_rule_suggestions", () =>
@@ -172,26 +182,41 @@ export async function loadUserRuleSuggestions(
     );
     // A draft's event names no matter and no project: its project is its suggestion's.
     const projectOf = new Map(suggestions.map((row) => [row.id as string, row.project_id as string | null]));
+    const orgOf = new Map(suggestions.map((row) => [row.id as string, row.org_id as string | null]));
     const missing = [...new Set(events.filter((row) => row.matter_id == null && !projectOf.has(row.suggestion_id as string)).map((row) => row.suggestion_id as string))];
     if (missing.length > 0) {
         const parents = await selectInBatches<Row>("export obligation_rule_suggestions parents", missing, (batch) =>
-            (db as any).from("obligation_rule_suggestions").select("id, project_id").in("id", batch),
+            (db as any).from("obligation_rule_suggestions").select("id, project_id, org_id").in("id", batch),
         );
-        for (const parent of parents) projectOf.set(parent.id as string, parent.project_id as string | null);
+        for (const parent of parents) {
+            projectOf.set(parent.id as string, parent.project_id as string | null);
+            orgOf.set(parent.id as string, parent.org_id as string | null);
+        }
     }
     const matterIds = [...new Set([...suggestions, ...events, ...questions, ...answers].map((row) => row.matter_id as string | null).filter((id): id is string => typeof id === "string"))];
-    const readable = matterIds.length > 0 ? await readableMatterIds(db, userId, userEmail, orgId, matterIds) : new Set<string>();
+    const closed = new Set<string>();
+    const readable = matterIds.length > 0 ? await readableMatterIds(db, userId, userEmail, orgId, matterIds, closed) : new Set<string>();
     const projectIds = [...new Set([...projectOf.values()].filter((id): id is string => typeof id === "string"))];
     const openable = new Set<string>();
+    const shut = new Set<string>();
     await mapWithConcurrency(projectIds, 8, async (projectId) => {
         if ((await checkProjectAccess(projectId, userId, userEmail, db)).ok) openable.add(projectId);
+        else shut.add(projectId);
     });
     const keep = (row: Row, project: string | null | undefined) =>
         typeof row.matter_id === "string" ? readable.has(row.matter_id) : typeof project === "string" && openable.has(project);
+    // Counted: the matter's project is closed to the holder, or a draft's project (of this organization) is.
+    const counted = (row: Row, project: string | null | undefined, org: string | null | undefined) =>
+        !keep(row, project) &&
+        (typeof row.matter_id === "string" ? closed.has(row.matter_id) : org === orgId && typeof project === "string" && shut.has(project));
+    const pick = (rows: Row[], projectFor: (row: Row) => string | null | undefined, orgFor: (row: Row) => string | null | undefined, kind: string) => {
+        if (tally) holdBack(tally, kind, rows.filter((row) => counted(row, projectFor(row), orgFor(row))).length);
+        return sortRows(rows.filter((row) => keep(row, projectFor(row))));
+    };
     return {
-        suggestions: sortRows(suggestions.filter((row) => keep(row, row.project_id as string | null))),
-        events: sortRows(events.filter((row) => keep(row, projectOf.get(row.suggestion_id as string)))),
-        questions: sortRows(questions.filter((row) => keep(row, null))),
-        answers: sortRows(answers.filter((row) => keep(row, null))),
+        suggestions: pick(suggestions, (row) => row.project_id as string | null, (row) => row.org_id as string | null, "rule_suggestions"),
+        events: pick(events, (row) => projectOf.get(row.suggestion_id as string), (row) => orgOf.get(row.suggestion_id as string), "rule_suggestion_events"),
+        questions: pick(questions, () => null, () => null, "rule_questions"),
+        answers: pick(answers, () => null, () => null, "rule_answers"),
     };
 }
