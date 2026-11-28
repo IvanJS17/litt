@@ -26,6 +26,7 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { rateLimitedBody } from "../../lib/httpError";
+import { minutes } from "../../lib/limiterWindow";
 import { envInt } from "../../lib/runtimeConfig";
 import { sendServiceFailure, type ServiceResult } from "../../lib/serviceResult";
 import { createServerSupabase } from "../../lib/supabase";
@@ -86,7 +87,7 @@ for (const action of ["ack", "dismiss", "done"] as const) {
 // One run is one model call on the person's key, with a whole document in it:
 // a lane per person (not per address), after authentication.
 const suggestLimiter = rateLimit({
-  windowMs: envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15) * 60 * 1000,
+  windowMs: minutes(envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15)),
   max: envInt("RATE_LIMIT_RULE_SUGGEST_MAX", 10),
   standardHeaders: true,
   legacyHeaders: false,
@@ -98,7 +99,7 @@ const suggestLimiter = rateLimit({
 // one run may need more than ten. It has its own lane (and its own, larger
 // maximum) so it neither starves nor is starved by single-version runs.
 const readLimiter = rateLimit({
-  windowMs: envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15) * 60 * 1000,
+  windowMs: minutes(envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15)),
   max: envInt("RATE_LIMIT_RULE_READ_MAX", 60),
   standardHeaders: true,
   legacyHeaders: false,
@@ -177,7 +178,7 @@ radarTodayRouter.use(routerErrorHandler("[radar-today]"));
 //   POST /versions/:versionId/propose
 //   POST /:proposalId/{send-to-legal,discard,implemented}
 const proposalLimiter = rateLimit({
-  windowMs: envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15) * 60 * 1000,
+  windowMs: minutes(envInt("RATE_LIMIT_RULE_SUGGEST_WINDOW_MINUTES", 15)),
   max: envInt("RATE_LIMIT_RULE_SUGGEST_MAX", 10),
   standardHeaders: true,
   legacyHeaders: false,

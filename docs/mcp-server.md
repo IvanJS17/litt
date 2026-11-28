@@ -85,7 +85,10 @@ its Caddy block are infrastructure and are not part of the backend.
   operator raises the
   number. A signed-in person opening the approval screen of a request marks
   its client as in use, which keeps the client, and so its open request, from
-  the clean-up; `GET /oauth/authorize` never marks a client. The refusal is written
+  the clean-up. So does a token exchange that succeeds (a code or a refresh
+  token that was accepted); a refused one does not, and neither does
+  `GET /oauth/authorize` for a client that already has a row, nor the refresh
+  of a client's expired metadata document. The refusal is written
   to the server log once per process and kind, without the client or the
   address. The token endpoints never create a client: a first-seen client
   there is unknown (`invalid_client`), with nothing fetched or written. So per

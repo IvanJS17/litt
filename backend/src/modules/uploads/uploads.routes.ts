@@ -15,6 +15,7 @@ import { Router, type Response } from "express";
 
 import { sendInternalError } from "../../lib/httpError";
 import { setOperation } from "../../lib/observability/report";
+import { minutes } from "../../lib/limiterWindow";
 import { uploadSessionRateLimitConfiguration } from "../../lib/runtimeConfig";
 import { storageEnabled } from "../../lib/storage";
 import { createServerSupabase } from "../../lib/supabase";
@@ -36,7 +37,7 @@ export const uploadSessionsRouter = Router();
 const uploadRateLimits = uploadSessionRateLimitConfiguration();
 
 const uploadSessionMutationLimiter = rateLimit({
-  windowMs: uploadRateLimits.mutationWindowMinutes * 60 * 1000,
+  windowMs: minutes(uploadRateLimits.mutationWindowMinutes),
   max: uploadRateLimits.mutationMax,
   standardHeaders: true,
   legacyHeaders: false,
@@ -51,7 +52,7 @@ const uploadSessionMutationLimiter = rateLimit({
 // path segments cannot create unlimited limiter buckets. The client backs off
 // status polling, while this independent ceiling protects the API from abuse.
 const uploadSessionPollingLimiter = rateLimit({
-  windowMs: uploadRateLimits.pollingWindowMinutes * 60 * 1000,
+  windowMs: minutes(uploadRateLimits.pollingWindowMinutes),
   max: uploadRateLimits.pollingMax,
   standardHeaders: true,
   legacyHeaders: false,

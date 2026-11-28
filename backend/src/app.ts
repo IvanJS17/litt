@@ -66,6 +66,7 @@ import {
   protectInternalErrorResponses,
 } from "./middleware/internalErrorResponse";
 import { configuredAllowedOrigins } from "./lib/origins";
+import { hours, minutes } from "./lib/limiterWindow";
 import { envInt, sourceCommit } from "./lib/runtimeConfig";
 import { requestDiagnostics } from "./middleware/requestDiagnostics";
 import { startInTurn } from "./middleware/startInTurn";
@@ -204,14 +205,6 @@ function admitUndeclaredBody(
   req.on("end", onEnd);
   req.on("error", onError);
   req.on("close", onClose);
-}
-
-function minutes(value: number): number {
-  return value * 60 * 1000;
-}
-
-function hours(value: number): number {
-  return minutes(value * 60);
 }
 
 function makeLimiter(options: {
