@@ -33,9 +33,8 @@ import type { Db } from "./supabase";
 import { selectAllByKey, selectInBatches } from "./batchedQuery";
 import { INTERNAL_ERROR_MESSAGE } from "./httpError";
 import { safeError } from "./safeError";
-import { blockAccount, liftInvitationBlock } from "./accountBlock";
+import { blockUnfinishedAccount, liftInvitationBlock } from "./accountBlock";
 import { retireUnusedInvitationIdentity } from "./inviteEmail";
-import { unfinishedInvitationAccountId } from "./platformAccess";
 import { recordAudit } from "./audit";
 import {
     canManageOrgRole,
@@ -1176,15 +1175,10 @@ export async function cancelInvitation(
             id: row.id,
         });
         // One that was opened and never finished is blocked, not deleted.
-        const unfinished = await unfinishedInvitationAccountId(db, row.email, {
-            table: "org_invitations",
-            id: row.id,
+        await blockUnfinishedAccount(db, row.email, { table: "org_invitations", id: row.id }, {
+            userId: params.actorId,
+            userEmail: params.actorEmail,
         });
-        if (unfinished)
-            await blockAccount(db, unfinished, {
-                userId: params.actorId,
-                userEmail: params.actorEmail,
-            });
     } catch {
         return { ok: false, kind: "db_error", detail: INTERNAL_ERROR_MESSAGE };
     }
@@ -1203,6 +1197,16 @@ export async function cancelInvitation(
         action: "org.invite.cancelled",
         detail: { org_id: params.orgId, invitation_id: row.id },
     });
+    // Another invitation withdrawn at the same time may have kept the first
+    // answer at "no": ask again now that this one is gone.
+    try {
+        await blockUnfinishedAccount(db, row.email, { table: "org_invitations", id: row.id }, {
+            userId: params.actorId,
+            userEmail: params.actorEmail,
+        });
+    } catch {
+        return { ok: false, kind: "db_error", detail: INTERNAL_ERROR_MESSAGE };
+    }
     return { ok: true };
 }
 

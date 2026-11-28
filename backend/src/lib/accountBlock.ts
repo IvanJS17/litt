@@ -6,6 +6,7 @@
 import { recordAudit } from "./audit";
 import type { Db } from "./supabase";
 import { findIdentity } from "./identityLookup";
+import { unfinishedInvitationAccountId } from "./platformAccess";
 
 export const BLOCK_MARK_KEY = "litt_blocked";
 export const BLOCK_MARK_VALUE = "invitation_withdrawn";
@@ -26,12 +27,13 @@ async function readUser(admin: Admin, accountId: string) {
 }
 
 /**
- * Bans the account and marks it as ours. An account already banned for some
- * other reason is left exactly as it is. Throws when it cannot be done.
+ * Bans the account and marks it as ours. An account already banned is left
+ * exactly as it is: no mark and no audit row. Throws when it cannot be done.
  */
 export async function blockAccount(db: Db, accountId: string, actor: Actor): Promise<void> {
   const state = await readUser(db.auth.admin, accountId);
-  if (state.banned && !state.ours) return;
+  // Already banned, for another reason or by an earlier block of ours: nothing to write.
+  if (state.banned) return;
   const { error } = await db.auth.admin.updateUserById(accountId, {
     ban_duration: BAN_DURATION,
     app_metadata: { [BLOCK_MARK_KEY]: BLOCK_MARK_VALUE },
@@ -43,6 +45,24 @@ export async function blockAccount(db: Db, accountId: string, actor: Actor): Pro
     action: "account.blocked",
     detail: { account_id: accountId, reason: BLOCK_MARK_VALUE },
   });
+}
+
+/**
+ * Decides whether the unfinished account of an address is to be blocked now,
+ * and blocks it. A withdrawal calls it twice: before the invitation is removed
+ * (so that nothing is withdrawn when the block cannot be written) and again
+ * once it is gone, because another live invitation that was withdrawn at the
+ * same time may have made the first answer "no". `except` is the invitation
+ * being withdrawn. Throws when it cannot tell or cannot block.
+ */
+export async function blockUnfinishedAccount(
+  db: Db,
+  address: string | null | undefined,
+  except: { table: "org_invitations" | "platform_invitations"; id: string },
+  actor: Actor,
+): Promise<void> {
+  const unfinished = await unfinishedInvitationAccountId(db, address, except);
+  if (unfinished) await blockAccount(db, unfinished, actor);
 }
 
 /**

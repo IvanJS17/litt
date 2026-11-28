@@ -5,8 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 const { retireIdentity } = vi.hoisted(() => ({ retireIdentity: vi.fn(async () => {}) }));
 vi.mock("../inviteEmail", () => ({ retireUnusedInvitationIdentity: retireIdentity }));
 // Blocking and letting back in also ask the identity service; the routes tests cover them.
-vi.mock("../accountBlock", () => ({ blockAccount: vi.fn(async () => {}), liftInvitationBlock: vi.fn(async () => {}) }));
-vi.mock("../platformAccess", () => ({ unfinishedInvitationAccountId: vi.fn(async () => null) }));
+vi.mock("../accountBlock", () => ({ blockUnfinishedAccount: vi.fn(async () => {}), liftInvitationBlock: vi.fn(async () => {}) }));
 import { ownerlessRpcResult } from "../../__tests__/helpers/ownerlessRpc";
 import { handoverRpcResult } from "../../__tests__/helpers/handoverRpc";
 import { tableDb } from "../../__tests__/helpers/tableDb";
