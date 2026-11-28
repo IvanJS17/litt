@@ -30,15 +30,21 @@ import {
   textStep,
   toolCall,
   finish,
+  tick,
 } from "../../../../lib/llm/__tests__/mockLanguageModel";
 import type { AssistantEvent } from "@mike/contracts";
 import { AssistantStreamAbortError, runLLMStream } from "../streaming";
+import { isConnectionEnded } from "../tools/connectionEnded";
 
 const read = (id: string) => ({ id, name: "read_document", input: { doc_id: "doc-0" } });
 const docStore = () =>
   new Map([["doc-0", { storage_path: "p", file_type: "txt", filename: "Lease.txt", inline_text: "Twelve months." }]]);
 
-async function turn(steps: Parameters<typeof makeModel>[0], connectionCheck?: () => Promise<boolean>) {
+async function turn(
+  steps: Parameters<typeof makeModel>[0],
+  connectionCheck?: () => Promise<boolean>,
+  write: (chunk: string) => void = vi.fn(),
+) {
   const model = await makeModel(steps);
   adapter.run = (params) => streamAiSdk(params as never, config(model));
   const outcome = await runLLMStream({
@@ -48,7 +54,7 @@ async function turn(steps: Parameters<typeof makeModel>[0], connectionCheck?: ()
     docIndex: {},
     userId: "u1",
     db: {} as never,
-    write: vi.fn(),
+    write,
     nonce: "turnnonce",
     subagentRuns: { save: vi.fn(), load: vi.fn(async () => null) },
     apiKeys: {},
@@ -131,5 +137,101 @@ describe("a turn whose connection ended, through the real model adapter", () => 
     expect(error).toBeInstanceOf(AssistantStreamAbortError);
     expect(model.doStreamCalls.length).toBe(2);
     expect(docReads((error as AssistantStreamAbortError).events)).toBe(0);
+  });
+
+  describe("with subagents running side by side", () => {
+    const two = (...rest: Parameters<typeof makeModel>[0]) => [
+      writing(
+        "Two. ",
+        toolCall("d1", "delegate", { title: "A", task: "Read doc-0." }),
+        toolCall("d2", "delegate", { title: "B", task: "Read doc-0." }),
+      ),
+      callStep("s1", "read_document", read("s1").input),
+      callStep("s2", "read_document", read("s2").input),
+      ...rest,
+    ];
+    const delegationsIn = (events: AssistantEvent[]) =>
+      events.filter((e) => e.type === "delegation") as Extract<AssistantEvent, { type: "delegation" }>[];
+
+    async function sideBySide(steps: Parameters<typeof makeModel>[0], check: () => Promise<boolean>) {
+      const frames: string[] = [];
+      let settled = false;
+      const run = await turn(steps, check, (chunk) => {
+        frames.push(settled ? `AFTER SETTLE ${chunk}` : chunk);
+      });
+      settled = true;
+      const callsAtSettle = run.model.doStreamCalls.length;
+      await tick();
+      await tick();
+      await tick();
+      return { ...run, frames, callsAtSettle };
+    }
+
+    function expectStoppedWithEveryDelegationCancelled(r: Awaited<ReturnType<typeof sideBySide>>) {
+      expect(r.error).toBeInstanceOf(AssistantStreamAbortError);
+      const stopped = r.error as AssistantStreamAbortError;
+      expect(isConnectionEnded(stopped)).toBe(true);
+      expect(stopped.fullText).toBe("Two. ");
+      expect(stopped.events.some((e) => e.type === "error")).toBe(false);
+      expect(delegationsIn(stopped.events).map((e) => e.status)).toEqual(["cancelled", "cancelled"]);
+      // No subagent runs a model call or writes to the sink once the turn has settled.
+      expect(r.model.doStreamCalls.length).toBe(r.callsAtSettle);
+      expect(r.frames.filter((f) => f.startsWith("AFTER SETTLE"))).toEqual([]);
+      // The live client got a terminal frame for each of them.
+      const terminal = r.frames.filter((f) => f.includes('"type":"delegation"') && f.includes('"status":"cancelled"'));
+      expect(terminal.length).toBe(2);
+    }
+
+    it("stops and records the other subagent when one meets the end and the check then answers good", async () => {
+      let asked = 0;
+      const r = await sideBySide(
+        two(textStep("sibling brief"), textStep("later"), textStep("later still")),
+        async () => ++asked !== 2, // parent round good; the first subagent's round ended; all later good
+      );
+      expectStoppedWithEveryDelegationCancelled(r);
+    });
+
+    it("stops and records the other subagent when the check keeps answering ended", async () => {
+      let asked = 0;
+      const r = await sideBySide(two(textStep("sibling brief"), textStep("later")), async () => ++asked < 2);
+      expectStoppedWithEveryDelegationCancelled(r);
+    });
+
+    it("stops and records every subagent when the parent's own tool call meets the end beside them", async () => {
+      let asked = 0;
+      const r = await sideBySide(
+        [
+          writing(
+            "Two. ",
+            toolCall("d1", "delegate", { title: "A", task: "Read doc-0." }),
+            toolCall("d2", "delegate", { title: "B", task: "Read doc-0." }),
+            toolCall("p1", "read_document", read("p1").input),
+          ),
+          callStep("s1", "read_document", read("s1").input),
+          callStep("s2", "read_document", read("s2").input),
+          textStep("brief one"),
+          textStep("brief two"),
+          textStep("later"),
+        ],
+        async () => ++asked !== 2,
+      );
+      expectStoppedWithEveryDelegationCancelled(r);
+    });
+
+    it("records a single subagent that meets the end as cancelled, with its terminal frame", async () => {
+      const frames: string[] = [];
+      let asked = 0;
+      const { error, model } = await turn(
+        [writing("Delegating. ", delegate), callStep("s1", "read_document", read("s1").input), textStep("never")],
+        async () => ++asked < 2,
+        (chunk) => frames.push(chunk),
+      );
+      const stopped = error as AssistantStreamAbortError;
+      expect(stopped).toBeInstanceOf(AssistantStreamAbortError);
+      expect(isConnectionEnded(stopped)).toBe(true);
+      expect(delegationsIn(stopped.events).map((e) => e.status)).toEqual(["cancelled"]);
+      expect(frames.filter((f) => f.includes('"status":"cancelled"')).length).toBe(1);
+      expect(model.doStreamCalls.length).toBe(2);
+    });
   });
 });

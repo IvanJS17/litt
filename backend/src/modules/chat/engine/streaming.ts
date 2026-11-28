@@ -859,6 +859,8 @@ export async function runLLMStream(params: {
     let run = delegationRuns.get(call.id);
     if (!run) {
       run = runDelegateCall(call, context).then((result) => {
+        // The end of the connection stops every other subagent at once.
+        if (result.connectionEnded) delegationStop.abort();
         if (result.event) write(`data: ${JSON.stringify(result.event)}\n\n`);
         return result;
       });
@@ -876,7 +878,13 @@ export async function runLLMStream(params: {
   const recordDelegations = async () => {
     const runs = [...delegationRuns.values()];
     delegationRuns.clear();
-    for (const { event } of await Promise.all(runs)) if (event) events.push(event);
+    // Waits for every run, however it ended, before the first failure is raised.
+    const settled = await Promise.allSettled(runs);
+    for (const outcome of settled) {
+      if (outcome.status === "fulfilled" && outcome.value.event) events.push(outcome.value.event);
+    }
+    const failed = settled.find((outcome) => outcome.status === "rejected");
+    if (failed) throw (failed as PromiseRejectedResult).reason;
   };
 
   // Tool batches still running. On a Stop or a deadline the model adapter
@@ -1236,6 +1244,10 @@ export async function runLLMStream(params: {
         throwIfAborted(signal);
 
         const delegated = await delegating;
+        // The connection ended inside a subagent: the other subagents were
+        // stopped when it reported, and the turn ends as stopped.
+        const ended = delegated.find((result) => result.connectionEnded);
+        if (ended) throw ended.connectionEnded;
         // Once the answer has stopped or failed, its catch records these.
         throwIfAborted(delegationSignal);
         delegated.forEach(({ content }, index) =>
@@ -1297,6 +1309,8 @@ export async function runLLMStream(params: {
       // stopped: that is the outcome its readers were given. So does the
       // end of the connection that started the turn, which carries on as
       // the cause so a parent turn recognises it from a subagent's stop.
+      // Running subagents are stopped, then waited for, before they are recorded.
+      delegationStop.abort();
       await recordDelegations().catch(() => {});
       flushPartialTurn({ emit: false });
       throw new AssistantStreamAbortError(
