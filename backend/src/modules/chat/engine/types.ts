@@ -63,17 +63,19 @@ export type TabularCellStore = {
     { summary: string; flag?: string; reasoning?: string } | null
   >;
   /**
-   * What each read of the table asks again with: the review (whose access is
-   * checked) and its rows with their source documents (whose readability is
-   * checked). A store without it serves no cells.
+   * What each read of the table asks again with: a function that reads the
+   * review's row as it is now (null when it no longer exists; it throws when
+   * the read fails), whose access is checked, and the review's rows with their
+   * source documents, whose readability is checked. A store without it serves
+   * no cells.
    */
   recheck?: {
-    review: {
+    loadReview: () => Promise<{
       id: string;
       user_id: string | null;
       project_id: string | null;
       org_id?: string | null;
-    };
+    } | null>;
     rows: ReviewRow[];
   };
 };

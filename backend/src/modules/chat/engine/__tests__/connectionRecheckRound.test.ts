@@ -152,4 +152,22 @@ describe("a round of tool calls in a connected application's turn", () => {
     expect(early).toBe(1);
     expect(subagentStreams()).toBe(1);
   });
+
+  it("has a subagent ask the connection before its own calls, and run no search once it ended", async () => {
+    streamChatWithTools.mockImplementation(async (params) => {
+      if (isSubagent(params)) {
+        await params.runTools?.([search]);
+        return { fullText: "Sub answer" };
+      }
+      await params.runTools?.([delegate]);
+      return { fullText: "Answer" };
+    });
+    let asked = 0;
+    // The parent's round start is answered "good"; every later question, the subagent's included, "ended".
+    const check = vi.fn(async () => ++asked < 2);
+    await turn(check).catch(() => {});
+    expect(subagentStreams()).toBe(1);
+    expect(check.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(searchWeb).not.toHaveBeenCalled();
+  });
 });

@@ -797,11 +797,15 @@ export async function prepareTabularChat(
         ),
         // Each read of the table asks again with these (see read_table_cells).
         recheck: {
-            review: {
-                id: review.id,
-                user_id: review.user_id,
-                project_id: review.project_id,
-                org_id: review.org_id,
+            // The review's row as it is at each read, not as the turn found it.
+            loadReview: async () => {
+                const { data, error } = await db
+                    .from("tabular_reviews")
+                    .select("id, user_id, project_id, org_id")
+                    .eq("id", reviewId)
+                    .maybeSingle();
+                if (error) throw error;
+                return data ?? null;
             },
             rows,
         },

@@ -31,7 +31,7 @@ const store: TabularCellStore = {
   columns: [{ index: 0, name: "Term" }],
   documents: [{ id: "row-a", filename: "alpha.docx" }],
   cells: new Map([["0:row-a", { summary: "alpha twelve months" }]]),
-  recheck: { review: { id: "r", user_id: "x", project_id: null }, rows: [row] },
+  recheck: { loadReview: async () => ({ id: "r", user_id: "x", project_id: null }), rows: [row] },
 };
 const call = (id: string) => ({ id, function: { name: "read_table_cells", arguments: "{}" } });
 const run = (calls: ReturnType<typeof call>[], connectionCheck?: () => Promise<boolean>) =>

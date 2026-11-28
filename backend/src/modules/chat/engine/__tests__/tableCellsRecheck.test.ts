@@ -41,7 +41,7 @@ function tableStore(withRecheck = true): TabularCellStore {
       ["0:row-b", { summary: "bravo twenty-four months" }],
       ["0:row-c", { summary: "charlie six months" }],
     ]),
-    ...(withRecheck ? { recheck: { review: REVIEW, rows } } : {}),
+    ...(withRecheck ? { recheck: { loadReview: async () => REVIEW, rows } } : {}),
   };
 }
 
@@ -99,6 +99,24 @@ describe("read_table_cells in a running review chat", () => {
   it("gives no cells when the review check fails", async () => {
     mocks.reviewAccess.mockRejectedValue(new Error("database down"));
     const r = await read(tableStore());
+    expect(text(r)).toContain(UNREADABLE);
+    expect(text(r)).not.toContain("alpha");
+    expect(text(r)).not.toContain("database down");
+  });
+
+  it("gives no cells once the review no longer exists", async () => {
+    const store = tableStore();
+    store.recheck!.loadReview = async () => null;
+    const r = await read(store);
+    expect(text(r)).toContain(UNREADABLE);
+    expect(text(r)).not.toContain("alpha");
+    expect(mocks.reviewAccess).not.toHaveBeenCalled();
+  });
+
+  it("gives no cells when the review cannot be read", async () => {
+    const store = tableStore();
+    store.recheck!.loadReview = async () => { throw new Error("database down"); };
+    const r = await read(store);
     expect(text(r)).toContain(UNREADABLE);
     expect(text(r)).not.toContain("alpha");
     expect(text(r)).not.toContain("database down");

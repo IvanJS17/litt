@@ -5,10 +5,12 @@ import type { TabularCellStore } from "../types";
 
 /**
  * The rows of the table this person may read at this moment, asked again for
- * each read: may they still open the review, and which rows' source documents
- * may they still open (the two questions the turn's start asked, answered by
- * the same functions). `null` is a refusal: the review is no longer theirs, the
- * store carries nothing to check against, or the check could not be answered.
+ * each read: may they still open the review (judged from its row read again
+ * now, so a review moved or deleted since the turn started counts), and which
+ * rows' source documents may they still open (the two questions the turn's
+ * start asked, answered by the same functions). `null` is a refusal: the
+ * review is no longer theirs, the store carries nothing to check against, or
+ * the check could not be answered.
  */
 export async function readableTableRowIds(
   store: TabularCellStore,
@@ -19,7 +21,9 @@ export async function readableTableRowIds(
   const recheck = store.recheck;
   if (!recheck) return null;
   try {
-    const access = await ensureReviewAccess(recheck.review, userId, userEmail, db);
+    const review = await recheck.loadReview();
+    if (!review) return null;
+    const access = await ensureReviewAccess(review, userId, userEmail, db);
     if (!access.ok) return null;
     const { rows } = await filterReadableReviewRows(db, recheck.rows, [], userId, userEmail);
     return new Set(rows.map((row) => row.id));

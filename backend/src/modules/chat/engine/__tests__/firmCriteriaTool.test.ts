@@ -23,7 +23,7 @@ vi.mock("../../../../lib/mcpConnectors", () => ({
   buildUserMcpTools: vi.fn(async () => []),
 }));
 
-import { runLLMStream } from "../streaming";
+import { isAbortError, runLLMStream } from "../streaming";
 import { runFirmCriteriaCall } from "../tools/firmCriteriaTool";
 import { createWebTurnState } from "../tools/webSearchTools";
 import type { Db } from "../../../../lib/supabase";
@@ -125,6 +125,19 @@ describe("running the tool in a turn", () => {
       truncated: false,
       criteria: [{ id: criterion(1).id, author_name: "Ana Pérez", topic: "Prescripción cambiaria", position: "El plazo corre desde el vencimiento." }],
     });
+  });
+
+  it("asks the connection before each firm-criteria call: the second does not run once it ended", async () => {
+    const p = { ...params(world().db, { firmCriteriaOrgId: ORG }), connectionCheck: undefined as unknown };
+    let asked = 0;
+    // The round start and the first call are answered "good", the second call "ended".
+    p.connectionCheck = vi.fn(async () => ++asked < 3);
+    await runLLMStream(p as never);
+    const second = { ...call({ practice: "civil" }), id: "call-2" };
+    await expect(streamChatWithTools.mock.calls[0]![0].runTools([call({ practice: "mercantil" }), second])).rejects.toSatisfy(isAbortError);
+    const frames = p.write.mock.calls.map((c) => String(c[0])).filter((chunk) => chunk.includes("firm_criteria"));
+    expect(frames).toHaveLength(1);
+    expect(frames[0]).toContain("call-1");
   });
 
   it("does not offer the tool to a subagent", async () => {
