@@ -578,9 +578,10 @@ authRouter.post("/verify-otp", asyncRoute(async (req, res) => {
     // the session just issued for it is ended.
     if (parsed.data.type === "signup" && confirmedInvitedAccount(data.user, startedAt)) {
       try {
-        await tokenClient.auth.signOut({ scope: "local" });
+        await signOut(tokenClient, "local");
       } catch (revokeError) {
-        console.error("[auth/verify-otp] could not end the issued session", revokeError);
+        // The refusal answer is the same either way; the failure is only reported.
+        reportError(revokeError, { level: "warning", tags: { component: "http" } });
       }
       clearRequestAuthCookies(req, res);
       return authError(res, REFUSED_EMAIL_LINK);

@@ -10,20 +10,29 @@ const h = vi.hoisted(() => ({
     verified: [] as unknown[],
     signedOut: [] as unknown[],
     applied: [] as unknown[],
-    verify: null as unknown as (hash: string) => unknown,
+    reported: [] as unknown[][],
+    signOutError: null as unknown,
+    verify: null as unknown as (hash: string, type: string) => unknown,
 }));
 
+vi.mock("../../lib/observability/report", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/observability/report")>()),
+    reportError: vi.fn((...args: unknown[]) => {
+        h.reported.push(args);
+        return "event-1";
+    }),
+}));
 vi.mock("../../lib/authSession", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/authSession")>()),
     createCookielessSupabase: vi.fn(() => ({
         auth: {
             verifyOtp: async (args: { token_hash: string; type: string }) => {
                 h.verified.push(args);
-                return h.verify(args.token_hash);
+                return h.verify(args.token_hash, args.type);
             },
             signOut: async (args: unknown) => {
                 h.signedOut.push(args);
-                return { error: null };
+                return { error: h.signOutError };
             },
         },
     })),
@@ -62,7 +71,9 @@ beforeEach(() => {
     h.verified.length = 0;
     h.signedOut.length = 0;
     h.applied.length = 0;
-    h.verify = (hash) => fake.verifyToken(hash);
+    h.reported.length = 0;
+    h.signOutError = null;
+    h.verify = (hash, type) => fake.verifyToken(hash, type);
     vi.stubEnv("PLATFORM_ADMIN_EMAILS", "");
 });
 
@@ -91,6 +102,21 @@ describe("the emailed sign-up value", () => {
         expect(h.signedOut).toEqual([{ scope: "local" }]);
     });
 
+    it("answers the same, and reports one warning, when the identity service refuses to end the issued session", async () => {
+        const wrong = await confirm("no-such-value");
+        await fake.invite("ben@firm.example");
+        h.signOutError = { __isAuthError: true, name: "AuthRetryableFetchError", status: 503, message: "secret upstream text" };
+        const res = await confirm(fake.identities.get("ben@firm.example")!.token!);
+        expect(outcome(res)).toEqual(outcome(wrong));
+        expect(signedIn(res)).toBe(false);
+        expect(JSON.stringify(res.body)).not.toContain("secret upstream text");
+        expect(h.reported).toHaveLength(1);
+        const [failure, context] = h.reported[0] as [{ kind: string; cause: unknown }, { level?: string }];
+        expect(failure.kind).toBe("auth.supabase_unavailable");
+        expect(failure.cause).toBe(h.signOutError);
+        expect(context.level).toBe("warning");
+    });
+
     it("still opens a session for an invited account that had confirmed its address earlier", async () => {
         fake.seed("cy@firm.example", {
             token: "signup-value",
@@ -116,10 +142,20 @@ describe("the emailed sign-up value", () => {
 describe("the other emailed values", () => {
     it("a recovery value still opens a session, in invitation-only mode too", async () => {
         vi.stubEnv("PLATFORM_ADMIN_EMAILS", "owner@firm.example");
-        await fake.invite("ben@firm.example");
+        fake.seed("ben@firm.example", { confirmed: true, password: "old-password" });
+        fake.issueRecovery("ben@firm.example");
         const res = await confirm(fake.identities.get("ben@firm.example")!.token!, "recovery");
         expect(res.status).toBe(200);
         expect(signedIn(res)).toBe(true);
         expect(h.signedOut).toEqual([]);
+    });
+
+    it("an invitation's value under the recovery type is answered as a wrong value", async () => {
+        const wrong = await confirm("no-such-value", "recovery");
+        await fake.invite("ben@firm.example");
+        const res = await confirm(fake.identities.get("ben@firm.example")!.token!, "recovery");
+        expect(res.status).toBeGreaterThanOrEqual(400);
+        expect(outcome(res)).toEqual(outcome(wrong));
+        expect(signedIn(res)).toBe(false);
     });
 });

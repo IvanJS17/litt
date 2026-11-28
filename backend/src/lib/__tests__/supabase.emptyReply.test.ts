@@ -74,6 +74,50 @@ describe("a reply from the database gateway that is an error with an empty array
     });
 });
 
+describe("a reply from the database gateway that is not a success and whose body is not a JSON object", () => {
+    it.each([
+        ["null", 400, () => json(400, null)],
+        ["0", 400, () => json(400, 0)],
+        ["false", 400, () => json(400, false)],
+        ["an empty JSON string", 400, () => json(400, "")],
+        ["a non-empty array", 404, () => json(404, [{ user_id: "u1" }])],
+        ["plain text", 500, () => new Response("upstream exploded", { status: 500 })],
+    ])("%s is an error", async (_name, status, make) => {
+        gateway.mockResolvedValue(make());
+        const { data, error } = await read();
+        expect(error).not.toBeNull();
+        expect(data).toBeNull();
+        expect(error?.message).toBeTruthy();
+        expect(status).toBeGreaterThanOrEqual(400);
+    });
+
+    it.each([404, 400])("with status %s and the gateway's JSON object is left as it is", async (status) => {
+        gateway.mockResolvedValue(json(status, { code: "PGRST116", message: "The gateway's own message", details: "d", hint: null }));
+        const { error } = await read();
+        expect(error).toMatchObject({ code: "PGRST116", message: "The gateway's own message", details: "d" });
+    });
+
+    it("with status 200 and an empty array is not read and not an error", async () => {
+        const reply = json(200, []);
+        const clone = vi.spyOn(reply, "clone");
+        gateway.mockResolvedValue(reply);
+        const { data, error } = await createServerSupabase().from("user_profiles").select("user_id");
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+        expect(clone).not.toHaveBeenCalled();
+    });
+
+    it("to a HEAD request that succeeded is not read", async () => {
+        const reply = new Response(null, { status: 200, headers: { "content-range": "0-0/3" } });
+        const clone = vi.spyOn(reply, "clone");
+        gateway.mockResolvedValue(reply);
+        const { error, count } = await createServerSupabase().from("user_profiles").select("user_id", { count: "exact", head: true });
+        expect(error).toBeNull();
+        expect(count).toBe(3);
+        expect(clone).not.toHaveBeenCalled();
+    });
+});
+
 const userId = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 
 describe("a reply from the identity service", () => {

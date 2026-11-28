@@ -923,7 +923,9 @@ confirms with a button and the backend verifies server-side
 (`POST /api/auth/verify-otp`), so the link works in any browser. A `signup`
 value opens a session only for an account that registered itself: one an
 invitation created is refused as a wrong value is, and in invitation-only mode
-`signup` is refused before GoTrue is asked. GoTrue caches
+`signup` is refused before GoTrue is asked, so after switching to invitation-only
+mode, sign-up confirmation mails sent before the switch no longer open a session
+(the person needs an invitation). GoTrue caches
 templates for up to 10 minutes: restart `auth` after deploying new templates.
 
 Every link GoTrue mails carries a value derived from a numeric one-time code.
