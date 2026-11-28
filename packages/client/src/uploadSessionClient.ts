@@ -462,14 +462,18 @@ export async function uploadFilesWithSessionCore<T>(args: {
     };
 
     const noticedSpaces = new Set<string>();
-    const noticeAlmostFull = (space: UploadStorageSpace) => {
-        const key = `${space.kind}:${space.id}`;
-        if (noticedSpaces.has(key)) return;
-        noticedSpaces.add(key);
+    const noticeAlmostFull = (space: unknown) => {
+        // A notice must never interrupt the upload itself: an answer that
+        // names no space it knows says nothing.
         try {
-            args.transport.noticeStorageAlmostFull?.(space);
+            const { kind, id } = (space ?? {}) as { kind?: unknown; id?: unknown };
+            if ((kind !== "personal" && kind !== "firm") || typeof id !== "string") return;
+            const key = `${kind}:${id}`;
+            if (noticedSpaces.has(key)) return;
+            noticedSpaces.add(key);
+            args.transport.noticeStorageAlmostFull?.({ kind, id });
         } catch {
-            // A notice must never interrupt the upload itself.
+            // The host's notice failed; the files still upload.
         }
     };
 
@@ -549,7 +553,7 @@ async function runUploadSession<T>(args: {
     transport: UploadSessionTransport;
     signal?: AbortSignal;
     reportProgress: (progress: UploadProgress<T>) => void;
-    noticeAlmostFull: (space: UploadStorageSpace) => void;
+    noticeAlmostFull: (space: unknown) => void;
 }): Promise<UploadOutcome<T>[]> {
     const { apiRequest, fetchStorage, shouldRetryControlRequest } =
         args.transport;

@@ -5,11 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Opening an upload session says whether the space the files go to is almost
 // full (from 80 % of its limit), without ever carrying a figure. The level is
 // computed from the one read of the space's use made for the request, before
-// the new files are counted.
+// the new files are counted. It is said only to a person whose space it is:
+// their own personal space, or a firm they belong to.
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const FIRM = "33333333-3333-4333-8333-333333333333";
 const PROJECT = "44444444-4444-4444-8444-444444444444";
+const OTHER_PERSON = "22222222-2222-4222-8222-222222222222";
+const DOCUMENT = "55555555-5555-4555-8555-555555555555";
 
 const mocks = vi.hoisted(() => ({
   /** Answers of `storage_space_usage` by space: "personal" or "firm". */
@@ -18,6 +21,10 @@ const mocks = vi.hoisted(() => ({
     firm: { used_bytes: 0, limit_bytes: 1000 },
   } as Record<string, { used_bytes: number; limit_bytes: number }>,
   rpc: vi.fn(),
+  /** Whether the person is a member of the firm. */
+  member: true,
+  /** Whose personal document a new version is added to. */
+  documentOwner: "11111111-1111-4111-8111-111111111111",
 }));
 
 vi.mock("../../../middleware/auth", () => ({
@@ -45,7 +52,13 @@ vi.mock("../../../lib/supabase", () => ({
             ? { org_id: "33333333-3333-4333-8333-333333333333" }
             : table === "organizations"
               ? { kind: "team" }
-              : null,
+              : table === "org_members"
+                ? mocks.member
+                  ? { role: "member" }
+                  : null
+                : table === "documents"
+                  ? { org_id: null, user_id: mocks.documentOwner }
+                  : null,
         error: null,
       });
       return query;
@@ -86,6 +99,12 @@ const firmUpload = {
   files: [{ client_id: "a", filename: "a.pdf", size_bytes: 10 }],
 };
 
+const newVersion = {
+  purpose: "document_version_create",
+  destination: { document_id: DOCUMENT, base_version_id: PROJECT, generate_pdf: false },
+  files: [{ client_id: "edit", filename: "contract.docx", size_bytes: 10 }],
+};
+
 const usageReads = () =>
   mocks.rpc.mock.calls.filter(([name]) => name === "storage_space_usage").length;
 
@@ -94,6 +113,8 @@ describe("opening an upload session says how full the space is", () => {
     vi.clearAllMocks();
     mocks.usage.personal = { used_bytes: 0, limit_bytes: 1000 };
     mocks.usage.firm = { used_bytes: 0, limit_bytes: 1000 };
+    mocks.member = true;
+    mocks.documentOwner = USER;
     mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
       if (name === "storage_space_usage") {
         const row = args.p_org_id ? mocks.usage.firm : mocks.usage.personal;
@@ -153,6 +174,35 @@ describe("opening an upload session says how full the space is", () => {
     const own = await request(app).post("/upload-sessions").send(personalUpload);
     expect(own.body.storageLevel).toBe("almostFull");
     expect(own.body.storageSpace).toEqual({ kind: "personal", id: USER });
+  });
+
+  it("says the level to a person who adds a version to their own document", async () => {
+    mocks.usage.personal = { used_bytes: 950, limit_bytes: 1000 };
+    const response = await request(app).post("/upload-sessions").send(newVersion);
+    expect(response.status).toBe(201);
+    expect(response.body.storageLevel).toBe("almostFull");
+    expect(response.body.storageSpace).toEqual({ kind: "personal", id: USER });
+  });
+
+  it("says nothing of another person's space to someone who adds a version to that person's document", async () => {
+    mocks.documentOwner = OTHER_PERSON;
+    mocks.usage.personal = { used_bytes: 950, limit_bytes: 1000 };
+    const response = await request(app).post("/upload-sessions").send(newVersion);
+    expect(response.status).toBe(201);
+    expect(response.body).not.toHaveProperty("storageLevel");
+    expect(response.body).not.toHaveProperty("storageSpace");
+    expect(JSON.stringify(response.body)).not.toContain(OTHER_PERSON);
+    expect(usageReads()).toBe(0);
+  });
+
+  it("says nothing of a firm's space to someone who is not a member of it", async () => {
+    mocks.member = false;
+    mocks.usage.firm = { used_bytes: 950, limit_bytes: 1000 };
+    const response = await request(app).post("/upload-sessions").send(firmUpload);
+    expect(response.status).toBe(201);
+    expect(response.body).not.toHaveProperty("storageLevel");
+    expect(response.body).not.toHaveProperty("storageSpace");
+    expect(usageReads()).toBe(0);
   });
 
   it("reads the use of the space once per request", async () => {

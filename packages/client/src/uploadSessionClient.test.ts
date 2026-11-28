@@ -135,6 +135,22 @@ describe("the almost-full notice of an upload batch", () => {
         expect(none.noticeStorageAlmostFull).not.toHaveBeenCalled();
     });
 
+    it("says nothing for a level it does not know or a space it cannot name, and the files still upload", async () => {
+        const answers = [
+            { storageLevel: "full", storageSpace: { kind: "firm", id: "firm-1" } },
+            { storageLevel: "almostFull", storageSpace: { kind: "firm", id: { toString: 1, valueOf: 1 } } },
+            { storageLevel: "almostFull", storageSpace: { kind: "other", id: "x" } },
+            { storageLevel: "almostFull", storageSpace: "firm-1" },
+        ];
+        for (const answer of answers) {
+            const { transport, noticeStorageAlmostFull, puts } = setup([answer]);
+            const outcomes = await run(transport, 1);
+            expect(noticeStorageAlmostFull).not.toHaveBeenCalled();
+            expect(puts).toHaveLength(1);
+            expect(outcomes.every((o) => o.status === "completed")).toBe(true);
+        }
+    });
+
     it("does not let a failing notice stop the upload", async () => {
         const { transport, noticeStorageAlmostFull, puts } = setup([almostFull]);
         noticeStorageAlmostFull.mockImplementation(() => {

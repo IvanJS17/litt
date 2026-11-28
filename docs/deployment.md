@@ -823,9 +823,12 @@ the answer of `POST /upload-sessions` carries `storageLevel` (`"ok"`, or
 `"almostFull"` from 80 % of the limit, counting the use before the new files; a
 limit of zero is `almostFull`) and `storageSpace` (`{ kind: "personal" | "firm",
 id }`), never a figure, so a plain member of a firm learns nothing of the firm's
-numbers. The web shows one notice per batch and per space until the page is
-reloaded, and the new files are not held back by it; the Word add-in and the MCP
-upload tool ignore both fields. When the use cannot be read the level is `"ok"`.
+numbers. Both are said only to a person whose space it is, their own personal
+space or a firm they belong to: someone who adds a version to another person's
+document, or who works in a firm without being its member, gets neither field.
+The web shows one notice per batch and per space until the page is reloaded,
+and the new files are not held back by it; the Word add-in and the MCP upload
+tool ignore both fields. When the use cannot be read the level is `"ok"`.
 Two reads report the use without refusing anything: `GET /user/storage` answers a
 person's own personal space, and `GET /orgs/:orgId/storage` answers a firm's space
 only to an accepted owner or administrator of that firm; both return
