@@ -327,6 +327,7 @@ vi.mock("../../lib/supabase", () => ({
             admin: {
                 inviteUserByEmail: inviteMail,
                 updateUserById: updateIdentity,
+                getUserById: (id: string) => idp.getUserById(id),
                 deleteUser: (id: string) => idp.deleteUser(id),
             },
         },
@@ -959,6 +960,136 @@ describe("organization invitations", () => {
             .set(...AUTH);
         expect(kept.status).toBe(204);
         expect(idp.identities.has("kept@hire.example")).toBe(true);
+    });
+
+    describe("the account of a firm invitation whose link was opened", () => {
+        const GUEST = "new@hire.example";
+        const PASSWORD = "a-long-enough-password";
+        const guest = () => idp.identities.get(GUEST)!;
+        const banned = () => !!guest().bannedUntil && Date.parse(guest().bannedUntil!) > Date.now();
+        const ours = () => guest().appMetadata?.litt_blocked === "invitation_withdrawn";
+        const withdraw = (id: unknown) =>
+            request(app).delete(`/orgs/org-1/invitations/${id}`).set(...AUTH);
+        const opened = async () => {
+            const created = await invite(GUEST);
+            idp.openLink(GUEST);
+            idp.choosePassword(GUEST, PASSWORD);
+            tables.user_profiles.push({ user_id: guest().id, email: GUEST });
+            return created.body.id as string;
+        };
+        const blocked = () => tables.audit_events?.filter((e) => e.action === "account.blocked") ?? [];
+        const failOnly = (ban: boolean) =>
+            updateIdentity.mockImplementation(async (id: string, attrs: { ban_duration?: string }) =>
+                attrs.ban_duration !== undefined && (attrs.ban_duration === "none") === ban
+                    ? { data: null, error: { message: "boom" } }
+                    : idp.updateUserById(id, attrs));
+
+        it("is blocked and marked, keeps its data, and the invitation is cancelled", async () => {
+            const id = await opened();
+            expect((await withdraw(id)).status).toBe(204);
+            expect(idp.identities.has(GUEST)).toBe(true);
+            expect(banned()).toBe(true);
+            expect(ours()).toBe(true);
+            expect(idp.canSignIn(GUEST, PASSWORD)).toBe(false);
+            expect(tables.user_profiles.some((p) => p.user_id === guest().id)).toBe(true);
+            expect(tables.org_invitations[0].status).toBe("cancelled");
+            expect(blocked()).toHaveLength(1);
+            expect(blocked()[0].user_id).toBe("owner-1");
+            expect(JSON.stringify(blocked()[0])).not.toContain(GUEST);
+        });
+
+        it.each([
+            ["has accepted the terms", () => tables.user_profiles.find((p) => p.email === GUEST)!.terms_accepted_at = "2000-01-01T00:00:00.000Z"],
+            ["has finished onboarding", () => tables.user_profiles.find((p) => p.email === GUEST)!.onboarding_version = 1],
+            ["belongs to a firm", () => tables.org_members.push({ id: "m-x", org_id: "org-1", user_id: guest().id, role: "member" })],
+            ["is a platform administrator", () => vi.stubEnv("PLATFORM_ADMIN_EMAILS", GUEST)],
+            ["holds another live invitation", () =>
+                tables.platform_invitations = [{ id: "pi-1", email: GUEST, status: "pending", expires_at: "2999-01-01T00:00:00.000Z" }]],
+        ])("is left as it is when it %s", async (_name, arrange) => {
+            const id = await opened();
+            arrange();
+            expect((await withdraw(id)).status).toBe(204);
+            expect(banned()).toBe(false);
+            expect(ours()).toBe(false);
+            expect(idp.canSignIn(GUEST, PASSWORD)).toBe(true);
+            expect(blocked()).toHaveLength(0);
+        });
+
+        it("is left as it is when the person registered it and no invitation made it", async () => {
+            const id = await opened();
+            guest().invitedAt = null;
+            expect((await withdraw(id)).status).toBe(204);
+            expect(banned()).toBe(false);
+            expect(idp.canSignIn(GUEST, PASSWORD)).toBe(true);
+        });
+
+        it("fails, leaving the invitation pending, when the block cannot be written", async () => {
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            const id = await opened();
+            failOnly(false);
+            const res = await withdraw(id);
+            expect(res.status).toBeGreaterThanOrEqual(500);
+            expect(JSON.stringify(res.body)).not.toContain("boom");
+            expect(tables.org_invitations[0].status).toBe("pending");
+            expect(banned()).toBe(false);
+        });
+
+        it("is let back in by a new invitation, or a resend, when the mark is ours", async () => {
+            const id = await opened();
+            await withdraw(id);
+            expect(banned()).toBe(true);
+            const again = await invite(GUEST);
+            expect(again.status).toBe(201);
+            expect(banned()).toBe(false);
+            expect(ours()).toBe(false);
+            expect(idp.canSignIn(GUEST, PASSWORD)).toBe(true);
+
+            await withdraw(again.body.id);
+            expect(banned()).toBe(true);
+            // A blocked account is also let back in when a still-pending invitation is sent again.
+            tables.org_invitations.push({ id: "inv-x", org_id: "org-1", email: GUEST, role: "member", status: "pending", expires_at: "2999-01-01T00:00:00.000Z" });
+            const resent = await request(app).post("/orgs/org-1/invitations/inv-x/resend").set(...AUTH);
+            expect(resent.status).toBe(200);
+            expect(banned()).toBe(false);
+        });
+
+        it("stays banned by an invitation when the ban is not ours", async () => {
+            const id = await opened();
+            guest().bannedUntil = "2999-01-01T00:00:00.000Z";
+            expect((await withdraw(id)).status).toBe(204);
+            expect(ours()).toBe(false);
+            expect((await invite(GUEST)).status).toBe(201);
+            expect(guest().bannedUntil).toBe("2999-01-01T00:00:00.000Z");
+        });
+
+        it("stays blocked, with its invitation kept, when the ban cannot be lifted; a resend then lifts it", async () => {
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            const id = await opened();
+            await withdraw(id);
+            failOnly(true);
+            const created = await invite(GUEST);
+            expect(created.status).toBeGreaterThanOrEqual(500);
+            expect(banned()).toBe(true);
+            const pending = tables.org_invitations.filter((r) => r.status === "pending");
+            expect(pending).toHaveLength(1);
+            const resent = await request(app).post(`/orgs/org-1/invitations/${pending[0].id}/resend`).set(...AUTH);
+            expect(resent.status).toBeGreaterThanOrEqual(500);
+            expect(banned()).toBe(true);
+            updateIdentity.mockImplementation(idp.updateUserById);
+            const again = await request(app).post(`/orgs/org-1/invitations/${pending[0].id}/resend`).set(...AUTH);
+            expect(again.status).toBe(200);
+            expect(banned()).toBe(false);
+        });
+
+        it("stays blocked when the invitation cannot be written", async () => {
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            const id = await opened();
+            await withdraw(id);
+            writeErrors.org_invitations = { message: "boom" };
+            expect((await invite(GUEST)).status).toBeGreaterThanOrEqual(500);
+            expect(banned()).toBe(true);
+            expect(ours()).toBe(true);
+        });
     });
 
     it("resend pushes the expiry back out", async () => {

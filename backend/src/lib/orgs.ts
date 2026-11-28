@@ -33,7 +33,9 @@ import type { Db } from "./supabase";
 import { selectAllByKey, selectInBatches } from "./batchedQuery";
 import { INTERNAL_ERROR_MESSAGE } from "./httpError";
 import { safeError } from "./safeError";
+import { blockAccount, liftInvitationBlock } from "./accountBlock";
 import { retireUnusedInvitationIdentity } from "./inviteEmail";
+import { unfinishedInvitationAccountId } from "./platformAccess";
 import { recordAudit } from "./audit";
 import {
     canManageOrgRole,
@@ -905,6 +907,28 @@ function invitationExpiry(): string {
     ).toISOString();
 }
 
+/**
+ * Called once the invitation is written or refreshed: the account of its
+ * address, if we blocked it, is let back in. A failure answers the generic
+ * error and the account stays blocked; the invitation stays, and sending it
+ * again tries the lift again.
+ */
+async function liftBlockAfterWrite(
+    db: Db,
+    email: string,
+    params: { actorId: string; actorEmail?: string | null },
+): Promise<{ ok: false; kind: "db_error"; detail: string } | null> {
+    try {
+        await liftInvitationBlock(db, email, {
+            userId: params.actorId,
+            userEmail: params.actorEmail,
+        });
+        return null;
+    } catch {
+        return { ok: false, kind: "db_error", detail: INTERNAL_ERROR_MESSAGE };
+    }
+}
+
 export async function createInvitation(
     db: Db,
     params: {
@@ -1017,6 +1041,8 @@ export async function createInvitation(
                 kind: "db_error",
                 detail: refreshError?.message ?? "Failed to create invitation",
             };
+        const stuck = await liftBlockAfterWrite(db, email, params);
+        if (stuck) return stuck;
         await recordAudit(db, {
             userId: params.actorId,
             userEmail: params.actorEmail ?? null,
@@ -1054,6 +1080,8 @@ export async function createInvitation(
             detail: error?.message ?? "Failed to create invitation",
         };
     }
+    const stuck = await liftBlockAfterWrite(db, email, params);
+    if (stuck) return stuck;
     await recordAudit(db, {
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,
@@ -1147,6 +1175,16 @@ export async function cancelInvitation(
             table: "org_invitations",
             id: row.id,
         });
+        // One that was opened and never finished is blocked, not deleted.
+        const unfinished = await unfinishedInvitationAccountId(db, row.email, {
+            table: "org_invitations",
+            id: row.id,
+        });
+        if (unfinished)
+            await blockAccount(db, unfinished, {
+                userId: params.actorId,
+                userEmail: params.actorEmail,
+            });
     } catch {
         return { ok: false, kind: "db_error", detail: INTERNAL_ERROR_MESSAGE };
     }
@@ -1219,6 +1257,8 @@ export async function resendInvitation(
             kind: "db_error",
             detail: error?.message ?? "Failed to resend invitation",
         };
+    const stuck = await liftBlockAfterWrite(db, row.email, params);
+    if (stuck) return stuck;
     await recordAudit(db, {
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,

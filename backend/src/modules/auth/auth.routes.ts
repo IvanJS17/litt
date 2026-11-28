@@ -124,6 +124,13 @@ function authError(
   return sendInternalError(res, failure);
 }
 
+/** What the identity service answers for a wrong email or password. */
+const REFUSED_CREDENTIALS = {
+  status: 400,
+  code: "invalid_credentials",
+  message: "Invalid login credentials",
+};
+
 function invalidBody(
   res: Response,
   issues?: ReadonlyArray<{ path: PropertyKey[]; code: string; message?: string }>,
@@ -155,7 +162,14 @@ authRouter.post("/login", asyncRoute(async (req, res) => {
       // Read by the sign-in account limiters in app.ts: only a refused
       // email/password counts toward them. Any other failure (an unconfirmed
       // address, a suspended account, a provider outage) is not a wrong guess.
-      if (describeAuthProviderError(error, "").code === "invalid_credentials") {
+      const code = describeAuthProviderError(error, "").code;
+      // A blocked account is answered, and counted, exactly as refused
+      // credentials are: the answer must not tell the two apart.
+      if (code === "user_banned") {
+        res.locals.loginCredentialRejected = true;
+        return authError(res, REFUSED_CREDENTIALS);
+      }
+      if (code === "invalid_credentials") {
         res.locals.loginCredentialRejected = true;
       }
       return authError(res, error);

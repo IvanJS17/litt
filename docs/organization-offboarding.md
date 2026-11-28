@@ -127,6 +127,22 @@ is left as it is. If the identity service cannot be asked, nothing is withdrawn
 and the administrator can try again. An invitation that merely expires is not
 swept: only a withdrawal retires the account.
 
+An account whose invitation link was opened and that never finished (it has
+accepted no Terms, has not finished onboarding, belongs to no firm, is not an
+administrator address, has no other live invitation and was made through an
+invitation rather than registered by the person) is blocked, not deleted,
+when the invitation is withdrawn: the identity service bans it, which ends its
+sessions and refuses its sign-in, and the account's `app_metadata` carries
+`litt_blocked: "invitation_withdrawn"` (`lib/accountBlock.ts`). The block is
+written before the invitation is removed; if it cannot be written nothing is
+withdrawn. Nothing the account stored is deleted. Creating or resending an
+invitation for the address lifts the ban only when that mark is present: the
+invitation is written first and the ban lifted after, and if it cannot be
+lifted the request fails and the account stays blocked. A ban without the mark
+is never lifted by an invitation. The sign-in of a blocked account is answered
+as refused credentials are. Both the block and the lift are recorded in the
+audit log.
+
 ## Joining during signup
 
 After signing up and verifying their email, a user can view and accept pending

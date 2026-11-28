@@ -42,6 +42,11 @@ const gotrue = http.createServer((req, res) => {
         res.end(JSON.stringify({ code: 400, error_code: "email_not_confirmed", msg: "Email not confirmed" }));
         return;
       }
+      if (password === "blocked-account-password") {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ code: 400, error_code: "user_banned", msg: "User is banned" }));
+        return;
+      }
       if (password === "outage-password") {
         res.statusCode = 503;
         res.end(JSON.stringify({ msg: "upstream connect error" }));
@@ -149,6 +154,25 @@ describe("password sign-in account lanes", () => {
 
     for (let i = 0; i < 10; i++) {
       expect((await login(email, "wrong-password-1", client)).status).toBe(400);
+    }
+    expect((await login(email, "wrong-password-1", client)).status).toBe(429);
+  });
+});
+
+describe("password sign-in of a blocked account", () => {
+  it("is answered exactly as refused credentials are", async () => {
+    const wrong = await login("answer@example.test", "wrong-password-1", "198.51.100.40");
+    const blocked = await login("answer@example.test", "blocked-account-password", "198.51.100.40");
+    expect(blocked.status).toBe(wrong.status);
+    expect(blocked.text).toBe(wrong.text);
+    expect(blocked.body.code).toBe("invalid_credentials");
+  });
+
+  it("is counted by the sign-in limiter like refused credentials", async () => {
+    const email = "counted@example.test";
+    const client = "198.51.100.41";
+    for (let i = 0; i < 10; i++) {
+      expect((await login(email, "blocked-account-password", client)).status).toBe(400);
     }
     expect((await login(email, "wrong-password-1", client)).status).toBe(429);
   });

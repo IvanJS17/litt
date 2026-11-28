@@ -131,3 +131,60 @@ export async function mayRecoverPassword(db: Db, address: string): Promise<boole
   if (membershipError) throw membershipError;
   return (memberships ?? []).some((m) => !personalOrgIds.has((m as { org_id: string }).org_id));
 }
+
+/**
+ * The account to block when an invitation is withdrawn: the one holding this
+ * address that was opened but never finished. It has accepted no Terms, has not
+ * finished onboarding, belongs to no firm (its personal organization is not
+ * one), is no platform administrator, and no OTHER live platform or firm
+ * invitation names the address (`except` is the one being withdrawn). A
+ * password alone does not make an account finished here. The account must also
+ * have been made through an invitation. Returns its id, or
+ * null when there is nothing to block. Throws when it cannot tell, so the
+ * caller withdraws nothing.
+ */
+export async function unfinishedInvitationAccountId(
+  db: Db,
+  address: string | null | undefined,
+  except: { table: "org_invitations" | "platform_invitations"; id: string },
+): Promise<string | null> {
+  const email = normalizeEmail(address);
+  if (!email || isPlatformAdmin(email)) return null;
+  const identity = await findIdentity(email);
+  if (!identity) return null;
+
+  // An account nobody invited (the person registered it) was not made by an
+  // invitation, and withdrawing one never blocks it.
+  if (!identity.invited_at) return null;
+
+  const { data: profile, error: profileError } = await db
+    .from("user_profiles")
+    .select("terms_accepted_at, onboarding_version")
+    .eq("user_id", identity.id)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  const marks = (profile ?? {}) as Record<string, unknown>;
+  if (marks.terms_accepted_at || marks.onboarding_version != null) return null;
+
+  const personalOrgIds = await listPersonalOrgIds(db, identity.id);
+  const { data: memberships, error: membershipError } = await db
+    .from("org_members")
+    .select("org_id")
+    .eq("user_id", identity.id);
+  if (membershipError) throw membershipError;
+  if ((memberships ?? []).some((m) => !personalOrgIds.has((m as { org_id: string }).org_id))) return null;
+
+  for (const table of ["org_invitations", "platform_invitations"] as const) {
+    let query = db
+      .from(table)
+      .select("id")
+      .eq("email", email)
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString());
+    if (table === except.table) query = query.neq("id", except.id);
+    const { data, error } = await query.limit(1);
+    if (error) throw error;
+    if (data && data.length > 0) return null;
+  }
+  return identity.id;
+}

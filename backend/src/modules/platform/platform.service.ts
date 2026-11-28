@@ -5,7 +5,13 @@ import { z } from "zod";
 import { retireUnusedInvitationIdentity, sendSignupInvite } from "../../lib/inviteEmail";
 import { recordAudit } from "../../lib/audit";
 import { normalizeEmail } from "../../lib/access";
-import { betaMode, isPlatformAdmin, pendingPlatformInvitationId } from "../../lib/platformAccess";
+import { blockAccount, liftInvitationBlock } from "../../lib/accountBlock";
+import {
+  betaMode,
+  isPlatformAdmin,
+  pendingPlatformInvitationId,
+  unfinishedInvitationAccountId,
+} from "../../lib/platformAccess";
 import {
   failure,
   internalFailure,
@@ -85,6 +91,13 @@ export async function createInvitation(
     surface: "platform",
     detail: { invitation_id: data.id },
   });
+  // An account blocked by an earlier withdrawal comes back once the invitation
+  // is written; if that fails it stays blocked and the invitation stays.
+  try {
+    await liftInvitationBlock(db, email, { userId: actor.userId });
+  } catch (error) {
+    return internalFailure(error);
+  }
   return ok({ ...data, email_sent: await sendSignupInvite(db, email) });
 }
 
@@ -104,6 +117,12 @@ export async function deleteInvitation(
     // The account the invitation created goes first: withdrawing the row
     // must not leave a way in behind it.
     await retireUnusedInvitationIdentity(db, invitation.email, { table: "platform_invitations", id });
+    // One that was opened and never finished is blocked, not deleted.
+    const unfinished = await unfinishedInvitationAccountId(db, invitation.email, {
+      table: "platform_invitations",
+      id,
+    });
+    if (unfinished) await blockAccount(db, unfinished, { userId: actor.userId });
   } catch (error) {
     return internalFailure(error);
   }
