@@ -4,21 +4,21 @@
 > not the project roadmap or source of truth. Dated history up to 2026-11-19 (deploy `20261119c`) is in
 > [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md).
 
-**Last reconciled:** 2026-11-27<br>
+**Last reconciled:** 2026-11-28<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike` (fetch-only; pin and intake in [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md))
 
 ## In production
 
 - **Service:** <https://litt.asteroitt.com>, closed beta by invitation.
-- **Deploy:** `20261127a`, tag `prod-20261127a`, `RELEASE_SHA` `a6e5ad4cc` (full SHA
-  `a6e5ad4cc2b5cb8a323176dcf8077abdf65bc061`, the merge of #349). Previous deploy:
-  `20261126e` (`7fc92edfc`). Among earlier deploys: `prod-20261126a` to `prod-20261126d`,
-  `prod-20261119a` and `prod-20261119b`,
+- **Deploy:** `20261128a`, tag `prod-20261128a`, `RELEASE_SHA` `0577c9b89` (full SHA
+  `0577c9b8996a60ddbad90ca5931e77f1a0d3691d`, the merge of #373). Previous deploy:
+  `20261127b` (`9c4f9782b`). Among earlier deploys: `prod-20261127a`, `prod-20261126a` to
+  `prod-20261126e`, `prod-20261119a` and `prod-20261119b`,
   `prod-20261118a` to `prod-20261118e`, and `prod-20261117a` to `prod-20261117i` (see
   [`PROJECT_STATUS_HISTORY.md`](PROJECT_STATUS_HISTORY.md)). Each deploy is tagged
   `prod-YYYYMMDDx`.
-- **Contents:** every merged pull request up to #349 is in a deploy. #258 and #259 shipped in
+- **Contents:** every merged pull request up to #374 is in a deploy. #258 and #259 shipped in
   `20261119b` and `20261119c`. Shipped since `20261119c`:
   - `20261119e` (`27b776f7b`): #257, review notes for #249 to #253; #260, the Word add-in
     chooses a model before a chat, with a guide; #261, AI proposals of new obligation rules
@@ -98,44 +98,59 @@
     [`deployment.md`](deployment.md)); #347, in invitation-only mode a recovery mail goes only
     to a finished account or a current invitation; #348, a running table generation asks, for
     each row, whether its person can still open the documents; #349, status documents.
-- **Merged, not deployed** (`main` at `891aa57a5`, 2026-11-27; none of these has a migration):
-  - #351, the backup script keeps the database dump private to its account. A deploy does not
-    install that script: it takes effect on a server when the operator installs it again
-    ([`deploy/prod/README.md`](../deploy/prod/README.md), §7).
-  - #352, a watcher's refusal that throws is contained, and the reader helpers act only for an
-    accepted reader identity.
-  - #353, a password set through LiTT (the invitation's password step, a recovery or Settings)
-    is recorded on the account.
-  - #355, the deploy procedure stages the script and the release tree in a directory made for
-    that deploy and private to the account, and the deploy script checks what it was given
-    (regular file, owner, mode, and the sha256 of the tree) before it changes anything on the
-    host. The next deploy uses the seven-argument invocation
-    ([`deploy/prod/README.md`](../deploy/prod/README.md), §1).
-  - #356, text from outside (a remote tool's name, a URL, a hostname, an identity service's
-    message, a streamed table reply) is trimmed and scanned at a cost proportional to its
-    length; the shape test's list holds no pending entry.
-  - #357, a person's citation checks on the platform's key have a daily number (2,000 by
-    default; [`citation-support-check.md`](citation-support-check.md)).
-  - #358, client rows for connected applications that no connection refers to have a number
-    (10,000 by default), `GET /oauth/authorize` has its own limit per address, and the token
-    endpoints never create a client ([`mcp-server.md`](mcp-server.md)).
-  - #359, a person can read the use of their personal storage space, and a firm's owners and
-    administrators the firm's (`GET /user/storage`, `GET /orgs/:orgId/storage`). There is no
-    screen for it yet.
-  - #360, vector images of a Word file are shown from an inert source in the Word viewer and
-    editor ([`docx-preview-engines.md`](docx-preview-engines.md)).
-  - #361, the numeric settings of the connected-applications server are taken only when written
-    as a whole number in plain digits; the background citation check never throws, and its
-    index exports only what goes through the daily number.
-  - `deploy/prod/compose.yaml` passes the new settings of #357 and #358 to the backend with their
-    defaults (2000 and 10000), so nothing changes on a server until an operator sets one.
-- **Health:** production verified after `20261127a`: the health endpoint reports that commit, the
+  - `20261127b` (`9c4f9782b`): #351, the backup script keeps the database dump private to its
+    account (a deploy does not install that script; the operator installed it on the
+    production server with this deploy, [`deploy/prod/README.md`](../deploy/prod/README.md),
+    §7); #352, a watcher's refusal that throws is contained, and the reader helpers act only
+    for an accepted reader identity; #353, a password set through LiTT (the invitation's
+    password step, a recovery or Settings) is recorded on the account; #355, the deploy
+    procedure stages the script and the release tree in a directory made for that deploy and
+    private to the account, and the deploy script checks what it was given before it changes
+    anything on the host (the seven-argument invocation,
+    [`deploy/prod/README.md`](../deploy/prod/README.md), §1); #356, text from outside is
+    trimmed and scanned at a cost proportional to its length; #357, a person's citation
+    checks on the platform's key have a daily number (2,000 by default;
+    [`citation-support-check.md`](citation-support-check.md)); #358 and #363, client rows for
+    connected applications that no connection refers to have a number (10,000 by default)
+    and a clean-up, `GET /oauth/authorize` has its own limit per address, and the token
+    endpoints never create a client ([`mcp-server.md`](mcp-server.md)); #359, a person can
+    read the use of their personal storage space, and a firm's owners and administrators
+    the firm's; #360, vector images of a Word file are shown from an inert source in the
+    Word viewer and editor ([`docx-preview-engines.md`](docx-preview-engines.md)); #361, the
+    numeric settings of the connected-applications server are taken only when written as a
+    whole number in plain digits, and the background citation check never throws; #364,
+    `deploy/prod/compose.yaml` passes `LITT_CITATION_CHECK_DAILY_MAX_PER_PERSON` and
+    `LITT_MCP_UNAPPROVED_CLIENTS_MAX` to the backend with their defaults (2000 and 10000);
+    #350, #354 and #362, status documents.
+  - `20261128a` (`0577c9b89`): #365, every numeric setting is taken only when written as a
+    whole number in plain digits, by one reader; anything else uses the setting's default
+    ([`deployment.md`](deployment.md)); #366, the clean-up of unapproved
+    connected-application clients keeps a client whose approval screen a signed-in person
+    has open; #368, a client is marked in use only by a successful token exchange, and
+    rate-limit windows have a ceiling; #367, Settings show the use of the storage space, each
+    person their own and a firm's owners and administrators the firm's; #374, opening an
+    upload says when the space the files go to is almost full, from 80 % of its limit, to
+    the person whose space it is; #369, a person whose password sign-in is being refused has
+    a way in through the password-reset mail; #370, the current Terms are required by the
+    server at every entry, not only by a screen (`AGENTS.md`, Security rules, 12); #371 and
+    #373, withdrawing an invitation blocks, without deleting it, the unfinished account that
+    invitation created, inviting the address again lifts the block, and a withdrawal looks
+    at the account again once its invitation is gone
+    ([`organization-offboarding.md`](organization-offboarding.md)); #372, the repairs of one
+    playbook operation share one time budget.
+- **Merged, not deployed:** no code. `main` differs from the deployed commit only by status
+  documents.
+- **Health:** production verified after `20261128a`: the health endpoint reports that commit, the
   LiTT containers are healthy, the public pages answer, the other domains of the shared edge
-  answer as before, and MCP is on (`mcp=401` without a token). The backend container runs as
-  documented (init, API as `litt-api`, the reader user `litt-reader` active), and a synthetic
-  `.docx` was converted to PDF inside it after the deploy. A backup was taken before the deploy.
+  answer as before, and MCP is on (`mcp=401` without a token). The backend container runs
+  under an init with `cap_drop: ALL`, as documented, and it started without a settings or
+  extraction warning. A backup was taken before the deploy with the
+  release's backup script, and the dump is private to its account. Not checked after this
+  deploy: any signed-in flow (see the open items). The conversion of a synthetic `.docx`
+  inside the container was last run after `20261127a`.
 - **Migrations:** 302 in the ledger, applied in production through
-  `20261127_01_litt_training_defense_word_chat_sources.sql` (applied by `20261127a`). The runner applies every
+  `20261127_01_litt_training_defense_word_chat_sources.sql` (applied by `20261127a`);
+  `20261127b` and `20261128a` carried none. The runner applies every
   file the ledger does not list, in name order.
 - **Access:** invitations are issued by platform administrators (`PLATFORM_ADMIN_EMAILS`).
   Beta statistics are for platform administrators only, counts only, audited
@@ -154,6 +169,8 @@
 | Request triage (Donna triage) | on (no flag) | Jev classifies each new request and the firm's AI drafts, since `20261119h` (#275); playbooks linked to request types since `20261119g` (#270); a daily cap per person and the run reservation since `20261125a` (#319). Per-project switch `donna_enabled`, on by default. [`request-triage.md`](request-triage.md) |
 | Model choice before a chat; model and reasoning guide in the selector | on (no flag) | Since `20261117g` (#240). The guide is checked against the providers' official model pages. Anthropic liveness, the previous-model notice and GLM reasoning levels since `20261117h` (#242). The Word add-in chooses a model before a chat since `20261119e` (#260). The Fable 5.2 entry is under owner review (see open items). |
 | OpenRouter streams with long pauses | on | `STREAM_CHUNK_TIMEOUT_MS=180000` in production since `20261117f` (#238). |
+| Storage space limit and use | on | A new upload is refused when the space is full since `20261126d` (#339). The use can be read since `20261127b` (#359); Settings show it, and opening an upload says when the space is almost full, since `20261128a` (#367, #374). Defaults: 10 GiB per member, shared by the firm, and 2 GiB for a personal space. [`deployment.md`](deployment.md), [`settings-map.md`](settings-map.md) |
+| Current Terms required by the server | on | Since `20261128a` (#370): a signed-in request or a connected-application call from a person who has not accepted the current version is refused, except the routes listed in `backend/src/lib/termsGate.ts`. [`backend-architecture.md`](backend-architecture.md) |
 | Firm profile, settings map, managed accounts, text size, Light/Dark/Auto theme | on | [`firm-profile.md`](firm-profile.md), [`settings-map.md`](settings-map.md), [`managed-accounts.md`](managed-accounts.md), [`design-system.md`](design-system.md) |
 | Notion and Airtable connectors (per person and per workspace) | on | Suggested one-click MCP presets. No firm-shared connector. [`connectors.md`](connectors.md) |
 | LiTT MCP server (`/mcp`, OAuth) | **on** (`LITT_MCP_SERVER=enabled`, since 2026-11-17, release `20261117c`) | Host `https://mcp.litt.asteroitt.com`. Tools `create_matter` and `create_note_document` since `20261118c` (#250); the server icon is in `initialize`. Layer 2a (workflows, quick actions, compare, convert) since `20261119c` (#259); layer 2b (scanned reading and case-file split) and layer 2c (prompts, resources, matter and review chats) since `20261119e` (#262, #264); the cap on heavy jobs since `20261119e` (#266). Live checks pass: AS metadata (PKCE S256, CIMD), protected resource metadata, `401` with `resource_metadata` without a token, dynamic registration `201`, authorize `302` to the consent page, bad token `400`, other paths `404`. Registration first failed with `42501` (missing `service_role` grants), fixed by PR #229. **Real Claude/ChatGPT test pending** (owner account, login and a tool call not yet run). [`mcp-server.md`](mcp-server.md) |
@@ -193,9 +210,11 @@ matter now:
   #245; the ledger row stays open until the CI runs confirm them.
 - Dependabot pull requests open and not merged: #296 to #302. #207, #235, #236 and #237 are
   closed without a merge.
-- Open pull requests that passed review and wait for the owner: #329, "a component's timers
-  end with it"; #331, "a turn in progress and the training screens are read only by who can
-  open the sources"; #332, "only the attempt that ends an upload job queues the cleanup of its objects".
+- Owner check after `20261128a`, not yet run: sign in, upload a Word file and open a chat in
+  production.
+- A frontend test failed once in CI on 2026-11-28 on a change that touched no frontend file
+  and passed on the next run: the keyboard case of the guides tabs
+  (`frontend/src/app/components/guides/guides.test.tsx`). To be made stable.
 - Connector icon in Claude's connector list: it comes from the root domain's favicon, and
   `asteroitt.com` has none there, so a letter is shown. Open.
 - Google: create the OAuth client and verify scopes before enabling any Google service.
