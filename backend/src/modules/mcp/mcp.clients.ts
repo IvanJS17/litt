@@ -205,7 +205,8 @@ async function cachedClient(db: Db, clientId: string): Promise<ClientRow | null>
  * `touch` marks the client as in use, which is what keeps it from the purge.
  * `mayCreate: false` (the token endpoints) never creates a client: a first-seen
  * one is unknown, with no fetch and no write. The refresh of an expired
- * document of a client that has a row is not affected.
+ * document of a client that has a row still happens, and is not use: it
+ * leaves the mark as it was.
  */
 export async function resolveClient(
     db: Db,
@@ -269,7 +270,6 @@ async function fetchCimdClient(
         logo_uri: doc.logoUri,
         fetched_at: nowIso(),
         expires_at: nowIso(CIMD_CACHE_SECONDS),
-        last_used_at: nowIso(),
     };
     const existing = await cachedClient(db, clientId);
     if (existing) {
@@ -281,7 +281,7 @@ async function fetchCimdClient(
     } else {
         const { error } = await db
             .from("mcp_oauth_clients")
-            .insert({ client_id: clientId, ...values });
+            .insert({ client_id: clientId, ...values, last_used_at: nowIso() });
         // A concurrent request stored the same document first: use theirs.
         if (error && error.code !== "23505") throw dbFailure("client insert failed", error);
         if (!error)

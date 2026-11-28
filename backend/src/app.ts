@@ -66,6 +66,7 @@ import {
   protectInternalErrorResponses,
 } from "./middleware/internalErrorResponse";
 import { configuredAllowedOrigins } from "./lib/origins";
+import { hours, minutes } from "./lib/limiterWindow";
 import { envInt, sourceCommit } from "./lib/runtimeConfig";
 import { requestDiagnostics } from "./middleware/requestDiagnostics";
 import { startInTurn } from "./middleware/startInTurn";
@@ -204,18 +205,6 @@ function admitUndeclaredBody(
   req.on("end", onEnd);
   req.on("error", onError);
   req.on("close", onClose);
-}
-
-// The longest window a limiter's reset timer can hold (a 32-bit signed
-// millisecond count, about 24.8 days); a longer setting is cut to it.
-export const MAX_LIMITER_WINDOW_MS = 2_147_483_647;
-
-export function minutes(value: number): number {
-  return Math.min(value * 60 * 1000, MAX_LIMITER_WINDOW_MS);
-}
-
-export function hours(value: number): number {
-  return minutes(value * 60);
 }
 
 function makeLimiter(options: {

@@ -1,6 +1,7 @@
 // A rate-limit window longer than the limiter can hold is cut to the longest
 // one it can: the limiter keeps limiting. Through the real app (the general
 // limiter) and the window helpers; the settings are set before the app loads.
+import { MAX_LIMITER_WINDOW_MS as ceiling, hours, minutes } from "../../lib/limiterWindow";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -25,7 +26,6 @@ describe("rate-limit window ceiling", () => {
   });
 
   it("turns settings into milliseconds unchanged below the ceiling and cuts them at it", () => {
-    const { minutes, hours, MAX_LIMITER_WINDOW_MS: ceiling } = mod;
     expect(ceiling).toBe(2_147_483_647);
     expect(minutes(15)).toBe(900_000);
     expect(hours(1)).toBe(3_600_000);

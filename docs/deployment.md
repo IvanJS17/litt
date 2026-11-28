@@ -505,6 +505,9 @@ Optional platform settings (all off or unset by default):
   digits (at most 15, no sign, separator, exponent, decimal point or leading zero; spaces around it are
   ignored). Anything else, such as `10,000` or `10k`, uses the setting's default, and the backend writes one
   line at the first read that names the setting (never its value).
+- The window of a request limiter (its `..._WINDOW_MINUTES` or `..._WINDOW_HOURS` setting) longer than about
+  24.8 days (35,791 minutes, 596 hours) is cut to that length, the longest window such a limiter can hold. The
+  per-connection budgets of the MCP server (`RATE_LIMIT_MCP_GRANT_*`) keep no timer and are not cut.
 - `LITT_MCP_SERVER=enabled` and `LITT_MCP_PUBLIC_URL` turn on the MCP server's
   OAuth authorization server and `/mcp` endpoint. `LITT_MCP_UNAPPROVED_CLIENTS_MAX`
   (default 10000) caps client rows that no connection refers to now, and

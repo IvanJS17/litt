@@ -33,7 +33,7 @@ vi.mock("../../middleware/auth", async () => {
     };
 });
 // CIMD documents come from a fixture table; any other URL goes through the
-// REAL guard (which is what the SSRF cases exercise).
+// REAL guard.
 vi.mock("../../lib/mcp/client", async (importOriginal) => {
     const original = await importOriginal<typeof import("../../lib/mcp/client")>();
     return {
@@ -205,5 +205,80 @@ describe("a client is marked as in use only by a successful exchange", () => {
         const next = await refresh(clientId, ok.body.refresh_token);
         expect(next.status).toBe(200);
         expect(lastUsed()).not.toBe(OLD);
+    });
+});
+
+describe("checks that come after the code or the refresh token is accepted", () => {
+    it("leaves the client untouched when the code is exchanged for another resource", async () => {
+        const { clientId, v, code } = await approvedWithCode();
+        const lastUsed = stamp(clientId);
+        const res = await exchange({ client_id: clientId, code, code_verifier: v, resource: "https://other.example/mcp" });
+        expect(res.body.error).toBe("invalid_target");
+        expect(lastUsed()).toBe(OLD);
+    });
+
+    it("leaves the client untouched when a refresh asks for more than the connection has", async () => {
+        const { clientId, v, code } = await approvedWithCode();
+        const ok = await exchange({ client_id: clientId, code, code_verifier: v });
+        const lastUsed = stamp(clientId);
+        const res = await request(app)
+            .post("/oauth/token")
+            .type("form")
+            .send({ grant_type: "refresh_token", client_id: clientId, refresh_token: ok.body.refresh_token, scope: "litt.read litt.write" });
+        expect(res.body.error).toBe("invalid_scope");
+        expect(lastUsed()).toBe(OLD);
+    });
+
+    it("issues no tokens when the mark cannot be written", async () => {
+        const { clientId, v, code } = await approvedWithCode();
+        h.state!.failNext("mcp_oauth_clients", "update", { message: "down" });
+        const res = await exchange({ client_id: clientId, code, code_verifier: v });
+        expect(res.status).toBe(500);
+        expect(res.body.access_token).toBeUndefined();
+        expect(tables().mcp_oauth_tokens).toHaveLength(0);
+    });
+});
+
+describe("refreshing a client's expired metadata document is not use", () => {
+    const DOC_URL = "https://app.example/oauth/client.json";
+    const document = () =>
+        new Response(JSON.stringify({ client_id: DOC_URL, client_name: "Hermes", redirect_uris: [REDIRECT] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+        });
+    const seedExpired = () => {
+        h.documents.set(DOC_URL, document);
+        tables().mcp_oauth_clients.push({
+            client_id: DOC_URL, kind: "cimd", client_name: "Old", redirect_uris: [REDIRECT],
+            expires_at: "2000-01-01T00:00:00.000Z", created_at: OLD, last_used_at: OLD,
+        });
+        return () => tables().mcp_oauth_clients.find((r) => r.client_id === DOC_URL)!;
+    };
+
+    it("keeps the mark when an authorization request refreshes the document", async () => {
+        const row = seedExpired();
+        const res = await authorize(DOC_URL, challengeOf(verifier()));
+        expect(res.status).toBe(302);
+        expect(h.fetched).toEqual([DOC_URL]);
+        expect(row().client_name).toBe("Hermes");
+        expect(Date.parse(String(row().expires_at))).toBeGreaterThan(Date.now());
+        expect(row().last_used_at).toBe(OLD);
+    });
+
+    it("keeps the mark when a refused token request refreshes the document", async () => {
+        const row = seedExpired();
+        const res = await exchange({ client_id: DOC_URL, code: "made-up", code_verifier: verifier() });
+        expect(res.body.error).toBe("invalid_grant");
+        expect(h.fetched).toEqual([DOC_URL]);
+        expect(row().client_name).toBe("Hermes");
+        expect(row().last_used_at).toBe(OLD);
+    });
+
+    it("still marks a client seen for the first time", async () => {
+        h.documents.set(DOC_URL, document);
+        const res = await authorize(DOC_URL, challengeOf(verifier()));
+        expect(res.status).toBe(302);
+        const row = tables().mcp_oauth_clients.find((r) => r.client_id === DOC_URL)!;
+        expect(row.last_used_at).toEqual(expect.any(String));
     });
 });
