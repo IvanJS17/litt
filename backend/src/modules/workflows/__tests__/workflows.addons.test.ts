@@ -11,12 +11,22 @@ const {
   loadDocumentDisplay,
   prepareDocumentDisplay,
   enqueueStorageCleanup,
+  space,
+  usage,
 } = vi.hoisted(() => ({
   downloadFile: vi.fn(),
   uploadFile: vi.fn(),
   loadDocumentDisplay: vi.fn(),
   prepareDocumentDisplay: vi.fn(),
   enqueueStorageCleanup: vi.fn(),
+  space: vi.fn(),
+  usage: vi.fn(),
+}));
+
+vi.mock("../../../lib/storageQuota", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/storageQuota")>()),
+  resolveUploadSpace: space,
+  storageSpaceUsage: usage,
 }));
 
 vi.mock("../../../lib/storage", async (importOriginal) => {
@@ -99,6 +109,8 @@ const filtersOf = (calls: Call[], table: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  space.mockResolvedValue({ ok: true, space: { orgId: null, userId: "u1" } });
+  usage.mockResolvedValue({ usedBytes: 0, limitBytes: 1000 });
 });
 
 describe("listWorkflowAddons", () => {
@@ -568,5 +580,62 @@ describe("importWorkflowAddon", () => {
     expect(paths).toHaveLength(2);
     expect(paths[0]).toMatch(/^documents\/u1\/.+\/source\.docx$/);
     expect(paths[1]).toMatch(/^converted-pdfs\/u1\/.+\.pdf$/);
+  });
+});
+
+describe("importing an add-on asks the storage space", () => {
+  const catalogRow = { id: "a1", title: "Draft", type: "assistant", prompt_md: "p", columns_config: null };
+  const workflowRow = { id: "w1", user_id: "u1", title: "Draft", type: "assistant" };
+  const assets = [
+    { filename: "A.docx", file_type: "docx", storage_path: "catalog/a.docx", size_bytes: 400 },
+    { filename: "B.pdf", file_type: "pdf", storage_path: "catalog/b.pdf", size_bytes: 500 },
+  ];
+  const world = () =>
+    makeDb({
+      mike_workflows: [{ data: catalogRow, error: null }],
+      workflows: [{ data: workflowRow, error: null }, { data: null, error: null }],
+      mike_workflow_assets: [{ data: assets, error: null }],
+      documents: [{ data: null, error: null }],
+      document_versions: [{ data: null, error: null }],
+    });
+  beforeEach(() => {
+    downloadFile.mockResolvedValue(new TextEncoder().encode("reference").buffer);
+    uploadFile.mockResolvedValue(undefined);
+    prepareDocumentDisplay.mockResolvedValue({
+      bytes: Buffer.from("converted-pdf"),
+      contentType: "application/pdf",
+      filename: "A.pdf",
+    });
+  });
+
+  it("asks once for the sum of the assets, then imports them when it fits exactly", async () => {
+    usage.mockResolvedValue({ usedBytes: 100, limitBytes: 1000 });
+    const { db } = world();
+    expect(await importWorkflowAddon(db, { addonId: "a1", userId: "u1" })).toMatchObject({ ok: true });
+    expect(usage).toHaveBeenCalledTimes(1);
+    expect(space).toHaveBeenCalledTimes(1);
+    expect(space).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({ purpose: "document_create", userId: "u1" }),
+    );
+    expect(downloadFile).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["do not fit", () => usage.mockResolvedValue({ usedBytes: 101, limitBytes: 1000 }), "storage_quota_exceeded"],
+    ["cannot be read", () => usage.mockRejectedValue(new Error("unreadable")), "assets_copy_failed"],
+    ["cannot be resolved", () => space.mockResolvedValue({ ok: false, detail: "unreadable" }), "assets_copy_failed"],
+  ])("imports nothing when the bytes %s: no object, no document, no workflow left", async (_name, arrange, kind) => {
+    arrange();
+    const { db, calls } = world();
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await importWorkflowAddon(db, { addonId: "a1", userId: "u1" });
+    log.mockRestore();
+    expect(result).toMatchObject({ ok: false, kind });
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(calls.some((c) => c.table === "documents" || c.table === "document_versions")).toBe(false);
+    expect(calls.some((c) => c.table === "workflows" && c.op === "delete")).toBe(true);
+    expect(enqueueStorageCleanup).toHaveBeenCalledWith(db, []);
   });
 });

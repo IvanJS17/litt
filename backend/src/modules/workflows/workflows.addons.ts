@@ -1,4 +1,5 @@
-import { createDocumentVersion } from "../documents/documents.service";
+import { askRoomForBatch, createDocumentVersion } from "../documents/documents.service";
+import { StorageQuotaExceededError } from "../../lib/storageQuota";
 // Business logic + data access for the workflow ADD-ON CATALOG — the
 // read-only `mike_workflows` rows (distribution = "addon") a user can browse
 // and import into their own `workflows` table.
@@ -203,6 +204,8 @@ export type ImportedWorkflow = Record<string, unknown> & {
 // `sendServiceFailure` produces for kind "error".
 export type WorkflowAddonImportFailure =
   | ServiceFailure
+  // The assets would not fit in the space the person's documents fill.
+  | { ok: false; kind: "storage_quota_exceeded" }
   | {
       ok: false;
       kind: "assets_copy_failed";
@@ -269,6 +272,15 @@ export async function importWorkflowAddon(
             .order("created_at", { ascending: true })
         : { data: [], error: null };
     if (assetsError) throw assetsError;
+    // The imported documents are the person's own (no organization): their
+    // space is asked once, for every asset, before the first object is written.
+    await askRoomForBatch(
+      { db, userId, purpose: "document_create", destination: { scope: "library" } },
+      (assets ?? []).map((asset) => ({
+        storage_path: asset.storage_path,
+        size_bytes: asset.size_bytes,
+      })),
+    );
     for (const asset of assets ?? []) {
       const bytes = await downloadFile(asset.storage_path);
       if (!bytes) throw new Error(`Asset '${asset.filename}' is unavailable`);
@@ -345,6 +357,8 @@ export async function importWorkflowAddon(
       .eq("id", workflow.id)
       .eq("user_id", userId);
     await enqueueStorageCleanup(db, createdStoragePaths);
+    if (error instanceof StorageQuotaExceededError)
+      return { ok: false, kind: "storage_quota_exceeded" };
     // The storage or database failure is the cause: its code reaches
     // the report as failure_code, where the bare detail string said nothing.
     return {

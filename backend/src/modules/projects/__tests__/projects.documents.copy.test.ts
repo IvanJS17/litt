@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   downloadFile: vi.fn(),
   uploadFile: vi.fn(),
   copyFile: vi.fn(),
+  headFile: vi.fn(),
   readStream: vi.fn(),
   space: vi.fn(),
   usage: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock("../../../lib/storage", async (original) => ({
   downloadFile: mocks.downloadFile,
   uploadFile: mocks.uploadFile,
   copyFile: mocks.copyFile,
+  headFile: mocks.headFile,
   createFileReadStream: mocks.readStream,
 }));
 import { assignOrCopyDocument } from "../projects.service";
@@ -285,6 +287,31 @@ describe("copying a document into a project asks the storage space", () => {
     expect(result).toMatchObject({ ok: false, kind: _name === "does not fit" || _name === "has a limit of zero" ? "storage_quota_exceeded" : "copy_failed" });
     expect(mocks.copyFile).not.toHaveBeenCalled();
     expect(mocks.uploadFile).not.toHaveBeenCalled();
+    expect(db.calls.some((c) => c.op === "rpc")).toBe(false);
+    db.done();
+  });
+
+  it("records the size it was asked with when the source row has none", async () => {
+    mocks.headFile.mockResolvedValue({ size: 600, etag: null, contentType: null });
+    const db = scriptedDb(script(unsealed, sourceRow({ size_bytes: null })));
+    expect(await run(db.db)).toMatchObject({ ok: true });
+    const version = (db.calls.find((c) => c.op === "rpc")?.args as { p_version: Record<string, unknown> }).p_version;
+    expect(version.size_bytes).toBe(600);
+    // The object's size is read once, not once to ask and once to record.
+    expect(mocks.headFile).toHaveBeenCalledTimes(1);
+    db.done();
+  });
+
+  it("takes the hash before anything is copied: a failed hash leaves no object and no row", async () => {
+    mocks.readStream.mockImplementation(() =>
+      Readable.from((async function* () { throw new Error("stream reset"); })()),
+    );
+    const db = scriptedDb(script([{ table: "documents", op: "delete" }], sourceRow({ content_sha256: null })));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await run(db.db);
+    log.mockRestore();
+    expect(result).toMatchObject({ ok: false, kind: "copy_failed" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
     expect(db.calls.some((c) => c.op === "rpc")).toBe(false);
     db.done();
   });

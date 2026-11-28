@@ -14,6 +14,10 @@ import { sendInternalError } from "../../lib/httpError";
 import { reportError, setOperation } from "../../lib/observability/report";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import {
+  STORAGE_QUOTA_EXCEEDED_CODE,
+  STORAGE_QUOTA_EXCEEDED_DETAIL,
+} from "../../lib/storageQuota";
+import {
   getWorkflowAddon,
   importWorkflowAddon,
   listWorkflowAddons,
@@ -35,6 +39,11 @@ function sendImportFailure(res: Response, failure: WorkflowAddonImportFailure) {
     console.error("[workflow-addons] import failed", failure.error);
     return void res.status(500).json({ detail: failure.detail });
   }
+  if (failure.kind === "storage_quota_exceeded")
+    return void res.status(413).json({
+      code: STORAGE_QUOTA_EXCEEDED_CODE,
+      detail: STORAGE_QUOTA_EXCEEDED_DETAIL,
+    });
   return void sendServiceFailure(res, failure);
 }
 

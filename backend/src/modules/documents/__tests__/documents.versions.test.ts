@@ -456,6 +456,40 @@ describe("a version taken from another document asks the storage space", () => {
   });
 });
 
+describe("a version taken from another document: size, hash and space are settled before any write", () => {
+  beforeEach(() => {
+    mocks.access
+      .mockResolvedValueOnce(access())
+      .mockResolvedValueOnce(access("viewer", false, "source-project"));
+  });
+  it("records the size it was asked with when the source row has none", async () => {
+    mocks.active.mockResolvedValue({ ...(await mocks.active()), size_bytes: null });
+    mocks.headFile.mockResolvedValue({ size: 777, etag: null, contentType: null });
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: true });
+    expect(fake.rpc.mock.calls[0][1].p_version.size_bytes).toBe(777);
+    expect(mocks.headFile.mock.calls.filter(([key]) => key === "source/key")).toHaveLength(1);
+  });
+  it("refuses with the storage answer, and copies nothing, when the hash cannot be taken", async () => {
+    mocks.active.mockResolvedValue({ ...(await mocks.active()), content_sha256: null });
+    mocks.readStream.mockImplementation(() =>
+      Readable.from((async function* () { throw new Error("stream reset"); })()),
+    );
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: false, kind: "storage_write" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(fake.rpc).not.toHaveBeenCalled();
+  });
+  it("refuses, and copies nothing, when the space cannot be resolved", async () => {
+    mocks.space.mockResolvedValue({ ok: false, detail: "unreadable" });
+    const fake = db();
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: false, kind: "storage_write" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(fake.rpc).not.toHaveBeenCalled();
+    expect(mocks.deleteSource).not.toHaveBeenCalled();
+  });
+});
+
 describe("a move asks the storage space only when it stays in one space", () => {
   const arrange = (target: ReturnType<typeof access>, source: ReturnType<typeof access>) =>
     mocks.access.mockResolvedValueOnce(target).mockResolvedValueOnce(source);

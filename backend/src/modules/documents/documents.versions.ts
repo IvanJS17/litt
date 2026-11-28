@@ -260,9 +260,16 @@ export async function createVersionFromDocument(
     const key = versionStorageKey(userId, documentId, versionSlug, filename);
     let pdfStoragePath: string | null = null;
 
+    let storedBytes: number;
+    let contentHash: string;
     try {
+        // Settled before anything is written: the size the copy is asked with
+        // is the size it records, and a hash that cannot be taken refuses the
+        // copy while nothing exists yet.
+        storedBytes = await sourceStoredBytes(active);
+        contentHash = await sourceContentSha256(active);
         ({ pdfStoragePath } = await copyDocumentVersionFiles({
-            source: { ...active, file_type: suffix },
+            source: { ...active, file_type: suffix, size_bytes: storedBytes },
             storagePath: key,
             pdfStoragePath: convertedPdfKey(userId, documentId, versionSlug),
             transport: "server",
@@ -361,10 +368,10 @@ export async function createVersionFromDocument(
 
             filename: filename,
             file_type: sourceType || null,
-            size_bytes: active.size_bytes ?? (await sourceStoredBytes(active)),
+            size_bytes: storedBytes,
             page_count: active.page_count,
             textless_page_count: active.textless_page_count,
-            content_sha256: await sourceContentSha256(active),
+            content_sha256: contentHash,
         },
     );
     if (verErr || !versionRow) {

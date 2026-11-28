@@ -2,6 +2,7 @@ import {
   createDocumentVersion,
   copyDocumentVersionFiles,
   sourceContentSha256,
+  sourceStoredBytes,
 } from "../documents/documents.service";
 // Project document service functions: list, assign/copy an existing document
 // into a project, and rename.
@@ -273,10 +274,14 @@ export async function assignOrCopyDocument(
     );
     let newPdfPath: string | null = null;
     try {
+      // The size the copy is asked with is the size it records, and the hash
+      // is taken before anything is written.
+      const storedBytes = await sourceStoredBytes(srcV);
+      const contentSha256 = await sourceContentSha256(srcV);
       ({ pdfStoragePath: newPdfPath } = await copyDocumentVersionFiles({
         source: { storage_path: srcV.storage_path, pdf_storage_path: srcV.pdf_storage_path,
           file_type: (srcV.file_type as string | null) ?? doc.file_type,
-          size_bytes: srcV.size_bytes as number | null },
+          size_bytes: storedBytes },
         storagePath: newKey,
         pdfStoragePath: convertedPdfKey(userId, copy.id as string),
         transport: "server", rendition: "optional",
@@ -295,13 +300,12 @@ export async function assignOrCopyDocument(
           version_number: srcV.version_number ?? 1,
           filename: activeVersionFilename,
           file_type: (srcV.file_type as string | null) ?? doc.file_type,
-          size_bytes:
-            (srcV.size_bytes as number | null) ?? doc.size_bytes ?? null,
+          size_bytes: storedBytes,
           page_count:
             (srcV.page_count as number | null) ?? doc.page_count ?? null,
           textless_page_count:
             (srcV.textless_page_count as number | null) ?? null,
-          content_sha256: await sourceContentSha256(srcV),
+          content_sha256: contentSha256,
         });
       const copyVersionRowId = (newV?.id as string | null) ?? null;
       if (newVError || !copyVersionRowId) {

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   docAccess: vi.fn(),
   copyFile: vi.fn(),
   headFile: vi.fn(),
+  downloadFile: vi.fn(),
   space: vi.fn(),
   usage: vi.fn(),
 }));
@@ -33,6 +34,7 @@ vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
   copyFile: mocks.copyFile,
   headFile: mocks.headFile,
+  downloadFile: mocks.downloadFile,
 }));
 import { copyDocumentsToWorkflowAssets } from "../workflows.service";
 
@@ -216,5 +218,39 @@ describe("copying documents into workflow assets asks the storage space", () => 
     expect(await copyDocumentsToWorkflowAssets(fake.db, { ...params, documentIds: ids }))
       .toMatchObject({ ok: false, kind: "storage_quota_exceeded" });
     expect(mocks.copyFile).not.toHaveBeenCalled();
+  });
+  it("refuses when the space cannot be resolved: no object copied, no row written", async () => {
+    mocks.space.mockResolvedValue({ ok: false, detail: "unreadable" });
+    const fake = scriptedDb([...reads(), { table: "documents", op: "delete" }]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, params)).toMatchObject({ ok: false, kind: "db_error" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(fake.calls.some((c) => c.op === "insert" || c.op === "rpc")).toBe(false);
+  });
+  it("copies in the store: the source object is not downloaded", async () => {
+    const fake = scriptedDb([
+      ...reads(),
+      { table: "documents", op: "insert" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "documents", data: [{ id: "created" }] },
+    ]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, params)).toMatchObject({ ok: true });
+    expect(mocks.copyFile).toHaveBeenCalledOnce();
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+  });
+  it("records the size it was asked with when a source row has none", async () => {
+    const { ids, reads: sizeless } = batch(1, [null]);
+    mocks.headFile.mockResolvedValue({ size: 600, etag: null, contentType: null });
+    const fake = scriptedDb([
+      ...sizeless,
+      { table: "documents", op: "insert" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "documents", data: [{ id: "created" }] },
+    ]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, { ...params, documentIds: ids })).toMatchObject({ ok: true });
+    const version = (fake.calls.find((c) => c.op === "rpc")?.args as { p_version: Record<string, unknown> }).p_version;
+    expect(version.size_bytes).toBe(600);
+    expect(mocks.headFile).toHaveBeenCalledTimes(1);
   });
 });

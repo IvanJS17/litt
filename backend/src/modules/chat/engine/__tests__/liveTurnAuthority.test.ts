@@ -22,6 +22,14 @@ vi.mock("../../../../lib/storage", async (load) => ({
   ...await load<object>(),
   downloadFile: mocks.download, downloadFileIfAvailable: mocks.download, uploadFile: mocks.upload,
 }));
+// These tests are about what is copied; the room the copies fill is asked in
+// workflowAssetReplication.test.ts.
+vi.mock("../../../../lib/storageQuota", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../../lib/storageQuota")>()),
+  resolveUploadSpace: async () => ({ ok: true, space: { orgId: null, userId: "u" } }),
+  storageSpaceUsage: async () => ({ usedBytes: 0, limitBytes: 1_000_000 }),
+}));
+
 vi.mock("../../../../lib/downloadTokens", () => ({ buildDownloadUrl: () => "/download/token" }));
 vi.mock("../../../../lib/queue/conversionQueue", () => ({ enqueueConversion: vi.fn(async () => ({})) }));
 

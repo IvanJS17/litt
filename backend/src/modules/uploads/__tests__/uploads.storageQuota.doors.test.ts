@@ -2,7 +2,12 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-// The storage quota is checked in one place: opening an upload session. A
+// Two things refuse by the storage quota: opening an upload session, and a
+// copy of stored bytes into a space (a document copied into a project, a
+// version taken from another document, a copy into workflow assets, the
+// assistant's copies of a document, the import of a workflow add-on). A copy
+// asks only through modules/documents/documents.copyFiles.ts. An upload
+// session is checked in the database; a
 // session that creates documents is checked against the limit; one that adds a
 // new version to an existing document (the web editor's save of a Word
 // document, an uploaded new version, a replaced version, the add-in's version
@@ -30,7 +35,7 @@ const relative = (file: string) => path.relative(SRC, file).split(path.sep).join
 describe("who asks the storage quota", () => {
   const files = sources(SRC);
 
-  it("is the upload session opening and the two usage reads, nothing that writes versions directly, downloads or deletes", () => {
+  it("is the upload session opening, the copy door, the routes that answer its refusal and the two usage reads, nothing that writes versions directly, downloads or deletes", () => {
     const askers = files
       .filter((file) =>
         /storageQuota(?!Fill)|storage_space_usage|target_quota_/.test(
@@ -42,9 +47,34 @@ describe("who asks the storage quota", () => {
     expect(askers).toEqual([
       "lib/runtimeConfig.ts",
       "lib/storageQuota.ts",
+      "modules/chat/engine/tools/toolDispatcher.ts",
+      "modules/documents/documents.copyFiles.ts",
+      "modules/documents/documents.routes.ts",
+      "modules/documents/documents.versions.ts",
       "modules/orgs/orgs.storageUsage.ts",
+      "modules/projects/projects.documents.ts",
+      "modules/projects/projects.routes.ts",
       "modules/uploads/uploads.open.ts",
       "modules/uploads/uploads.sessions.ts",
+      "modules/user/user.storageUsage.ts",
+      "modules/workflows/workflowAddons.routes.ts",
+      "modules/workflows/workflows.addons.ts",
+      "modules/workflows/workflows.assets.ts",
+      "modules/workflows/workflows.routes.ts",
+    ]);
+  });
+
+  it("reads the usage of a space for a copy only in the shared copy helper", () => {
+    // The two usage reads (a firm's, a person's) only report the usage; the
+    // copy door is the one place that compares it with a size to refuse.
+    const readers = files
+      .filter((file) => /\bstorageSpaceUsage\(/.test(readFileSync(file, "utf8")))
+      .map(relative)
+      .sort();
+    expect(readers).toEqual([
+      "lib/storageQuota.ts",
+      "modules/documents/documents.copyFiles.ts",
+      "modules/orgs/orgs.storageUsage.ts",
       "modules/user/user.storageUsage.ts",
     ]);
   });

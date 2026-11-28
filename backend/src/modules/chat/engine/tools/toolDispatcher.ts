@@ -21,7 +21,11 @@ import {
 } from "../../../../lib/integrations/googleWorkspace";
 import { diagnosticErrorTags } from "../../../../lib/observability/diagnostics";
 import { documentSearchFailure } from "./documentSearchErrors";
-import { findDocumentText, createDocumentVersions, type VersionAuthorship } from "../../../documents/documents.service";
+import { findDocumentText, createDocumentVersions, askRoomForBatch, type VersionAuthorship } from "../../../documents/documents.service";
+import {
+  STORAGE_QUOTA_EXCEEDED_CODE,
+  StorageQuotaExceededError,
+} from "../../../../lib/storageQuota";
 import { executeMcpToolCall } from "../../../../lib/mcpConnectors";
 import {
   APPROVAL_UNAVAILABLE_MESSAGE,
@@ -1438,7 +1442,7 @@ export async function runToolCalls(
         })}\n\n`,
       );
 
-      const fail = (error: string) => {
+      const fail = (error: string, code?: string) => {
         write(
           `data: ${JSON.stringify({
             type: "doc_replicated",
@@ -1451,7 +1455,7 @@ export async function runToolCalls(
         toolResults.push({
           role: "tool",
           tool_call_id: tc.id,
-          content: JSON.stringify({ ok: false, error }),
+          content: JSON.stringify({ ok: false, error, ...(code ? { code } : {}) }),
         });
       };
 
@@ -1503,6 +1507,31 @@ export async function runToolCalls(
           if (!raw) {
             fail("Could not read the source document's bytes from storage.");
           } else {
+            // The space the copies fill is asked once, for all of them,
+            // before anything is converted or written.
+            try {
+              await askRoomForBatch(
+                {
+                  db,
+                  userId,
+                  purpose: "document_create",
+                  destination: projectId
+                    ? { scope: "project", project_id: projectId }
+                    : { scope: "library", org_id: options.orgId ?? null },
+                },
+                Array.from({ length: requestedCount }, () => ({
+                  storage_path: sourcePath,
+                  size_bytes: raw.byteLength,
+                })),
+              );
+            } catch (quotaError) {
+              if (!(quotaError instanceof StorageQuotaExceededError)) throw quotaError;
+              fail(
+                "The copies were not made because the storage space is full. Delete documents or earlier versions you no longer need, or ask the firm's administrator for more space.",
+                STORAGE_QUOTA_EXCEEDED_CODE,
+              );
+              continue;
+            }
             // Only reached when the source has no rendition to copy — the one
             // branch of replicate that pays for LibreOffice, so it's the branch
             // the conversion queue takes over when the flag is on: copies are

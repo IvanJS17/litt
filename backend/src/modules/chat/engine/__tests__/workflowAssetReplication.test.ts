@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { downloadFile, uploadFile } = vi.hoisted(() => ({
+const { downloadFile, uploadFile, space, usage } = vi.hoisted(() => ({
     downloadFile: vi.fn(),
     uploadFile: vi.fn(),
+    // A space with plenty of room unless a test says otherwise.
+    space: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({ ok: true, space: { orgId: null, userId: "user-1" } })),
+    usage: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({ usedBytes: 0, limitBytes: 1_000_000 })),
+}));
+
+vi.mock("../../../../lib/storageQuota", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../../lib/storageQuota")>()),
+    resolveUploadSpace: (...args: unknown[]) => space(...args),
+    storageSpaceUsage: (...args: unknown[]) => usage(...args),
 }));
 
 vi.mock("../../../../lib/storage", async (importOriginal) => {
@@ -435,5 +444,113 @@ describe("workflow asset replication", () => {
         );
 
         expect(JSON.stringify(result.toolResults)).toContain("cannot be edited directly");
+    });
+});
+
+describe("replicate_document asks the storage space", () => {
+    const sourceLabel = "workflow-asset-workflow-1-1";
+    const store = (): DocStore =>
+        new Map([
+            [
+                sourceLabel,
+                {
+                    filename: "Precedent.pdf",
+                    file_type: "pdf",
+                    storage_path: "workflow-assets/precedent.pdf",
+                    source_kind: "workflow_asset",
+                },
+            ],
+        ]);
+    const replicate = (db: unknown, count: number, projectId?: string) =>
+        runToolCalls(
+            [
+                {
+                    id: "replicate-quota",
+                    function: {
+                        name: "replicate_document",
+                        arguments: JSON.stringify({
+                            doc_id: sourceLabel,
+                            new_filename: "Client precedent.pdf",
+                            count,
+                        }),
+                    },
+                },
+            ],
+            store(),
+            "user-1",
+            db as never,
+            () => undefined,
+            undefined,
+            undefined,
+            {},
+            undefined,
+            undefined,
+            projectId,
+        );
+    beforeEach(() => {
+        vi.clearAllMocks();
+        // The source is 5 bytes: three copies ask for 15.
+        downloadFile.mockResolvedValue(new TextEncoder().encode("asset").buffer);
+        uploadFile.mockResolvedValue(undefined);
+        space.mockResolvedValue({ ok: true, space: { orgId: null, userId: "user-1" } });
+        usage.mockResolvedValue({ usedBytes: 985, limitBytes: 1000 });
+    });
+
+    it("asks once for all the copies, then makes them when they fit exactly", async () => {
+        const { db, documentRows } = replicationDb();
+        const result = await replicate(db, 3);
+        expect(JSON.parse((result.toolResults[0] as { content: string }).content)).toMatchObject({
+            ok: true,
+            count: 3,
+        });
+        expect(usage).toHaveBeenCalledTimes(1);
+        expect(space).toHaveBeenCalledTimes(1);
+        expect(space).toHaveBeenCalledWith(
+            db,
+            expect.objectContaining({ purpose: "document_create", userId: "user-1" }),
+        );
+        // Each copy is the file and its PDF rendition.
+        expect(uploadFile).toHaveBeenCalledTimes(6);
+        expect(documentRows[0]).toHaveLength(3);
+    });
+
+    it("asks the project's space for a copy made in a project chat", async () => {
+        const { db } = replicationDb();
+        await replicate(db, 1, "project-1");
+        expect(space).toHaveBeenCalledWith(
+            db,
+            expect.objectContaining({
+                purpose: "document_create",
+                destination: { scope: "project", project_id: "project-1" },
+            }),
+        );
+    });
+
+    it.each([
+        ["do not fit", () => usage.mockResolvedValue({ usedBytes: 986, limitBytes: 1000 })],
+        ["cannot be read", () => usage.mockRejectedValue(new Error("unreadable"))],
+        ["cannot be resolved", () => space.mockResolvedValue({ ok: false, detail: "unreadable" })],
+    ])("makes no copy when the bytes %s: no object, no row", async (_name, arrange) => {
+        arrange();
+        const { db, documentRows, versionRows } = replicationDb();
+        const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const result = await replicate(db, 3);
+        log.mockRestore();
+        const payload = JSON.parse((result.toolResults[0] as { content: string }).content);
+        expect(payload.ok).toBe(false);
+        expect(uploadFile).not.toHaveBeenCalled();
+        expect(documentRows).toHaveLength(0);
+        expect(versionRows).toHaveLength(0);
+    });
+
+    it("tells the assistant the copies were not made because the storage space is full", async () => {
+        usage.mockResolvedValue({ usedBytes: 986, limitBytes: 1000 });
+        const { db } = replicationDb();
+        const result = await replicate(db, 3);
+        expect(JSON.parse((result.toolResults[0] as { content: string }).content)).toEqual({
+            ok: false,
+            code: "storage_quota_exceeded",
+            error: expect.stringContaining("storage space is full"),
+        });
     });
 });

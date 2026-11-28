@@ -1,5 +1,5 @@
 import { mapWithConcurrency } from "../../lib/concurrency";
-import { captureInlineDocumentCleanup, completeInlineDocumentCleanup, createDocumentVersion, copyDocumentVersionFiles, askRoomForBatch } from "../documents/documents.service";
+import { captureInlineDocumentCleanup, completeInlineDocumentCleanup, createDocumentVersion, copyDocumentVersionFiles, askRoomForBatch, sourceStoredBytes } from "../documents/documents.service";
 
 // workflows assets — implementation behind the module facade.
 // Business logic + data access for the workflows module.
@@ -219,12 +219,20 @@ export async function copyDocumentsToWorkflowAssets(
   const copiedPaths = new Set<string>();
   try {
     // The whole batch is asked once, before its first object is written.
+    // Each source's stored size is read once: it is what the batch is asked
+    // with and what its copy records.
+    const storedBytes = new Map<string, number>();
+    for (const plan of plans)
+      storedBytes.set(plan.documentId, await sourceStoredBytes(plan.sourceVersion));
     const room = await askRoomForBatch(
       {
         db, userId, purpose: "document_create",
         destination: { scope: "workflow", workflow_id: workflowId },
       },
-      plans.map((plan) => plan.sourceVersion),
+      plans.map((plan) => ({
+        ...plan.sourceVersion,
+        size_bytes: storedBytes.get(plan.documentId)!,
+      })),
     );
     for (const plan of plans) {
       await copyDocumentVersionFiles({
@@ -264,7 +272,7 @@ export async function copyDocumentsToWorkflowAssets(
           version_number: 1,
           filename: plan.sourceVersion.filename,
           file_type: plan.sourceVersion.file_type,
-          size_bytes: plan.sourceVersion.size_bytes,
+          size_bytes: storedBytes.get(plan.documentId)!,
           page_count: plan.sourceVersion.page_count,
           textless_page_count: plan.sourceVersion.textless_page_count,
           content_sha256: plan.sourceVersion.content_sha256,
