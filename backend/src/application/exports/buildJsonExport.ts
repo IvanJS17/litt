@@ -15,6 +15,7 @@ import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "../../lib/trainingN
 import { judgeWorkMatters, openMatters, workKey } from "../../lib/trainingWork";
 import { loadUserObligationEvents, loadUserProfileFacts, loadUserRadarEvents, loadUserReportSentEvents, loadUserRuleSuggestions } from "./matterProfileExport";
 import { loadUserMatterRequests } from "./matterRequestsExport";
+import { holdBack, type HeldBack } from "./heldBackTally";
 import {
     resolvePlaybookRoles,
     withholdUnreadableRunRows,
@@ -414,7 +415,8 @@ async function loadUserPlaybooks(
         ),
     );
     const playbooks = created.filter((row) => inScope.has(row.id as string));
-    // A playbook (and the runs of one) the holder cannot open is left out; one
+    // The runs of a playbook the holder cannot open are left out (a playbook the
+    // holder created is always theirs to open, so none of those is withheld); one
     // of an organization the holder has left stays with that organization.
     const refused = new Set(
         idsFrom(
@@ -426,7 +428,6 @@ async function loadUserPlaybooks(
             ),
         ),
     );
-    holdBack(tally, "playbooks", created.filter((row) => refused.has(row.id as string)).length);
     holdBack(tally, "playbook_runs", runCandidates.filter((row) => refused.has(row.playbook_id as string)).length);
     const [sources, changes] = await Promise.all([
         selectByIds(db, "playbook_sources", "playbook_id", idsFrom(playbooks), {
@@ -598,18 +599,6 @@ function countChatsHeldBack(judged: ChatJudgement): number {
     let count = 0;
     for (const messages of judged.values()) if (messages.some((message) => message.withheld)) count += 1;
     return count;
-}
-
-/**
- * What a download left out because the holder cannot open it (or what it was
- * drawn from) today: kind of thing → how many. The builder makes one and hands
- * it to the places that withhold. Archived rows and the records of an
- * organization the holder has left are not counted.
- */
-export type HeldBack = Map<string, number>;
-
-function holdBack(tally: HeldBack, kind: string, count = 1) {
-    if (count > 0) tally.set(kind, (tally.get(kind) ?? 0) + count);
 }
 
 /**
@@ -1086,15 +1075,22 @@ export async function buildUserAccountExport(
     const reader = { userId, userEmail };
     const judged: ChatJudgement = new Map([...assistantLoaded.judged, ...tabularLoaded.judged]);
     await judgeUnlistedChats(db, judged, [...trainingNotes, ...trainingWorkReviews, ...trainingBackingChecks, ...trainingCriteriaContrasts], reader);
+    // A row of an organization the holder has left is the firm's, not counted.
+    const memberOrgIds = new Set(orgIds);
+    const ofLeftOrg = (row: Row) => typeof row.org_id === "string" && !memberOrgIds.has(row.org_id);
+    const holdBackTraining = (rows: Row[], kept: Row[]) => {
+        const keptRows = new Set(kept);
+        holdBack(tally, "training_records", rows.filter((row) => !keptRows.has(row) && !ofLeftOrg(row)).length);
+    };
     const keepOpenable = async (rows: Row[]) => {
         const kept = await openableTrainingRows(db, rows, userId, userEmail);
-        holdBack(tally, "training_records", rows.length - kept.length);
+        holdBackTraining(rows, kept);
         return kept;
     };
     const keepFromChats = async (rows: Row[]) => {
         const open = await keepOpenable(rows);
         const kept = open.filter((row) => madeFromReadableAnswers(judged, row));
-        holdBack(tally, "training_records", open.length - kept.length);
+        holdBackTraining(open, kept);
         return kept;
     };
     const [
@@ -1120,7 +1116,7 @@ export async function buildUserAccountExport(
     const readableReadings = await keepReadableDerived(db, reader, openReadings, (row) =>
         typeof row.document_id === "string" ? [row.document_id] : [],
     );
-    holdBack(tally, "training_records", openReadings.length - readableReadings.length);
+    holdBackTraining(openReadings, readableReadings);
     const readings = readableReadings.map((row) => (typeof row.document_id === "string" ? row : { ...row, machine_findings: null, comparison: null }));
     // A defense hangs from a work review: what was derived from a withheld
     // review goes with it, and from none recorded (a practice-area defense is
@@ -1136,7 +1132,11 @@ export async function buildUserAccountExport(
         tally,
         "training_records",
         trainingDefenses.filter(
-            (row) => typeof row.work_review_id === "string" && allReviewIds.has(row.work_review_id) && !keptReviewIds.has(row.work_review_id),
+            (row) =>
+                typeof row.work_review_id === "string" &&
+                allReviewIds.has(row.work_review_id) &&
+                !keptReviewIds.has(row.work_review_id) &&
+                !ofLeftOrg(row),
         ).length,
     );
     const defenses = trainingDefenses.map((row) =>
@@ -1150,7 +1150,7 @@ export async function buildUserAccountExport(
     const retakesKept = trainingRetakes.filter((row) =>
         noteIdsOf(row).every((id) => typeof id !== "string" || !allNoteIds.has(id) || keptNoteIds.has(id)),
     );
-    holdBack(tally, "training_records", trainingRetakes.length - retakesKept.length);
+    holdBackTraining(trainingRetakes, retakesKept);
     const retakes = retakesKept
         .map((row) => {
             const ids = noteIdsOf(row);
@@ -1160,12 +1160,12 @@ export async function buildUserAccountExport(
         });
 
     // Retainer requests that name the holder, in matters they can still open.
-    const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId);
-    const profileFacts = await loadUserProfileFacts(db, userId, userEmail, orgId);
-    const radarEvents = await loadUserRadarEvents(db, userId, userEmail, orgId);
-    const obligationEvents = await loadUserObligationEvents(db, userId, userEmail, orgId);
-    const reportSentEvents = await loadUserReportSentEvents(db, userId, userEmail, orgId);
-    const ruleSuggestions = await loadUserRuleSuggestions(db, userId, userEmail, orgId);
+    const matterRequests = await loadUserMatterRequests(db, userId, userEmail, orgId, tally);
+    const profileFacts = await loadUserProfileFacts(db, userId, userEmail, orgId, tally);
+    const radarEvents = await loadUserRadarEvents(db, userId, userEmail, orgId, tally);
+    const obligationEvents = await loadUserObligationEvents(db, userId, userEmail, orgId, tally);
+    const reportSentEvents = await loadUserReportSentEvents(db, userId, userEmail, orgId, tally);
+    const ruleSuggestions = await loadUserRuleSuggestions(db, userId, userEmail, orgId, tally);
 
     const playbooks = await loadUserPlaybooks(
         db,

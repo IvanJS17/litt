@@ -580,8 +580,13 @@ these workflows. Every JSON download (account, chats only, table reviews only)
 carries a top-level `held_back` field, in Spanish and English with a count per
 kind and never a name or an id, only when it left something out because the
 holder cannot open it, or what it was drawn from, today (conversations, review
-chats and cells, documents, playbooks and runs, training records). Archived rows
-and the records of an organization the holder has left are not counted.
+chats and cells, documents, playbooks and runs, training records, matter
+requests and other matter records). Archived rows and the records of an
+organization the holder has left are not counted, except where the reason
+cannot be told apart without a second access check: a record whose chat or
+review no longer exists, a run whose document was deleted, a row refused at
+read time where the holder's membership of its organization is not at hand,
+and a matter record whose project is archived are counted.
 
 Projects own `projects.lifecycle.ts` and `projects.export.ts`. Document lifecycle
 mutations continue through documents. Shared credential persistence, precedence
