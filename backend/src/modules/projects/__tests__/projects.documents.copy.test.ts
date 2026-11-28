@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { Readable } from "node:stream";
 import { scriptedDb } from "../../../__tests__/helpers/scriptedDb";
 
 const mocks = vi.hoisted(() => ({
@@ -6,6 +8,16 @@ const mocks = vi.hoisted(() => ({
   docAccess: vi.fn(),
   downloadFile: vi.fn(),
   uploadFile: vi.fn(),
+  copyFile: vi.fn(),
+  headFile: vi.fn(),
+  readStream: vi.fn(),
+  space: vi.fn(),
+  usage: vi.fn(),
+}));
+vi.mock("../../../lib/storageQuota", async (original) => ({
+  ...(await original<typeof import("../../../lib/storageQuota")>()),
+  resolveUploadSpace: mocks.space,
+  storageSpaceUsage: mocks.usage,
 }));
 vi.mock("../../../lib/access", async (original) => ({
   ...(await original<typeof import("../../../lib/access")>()),
@@ -20,6 +32,9 @@ vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
   downloadFile: mocks.downloadFile,
   uploadFile: mocks.uploadFile,
+  copyFile: mocks.copyFile,
+  headFile: mocks.headFile,
+  createFileReadStream: mocks.readStream,
 }));
 import { assignOrCopyDocument } from "../projects.service";
 
@@ -34,6 +49,10 @@ const firmDoc = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.copyFile.mockResolvedValue(undefined);
+  mocks.readStream.mockImplementation(() => Readable.from([Buffer.from("streamed")]));
+  mocks.space.mockResolvedValue({ ok: true, space: { orgId: null, userId: "actor" } });
+  mocks.usage.mockResolvedValue({ usedBytes: 0, limitBytes: 1000 });
   mocks.projectAccess.mockResolvedValue({
     ok: true,
     projectRole: "owner",
@@ -169,22 +188,6 @@ it.each([
   fake.done();
 });
 
- it("returns a typed read failure with its original cause before creating a copy", async () => {
-  mocks.projectAccess.mockResolvedValue({ ok: true, projectRole: "owner", project: { org_id: null } });
-  mocks.docAccess.mockResolvedValue({ ok: true, projectRole: "owner", isCreator: true });
-  const source = { ...firmDoc, project_id: null, org_id: null, workflow_id: "workflow" };
-  const fake = scriptedDb([
-    { table: "documents", data: source },
-    { table: "documents", data: [source] },
-    { table: "document_versions", data: { storage_path: "private-key", filename: "Private.docx" } },
-  ]);
-  const error = new Error("AccessDenied");
-  mocks.downloadFile.mockRejectedValueOnce(error);
-  expect(await assignOrCopyDocument(fake.db, { projectId: "destination", documentId: "doc", userId: "actor" }))
-    .toEqual({ ok: false, kind: "read_failed", error });
-  fake.done();
-});
-
 it.each([
   ["a pasante's version keeps its author, not the copying actor", [{ training_author_user_id: "pasante-1", training_stage: "pasante" }], true],
   ["an unsealed version stays unsealed", [{ training_author_user_id: null, training_stage: null }], false],
@@ -197,7 +200,7 @@ it.each([
   const fake = scriptedDb([
     { table: "documents", data: source },
     { table: "documents", data: [source] },
-    { table: "document_versions", data: { storage_path: "src/key.pdf", filename: "Source.pdf", file_type: "pdf", version_number: 1 } },
+    { table: "document_versions", data: { storage_path: "src/key.pdf", filename: "Source.pdf", file_type: "pdf", version_number: 1, size_bytes: 4 } },
     { table: "projects", data: { org_id: null } },
     { table: "documents", op: "insert", data: { id: "copy" } },
     { table: "document_versions", data: sourceSeal },
@@ -218,4 +221,98 @@ it.each([
     expect(version).not.toHaveProperty("training_stage");
   }
   fake.done();
+});
+
+describe("copying a document into a project asks the storage space", () => {
+  const sourceRow = (extra: Record<string, unknown> = {}) => ({
+    storage_path: "src/key.pdf", pdf_storage_path: null, filename: "Source.pdf",
+    file_type: "pdf", version_number: 1, size_bytes: 100, content_sha256: "row-hash", ...extra,
+  });
+  const script = (tail: unknown[], row = sourceRow()): Parameters<typeof scriptedDb>[0] => [
+    { table: "documents", data: { ...firmDoc, project_id: null, org_id: null, workflow_id: "workflow" } },
+    { table: "documents", data: [{ ...firmDoc, project_id: null, org_id: null, workflow_id: "workflow" }] },
+    { table: "document_versions", data: row },
+    { table: "projects", data: { org_id: null } },
+    { table: "documents", op: "insert", data: { id: "copy" } },
+    ...(tail as Parameters<typeof scriptedDb>[0]),
+  ];
+  const run = (db: Parameters<typeof assignOrCopyDocument>[0]) =>
+    assignOrCopyDocument(db, { projectId: "destination", documentId: "doc", userId: "actor" });
+  const unsealed = [
+    { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+    { rpc: "create_document_version", data: { id: "copy-version" } },
+    { table: "documents", data: { id: "copy" } },
+  ];
+  beforeEach(() => {
+    mocks.projectAccess.mockResolvedValue({ ok: true, projectRole: "owner", project: { org_id: null } });
+    mocks.docAccess.mockResolvedValue({ ok: true, projectRole: "owner", isCreator: true });
+  });
+
+  it("copies in the store, with the row's hash, when it fits", async () => {
+    mocks.usage.mockResolvedValue({ usedBytes: 900, limitBytes: 1000 }); // exactly at the limit
+    const fake = script(unsealed);
+    const db = scriptedDb(fake);
+    expect(await run(db.db)).toMatchObject({ ok: true, status: 201 });
+    expect(mocks.copyFile).toHaveBeenCalledWith("src/key.pdf", expect.any(String));
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+    expect(mocks.readStream).not.toHaveBeenCalled();
+    expect(mocks.space).toHaveBeenCalledWith(db.db, expect.objectContaining({
+      purpose: "document_create", destination: { scope: "project", project_id: "destination" },
+    }));
+    const version = (db.calls.find((c) => c.op === "rpc")?.args as { p_version: Record<string, unknown> }).p_version;
+    expect(version.content_sha256).toBe("row-hash");
+    db.done();
+  });
+
+  it("streams the hash when the source row has none", async () => {
+    const db = scriptedDb(script(unsealed, sourceRow({ content_sha256: null })));
+    expect(await run(db.db)).toMatchObject({ ok: true });
+    const version = (db.calls.find((c) => c.op === "rpc")?.args as { p_version: Record<string, unknown> }).p_version;
+    expect(version.content_sha256).toBe(createHash("sha256").update("streamed").digest("hex"));
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+    db.done();
+  });
+
+  it.each([
+    ["does not fit", () => mocks.usage.mockResolvedValue({ usedBytes: 901, limitBytes: 1000 })],
+    ["has a limit of zero", () => mocks.usage.mockResolvedValue({ usedBytes: 0, limitBytes: 0 })],
+    ["cannot be read", () => mocks.usage.mockRejectedValue(new Error("unreadable"))],
+    ["cannot be resolved", () => mocks.space.mockResolvedValue({ ok: false, detail: "unreadable" })],
+  ])("refuses when the space %s, and leaves no object or row", async (_name, arrange) => {
+    arrange();
+    const db = scriptedDb(script([{ table: "documents", op: "delete" }]));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await run(db.db);
+    log.mockRestore();
+    expect(result).toMatchObject({ ok: false, kind: _name === "does not fit" || _name === "has a limit of zero" ? "storage_quota_exceeded" : "copy_failed" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(mocks.uploadFile).not.toHaveBeenCalled();
+    expect(db.calls.some((c) => c.op === "rpc")).toBe(false);
+    db.done();
+  });
+
+  it("records the size it was asked with when the source row has none", async () => {
+    mocks.headFile.mockResolvedValue({ size: 600, etag: null, contentType: null });
+    const db = scriptedDb(script(unsealed, sourceRow({ size_bytes: null })));
+    expect(await run(db.db)).toMatchObject({ ok: true });
+    const version = (db.calls.find((c) => c.op === "rpc")?.args as { p_version: Record<string, unknown> }).p_version;
+    expect(version.size_bytes).toBe(600);
+    // The object's size is read once, not once to ask and once to record.
+    expect(mocks.headFile).toHaveBeenCalledTimes(1);
+    db.done();
+  });
+
+  it("takes the hash before anything is copied: a failed hash leaves no object and no row", async () => {
+    mocks.readStream.mockImplementation(() =>
+      Readable.from((async function* () { throw new Error("stream reset"); })()),
+    );
+    const db = scriptedDb(script([{ table: "documents", op: "delete" }], sourceRow({ content_sha256: null })));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await run(db.db);
+    log.mockRestore();
+    expect(result).toMatchObject({ ok: false, kind: "copy_failed" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(db.calls.some((c) => c.op === "rpc")).toBe(false);
+    db.done();
+  });
 });

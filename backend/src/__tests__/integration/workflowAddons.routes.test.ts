@@ -4,8 +4,9 @@ import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { auth, from, eq, headFile, downloadFile, uploadFile, deleteFile, docxToPdf, reportError } =
+const { auth, from, eq, headFile, downloadFile, uploadFile, deleteFile, docxToPdf, reportError, quotaLimit } =
   vi.hoisted(() => ({
+    quotaLimit: { bytes: 1_000_000 },
     // A test can make the session check wait, and see how many requests wait on it.
     auth: { gate: null as Promise<void> | null, waiting: 0 },
     from: vi.fn(),
@@ -56,6 +57,13 @@ vi.mock("../../lib/storage", async (importOriginal) => {
   };
 });
 
+// The room the imported assets fill: plenty unless a test says otherwise.
+vi.mock("../../lib/storageQuota", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/storageQuota")>()),
+  resolveUploadSpace: async () => ({ ok: true, space: { orgId: null, userId: "u1" } }),
+  storageSpaceUsage: async () => ({ usedBytes: 0, limitBytes: quotaLimit.bytes }),
+}));
+
 vi.mock("../../lib/convert", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/convert")>();
   return { ...actual, docxToPdf };
@@ -98,6 +106,7 @@ app.use("/workflow-addons", workflowAddonsRouter);
 describe("workflow add-on catalog routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    quotaLimit.bytes = 1_000_000;
     downloadFile.mockResolvedValue(
       new TextEncoder().encode("reference").buffer,
     );
@@ -255,6 +264,46 @@ describe("workflow add-on catalog routes", () => {
       }),
     ]);
     expect(docxToPdf).toHaveBeenCalledOnce();
+  });
+
+  it("answers 413 with the storage code when the assets do not fit, and copies nothing", async () => {
+    quotaLimit.bytes = 5;
+    const deletedWorkflows: unknown[] = [];
+    from.mockImplementation((table: string) => {
+      if (table === "mike_workflows") {
+        return singleQueryReturning({
+          id: "c0a7a1e1-0000-4000-8000-000000000001",
+          title: "Design Partner Draft",
+          type: "assistant",
+          prompt_md: "Draft from the precedent.",
+          columns_config: null,
+        });
+      }
+      if (table === "workflows") {
+        const query = singleQueryReturning({ id: "workflow-1", user_id: "u1" });
+        query.delete = vi.fn(() => (deletedWorkflows.push(table), query));
+        return query;
+      }
+      if (table === "mike_workflow_assets") {
+        return queryReturning([
+          { filename: "Precedent.docx", file_type: "docx", storage_path: "catalog/precedent.docx", size_bytes: 9 },
+        ]);
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    const response = await request(app).post(
+      "/workflow-addons/c0a7a1e1-0000-4000-8000-000000000001/import",
+    );
+
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({
+      code: "storage_quota_exceeded",
+      detail: expect.stringContaining("no storage space left"),
+    });
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(deletedWorkflows).toHaveLength(1);
   });
 
   it("answers a fixed 500 for a failed asset copy and reports it once, with the cause", async () => {

@@ -5,6 +5,15 @@ const mocks = vi.hoisted(() => ({
   workflowAccess: vi.fn(),
   docAccess: vi.fn(),
   copyFile: vi.fn(),
+  headFile: vi.fn(),
+  downloadFile: vi.fn(),
+  space: vi.fn(),
+  usage: vi.fn(),
+}));
+vi.mock("../../../lib/storageQuota", async (original) => ({
+  ...(await original<typeof import("../../../lib/storageQuota")>()),
+  resolveUploadSpace: mocks.space,
+  storageSpaceUsage: mocks.usage,
 }));
 vi.mock("../workflows.access", async (original) => ({
   ...(await original<typeof import("../workflows.access")>()),
@@ -24,6 +33,8 @@ vi.mock("../../../lib/documentVersions", async (original) => ({
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
   copyFile: mocks.copyFile,
+  headFile: mocks.headFile,
+  downloadFile: mocks.downloadFile,
 }));
 import { copyDocumentsToWorkflowAssets } from "../workflows.service";
 
@@ -53,6 +64,9 @@ beforeEach(() => {
   mocks.workflowAccess.mockResolvedValue({ allowEdit: true, workflow: { org_id: "org", type: "assistant" } });
   mocks.docAccess.mockResolvedValue({ ok: true });
   mocks.copyFile.mockResolvedValue(undefined);
+  mocks.headFile.mockResolvedValue({ size: 0, etag: null, contentType: null });
+  mocks.space.mockResolvedValue({ ok: true, space: { orgId: "org", userId: null } });
+  mocks.usage.mockResolvedValue({ usedBytes: 0, limitBytes: 1000 });
 });
 
 describe("copying documents into workflow assets", () => {
@@ -113,5 +127,130 @@ describe("a pasante's copy where nobody could approve it", () => {
     expect(result).toEqual({ ok: false, kind: "training_copy_needs_organization" });
     expect(fake.calls.some((c) => c.op === "rpc")).toBe(false);
     expect(fake.calls.some((c) => c.op === "delete")).toBe(true);
+  });
+});
+
+describe("copying documents into workflow assets asks the storage space", () => {
+  const params = { workflowId: "workflow", userId: "actor", userEmail: undefined, documentIds: ["doc"] };
+  const reads = () => [
+    { table: "documents", data: [source] },
+    { table: "documents", data: [source] },
+    { table: "organizations", data: [{ id: "org", kind: "team" }] },
+    { table: "document_versions", data: [sourceVersion] },
+  ];
+  it("copies in the store when the bytes fit exactly", async () => {
+    mocks.usage.mockResolvedValue({ usedBytes: 996, limitBytes: 1000 });
+    const fake = scriptedDb([
+      ...reads(),
+      { table: "documents", op: "insert" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "documents", data: [{ id: "created" }] },
+    ]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, params)).toMatchObject({ ok: true });
+    expect(mocks.space).toHaveBeenCalledWith(fake.db, expect.objectContaining({
+      purpose: "document_create", destination: { scope: "workflow", workflow_id: "workflow" },
+    }));
+    expect(mocks.copyFile).toHaveBeenCalledOnce();
+  });
+  it.each([
+    ["does not fit", () => mocks.usage.mockResolvedValue({ usedBytes: 997, limitBytes: 1000 }), "storage_quota_exceeded"],
+    ["cannot be read", () => mocks.usage.mockRejectedValue(new Error("unreadable")), "db_error"],
+  ])("refuses when the space %s: no object copied, no row written", async (_name, arrange, kind) => {
+    arrange();
+    const fake = scriptedDb([...reads(), { table: "documents", op: "delete" }]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, params)).toMatchObject({ ok: false, kind });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(fake.calls.some((c) => c.op === "insert" || c.op === "rpc")).toBe(false);
+  });
+  it("asks for the whole batch before the first object is copied", async () => {
+    const second = { ...source, id: "doc2", current_version_id: "v2" };
+    const versions = [sourceVersion, { ...sourceVersion, id: "v2", document_id: "doc2", size_bytes: 600 }];
+    mocks.usage.mockResolvedValue({ usedBytes: 0, limitBytes: 500 });
+    const fake = scriptedDb([
+      { table: "documents", data: [source, second] },
+      { table: "documents", data: [source, second] },
+      { table: "organizations", data: [{ id: "org", kind: "team" }] },
+      { table: "document_versions", data: versions },
+      { table: "documents", op: "delete" },
+    ]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, { ...params, documentIds: ["doc", "doc2"] }))
+      .toMatchObject({ ok: false, kind: "storage_quota_exceeded" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+  });
+  const batch = (n: number, sizes: (number | null)[]) => {
+    const docs = Array.from({ length: n }, (_, i) => ({ ...source, id: `doc${i}`, current_version_id: `v${i}` }));
+    const versions = docs.map((d, i) => ({ ...sourceVersion, id: `v${i}`, document_id: d.id, size_bytes: sizes[i] }));
+    return {
+      ids: docs.map((d) => d.id),
+      reads: [
+        { table: "documents", data: docs },
+        { table: "documents", data: docs },
+        { table: "organizations", data: [{ id: "org", kind: "team" }] },
+        { table: "document_versions", data: versions },
+      ],
+    };
+  };
+  it("asks the usage once for a batch of three, then copies all three", async () => {
+    const { ids, reads } = batch(3, [1, 1, 1]);
+    const fake = scriptedDb([
+      ...reads,
+      { table: "documents", op: "insert" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "documents", data: [{ id: "a" }, { id: "b" }, { id: "c" }] },
+    ]);
+    const result = await copyDocumentsToWorkflowAssets(fake.db, { ...params, documentIds: ids });
+    expect(result).toMatchObject({ ok: true });
+    expect(mocks.usage).toHaveBeenCalledOnce();
+    expect(mocks.space).toHaveBeenCalledOnce();
+    expect(mocks.copyFile).toHaveBeenCalledTimes(3);
+  });
+  it("counts a source whose row has no size with its object's own size", async () => {
+    const { ids, reads } = batch(2, [10, null]);
+    mocks.usage.mockResolvedValue({ usedBytes: 0, limitBytes: 500 });
+    mocks.headFile.mockResolvedValue({ size: 600, etag: null, contentType: null });
+    const fake = scriptedDb([...reads, { table: "documents", op: "delete" }]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, { ...params, documentIds: ids }))
+      .toMatchObject({ ok: false, kind: "storage_quota_exceeded" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+  });
+  it("refuses when the space cannot be resolved: no object copied, no row written", async () => {
+    mocks.space.mockResolvedValue({ ok: false, detail: "unreadable" });
+    const fake = scriptedDb([...reads(), { table: "documents", op: "delete" }]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, params)).toMatchObject({ ok: false, kind: "db_error" });
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(fake.calls.some((c) => c.op === "insert" || c.op === "rpc")).toBe(false);
+  });
+  it("copies in the store: the source object is not downloaded", async () => {
+    const fake = scriptedDb([
+      ...reads(),
+      { table: "documents", op: "insert" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "documents", data: [{ id: "created" }] },
+    ]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, params)).toMatchObject({ ok: true });
+    expect(mocks.copyFile).toHaveBeenCalledOnce();
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+  });
+  it("records the size it was asked with when a source row has none", async () => {
+    const { ids, reads: sizeless } = batch(1, [null]);
+    mocks.headFile.mockResolvedValue({ size: 600, etag: null, contentType: null });
+    const fake = scriptedDb([
+      ...sizeless,
+      { table: "documents", op: "insert" },
+      { table: "document_versions", data: [{ training_author_user_id: null, training_stage: null }] },
+      { rpc: "create_document_version" },
+      { table: "documents", data: [{ id: "created" }] },
+    ]);
+    expect(await copyDocumentsToWorkflowAssets(fake.db, { ...params, documentIds: ids })).toMatchObject({ ok: true });
+    const version = (fake.calls.find((c) => c.op === "rpc")?.args as { p_version: Record<string, unknown> }).p_version;
+    expect(version.size_bytes).toBe(600);
+    expect(mocks.headFile).toHaveBeenCalledTimes(1);
   });
 });

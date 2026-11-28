@@ -77,7 +77,7 @@ export { sweepStaleProcessingDocuments } from "./documents.maintenance";
 
 export { createDocumentVersion } from "./documents.lifecycle";
 export { handleDocumentCleanup } from "./documents.cleanupJobs";
-export { copyDocumentVersionFiles } from "./documents.copyFiles";
+export { askRoomForBatch, copyDocumentVersionFiles, sourceContentSha256, sourceStoredBytes } from "./documents.copyFiles";
 export { captureInlineDocumentCleanup, completeInlineDocumentCleanup } from "./documents.cleanupJobs";
 export { createDocumentVersions, activateDocumentVersion, updateDocumentVersion } from "./documents.lifecycle";
 export type { VersionAuthorship } from "./documents.lifecycle";

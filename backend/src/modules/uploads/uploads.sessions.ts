@@ -30,7 +30,12 @@ import {
   headFile,
   StorageOperationError,
 } from "../../lib/storage";
-import { quotaRpcArgs, type StorageSpace } from "../../lib/storageQuota";
+import {
+  quotaRpcArgs,
+  STORAGE_QUOTA_EXCEEDED_CODE,
+  STORAGE_QUOTA_EXCEEDED_DETAIL,
+  type StorageSpace,
+} from "../../lib/storageQuota";
 import type { Db } from "../../lib/supabase";
 import { sessionDestinationWritable } from "./uploads.access";
 import {
@@ -48,13 +53,6 @@ import {
   type UploadSessionFileRow,
   type UploadSessionRow,
 } from "./uploads.shared";
-
-/**
- * What the person is told when the space is full (the client shows its own
- * translation of the same sentence for the `storage_quota_exceeded` code).
- */
-const STORAGE_QUOTA_EXCEEDED_DETAIL =
-  "There is no storage space left here, so this can't be uploaded or saved. Everything you have stays available. Delete documents or earlier versions you no longer need, or ask your firm's administrator for more space.";
 
 // ---------------------------------------------------------------------------
 // Row loading
@@ -408,9 +406,9 @@ export async function createUploadSession(
           "You already have uploads in progress here. Wait for them to finish or cancel them, then try again.",
       });
     }
-    if (error.message?.includes("storage_quota_exceeded")) {
+    if (error.message?.includes(STORAGE_QUOTA_EXCEEDED_CODE)) {
       return failure(413, {
-        code: "storage_quota_exceeded",
+        code: STORAGE_QUOTA_EXCEEDED_CODE,
         detail: STORAGE_QUOTA_EXCEEDED_DETAIL,
       });
     }

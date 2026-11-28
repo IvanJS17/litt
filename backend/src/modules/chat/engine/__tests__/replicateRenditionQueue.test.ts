@@ -8,8 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 //   - flag on  → no LibreOffice in-band; copies are inserted without a
 //     rendition and one conversion job per copy fills it in
 
-const { downloadFile, uploadFile, docxToPdf, enqueueConversion, loadActiveVersion } = vi.hoisted(
+const { downloadFile, uploadFile, docxToPdf, enqueueConversion, loadActiveVersion, space } = vi.hoisted(
     () => ({
+        space: vi.fn(),
         loadActiveVersion: vi.fn(),
         downloadFile: vi.fn(),
         uploadFile: vi.fn(),
@@ -26,6 +27,14 @@ vi.mock("../../../../lib/storage", async (importOriginal) => {
         uploadFile: (...args: unknown[]) => uploadFile(...args),
     };
 });
+
+// These tests are about what is copied; the room the copies fill is asked in
+// workflowAssetReplication.test.ts.
+vi.mock("../../../../lib/storageQuota", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../../lib/storageQuota")>()),
+    resolveUploadSpace: (...args: unknown[]) => space(...args),
+    storageSpaceUsage: async () => ({ usedBytes: 0, limitBytes: 1_000_000 }),
+}));
 
 vi.mock("../../../../lib/documentVersions", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../../../../lib/documentVersions")>();
@@ -152,7 +161,13 @@ function makeStore(): DocStore {
     ]);
 }
 
-async function replicate(db: unknown, index: DocIndex, count?: number, orgId: string | null = "org") {
+async function replicate(
+    db: unknown,
+    index: DocIndex,
+    count?: number,
+    orgId: string | null = "org",
+    projectId: string | null = null,
+) {
     return runToolCalls(
         [
             {
@@ -176,7 +191,7 @@ async function replicate(db: unknown, index: DocIndex, count?: number, orgId: st
         index,
         undefined,
         undefined,
-        null,
+        projectId,
         undefined,
         { orgId },
     );
@@ -184,6 +199,7 @@ async function replicate(db: unknown, index: DocIndex, count?: number, orgId: st
 
 beforeEach(() => {
     vi.clearAllMocks();
+    space.mockResolvedValue({ ok: true, space: { orgId: null, userId: "u" } });
     loadActiveVersion.mockResolvedValue(null);
     downloadFile.mockResolvedValue(new TextEncoder().encode("docx").buffer);
     uploadFile.mockResolvedValue(undefined);
@@ -315,5 +331,45 @@ describe("replicate_document rendition path", () => {
             ok: false,
         });
         expect(versionRows).toEqual([]);
+    });
+});
+
+describe("replicate_document names the space its copies fill", () => {
+    it("asks the firm's space for a copy made in a firm chat without a project", async () => {
+        const { db } = replicationDb();
+
+        await replicate(db, {}, undefined, "org-7");
+
+        expect(space).toHaveBeenCalledTimes(1);
+        expect(space).toHaveBeenCalledWith(
+            db,
+            expect.objectContaining({
+                purpose: "document_create",
+                destination: { scope: "library", org_id: "org-7" },
+            }),
+        );
+    });
+
+    it("asks the project's space for a copy of a regular document made in a project chat", async () => {
+        loadActiveVersion.mockResolvedValue({
+            id: "source-version",
+            storage_path: "documents/source.docx",
+            pdf_storage_path: null,
+        });
+        const { db } = replicationDb();
+
+        await replicate(
+            db,
+            { [SOURCE_LABEL]: { document_id: "source-doc", filename: "Precedent.docx" } },
+            undefined,
+            "org-7",
+            "project-1",
+        );
+
+        expect(space).toHaveBeenCalledTimes(1);
+        expect(space).toHaveBeenCalledWith(
+            db,
+            expect.objectContaining({ destination: { scope: "project", project_id: "project-1" } }),
+        );
     });
 });

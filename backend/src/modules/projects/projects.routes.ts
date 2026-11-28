@@ -50,6 +50,11 @@ import {
   type ProjectAccessFailure,
 } from "./projects.service";
 
+import {
+  STORAGE_QUOTA_EXCEEDED_CODE,
+  STORAGE_QUOTA_EXCEEDED_DETAIL,
+} from "../../lib/storageQuota";
+
 export const projectsRouter = Router();
 
 // GET /projects
@@ -536,15 +541,15 @@ projectsRouter.post(
           return void res
             .status(500)
             .json({ detail: "Failed to update document" });
-        case "read_failed":
-          if (result.error) return void sendInternalError(res, result.error);
-          return void res
-            .status(500)
-            .json({ detail: "Failed to read source document bytes" });
         case "copy_failed":
           return void res
             .status(500)
             .json({ detail: "Failed to copy document" });
+        case "storage_quota_exceeded":
+          return void res.status(413).json({
+            code: STORAGE_QUOTA_EXCEEDED_CODE,
+            detail: STORAGE_QUOTA_EXCEEDED_DETAIL,
+          });
         case "db_error":
           return void sendInternalError(res, result.error);
       }

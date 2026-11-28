@@ -4,6 +4,10 @@
 // logic that stays here is the download-zip streaming loop, because it exists
 // to apply `res` backpressure to the object-storage reads.
 
+import {
+  STORAGE_QUOTA_EXCEEDED_CODE,
+  STORAGE_QUOTA_EXCEEDED_DETAIL,
+} from "../../lib/storageQuota";
 import { Router } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import type { Readable } from "node:stream";
@@ -357,6 +361,11 @@ documentsRouter.post(
             // failing dependency's code, instead of a bare detail string.
             if ("error" in result)
                 return void sendInternalError(res, result.error);
+            if (result.kind === "storage_quota_exceeded")
+                return void res.status(413).json({
+                    code: STORAGE_QUOTA_EXCEEDED_CODE,
+                    detail: STORAGE_QUOTA_EXCEEDED_DETAIL,
+                });
             const status =
                 result.kind === "source_not_owner" ||
                 result.kind === "target_forbidden"

@@ -6,12 +6,20 @@ const storage = vi.hoisted(() => ({
   uploadFile: vi.fn(),
 }));
 vi.mock("../../../lib/storage", () => storage);
-import { copyDocumentVersionFiles } from "../documents.copyFiles";
+const quota = vi.hoisted(() => ({ space: vi.fn(), usage: vi.fn() }));
+vi.mock("../../../lib/storageQuota", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/storageQuota")>()),
+  resolveUploadSpace: quota.space,
+  storageSpaceUsage: quota.usage,
+}));
+import { askRoomForBatch, copyDocumentVersionFiles } from "../documents.copyFiles";
 beforeEach(() => {
   vi.clearAllMocks();
   storage.copyFile.mockResolvedValue(undefined);
   storage.downloadFile.mockResolvedValue(null);
   storage.downloadFileIfAvailable.mockResolvedValue(null);
+  quota.space.mockResolvedValue({ ok: true, space: { orgId: null, userId: "u1" } });
+  quota.usage.mockResolvedValue({ usedBytes: 1500, limitBytes: 1000 });
 });
 const base = {
   source: {
@@ -23,6 +31,7 @@ const base = {
   pdfStoragePath: "copy-pdf",
   transport: "server" as const,
   rendition: "required" as const,
+  room: null,
 };
 
 describe("copying version objects", () => {
@@ -92,5 +101,24 @@ describe("copying version objects", () => {
     expect(storage.downloadFileIfAvailable).toHaveBeenCalledWith("src/rendition.pdf");
     expect(storage.downloadFile).not.toHaveBeenCalled();
     expect(storage.uploadFile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("asking the space for a batch", () => {
+  const room = { db: {} as never, userId: "u1", purpose: "document_create" as const, destination: { scope: "library" } };
+
+  it("asks nothing and reads nothing for a batch without sources", async () => {
+    quota.usage.mockRejectedValue(new Error("unreadable"));
+    quota.space.mockResolvedValue({ ok: false, detail: "unreadable" });
+    await expect(askRoomForBatch(room, [])).resolves.toBeDefined();
+    expect(quota.space).not.toHaveBeenCalled();
+    expect(quota.usage).not.toHaveBeenCalled();
+  });
+
+  it("asks for a batch whose sources add up to zero bytes", async () => {
+    await expect(
+      askRoomForBatch(room, [{ storage_path: "empty", size_bytes: 0 }]),
+    ).rejects.toThrow();
+    expect(quota.usage).toHaveBeenCalledTimes(1);
   });
 });
